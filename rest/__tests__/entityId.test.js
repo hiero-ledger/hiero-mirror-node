@@ -607,6 +607,18 @@ describe('SystemEntity', () => {
     expect(EntityId.systemEntity.feeCollectionAccount).toEqual(EntityId.of(shard, realm, 802));
   });
 
+  test('feeScheduleFile should return entity 0.0.111', () => {
+    expect(EntityId.systemEntity.feeScheduleFile).toEqual(EntityId.of(shard, realm, 111));
+  });
+
+  test('simpleFeeScheduleFile should return entity 0.0.113', () => {
+    expect(EntityId.systemEntity.simpleFeeScheduleFile).toEqual(EntityId.of(shard, realm, 113));
+  });
+
+  test('exchangeRateFile should return entity 0.0.112', () => {
+    expect(EntityId.systemEntity.exchangeRateFile).toEqual(EntityId.of(shard, realm, 112));
+  });
+
   test('networkAdminFeeAccount should return entity 0.0.98', () => {
     expect(EntityId.systemEntity.networkAdminFeeAccount).toEqual(EntityId.of(shard, realm, 98));
   });

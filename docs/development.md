@@ -14,8 +14,9 @@ versions:
 
 ```bash
 curl -s "https://get.sdkman.io" | bash
-sdk install java 25-tem
-sdk use java 25-tem
+sdk config
+# Modify sdkman_auto_env=true
+sdk env install
 java -version
 ```
 

@@ -15,5 +15,5 @@ public interface BlockStateProofHasher {
      * @param merklePaths - The merkle paths in a StateProof
      * @return The root hash calculated by following the merkle paths
      */
-    byte[] getRootHash(long blockNumber, final byte[] currentRootHash, List<MerklePath> merklePaths);
+    byte[] getRootHash(final long blockNumber, final byte[] currentRootHash, final List<MerklePath> merklePaths);
 }

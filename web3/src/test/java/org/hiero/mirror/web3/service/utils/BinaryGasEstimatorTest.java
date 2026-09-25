@@ -35,8 +35,8 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
     @CsvSource({
         "23850, 100000, 6",
         "35000, 15_000_000, 14",
-        "55555, 55555, 1",
-        "77777, 77778, 1",
+        "55555, 58333, 1",
+        "77777, 81666, 1",
         "1_000_000, 1_000_000_000, 20",
         "21000, 15_000_000, 14",
         "21000, 50_000_000, 15",
@@ -96,6 +96,24 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
         assertThat(iterations.get())
                 .as("iteration limit")
                 .isLessThanOrEqualTo(properties.getMaxGasEstimateRetriesCount());
+    }
+
+    @Test
+    void searchCapDoesNotExceedScriptUpperBound() {
+        // 1.20 * gasUsed is not an integer, so ceil() is strictly above the script bound.
+        final long gasUsed = 34187L;
+        final long high = 15_000_000L;
+        final double scriptUpperBound = gasUsed * 1.20;
+        final long ceilCap = (long) Math.ceil(scriptUpperBound);
+        final long floorCap = (long) Math.floor(scriptUpperBound);
+        assertThat(ceilCap).isGreaterThan((long) scriptUpperBound);
+
+        // Fail every probe so the search must return the 20% cap.
+        final long estimated =
+                binaryGasEstimator.search((_, _) -> {}, _ -> createTxnResult(gasUsed, false), gasUsed, high);
+
+        assertThat(estimated).isEqualTo(floorCap);
+        assertThat((double) estimated).isLessThanOrEqualTo(scriptUpperBound);
     }
 
     private EvmTransactionResult createTxnResult(final long gasUsed, final boolean isSuccessful) {

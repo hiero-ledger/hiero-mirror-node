@@ -63,6 +63,9 @@ func Load(manifestPath, dataDir string) (*Manifest, error) {
 		if filename == "" {
 			continue
 		}
+		if !filepath.IsLocal(filename) {
+			return nil, fmt.Errorf("manifest contains a suspicious filename %q - it should stay within the data directory", filename)
+		}
 
 		// Parse row count (may be "N/A")
 		var rowCount int64 = -1
@@ -91,7 +94,41 @@ func Load(manifestPath, dataDir string) (*Manifest, error) {
 
 	m.subdirs = detectSubdirs(dataDir, m.entries)
 
+	if err := m.validatePathsWithinDataDir(); err != nil {
+		return nil, err
+	}
+
 	return m, nil
+}
+
+// validatePathsWithinDataDir catches symlinks that point outside the data directory.
+// Missing files are skipped - those get reported per file during import.
+func (m *Manifest) validatePathsWithinDataDir() error {
+	base, err := resolveAbs(m.dataDir)
+	if err != nil {
+		return nil
+	}
+
+	for _, e := range m.entries {
+		target, err := resolveAbs(m.FullPath(e))
+		if err != nil {
+			continue
+		}
+		rel, err := filepath.Rel(base, target)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("manifest entry %q resolves outside the data directory - check for symbolic links", e.Filename)
+		}
+	}
+
+	return nil
+}
+
+func resolveAbs(path string) (string, error) {
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Abs(resolved)
 }
 
 // detectSubdirs checks whether data files are nested in table subdirectories

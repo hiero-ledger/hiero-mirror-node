@@ -1,0 +1,147 @@
+{
+  "description": "Contract results list orders a real contract_result and a synthetic-only contract log together by timestamp",
+  "setup": {
+    "contracts": [
+      {
+        "created_timestamp": "187654000123000",
+        "evm_address": "70f2b2914a2a4b783faefb75f459a580616fcb5e",
+        "file_id": "5001",
+        "key": [1, 1, 1],
+        "num": "5001",
+        "timestamp_range": "[187654000123000,)"
+      },
+      {
+        "created_timestamp": "187654000123000",
+        "evm_address": "1d8bfdc5d46dc4f61d6b6115972536ebe6a8854c",
+        "file_id": "6001",
+        "key": [1, 1, 1],
+        "num": "6001",
+        "timestamp_range": "[187654000123000,)"
+      }
+    ],
+    "contractresults": [
+      {
+        "amount": 20,
+        "bloom": [1, 1],
+        "call_result": [2, 2],
+        "consensus_timestamp": "187654000123456",
+        "contract_id": 5001,
+        "created_contract_ids": [],
+        "error_message": "",
+        "function_parameters": [3, 3],
+        "function_result": [4, 4],
+        "gas_consumed": 987,
+        "gas_limit": 1234556,
+        "gas_used": 987,
+        "payer_account_id": 5000,
+        "sender_id": 5000,
+        "transaction_hash": "0x185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "transaction_nonce": 0
+      }
+    ],
+    "contractlogs": [
+      {
+        "consensus_timestamp": "187654000123490",
+        "contract_id": 6001,
+        "root_contract_id": 6001,
+        "index": 0,
+        "payer_account_id": 5000,
+        "synthetic": true,
+        "transaction_hash": "0x985602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "transaction_index": 1
+      }
+    ],
+    "recordFiles": [
+      {
+        "index": 10,
+        "count": 1,
+        "hapi_version_major": "0",
+        "hapi_version_minor": "22",
+        "hapi_version_patch": "3",
+        "name": "2022-04-27T12_09_24.499938763Z.rcd",
+        "prev_hash": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "consensus_start": 187654000123000,
+        "consensus_end": 187654000123500,
+        "hash": "fbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1c",
+        "gas_used": 400000
+      }
+    ]
+  },
+  "url": "/api/v1/contracts/results?order=asc",
+  "responseStatus": 200,
+  "responseJson": {
+    "results": [
+      {
+        "access_list": [],
+        "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
+        "amount": 20,
+        "block_gas_used": 400000,
+        "block_hash": "0xfbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1c",
+        "block_number": 10,
+        "bloom": "0x0101",
+        "call_result": "0x0202",
+        "chain_id": "0x128",
+        "contract_id": "0.0.5001",
+        "created_contract_ids": [],
+        "error_message": null,
+        "failed_initcode": null,
+        "from": "0x0000000000000000000000000000000000001388",
+        "function_parameters": "0x0303",
+        "gas_consumed": 987,
+        "gas_limit": 1234556,
+        "gas_price": null,
+        "gas_used": 987,
+        "hash": "0x185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "max_fee_per_gas": null,
+        "max_priority_fee_per_gas": null,
+        "nonce": null,
+        "r": null,
+        "result": "SUCCESS",
+        "s": null,
+        "status": "0x1",
+        "timestamp": "187654.000123456",
+        "to": "0x0000000000000000000000000000000000001389",
+        "transaction_index": 1,
+        "type": 0,
+        "v": null
+      },
+      {
+        "access_list": [],
+        "address": "0x1d8bfdc5d46dc4f61d6b6115972536ebe6a8854c",
+        "amount": null,
+        "block_gas_used": 400000,
+        "block_hash": "0xfbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1c",
+        "block_number": 10,
+        "bloom": "0x",
+        "call_result": "0x",
+        "chain_id": "0x128",
+        "contract_id": "0.0.6001",
+        "created_contract_ids": [],
+        "error_message": null,
+        "failed_initcode": null,
+        "from": "0x0000000000000000000000000000000000001388",
+        "function_parameters": "0x",
+        "gas_consumed": null,
+        "gas_limit": 0,
+        "gas_price": null,
+        "gas_used": null,
+        "hash": "0x985602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "max_fee_per_gas": null,
+        "max_priority_fee_per_gas": null,
+        "nonce": null,
+        "r": null,
+        "result": "SUCCESS",
+        "s": null,
+        "status": "0x1",
+        "timestamp": "187654.000123490",
+        "to": "0x0000000000000000000000000000000000001771",
+        "transaction_index": 1,
+        "type": 0,
+        "v": null
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

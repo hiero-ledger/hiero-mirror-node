@@ -2,6 +2,7 @@
 
 import ContractResultDetailsViewModel from '../../viewmodel/contractResultDetailsViewModel.js';
 import EthereumTransaction from '../../model/ethereumTransaction.js';
+import config from '../../config';
 
 describe('ContractResultDetailsViewModel', () => {
   describe('_convertWeibarToTinybar', () => {
@@ -248,6 +249,48 @@ describe('ContractResultDetailsViewModel', () => {
       expect(viewModel.gas_price).toBe('0x4a817c80');
     });
 
+    test('pads short authorization address, r, and s', () => {
+      const originalFlagValue = config.response.enableDelegationAddress;
+      config.response.enableDelegationAddress = true;
+      try {
+        const ethTransaction = {
+          ...mockEthTransaction,
+          authorizationList: [
+            {
+              address: '0x01',
+              chain_id: '0x127',
+              nonce: 2,
+              r: '0x00ab',
+              s: '0x00cd',
+              y_parity: '0x0',
+            },
+          ],
+        };
+
+        const viewModel = new ContractResultDetailsViewModel(
+          mockContractResult,
+          mockRecordFile,
+          ethTransaction,
+          [],
+          [],
+          null
+        );
+
+        expect(viewModel.authorization_list).toEqual([
+          {
+            address: '0x0000000000000000000000000000000000000001',
+            chain_id: '0x127',
+            nonce: 2,
+            r: '0x00000000000000000000000000000000000000000000000000000000000000ab',
+            s: '0x00000000000000000000000000000000000000000000000000000000000000cd',
+            y_parity: '0x0',
+          },
+        ]);
+      } finally {
+        config.response.enableDelegationAddress = originalFlagValue;
+      }
+    });
+
     test('returns access_list from db jsonb', () => {
       const accessList = [
         {
@@ -272,6 +315,34 @@ describe('ContractResultDetailsViewModel', () => {
       expect(viewModel.access_list).toEqual([
         {
           address: '0xa02457e5dfd32bda5fc7e1f1b008aa5979568150',
+          storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
+        },
+      ]);
+    });
+
+    test('pads short access list address and storage keys', () => {
+      const ethTransaction = {
+        ...mockEthTransaction,
+        accessList: [
+          {
+            address: '0x01',
+            storage_keys: ['0x81'],
+          },
+        ],
+      };
+
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult,
+        mockRecordFile,
+        ethTransaction,
+        [],
+        [],
+        null
+      );
+
+      expect(viewModel.access_list).toEqual([
+        {
+          address: '0x0000000000000000000000000000000000000001',
           storage_keys: ['0x0000000000000000000000000000000000000000000000000000000000000081'],
         },
       ]);
@@ -532,6 +603,107 @@ describe('ContractResultDetailsViewModel', () => {
       const viewModel = new ContractResultDetailsViewModel(mockContractResult, mockRecordFile, null, [], [], null);
 
       expect(viewModel.access_list).toEqual([]);
+    });
+  });
+
+  describe('constructor with legacy signature_v', () => {
+    const mockContractResult = {
+      amount: 20,
+      bloom: Buffer.from([1, 1]),
+      callResult: Buffer.from([2, 2]),
+      consensusTimestamp: '187654000123456',
+      contractId: 5001,
+      createdContractIds: [],
+      errorMessage: '',
+      functionParameters: Buffer.from([3, 3]),
+      functionResult: Buffer.from([4, 4]),
+      gasConsumed: 987,
+      gasLimit: 1234556,
+      gasUsed: 987,
+      payerAccountId: 5000,
+      senderId: 6001,
+      transactionHash: Buffer.from('185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f', 'hex'),
+      transactionIndex: 1,
+      transactionNonce: 0,
+      transactionResult: 22,
+    };
+
+    const mockRecordFile = {
+      gasUsed: 400000,
+      hash: Buffer.from(
+        'fbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1c',
+        'hex'
+      ),
+      index: 10,
+    };
+
+    const baseEthTransaction = {
+      accessList: null,
+      callData: null,
+      chainId: '012a',
+      consensusTimestamp: '187654000123456',
+      gasLimit: 1234556,
+      gasPrice: 'ad78ebc5ac620000',
+      hash: '185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+      maxFeePerGas: 'cf38224400',
+      maxPriorityFeePerGas: '76be5e6c00',
+      nonce: 5,
+      payerAccountId: 5000,
+      recoveryId: 1,
+      signatureR: 'b5c21ab4dfd336e30ac2106cad4aa8888b1873a99bce35d50f64d2ec2cc5f6d9',
+      signatureS: '1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110',
+      toAddress: '0000000000000000000000000000000000001389',
+      value: '2e90edd000',
+    };
+
+    const createViewModel = (ethTransaction) =>
+      new ContractResultDetailsViewModel(mockContractResult, mockRecordFile, ethTransaction, [], [], null);
+
+    test('legacy type with numeric signature_v renders v as the quantity', () => {
+      const viewModel = createViewModel({
+        ...baseEthTransaction,
+        signatureV: Buffer.from('0274', 'hex'),
+        type: 0,
+      });
+
+      expect(viewModel.v).toBe(628n);
+    });
+
+    test.each([
+      ['empty Buffer', Buffer.alloc(0)],
+      ['null', null],
+      ['undefined', undefined],
+      ['empty array', []],
+      ['non-numeric string', '0x'],
+    ])('legacy type with %s signature_v does not throw and falls back to recovery_id', (_name, signatureV) => {
+      const viewModel = createViewModel({
+        ...baseEthTransaction,
+        signatureV,
+        type: 0,
+      });
+
+      expect(viewModel.v).toBe(1);
+    });
+
+    test('legacy type with empty signature_v and null recovery_id renders v as null', () => {
+      const viewModel = createViewModel({
+        ...baseEthTransaction,
+        recoveryId: null,
+        signatureV: Buffer.alloc(0),
+        type: 0,
+      });
+
+      expect(viewModel.v).toBeNull();
+    });
+
+    test('non-legacy type uses recovery_id even when signature_v is present', () => {
+      const viewModel = createViewModel({
+        ...baseEthTransaction,
+        signatureV: Buffer.from('1b', 'hex'),
+        type: 2,
+      });
+
+      expect(viewModel.v).toBe(1);
     });
   });
 });

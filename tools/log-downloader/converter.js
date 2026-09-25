@@ -2,13 +2,14 @@
 
 import fs from 'fs';
 
+import {MAX_BODY_LENGTH, PAYLOAD_SEPARATOR_TOKEN} from './constants.js';
 import {RestParser, Web3Parser} from './parser/index.js';
 
 class GoReplayConverter {
   static #CRLF = '\r\n';
   static #HTTP_HEADERS = ['Host: 127.0.0.1:80', 'User-Agent: curl/8.8.0', 'Accept: */*'].join(GoReplayConverter.#CRLF);
   static #LOG_INTERVAL = 5; // log every 5 seconds
-  static #PAYLOAD_SEPARATOR = '🐵🙈🙉\n';
+  static #PAYLOAD_SEPARATOR = `${PAYLOAD_SEPARATOR_TOKEN}\n`;
   static #PAYLOAD_TYPE = 1; // request
   static #REQUEST_DURATION = 0; // hardcode it to 0 since it's not used in replay
 
@@ -46,7 +47,7 @@ class GoReplayConverter {
 
   #convertLine(line) {
     const request = this.#parser.parse(line);
-    if (!request) {
+    if (!request || !isSafeRequest(request)) {
       return null;
     }
 
@@ -91,6 +92,30 @@ const getElapsed = (lastSeconds) => getEpochSeconds() - lastSeconds;
 const getEpochSeconds = () => Date.now() / 1000;
 
 const getUUID = () => Buffer.from(Array.from({length: 12}, randomByte)).toString('hex');
+
+const CONTROL_CHAR_CLASS = '\\p{Cc}';
+const CONTROL_CHARACTERS = new RegExp(`[${CONTROL_CHAR_CLASS}]`, 'gu');
+const HEADER_PATTERN = new RegExp(`^(Content-Length|Content-Type): [^${CONTROL_CHAR_CLASS}]+$`, 'u');
+const MAX_HEADER_LENGTH = 102_400;
+
+const hasControlCharacters = (value) => {
+  CONTROL_CHARACTERS.lastIndex = 0;
+  return CONTROL_CHARACTERS.test(value);
+};
+
+const isSafeRequest = ({body = '', headers = [], url, verb} = {}) =>
+  typeof verb === 'string' &&
+  typeof url === 'string' &&
+  !hasControlCharacters(verb) &&
+  !hasControlCharacters(url) &&
+  Array.isArray(headers) &&
+  headers.every(
+    (header) => typeof header === 'string' && header.length <= MAX_HEADER_LENGTH && HEADER_PATTERN.test(header)
+  ) &&
+  typeof body === 'string' &&
+  body.length <= MAX_BODY_LENGTH &&
+  !hasControlCharacters(body) &&
+  !body.includes(PAYLOAD_SEPARATOR_TOKEN);
 
 const randomByte = () => Math.floor(Math.random() * 256);
 

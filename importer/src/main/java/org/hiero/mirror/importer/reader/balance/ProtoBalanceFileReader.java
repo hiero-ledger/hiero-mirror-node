@@ -2,10 +2,12 @@
 
 package org.hiero.mirror.importer.reader.balance;
 
+import static org.hiero.mirror.common.util.DomainUtils.MAX_SIZE_FILE;
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
+
 import com.hedera.services.stream.proto.AllAccountBalances;
 import com.hedera.services.stream.proto.SingleAccountBalances;
 import jakarta.inject.Named;
-import java.io.IOException;
 import java.util.List;
 import lombok.CustomLog;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -16,7 +18,6 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
-import org.hiero.mirror.importer.exception.StreamFileReaderException;
 
 @CustomLog
 @Named
@@ -32,30 +33,26 @@ public class ProtoBalanceFileReader implements BalanceFileReader {
 
     @Override
     public AccountBalanceFile read(StreamFileData streamFileData) {
-        try {
-            var bytes = streamFileData.getDecompressedBytes();
-            var allAccountBalances = AllAccountBalances.parseFrom(bytes);
+        final var bytes = streamFileData.getDecompressedBytes();
+        final var allAccountBalances = parseProtobuf(bytes, AllAccountBalances::parseFrom, MAX_SIZE_FILE);
 
-            if (!allAccountBalances.hasConsensusTimestamp()) {
-                throw new InvalidStreamFileException("Missing required consensusTimestamp field");
-            }
-
-            long consensusTimestamp = DomainUtils.timestampInNanosMax(allAccountBalances.getConsensusTimestamp());
-            var items = allAccountBalances.getAllAccountsList().stream()
-                    .map(ab -> toAccountBalance(consensusTimestamp, ab))
-                    .toList();
-
-            AccountBalanceFile accountBalanceFile = new AccountBalanceFile();
-            accountBalanceFile.setBytes(streamFileData.getBytes());
-            accountBalanceFile.setConsensusTimestamp(consensusTimestamp);
-            accountBalanceFile.setFileHash(DigestUtils.sha384Hex(bytes));
-            accountBalanceFile.setItems(items);
-            accountBalanceFile.setLoadStart(streamFileData.getStreamFilename().getTimestamp());
-            accountBalanceFile.setName(streamFileData.getFilename());
-            return accountBalanceFile;
-        } catch (IOException e) {
-            throw new StreamFileReaderException(e);
+        if (!allAccountBalances.hasConsensusTimestamp()) {
+            throw new InvalidStreamFileException("Missing required consensusTimestamp field");
         }
+
+        final long consensusTimestamp = DomainUtils.timestampInNanosMax(allAccountBalances.getConsensusTimestamp());
+        final var items = allAccountBalances.getAllAccountsList().stream()
+                .map(ab -> toAccountBalance(consensusTimestamp, ab))
+                .toList();
+
+        final var accountBalanceFile = new AccountBalanceFile();
+        accountBalanceFile.setBytes(streamFileData.getBytes());
+        accountBalanceFile.setConsensusTimestamp(consensusTimestamp);
+        accountBalanceFile.setFileHash(DigestUtils.sha384Hex(bytes));
+        accountBalanceFile.setItems(items);
+        accountBalanceFile.setLoadStart(streamFileData.getStreamFilename().getTimestamp());
+        accountBalanceFile.setName(streamFileData.getFilename());
+        return accountBalanceFile;
     }
 
     private AccountBalance toAccountBalance(long consensusTimestamp, SingleAccountBalances balances) {

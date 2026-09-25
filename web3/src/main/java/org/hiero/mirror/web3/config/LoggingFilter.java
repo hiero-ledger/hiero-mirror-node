@@ -11,7 +11,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +29,7 @@ import org.springframework.web.util.WebUtils;
 class LoggingFilter extends OncePerRequestFilter {
 
     private static final String ACTUATOR_PATH = "/actuator/";
-    private static final Pattern DATA_PATTERN = Pattern.compile("(\"data\":.*?),(.+)(}[^}]*)$");
+    private static final String DATA_KEY = "\"data\":";
     private static final String LOG_FORMAT = "{} {} {} in {} ms : {} {} - {}";
     private static final String SUCCESS = "Success";
     private final Web3Properties web3Properties;
@@ -98,7 +97,7 @@ class LoggingFilter extends OncePerRequestFilter {
                 if (compressed.length() <= maxPayloadLogSize) {
                     content = compressed;
                 }
-            } catch (Exception e) {
+            } catch (Exception _) {
                 // Ignore
             }
         }
@@ -107,6 +106,7 @@ class LoggingFilter extends OncePerRequestFilter {
         if (log.isInfoEnabled()
                 && content.length() > maxPayloadLogSize
                 && status < HttpStatus.INTERNAL_SERVER_ERROR.value()) {
+            // Finally truncate to max payload size
             content = reorderFields(content);
             content = StringUtils.substring(content, 0, maxPayloadLogSize);
         }
@@ -129,8 +129,32 @@ class LoggingFilter extends OncePerRequestFilter {
         return SUCCESS;
     }
 
-    // Move data field to the end of the JSON so shorter fields are not truncated.
+    // Move the data field to the end of the JSON so shorter fields are not truncated.
     private String reorderFields(String json) {
-        return DATA_PATTERN.matcher(json).replaceFirst("$2,$1$3");
+        int keyStart = json.lastIndexOf(DATA_KEY);
+        if (keyStart < 0) {
+            return json;
+        }
+
+        int quoteStart = json.indexOf('"', keyStart + DATA_KEY.length());
+        if (quoteStart < 0) {
+            return json;
+        }
+
+        int valueEnd = json.indexOf('"', quoteStart + 1); // closing quote
+        if (valueEnd < 0 || valueEnd + 1 >= json.length() || json.charAt(valueEnd + 1) != ',') {
+            return json; // unterminated, or nothing follows that needs protecting
+        }
+
+        int lastBrace = json.lastIndexOf('}');
+        if (lastBrace <= valueEnd) {
+            return json;
+        }
+
+        return json.substring(0, keyStart)
+                + json.substring(valueEnd + 2, lastBrace)
+                + ','
+                + json.substring(keyStart, valueEnd + 1)
+                + json.substring(lastBrace);
     }
 }

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.web3j.crypto.Keys;
+import org.web3j.utils.Numeric;
 
 class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
     private static final byte[] MESSAGE_HASH = new Keccak.Digest256().digest("messageString".getBytes());
@@ -56,7 +57,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         // Generate new key pair
         final var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
-        var privateKey = keyPair.getPrivateKey().toByteArray();
+        var privateKey = Numeric.toBytesPadded(keyPair.getPrivateKey(), 32);
         // Sign the message hash with the private key
         final var signedMessage = signMessageECDSA(MESSAGE_HASH, privateKey);
         // Recover the EVM address from the private key and persist account with that address and public key
@@ -77,7 +78,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         // Generate new key pair
         final var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
-        var privateKey = keyPair.getPrivateKey().toByteArray();
+        var privateKey = Numeric.toBytesPadded(keyPair.getPrivateKey(), 32);
         // Sign the message hash with the private key
         final var signedMessage = signMessageECDSA(MESSAGE_HASH, privateKey);
         // Get the EVM address from the private key
@@ -203,7 +204,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         // Generate new key pair
         final var keyPair = Keys.createEcKeyPair();
         var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
-        var privateKey = keyPair.getPrivateKey().toByteArray();
+        var privateKey = Numeric.toBytesPadded(keyPair.getPrivateKey(), 32);
         // Sign the message hash with the private key
         final var signedMessage = signMessageECDSA(MESSAGE_HASH, privateKey);
 

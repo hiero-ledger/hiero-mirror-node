@@ -17,6 +17,7 @@ public final class Latency implements Comparable<Latency> {
 
     private volatile double average;
     private boolean initialized;
+    private volatile long lastMeasuredMillis;
     private final AtomicBoolean stale = new AtomicBoolean(false);
 
     @Override
@@ -25,7 +26,11 @@ public final class Latency implements Comparable<Latency> {
     }
 
     double getAverage() {
-        return stale.get() ? Double.MAX_VALUE : average;
+        return initialized && !stale.get() ? average : Double.MAX_VALUE;
+    }
+
+    boolean isFresh(final long maxAgeMillis) {
+        return initialized && !stale.get() && System.currentTimeMillis() - lastMeasuredMillis <= maxAgeMillis;
     }
 
     void markStale() {
@@ -34,6 +39,7 @@ public final class Latency implements Comparable<Latency> {
 
     synchronized void record(final long latency) {
         stale.set(false);
+        lastMeasuredMillis = System.currentTimeMillis();
         if (!initialized) {
             average = latency;
             initialized = true;

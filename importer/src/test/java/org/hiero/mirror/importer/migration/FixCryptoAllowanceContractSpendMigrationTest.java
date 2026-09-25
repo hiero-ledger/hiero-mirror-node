@@ -198,8 +198,10 @@ final class FixCryptoAllowanceContractSpendMigrationTest
     private void persistContractResult(long senderId, long consensusTimestamp) {
         domainBuilder
                 .contractResult()
-                .customize(cr ->
-                        cr.contractId(0x167).senderId(EntityId.of(senderId)).consensusTimestamp(consensusTimestamp))
+                .customize(cr -> cr.contractId(
+                                systemEntity.hederaTokenServiceContract().getId())
+                        .senderId(EntityId.of(senderId))
+                        .consensusTimestamp(consensusTimestamp))
                 .persist();
     }
 }

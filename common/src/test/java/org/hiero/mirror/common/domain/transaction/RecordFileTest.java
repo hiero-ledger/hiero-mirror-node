@@ -4,12 +4,21 @@ package org.hiero.mirror.common.domain.transaction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.hiero.mirror.common.domain.contract.Contract;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.data.util.Version;
 
-class RecordFileTest {
+final class RecordFileTest {
+
+    @Test
+    void initialStateIsEmpty() {
+        final var initialState = new RecordFile.InitialState();
+        assertThat(initialState.isEmpty()).isTrue();
+        initialState.contracts().add(new Contract());
+        assertThat(initialState.isEmpty()).isFalse();
+    }
 
     @Test
     void testHapiVersion() {

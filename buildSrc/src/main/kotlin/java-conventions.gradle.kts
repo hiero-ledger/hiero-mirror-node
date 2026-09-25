@@ -19,6 +19,8 @@ configurations.all {
     exclude(group = "commons-logging", "commons-logging")
     exclude(group = "io.swagger.parser.v3", module = "swagger-parser-v2-converter")
     exclude(group = "org.apache.logging.log4j", module = "log4j-core")
+    exclude(group = "org.apache.logging.log4j", module = "log4j-slf4j-impl")
+    exclude(group = "org.apache.logging.log4j", module = "log4j-slf4j2-impl")
     exclude(group = "org.jetbrains", module = "annotations")
     exclude(group = "org.slf4j", module = "slf4j-nop")
 }
@@ -83,6 +85,7 @@ tasks.withType<Test>().configureEach {
         listOf(
             "-javaagent:${mockitoAgent.get().asPath}", // JDK 21+ restricts libs attaching agents
             "-XX:+EnableDynamicAgentLoading", // Allow byte buddy for Mockito
+            "--enable-native-access=ALL-UNNAMED", // hedera-app 0.78+ libsecp256k1 FFM
         )
     maxHeapSize = "4096m"
     minHeapSize = "1024m"

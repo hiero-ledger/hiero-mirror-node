@@ -3,13 +3,14 @@
 package org.hiero.mirror.web3.validation;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 import jakarta.validation.Payload;
 import java.lang.annotation.Annotation;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-class HexValidatorTest {
+final class HexValidatorTest {
 
     private final HexValidator hexValidator = new HexValidator();
 
@@ -56,6 +57,13 @@ class HexValidatorTest {
     void invalid(int minLength, int maxLength, String value) {
         hexValidator.initialize(hex(minLength, maxLength));
         assertThat(hexValidator.isValid(value, null)).isFalse();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"-1,0", "10,1", "1,-1"})
+    void invalidBounds(int minLength, int maxLength) {
+        final var hexNegative = hex(minLength, maxLength);
+        assertThatThrownBy(() -> hexValidator.initialize(hexNegative)).isInstanceOf(IllegalArgumentException.class);
     }
 
     private Hex hex(int minLength, int maxLength) {

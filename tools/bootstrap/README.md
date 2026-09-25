@@ -61,7 +61,7 @@ internal/
 
 ### `init` - Initialize Database
 
-Creates the database, users, and applies the schema from `schema.sql.gz`.
+Creates the database, users, and applies the schema from `schema.sql.gz`. Checks that the database is reachable before touching anything, so bad credentials or TLS config fail fast with a clear error.
 
 ```bash
 ./bootstrap init -c bootstrap.env -d /path/to/data
@@ -122,6 +122,8 @@ export PGPORT="5432"
 export PGUSER="postgres"
 export PGPASSWORD="admin_password"
 export PGDATABASE="postgres"
+export PGSSLMODE="verify-full"        # "disable" only for trusted local/dev connections
+# export PGSSLROOTCERT="/path/to/ca.pem"  # needed for verify-full/verify-ca against a private CA
 export OWNER_PASSWORD="mirror_node_password"
 export REST_PASSWORD="mirror_rest_password"
 export GRPC_PASSWORD="mirror_grpc_password"

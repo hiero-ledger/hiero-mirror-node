@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.migration;
 
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.hederahashgraph.api.proto.java.Key;
 import jakarta.inject.Named;
@@ -259,7 +261,7 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
      */
     private boolean isAuthorizedByContractKey(ApprovalTransfer transfer, List<String> migrationErrors) {
         try {
-            var parsedKey = Key.parseFrom(transfer.key);
+            final var parsedKey = parseProtobuf(transfer.key, Key::parseFrom);
             // If the threshold is greater than one ignore it
             if (!parsedKey.hasThresholdKey() || parsedKey.getThresholdKey().getThreshold() > 1) {
                 // Update the isApproval value to true

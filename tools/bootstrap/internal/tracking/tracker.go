@@ -89,7 +89,7 @@ func (t *Tracker) save() error {
 
 	// Write to temp file and rename for atomic update
 	tmpPath := t.path + ".tmp"
-	if err := os.WriteFile(tmpPath, content, 0644); err != nil {
+	if err := os.WriteFile(tmpPath, content, 0600); err != nil {
 		return fmt.Errorf("failed to write temp file: %w", err)
 	}
 

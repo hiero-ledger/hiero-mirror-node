@@ -907,8 +907,9 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 .entity()
                 .customize(e -> e.type(EntityType.TOKEN).key(key.toByteArray()).timestampRange(historicalRange))
                 .persist();
-        final var tokenBuilder = domainBuilder.token().customize(t -> t.tokenId(tokenEntity.getId())
-                .type(tokenType));
+        final var tokenBuilder = domainBuilder
+                .token()
+                .customize(t -> t.tokenId(tokenEntity.getId()).type(tokenType).timestampRange(historicalRange));
 
         switch (keyType) {
             case ADMIN_KEY:

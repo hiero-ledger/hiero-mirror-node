@@ -56,7 +56,7 @@ abstract class AbstractContractReadableKVState<K, V> extends AbstractReadableKVS
         if (!EntityId.EMPTY.equals(entityId)) {
             final var aliasAddress = commonEntityAccessor.evmAddressFromId(entityId, context.getTimestamp());
             if (aliasAddress != null && !Address.ZERO.equals(aliasAddress)) {
-                return stateOverrides.get(Bytes.wrap(aliasAddress.toArrayUnsafe()));
+                return stateOverrides.get(Bytes.wrap(aliasAddress.getBytes().toArrayUnsafe()));
             }
         }
         return null;

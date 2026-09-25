@@ -33,10 +33,10 @@ class SelfDestructOperationTest extends AbstractContractCallServiceTest {
                 Bytes.wrap(recoverAddressFromPubKey(senderPublicKey.substring(2).toByteArray())));
         domainBuilder
                 .entity()
-                .customize(e -> e.evmAddress(senderAlias.toArray()))
+                .customize(e -> e.evmAddress(senderAlias.getBytes().toArray()))
                 .persist();
         final var contract = testWeb3jService.deployWithValue(SelfDestructContract::deploy, BigInteger.valueOf(1000));
-        final var result = contract.send_destructContract(senderAlias.toUnprefixedHexString())
+        final var result = contract.send_destructContract(senderAlias.getBytes().toUnprefixedHexString())
                 .send();
         assertThat(result.getContractAddress()).isEqualTo("0x");
     }
@@ -45,7 +45,8 @@ class SelfDestructOperationTest extends AbstractContractCallServiceTest {
     void testExecuteWithInvalidOwner() {
         final var systemAccountAddress = toAddress(700);
         final var contract = testWeb3jService.deployWithValue(SelfDestructContract::deploy, BigInteger.valueOf(1000));
-        final var functionCall = contract.send_destructContract(systemAccountAddress.toUnprefixedHexString());
+        final var functionCall =
+                contract.send_destructContract(systemAccountAddress.getBytes().toUnprefixedHexString());
 
         MirrorEvmTransactionException exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
         assertThat(exception.getMessage()).isEqualTo(INVALID_SOLIDITY_ADDRESS.name());

@@ -17,6 +17,7 @@ import java.util.List;
 import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.hiero.mirror.importer.ImporterProperties;
@@ -35,6 +36,7 @@ public class CommonDownloaderProperties {
 
     private final ImporterProperties importerProperties;
 
+    @ToString.Exclude
     private String accessKey;
 
     private Boolean allowAnonymousAccess;
@@ -61,10 +63,13 @@ public class CommonDownloaderProperties {
     @Min(2L)
     private long maxSize = 50L * 1024L * 1024L; // 50 MiB
 
+    @NotNull
     private String pathPrefix = "";
 
+    @NotNull
     private String region = "us-east-1";
 
+    @ToString.Exclude
     private String secretKey;
 
     @NotNull

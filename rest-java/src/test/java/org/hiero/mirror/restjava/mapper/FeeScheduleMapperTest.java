@@ -9,16 +9,19 @@ import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import com.hederahashgraph.api.proto.java.FeeComponents;
 import com.hederahashgraph.api.proto.java.FeeData;
-import com.hederahashgraph.api.proto.java.FeeSchedule;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.util.List;
+import org.hiero.hapi.support.fees.Extra;
+import org.hiero.hapi.support.fees.ExtraFeeDefinition;
+import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.NetworkFee;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.restjava.dto.SystemFile;
+import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,12 +30,9 @@ import org.springframework.data.domain.Sort;
 final class FeeScheduleMapperTest {
 
     private static final long CURRENT_RATE_EXPIRATION_SECONDS = 1759951090L;
-    private static final long FEE_SCHEDULE_EXPIRATION_SECONDS = 1759972690L;
     private static final long TIMESTAMP_BEFORE_EXPIRATION_NANOS =
             (CURRENT_RATE_EXPIRATION_SECONDS - 1) * DomainUtils.NANOS_PER_SECOND;
     private static final long TIMESTAMP_AFTER_EXPIRATION_NANOS = CURRENT_RATE_EXPIRATION_SECONDS * 1_000_000_000L + 1;
-    private static final long TIMESTAMP_AFTER_FEE_SCHEDULE_EXPIRATION_NANOS =
-            FEE_SCHEDULE_EXPIRATION_SECONDS * DomainUtils.NANOS_PER_SECOND + 1;
 
     private static final ExchangeRateSet EXCHANGE_RATE_SET = ExchangeRateSet.newBuilder()
             .setCurrentRate(ExchangeRate.newBuilder()
@@ -47,27 +47,27 @@ final class FeeScheduleMapperTest {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
     private CommonMapper commonMapper;
-    private FeeScheduleMapper mapper;
+    private FeeScheduleMapper feeScheduleMapper;
 
     @BeforeEach
     void setup() {
         commonMapper = new CommonMapperImpl();
-        mapper = new FeeScheduleMapperImpl(commonMapper);
+        feeScheduleMapper = new FeeScheduleMapperImpl(commonMapper);
     }
 
     @Test
-    void map() {
+    void mapSimpleFees() {
         // given
         final var fileData = domainBuilder
                 .fileData()
                 .customize(f -> f.consensusTimestamp(TIMESTAMP_BEFORE_EXPIRATION_NANOS))
                 .get();
-        final var feeSchedule = createFeeSchedule();
+        final var feeSchedule = createSimpleFeeSchedule(852L);
         final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
         final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
 
         // when
-        final var result = mapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
 
         // then
         assertThat(result)
@@ -82,25 +82,25 @@ final class FeeScheduleMapperTest {
                 .returns(71L, NetworkFee::getGas);
         assertThat(fees.get(1))
                 .returns("ContractCreate", NetworkFee::getTransactionType)
-                .returns(89L, NetworkFee::getGas);
+                .returns(71L, NetworkFee::getGas);
         assertThat(fees.get(2))
                 .returns("EthereumTransaction", NetworkFee::getTransactionType)
-                .returns(79L, NetworkFee::getGas);
+                .returns(71L, NetworkFee::getGas);
     }
 
     @Test
-    void mapWithDescOrder() {
+    void mapSimpleFeesWithDescOrder() {
         // given
         final var fileData = domainBuilder
                 .fileData()
                 .customize(f -> f.consensusTimestamp(TIMESTAMP_BEFORE_EXPIRATION_NANOS))
                 .get();
-        final var feeSchedule = createFeeSchedule();
+        final var feeSchedule = createSimpleFeeSchedule(852L);
         final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
         final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
 
         // when
-        final var result = mapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.DESC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.DESC);
 
         // then
         assertThat(result.getFees()).hasSize(3).isSortedAccordingTo((a, b) -> b.getTransactionType()
@@ -108,128 +108,17 @@ final class FeeScheduleMapperTest {
     }
 
     @Test
-    void convertGasPriceToTinyBars() {
-        final long defaultGasPrice = 852000L;
-        final int defaultHbars = 30000;
-        final int defaultCents = 851000;
-        assertThat(mapper.convertGasPriceToTinyBars(defaultGasPrice, defaultHbars, defaultCents))
-                .isEqualTo(30L);
-        assertThat(mapper.convertGasPriceToTinyBars((defaultCents * 2) - 1, defaultHbars, defaultCents))
-                .isEqualTo(59L);
-        assertThat(mapper.convertGasPriceToTinyBars(1L, defaultHbars, defaultCents))
-                .isEqualTo(1L);
-        assertThat(mapper.convertGasPriceToTinyBars(defaultGasPrice, defaultHbars, 0))
-                .isNull();
-    }
-
-    @Test
-    void mapFiltersOutUnsupportedTransactionTypes() {
-        // given
-        final var fileData = domainBuilder
-                .fileData()
-                .customize(f -> f.consensusTimestamp(TIMESTAMP_BEFORE_EXPIRATION_NANOS))
-                .get();
-        final var feeSchedule = CurrentAndNextFeeSchedule.newBuilder()
-                .setCurrentFeeSchedule(FeeSchedule.newBuilder()
-                        .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(FEE_SCHEDULE_EXPIRATION_SECONDS))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.ContractCall, 852000L))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.CryptoTransfer, 100000L))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.TokenCreate, 200000L))
-                        .addTransactionFeeSchedule(
-                                createTransactionFee(HederaFunctionality.EthereumTransaction, 953000L))
-                        .build())
-                .build();
-        final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
-        final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
-
-        // when
-        final var result = mapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
-
-        // then
-        assertThat(result.getFees())
-                .hasSize(2)
-                .extracting(NetworkFee::getTransactionType)
-                .containsExactly("ContractCall", "EthereumTransaction")
-                .doesNotContain("CryptoTransfer", "TokenCreate");
-    }
-
-    @Test
-    void mapFiltersOutTransactionSchedulesWithNoFees() {
-        // given
-        final var fileData = domainBuilder
-                .fileData()
-                .customize(f -> f.consensusTimestamp(TIMESTAMP_BEFORE_EXPIRATION_NANOS))
-                .get();
-        final var feeSchedule = CurrentAndNextFeeSchedule.newBuilder()
-                .setCurrentFeeSchedule(FeeSchedule.newBuilder()
-                        .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(FEE_SCHEDULE_EXPIRATION_SECONDS))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.ContractCall, 852000L))
-                        .addTransactionFeeSchedule(TransactionFeeSchedule.newBuilder()
-                                .setHederaFunctionality(HederaFunctionality.ContractCreate)
-                                .build())
-                        .addTransactionFeeSchedule(
-                                createTransactionFee(HederaFunctionality.EthereumTransaction, 953000L))
-                        .build())
-                .build();
-        final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
-        final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
-
-        // when
-        final var result = mapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
-
-        // then
-        assertThat(result.getFees())
-                .hasSize(2)
-                .extracting(NetworkFee::getTransactionType)
-                .containsExactly("ContractCall", "EthereumTransaction")
-                .doesNotContain("ContractCreate");
-    }
-
-    @Test
-    void mapFiltersOutTransactionSchedulesWithNoServiceData() {
-        // given
-        final var fileData = domainBuilder
-                .fileData()
-                .customize(f -> f.consensusTimestamp(TIMESTAMP_BEFORE_EXPIRATION_NANOS))
-                .get();
-        final var feeSchedule = CurrentAndNextFeeSchedule.newBuilder()
-                .setCurrentFeeSchedule(FeeSchedule.newBuilder()
-                        .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(FEE_SCHEDULE_EXPIRATION_SECONDS))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.ContractCall, 852000L))
-                        .addTransactionFeeSchedule(TransactionFeeSchedule.newBuilder()
-                                .setHederaFunctionality(HederaFunctionality.ContractCreate)
-                                .addFees(FeeData.newBuilder().build())
-                                .build())
-                        .addTransactionFeeSchedule(
-                                createTransactionFee(HederaFunctionality.EthereumTransaction, 953000L))
-                        .build())
-                .build();
-        final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
-        final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
-
-        // when
-        final var result = mapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
-
-        // then
-        assertThat(result.getFees())
-                .hasSize(2)
-                .extracting(NetworkFee::getTransactionType)
-                .containsExactly("ContractCall", "EthereumTransaction")
-                .doesNotContain("ContractCreate");
-    }
-
-    @Test
-    void mapEmpty() {
+    void mapSimpleFeesEmptyWhenGasExtraMissing() {
         // given
         final var fileData = domainBuilder
                 .fileData()
                 .customize(f -> f.consensusTimestamp(null))
                 .get();
-        final var feeScheduleFile = new SystemFile<>(fileData, CurrentAndNextFeeSchedule.getDefaultInstance());
+        final var feeScheduleFile = new SystemFile<>(fileData, FeeSchedule.DEFAULT);
         final var exchangeRateFile = new SystemFile<>(fileData, ExchangeRateSet.getDefaultInstance());
 
         // when
-        final var result = mapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
 
         // then
         assertThat(result)
@@ -238,94 +127,218 @@ final class FeeScheduleMapperTest {
     }
 
     @Test
-    void mapUsesNextRateWhenCurrentRateExpired() {
+    void mapSimpleFeesEmptyWhenExchangeRateCentEquivIsZero() {
+        // given
+        final var fileData = domainBuilder
+                .fileData()
+                .customize(f -> f.consensusTimestamp(TIMESTAMP_BEFORE_EXPIRATION_NANOS))
+                .get();
+        final var feeSchedule = createSimpleFeeSchedule(852L);
+        final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
+        final var zeroRateSet = ExchangeRateSet.newBuilder()
+                .setCurrentRate(ExchangeRate.newBuilder().setCentEquiv(0).setHbarEquiv(1))
+                .build();
+        final var exchangeRateFile = new SystemFile<>(fileData, zeroRateSet);
+
+        // when
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
+
+        // then
+        assertThat(result.getFees()).isEmpty();
+    }
+
+    @Test
+    void mapSimpleFeesUsesNextRateWhenCurrentRateExpired() {
         // given
         final var fileData = domainBuilder
                 .fileData()
                 .customize(f -> f.consensusTimestamp(TIMESTAMP_AFTER_EXPIRATION_NANOS))
                 .get();
-        final var feeSchedule = createFeeSchedule();
+        final var feeSchedule = createSimpleFeeSchedule(852L);
         final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
         final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
 
         // when
-        final var result = mapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
 
-        // then: with nextRate (centEquiv=15), gas 852000 -> 852*1/15=56, 1068000 -> 1068*1/15=71, 953000 -> 953*1/15=63
+        // then: with nextRate (centEquiv=15), gas 852 tinycents -> 852*1/15=56 for all types
         assertThat(result.getFees()).hasSize(3);
         assertThat(result.getFees().get(0))
                 .returns("ContractCall", NetworkFee::getTransactionType)
                 .returns(56L, NetworkFee::getGas);
         assertThat(result.getFees().get(1))
                 .returns("ContractCreate", NetworkFee::getTransactionType)
-                .returns(71L, NetworkFee::getGas);
+                .returns(56L, NetworkFee::getGas);
         assertThat(result.getFees().get(2))
                 .returns("EthereumTransaction", NetworkFee::getTransactionType)
-                .returns(63L, NetworkFee::getGas);
+                .returns(56L, NetworkFee::getGas);
     }
 
     @Test
-    void mapUsesNextFeeScheduleWhenCurrentFeeScheduleExpired() {
+    void mapCurrentAndNextFeeScheduleToFeeSchedule() {
+        // given
+        final var legacyFeeSchedule = createLegacyFeeSchedule(CURRENT_RATE_EXPIRATION_SECONDS + 1000L);
+
+        // when
+        final var simpleFeeSchedule = feeScheduleMapper.map(legacyFeeSchedule, TIMESTAMP_BEFORE_EXPIRATION_NANOS);
+
+        // then: 852000 legacy gas / 1000 = 852 tinycents
+        assertThat(simpleFeeSchedule.extras()).hasSize(1);
+        final var extra = simpleFeeSchedule.extras().getFirst();
+        assertThat(extra.name()).isEqualTo(Extra.GAS);
+        assertThat(extra.fee()).isEqualTo(852L);
+    }
+
+    @Test
+    void mapCurrentAndNextFeeScheduleToFeeScheduleUsesNextScheduleWhenExpired() {
+        // given
+        final var legacyFeeSchedule = CurrentAndNextFeeSchedule.newBuilder()
+                .setCurrentFeeSchedule(com.hederahashgraph.api.proto.java.FeeSchedule.newBuilder()
+                        .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(CURRENT_RATE_EXPIRATION_SECONDS - 100))
+                        .addTransactionFeeSchedule(
+                                createTransactionFeeSchedule(HederaFunctionality.ContractCall, 1000000L)))
+                .setNextFeeSchedule(com.hederahashgraph.api.proto.java.FeeSchedule.newBuilder()
+                        .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(CURRENT_RATE_EXPIRATION_SECONDS + 1000))
+                        .addTransactionFeeSchedule(
+                                createTransactionFeeSchedule(HederaFunctionality.ContractCall, 852000L)))
+                .build();
+
+        // when: timestamp is after expiration of current schedule
+        final var simpleFeeSchedule = feeScheduleMapper.map(legacyFeeSchedule, TIMESTAMP_AFTER_EXPIRATION_NANOS);
+
+        // then: 852000 legacy gas / 1000 = 852 tinycents from next fee schedule
+        assertThat(simpleFeeSchedule.extras()).hasSize(1);
+        final var extra = simpleFeeSchedule.extras().getFirst();
+        assertThat(extra.name()).isEqualTo(Extra.GAS);
+        assertThat(extra.fee()).isEqualTo(852L);
+    }
+
+    @Test
+    void mapCurrentAndNextFeeScheduleReturnsDefaultWhenNoGasFeeFound() {
+        // given: fee schedule with no contract/ethereum functionalities
+        final var legacyFeeSchedule = CurrentAndNextFeeSchedule.newBuilder()
+                .setCurrentFeeSchedule(com.hederahashgraph.api.proto.java.FeeSchedule.newBuilder()
+                        .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(CURRENT_RATE_EXPIRATION_SECONDS + 1000))
+                        .addTransactionFeeSchedule(
+                                createTransactionFeeSchedule(HederaFunctionality.CryptoTransfer, 852000L)))
+                .build();
+
+        // when
+        final var simpleFeeSchedule = feeScheduleMapper.map(legacyFeeSchedule, TIMESTAMP_BEFORE_EXPIRATION_NANOS);
+
+        // then
+        assertThat(simpleFeeSchedule).isEqualTo(FeeSchedule.DEFAULT);
+    }
+
+    @Test
+    void mapLegacyFeeScheduleViaMapperConversion() {
         // given
         final var fileData = domainBuilder
                 .fileData()
-                .customize(f -> f.consensusTimestamp(TIMESTAMP_AFTER_FEE_SCHEDULE_EXPIRATION_NANOS))
+                .customize(f -> f.consensusTimestamp(TIMESTAMP_BEFORE_EXPIRATION_NANOS))
                 .get();
-        final var feeSchedule = CurrentAndNextFeeSchedule.newBuilder()
-                .setCurrentFeeSchedule(FeeSchedule.newBuilder()
-                        .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(FEE_SCHEDULE_EXPIRATION_SECONDS))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.ContractCall, 100000L))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.ContractCreate, 200000L))
-                        .addTransactionFeeSchedule(
-                                createTransactionFee(HederaFunctionality.EthereumTransaction, 300000L))
-                        .build())
-                .setNextFeeSchedule(FeeSchedule.newBuilder()
-                        .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(1760000000L))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.ContractCall, 852000L))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.ContractCreate, 1068000L))
-                        .addTransactionFeeSchedule(
-                                createTransactionFee(HederaFunctionality.EthereumTransaction, 953000L))
-                        .build())
-                .build();
-        final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
+        final var legacyFeeSchedule = createLegacyFeeSchedule(CURRENT_RATE_EXPIRATION_SECONDS + 1000L);
+        final var convertedSimpleFeeSchedule =
+                feeScheduleMapper.map(legacyFeeSchedule, TIMESTAMP_BEFORE_EXPIRATION_NANOS);
+
+        final var feeScheduleFile = new SystemFile<>(fileData, convertedSimpleFeeSchedule);
         final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
 
         // when
-        final var result = mapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.ASC);
 
-        // then: next fee schedule (gas 852000, 1068000, 953000) and next rate (centEquiv=15) both used
+        // then
+        assertThat(result)
+                .returns(
+                        commonMapper.mapTimestamp(fileData.getConsensusTimestamp()), NetworkFeesResponse::getTimestamp);
         assertThat(result.getFees()).hasSize(3);
-        assertThat(result.getFees().get(0))
+
+        final var fees = result.getFees();
+        // 852000 legacy gas / 1000 = 852 tinycents; 852 * 1 / 12 = 71 tinybars
+        assertThat(fees.get(0))
                 .returns("ContractCall", NetworkFee::getTransactionType)
-                .returns(56L, NetworkFee::getGas);
-        assertThat(result.getFees().get(1))
+                .returns(71L, NetworkFee::getGas);
+        assertThat(fees.get(1))
                 .returns("ContractCreate", NetworkFee::getTransactionType)
                 .returns(71L, NetworkFee::getGas);
-        assertThat(result.getFees().get(2))
+        assertThat(fees.get(2))
                 .returns("EthereumTransaction", NetworkFee::getTransactionType)
-                .returns(63L, NetworkFee::getGas);
+                .returns(71L, NetworkFee::getGas);
     }
 
-    private CurrentAndNextFeeSchedule createFeeSchedule() {
-        return CurrentAndNextFeeSchedule.newBuilder()
-                .setCurrentFeeSchedule(FeeSchedule.newBuilder()
-                        .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(FEE_SCHEDULE_EXPIRATION_SECONDS))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.ContractCall, 852000L))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.ContractCreate, 1068000L))
-                        .addTransactionFeeSchedule(
-                                createTransactionFee(HederaFunctionality.EthereumTransaction, 953000L))
-                        .build())
-                .setNextFeeSchedule(FeeSchedule.newBuilder()
-                        .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(1760000000L))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.ContractCall, 852000L))
-                        .addTransactionFeeSchedule(createTransactionFee(HederaFunctionality.ContractCreate, 1068000L))
-                        .addTransactionFeeSchedule(
-                                createTransactionFee(HederaFunctionality.EthereumTransaction, 953000L))
+    @Test
+    void mapUsesBoundUpperBoundForReferenceTimestamp() {
+        // given
+        final var fileData = domainBuilder
+                .fileData()
+                .customize(f -> f.consensusTimestamp(TIMESTAMP_BEFORE_EXPIRATION_NANOS))
+                .get();
+        final var feeSchedule = createSimpleFeeSchedule(852L);
+        final var feeScheduleFile = new SystemFile<>(fileData, feeSchedule);
+        final var exchangeRateFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
+
+        // bound upper timestamp forces AFTER_EXPIRATION rate calculation
+        final var timestampParam = new TimestampParameter(
+                org.hiero.mirror.restjava.common.RangeOperator.EQ, TIMESTAMP_AFTER_EXPIRATION_NANOS);
+        final var bound = Bound.of(new TimestampParameter[] {timestampParam}, "timestamp", null);
+
+        // when
+        final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, bound, Sort.Direction.ASC);
+
+        // then: nextRate is used due to upper bound
+        assertThat(result.getFees().getFirst().getGas()).isEqualTo(56L);
+    }
+
+    @Test
+    void convertGasPriceToTinyBars() {
+        final long defaultGasPriceTinycents = 852L;
+        final int defaultHbars = 30000;
+        final int defaultCents = 851000;
+        final var exchangeRate = ExchangeRate.newBuilder()
+                .setHbarEquiv(defaultHbars)
+                .setCentEquiv(defaultCents)
+                .build();
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(defaultGasPriceTinycents, exchangeRate))
+                .isEqualTo(30L);
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars((defaultCents * 2L) - 1, exchangeRate))
+                .isEqualTo(59999L);
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(1L, exchangeRate))
+                .isEqualTo(1L);
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(
+                        defaultGasPriceTinycents,
+                        exchangeRate.toBuilder().setCentEquiv(0).build()))
+                .isNull();
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(null, exchangeRate))
+                .isNull();
+        assertThat(feeScheduleMapper.convertGasPriceToTinyBars(defaultGasPriceTinycents, null))
+                .isNull();
+    }
+
+    private FeeSchedule createSimpleFeeSchedule(long gasPrice) {
+        return FeeSchedule.newBuilder()
+                .extras(ExtraFeeDefinition.newBuilder()
+                        .name(Extra.GAS)
+                        .fee(gasPrice)
                         .build())
                 .build();
     }
 
-    private static TransactionFeeSchedule createTransactionFee(HederaFunctionality functionality, long gas) {
+    private CurrentAndNextFeeSchedule createLegacyFeeSchedule(long expirySeconds) {
+        final var feeSchedule = com.hederahashgraph.api.proto.java.FeeSchedule.newBuilder()
+                .setExpiryTime(TimestampSeconds.newBuilder().setSeconds(expirySeconds))
+                .addTransactionFeeSchedule(createTransactionFeeSchedule(HederaFunctionality.ContractCall, 852000L))
+                .addTransactionFeeSchedule(createTransactionFeeSchedule(HederaFunctionality.ContractCreate, 852000L))
+                .addTransactionFeeSchedule(
+                        createTransactionFeeSchedule(HederaFunctionality.EthereumTransaction, 852000L))
+                .build();
+
+        return CurrentAndNextFeeSchedule.newBuilder()
+                .setCurrentFeeSchedule(feeSchedule)
+                .setNextFeeSchedule(feeSchedule)
+                .build();
+    }
+
+    private TransactionFeeSchedule createTransactionFeeSchedule(HederaFunctionality functionality, long gas) {
         return TransactionFeeSchedule.newBuilder()
                 .setHederaFunctionality(functionality)
                 .addFees(FeeData.newBuilder()

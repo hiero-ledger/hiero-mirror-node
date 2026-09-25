@@ -3,12 +3,14 @@
 package org.hiero.mirror.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ContractID;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.stream.Stream;
@@ -372,5 +374,101 @@ final class LogsBloomFilterTest {
         topics.forEach(logsBloomFilter::insertTopic);
 
         assertThat(logsBloomFilter.toArrayUnsafe()).isEqualTo(expected);
+    }
+
+    private static Stream<Arguments> staticOrAbsentAndFullCombinations() {
+        final var full = hex(BLOOM1);
+        return Stream.of(
+                Arguments.of(null, null),
+                Arguments.of(null, LogsBloomFilter.EMPTY),
+                Arguments.of(null, full),
+                Arguments.of(LogsBloomFilter.EMPTY, null),
+                Arguments.of(LogsBloomFilter.EMPTY, LogsBloomFilter.EMPTY),
+                Arguments.of(LogsBloomFilter.EMPTY, full),
+                Arguments.of(full, null),
+                Arguments.of(full, LogsBloomFilter.EMPTY),
+                Arguments.of(full, hex(BLOOM2)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("staticOrAbsentAndFullCombinations")
+    void staticOrNeverThrowsForNullEmptyAndFullBlooms(byte[] source, byte[] target) {
+        final var targetCopy = target == null ? null : target.clone();
+        assertThatNoException().isThrownBy(() -> LogsBloomFilter.or(source, targetCopy));
+    }
+
+    @Test
+    void staticOrEmptyTargetWithFullSourceReturnsCopyOfSource() {
+        final var source = hex(BLOOM1);
+        final var result = LogsBloomFilter.or(source, LogsBloomFilter.EMPTY);
+
+        assertThat(result).hasSize(LogsBloomFilter.BYTE_SIZE).isEqualTo(source).isNotSameAs(source);
+        assertThat(LogsBloomFilter.EMPTY).isEmpty();
+    }
+
+    @Test
+    void staticOrNullTargetWithFullSourceReturnsCopyOfSource() {
+        final var source = hex(BLOOM1);
+        final var result = LogsBloomFilter.or(source, null);
+
+        assertThat(result).hasSize(LogsBloomFilter.BYTE_SIZE).isEqualTo(source).isNotSameAs(source);
+    }
+
+    @Test
+    void staticOrNullSourceReturnsFullTargetUnchanged() {
+        final var target = hex(BLOOM1);
+        assertThat(LogsBloomFilter.or(null, target)).isSameAs(target);
+        assertThat(LogsBloomFilter.or(LogsBloomFilter.EMPTY, target)).isSameAs(target);
+    }
+
+    @Test
+    void staticOrBothAbsentReturnsEmpty() {
+        assertThat(LogsBloomFilter.or(null, null)).isSameAs(LogsBloomFilter.EMPTY);
+        assertThat(LogsBloomFilter.or(null, LogsBloomFilter.EMPTY)).isSameAs(LogsBloomFilter.EMPTY);
+        assertThat(LogsBloomFilter.or(LogsBloomFilter.EMPTY, null)).isSameAs(LogsBloomFilter.EMPTY);
+        assertThat(LogsBloomFilter.or(LogsBloomFilter.EMPTY, LogsBloomFilter.EMPTY))
+                .isSameAs(LogsBloomFilter.EMPTY);
+    }
+
+    @Test
+    void staticOrBothFullMutatesTargetWithTrueAggregate() {
+        final var source = hex(BLOOM1);
+        final var target = hex(BLOOM2);
+        final var expected = new LogsBloomFilter();
+        expected.or(source);
+        expected.or(target.clone());
+
+        final var result = LogsBloomFilter.or(source, target);
+
+        assertThat(result).isSameAs(target).isEqualTo(expected.toArrayUnsafe());
+    }
+
+    @Test
+    void staticOrShortSourceIntoFullTargetDoesNotThrow() {
+        final var source = new byte[] {1, 2, 3};
+        final var target = new byte[LogsBloomFilter.BYTE_SIZE];
+
+        final var result = LogsBloomFilter.or(source, target);
+
+        assertThat(result).isSameAs(target);
+        assertThat(result[0]).isEqualTo((byte) 1);
+        assertThat(result[1]).isEqualTo((byte) 2);
+        assertThat(result[2]).isEqualTo((byte) 3);
+    }
+
+    @Test
+    void staticOrFullSourceIntoShortTargetReturns256ByteAggregate() {
+        final var source = hex(BLOOM1);
+        final var target = new byte[] {1};
+
+        final var result = LogsBloomFilter.or(source, target);
+
+        assertThat(result)
+                .hasSize(LogsBloomFilter.BYTE_SIZE)
+                .isNotSameAs(source)
+                .isNotSameAs(target);
+        assertThat(result[0]).isEqualTo((byte) (source[0] | 1));
+        assertThat(Arrays.copyOfRange(result, 1, result.length))
+                .isEqualTo(Arrays.copyOfRange(source, 1, source.length));
     }
 }

@@ -4,6 +4,7 @@ package org.hiero.mirror.restjava;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,13 +13,30 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Data;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.convert.DataSizeUnit;
+import org.springframework.util.unit.DataSize;
+import org.springframework.util.unit.DataUnit;
 import org.springframework.validation.annotation.Validated;
 
 @Data
 @Validated
 @ConfigurationProperties("hiero.mirror.rest-java")
 public class RestJavaProperties {
+
+    @DataSizeUnit(DataUnit.KILOBYTES)
+    @NotNull
+    private DataSize maxRequestBodySize = DataSize.ofKilobytes(130);
+
+    @AssertTrue(message = "maxRequestBodySize must be positive")
+    private boolean isMaxRequestBodySizePositive() {
+        return !maxRequestBodySize.isNegative();
+    }
+
+    @NotNull
+    private HederaNetwork network = HederaNetwork.TESTNET;
 
     @NotNull
     @Valid
@@ -63,5 +81,18 @@ public class RestJavaProperties {
         public Map<String, String> getHeadersForPath(String apiPath) {
             return apiPath == null ? defaults : path.getOrDefault(apiPath, defaults);
         }
+    }
+
+    @Getter
+    @RequiredArgsConstructor
+    public enum HederaNetwork {
+        DEMO(0),
+        MAINNET(1779296400389248896L),
+        PREVIEWNET(0),
+        TESTNET(1777482002529719510L),
+        OTHER(0);
+
+        // The consensus timestamp at which consensus nodes enabled simple fees on the network
+        private final long simpleFeesTimestamp;
     }
 }

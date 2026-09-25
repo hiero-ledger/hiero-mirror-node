@@ -77,7 +77,8 @@ class ConsensusUpdateTopicTransactionHandlerTest extends AbstractTransactionHand
         var autoRenewAccountId = EntityId.of(10L);
         var expectedEntityTransactions = getExpectedEntityTransactions(
                 recordItem, transaction, autoRenewAccountId, EntityId.of(feeCollector), EntityId.of(feeTokenId));
-        when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.of(autoRenewAccountId));
+        when(entityIdService.lookup(body.getAutoRenewAccount())).thenReturn(Optional.of(autoRenewAccountId));
+        when(entityIdService.lookup(feeCollector)).thenReturn(Optional.of(EntityId.of(feeCollector)));
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -106,6 +107,51 @@ class ConsensusUpdateTopicTransactionHandlerTest extends AbstractTransactionHand
                 body.getFeeExemptKeyList().toByteArray(),
                 body.getFeeScheduleKey().toByteArray(),
                 body.getSubmitKey().toByteArray());
+        assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
+    }
+
+    @Test
+    void updateTransactionSuccessfulFeeCollectorAlias() {
+        // given a custom fee whose collector is referenced by alias
+        final var feeCollectorAlias = recordItemBuilder.accountId().toBuilder()
+                .setAlias(DomainUtils.fromBytes(domainBuilder.key()))
+                .build();
+        final var recordItem = recordItemBuilder
+                .consensusUpdateTopic()
+                .transactionBody(b -> b.clearCustomFees()
+                        .setCustomFees(FixedCustomFeeList.newBuilder()
+                                .addFees(FixedCustomFee.newBuilder()
+                                        .setFixedFee(FixedFee.newBuilder().setAmount(200L))
+                                        .setFeeCollectorAccountId(feeCollectorAlias))))
+                .build();
+        final var body = recordItem.getTransactionBody().getConsensusUpdateTopic();
+        final var topicId = EntityId.of(body.getTopicID());
+        final var timestamp = recordItem.getConsensusTimestamp();
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp).entityId(topicId))
+                .get();
+        final var autoRenewAccountId = EntityId.of(10L);
+        final var feeCollectorId = EntityId.of(11L);
+        when(entityIdService.lookup(body.getAutoRenewAccount())).thenReturn(Optional.of(autoRenewAccountId));
+        when(entityIdService.lookup(feeCollectorAlias)).thenReturn(Optional.of(feeCollectorId));
+        final var expectedEntityTransactions =
+                getExpectedEntityTransactions(recordItem, transaction, autoRenewAccountId, feeCollectorId);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then the alias is resolved to the looked-up collector id
+        final var expectedCustomFee = CustomFee.builder()
+                .entityId(topicId.getId())
+                .fixedFees(List.of(org.hiero.mirror.common.domain.token.FixedFee.builder()
+                        .amount(200L)
+                        .collectorAccountId(feeCollectorId)
+                        .build()))
+                .timestampRange(Range.atLeast(timestamp))
+                .build();
+        verify(entityListener).onCustomFee(assertArg(c -> assertThat(c).isEqualTo(expectedCustomFee)));
+        assertEntity(timestamp, topicId, autoRenewAccountId.getId());
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
     }
 

@@ -37,6 +37,7 @@ import org.hiero.mirror.rest.model.RegisteredNode;
 import org.hiero.mirror.rest.model.RegisteredNodesResponse;
 import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.common.LinkFactory;
+import org.hiero.mirror.restjava.common.ProtobufParser;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.common.SupplyType;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
@@ -116,7 +117,7 @@ final class NetworkController {
             @RequestParam(name = HIGH_VOLUME_THROTTLE, defaultValue = "0", required = false) @Min(0) @Max(10000)
                     int highVolumeThrottle) {
         try {
-            final var transaction = Transaction.PROTOBUF.parse(Bytes.wrap(body));
+            final var transaction = ProtobufParser.parse(Transaction.PROTOBUF, Bytes.wrap(body));
             return toResponse(feeEstimationService.estimateFees(transaction, mode, highVolumeThrottle));
         } catch (ParseException e) {
             throw new IllegalArgumentException("Unable to parse transaction", e);

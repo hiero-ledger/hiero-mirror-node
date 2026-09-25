@@ -1465,7 +1465,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .get(eq(accountId));
 
             final var stateOverride = new StateOverride();
-            stateOverride.setAddress(unhex ? accountAddress.toUnprefixedHexString() : accountAddress.toHexString());
+            stateOverride.setAddress(
+                    unhex ? accountAddress.getBytes().toUnprefixedHexString() : accountAddress.toHexString());
             stateOverride.setNonce("0x2a");
             final var params = contractExecutionParametersBuilder(
                             BlockType.LATEST,

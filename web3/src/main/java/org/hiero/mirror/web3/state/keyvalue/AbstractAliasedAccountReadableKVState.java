@@ -7,6 +7,7 @@ import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
 import static org.hiero.mirror.web3.state.Utils.EMPTY_KEY_LIST;
+import static org.hiero.mirror.web3.state.Utils.ZERO_ADDRESS;
 import static org.hiero.mirror.web3.state.Utils.parseKey;
 
 import com.hedera.hapi.node.base.ContractID;
@@ -19,6 +20,7 @@ import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.config.data.ContractsConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -91,6 +93,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                 .autoRenewSeconds(Objects.requireNonNullElse(entity.getAutoRenewPeriod(), DEFAULT_AUTO_RENEW_PERIOD))
                 .contractKvPairsNumber(getStorageKVPairs(entity))
                 .cryptoAllowances(getCryptoAllowances(entity.getId(), timestamp))
+                .delegationAddress(delegationAddress(entity))
                 .deleted(Objects.requireNonNullElse(entity.getDeleted(), false))
                 .ethereumNonce(Objects.requireNonNullElse(entity.getEthereumNonce(), 0L))
                 .expirationSecond(TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS))
@@ -106,6 +109,19 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                 .tinybarBalance(getAccountBalance(entity, timestamp))
                 .tokenAllowances(getFungibleTokenAllowances(entity.getId(), timestamp))
                 .build();
+    }
+
+    /**
+     * Code delegation is a Pectra (EVM 0.70 / hedera-app 0.77.0) feature. Do not apply it when simulating against a
+     * pre-Pectra EVM version, so eth_call matches consensus.
+     */
+    private Bytes delegationAddress(final Entity entity) {
+        if (!evmProperties.isPectraEvm()
+                || entity.getDelegationAddress() == null
+                || Arrays.equals(entity.getDelegationAddress(), ZERO_ADDRESS)) {
+            return Bytes.EMPTY;
+        }
+        return Bytes.wrap(entity.getDelegationAddress());
     }
 
     /**

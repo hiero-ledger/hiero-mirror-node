@@ -3,9 +3,10 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import static lombok.AccessLevel.PRIVATE;
+import static org.hiero.mirror.common.util.DomainUtils.logRecoverableError;
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -23,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.AccessLevel;
@@ -147,9 +147,8 @@ public class RecordItem implements StreamItem {
     }
 
     public void addContractTransaction(EntityId entityId) {
-        if (EntityId.isEmpty(entityId)
-                || contractTransactionPredicate == null
-                || !contractTransactionPredicate.test(entityId)) {
+        // Explicitly allow empty entity IDs for failed transactions
+        if (contractTransactionPredicate == null || !contractTransactionPredicate.test(entityId)) {
             return;
         }
         getContractTransactions().computeIfAbsent(entityId.getId(), key -> ContractTransaction.builder()
@@ -309,7 +308,7 @@ public class RecordItem implements StreamItem {
         return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
     }
 
-    private ContractFunctionResult getContractResult() {
+    public ContractFunctionResult getContractResult() {
         if (transactionRecord.hasContractCallResult()) {
             return transactionRecord.getContractCallResult();
         } else if (transactionRecord.hasContractCreateResult()) {
@@ -332,7 +331,7 @@ public class RecordItem implements StreamItem {
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
             this.hookParent = parsePossiblyHookContractRelatedParent();
-            this.payerAccountId = EntityId.of(transactionBody.getTransactionID().getAccountID());
+            this.payerAccountId = parsePayerAccountId();
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
             return buildInternal();
@@ -352,6 +351,15 @@ public class RecordItem implements StreamItem {
             }
 
             return transactionRecordBuilder;
+        }
+
+        private EntityId parsePayerAccountId() {
+            final var payerAccountId =
+                    EntityId.tryOf(transactionBody.getTransactionID().getAccountID());
+            if (EntityId.isEmpty(payerAccountId)) {
+                return EntityId.ZERO;
+            }
+            return payerAccountId;
         }
 
         private RecordItem parseParent() {
@@ -437,20 +445,17 @@ public class RecordItem implements StreamItem {
         @SuppressWarnings("deprecation")
         private void parseTransaction() {
             if (transactionBody == null || signatureMap == null) {
-                try {
-                    if (!transaction.getSignedTransactionBytes().equals(ByteString.EMPTY)) {
-                        var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
-                        this.transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
-                        this.signatureMap = signedTransaction.getSigMap();
-                    } else if (!transaction.getBodyBytes().equals(ByteString.EMPTY)) {
-                        this.transactionBody = TransactionBody.parseFrom(transaction.getBodyBytes());
-                        this.signatureMap = transaction.getSigMap();
-                    } else if (transaction.hasBody()) {
-                        this.transactionBody = transaction.getBody();
-                        this.signatureMap = transaction.getSigMap();
-                    }
-                } catch (InvalidProtocolBufferException e) {
-                    throw new ProtobufException(BAD_TRANSACTION_BODY_BYTES_MESSAGE, e);
+                if (!transaction.getSignedTransactionBytes().equals(ByteString.EMPTY)) {
+                    final var signedTransactionBytes = transaction.getSignedTransactionBytes();
+                    final var signedTransaction = parseProtobuf(signedTransactionBytes, SignedTransaction::parseFrom);
+                    this.transactionBody = parseProtobuf(signedTransaction.getBodyBytes(), TransactionBody::parseFrom);
+                    this.signatureMap = signedTransaction.getSigMap();
+                } else if (!transaction.getBodyBytes().equals(ByteString.EMPTY)) {
+                    this.transactionBody = parseProtobuf(transaction.getBodyBytes(), TransactionBody::parseFrom);
+                    this.signatureMap = transaction.getSigMap();
+                } else if (transaction.hasBody()) {
+                    this.transactionBody = transaction.getBody();
+                    this.signatureMap = transaction.getSigMap();
                 }
             }
 
@@ -465,25 +470,28 @@ public class RecordItem implements StreamItem {
          * @return The protobuf ID that represents the transaction type
          */
         private int parseTransactionType(TransactionBody body) {
-            TransactionBody.DataCase dataCase = body.getDataCase();
-
-            if (dataCase == null || dataCase == TransactionBody.DataCase.DATA_NOT_SET) {
-                Set<Integer> unknownFields = body.getUnknownFields().asMap().keySet();
-
-                if (unknownFields.size() != 1) {
-                    log.error(
-                            "Unable to guess correct transaction type since there's not exactly one unknown field {}: {}",
-                            unknownFields,
-                            Hex.encodeHexString(body.toByteArray()));
-                    return TransactionBody.DataCase.DATA_NOT_SET.getNumber();
-                }
-
-                int genericTransactionType = unknownFields.iterator().next();
-                log.warn("Encountered unknown transaction type: {}", genericTransactionType);
-                return genericTransactionType;
+            final var dataCase = body.getDataCase();
+            if (dataCase != null && dataCase != TransactionBody.DataCase.DATA_NOT_SET) {
+                return dataCase.getNumber();
             }
 
-            return dataCase.getNumber();
+            final var unknownFields = body.getUnknownFields().asMap().keySet();
+            if (unknownFields.size() != 1) {
+                logRecoverableError(
+                        "Unable to guess correct transaction type since there's not exactly one unknown field {}: {}",
+                        unknownFields,
+                        Hex.encodeHexString(body.toByteArray()));
+                return TransactionBody.DataCase.DATA_NOT_SET.getNumber();
+            }
+
+            final int genericTransactionType = unknownFields.iterator().next();
+            if (!DomainUtils.isSmallint(genericTransactionType)) {
+                logRecoverableError("Encountered unknown transaction type: {}", genericTransactionType);
+                return TransactionBody.DataCase.DATA_NOT_SET.getNumber();
+            }
+
+            logRecoverableError("Encountered unknown transaction type: {}", genericTransactionType);
+            return genericTransactionType;
         }
     }
 }

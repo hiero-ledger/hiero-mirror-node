@@ -400,6 +400,38 @@ class SyntheticLogListenerTest {
     }
 
     @Test
+    void recordFileBloomAggregatesWhenFileBloomIsEmptyArray() {
+        var consensusTimestamp = domainBuilder.timestamp();
+        var contractResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
+                        .contractId(CONTRACT_ENTITY.getId())
+                        .payerAccountId(domainBuilder.entityId())
+                        .bloom(null))
+                .get();
+
+        var recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.logsBloom(LogsBloomFilter.EMPTY))
+                .get();
+        parserContext.add(recordFile);
+
+        var contractLog = syntheticTransferLogWithRecordItem(
+                LONG_ZERO_1, LONG_ZERO_2, CONTRACT_ENTITY, contractResult, consensusTimestamp);
+        contractLog.setBloom(CONTRACT_LOG_MARKER);
+
+        final var mappings =
+                List.of(evmMap(EVM_1, ENTITY_1), evmMap(EVM_2, ENTITY_2), evmMap(CONTRACT_EVM, CONTRACT_ENTITY));
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(mappings);
+
+        listener.onContractLog(contractLog);
+        listener.onEnd(recordFile);
+
+        final var expected = aggregateExpectedContractResultBloom(LogsBloomFilter.EMPTY, contractResult);
+        assertArrayEquals(expected, recordFile.getLogsBloom());
+    }
+
+    @Test
     void recordFileBloomUpdatedWhenSyntheticBloomAdded() {
         var consensusTimestamp = domainBuilder.timestamp();
         var contractResult = domainBuilder

@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
+import com.google.common.collect.Range;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.token.TokenAccount;
@@ -231,6 +232,39 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                 .returns(expectedKycStatus, TokenAccount::getKycStatus);
     }
 
+    @Test
+    void findByIdAndTimestampUsesHistoricalTokenDefaults() {
+        final long tokenId = 102L;
+        domainBuilder
+                .tokenHistory()
+                .customize(t -> t.tokenId(tokenId)
+                        .freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
+                        .kycStatus(TokenKycStatusEnum.REVOKED)
+                        .timestampRange(Range.closedOpen(100L, 200L)))
+                .persist();
+        domainBuilder
+                .token()
+                .customize(t -> t.tokenId(tokenId)
+                        .freezeStatus(TokenFreezeStatusEnum.FROZEN)
+                        .kycStatus(TokenKycStatusEnum.GRANTED)
+                        .timestampRange(Range.atLeast(200L)))
+                .persist();
+        final var tokenAccount = domainBuilder
+                .tokenAccountHistory()
+                .customize(t -> t.tokenId(tokenId)
+                        .accountId(accountId)
+                        .freezeStatus(null)
+                        .kycStatus(null)
+                        .timestampRange(Range.closedOpen(100L, 200L)))
+                .persist();
+
+        assertThat(repository.findByIdAndTimestamp(accountId, tokenId, 150L))
+                .hasValueSatisfying(relationship -> assertThat(relationship)
+                        .returns(TokenFreezeStatusEnum.UNFROZEN, TokenAccount::getFreezeStatus)
+                        .returns(TokenKycStatusEnum.REVOKED, TokenAccount::getKycStatus)
+                        .returns(tokenAccount.getBalance(), TokenAccount::getBalance));
+    }
+
     @CsvSource(textBlock = """
             ,
             FROZEN, GRANTED
@@ -267,6 +301,49 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                 .returns(latestTimestamp, TokenAccount::getTimestampLower)
                 .returns(freezeStatus, TokenAccount::getFreezeStatus)
                 .returns(kycStatus, TokenAccount::getKycStatus);
+    }
+
+    @Test
+    void countByAccountIdAndTimestampDisassociatedAfterBlockNotResurrected() {
+        final long accId = domainBuilder.entityId().getId();
+        final long tokenId = domainBuilder.entityId().getId();
+        final long associatedStart = domainBuilder.timestamp();
+        final long disassociateTimestamp = associatedStart + 100L;
+
+        // The token account was associated in the past and then disassociated (current row associated=false).
+        domainBuilder
+                .tokenAccountHistory()
+                .customize(ta -> ta.accountId(accId)
+                        .tokenId(tokenId)
+                        .associated(true)
+                        .balance(10)
+                        .timestampRange(Range.closedOpen(associatedStart, disassociateTimestamp)))
+                .persist();
+        domainBuilder
+                .tokenAccount()
+                .customize(ta -> ta.accountId(accId)
+                        .tokenId(tokenId)
+                        .associated(false)
+                        .balance(0)
+                        .timestampRange(Range.atLeast(disassociateTimestamp)))
+                .persist();
+
+        // Before the disassociation the token account is counted as associated.
+        assertThat(repository.countByAccountIdAndTimestampAndAssociatedGroupedByBalanceIsPositive(
+                        accId, associatedStart))
+                .hasSize(1)
+                .extracting(
+                        TokenAccountAssociationsCount::getIsPositiveBalance,
+                        TokenAccountAssociationsCount::getTokenCount)
+                .containsExactlyInAnyOrder(tuple(true, 1));
+
+        // At and after the disassociation it must not be resurrected from the stale associated history row.
+        assertThat(repository.countByAccountIdAndTimestampAndAssociatedGroupedByBalanceIsPositive(
+                        accId, disassociateTimestamp))
+                .isEmpty();
+        assertThat(repository.countByAccountIdAndTimestampAndAssociatedGroupedByBalanceIsPositive(
+                        accId, disassociateTimestamp + 50L))
+                .isEmpty();
     }
 
     @Test

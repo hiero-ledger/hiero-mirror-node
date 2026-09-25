@@ -9,7 +9,7 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class HistoricalBalancePropertiesTest extends ImporterIntegrationTest {
+final class HistoricalBalancePropertiesTest extends ImporterIntegrationTest {
 
     private final HistoricalBalanceProperties properties;
 

@@ -13,6 +13,7 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_65;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_66;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_67;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_70;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;
@@ -67,6 +68,11 @@ public class EvmProperties {
     @Min(1)
     private int maxFileAttempts = 12;
 
+    // Maximum tinybars the simulated Ethereum transaction payer will cover for gas.
+    @Min(1)
+    @Max(100_000_000_000_000L)
+    private long maxGasAllowance = 100_000_000_000_000L;
+
     @NotNull
     @Min(21_000L)
     private long maxGasLimit = 15_000_000L;
@@ -112,6 +118,14 @@ public class EvmProperties {
             return getEvmVersionForBlock(context.getRecordFile().getIndex());
         }
         return evmVersion;
+    }
+
+    /**
+     * EVM 0.70 is the Pectra version used by hedera-app 0.77.0.
+     */
+    public boolean isPectraEvm() {
+        var version = getSemanticEvmVersion();
+        return version.minor() >= EVM_VERSION_0_70.minor();
     }
 
     /**

@@ -50,6 +50,7 @@ hiero:
           responseSizeBuckets: [100, 250, 500, 1000]
           username: metrics
           uriPath: "/swagger"
+      network: TESTNET
       openapi:
         specFileName: "openapi"
         swaggerUIPath: "docs"

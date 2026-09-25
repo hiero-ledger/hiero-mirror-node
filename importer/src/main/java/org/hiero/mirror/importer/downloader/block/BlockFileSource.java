@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.hiero.mirror.common.util.DomainUtils.MAX_SIZE_FILE;
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import static org.hiero.mirror.importer.downloader.block.scheduler.Scheduler.EARLIEST_AVAILABLE_BLOCK_NUMBER;
 
 import com.hedera.hapi.block.stream.protoc.Block;
@@ -104,7 +106,7 @@ final class BlockFileSource extends AbstractBlockSource {
 
     private BlockStream getBlockStream(final StreamFileData blockFileData) throws IOException {
         try (final var inputStream = blockFileData.getInputStream()) {
-            final var block = Block.parseFrom(inputStream);
+            final var block = parseProtobuf(inputStream, Block::parseFrom, MAX_SIZE_FILE);
             final byte[] bytes = blockFileData.getBytes();
             return new BlockStream(
                     block.getItemsList(),

@@ -163,6 +163,27 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
                 .returns(transactionBody.getMemo(), Entity::getMemo);
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void processContractCreateInvalidProxyAccountId() {
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var childContractId = recordItemBuilder.contractId();
+        var recordItem = recordItemBuilder
+                .contractCreate()
+                .recordItem(r -> r.hapiVersion(new Version(0, 22, 0)))
+                .transactionBody(b -> b.setProxyAccountID(invalidProxy))
+                .record(r -> r.getContractCreateResultBuilder().addCreatedContractIDs(childContractId))
+                .build();
+
+        process(recordItem);
+
+        assertThat(entityRepository.findById(EntityId.of(childContractId).getId()))
+                .get()
+                .returns(null, Entity::getProxyAccountId)
+                .returns(CONTRACT, Entity::getType);
+    }
+
     @Test
     void processContractCreateNoChildren() {
         var recordItem = recordItemBuilder
@@ -348,6 +369,25 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
         process(recordItem);
 
         // then
+        assertThat(contractResultRepository.findAll()).isEmpty();
+        assertThat(contractLogRepository.count()).isZero();
+        assertThat(contractActionRepository.count()).isZero();
+        assertThat(contractStateChangeRepository.count()).isZero();
+        assertThat(contractRepository.count()).isZero();
+        assertThat(entityRepository.count()).isZero();
+    }
+
+    @Test
+    void processFailedEthereumTransactionWithoutDecodedTransaction() {
+        var recordItem = recordItemBuilder
+                .ethereumTransaction()
+                .record(r -> r.clearContractCallResult().clearContractCreateResult())
+                .receipt(r -> r.setStatus(ResponseCodeEnum.CONSENSUS_GAS_EXHAUSTED))
+                .sidecarRecords(List::clear)
+                .build();
+
+        process(recordItem);
+
         assertThat(contractResultRepository.findAll()).isEmpty();
         assertThat(contractLogRepository.count()).isZero();
         assertThat(contractActionRepository.count()).isZero();

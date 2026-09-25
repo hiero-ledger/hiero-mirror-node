@@ -16,6 +16,9 @@ public class EntityIdConverter implements AttributeConverter<EntityId, Long> {
 
     @Override
     public Long convertToDatabaseColumn(EntityId entityId) {
+        if (entityId == EntityId.ZERO) {
+            return 0L;
+        }
         if (EntityId.isEmpty(entityId)) {
             return null;
         }

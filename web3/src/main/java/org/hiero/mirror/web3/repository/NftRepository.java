@@ -27,9 +27,10 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
     Optional<Nft> findActiveById(long tokenId, long serialNumber);
 
     /**
-     * Retrieves the most recent state of an nft by its ID up to a given block timestamp. The method considers both the
-     * current state of the nft and its historical states and returns the one that was valid just before or equal to the
-     * provided block timestamp.
+     * Retrieves the state of an nft by its ID at a given block timestamp. The method considers both the current state of
+     * the nft and its historical states, selecting the row whose timestamp_range contains the block timestamp, and
+     * returns it only if the nft (and its token entity) was not deleted at that point in time. If the nft had already
+     * been burned/wiped or its token deleted at or before the block timestamp, an empty Optional is returned.
      *
      * @param tokenId        the token id of the nft to be retrieved.
      * @param serialNumber   the serial number of the nft to be retrieved.
@@ -54,7 +55,7 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
                     from nft_history
                     where token_id = :tokenId
                         and serial_number = :serialNumber
-                        and lower(timestamp_range) <= :blockTimestamp
+                        and timestamp_range @> :blockTimestamp
                         and deleted is not true
                     order by lower(timestamp_range) desc
                     limit 1

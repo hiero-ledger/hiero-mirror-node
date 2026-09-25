@@ -41,7 +41,7 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
     protected RestClient.Builder restClientBuilder;
 
     @Autowired
-    private RestJavaProperties properties;
+    protected RestJavaProperties properties;
 
     private String baseUrl;
 

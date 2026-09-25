@@ -27,11 +27,11 @@ public class CommonEntityAccessor {
     private final EntityRepository entityRepository;
 
     public @NonNull Optional<Entity> get(@NonNull final Address address, final Optional<Long> timestamp) {
-        final var addressBytes = address.toArrayUnsafe();
+        final var addressBytes = address.getBytes().toArrayUnsafe();
         if (ConversionUtils.isLongZeroAddress(addressBytes)) {
             return getEntityByMirrorAddressAndTimestamp(address, timestamp);
         } else {
-            return getEntityByEvmAddressTimestamp(address.toArrayUnsafe(), timestamp);
+            return getEntityByEvmAddressTimestamp(address.getBytes().toArrayUnsafe(), timestamp);
         }
     }
 

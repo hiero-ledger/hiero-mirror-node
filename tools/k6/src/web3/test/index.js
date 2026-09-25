@@ -70,72 +70,87 @@ import * as rampUp from './rampUp.js';
 // add test modules here
 const tests = {
   contractCallAllowance,
-  contractCallApproved,
   contractCallApprovedForAll,
   contractCallBalance,
-  contractCallBalanceOf,
-  contractCallDecimals,
-  contractCallFungibleTokenInfo,
-  contractCallIdentifier,
   contractCallIsFrozen,
-  contractCallIsKyc,
-  contractCallIsToken,
-  contractCallMultiply,
-  contractCallName,
   contractCallNonFungibleTokenInfo,
-  contractCallOwnerOf,
-  contractCallReceive,
-  contractCallSender,
-  contractCallSymbol,
-  contractCallTokenCustomFees,
-  contractCallTokenDefaultFreezeStatus,
-  contractCallTokenDefaultKycStatus,
-  contractCallTokenExpiryInfo,
   contractCallTokenInfo,
-  contractCallTokenKey,
-  contractCallTokenType,
-  contractCallTokenURI,
-  contractCallTotalSupply,
   rampUp,
 };
+
+if (__ENV.RUN_FULL_COVERAGE_TESTS === 'true') {
+  Object.assign(tests, {
+    contractCallApproved,
+    contractCallBalanceOf,
+    contractCallDecimals,
+    contractCallFungibleTokenInfo,
+    contractCallIdentifier,
+    contractCallIsKyc,
+    contractCallIsToken,
+    contractCallMultiply,
+    contractCallName,
+    contractCallOwnerOf,
+    contractCallReceive,
+    contractCallSender,
+    contractCallSymbol,
+    contractCallTokenCustomFees,
+    contractCallTokenDefaultFreezeStatus,
+    contractCallTokenDefaultKycStatus,
+    contractCallTokenExpiryInfo,
+    contractCallTokenKey,
+    contractCallTokenType,
+    contractCallTokenURI,
+    contractCallTotalSupply,
+  });
+}
 
 if (__ENV.RUN_ESTIMATE_TESTS !== 'false') {
   Object.assign(tests, {
     contractCallEstimateFungibleTokenCustomFees,
     contractCallEstimateNftCustomFees,
-    contractCallEstimateCreateNft,
-    contractCallEstimateCreateFungibleToken,
     contractCallEstimateTokenDissociate,
     contractCallEstimateApprove,
     contractCallEstimateApproveNft,
     contractCallEstimateAssociateTokens,
-    contractCallEstimateDissociateTokens,
-    contractCallEstimateERCApprove,
     contractCallEstimateMintNft,
     contractCallEstimateReadStorage,
     contractCallEstimateSetApprovalForAll,
     contractCallEstimateFreezeToken,
-    contractCallEstimateFreezeNft,
-    contractCallEstimateUnfreezeToken,
     contractCallEstimateUnfreezeNft,
     contractCallEstimateTransferToken,
     contractCallEstimateTransferNft,
   });
+
+  if (__ENV.RUN_FULL_COVERAGE_TESTS === 'true') {
+    Object.assign(tests, {
+      contractCallEstimateCreateNft,
+      contractCallEstimateCreateFungibleToken,
+      contractCallEstimateDissociateTokens,
+      contractCallEstimateERCApprove,
+      contractCallEstimateFreezeNft,
+      contractCallEstimateUnfreezeToken,
+    });
+  }
 }
 
 if (__ENV.RUN_MODIFICATION_TESTS !== 'false') {
   Object.assign(tests, {
-    contractCallPrecompileApprove,
-    contractCallPrecompileAssociate,
     contractCallPrecompileCryptoTransferHbars,
     contractCallPrecompileCryptoTransferToken,
     contractCallPrecompileDeleteToken,
-    contractCallPrecompileDissociate,
-    contractCallPrecompileMintToken,
     contractCallPrecompileNestedAssociate,
-    contractCallPrecompileTransferFungibleToken,
     contractCallRedirectApprove,
   });
+
+  if (__ENV.RUN_FULL_COVERAGE_TESTS === 'true') {
+    Object.assign(tests, {
+      contractCallPrecompileApprove,
+      contractCallPrecompileAssociate,
+      contractCallPrecompileDissociate,
+      contractCallPrecompileMintToken,
+      contractCallPrecompileTransferFungibleToken,
+    });
+  }
 }
 
 if (__ENV.RUN_COMPLEX_TESTS !== 'false') {

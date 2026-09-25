@@ -14,6 +14,7 @@ import java.util.Collections;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -107,6 +108,7 @@ class ContractCallNestedCallsHistoricalTest extends AbstractContractCallServiceO
         domainBuilder
                 .tokenAccountHistory()
                 .customize(e -> e.freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
+                        .kycStatus(TokenKycStatusEnum.GRANTED)
                         .accountId(owner.getId())
                         .tokenId(nft.getId())
                         .timestampRange(testWeb3jService.getHistoricalRange()))

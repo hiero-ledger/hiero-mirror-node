@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.util;
 
 import com.google.protobuf.ByteString;
+import java.util.Arrays;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -48,27 +49,26 @@ public final class LogsBloomFilter {
     }
 
     /**
-     * Utility method that mutates the target array by aggregating its content with a passed source that
-     * should have a matching length
-     * */
+     * Utility method that mutates the target array by aggregating its content with a passed source.
+     * A null, empty, or shorter target is replaced by a new 256-byte buffer. Absent blooms (null or
+     * zero-length) contribute no bits.
+     */
     public static byte[] or(final byte[] source, final byte[] target) {
-        if (target != null && source == null && target.length == BYTE_SIZE) {
-            return target;
+        if (ArrayUtils.isEmpty(source)) {
+            if (ArrayUtils.isEmpty(target)) {
+                return EMPTY;
+            }
+            return target.length == BYTE_SIZE ? target : Arrays.copyOf(target, BYTE_SIZE);
         }
 
-        if (source == null || target == null || source.length > target.length) {
-            throw new IllegalArgumentException("Invalid parameter");
-        }
+        final var destination = target != null && target.length == BYTE_SIZE
+                ? target
+                : ArrayUtils.isEmpty(target) ? new byte[BYTE_SIZE] : Arrays.copyOf(target, BYTE_SIZE);
 
-        for (int i = 0; i < source.length; i++) {
-            target[i] |= source[i];
+        for (int i = 0, n = Math.min(source.length, destination.length); i < n; i++) {
+            destination[i] |= source[i];
         }
-
-        if (target.length == BYTE_SIZE) {
-            return target;
-        } else {
-            return new byte[BYTE_SIZE];
-        }
+        return destination;
     }
 
     public void insertAddress(final byte[] input) {

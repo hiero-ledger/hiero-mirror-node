@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.reader.block.record;
 
+import static java.util.Objects.requireNonNull;
 import static org.hiero.mirror.common.domain.StreamType.RECORD;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 import static org.hiero.mirror.common.util.DomainUtils.getHashBytes;
@@ -37,6 +38,7 @@ import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.block.ConsensusTimestampTracker;
 import org.hiero.mirror.importer.util.Utility;
+import org.jspecify.annotations.Nullable;
 
 @RequiredArgsConstructor
 abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
@@ -107,7 +109,7 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         if (amendments.isEmpty()) {
             // Most WRBs don't have amendments, shortcut for performance gain
             for (final var recordStreamItem : recordStreamItems) {
-                onRecordStreamItem(context, recordStreamItem);
+                onRecordStreamItem(context, recordStreamItem, null);
             }
 
             return;
@@ -120,21 +122,23 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
             // Insert any amendments with earlier timestamps (additions)
             while (amendmentIndex < amendments.size()
                     && getConsensusTimestamp(amendments.get(amendmentIndex)) < recordTimestamp) {
-                onRecordStreamItem(context, amendments.get(amendmentIndex++));
+                onRecordStreamItem(context, null, amendments.get(amendmentIndex++));
             }
 
             if (amendmentIndex < amendments.size()
                     && getConsensusTimestamp(amendments.get(amendmentIndex)) == recordTimestamp) {
                 // Replace if the consensus timestamps are the same
-                onRecordStreamItem(context, amendments.get(amendmentIndex++));
+                onRecordStreamItem(context, recordStreamItem, amendments.get(amendmentIndex++));
             } else {
-                onRecordStreamItem(context, recordStreamItem);
+                onRecordStreamItem(context, recordStreamItem, null);
             }
         }
 
         for (; amendmentIndex < amendments.size(); amendmentIndex++) {
-            onRecordStreamItem(context, amendments.get(amendmentIndex));
+            onRecordStreamItem(context, null, amendments.get(amendmentIndex));
         }
+
+        context.recordFile().setAmended(true);
     }
 
     protected void onEnd(final Context context) throws IOException {
@@ -180,14 +184,18 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
         recordFile.setPreviousHash(Hex.encodeHexString(getHashBytes(recordStreamFile.getStartObjectRunningHash())));
     }
 
-    protected void onRecordStreamItem(final Context context, final RecordStreamItem recordStreamItem)
+    protected void onRecordStreamItem(
+            final Context context,
+            @Nullable final RecordStreamItem recordStreamItem,
+            @Nullable final RecordStreamItem amendment)
             throws IOException {
+        final var effective = amendment != null ? amendment : requireNonNull(recordStreamItem);
         final var items = context.items();
         final var recordItem = RecordItem.builder()
                 .hapiVersion(context.recordFile().getHapiVersion())
                 .previous(items.isEmpty() ? null : items.getLast())
-                .transactionRecord(recordStreamItem.getRecord())
-                .transaction(recordStreamItem.getTransaction())
+                .transactionRecord(effective.getRecord())
+                .transaction(effective.getTransaction())
                 .transactionIndex(items.size())
                 .build();
         recordItem.setSidecarRecords(

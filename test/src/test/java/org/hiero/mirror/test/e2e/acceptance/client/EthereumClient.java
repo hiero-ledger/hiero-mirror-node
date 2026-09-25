@@ -7,20 +7,24 @@ import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractFunctionResult;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.EthereumTransaction;
-import com.hedera.hashgraph.sdk.FileId;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
+import com.hedera.hashgraph.sdk.TransactionId;
 import com.hedera.hashgraph.sdk.TransactionRecord;
+import com.hedera.hashgraph.sdk.TransactionRecordQuery;
 import jakarta.inject.Named;
 import java.math.BigInteger;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.SneakyThrows;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.retry.RetryTemplate;
+import org.web3j.crypto.AuthorizationTuple;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.RawTransaction;
 import org.web3j.crypto.TransactionEncoder;
@@ -55,25 +59,20 @@ public class EthereumClient extends AbstractNetworkClient {
                 acceptanceTestProperties.getFeatureProperties().getMaxContractFunctionGas());
     }
 
-    public NetworkTransactionResponse createContract(
-            PrivateKey signerKey, FileId fileId, String fileContents, long initialBalance) {
-
-        var value = WEIBARS_TO_TINYBARS.multiply(BigInteger.valueOf(initialBalance));
-
-        var rawTransaction = RawTransaction.createTransaction(
+    public NetworkTransactionResponse createContract(PrivateKey signerKey, String fileContents, long initialBalance) {
+        final var value = WEIBARS_TO_TINYBARS.multiply(BigInteger.valueOf(initialBalance));
+        final var rawTransaction = RawTransaction.createTransaction(
                 getNonce(signerKey), gasPrice, maxContractFunctionGas(), "", value, fileContents);
-        Credentials credentials = Credentials.create(signerKey.toStringRaw());
-        var signedTransaction = TransactionEncoder.signMessage(rawTransaction, credentials);
+        final var credentials = Credentials.create(signerKey.toStringRaw());
+        final var signedTransaction = TransactionEncoder.signMessage(rawTransaction, credentials);
 
-        EthereumTransaction ethereumTransaction = new EthereumTransaction()
-                .setCallDataFileId(fileId)
+        final var ethereumTransaction = new EthereumTransaction()
                 .setMaxGasAllowanceHbar(Hbar.from(100L))
                 .setEthereumData(signedTransaction);
+        final var memo = getMemo("Create contract");
 
-        var memo = getMemo("Create contract");
-
-        var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
-        var contractId = response.getReceipt().contractId;
+        final var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
+        final var contractId = response.getReceipt().contractId;
         log.info(
                 "Created new contract {} with memo '{}' via {} in {}",
                 contractId,
@@ -81,7 +80,7 @@ public class EthereumClient extends AbstractNetworkClient {
                 response.getTransactionId(),
                 response.getStopwatch());
 
-        TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
+        final var transactionRecord = getTransactionRecord(response.getTransactionId());
         logContractFunctionResult("constructor", transactionRecord.contractFunctionResult);
         return response;
     }
@@ -137,43 +136,79 @@ public class EthereumClient extends AbstractNetworkClient {
         return response;
     }
 
+    public AuthorizationTuple createAuthorization(ExpandedAccountId authority, String delegateEvmAddress, long nonce) {
+        // Chain ID 0 is valid on every chain (EIP-7702). Hedera silently ignores authorizations
+        // whose chain ID is neither 0 nor the consensus network chain ID.
+        return AuthorizationTuple.from(
+                0L,
+                Numeric.prependHexPrefix(delegateEvmAddress),
+                BigInteger.valueOf(nonce),
+                Credentials.create(authority.getPrivateKey().toStringRaw()));
+    }
+
     public ContractClient.ExecuteContractResult executeContract(
             PrivateKey signerKey,
             ContractId contractId,
             String functionName,
             ContractFunctionParameters functionParameters,
             TransactionType type) {
+        return executeContract(signerKey, contractId.toEvmAddress(), functionName, functionParameters, type, List.of());
+    }
+
+    public ContractClient.ExecuteContractResult executeContract(
+            PrivateKey signerKey,
+            String contractEvmAddress,
+            String functionName,
+            ContractFunctionParameters functionParameters,
+            TransactionType type,
+            List<AuthorizationTuple> authorizationList) {
 
         var callData = buildCallDataAsHexedString(functionName, functionParameters);
         var value = BigInteger.ZERO;
+        var chainId = acceptanceTestProperties.getNetwork().getChainId();
+        var nonce = getNonce(signerKey);
+        var maxPriorityFeePerGas = BigInteger.valueOf(20000L);
+        var toAddress = Numeric.prependHexPrefix(contractEvmAddress);
 
         // build raw transaction
         var rawTransaction =
                 switch (type) {
                     case EIP1559 ->
                         RawTransaction.createTransaction(
-                                acceptanceTestProperties.getNetwork().getChainId(),
-                                getNonce(signerKey),
+                                chainId,
+                                nonce,
                                 maxContractFunctionGas(),
-                                contractId.toEvmAddress(),
+                                toAddress,
                                 value,
                                 callData,
-                                BigInteger.valueOf(20000L), // maxPriorityGas
+                                maxPriorityFeePerGas,
                                 maxFeePerGas);
                     case EIP2930 ->
                         RawTransaction.createTransaction(
-                                acceptanceTestProperties.getNetwork().getChainId(),
-                                getNonce(signerKey),
+                                chainId,
+                                nonce,
                                 maxContractFunctionGas(),
-                                contractId.toEvmAddress(),
+                                toAddress,
                                 value,
                                 callData,
-                                BigInteger.valueOf(20000L), // maxPriorityGas
+                                maxPriorityFeePerGas,
                                 maxFeePerGas,
                                 Collections.emptyList());
+                    case EIP7702 ->
+                        RawTransaction.createTransaction(
+                                chainId,
+                                nonce,
+                                maxPriorityFeePerGas,
+                                maxFeePerGas,
+                                maxContractFunctionGas(),
+                                toAddress,
+                                value,
+                                callData,
+                                Collections.emptyList(),
+                                authorizationList);
                     default ->
                         RawTransaction.createTransaction(
-                                getNonce(signerKey), gasPrice, maxContractFunctionGas(), "", value, callData);
+                                nonce, gasPrice, maxContractFunctionGas(), "", value, callData);
                 };
 
         // sign and execute transaction
@@ -184,16 +219,41 @@ public class EthereumClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
 
-        TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
-        logContractFunctionResult(functionName, transactionRecord.contractFunctionResult);
+        TransactionRecord transactionRecord = getTransactionRecordWithChildren(response.getTransactionId());
+        var contractFunctionResult = resolveContractFunctionResult(transactionRecord);
+        logContractFunctionResult(functionName, contractFunctionResult);
 
         log.info(
                 "Called contract {} function {} via {} in {}",
-                contractId,
+                toAddress,
                 functionName,
                 response.getTransactionId(),
                 response.getStopwatch());
-        return new ContractClient.ExecuteContractResult(transactionRecord.contractFunctionResult, response);
+        return new ContractClient.ExecuteContractResult(contractFunctionResult, response);
+    }
+
+    @SneakyThrows
+    private TransactionRecord getTransactionRecordWithChildren(TransactionId transactionId) {
+        return retryTemplate.execute(() -> new TransactionRecordQuery()
+                .setTransactionId(transactionId)
+                .setIncludeChildren(true)
+                .execute(client));
+    }
+
+    private static ContractFunctionResult resolveContractFunctionResult(TransactionRecord transactionRecord) {
+        var result = transactionRecord.contractFunctionResult;
+        if (hasOutput(result)) {
+            return result;
+        }
+        return transactionRecord.children.stream()
+                .map(child -> child.contractFunctionResult)
+                .filter(EthereumClient::hasOutput)
+                .findFirst()
+                .orElse(result);
+    }
+
+    private static boolean hasOutput(ContractFunctionResult result) {
+        return result != null && result.asBytes().length > 0;
     }
 
     private void logContractFunctionResult(String functionName, ContractFunctionResult contractFunctionResult) {
@@ -214,6 +274,7 @@ public class EthereumClient extends AbstractNetworkClient {
             case EIP1559, EIP2930 ->
                 TransactionEncoder.signMessage(
                         rawTransaction, acceptanceTestProperties.getNetwork().getChainId(), credentials);
+            case EIP7702 -> TransactionEncoder.signMessage(rawTransaction, credentials);
             default -> TransactionEncoder.signMessage(rawTransaction, credentials);
         };
     }

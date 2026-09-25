@@ -225,6 +225,23 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }
 
+    @Test
+    void updateTransactionEmptyTreasury() {
+        // Given
+        final var recordItem = recordItemBuilder
+                .tokenUpdate()
+                .transactionBody(b -> b.setTreasury(AccountID.getDefaultInstance()))
+                .build();
+        final var transaction = domainBuilder.transaction().get();
+
+        // When
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // Then
+        verify(entityListener).onToken(assertArg(t -> assertThat(t).returns(null, Token::getTreasuryAccountId)));
+        assertThat(recordItem.getEntityTransactions()).doesNotContainKey(EntityId.EMPTY.getId());
+    }
+
     @SuppressWarnings("java:S6103")
     void assertTokenUpdate(long timestamp, EntityId tokenId, Consumer<Long> assertAutoRenewAccountId) {
         verify(entityListener).onEntity(assertArg(t -> assertThat(t)

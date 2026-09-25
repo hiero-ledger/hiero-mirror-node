@@ -5,7 +5,9 @@ package org.hiero.mirror.web3.utils;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.service.AbstractContractCallServiceTest;
 import org.hiero.mirror.web3.service.ContractExecutionService;
@@ -117,5 +119,44 @@ class BytecodeUtilsTest extends AbstractContractCallServiceTest {
             })
     void testIsInitBytecodeFalse(final String data) {
         assertThat(BytecodeUtils.isInitBytecode(data)).isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "608060400390f3", // Minimal valid sequence: FMP + filler + CODECOPY + filler + RETURN
+                "606060400390f3", // Minimal valid sequence using the alternate free memory pointer setup
+                "0x608060400390f3", // Same minimal sequence, but with a 0x prefix that must be stripped first
+                "608060400390F3", // Uppercase RETURN opcode is matched case-insensitively
+                "60806040ABCDEF39ABCDEFf3", // Uppercase hexadecimal fillers between the markers are valid
+            })
+    void testIsInitBytecodeCraftedTrue(final String data) {
+        assertThat(BytecodeUtils.isInitBytecode(data)).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "60806040390f3", // One character short of the minimum init code size
+                "60806040g3900f3", // Non-hex filler between FMP and CODECOPY (accepted by the old [0-9a-z] regex)
+                "608060400390f3zz", // Valid sequence followed by trailing non-hex characters
+                "0x608060400390f3zz", // Same, but with a 0x prefix
+            })
+    void testIsInitBytecodeNonHexFalse(final String data) {
+        assertThat(BytecodeUtils.isInitBytecode(data)).isFalse();
+    }
+
+    @Test
+    void testIsInitBytecodeNull() {
+        assertThat(BytecodeUtils.isInitBytecode(null)).isFalse();
+    }
+
+    @Test
+    void testIsInitBytecodeLinearTimeOnAdversarialInput() {
+        // A long free memory pointer setup followed by many CODECOPY markers and no RETURN previously caused the
+        // greedy quantifiers to backtrack quadratically, the linear scan must reject it well within the timeout.
+        final String adversarial = "60806040" + "39".repeat(1_000_000);
+        assertTimeoutPreemptively(Duration.ofSeconds(2), () -> assertThat(BytecodeUtils.isInitBytecode(adversarial))
+                .isFalse());
     }
 }

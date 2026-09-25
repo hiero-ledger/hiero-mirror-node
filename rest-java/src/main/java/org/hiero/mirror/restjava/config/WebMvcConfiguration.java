@@ -9,6 +9,7 @@ import org.hiero.mirror.restjava.parameter.RequestParameterArgumentResolver;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
@@ -18,11 +19,17 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @RequiredArgsConstructor
 final class WebMvcConfiguration implements WebMvcConfigurer {
 
+    private final RequestBodySizeInterceptor requestBodySizeInterceptor;
     private final RequestParameterArgumentResolver requestParameterArgumentResolver;
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         resolvers.add(requestParameterArgumentResolver);
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(requestBodySizeInterceptor).addPathPatterns("/**");
     }
 
     @Override

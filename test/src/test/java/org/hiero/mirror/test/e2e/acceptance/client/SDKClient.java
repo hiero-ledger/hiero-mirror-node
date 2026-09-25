@@ -31,7 +31,6 @@ import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -236,7 +235,6 @@ public class SDKClient implements Cleanable {
         var network = client.getNetwork();
         Map<String, AccountId> validNodes = new LinkedHashMap<>();
         var stopwatch = Stopwatch.createStarted();
-        var invalidNodes = new HashSet<AccountId>();
 
         for (var nodeEntry : network.entrySet()) {
             var endpoint = nodeEntry.getKey();
@@ -244,21 +242,10 @@ public class SDKClient implements Cleanable {
 
             if (validateNode(endpoint, nodeAccountId)) {
                 validNodes.putIfAbsent(endpoint, nodeAccountId);
-            } else {
-                invalidNodes.add(nodeAccountId);
             }
 
             if (validNodes.size() >= acceptanceTestProperties.getMaxNodes()) {
                 break;
-            }
-        }
-
-        // Workaround SDK #2317 not propagating the address book when calling setNetwork(), causing TLS to fail
-        var iterator = validNodes.entrySet().iterator();
-        while (iterator.hasNext()) {
-            var next = iterator.next();
-            if (invalidNodes.contains(next.getValue())) {
-                iterator.remove();
             }
         }
 

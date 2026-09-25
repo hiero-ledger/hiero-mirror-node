@@ -81,7 +81,7 @@ class CryptoApproveAllowanceTransactionHandler extends AbstractTransactionHandle
             }
 
             var cryptoAllowance = new CryptoAllowance();
-            var spender = EntityId.of(cryptoApproval.getSpender());
+            var spender = entityIdService.lookup(cryptoApproval.getSpender()).orElse(EntityId.EMPTY);
             cryptoAllowance.setAmountGranted(cryptoApproval.getAmount());
             cryptoAllowance.setAmount(cryptoApproval.getAmount());
             cryptoAllowance.setOwner(ownerAccountId.getId());
@@ -115,13 +115,14 @@ class CryptoApproveAllowanceTransactionHandler extends AbstractTransactionHandle
                 continue;
             }
 
-            var spenderId = EntityId.of(nftApproval.getSpender());
+            var spenderId = entityIdService.lookup(nftApproval.getSpender()).orElse(EntityId.EMPTY);
             var tokenId = EntityId.of(nftApproval.getTokenId());
             boolean hasApprovedForAll = nftApproval.hasApprovedForAll();
             parseNftApproveForAll(
                     recordItem, nftAllowanceState, nftApproval, ownerAccountId, spenderId, tokenId, hasApprovedForAll);
 
-            var delegatingSpenderId = EntityId.of(nftApproval.getDelegatingSpender());
+            var delegatingSpenderId =
+                    entityIdService.lookup(nftApproval.getDelegatingSpender()).orElse(EntityId.EMPTY);
             var delegatingSpender = EntityId.isEmpty(delegatingSpenderId) ? null : delegatingSpenderId.getId();
             for (var serialNumber : nftApproval.getSerialNumbersList()) {
                 // services allows the same serial number of a nft token appears in multiple nft allowances to
@@ -201,7 +202,7 @@ class CryptoApproveAllowanceTransactionHandler extends AbstractTransactionHandle
                 // ownerAccountId will be EMPTY only when getOwnerAccountId fails to resolve the owner in the alias form
                 continue;
             }
-            var spenderId = EntityId.of(tokenApproval.getSpender());
+            var spenderId = entityIdService.lookup(tokenApproval.getSpender()).orElse(EntityId.EMPTY);
             var tokenId = EntityId.of(tokenApproval.getTokenId());
 
             var tokenAllowance = new TokenAllowance();

@@ -3,8 +3,6 @@
 package org.hiero.mirror.restjava.service;
 
 import static org.hiero.mirror.restjava.common.RangeOperator.EQ;
-import static org.hiero.mirror.restjava.common.RangeOperator.GT;
-import static org.hiero.mirror.restjava.common.RangeOperator.LT;
 
 import java.util.Arrays;
 import java.util.EnumMap;
@@ -61,16 +59,9 @@ public class Bound {
     }
 
     public long adjustUpperBound() {
-        if (this.upper == null) {
-            return Long.MAX_VALUE;
-        }
-
-        long upperBound = this.upper.value();
-        if (this.upper.operator() == RangeOperator.LT) {
-            upperBound--;
-        }
-
-        return upperBound;
+        return this.upper == null
+                ? Long.MAX_VALUE
+                : RangeParameter.toInclusive(this.upper.operator(), this.upper.value());
     }
 
     public RangeParameter<Long> adjustLowerRange() {
@@ -84,16 +75,7 @@ public class Bound {
     }
 
     public long getAdjustedLowerRangeValue() {
-        if (this.lower == null) {
-            return 0;
-        }
-
-        long lowerBound = this.lower.value();
-        if (this.lower.operator() == RangeOperator.GT) {
-            lowerBound++;
-        }
-
-        return lowerBound;
+        return this.lower == null ? 0 : RangeParameter.toInclusive(this.lower.operator(), this.lower.value());
     }
 
     public void adjustUpperRange() {
@@ -106,15 +88,7 @@ public class Bound {
     // Gets a range value if the operator is converted from GT/LT to EQ/GTE/LTE
     public long getInclusiveRangeValue(boolean upper) {
         var rangeParameter = upper ? this.getUpper() : this.getLower();
-        var operator = rangeParameter.operator();
-        long value = rangeParameter.value();
-        if (operator == GT) {
-            value += 1L;
-        } else if (operator == LT) {
-            value -= 1L;
-        }
-
-        return value;
+        return RangeParameter.toInclusive(rangeParameter.operator(), rangeParameter.value());
     }
 
     public int getCardinality(RangeOperator... operators) {

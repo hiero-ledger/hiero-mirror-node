@@ -17,7 +17,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 
 @Named
-class ScheduleCreateTransactionHandler extends AbstractEntityCrudTransactionHandler {
+final class ScheduleCreateTransactionHandler extends AbstractEntityCrudTransactionHandler {
 
     private final EntityProperties entityProperties;
 
@@ -51,30 +51,30 @@ class ScheduleCreateTransactionHandler extends AbstractEntityCrudTransactionHand
             return;
         }
 
-        var body = recordItem.getTransactionBody().getScheduleCreate();
-        long consensusTimestamp = recordItem.getConsensusTimestamp();
-
+        final var body = recordItem.getTransactionBody().getScheduleCreate();
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var parentRecordItem = recordItem.getParent();
         var creatorAccount = recordItem.getPayerAccountId();
 
-        var parentRecordItem = recordItem.getParent();
         if (parentRecordItem != null && parentRecordItem.getEthereumTransaction() != null) {
-            var transactionRecord = parentRecordItem.getTransactionRecord();
-            var functionResult = transactionRecord.hasContractCreateResult()
-                    ? transactionRecord.getContractCreateResult()
-                    : transactionRecord.getContractCallResult();
+            final var functionResult = parentRecordItem.getContractResult();
 
-            if (!AccountID.getDefaultInstance().equals(functionResult.getSenderId())) {
-                creatorAccount = EntityId.of(functionResult.getSenderId());
+            if (functionResult != null && !AccountID.getDefaultInstance().equals(functionResult.getSenderId())) {
+                final var senderId = EntityId.tryOf(functionResult.getSenderId());
+                if (!EntityId.isEmpty(senderId)) {
+                    creatorAccount = senderId;
+                }
             }
         }
 
         var expirationTime =
                 body.hasExpirationTime() ? DomainUtils.timestampInNanosMax(body.getExpirationTime()) : null;
-        var payerAccount = body.hasPayerAccountID() ? EntityId.of(body.getPayerAccountID()) : creatorAccount;
+        var payerAccount = body.hasPayerAccountID() ? EntityId.tryOf(body.getPayerAccountID()) : EntityId.EMPTY;
+        payerAccount = EntityId.isEmpty(payerAccount) ? creatorAccount : payerAccount;
         var scheduleId =
                 EntityId.of(recordItem.getTransactionRecord().getReceipt().getScheduleID());
 
-        Schedule schedule = new Schedule();
+        final var schedule = new Schedule();
         schedule.setConsensusTimestamp(consensusTimestamp);
         schedule.setCreatorAccountId(creatorAccount);
         schedule.setExpirationTime(expirationTime);

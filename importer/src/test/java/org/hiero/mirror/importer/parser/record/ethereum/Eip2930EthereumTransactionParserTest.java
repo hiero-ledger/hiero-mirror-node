@@ -9,6 +9,9 @@ import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_ADDRESS;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.ACCESS_LIST_STORAGE_KEY;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.EIP_2930_RAW_TX_WITH_ACCESS_LIST;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.EIP_2930_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA;
+import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.withEmptyStringAccessList;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
@@ -42,6 +45,35 @@ class Eip2930EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     void decodeEmptyAccessList() {
         final var ethereumTransaction = ethereumTransactionParser.decode(EIP_2930_RAW_TX);
         validateEthereumTransaction(ethereumTransaction, List.of());
+    }
+
+    @Test
+    void decodeEmptyStringAccessList() {
+        final var ethereumTransaction = ethereumTransactionParser.decode(withEmptyStringAccessList(EIP_2930_RAW_TX));
+        validateEthereumTransaction(ethereumTransaction, List.of());
+    }
+
+    @Test
+    void encodePreservesHashWithAccessList() {
+        assertEncodeProducesOriginalHash(EIP_2930_RAW_TX_WITH_ACCESS_LIST);
+    }
+
+    @Test
+    void encodePreservesHashWithEmptyAccessList() {
+        assertEncodeProducesOriginalHash(EIP_2930_RAW_TX);
+    }
+
+    @Test
+    void emptyListAndEmptyStringAccessListProduceSameHash() {
+        assertEmptyAccessListFormatsProduceSameHash(EIP_2930_RAW_TX, withEmptyStringAccessList(EIP_2930_RAW_TX));
+    }
+
+    @Test
+    void getHashWithOffloadedCallDataAndAccessList() {
+        assertGetHashWithOffloadedCallData(
+                EIP_2930_RAW_TX_WITH_ACCESS_LIST,
+                EIP_2930_RAW_TX_WITH_ACCESS_LIST_CALL_DATA_OFFLOADED,
+                RAW_TX_TYPE_1_CALL_DATA);
     }
 
     @Test

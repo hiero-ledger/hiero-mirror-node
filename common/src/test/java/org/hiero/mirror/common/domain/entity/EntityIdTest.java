@@ -27,6 +27,15 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 @ExtendWith(OutputCaptureExtension.class)
 final class EntityIdTest {
 
+    @Test
+    void isEmpty() {
+        assertThat(EntityId.isEmpty(null)).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.EMPTY)).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.ZERO)).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.of(0L))).isTrue();
+        assertThat(EntityId.isEmpty(EntityId.of(1L))).isFalse();
+    }
+
     @ParameterizedTest
     @CsvSource({
         "0, 0, 0, 0",
@@ -57,7 +66,22 @@ final class EntityIdTest {
         assertThat(EntityId.of(-1).toString()).isEqualTo("1023.65535.274877906943");
     }
 
-    @CsvSource({"null", ".", "0..1", "0", "0.0", "0.0.0.1", "-1.-2.-3", "0.0.9223372036854775808", "foo.bar.baz"})
+    @CsvSource({
+        "null",
+        ".",
+        "0..1",
+        "0",
+        "0.0",
+        "0.0.0.1",
+        "-1.-2.-3",
+        "0.0.9223372036854775808",
+        "foo.bar.baz",
+        // Malformed inputs that must be rejected rather than silently reinterpreted into a valid id
+        "1.-2.3.4", // negative token dropped by the filter must not collapse "1.-2.3.4" into "1.3.4"
+        "1..2.3", // empty token
+        ".1.2.3", // leading dot
+        "1.2.3." // trailing dot
+    })
     @DisplayName("Convert String to EntityId and fail")
     @ParameterizedTest(name = "with {0}")
     void ofStringNegative(String string) {
@@ -89,6 +113,8 @@ final class EntityIdTest {
                 "a.b.c,                   false",
                 "0.1.2.3,                 false",
                 "1.0.-1,                  false",
+                "1.-2.3.4,                false",
+                "1..2.3,                  false",
                 "0.0.9223372036854775808, false",
             })
     void isValid(String id, boolean result) {

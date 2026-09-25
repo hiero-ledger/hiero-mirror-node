@@ -14,6 +14,8 @@ class EntityIdConverterTest {
     @Test
     void testToDatabaseColumn() {
         Assertions.assertThat(INSTANCE.convertToDatabaseColumn(null)).isNull();
+        Assertions.assertThat(INSTANCE.convertToDatabaseColumn(EntityId.EMPTY)).isNull();
+        Assertions.assertThat(INSTANCE.convertToDatabaseColumn(EntityId.ZERO)).isZero();
         Assertions.assertThat(INSTANCE.convertToDatabaseColumn(EntityId.of(10L, 10L, 10L)))
                 .isEqualTo(180146733873889290L);
     }

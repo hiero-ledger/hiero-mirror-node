@@ -79,7 +79,9 @@ class ConsensusUpdateTopicTransactionHandler extends AbstractEntityCrudTransacti
     void updateCustomFee(List<FixedCustomFee> fixedCustomFees, RecordItem recordItem, long topicId) {
         var fixedFees = new ArrayList<FixedFee>();
         for (var fixedCustomFee : fixedCustomFees) {
-            var collector = EntityId.of(fixedCustomFee.getFeeCollectorAccountId());
+            final var collector = entityIdService
+                    .lookup(fixedCustomFee.getFeeCollectorAccountId())
+                    .orElse(EntityId.EMPTY);
             var fixedFee = fixedCustomFee.getFixedFee();
             var tokenId = fixedFee.hasDenominatingTokenId() ? EntityId.of(fixedFee.getDenominatingTokenId()) : null;
             fixedFees.add(FixedFee.builder()

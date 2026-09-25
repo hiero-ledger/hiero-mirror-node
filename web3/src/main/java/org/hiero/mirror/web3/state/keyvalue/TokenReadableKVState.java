@@ -81,8 +81,9 @@ final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token>
         }
 
         final var token = timestamp
-                .flatMap(t -> tokenRepository.findByTokenIdAndTimestamp(entity.getId(), t))
-                .orElseGet(() -> tokenRepository.findById(entity.getId()).orElse(null));
+                .map(t -> tokenRepository.findByTokenIdAndTimestamp(entity.getId(), t))
+                .orElseGet(() -> tokenRepository.findById(entity.getId()))
+                .orElse(null);
 
         if (token == null) {
             return null;

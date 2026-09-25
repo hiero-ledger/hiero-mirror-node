@@ -108,6 +108,7 @@ documentation for more information.
   - [Rosetta API](docs/rosetta/README.md)
   - [Web3 API](docs/web3/README.md)
 - [Configuration](docs/configuration.md)
+- [Cutover Guide (Record Stream to Block Stream)](docs/cutover.md)
 - [Development Guide](docs/development.md)
 - [Contributing](docs/contributing.md)
 - [Installation](docs/installation.md)

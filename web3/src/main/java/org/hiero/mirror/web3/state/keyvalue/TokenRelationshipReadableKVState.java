@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.token.AbstractTokenAccount;
+import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
@@ -67,6 +68,7 @@ final class TokenRelationshipReadableKVState extends AbstractReadableKVState<Ent
         final var timestamp = ContractCallContext.get().getTimestamp();
         // The accountId will always be in the format "shard.realm.num"
         return findTokenAccount(tokenId, accountId, timestamp)
+                .filter(ta -> Boolean.TRUE.equals(ta.getAssociated()))
                 .map(ta -> tokenRelationFromEntity(tokenId, accountId, ta, timestamp))
                 .orElse(null);
     }
@@ -103,7 +105,7 @@ final class TokenRelationshipReadableKVState extends AbstractReadableKVState<Ent
      */
     private Supplier<Long> getBalance(final TokenAccount tokenAccount, final Optional<Long> timestamp) {
         return Suppliers.memoize(() -> timestamp
-                .map(t -> findTokenType(tokenAccount.getTokenId())
+                .map(t -> findTokenType(tokenAccount.getTokenId(), timestamp)
                         .map(tokenTypeEnum -> tokenTypeEnum.equals(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
                                 ? getNftBalance(tokenAccount, t)
                                 : getFungibleBalance(tokenAccount, t))
@@ -126,8 +128,10 @@ final class TokenRelationshipReadableKVState extends AbstractReadableKVState<Ent
                 .orElse(0L);
     }
 
-    private Optional<TokenTypeEnum> findTokenType(final long tokenId) {
-        return tokenRepository.findTypeByTokenId(tokenId);
+    private Optional<TokenTypeEnum> findTokenType(final long tokenId, final Optional<Long> timestamp) {
+        return timestamp
+                .map(t -> tokenRepository.findByTokenIdAndTimestamp(tokenId, t).map(Token::getType))
+                .orElseGet(() -> tokenRepository.findTypeByTokenId(tokenId));
     }
 
     @Override

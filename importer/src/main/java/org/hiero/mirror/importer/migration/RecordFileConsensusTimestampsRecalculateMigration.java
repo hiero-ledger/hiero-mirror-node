@@ -54,19 +54,19 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
     static final long INTERVAL = Duration.ofHours(1).toNanos();
 
     private static final String CREATE_TEMPORARY_PROCESSED_RECORD_FILE_TABLE = """
-                    create table if not exists processed_record_file_temp(
+                    create table if not exists processed_record_file_temp_13135(
                         consensus_end bigint not null
                     );
             """;
 
     private static final String DROP_TEMPORARY_PROCESSED_RECORD_FILE_TABLE = """
-                    drop table if exists processed_record_file_temp;
+                    drop table if exists processed_record_file_temp_13135;
             """;
 
     private static final String SELECT_LAST_PROCESSED_TIMESTAMP = """
                     select coalesce(
                       (select consensus_end
-                       from processed_record_file_temp
+                       from processed_record_file_temp_13135
                        order by consensus_end asc
                        limit 1),
                       (select max(consensus_end)
@@ -78,9 +78,9 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
     private static final String INSERT_SLICE_CHECKPOINT = """
                     with clear_table as (
-                        delete from processed_record_file_temp
+                        delete from processed_record_file_temp_13135
                     )
-                    insert into processed_record_file_temp(consensus_end)
+                    insert into processed_record_file_temp_13135(consensus_end)
                     values (:consensusEndLowerBound)
             """;
 
@@ -214,7 +214,7 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
     @Override
     protected boolean performSynchronousSteps() {
-        log.info("Create table processed_record_file_temp if not exists.");
+        log.info("Create table processed_record_file_temp_13135 if not exists.");
         getJdbcOperations().execute(CREATE_TEMPORARY_PROCESSED_RECORD_FILE_TABLE);
         var minEnd = getMinConsensusEndTimestamp();
         latestProcessedEndTimestamp = Objects.requireNonNull(getNamedParameterJdbcOperations()
@@ -290,7 +290,7 @@ final class RecordFileConsensusTimestampsRecalculateMigration extends AsyncJavaM
 
         if (consensusEndLowerBound <= minEnd) {
             log.info(
-                    "Record_file consensus timestamp recalculation migration complete; dropping temporary table processed_record_file_temp.");
+                    "Record_file consensus timestamp recalculation migration complete; dropping temporary table processed_record_file_temp_13135.");
             getJdbcOperations().execute(DROP_TEMPORARY_PROCESSED_RECORD_FILE_TABLE);
             return Optional.empty();
         }

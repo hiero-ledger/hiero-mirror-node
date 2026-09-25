@@ -36,5 +36,6 @@ hiero:
       online: true
       port: 5700
       response:
+        maxTransactions: 100000
         maxTransactionsInBlock: 6000
       shutdownTimeout: 10s

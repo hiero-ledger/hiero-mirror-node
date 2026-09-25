@@ -57,7 +57,7 @@ const requestQueryParser = (queryString) => {
   for (const [key, value] of Object.entries(parsedQueryString)) {
     const lowerKey = key.toLowerCase();
     const canonicalValue = canonicalizeValue(lowerKey, value);
-    if (lowerKey in caseInsensitiveQueryString) {
+    if (Object.hasOwn(caseInsensitiveQueryString, lowerKey)) {
       // handle repeated values, merge into an array
       caseInsensitiveQueryString[lowerKey] = merge(caseInsensitiveQueryString[lowerKey], canonicalValue);
     } else {
@@ -69,7 +69,7 @@ const requestQueryParser = (queryString) => {
 };
 
 const canonicalizeValue = (key, value) => {
-  const canonicalizationFunc = queryCanonicalizationMap[key];
+  const canonicalizationFunc = Object.hasOwn(queryCanonicalizationMap, key) ? queryCanonicalizationMap[key] : undefined;
   if (canonicalizationFunc === undefined) {
     return value;
   }

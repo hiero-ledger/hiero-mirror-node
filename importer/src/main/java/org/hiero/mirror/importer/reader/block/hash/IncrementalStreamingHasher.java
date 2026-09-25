@@ -21,7 +21,7 @@ import java.util.List;
  */
 final class IncrementalStreamingHasher {
 
-    private static final byte[] HASH_OF_ZERO_BYTES = createSha384Digest().digest(new byte[] {0x0});
+    static final byte[] EMPTY_TREE_HASH = createSha384Digest().digest(new byte[] {0x0});
 
     /** The hashing algorithm used for computing the hashes. */
     private final MessageDigest digest = createSha384Digest();
@@ -62,7 +62,7 @@ final class IncrementalStreamingHasher {
     public byte[] computeRootHash() {
         if (hashList.isEmpty()) {
             // This value is precomputed as the hash of an empty tree; therefore it should _not_ be hashed as a leaf
-            return HASH_OF_ZERO_BYTES;
+            return EMPTY_TREE_HASH;
         }
 
         if (hashList.size() == 1) {
@@ -83,7 +83,7 @@ final class IncrementalStreamingHasher {
      *
      * @param hash the 48-byte SHA-384 hash of the node to add (must already include the prefixing)
      */
-    private void addNodeByHash(byte[] hash) {
+    public void addNodeByHash(final byte[] hash) {
         hashList.add(hash);
         // Fold up: combine sibling pairs while the current position is odd
         for (long n = leafCount; (n & 1L) == 1; n >>= 1) {

@@ -207,7 +207,9 @@ class CommonEntityAccessorTest {
         return new AccountID(
                 COMMON_PROPERTIES.getShard(),
                 COMMON_PROPERTIES.getRealm(),
-                new OneOf<>(AccountOneOfType.ALIAS, Bytes.wrap(EVM_ADDRESS.toArray())));
+                new OneOf<>(
+                        AccountOneOfType.ALIAS,
+                        Bytes.wrap(EVM_ADDRESS.getBytes().toArray())));
     }
 
     private AccountID createAccountAliasWithKey() {

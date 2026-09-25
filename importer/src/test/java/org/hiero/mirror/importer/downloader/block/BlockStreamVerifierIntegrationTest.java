@@ -15,6 +15,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -212,6 +213,47 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessage(
                         "No record file signatures for the wrapped record block 2025-06-01T00_00_10.207594022Z.rcd with block number 20346052");
+    }
+
+    @Test
+    void verifyWithAmendments() {
+        // given
+        final var blockFile = createBlockFileWithWrb();
+        blockFile.getRecordFile().setAmended(true);
+
+        // when, then
+        assertThatThrownBy(() -> verifier.verify(blockFile))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage(
+                        "Verification of amendments in wrapped record block 2025-06-01T00_00_10.207594022Z.rcd with block number 20346052 is not supported");
+    }
+
+    @Test
+    void verifyWithInitialState() {
+        // given
+        final var blockFile = createBlockFileWithWrb();
+        final var initialState = new RecordFile.InitialState();
+        initialState.contracts().add(new Contract());
+        blockFile.getRecordFile().setInitialState(initialState);
+
+        // when, then
+        assertThatThrownBy(() -> verifier.verify(blockFile))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage(
+                        "Verification of initial state in wrapped record block 2025-06-01T00_00_10.207594022Z.rcd with block number 20346052 is not supported");
+    }
+
+    @Test
+    void verifyWithPreV6Version() {
+        // given
+        final var blockFile = createBlockFileWithWrb();
+        blockFile.getRecordFile().setVersion(5);
+
+        // when, then
+        assertThatThrownBy(() -> verifier.verify(blockFile))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage(
+                        "Verification of pre-v6 wrapped record block 2025-06-01T00_00_10.207594022Z.rcd with block number 20346052 is not supported");
     }
 
     private void persistNodeStakes() {

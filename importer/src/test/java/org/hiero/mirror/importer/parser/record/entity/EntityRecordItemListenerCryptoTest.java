@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.entity;
 
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransaction;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransactions;
 import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_ALIAS;
@@ -36,6 +37,7 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.ShardID;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -55,7 +57,9 @@ import org.assertj.core.api.Condition;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.IterableAssert;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.RecordItemBuilder.TransferType;
 import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.AbstractCryptoAllowance.Id;
 import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -65,6 +69,8 @@ import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.token.Nft;
+import org.hiero.mirror.common.domain.token.NftTransfer;
+import org.hiero.mirror.common.domain.token.TokenTransfer;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.ErrataType;
 import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
@@ -74,6 +80,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.importer.repository.HookRepository;
 import org.hiero.mirror.importer.repository.NftAllowanceRepository;
@@ -103,6 +110,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     private static final ByteString EVM_ADDRESS_KEY = DomainUtils.fromBytes(UtilityTest.EVM_ADDRESS);
 
     private final @Qualifier(CACHE_ALIAS) CacheManager cacheManager;
+    private final ContractLogRepository contractLogRepository;
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
     private final HookRepository hookRepository;
     private final NftAllowanceRepository nftAllowanceRepository;
@@ -190,6 +198,22 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
         assertAllowances(recordItem, expectedNfts);
         assertThat(entityTransactionRepository.findAll())
                 .containsExactlyInAnyOrderElementsOf(expectedEntityTransactions);
+    }
+
+    @Test
+    void cryptoApproveAllowanceCreatesSyntheticContractLogs() {
+        // given: default builder produces token, indexed nft, and approve-for-all nft allowances, covering all
+        // three Approve*ContractLog variants.
+        var recordItem = recordItemBuilder.cryptoApproveAllowance().build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(contractLogRepository.findAll())
+                .filteredOn(contractLog -> contractLog.getConsensusTimestamp() == recordItem.getConsensusTimestamp())
+                .isNotEmpty()
+                .allMatch(ContractLog::isSynthetic);
     }
 
     @Test
@@ -766,6 +790,52 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                 .containsOnly(accountId1);
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void cryptoCreateInvalidProxyAccountId() {
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .recordItem(r -> r.hapiVersion(RecordFile.HAPI_VERSION_0_27_0))
+                .transactionBody(b -> b.setProxyAccountID(invalidProxy))
+                .build();
+        var accountId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+
+        parseRecordItemAndCommit(recordItem);
+
+        assertThat(transactionRepository.count()).isEqualTo(1L);
+        assertThat(entityRepository.findById(accountId.getId()))
+                .get()
+                .returns(null, Entity::getProxyAccountId)
+                .returns(EntityType.ACCOUNT, Entity::getType);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    void cryptoUpdateInvalidProxyAccountId() {
+        createAccount();
+
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var transaction = cryptoUpdateTransaction(accountId1.toAccountID(), b -> b.setProxyAccountID(invalidProxy));
+        var transactionBody = getTransactionBody(transaction);
+        var txnRecord = transactionRecordSuccess(transactionBody);
+
+        parseRecordItemAndCommit(RecordItem.builder()
+                .hapiVersion(RecordFile.HAPI_VERSION_0_27_0)
+                .transactionRecord(txnRecord)
+                .transaction(transaction)
+                .build());
+
+        assertThat(transactionRepository.count()).isEqualTo(2L);
+        assertThat(entityRepository.findById(accountId1.getId()))
+                .get()
+                .returns("CryptoUpdateAccount memo", Entity::getMemo)
+                .returns(EntityId.of(PROXY), Entity::getProxyAccountId);
+    }
+
     // Transactions in production have proxyAccountID explicitly set to '0.0.0'. Test is to prevent code regression
     // in handling this weird case.
     @SuppressWarnings("deprecation")
@@ -1015,6 +1085,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(newAddress)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId))
+                .recordItem(r -> r.hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -1037,6 +1108,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId))
+                .recordItem(r -> r.hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -1057,7 +1129,8 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                 .transactionBody(b -> b.setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId))
-                .recordItem(r -> r.blockstream(true).accountEthereumNonce(expectedNonce))
+                .recordItem(r ->
+                        r.blockstream(true).accountEthereumNonce(expectedNonce).hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -1088,7 +1161,8 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId))
-                .recordItem(r -> r.blockstream(true).accountEthereumNonce(expectedNonce))
+                .recordItem(r ->
+                        r.blockstream(true).accountEthereumNonce(expectedNonce).hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -1117,11 +1191,30 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(zeroAddress)))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId))
+                .recordItem(r -> r.hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
         // then - zero address is persisted, not treated as null/clear
         assertThat(entityRepository.findById(account.getId())).get().returns(zeroAddress, Entity::getDelegationAddress);
+    }
+
+    @Test
+    void cryptoUpdateDelegationAddressSkippedBeforePectra() {
+        var account =
+                domainBuilder.entity().customize(e -> e.delegationAddress(null)).persist();
+        var protoAccountId = account.toEntityId().toAccountID();
+        var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b ->
+                        b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> r.setTransactionID(transactionId))
+                .build();
+        parseRecordItemAndCommit(recordItem);
+
+        assertThat(entityRepository.findById(account.getId())).get().returns(null, Entity::getDelegationAddress);
     }
 
     @Test
@@ -1514,6 +1607,116 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     }
 
     @Test
+    void cryptoTransferWithAliasHasCorrectIsApprovalValue() {
+        // given
+        entityProperties.getPersist().setTrackAllowance(true);
+        entityProperties.getPersist().setCryptoTransferAmounts(true);
+
+        var payerAccount = EntityId.of(PAYER);
+        Entity owner = domainBuilder.entity().persist();
+        var ownerAlias = DomainUtils.fromBytes(owner.getAlias());
+        var allowanceAmountGranted = 1000L;
+
+        // Persist the now pre-existing crypto allowance to be debited by the approved transfer below
+        domainBuilder
+                .cryptoAllowance()
+                .customize(ca -> ca.amountGranted(allowanceAmountGranted)
+                        .amount(allowanceAmountGranted)
+                        .owner(owner.getId())
+                        .spender(payerAccount.getId()))
+                .persist();
+
+        long transferAmount = -300L;
+        Transaction transaction = buildTransaction(r -> r.getCryptoTransferBuilder()
+                .getTransfersBuilder()
+                .addAccountAmounts(
+                        accountAliasAmount(ownerAlias, transferAmount).setIsApproval(true))
+                .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -transferAmount)));
+        TransactionBody transactionBody = getTransactionBody(transaction);
+        TransactionRecord txnRecord = buildTransactionRecordWithNoTransactions(
+                builder -> builder.getTransferListBuilder()
+                        .addAccountAmounts(accountAmount(owner.toEntityId(), transferAmount))
+                        .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -transferAmount)),
+                transactionBody,
+                ResponseCodeEnum.SUCCESS.getNumber());
+
+        var recordItem = RecordItem.builder()
+                .transactionRecord(txnRecord)
+                .transaction(transaction)
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertAll(
+                () -> assertEquals(1, transactionRepository.count()),
+                () -> assertThat(cryptoTransferRepository.findAll())
+                        .filteredOn(cryptoTransfer -> cryptoTransfer.getEntityId() == owner.getId())
+                        .singleElement()
+                        .extracting(CryptoTransfer::getIsApproval)
+                        .isEqualTo(true),
+                () -> {
+                    var cryptoAllowanceId = new Id();
+                    cryptoAllowanceId.setOwner(owner.getId());
+                    cryptoAllowanceId.setSpender(payerAccount.getId());
+                    assertThat(cryptoAllowanceRepository.findById(cryptoAllowanceId))
+                            .get()
+                            .extracting(org.hiero.mirror.common.domain.entity.CryptoAllowance::getAmount)
+                            .isEqualTo(allowanceAmountGranted + transferAmount);
+                });
+    }
+
+    @Test
+    void cryptoTransferSameAmountDifferentApprovalDisambiguatedByIdentity() {
+        // given: two alias-addressed debits share the same amount, but only one is approved
+        entityProperties.getPersist().setCryptoTransferAmounts(true);
+
+        Entity owner = domainBuilder.entity().persist();
+        var ownerAlias = DomainUtils.fromBytes(owner.getAlias());
+        Entity spender = domainBuilder.entity().persist();
+        var spenderAlias = DomainUtils.fromBytes(spender.getAlias());
+        long transferAmount = -100L;
+
+        Transaction transaction = buildTransaction(r -> r.getCryptoTransferBuilder()
+                .getTransfersBuilder()
+                .addAccountAmounts(
+                        accountAliasAmount(ownerAlias, transferAmount).setIsApproval(true))
+                .addAccountAmounts(
+                        accountAliasAmount(spenderAlias, transferAmount).setIsApproval(false))
+                .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -2 * transferAmount)));
+        TransactionBody transactionBody = getTransactionBody(transaction);
+        TransactionRecord txnRecord = buildTransactionRecordWithNoTransactions(
+                builder -> builder.getTransferListBuilder()
+                        .addAccountAmounts(accountAmount(owner.toEntityId(), transferAmount))
+                        .addAccountAmounts(accountAmount(spender.toEntityId(), transferAmount))
+                        .addAccountAmounts(accountAmount(EntityId.of(PAYER2), -2 * transferAmount)),
+                transactionBody,
+                ResponseCodeEnum.SUCCESS.getNumber());
+
+        var recordItem = RecordItem.builder()
+                .transactionRecord(txnRecord)
+                .transaction(transaction)
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertAll(
+                () -> assertThat(cryptoTransferRepository.findAll())
+                        .filteredOn(cryptoTransfer -> cryptoTransfer.getEntityId() == owner.getId())
+                        .singleElement()
+                        .extracting(CryptoTransfer::getIsApproval)
+                        .isEqualTo(true),
+                () -> assertThat(cryptoTransferRepository.findAll())
+                        .filteredOn(cryptoTransfer -> cryptoTransfer.getEntityId() == spender.getId())
+                        .singleElement()
+                        .extracting(CryptoTransfer::getIsApproval)
+                        .isEqualTo(false));
+    }
+
+    @Test
     void cryptoTransferUpdatesAllowanceAmount() {
         entityProperties.getPersist().setTrackAllowance(true);
         var allowanceAmountGranted = 1000L;
@@ -1874,6 +2077,43 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         .map(transfer -> ((ItemizedTransfer) transfer).getEntityId())
                         .asInstanceOf(InstanceOfAssertFactories.LIST)
                         .containsExactlyInAnyOrderElementsOf(expectedEntityIds));
+    }
+
+    @Test
+    void cryptoTransferInvalidIds() {
+        final var invalidAccount = AccountID.newBuilder().setAccountNum(-1L).build();
+        final var invalidToken = TokenID.newBuilder().setTokenNum(-1L).build();
+        final var recordItem = recordItemBuilder
+                .cryptoTransfer(TransferType.ALL)
+                .record(t -> t.getTokenTransferListsBuilder(0).setToken(invalidToken))
+                .record(t -> t.getTokenTransferListsBuilder(1)
+                        .setToken(invalidToken)
+                        .getNftTransfersBuilder(0)
+                        .setReceiverAccountID(invalidAccount)
+                        .setSenderAccountID(invalidAccount))
+                .transactionBody(t -> t.getTokenTransfersBuilder(0).setToken(invalidToken))
+                .transactionBody(t -> t.getTokenTransfersBuilder(1)
+                        .setToken(invalidToken)
+                        .getNftTransfersBuilder(0)
+                        .setReceiverAccountID(invalidAccount)
+                        .setSenderAccountID(invalidAccount))
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        softly.assertThat(transactionRepository.findAll())
+                .first()
+                .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getNftTransfer)
+                .asInstanceOf(InstanceOfAssertFactories.list(NftTransfer.class))
+                .first()
+                .returns(EntityId.ZERO, NftTransfer::getReceiverAccountId)
+                .returns(EntityId.ZERO, NftTransfer::getSenderAccountId)
+                .returns(EntityId.ZERO, NftTransfer::getTokenId);
+        softly.assertThat(tokenTransferRepository.findAll())
+                .first()
+                .extracting(TokenTransfer::getId)
+                .extracting(TokenTransfer.Id::getTokenId)
+                .isEqualTo(EntityId.ZERO);
     }
 
     @Test
@@ -2318,8 +2558,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         DomainUtils.getPublicKey(expected.getKey().toByteArray()), actualAccount.getPublicKey()),
                 () -> assertEquals(EntityId.of(expected.getProxyAccountID()), actualAccount.getProxyAccountId()),
                 () -> assertEquals(expected.getReceiverSigRequired(), actualAccount.getReceiverSigRequired()),
-                () -> assertEquals(
-                        expected.getDelegationAddress(), ByteString.copyFrom(actualAccount.getDelegationAddress())));
+                () -> assertNull(actualAccount.getDelegationAddress()));
     }
 
     protected IterableAssert<CryptoTransfer> assertCryptoTransfers(int expectedNumberOfCryptoTransfers) {

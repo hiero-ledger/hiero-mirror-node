@@ -13,6 +13,7 @@ import (
 type Block struct {
 	ConsensusEndNanos   int64
 	ConsensusStartNanos int64
+	Count               int64
 	Hash                string
 	Index               int64
 	ParentHash          string

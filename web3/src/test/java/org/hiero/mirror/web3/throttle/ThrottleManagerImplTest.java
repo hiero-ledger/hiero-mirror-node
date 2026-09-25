@@ -182,11 +182,30 @@ final class ThrottleManagerImplTest {
     }
 
     @Test
-    void requestLimitReached() {
+    void requestLogLimitReached(CapturedOutput output) {
+        requestProperties.setAction(ActionType.LOG);
+        requestProperties.setLimit(1L);
+        var request = request();
+        request.setGas(21_000L);
+
+        throttleManager.throttle(request);
+        throttleManager.throttle(request);
+
+        assertThat(output.getAll()).containsOnlyOnce("ContractCallRequest(");
+    }
+
+    @Test
+    void requestRejectIgnoresLimit() {
         requestProperties.setAction(ActionType.REJECT);
         requestProperties.setLimit(0L);
         var request = request();
-        throttleManager.throttle(request);
+        request.setGas(21_000L);
+        assertThatThrownBy(() -> throttleManager.throttle(request))
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining("Invalid request");
+        assertThatThrownBy(() -> throttleManager.throttle(request))
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining("Invalid request");
     }
 
     @Test

@@ -14,6 +14,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 class ConsensusCreateTopicTransactionHandler extends AbstractEntityCrudTransactionHandler {
@@ -38,9 +39,15 @@ class ConsensusCreateTopicTransactionHandler extends AbstractEntityCrudTransacti
         var transactionBody = recordItem.getTransactionBody().getConsensusCreateTopic();
 
         if (transactionBody.hasAutoRenewAccount()) {
-            var autoRenewAccountId = EntityId.of(transactionBody.getAutoRenewAccount());
-            entity.setAutoRenewAccountId(autoRenewAccountId.getId());
-            recordItem.addEntityId(autoRenewAccountId);
+            final var autoRenewAccountId = entityIdService
+                    .lookup(transactionBody.getAutoRenewAccount())
+                    .orElse(EntityId.EMPTY);
+            if (!EntityId.isEmpty(autoRenewAccountId)) {
+                entity.setAutoRenewAccountId(autoRenewAccountId.getId());
+                recordItem.addEntityId(autoRenewAccountId);
+            } else {
+                Utility.handleRecoverableError("Invalid autoRenewAccountId at {}", recordItem.getConsensusTimestamp());
+            }
         }
 
         if (transactionBody.hasAutoRenewPeriod()) {

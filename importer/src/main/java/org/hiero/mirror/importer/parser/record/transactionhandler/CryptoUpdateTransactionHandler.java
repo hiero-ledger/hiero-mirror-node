@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static com.hederahashgraph.api.proto.java.CryptoUpdateTransactionBody.StakedIdCase.STAKEDID_NOT_SET;
 import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_27_0;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
 
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.entity.AbstractEntity;
@@ -67,9 +68,7 @@ class CryptoUpdateTransactionHandler extends AbstractEntityCrudTransactionHandle
         }
 
         if (transactionBody.hasProxyAccountID()) {
-            var proxyAccountId = EntityId.of(transactionBody.getProxyAccountID());
-            entity.setProxyAccountId(proxyAccountId);
-            recordItem.addEntityId(proxyAccountId);
+            updateProxyAccountId(entity, recordItem, transactionBody.getProxyAccountID());
         }
 
         if (transactionBody.hasReceiverSigRequiredWrapper()) {
@@ -82,7 +81,9 @@ class CryptoUpdateTransactionHandler extends AbstractEntityCrudTransactionHandle
 
         // If the delegation address is the zero-address, it means that we have the delegation address
         // cleared, and we need to persist it as the zero-address in the DB.
-        if (!transactionBody.getDelegationAddress().isEmpty()) {
+        // Remove the version check once Pectra is released on consensus node.
+        if (!transactionBody.getDelegationAddress().isEmpty()
+                && recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_77_0)) {
             entity.setDelegationAddress(DomainUtils.toBytes(transactionBody.getDelegationAddress()));
             if (recordItem.getAccountEthereumNonce() != null
                     && entityProperties.getPersist().isTrackNonce()) {

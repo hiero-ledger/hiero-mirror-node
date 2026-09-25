@@ -29,14 +29,20 @@ public class CommonRuntimeHints implements RuntimeHintsRegistrar {
         // Caffeine loads generated cache implementations via reflection
         if (ClassUtils.isPresent("com.github.benmanes.caffeine.cache.Caffeine", classLoader)) {
             registerCache(hints, "SIA");
+            registerCache(hints, "SSMS");
             registerCache(hints, "SSMSA");
+            registerCache(hints, "SSMW");
+            registerCache(hints, "SSMWW");
             registerCache(hints, "SSR");
             registerCache(hints, "SSSMA");
             registerCache(hints, "SSSMSA");
             registerCache(hints, "SSSW");
             registerNode(hints, "PDA");
             registerNode(hints, "PSAMS");
+            registerNode(hints, "PSMS");
+            registerNode(hints, "PSMW");
             registerNode(hints, "PSR");
+            registerNode(hints, "PSWMW");
         }
 
         // Hibernate Validator

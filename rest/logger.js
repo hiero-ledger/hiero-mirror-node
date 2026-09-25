@@ -66,7 +66,10 @@ class Logger {
     const levelName = Level.toString(level);
     const requestId = httpContext.get(constants.requestIdLabel) || 'Startup';
     const stack = err?.stack ? `\n${err.stack}` : '';
-    const text = `${time} ${levelName} ${requestId} ${msg}${stack}\n`;
+    // Collapse CR/LF in the caller-supplied message to avoid splitting log
+    // records (CWE-117). The server-generated fields and err.stack are left intact.
+    const sanitizedMsg = String(msg).replace(/[\r\n]+/g, ' ');
+    const text = `${time} ${levelName} ${requestId} ${sanitizedMsg}${stack}\n`;
     this.#write(text);
   }
 

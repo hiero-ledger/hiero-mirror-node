@@ -51,6 +51,36 @@ final class TssVerifierTest {
     }
 
     @Test
+    void concurrentGetLedgerCallsOnLedgerSetOnce() throws Exception {
+        // given
+        when(ledgerRepository.findTopByOrderByConsensusTimestampDesc()).thenAnswer(invocation -> {
+            Thread.sleep(50); // widen the race window
+            return Optional.of(TEST_ARTIFACT.toLedger());
+        });
+
+        // when
+        final var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        final var latch = new java.util.concurrent.CountDownLatch(2);
+        final Runnable task = () -> {
+            latch.countDown();
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps);
+        };
+        final var f1 = pool.submit(task);
+        final var f2 = pool.submit(task);
+        f1.get();
+        f2.get();
+        pool.shutdown();
+
+        // then
+        verify(ledgerRepository, times(1)).findTopByOrderByConsensusTimestampDesc();
+    }
+
+    @Test
     void verifyWhenThrow() {
         // given
         when(ledgerRepository.findTopByOrderByConsensusTimestampDesc())

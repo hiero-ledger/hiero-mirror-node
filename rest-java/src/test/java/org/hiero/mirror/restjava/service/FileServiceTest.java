@@ -5,9 +5,7 @@ package org.hiero.mirror.restjava.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
-import com.hederahashgraph.api.proto.java.FeeSchedule;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
@@ -77,59 +75,6 @@ final class FileServiceTest extends RestJavaIntegrationTest {
         assertThat(actual).isEqualTo(new SystemFile<>(fileData, exchangeRateSet));
     }
 
-    @Test
-    void getFeeScheduleSuccess() {
-        // given
-        final var feeSchedule = CurrentAndNextFeeSchedule.newBuilder()
-                .setCurrentFeeSchedule(FeeSchedule.newBuilder().build())
-                .build();
-        final var fileData = domainBuilder
-                .fileData()
-                .customize(f -> f.entityId(systemEntity.feeScheduleFile()).fileData(feeSchedule.toByteArray()))
-                .persist();
-        final var bound = bound(RangeOperator.EQ, fileData);
-
-        // when
-        final var actual = service.getFeeSchedule(bound);
-
-        // then
-        fileData.setTransactionType(null);
-        assertThat(actual).isEqualTo(new SystemFile<>(fileData, feeSchedule));
-    }
-
-    @Test
-    void getFeeScheduleNotFound() {
-        // given
-        final var bound = bound(RangeOperator.GTE, domainBuilder.fileData().get());
-
-        // when / then
-        assertThatThrownBy(() -> service.getFeeSchedule(bound)).isInstanceOf(EntityNotFoundException.class);
-    }
-
-    @Test
-    void getFeeScheduleRecovers() {
-        // given
-        final var feeSchedule = CurrentAndNextFeeSchedule.newBuilder()
-                .setCurrentFeeSchedule(FeeSchedule.newBuilder().build())
-                .build();
-        final var fileData = domainBuilder
-                .fileData()
-                .customize(f -> f.entityId(systemEntity.feeScheduleFile()).fileData(feeSchedule.toByteArray()))
-                .persist();
-        domainBuilder
-                .fileData()
-                .customize(f -> f.entityId(systemEntity.feeScheduleFile()).fileData(domainBuilder.bytes(10)))
-                .persist();
-        final var bound = bound(RangeOperator.GTE, fileData);
-
-        // when
-        final var actual = service.getFeeSchedule(bound);
-
-        // then
-        fileData.setTransactionType(null);
-        assertThat(actual).isEqualTo(new SystemFile<>(fileData, feeSchedule));
-    }
-
     @Nested
     class GetSimpleFeeSchedule {
 
@@ -148,7 +93,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
                     .persist();
 
             // when
-            final var actual = service.getSimpleFeeSchedule(Bound.EMPTY);
+            final var actual = service.getFeeSchedule(Bound.EMPTY);
 
             // then
             assertThat(actual.data()).isEqualTo(expected);
@@ -157,8 +102,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
         @Test
         void notFound() {
             // when / then
-            assertThatThrownBy(() -> service.getSimpleFeeSchedule(Bound.EMPTY))
-                    .isInstanceOf(EntityNotFoundException.class);
+            assertThatThrownBy(() -> service.getFeeSchedule(Bound.EMPTY)).isInstanceOf(EntityNotFoundException.class);
         }
 
         @Test
@@ -171,8 +115,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
                     .persist();
 
             // when / then
-            assertThatThrownBy(() -> service.getSimpleFeeSchedule(Bound.EMPTY))
-                    .isInstanceOf(EntityNotFoundException.class);
+            assertThatThrownBy(() -> service.getFeeSchedule(Bound.EMPTY)).isInstanceOf(EntityNotFoundException.class);
         }
     }
 

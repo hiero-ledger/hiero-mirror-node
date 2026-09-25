@@ -360,6 +360,7 @@ class SystemEntity {
   #feeCollectionAccount = of(systemShard, systemRealm, 802);
   #feeScheduleFile = of(systemShard, systemRealm, 111);
   #networkAdminFeeAccount = of(systemShard, systemRealm, 98);
+  #simpleFeeScheduleFile = of(systemShard, systemRealm, 113);
   #stakingRewardAccount = of(systemShard, systemRealm, 800);
   #treasuryAccount = of(systemShard, systemRealm, 2);
 
@@ -385,6 +386,10 @@ class SystemEntity {
 
   get networkAdminFeeAccount() {
     return this.#networkAdminFeeAccount;
+  }
+
+  get simpleFeeScheduleFile() {
+    return this.#simpleFeeScheduleFile;
   }
 
   get stakingRewardAccount() {

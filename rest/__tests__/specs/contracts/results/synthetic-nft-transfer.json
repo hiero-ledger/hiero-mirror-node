@@ -1,0 +1,89 @@
+{
+  "description": "Contract results list includes a synthetic NFT transfer contract log with no matching contract_result",
+  "setup": {
+    "contracts": [
+      {
+        "created_timestamp": "187654000123000",
+        "evm_address": "70f2b2914a2a4b783faefb75f459a580616fcb5e",
+        "file_id": "5001",
+        "key": [1, 1, 1],
+        "num": "5001",
+        "timestamp_range": "[187654000123000,)"
+      }
+    ],
+    "contractlogs": [
+      {
+        "consensus_timestamp": "187654000123456",
+        "contract_id": 5001,
+        "root_contract_id": 5001,
+        "index": 0,
+        "payer_account_id": 5000,
+        "synthetic": true,
+        "topic0": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "topic1": "0x",
+        "topic2": "0x0000000000000000000000000000000000001389",
+        "topic3": "0x0000000000000000000000000000000000000001",
+        "transaction_hash": "0x185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "transaction_index": 0
+      }
+    ],
+    "recordFiles": [
+      {
+        "index": 10,
+        "count": 1,
+        "hapi_version_major": "0",
+        "hapi_version_minor": "22",
+        "hapi_version_patch": "3",
+        "name": "2022-04-27T12_09_24.499938763Z.rcd",
+        "prev_hash": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "consensus_start": 187654000123000,
+        "consensus_end": 187654000123500,
+        "hash": "fbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1c",
+        "gas_used": 400000
+      }
+    ]
+  },
+  "url": "/api/v1/contracts/results",
+  "responseStatus": 200,
+  "responseJson": {
+    "results": [
+      {
+        "access_list": [],
+        "address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
+        "amount": null,
+        "block_gas_used": 400000,
+        "block_hash": "0xfbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1c",
+        "block_number": 10,
+        "bloom": "0x",
+        "call_result": "0x",
+        "chain_id": "0x128",
+        "contract_id": "0.0.5001",
+        "created_contract_ids": [],
+        "error_message": null,
+        "failed_initcode": null,
+        "from": "0x0000000000000000000000000000000000001388",
+        "function_parameters": "0x",
+        "gas_consumed": null,
+        "gas_limit": 0,
+        "gas_price": null,
+        "gas_used": null,
+        "hash": "0x185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "max_fee_per_gas": null,
+        "max_priority_fee_per_gas": null,
+        "nonce": null,
+        "r": null,
+        "result": "SUCCESS",
+        "s": null,
+        "status": "0x1",
+        "timestamp": "187654.000123456",
+        "to": "0x0000000000000000000000000000000000001389",
+        "transaction_index": 0,
+        "type": 0,
+        "v": null
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

@@ -23,6 +23,7 @@ const (
 	// selectLatestWithIndex - Selects the latest record block
 	selectLatestWithIndex string = `select consensus_start,
                                            consensus_end,
+                                           count,
                                            hash,
                                            index,
                                            prev_hash
@@ -38,6 +39,7 @@ const (
                                         from record_file c
                                         where c.index = p.index + 1
                                       ), consensus_end) as consensus_end,
+                                      count,
                                       hash,
                                       index,
                                       prev_hash
@@ -56,6 +58,7 @@ const (
                             select
                               hash,
                               index,
+                              rf.count,
                               case
                                 when genesis.timestamp >= rf.consensus_start then genesis.timestamp + 1
                                 else rf.consensus_start
@@ -78,6 +81,7 @@ const (
                                                from record_file
                                                where index = @index + 1::bigint
                                              ), consensus_end) as consensus_end,
+                                             count,
                                              hash,
                                              index,
                                              prev_hash
@@ -88,6 +92,7 @@ const (
 type recordBlock struct {
 	ConsensusStart int64
 	ConsensusEnd   int64
+	Count          int64
 	Hash           string
 	Index          int64
 	PrevHash       string
@@ -112,6 +117,7 @@ func (rb *recordBlock) ToBlock(genesisBlock recordBlock) *types.Block {
 		ParentHash:          parentHash,
 		ConsensusStartNanos: consensusStart,
 		ConsensusEndNanos:   rb.ConsensusEnd,
+		Count:               rb.Count,
 	}
 }
 

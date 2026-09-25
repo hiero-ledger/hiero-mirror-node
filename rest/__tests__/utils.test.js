@@ -1164,6 +1164,21 @@ describe('Utils toHexString tests', () => {
       expected: '0000abcd',
     },
     {
+      name: 'hex string with prefix, pad to 8',
+      args: ['0xabcd', true, 8],
+      expected: '0x0000abcd',
+    },
+    {
+      name: 'hex string with prefix, add prefix is a no-op',
+      args: ['0xabcd', true],
+      expected: '0xabcd',
+    },
+    {
+      name: 'odd-length hex string, pad to 8',
+      args: ['0x1', false, 8],
+      expected: '00000001',
+    },
+    {
       name: 'empty array',
       args: [[], true, 2],
       expected: hexPrefix,
@@ -2058,6 +2073,12 @@ describe('Utils formatSlot tests', () => {
     const slot = '0x0000000000000000000000000000000000000000000000000000000000000001';
     const formattedSlot = '0000000000000000000000000000000000000000000000000000000000000001';
     expect(utils.formatSlot(slot, true)).toEqual(Buffer.from(formattedSlot, 'hex'));
+  });
+
+  test('Verify short slot with left pad', () => {
+    const formattedSlot = '0000000000000000000000000000000000000000000000000000000000000001';
+    expect(utils.formatSlot('0x1', true)).toEqual(Buffer.from(formattedSlot, 'hex'));
+    expect(utils.formatSlot('1', true)).toEqual(Buffer.from(formattedSlot, 'hex'));
   });
 });
 

@@ -5,6 +5,8 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.state.Utils.convertToTimestamp;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.NftID;
@@ -113,6 +115,26 @@ class NftReadableKVStateTest {
                 .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
                 .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
                 .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
+    }
+
+    @Test
+    void getNftDoesNotUseLatestTreasuryForHistoricalMiss() {
+        when(contractCallContext.getTimestamp()).thenReturn(timestamp);
+        final var databaseNft = domainBuilder
+                .nft()
+                .customize(n -> n.tokenId(entity.getId())
+                        .serialNumber(NFT_ID.serialNumber())
+                        .accountId(treasury)
+                        .createdTimestamp(timestamp.get()))
+                .get();
+        when(tokenRepository.findByTokenIdAndTimestamp(entity.getId(), timestamp.get()))
+                .thenReturn(Optional.empty());
+        when(nftRepository.findActiveByIdAndTimestamp(entity.getId(), NFT_ID.serialNumber(), timestamp.get()))
+                .thenReturn(Optional.of(databaseNft));
+
+        assertThat(nftReadableKVState.readFromDataSource(NFT_ID).ownerId())
+                .isEqualTo(EntityIdUtils.toAccountId(treasury));
+        verify(tokenRepository, never()).findById(entity.getId());
     }
 
     @Test

@@ -28,6 +28,7 @@
         "consensus_timestamp": "187654000123490",
         "contract_id": 5001,
         "gas_used": 0,
+        "transaction_index": null,
         "transaction_nonce": 0,
         "transaction_result": "312"
       }

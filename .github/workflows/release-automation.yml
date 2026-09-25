@@ -10,8 +10,7 @@ on:
         required: true
 
 permissions:
-  contents: write
-  issues: write
+  contents: read
 
 defaults:
   run:
@@ -24,6 +23,9 @@ jobs:
   release:
     name: Release
     runs-on: hiero-mirror-node-linux-medium
+    permissions:
+      contents: write
+      issues: write
     outputs:
       create_pr: ${{ env.CREATE_PR }}
       next_version_snapshot: ${{ env.NEXT_VERSION_SNAPSHOT }}
@@ -32,7 +34,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
 
@@ -63,7 +65,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           ref: main
           token: ${{ secrets.HEDERA_BOT_TOKEN }}
 
@@ -80,13 +81,13 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Install JDK
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
-          distribution: temurin
-          java-version: 25
+          java-version-file: .sdkmanrc
+          verify-signature: true
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v4
 
       - name: Create and Switch to Release Branch
         run: |
@@ -98,7 +99,8 @@ jobs:
             echo "CREATE_PR=true" >> $GITHUB_ENV
             echo "PR_TITLE=Bump versions for v$NEXT_VERSION_SNAPSHOT" >> $GITHUB_ENV
           else
-            git checkout ${RELEASE_BRANCH}
+            git fetch origin ${RELEASE_BRANCH}
+            git checkout --track origin/${RELEASE_BRANCH}
           fi
 
       - name: Gradle Release
@@ -121,7 +123,7 @@ jobs:
           milestone: ${{ steps.version_parser.outputs.release }}
 
       - name: Commit and Tag
-        uses: step-security/git-auto-commit-action@749bc1cc775376092cc4227ba537137f445ca7c3 # v7.1.1
+        uses: step-security/git-auto-commit-action@ca31fda53dd20a6864523b29798308a4c5fa5cfa # v7.2.0
         with:
           commit_author: ${{ steps.gpg_importer.outputs.name }} <${{ steps.gpg_importer.outputs.email }}>
           commit_message: Bump versions for ${{ env.RELEASE_TAG }}
@@ -145,6 +147,8 @@ jobs:
   create_pr:
     name: Create PR
     runs-on: hiero-mirror-node-linux-medium
+    permissions:
+      contents: write
     needs: release
     if: ${{ needs.release.outputs.create_pr == 'true' }}
     env:
@@ -153,7 +157,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
 
@@ -175,13 +179,13 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Install JDK
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
-          distribution: temurin
-          java-version: 25
+          java-version-file: .sdkmanrc
+          verify-signature: true
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v4
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v4
 
       - name: Reset main to release branch
         run: |

@@ -107,6 +107,10 @@ final class ContractResultServiceImpl implements ContractResultService {
         }
 
         var ethereumTransaction = recordItem.getEthereumTransaction();
+        if (ethereumTransaction == null) {
+            return;
+        }
+
         var functionParameters = ethereumTransaction.getCallData() != null
                 ? ethereumTransaction.getCallData()
                 : DomainUtils.EMPTY_BYTE_ARRAY;
@@ -479,7 +483,10 @@ final class ContractResultServiceImpl implements ContractResultService {
         }
 
         if (transactionBody.hasProxyAccountID()) {
-            entity.setProxyAccountId(EntityId.of(transactionBody.getProxyAccountID()));
+            final var proxyAccountId = EntityId.tryOf(transactionBody.getProxyAccountID());
+            if (!EntityId.isEmpty(proxyAccountId)) {
+                entity.setProxyAccountId(proxyAccountId);
+            }
         }
 
         entity.setMemo(transactionBody.getMemo());

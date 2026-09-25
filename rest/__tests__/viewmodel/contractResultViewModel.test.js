@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {ContractResultViewModel} from '../../viewmodel';
+import config from '../../config';
 
 describe('ContractResultViewModel', () => {
   const defaultContractResult = {
@@ -38,6 +39,42 @@ describe('ContractResultViewModel', () => {
     expect(new ContractResultViewModel(defaultContractResult)).toEqual(defaultExpected);
   });
 
+  test('pads short authorization address, r, and s', () => {
+    const originalFlagValue = config.response.enableDelegationAddress;
+    config.response.enableDelegationAddress = true;
+    try {
+      expect(
+        new ContractResultViewModel({
+          ...defaultContractResult,
+          authorizationList: [
+            {
+              address: '0x01',
+              chain_id: '0x127',
+              nonce: 2,
+              r: '0x00ab',
+              s: '0x00cd',
+              y_parity: '0x0',
+            },
+          ],
+        })
+      ).toEqual({
+        ...defaultExpected,
+        authorization_list: [
+          {
+            address: '0x0000000000000000000000000000000000000001',
+            chain_id: '0x127',
+            nonce: 2,
+            r: '0x00000000000000000000000000000000000000000000000000000000000000ab',
+            s: '0x00000000000000000000000000000000000000000000000000000000000000cd',
+            y_parity: '0x0',
+          },
+        ],
+      });
+    } finally {
+      config.response.enableDelegationAddress = originalFlagValue;
+    }
+  });
+
   test.each`
     source      | bloom
     ${'array'}  | ${[]}
@@ -52,6 +89,141 @@ describe('ContractResultViewModel', () => {
       bloom: `0x${'00'.repeat(256)}`,
     };
     expect(new ContractResultViewModel(input)).toEqual(expected);
+  });
+
+  describe('padAccessList', () => {
+    const paddedAddress = '0x0000000000000000000000000000000000000001';
+    const paddedStorageKey = '0x0000000000000000000000000000000000000000000000000000000000000081';
+
+    test('pads short address and storage keys', () => {
+      expect(
+        ContractResultViewModel.padAccessList([
+          {
+            address: '0x01',
+            storage_keys: ['0x81'],
+          },
+        ])
+      ).toEqual([
+        {
+          address: paddedAddress,
+          storage_keys: [paddedStorageKey],
+        },
+      ]);
+    });
+
+    test('pads values without 0x prefix', () => {
+      expect(
+        ContractResultViewModel.padAccessList([
+          {
+            address: '01',
+            storage_keys: ['81'],
+          },
+        ])
+      ).toEqual([
+        {
+          address: paddedAddress,
+          storage_keys: [paddedStorageKey],
+        },
+      ]);
+    });
+
+    test('leaves already padded values unchanged', () => {
+      const accessList = [
+        {
+          address: paddedAddress,
+          storage_keys: [paddedStorageKey],
+        },
+      ];
+      expect(ContractResultViewModel.padAccessList(accessList)).toEqual(accessList);
+    });
+
+    test('returns empty array for null, undefined, or empty list', () => {
+      expect(ContractResultViewModel.padAccessList(null)).toEqual([]);
+      expect(ContractResultViewModel.padAccessList(undefined)).toEqual([]);
+      expect(ContractResultViewModel.padAccessList([])).toEqual([]);
+    });
+
+    test.each([
+      ['null', null],
+      ['empty', []],
+    ])('defaults %s storage keys to empty array', (_, storageKeys) => {
+      expect(
+        ContractResultViewModel.padAccessList([
+          {
+            address: '0x01',
+            storage_keys: storageKeys,
+          },
+        ])
+      ).toEqual([
+        {
+          address: paddedAddress,
+          storage_keys: [],
+        },
+      ]);
+    });
+  });
+
+  describe('padAuthorizationList', () => {
+    const paddedAddress = '0x0000000000000000000000000000000000000001';
+    const paddedR = '0x00000000000000000000000000000000000000000000000000000000000000ab';
+    const paddedS = '0x00000000000000000000000000000000000000000000000000000000000000cd';
+
+    test('pads short address, r, and s', () => {
+      expect(
+        ContractResultViewModel.padAuthorizationList([
+          {
+            address: '0x01',
+            chain_id: '0x127',
+            nonce: 2,
+            r: '0x00ab',
+            s: '0x00cd',
+            y_parity: '0x0',
+          },
+        ])
+      ).toEqual([
+        {
+          address: paddedAddress,
+          chain_id: '0x127',
+          nonce: 2,
+          r: paddedR,
+          s: paddedS,
+          y_parity: '0x0',
+        },
+      ]);
+    });
+
+    test('pads minimal integer r without 0x prefix', () => {
+      expect(
+        ContractResultViewModel.padAuthorizationList([
+          {
+            address: '01',
+            r: 'ab',
+            s: 'cd',
+          },
+        ])
+      ).toEqual([
+        {
+          address: paddedAddress,
+          r: paddedR,
+          s: paddedS,
+        },
+      ]);
+    });
+
+    test('leaves already padded values unchanged', () => {
+      const authorization = {
+        address: paddedAddress,
+        r: paddedR,
+        s: paddedS,
+      };
+      expect(ContractResultViewModel.padAuthorizationList([authorization])).toEqual([authorization]);
+    });
+
+    test('returns empty array for null, undefined, or empty list', () => {
+      expect(ContractResultViewModel.padAuthorizationList(null)).toEqual([]);
+      expect(ContractResultViewModel.padAuthorizationList(undefined)).toEqual([]);
+      expect(ContractResultViewModel.padAuthorizationList([])).toEqual([]);
+    });
   });
 
   test('null fields', () => {

@@ -7,6 +7,7 @@ import express from 'express';
 import config from './config';
 import common from './common';
 import logger from './logger';
+import {formatRequestLog} from './logFormat';
 import {runEverything} from './monitor';
 
 const app = express();
@@ -39,7 +40,7 @@ common.initResults();
 app.get('/health/liveness', (req, res) => res.status(200).send(healthUp));
 app.get('/health/readiness', (req, res) => {
   const status = common.getStatus();
-  const total = status.results.map((r) => (r.results.testResults ? 1 : 0)).reduce((r, i) => r + i);
+  const total = status.results.map((r) => (r.results.testResults ? 1 : 0)).reduce((r, i) => r + i, 0);
 
   if (total > 0) {
     res.status(200).send(healthUp);
@@ -51,7 +52,8 @@ app.get('/health/readiness', (req, res) => {
 const allTestResultTypes = Object.values(common.TEST_RESULT_TYPES);
 
 const parseResultQueryParam = (req) => {
-  const value = (req.query.result ?? common.TEST_RESULT_TYPES.FAILED).toLowerCase();
+  const raw = req.query.result;
+  const value = typeof raw === 'string' ? raw.toLowerCase() : common.TEST_RESULT_TYPES.FAILED;
   return allTestResultTypes.includes(value) ? value : common.TEST_RESULT_TYPES.FAILED;
 };
 
@@ -60,9 +62,7 @@ app.get(`${apiPrefix}/status`, (req, res) => {
   const passed = status.results.map((r) => r.results.numPassedTests).reduce((r, i) => r + i, 0) || 0;
   const total =
     status.results.map(({results}) => results.numFailedTests + results.numPassedTests).reduce((r, i) => r + i, 0) || 0;
-  logger.info(
-    `${req.ip} ${req.method} ${req.originalUrl} returned ${status.httpCode}: ${passed}/${total} tests passed`
-  );
+  logger.info(formatRequestLog(req, status.httpCode, passed, total));
   res.status(status.httpCode).json(status.results);
 });
 
@@ -71,9 +71,7 @@ app.get(`${apiPrefix}/status/:name`, (req, res) => {
   const {results} = status;
   const passed = results.numPassedTests;
   const total = results.numFailedTests + results.numPassedTests;
-  logger.info(
-    `${req.ip} ${req.method} ${req.originalUrl} returned ${status.httpCode}: ${passed}/${total} tests passed`
-  );
+  logger.info(formatRequestLog(req, status.httpCode, passed, total));
   res.status(status.httpCode).json(status);
 });
 

@@ -22,6 +22,7 @@ public class RecordFileServiceImpl implements RecordFileService {
         } else if (block == BlockType.LATEST) {
             return recordFileRepository.findLatest();
         } else if (block.isHash()) {
+            // The block.name() format is already validated by BlockType.of()
             return recordFileRepository.findByHash(block.name());
         }
 

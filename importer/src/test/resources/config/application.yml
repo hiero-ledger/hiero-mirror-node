@@ -111,6 +111,10 @@ hiero:
                 reWriteBatchedInserts: true
                 sslmode: ${hiero.mirror.importer.db.sslMode}
               maximumPoolSize: 20
+
+server:
+  port: 0 # make actuator http server listen on different ports in spring test contexts
+
 spring:
   flyway:
     placeholders:

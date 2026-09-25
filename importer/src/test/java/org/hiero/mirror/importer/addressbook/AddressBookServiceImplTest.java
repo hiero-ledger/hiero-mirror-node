@@ -218,6 +218,26 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     }
 
     @Test
+    @Transactional
+    void updateFileWithNoNodes() {
+        long consensusTimeStamp = domainBuilder.timestamp();
+        final var nodeAddressBook = NodeAddressBook.newBuilder().build();
+        update(nodeAddressBook.toByteArray(), consensusTimeStamp, true);
+        assertThat(addressBookRepository.findById(consensusTimeStamp + 1)).isEmpty();
+    }
+
+    @Test
+    @Transactional
+    void updateFileWithNoValidEntry() {
+        long consensusTimeStamp = domainBuilder.timestamp();
+        final var nodeAddressBook = NodeAddressBook.newBuilder()
+                .addNodeAddress(NodeAddress.newBuilder())
+                .build();
+        update(nodeAddressBook.toByteArray(), consensusTimeStamp, true);
+        assertThat(addressBookRepository.findById(consensusTimeStamp + 1)).isEmpty();
+    }
+
+    @Test
     void appendFileWithoutFileCreateOrUpdate() {
         byte[] addressBookBytes = UPDATED.toByteArray();
         int index = addressBookBytes.length / 2;
@@ -574,6 +594,35 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .returns(ipAddress, AddressBookServiceEndpoint::getIpAddressV4)
                 .returns(consensusTimeStamp, AddressBookServiceEndpoint::getConsensusTimestamp)
                 .returns(0, AddressBookServiceEndpoint::getPort);
+    }
+
+    @Test
+    @Transactional
+    void verifyAddressBookWithMalformedNodeCertHash() {
+        // Given - a node cert hash whose bytes are not valid UTF-8
+        final var nodeAccountId = domainBuilder.entityId();
+        final var malformedCertHash = ByteString.copyFrom(new byte[] {(byte) 0xff, (byte) 0xfe, (byte) 0xfd});
+        final var nodeAddressBook = NodeAddressBook.newBuilder()
+                .addNodeAddress(NodeAddress.newBuilder()
+                        .setIpAddress(ByteString.copyFromUtf8("127.0.0.1"))
+                        .setNodeAccountId(nodeAccountId.toAccountID())
+                        .setNodeCertHash(malformedCertHash))
+                .build();
+        final byte[] addressBookBytes = nodeAddressBook.toByteArray();
+        final long consensusTimeStamp = 5L;
+
+        // When
+        update(addressBookBytes, consensusTimeStamp - 1, true);
+
+        // Then - the entry is persisted with a null cert hash
+        assertAddressBookData(addressBookBytes, consensusTimeStamp);
+        softly.assertThat(addressBookService.getCurrent())
+                .isNotNull()
+                .extracting(AddressBook::getEntries, InstanceOfAssertFactories.list(AddressBookEntry.class))
+                .hasSize(nodeAddressBook.getNodeAddressCount())
+                .first()
+                .returns(nodeAccountId, AddressBookEntry::getNodeAccountId)
+                .returns(null, AddressBookEntry::getNodeCertHash);
     }
 
     @SuppressWarnings("deprecation")
@@ -1021,6 +1070,14 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
         // when, then
         assertThat(addressBookService.getNode(4L)).isNull();
+    }
+
+    @Test
+    void getNodesEmpty() {
+        domainBuilder.addressBook().customize(ab -> ab.nodeCount(null)).persist();
+        assertThatThrownBy(() -> addressBookService.getNodes())
+                .isInstanceOf(InvalidDatasetException.class)
+                .hasMessage("Unable to find a valid address book");
     }
 
     @Test

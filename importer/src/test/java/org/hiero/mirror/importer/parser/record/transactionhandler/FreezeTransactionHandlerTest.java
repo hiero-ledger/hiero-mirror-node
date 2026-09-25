@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 
-class FreezeTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class FreezeTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Captor
     protected ArgumentCaptor<NetworkFreeze> networkFreezeCaptor;
@@ -46,9 +46,11 @@ class FreezeTransactionHandlerTest extends AbstractTransactionHandlerTest {
     @Test
     void updateTransaction() {
         // Given
-        var recordItem = recordItemBuilder.freeze().build();
-        var transaction = domainBuilder.transaction().get();
-        var freeze = recordItem.getTransactionBody().getFreeze();
+        final var recordItem = recordItemBuilder.freeze().build();
+        final var freeze = recordItem.getTransactionBody().getFreeze();
+        final var entityId = EntityId.of(freeze.getUpdateFile());
+        final var transaction =
+                domainBuilder.transaction().customize(t -> t.entityId(entityId)).get();
 
         // When
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -63,7 +65,7 @@ class FreezeTransactionHandlerTest extends AbstractTransactionHandlerTest {
                 .returns(recordItem.getConsensusTimestamp(), NetworkFreeze::getConsensusTimestamp)
                 .returns(null, NetworkFreeze::getEndTime)
                 .returns(DomainUtils.toBytes(freeze.getFileHash()), NetworkFreeze::getFileHash)
-                .returns(EntityId.of(freeze.getUpdateFile()), NetworkFreeze::getFileId)
+                .returns(entityId, NetworkFreeze::getFileId)
                 .returns(recordItem.getPayerAccountId(), NetworkFreeze::getPayerAccountId)
                 .returns(DomainUtils.timestampInNanosMax(freeze.getStartTime()), NetworkFreeze::getStartTime)
                 .returns(freeze.getFreezeTypeValue(), NetworkFreeze::getType);
@@ -86,7 +88,8 @@ class FreezeTransactionHandlerTest extends AbstractTransactionHandlerTest {
                         .setEndMin(4))
                 .record(r -> r.setConsensusTimestamp(Timestamp.newBuilder().setSeconds(consensusTime)))
                 .build();
-        var transaction = domainBuilder.transaction().get();
+        final var transaction =
+                domainBuilder.transaction().customize(t -> t.entityId(null)).get();
 
         // When
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -109,10 +112,40 @@ class FreezeTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @SuppressWarnings("deprecation")
     @Test
+    void updateTransactionTimeOutOfRange() {
+        // Given
+        final var recordItem = recordItemBuilder
+                .freeze()
+                .transactionBody(b -> b.clearFileHash()
+                        .clearFreezeType()
+                        .clearStartTime()
+                        .clearUpdateFile()
+                        .setStartHour(-1)
+                        .setStartMin(-1)
+                        .setEndHour(24)
+                        .setEndMin(60))
+                .build();
+        final var transaction =
+                domainBuilder.transaction().customize(t -> t.entityId(null)).get();
+
+        // When
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // Then
+        verify(entityListener).onNetworkFreeze(networkFreezeCaptor.capture());
+        assertThat(networkFreezeCaptor.getAllValues())
+                .hasSize(1)
+                .first()
+                .returns(null, NetworkFreeze::getEndTime)
+                .returns(0L, NetworkFreeze::getStartTime);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
     void updateTransactionDeprecatedStartAfterEnd() {
         // Given
-        var consensusTime = 1690848000L;
-        var recordItem = recordItemBuilder
+        final var consensusTime = 1690848000L;
+        final var recordItem = recordItemBuilder
                 .freeze()
                 .transactionBody(b -> b.clearFileHash()
                         .clearFreezeType()
@@ -124,7 +157,8 @@ class FreezeTransactionHandlerTest extends AbstractTransactionHandlerTest {
                         .setEndMin(4))
                 .record(r -> r.setConsensusTimestamp(Timestamp.newBuilder().setSeconds(consensusTime)))
                 .build();
-        var transaction = domainBuilder.transaction().get();
+        final var transaction =
+                domainBuilder.transaction().customize(t -> t.entityId(null)).get();
 
         // When
         transactionHandler.updateTransaction(transaction, recordItem);

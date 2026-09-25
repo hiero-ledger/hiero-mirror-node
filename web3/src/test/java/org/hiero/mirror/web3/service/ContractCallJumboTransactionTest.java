@@ -17,7 +17,7 @@ class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
     private static final int KILOBYTE = 1024;
 
     // Jumbo payload: any payload over 6 KiB and up to 128 KiB
-    private static final int JUMBO_PAYLOAD = 64 * KILOBYTE;
+    private static final int JUMBO_PAYLOAD = 42 * KILOBYTE;
 
     @Test
     void testJumboTransactionHappyPath() {

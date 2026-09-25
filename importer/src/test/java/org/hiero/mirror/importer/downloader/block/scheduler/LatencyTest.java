@@ -20,7 +20,6 @@ final class LatencyTest {
 
     @ParameterizedTest
     @CsvSource(textBlock = """
-            '', 0
             '1,2', 1.3
             '1,2,3', 1.8
             '1,2,3,4', 2.5
@@ -39,6 +38,19 @@ final class LatencyTest {
     }
 
     @Test
+    void fresh() {
+        // given
+        final var latency = new Latency();
+
+        // when
+        latency.record(10);
+
+        // then
+        assertThat(latency.isFresh(Long.MAX_VALUE)).isTrue();
+        assertThat(latency.isFresh(-1)).isFalse();
+    }
+
+    @Test
     void stale() {
         // given
         final var latency = new Latency();
@@ -54,11 +66,22 @@ final class LatencyTest {
 
         // then
         assertThat(latency.getAverage()).isCloseTo(Double.MAX_VALUE, OFFSET);
+        assertThat(latency.isFresh(Long.MAX_VALUE)).isFalse();
 
         // when
         latency.record(20);
 
         // then
         assertThat(latency.getAverage()).isCloseTo(13, OFFSET);
+    }
+
+    @Test
+    void uninitialized() {
+        // given
+        final var latency = new Latency();
+
+        // when, then
+        assertThat(latency.getAverage()).isCloseTo(Double.MAX_VALUE, OFFSET);
+        assertThat(latency.isFresh(Long.MAX_VALUE)).isFalse();
     }
 }

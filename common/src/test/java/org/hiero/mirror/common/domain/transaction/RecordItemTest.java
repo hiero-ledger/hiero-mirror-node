@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.UnknownFieldSet;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -33,13 +34,18 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.exception.ProtobufException;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.data.util.Version;
 
+@ExtendWith(OutputCaptureExtension.class)
 @SuppressWarnings("deprecation")
 class RecordItemTest {
 
@@ -279,6 +285,42 @@ class RecordItemTest {
                 .build();
 
         assertThat(recordItem.isTopLevel()).isFalse();
+    }
+
+    @CsvSource({"5000, 0, 1, true", "0, 0, -1, true", "0, 0, 0, false"})
+    @ParameterizedTest
+    void outOfRangePayerAccountIdDoesNotThrow(
+            long shard, long realm, long num, boolean expectError, CapturedOutput output) {
+        final var payer = AccountID.newBuilder()
+                .setShardNum(shard)
+                .setRealmNum(realm)
+                .setAccountNum(num)
+                .build();
+        final var txBody = TransactionBody.newBuilder()
+                .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
+                .setTransactionID(TransactionID.newBuilder().setAccountID(payer))
+                .build();
+        final var signedTx = SignedTransaction.newBuilder()
+                .setBodyBytes(txBody.toByteString())
+                .setSigMap(SIGNATURE_MAP)
+                .build();
+        final var tx = Transaction.newBuilder()
+                .setSignedTransactionBytes(signedTx.toByteString())
+                .build();
+
+        final var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(tx)
+                .transactionRecord(TRANSACTION_RECORD)
+                .build();
+
+        assertThat(recordItem.getPayerAccountId()).isSameAs(EntityId.ZERO);
+        assertThat(recordItem.getTransactionBody()).isEqualTo(txBody);
+        if (expectError) {
+            assertThat(output.getAll()).contains(DomainUtils.RECOVERABLE_ERROR);
+        } else {
+            assertThat(output.getAll()).doesNotContain(DomainUtils.RECOVERABLE_ERROR);
+        }
     }
 
     @Test
@@ -697,6 +739,43 @@ class RecordItemTest {
         assertThat(recordItem.getTransactionType()).isEqualTo(unknownType);
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {9999, 20000, 32767})
+    void unknownTransactionTypeWithinSmallintRange(int unknownType) {
+        assertThat(recordItemWithUnknownType(unknownType).getTransactionType()).isEqualTo(unknownType);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {32768, 536870911})
+    void unknownTransactionTypeOutsideSmallintRange(int unknownType) {
+        final var recordItem = recordItemWithUnknownType(unknownType);
+        recordItem.setEntityTransactionPredicate(_ -> true);
+        recordItem.addEntityId(EntityId.of(2));
+
+        assertThat(recordItem.getTransactionType()).isEqualTo(TransactionBody.DataCase.DATA_NOT_SET.getNumber());
+        assertThat(recordItem.getEntityTransactions().values()).isNotEmpty().allSatisfy(entityTransaction -> assertThat(
+                        entityTransaction.getType())
+                .isEqualTo(TransactionBody.DataCase.DATA_NOT_SET.getNumber()));
+    }
+
+    private static RecordItem recordItemWithUnknownType(int fieldNumber) {
+        final var field = UnknownFieldSet.Field.newBuilder()
+                .addLengthDelimited(ByteString.copyFromUtf8("foo"))
+                .build();
+        final var body = TransactionBody.newBuilder()
+                .mergeUnknownFields(UnknownFieldSet.newBuilder()
+                        .addField(fieldNumber, field)
+                        .build())
+                .build();
+        final var transaction =
+                Transaction.newBuilder().setBodyBytes(body.toByteString()).build();
+        return RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transactionRecord(TRANSACTION_RECORD)
+                .transaction(transaction)
+                .build();
+    }
+
     @EnumSource(
             value = ResponseCodeEnum.class,
             names = {"UNRECOGNIZED"},
@@ -801,6 +880,22 @@ class RecordItemTest {
                 .build();
         recordItem.addContractTransaction(account2);
         assertThat(recordItem.populateContractTransactions()).containsExactlyInAnyOrder(expected1, expected2);
+    }
+
+    @Test
+    void testAddContractTransactionEmpty() {
+        final var recordItem = RecordItem.builder()
+                .contractTransactionPredicate(_ -> true)
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transactionRecord(TRANSACTION_RECORD)
+                .transaction(DEFAULT_TRANSACTION)
+                .build();
+        recordItem.addContractTransaction(EntityId.EMPTY);
+        assertThat(recordItem.populateContractTransactions())
+                .hasSize(1)
+                .first()
+                .extracting(ContractTransaction::getEntityId)
+                .isEqualTo(0L);
     }
 
     @Test

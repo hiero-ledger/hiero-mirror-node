@@ -140,6 +140,8 @@ func runInit(ctx context.Context, dataDir, schemaFile string) error {
 		AdminUser:           cfg.PGUser,
 		AdminPassword:       cfg.PGPassword,
 		AdminDatabase:       cfg.PGDatabase,
+		PGSSLMode:           cfg.PGSSLMode,
+		PGSSLRootCert:       cfg.PGSSLRootCert,
 		OwnerPassword:       cfg.OwnerPassword,
 		GraphQLPassword:     cfg.GraphQLPassword,
 		GRPCPassword:        cfg.GRPCPassword,

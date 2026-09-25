@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -40,7 +41,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.springframework.data.util.Version;
 
-class TokenCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class TokenCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {
@@ -329,5 +330,30 @@ class TokenCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         verify(entityListener, never()).onCustomFee(any());
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void updateTransactionInvalidTreasury() {
+        // Given
+        final var recordItem = recordItemBuilder
+                .tokenCreate()
+                .transactionBody(t -> t.setTreasury(AccountID.newBuilder().setAccountNum(-1L)))
+                .build();
+        final long timestamp = recordItem.getConsensusTimestamp();
+        final var tokenId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getTokenID());
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp).entityId(tokenId))
+                .get();
+        final var token = ArgumentCaptor.forClass(Token.class);
+
+        // When
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // Then
+        verify(entityListener).onToken(token.capture());
+
+        assertThat(token.getValue()).returns(EntityId.ZERO, Token::getTreasuryAccountId);
     }
 }

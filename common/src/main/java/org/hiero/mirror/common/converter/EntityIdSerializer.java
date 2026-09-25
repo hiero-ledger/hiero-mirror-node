@@ -23,7 +23,9 @@ public class EntityIdSerializer extends JsonSerializer<EntityId> {
 
     @Override
     public void serialize(EntityId value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-        if (!EntityId.isEmpty(value)) {
+        if (value == EntityId.ZERO) {
+            gen.writeNumber(0L);
+        } else if (!EntityId.isEmpty(value)) {
             gen.writeNumber(value.getId());
         } else {
             gen.writeNull();

@@ -22,9 +22,12 @@ function ensureEnvVar() {
 
 mask() {
   set +x
-  if [[ "${GITHUB_ACTIONS:-}" == "true" && -n "${1:-}" ]]; then
-    printf '::add-mask::%s\n' "$1"
-  fi
+  [[ "${GITHUB_ACTIONS:-}" == "true" && -n "${1:-}" ]] || return 0
+
+  local line
+  while IFS= read -r line; do
+    [[ -z "${line}" ]] || printf '::add-mask::%s\n' "${line}"
+  done <<< "$1"
 }
 
 maskJsonValues() {
@@ -802,7 +805,7 @@ function unpauseCitus() {
 
     log "Waiting for all StackGresCluster pods to be ready"
     for sts in $(kubectl get sts -n "${namespace}" -l 'app=StackGresCluster' -o jsonpath='{.items[*].metadata.name}'); do
-      waitForSGClusterReady "${namespace}" "${sts}" "${reinitializeCitus}" "${updateCreds}"
+      waitForSGClusterReady "${namespace}" "${sts}" "${updateCreds}"
     done
 
     patroniFailoverToFirstPod "${namespace}" # Ensure there is a marked primary
@@ -986,42 +989,56 @@ function updateStackgresCreds() {
   local web3Password=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_PASSWORD'| base64 -d)
   local dbName=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_NAME'| base64 -d)
 
-  local sql=$(
-    cat <<EOF
-alter user ${superuserUsername} with password '${superuserPassword}';
-alter user ${graphqlUsername} with password '${graphqlPassword}';
-alter user ${grpcUsername} with password '${grpcPassword}';
-alter user ${importerUsername} with password '${importerPassword}';
-alter user ${ownerUsername} with password '${ownerPassword}';
-alter user ${restUsername} with password '${restPassword}';
-alter user ${restJavaUsername} with password '${restJavaPassword}';
-alter user ${rosettaUsername} with password '${rosettaPassword}';
-alter user ${web3Username} with password '${web3Password}';
-alter user ${replicationUsername} with password '${replicationPassword}';
-alter user ${authenticatorUsername} with password '${authenticatorPassword}';
+  local psqlVars=(-v ON_ERROR_STOP=1) name
+  for name in superuserUsername superuserPassword replicationUsername replicationPassword \
+              authenticatorUsername authenticatorPassword graphqlUsername graphqlPassword \
+              grpcUsername grpcPassword importerUsername importerPassword \
+              ownerUsername ownerPassword restUsername restPassword \
+              restJavaUsername restJavaPassword rosettaUsername rosettaPassword \
+              web3Username web3Password dbName; do
+    psqlVars+=(-v "${name}=${!name}")
+  done
 
-\c ${dbName}
+  local sql=$(
+    cat <<'EOF'
+alter user :"superuserUsername" with password :'superuserPassword';
+alter user :"graphqlUsername" with password :'graphqlPassword';
+alter user :"grpcUsername" with password :'grpcPassword';
+alter user :"importerUsername" with password :'importerPassword';
+alter user :"ownerUsername" with password :'ownerPassword';
+alter user :"restUsername" with password :'restPassword';
+alter user :"restJavaUsername" with password :'restJavaPassword';
+alter user :"rosettaUsername" with password :'rosettaPassword';
+alter user :"web3Username" with password :'web3Password';
+alter user :"replicationUsername" with password :'replicationPassword';
+alter user :"authenticatorUsername" with password :'authenticatorPassword';
+
+\c :"dbName"
 insert into pg_dist_authinfo(nodeid, rolename, authinfo)
-  values (0, '${superuserUsername}', 'password=${superuserPassword}'),
-         (0, '${graphqlUsername}', 'password=${graphqlPassword}'),
-         (0, '${grpcUsername}', 'password=${grpcPassword}'),
-         (0, '${importerUsername}', 'password=${importerPassword}'),
-         (0, '${ownerUsername}', 'password=${ownerPassword}'),
-         (0, '${restUsername}', 'password=${restPassword}'),
-         (0, '${restJavaUsername}', 'password=${restJavaPassword}'),
-         (0, '${rosettaUsername}', 'password=${rosettaPassword}'),
-         (0, '${web3Username}', 'password=${web3Password}') on conflict (nodeid, rolename)
+  select 0,
+         rolename,
+         'password=''' || replace(replace(password, '\', '\\'), '''', '\''') || ''''
+    from (values (:'superuserUsername', :'superuserPassword'),
+                 (:'graphqlUsername', :'graphqlPassword'),
+                 (:'grpcUsername', :'grpcPassword'),
+                 (:'importerUsername', :'importerPassword'),
+                 (:'ownerUsername', :'ownerPassword'),
+                 (:'restUsername', :'restPassword'),
+                 (:'restJavaUsername', :'restJavaPassword'),
+                 (:'rosettaUsername', :'rosettaPassword'),
+                 (:'web3Username', :'web3Password')) as creds(rolename, password)
+  on conflict (nodeid, rolename)
   do
       update set authinfo = excluded.authinfo;
 EOF
   )
 
-  waitUntilOutOfRecovery "${namespace}" "${pod}"
+  waitUntilOutOfRecovery "${namespace}" "${primaryPod}"
 
-  log "Updating passwords and pg_dist_authinfo for ${pod}"
-  if ! kubectl exec -n "${namespace}" -i "${pod}" -c postgres-util -- \
-     psql -v ON_ERROR_STOP=1 -U "${superuserUsername}" -f - <<< "${sql}"; then
-     log "Failed to update passwords in pod ${pod}"
+  log "Updating passwords and pg_dist_authinfo for ${primaryPod}"
+  if ! kubectl exec -n "${namespace}" -i "${primaryPod}" -c postgres-util -- \
+     psql "${psqlVars[@]}" -U "${superuserUsername}" -f - <<< "${sql}"; then
+     log "Failed to update passwords in pod ${primaryPod}"
      exit 1
    fi
 }

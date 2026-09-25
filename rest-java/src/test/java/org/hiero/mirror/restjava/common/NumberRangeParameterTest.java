@@ -37,6 +37,25 @@ final class NumberRangeParameterTest {
         assertThat(NumberRangeParameter.valueOf(input)).isEqualTo(NumberRangeParameter.EMPTY);
     }
 
+    @Test
+    void getInclusiveValue() {
+        assertThat(new NumberRangeParameter(RangeOperator.GT, 2000L).getInclusiveValue())
+                .isEqualTo(2001L);
+        assertThat(new NumberRangeParameter(RangeOperator.LT, 2000L).getInclusiveValue())
+                .isEqualTo(1999L);
+        assertThat(new NumberRangeParameter(RangeOperator.EQ, 2000L).getInclusiveValue())
+                .isEqualTo(2000L);
+    }
+
+    @Test
+    @DisplayName("getInclusiveValue rejects an unsatisfiable edge bound instead of wrapping to the opposite bound")
+    void getInclusiveValueRejectsUnsatisfiableBound() {
+        assertThrows(IllegalArgumentException.class, () -> new NumberRangeParameter(RangeOperator.GT, Long.MAX_VALUE)
+                .getInclusiveValue());
+        assertThrows(IllegalArgumentException.class, () -> new NumberRangeParameter(RangeOperator.LT, Long.MIN_VALUE)
+                .getInclusiveValue());
+    }
+
     @ParameterizedTest
     @ValueSource(
             strings = {

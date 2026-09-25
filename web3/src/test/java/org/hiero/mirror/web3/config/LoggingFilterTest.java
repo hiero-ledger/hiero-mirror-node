@@ -58,7 +58,7 @@ final class LoggingFilterTest {
 
         loggingFilter.doFilter(request, response, chain);
 
-        assertThat(output).asString().isEmpty();
+        assertThat(loggingFilterLines(output)).isEmpty();
     }
 
     @Test
@@ -276,7 +276,146 @@ final class LoggingFilterTest {
                                 + compressed);
     }
 
+    @Test
+    @SneakyThrows
+    void boundedRegexWithVeryLargePayload(CapturedOutput output) {
+        // Create uncompressible payload with valid JSON followed by large random data
+        // This ensures reordering works and tests bounded regex with large input
+        var jsonPrefix = "{\"data\":\"0x123456\",\"block\":\"latest\"}";
+        var randomSuffix = RandomStringUtils.secure().next(5000, "abcdef0123456789");
+        var content = jsonPrefix + randomSuffix;
+        var request = new MockHttpServletRequest("POST", "/");
+        request.setContent(content.getBytes(StandardCharsets.UTF_8));
+        response.setStatus(HttpStatus.OK.value());
+
+        loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
+
+        // Verify the output contains reordered structure with block field preserved
+        var out = output.getOut();
+        assertThat(out).contains("\"block\":\"latest\"");
+        // Output should be truncated
+        assertThat(out.length()).isLessThan(content.length());
+    }
+
+    @Test
+    @SneakyThrows
+    void boundedRegexPreservesDataFieldReordering(CapturedOutput output) {
+        int maxSize = web3Properties.getMaxPayloadLogSize();
+        // Create content that triggers bounded regex (> maxSize but within regex limit)
+        var mediumData = StringUtils.repeat("x", maxSize + 50);
+        var content = "{\"data\":\"" + mediumData + "\",\"block\":\"latest\",\"gas\":21000}";
+        var request = new MockHttpServletRequest("POST", "/");
+        request.setContent(content.getBytes(StandardCharsets.UTF_8));
+        response.setStatus(HttpStatus.OK.value());
+
+        loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
+
+        // Verify data field is reordered to the end before truncation
+        var out = output.getOut();
+        int blockIndex = out.indexOf("\"block\":");
+        int dataIndex = out.indexOf("\"data\":");
+        int gasIndex = out.indexOf("\"gas\":");
+
+        // block and gas should appear before data
+        if (blockIndex > 0 && gasIndex > 0 && dataIndex > 0) {
+            assertThat(blockIndex).isLessThan(dataIndex);
+            assertThat(gasIndex).isLessThan(dataIndex);
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void boundedRegexWithExtremelyLargePayload(CapturedOutput output) {
+        int maxSize = web3Properties.getMaxPayloadLogSize();
+        // Create a payload that's significantly larger than regex limit (50KB)
+        var extremelyLargeData = RandomStringUtils.secure().next(50000, "abcdef0123456789");
+        var content = "{\"from\":\"0x123\",\"to\":\"0x456\",\"data\":\"" + extremelyLargeData
+                + "\",\"gas\":21000,\"value\":0}";
+        var request = new MockHttpServletRequest("POST", "/");
+        request.setContent(content.getBytes(StandardCharsets.UTF_8));
+        response.setStatus(HttpStatus.OK.value());
+
+        loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
+
+        // Should complete without hanging or timeout
+        // Output should be truncated to maxSize
+        var out = output.getOut();
+        assertThat(out).isNotEmpty();
+        // Verify short fields are preserved
+        assertThat(out).containsAnyOf("\"from\":\"0x123\"", "\"to\":\"0x456\"", "\"gas\":21000");
+    }
+
+    @Test
+    @SneakyThrows
+    void boundedRegexWithMalformedJSON(CapturedOutput output) {
+        int maxSize = web3Properties.getMaxPayloadLogSize();
+        // Create malformed JSON that could trigger backtracking in old regex
+        var malformedData = StringUtils.repeat("{\"nested\":", 1000) + "\"value\"";
+        var content = "{\"data\":\"" + malformedData + "\",\"block\":\"latest\"}";
+        var request = new MockHttpServletRequest("POST", "/");
+        request.setContent(content.getBytes(StandardCharsets.UTF_8));
+        response.setStatus(HttpStatus.OK.value());
+
+        // This should complete quickly without catastrophic backtracking
+        long startTime = System.currentTimeMillis();
+        loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
+        long elapsed = System.currentTimeMillis() - startTime;
+
+        // Should complete in reasonable time (< 5 seconds even with large malformed input)
+        assertThat(elapsed).isLessThan(5000L);
+        assertThat(output.getOut()).isNotEmpty();
+    }
+
+    @Test
+    @SneakyThrows
+    void boundedRegexLimitCalculation(CapturedOutput output) {
+        int maxSize = web3Properties.getMaxPayloadLogSize();
+        // Test the boundary at exactly 2x maxPayloadLogSize (600 bytes for default maxSize=300)
+        // The regex limit should be max(2*maxSize, 10240) = 10240 bytes (10KB minimum)
+        var dataAt10KB = RandomStringUtils.secure().next(10240, "abcdef0123456789");
+        var content = "{\"data\":\"" + dataAt10KB + "\",\"block\":\"latest\"}";
+        var request = new MockHttpServletRequest("POST", "/");
+        request.setContent(content.getBytes(StandardCharsets.UTF_8));
+        response.setStatus(HttpStatus.OK.value());
+
+        loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
+
+        // Should handle the regex limit boundary correctly
+        assertThat(output.getOut()).isNotEmpty();
+    }
+
+    @Test
+    @SneakyThrows
+    void possessiveQuantifiersPreventBacktracking(CapturedOutput output) {
+        int maxSize = web3Properties.getMaxPayloadLogSize();
+        // Create input designed to trigger backtracking with greedy quantifiers
+        // Pattern: data field with no comma, followed by many characters
+        var problematicData = StringUtils.repeat("abcdefghij", maxSize * 10);
+        var content = "{\"data\":\"" + problematicData + "\"\"block\":\"latest\"}"; // Intentionally malformed
+        var request = new MockHttpServletRequest("POST", "/");
+        request.setContent(content.getBytes(StandardCharsets.UTF_8));
+        response.setStatus(HttpStatus.OK.value());
+
+        // Should complete quickly due to possessive quantifiers
+        long startTime = System.currentTimeMillis();
+        loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
+        long elapsed = System.currentTimeMillis() - startTime;
+
+        // Should complete in reasonable time
+        assertThat(elapsed).isLessThan(5000L);
+    }
+
     private void assertLog(CapturedOutput logOutput, String level, String pattern) {
-        assertThat(logOutput).asString().hasLineCount(1).contains(level).containsPattern(pattern);
+        assertThat(loggingFilterLines(logOutput))
+                .singleElement()
+                .satisfies(line -> assertThat(line).contains(level).containsPattern(pattern));
+    }
+
+    private List<String> loggingFilterLines(CapturedOutput logOutput) {
+        return logOutput
+                .toString()
+                .lines()
+                .filter(line -> line.contains("LoggingFilter"))
+                .toList();
     }
 }

@@ -96,6 +96,7 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
         assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
+        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
     }
 
     @Test
@@ -108,6 +109,34 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferIndexedContractLog(recordItem, entityTokenId, senderEntityId, receiverEntityId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
         assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
+        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should mark an allowance approval synthetic contract log as synthetic")
+    void createValidApproveAllowance() {
+        syntheticContractLogService.create(
+                new ApproveAllowanceContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should mark an indexed allowance approval synthetic contract log as synthetic")
+    void createValidApproveAllowanceIndexed() {
+        syntheticContractLogService.create(
+                new ApproveAllowanceIndexedContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should mark an approve-for-all allowance synthetic contract log as synthetic")
+    void createValidApproveForAllAllowance() {
+        syntheticContractLogService.create(
+                new ApproveForAllAllowanceContractLog(recordItem, entityTokenId, senderId, receiverId, true));
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
     }
 
     @Test

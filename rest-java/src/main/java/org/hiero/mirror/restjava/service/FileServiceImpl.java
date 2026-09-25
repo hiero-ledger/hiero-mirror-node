@@ -19,7 +19,9 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.restjava.RestJavaProperties;
 import org.hiero.mirror.restjava.dto.SystemFile;
+import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
@@ -31,8 +33,10 @@ import org.springframework.util.function.ThrowingFunction;
 @RequiredArgsConstructor
 final class FileServiceImpl implements FileService {
 
+    private final FeeScheduleMapper feeScheduleMapper;
     private final FileDataRepository fileDataRepository;
     private final QueryProperties queryProperties;
+    private final RestJavaProperties restJavaProperties;
     private final SystemEntity systemEntity;
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
@@ -52,16 +56,19 @@ final class FileServiceImpl implements FileService {
     }
 
     @Override
-    public SystemFile<CurrentAndNextFeeSchedule> getFeeSchedule(Bound timestamp) {
-        return getSystemFile(systemEntity.feeScheduleFile(), timestamp, CurrentAndNextFeeSchedule::parseFrom);
-    }
+    public SystemFile<FeeSchedule> getFeeSchedule(Bound timestamp) {
+        final long upperTimestamp = timestamp.adjustUpperBound();
 
-    @Override
-    public SystemFile<FeeSchedule> getSimpleFeeSchedule(Bound timestamp) {
-        return getSystemFile(
-                systemEntity.simpleFeeScheduleFile(),
-                Bound.EMPTY,
-                data -> FeeSchedule.PROTOBUF.parseStrict(Bytes.wrap(data)));
+        // For historical calls on public networks we need to use the legacy fee schedule file
+        if (upperTimestamp < restJavaProperties.getNetwork().getSimpleFeesTimestamp()) {
+            final var fileId = systemEntity.feeScheduleFile();
+            final var legacyFeeSchedule = getSystemFile(fileId, timestamp, CurrentAndNextFeeSchedule::parseFrom);
+            final var simpleFeeSchedule = feeScheduleMapper.map(legacyFeeSchedule.data(), upperTimestamp);
+            return new SystemFile<>(legacyFeeSchedule.fileData(), simpleFeeSchedule);
+        }
+
+        final var fileId = systemEntity.simpleFeeScheduleFile();
+        return getSystemFile(fileId, timestamp, data -> FeeSchedule.PROTOBUF.parseStrict(Bytes.wrap(data)));
     }
 
     /*

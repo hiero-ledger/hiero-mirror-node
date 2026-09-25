@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.contract;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.hiero.mirror.common.util.CommonUtils;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 
 final class ContractResultTest {
@@ -21,5 +22,22 @@ final class ContractResultTest {
         // when, then
         contractResult.setBloom(new byte[256]);
         assertThat(contractResult.getBloom()).isEmpty();
+    }
+
+    @Test
+    void setErrorMessage() {
+        final var errorMessagePrefix = "error message";
+        final var contractResult = new ContractResult();
+        contractResult.setErrorMessage(errorMessagePrefix + DomainUtils.NULL_CHARACTER);
+        assertThat(contractResult.getErrorMessage())
+                .startsWith(errorMessagePrefix)
+                .doesNotContain(String.valueOf(DomainUtils.NULL_CHARACTER));
+
+        final var contractResult2 = ContractResult.builder()
+                .errorMessage(errorMessagePrefix + DomainUtils.NULL_CHARACTER)
+                .build();
+        assertThat(contractResult2.getErrorMessage())
+                .startsWith(errorMessagePrefix)
+                .doesNotContain(String.valueOf(DomainUtils.NULL_CHARACTER));
     }
 }

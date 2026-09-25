@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import basicAuth from 'basic-auth';
+import {parse} from 'basic-auth';
 import {PrometheusExporter, PrometheusSerializer} from '@opentelemetry/exporter-prometheus';
 import {MeterProvider} from '@opentelemetry/sdk-metrics';
 import tsscmp from 'tsscmp';
@@ -15,10 +15,9 @@ const toOpenApiPath = (req, res) => {
 
   if (!path) {
     if (!req.route) {
-      path = req.path;
-    } else {
-      path = (req.baseUrl ?? '') + req.route?.path;
+      return apiPrefix + '/unmatched';
     }
+    path = (req.baseUrl ?? '') + req.route?.path;
   }
 
   path = path.replace(/:([^/]+)/g, '{$1}');
@@ -139,7 +138,7 @@ const authenticate = (req) => {
   if (!authentication) {
     return true;
   }
-  const credentials = basicAuth(req);
+  const credentials = parse(req.headers.authorization || '');
   return credentials && tsscmp(credentials.name, username) && tsscmp(credentials.pass, password);
 };
 

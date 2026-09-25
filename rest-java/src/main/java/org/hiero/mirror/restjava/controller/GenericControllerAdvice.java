@@ -50,6 +50,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -132,6 +133,11 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
             return handleExceptionInternal(ex, problem, ex.getHeaders(), BAD_REQUEST, request);
         }
         return handleExceptionInternal(ex, ex.getBody(), ex.getHeaders(), BAD_REQUEST, request);
+    }
+
+    @ExceptionHandler
+    private ResponseEntity<Object> responseStatus(final ResponseStatusException e, final WebRequest request) {
+        return handleExceptionInternal(e, e.getBody(), e.getHeaders(), e.getStatusCode(), request);
     }
 
     @Nullable

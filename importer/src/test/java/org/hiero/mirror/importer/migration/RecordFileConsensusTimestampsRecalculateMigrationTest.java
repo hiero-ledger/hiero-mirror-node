@@ -20,7 +20,7 @@ import org.springframework.jdbc.core.JdbcOperations;
 @Tag("migration")
 @DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
-class RecordFileConsensusTimestampsRecalculateMigrationTest
+final class RecordFileConsensusTimestampsRecalculateMigrationTest
         extends AbstractAsyncJavaMigrationTest<RecordFileConsensusTimestampsRecalculateMigration> {
 
     private static final String SELECT_LAST_CHECKSUM_SQL = """
@@ -57,7 +57,7 @@ class RecordFileConsensusTimestampsRecalculateMigrationTest
                 .migrationProperties
                 .getParams()
                 .remove(RecordFileConsensusTimestampsRecalculateMigration.MIN_CONSENSUS_END_TIMESTAMP_KEY);
-        jdbcOperations.execute("drop table if exists processed_record_file_temp");
+        jdbcOperations.execute("drop table if exists processed_record_file_temp_13135");
     }
 
     @Test

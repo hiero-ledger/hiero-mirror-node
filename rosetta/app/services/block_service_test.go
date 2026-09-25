@@ -161,12 +161,19 @@ func (suite *blockServiceSuite) SetupTest() {
 	suite.mockBlockRepo = &mocks.MockBlockRepository{}
 	suite.mockTransactionRepo = &mocks.MockTransactionRepository{}
 
+	suite.blockService = suite.newBlockService(config.Response{
+		MaxTransactions:        1000,
+		MaxTransactionsInBlock: 4,
+	})
+}
+
+func (suite *blockServiceSuite) newBlockService(responseConfig config.Response) server.BlockAPIServicer {
 	baseService := NewOnlineBaseService(suite.mockBlockRepo, suite.mockTransactionRepo)
-	suite.blockService = NewBlockAPIService(
+	return NewBlockAPIService(
 		suite.mockAccountRepo,
 		baseService,
 		config.Cache{MaxSize: 1024},
-		4,
+		responseConfig,
 		suite.ctx,
 	)
 }
@@ -226,6 +233,53 @@ func (suite *blockServiceSuite) TestBlockWithCappedTransactions() {
 	assert.Nil(suite.T(), e)
 	assert.Equal(suite.T(), expected, actual)
 	suite.mockAccountRepo.AssertNumberOfCalls(suite.T(), "GetAccountAlias", 1)
+}
+
+func (suite *blockServiceSuite) TestBlockThrowsWhenTransactionLimitExceeded() {
+	// given
+	blockService := suite.newBlockService(config.Response{
+		MaxTransactions:        2,
+		MaxTransactionsInBlock: 2,
+	})
+	oversized := block()
+	oversized.Count = 3
+	suite.mockBlockRepo.On("FindByIdentifier").Return(oversized, mocks.NilError)
+
+	// when
+	actual, err := blockService.Block(nil, blockRequest())
+
+	// then
+	assert.Nil(suite.T(), actual)
+	assert.Equal(suite.T(), errors.ErrTransactionLimitExceeded, err)
+	suite.mockTransactionRepo.AssertNotCalled(suite.T(), "FindBetween")
+}
+
+func (suite *blockServiceSuite) TestBlockAllowsCountEqualToMaxTransactions() {
+	// given
+	blockService := suite.newBlockService(config.Response{
+		MaxTransactions:        2,
+		MaxTransactionsInBlock: 2,
+	})
+	atLimit := block()
+	atLimit.Count = 2
+	exampleTransactions := []*types.Transaction{
+		makeTransaction(nil, "123"),
+		makeTransaction(&entityId, "246"),
+	}
+	expected := expectedBlockResponse([]*rTypes.Transaction{
+		expectedTransaction(account, nil, "123"),
+		expectedTransaction(account, &entityId, "246"),
+	}, nil)
+	suite.mockAccountRepo.On("GetAccountAlias").Return(account, mocks.NilError)
+	suite.mockBlockRepo.On("FindByIdentifier").Return(atLimit, mocks.NilError)
+	suite.mockTransactionRepo.On("FindBetween").Return(exampleTransactions, mocks.NilError)
+
+	// when
+	actual, err := blockService.Block(nil, blockRequest())
+
+	// then
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), expected, actual)
 }
 
 func (suite *blockServiceSuite) TestBlockWithAccountAlias() {

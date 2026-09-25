@@ -15,7 +15,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 defaults:
   run:
@@ -31,9 +31,11 @@ jobs:
       ENVIRONMENT: ${{ github.event.inputs.environment }}
       VERSION: ${{ github.event.inputs.version }}
     runs-on: hiero-mirror-node-linux-medium
+    permissions:
+      contents: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
 
@@ -64,7 +66,7 @@ jobs:
         env:
           BINARY: yq_linux_amd64
           TARGET: /home/runner/.local/bin
-          VERSION: v4.53.3
+          VERSION: v4.53.6
         run: |
           mkdir -p "${TARGET}"
           cd "${TARGET}"
@@ -87,7 +89,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Auto-Commit
-        uses: step-security/git-auto-commit-action@749bc1cc775376092cc4227ba537137f445ca7c3 # v7.1.1
+        uses: step-security/git-auto-commit-action@ca31fda53dd20a6864523b29798308a4c5fa5cfa # v7.2.0
         with:
           commit_author: ${{ steps.gpg_importer.outputs.name }} <${{ steps.gpg_importer.outputs.email }}>
           commit_message: Deploy v${{ env.VERSION }} to ${{ env.ENVIRONMENT }}

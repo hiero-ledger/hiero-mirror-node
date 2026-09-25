@@ -19,6 +19,7 @@ import com.hederahashgraph.api.proto.java.ScheduleDeleteTransactionBody;
 import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignaturePair;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
@@ -182,6 +183,53 @@ final class EntityRecordItemListenerScheduleTest extends AbstractEntityRecordIte
         assertThat(scheduleRepository.findAll()).containsOnly(expectedSchedule);
         assertThat(transactionSignatureRepository.findAll()).containsOnly(expectedTransactionSignature);
         assertTransactionInRepository(recordItem.getCongestionPricingMultiplier(), timestamp, false, SUCCESS);
+    }
+
+    @Test
+    void scheduleCreateInvalidValidStart() {
+        final var payer = recordItemBuilder.accountId();
+        final var validStart = Timestamp.newBuilder()
+                .setSeconds(Long.MAX_VALUE)
+                .setNanos(Integer.MAX_VALUE)
+                .build();
+        final var recordItem = recordItemBuilder
+                .scheduleCreate()
+                .transactionBodyWrapper(
+                        t -> t.getTransactionIDBuilder().setAccountID(payer).setTransactionValidStart(validStart))
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(transactionRepository.findAll())
+                .hasSize(1)
+                .first()
+                .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getValidStartNs)
+                .isEqualTo(Long.MAX_VALUE);
+    }
+
+    @Test
+    void scheduleCreateInvalidSignature() {
+        final var signature = recordItemBuilder.bytes(32);
+        final var unknownFields = UnknownFieldSet.newBuilder()
+                .addField(
+                        Integer.MAX_VALUE,
+                        UnknownFieldSet.Field.newBuilder()
+                                .addLengthDelimited(signature)
+                                .build())
+                .build();
+        final var recordItem = recordItemBuilder
+                .scheduleCreate()
+                .signatureMap(
+                        s -> s.clear().addSigPair(SignaturePair.newBuilder().setUnknownFields(unknownFields)))
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(transactionSignatureRepository.findAll()).isEmpty();
     }
 
     @ValueSource(booleans = {true, false})

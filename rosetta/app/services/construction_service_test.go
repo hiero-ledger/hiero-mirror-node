@@ -308,6 +308,23 @@ func TestConstructionCombineThrowsWithInvalidPublicKey(t *testing.T) {
 	assert.Equal(t, errors.ErrInvalidPublicKey, e)
 }
 
+func TestConstructionCombineThrowsWithInvalidPublicKeyLength(t *testing.T) {
+	secp256k1PrivateKey, err := hiero.PrivateKeyGenerateEcdsa()
+	assert.NoError(t, err)
+
+	request := getConstructionCombineRequest()
+	request.Signatures[0].PublicKey = &rTypes.PublicKey{
+		Bytes:     secp256k1PrivateKey.PublicKey().BytesRaw(),
+		CurveType: rTypes.Edwards25519,
+	}
+
+	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	res, e := service.ConstructionCombine(defaultContext, request)
+
+	assert.Nil(t, res)
+	assert.Equal(t, errors.ErrInvalidPublicKey, e)
+}
+
 func TestConstructionCombineThrowsWithInvalidSignature(t *testing.T) {
 	// given:
 	request := getConstructionCombineRequest()

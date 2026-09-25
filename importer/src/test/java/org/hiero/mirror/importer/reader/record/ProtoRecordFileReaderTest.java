@@ -14,18 +14,22 @@ import com.hedera.services.stream.proto.HashAlgorithm;
 import com.hedera.services.stream.proto.HashObject;
 import com.hedera.services.stream.proto.RecordStreamFile;
 import com.hedera.services.stream.proto.RecordStreamItem;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.SemanticVersion;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.time.Instant;
 import java.util.function.Function;
 import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
@@ -94,6 +98,32 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
     }
 
     @Test
+    void outOfRangePayerAccountIdDoesNotAbortFile() {
+        final long earliest = 1_000_000_000L;
+        final long latest = 2_000_000_000L;
+        final var outOfRangePayer =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var bytes = gzip(ProtoRecordStreamFile.of(b -> {
+            b.clearRecordStreamItems();
+            b.addRecordStreamItems(buildRecordStreamItemWithTimestamp(earliest, outOfRangePayer));
+            b.addRecordStreamItems(buildRecordStreamItemWithTimestamp(latest));
+            return b;
+        }));
+
+        var recordFile = new ProtoRecordFileReader().read(StreamFileData.from(FILENAME, bytes));
+
+        assertThat(recordFile)
+                .returns(earliest, RecordFile::getConsensusStart)
+                .returns(latest, RecordFile::getConsensusEnd)
+                .returns(2L, RecordFile::getCount);
+        assertThat(recordFile.getItems())
+                .hasSize(2)
+                .first()
+                .extracting(RecordItem::getPayerAccountId)
+                .isEqualTo(EntityId.EMPTY);
+    }
+
+    @Test
     void verifyRecordFileStartAndEndTimestampsOnOutOfOrderItems() {
         final long earliest = 1_000_000_000L;
         final long middle = 2_000_000_000L;
@@ -136,14 +166,19 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
     }
 
     private RecordStreamItem buildRecordStreamItemWithTimestamp(long timestamp) {
+        return buildRecordStreamItemWithTimestamp(timestamp, null);
+    }
+
+    private RecordStreamItem buildRecordStreamItemWithTimestamp(long timestamp, AccountID payer) {
+        var transactionBody = TransactionBody.newBuilder()
+                .setCryptoTransfer(CryptoTransferTransactionBody.newBuilder().build());
+        if (payer != null) {
+            transactionBody.setTransactionID(TransactionID.newBuilder().setAccountID(payer));
+        }
         return RecordStreamItem.newBuilder()
                 .setTransaction(Transaction.newBuilder()
                         .setSignedTransactionBytes(SignedTransaction.newBuilder()
-                                .setBodyBytes(TransactionBody.newBuilder()
-                                        .setCryptoTransfer(CryptoTransferTransactionBody.newBuilder()
-                                                .build())
-                                        .build()
-                                        .toByteString())
+                                .setBodyBytes(transactionBody.build().toByteString())
                                 .build()
                                 .toByteString()))
                 .setRecord(TransactionRecord.newBuilder()

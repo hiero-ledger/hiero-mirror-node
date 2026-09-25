@@ -92,6 +92,17 @@ public class ParserContext {
         domainContext.clear();
     }
 
+    public <T> void replace(Object key, T value) {
+        final var domainContext = getDomainContext(value);
+        final var previous = domainContext.getState().put(key, value);
+
+        if (previous != null) {
+            domainContext.getInserts().remove(previous);
+        }
+
+        domainContext.getInserts().add(value);
+    }
+
     public Collection<Long> getEvmAddressLookupIds() {
         return Collections.unmodifiableSet(evmAddressLookupIds);
     }

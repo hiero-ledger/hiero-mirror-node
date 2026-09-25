@@ -18,7 +18,6 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.GetScheduleInfo;
 import org.junit.jupiter.api.Test;
@@ -53,10 +52,7 @@ class ContractCallGetScheduleInfoTest extends AbstractContractCallScheduleTest {
         final var contract = testWeb3jService.deploy(GetScheduleInfo::deploy);
         final var payerAccount = accountEntityPersist();
         final var treasuryAccount = accountEntityPersist();
-        final var scheduleEntity = domainBuilder
-                .entity()
-                .customize(e -> e.type(EntityType.SCHEDULE))
-                .persist();
+        final var scheduleEntity = scheduleEntityPersist();
         final var tokenName = "Fungible-Token";
         final var tokenSymbol = "FUNG";
         final var maxSupply = 1000L;
@@ -91,10 +87,7 @@ class ContractCallGetScheduleInfoTest extends AbstractContractCallScheduleTest {
         final var contract = testWeb3jService.deploy(GetScheduleInfo::deploy);
         final var payerAccount = accountEntityPersist();
         final var treasuryAccount = accountEntityPersist();
-        final var scheduleEntity = domainBuilder
-                .entity()
-                .customize(e -> e.type(EntityType.SCHEDULE))
-                .persist();
+        final var scheduleEntity = scheduleEntityPersist();
         final var tokenName = "Non-Fungible-Token";
         final var tokenSymbol = "NFT";
         final var maxSupply = 1000L;

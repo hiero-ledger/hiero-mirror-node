@@ -268,8 +268,7 @@ public final class FeeEstimationState implements State {
         protected @Nullable File readFromDataSource(FileID fileId) {
             if (simpleFeeFileId.equals(fileId)) {
                 try {
-                    final var schedule =
-                            fileService.getSimpleFeeSchedule(Bound.EMPTY).data();
+                    final var schedule = fileService.getFeeSchedule(Bound.EMPTY).data();
                     return File.newBuilder()
                             .contents(FeeSchedule.PROTOBUF.toBytes(schedule))
                             .build();

@@ -22,4 +22,21 @@ public interface RangeParameter<T> {
     default boolean isEmpty() {
         return RangeOperator.UNKNOWN.equals(operator());
     }
+
+    // Converts an exclusive operator (GT/LT) to its inclusive value, guarding against overflow
+    static long toInclusive(RangeOperator operator, long value) {
+        if (operator == RangeOperator.GT) {
+            if (value == Long.MAX_VALUE) {
+                throw new IllegalArgumentException("Invalid range");
+            }
+            return value + 1;
+        } else if (operator == RangeOperator.LT) {
+            if (value == Long.MIN_VALUE) {
+                throw new IllegalArgumentException("Invalid range");
+            }
+            return value - 1;
+        } else {
+            return value;
+        }
+    }
 }
