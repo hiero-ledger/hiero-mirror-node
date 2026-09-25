@@ -229,12 +229,13 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
     private int calculateIntrinsicValue(Object data) throws DecoderException {
         int total = BASE_GAS_FEE;
         byte[] values;
-        if (data instanceof String) {
-            values = Hex.decodeHex(((String) data).replaceFirst(HEX_PREFIX, ""));
+
+        if (data instanceof String strData) {
+            values = Hex.decodeHex((strData).replaceFirst(HEX_PREFIX, ""));
             int initCodeCost = (values.length + Bytes32.SIZE - 1) / Bytes32.SIZE * 2;
             total += ADDITIONAL_FEE_FOR_CREATE + initCodeCost;
-        } else if (data instanceof byte[]) {
-            values = (byte[]) data;
+        } else if (data instanceof byte[] bytes) {
+            values = bytes;
         } else {
             throw new IllegalArgumentException("Unsupported data type for gas calculation.");
         }

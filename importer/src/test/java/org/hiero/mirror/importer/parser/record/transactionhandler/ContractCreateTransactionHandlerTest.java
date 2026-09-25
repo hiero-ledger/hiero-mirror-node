@@ -19,6 +19,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.EthereumTransactionBody.Builder;
+import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -718,22 +719,25 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
     void updateContractFromEthereumCreateWFileIDParent() {
         // given
         // parent item
-        var parentRecordItem = recordItemBuilder.ethereumTransaction(true).build();
-
-        var ethereumTransaction = domainBuilder
+        final var ethereumTransaction = domainBuilder
                 .ethereumTransaction(false)
-                .customize(x -> x.callDataId(null))
+                .customize(x -> x.callDataId(null).callData(null))
                 .get();
 
+        final var parentRecordItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .recordItem(r -> r.ethereumTransaction(ethereumTransaction))
+                .build();
+
         // child item
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .contractCreate()
                 .transactionBody(b -> b.clearAutoRenewAccountId().clearFileID().clearInitcode())
                 .record(x -> x.setParentConsensusTimestamp(
                         parentRecordItem.getTransactionRecord().getConsensusTimestamp()))
-                .recordItem(r -> r.ethereumTransaction(ethereumTransaction).parent(parentRecordItem))
+                .recordItem(r -> r.parent(parentRecordItem))
                 .build();
-        var contractId =
+        final var contractId =
                 EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());
         var timestamp = recordItem.getConsensusTimestamp();
         var transaction = domainBuilder
@@ -750,11 +754,55 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
+        final var callDataId =
+                parentRecordItem.getTransactionBody().getEthereumTransaction().getCallData();
         assertEntity(contractId, timestamp).returns(null, Entity::getAutoRenewAccountId);
         assertContract(contractId).returns(initCode, Contract::getInitcode).satisfies(c -> assertThat(c.getFileId())
                 .isNotNull());
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+        assertThat(parentRecordItem.getEntityTransactions().keySet())
+                .containsExactlyInAnyOrder(EntityId.of(callDataId).getId());
+    }
+
+    @Test
+    void updateContractFromEthereumCreateWithFileIDAndCallData() {
+        // given
+        // parent item
+        final var ethereumTransaction = domainBuilder
+                .ethereumTransaction(true)
+                .customize(x -> x.callDataId(null))
+                .get();
+
+        final var parentRecordItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .transactionBody(b -> b.setCallData(FileID.newBuilder().setFileNum(-1L)))
+                .recordItem(r -> r.ethereumTransaction(ethereumTransaction))
+                .build();
+
+        // child item
+        final var recordItem = recordItemBuilder
+                .contractCreate()
+                .transactionBody(b -> b.clearFileID().clearInitcode())
+                .record(x -> x.setParentConsensusTimestamp(
+                        parentRecordItem.getTransactionRecord().getConsensusTimestamp()))
+                .recordItem(r -> r.parent(parentRecordItem))
+                .build();
+        final var contractId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());
+        final var timestamp = recordItem.getConsensusTimestamp();
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        assertEntity(contractId, timestamp).returns(null, Entity::getAutoRenewAccountId);
+        assertContract(contractId).satisfies(c -> assertThat(c.getFileId()).isNull());
+        assertThat(parentRecordItem.getEntityTransactions()).isEmpty();
     }
 
     @Test

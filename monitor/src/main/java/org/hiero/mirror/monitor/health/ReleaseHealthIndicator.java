@@ -69,7 +69,18 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
     private synchronized KubernetesClient getKubernetesClient() {
         if (kubernetesClient.get() == null) {
             try {
-                kubernetesClient.set(new KubernetesClientBuilder().build());
+                // Without this, fabric8's own request timeout and retry budget can keep the boundedElastic
+                // thread blocked well past properties.getTimeout(), even after the reactive timeout has
+                // already given up and reported this check as unknown.
+                final var timeoutMillis =
+                        Math.toIntExact(properties.getTimeout().toMillis());
+                kubernetesClient.set(new KubernetesClientBuilder()
+                        .editOrNewConfig()
+                        .withConnectionTimeout(timeoutMillis)
+                        .withRequestTimeout(timeoutMillis)
+                        .withRequestRetryBackoffLimit(0)
+                        .endConfig()
+                        .build());
             } catch (RuntimeException e) {
                 log.warn("Unable to connect to Kubernetes: {}", e.getMessage());
             }
@@ -94,11 +105,16 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
             return UNKNOWN;
         }
         return Mono.fromCallable(() -> getHelmRelease(kubernetesClient))
+                .subscribeOn(Schedulers.boundedElastic())
                 .cacheInvalidateIf(v -> false)
                 .doOnError(e -> log.error("Unable to get helm release", e))
                 .onErrorComplete()
                 .flatMap(release -> getHelmReleaseReadyStatus(kubernetesClient, release))
                 .doOnError(e -> log.error("Unable to get helm release ready status", e))
+                .onErrorComplete()
+                .timeout(properties.getTimeout())
+                .doOnError(e ->
+                        log.error("Kubernetes health check did not complete within {}", properties.getTimeout(), e))
                 .onErrorComplete()
                 .switchIfEmpty(UNKNOWN)
                 .cache(properties.getCacheExpiry(), Schedulers.newSingle("helmrelease-health-cache"));

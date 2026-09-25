@@ -8,10 +8,10 @@ dependencies {
     // Temporary until all plugins upgrade
     constraints {
         add("implementation", "com.fasterxml.jackson.core:jackson-databind") {
-            version { require("2.22.2") }
+            version { require("2.22.3") }
         }
         add("implementation", "tools.jackson.core:jackson-databind") {
-            version { require("3.2.2") }
+            version { require("3.2.3") }
         }
         add("implementation", "org.apache.ant:ant") {
             version { require("1.10.18") }

@@ -6,12 +6,12 @@ import static org.hiero.mirror.graphql.util.GraphQlUtils.decodeBase32;
 import static org.hiero.mirror.graphql.util.GraphQlUtils.decodeEvmAddress;
 
 import jakarta.inject.Named;
-import java.nio.ByteBuffer;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.graphql.repository.EntityRepository;
 
 @Named
@@ -32,10 +32,10 @@ public class EntityServiceImpl implements EntityService {
 
     @Override
     public Optional<Entity> getByEvmAddressAndType(String evmAddress, EntityType type) {
-        byte[] evmAddressBytes = decodeEvmAddress(evmAddress);
-        var buffer = ByteBuffer.wrap(evmAddressBytes);
-        if (buffer.getInt() == 0 && buffer.getLong() == 0) {
-            return entityRepository.findById(buffer.getLong()).filter(e -> e.getType() == type);
+        final var evmAddressBytes = decodeEvmAddress(evmAddress);
+        final var entityId = DomainUtils.fromEvmAddress(evmAddressBytes);
+        if (entityId != null) {
+            return entityRepository.findById(entityId.getId()).filter(e -> e.getType() == type);
         }
         return entityRepository.findByEvmAddress(evmAddressBytes).filter(e -> e.getType() == type);
     }
