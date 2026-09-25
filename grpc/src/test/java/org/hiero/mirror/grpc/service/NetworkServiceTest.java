@@ -6,9 +6,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.grpc.service.NetworkServiceImpl.INVALID_FILE_ID;
 
+import io.grpc.Context;
 import jakarta.validation.ConstraintViolationException;
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
@@ -17,6 +20,9 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
+import org.hiero.mirror.grpc.exception.SubscriptionLimitException;
+import org.hiero.mirror.grpc.exception.SubscriptionTimeoutException;
+import org.hiero.mirror.grpc.interceptor.RemoteAddressInterceptor;
 import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
 import org.hiero.mirror.grpc.repository.NodeStakeRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -38,16 +44,28 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     private final NetworkService networkService;
     private final NodeStakeRepository nodeStakeRepository;
 
+    private int maxConcurrentPerConnection;
+    private int maxLimit;
+    private Duration pageDelay;
     private int pageSize;
+    private Duration timeout;
 
     @BeforeEach
     void setup() {
+        maxConcurrentPerConnection = addressBookProperties.getMaxConcurrentPerConnection();
+        maxLimit = addressBookProperties.getMaxLimit();
+        pageDelay = addressBookProperties.getPageDelay();
         pageSize = addressBookProperties.getPageSize();
+        timeout = addressBookProperties.getTimeout();
     }
 
     @AfterEach
     void cleanup() {
+        addressBookProperties.setMaxConcurrentPerConnection(maxConcurrentPerConnection);
+        addressBookProperties.setMaxLimit(maxLimit);
+        addressBookProperties.setPageDelay(pageDelay);
         addressBookProperties.setPageSize(pageSize);
+        addressBookProperties.setTimeout(timeout);
     }
 
     @Test
@@ -65,9 +83,11 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         var fileId = systemEntity.addressBookFile102();
         var filter = AddressBookFilter.builder().fileId(fileId).build();
 
-        assertThatThrownBy(() -> networkService.getNodes(filter))
-                .isInstanceOf(EntityNotFoundException.class)
-                .hasMessage("%s does not exist".formatted(fileId));
+        StepVerifier.create(networkService.getNodes(filter))
+                .expectErrorSatisfies(error -> assertThat(error)
+                        .isInstanceOf(EntityNotFoundException.class)
+                        .hasMessage("%s does not exist".formatted(fileId)))
+                .verify(Duration.ofSeconds(5L));
     }
 
     @ParameterizedTest
@@ -123,6 +143,86 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
+    }
+
+    @Test
+    void limitClampedToServerMaximum() {
+        addressBookProperties.setMaxLimit(1);
+        addressBookProperties.setPageSize(10);
+        var addressBook = addressBook();
+        var addressBookEntry = addressBookEntry();
+        addressBookEntry();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(50)
+                .build();
+
+        assertThat(getNodes(filter)).containsExactly(addressBookEntry);
+    }
+
+    @Test
+    void nonPositiveLimitClampedToServerMaximum() {
+        addressBookProperties.setMaxLimit(1);
+        var addressBook = addressBook();
+        var addressBookEntry = addressBookEntry();
+        addressBookEntry();
+        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+
+        assertThat(getNodes(filter)).containsExactly(addressBookEntry);
+    }
+
+    @Test
+    void concurrentSubscriptionsLimitedPerConnection() {
+        addressBookProperties.setMaxConcurrentPerConnection(1);
+        addressBookProperties.setPageDelay(Duration.ofSeconds(30L));
+        addressBookProperties.setPageSize(1);
+        var addressBook = addressBook();
+        addressBookEntry();
+        addressBookEntry();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(2)
+                .build();
+        var address = new InetSocketAddress("203.0.113.9", 4242);
+
+        Context.current()
+                .withValue(RemoteAddressInterceptor.REMOTE_ADDRESS, address)
+                .run(() -> {
+                    var first = networkService.getNodes(filter);
+                    var second = networkService.getNodes(filter);
+                    StepVerifier.create(first)
+                            .expectNextCount(1)
+                            .then(() -> StepVerifier.create(second)
+                                    .expectError(SubscriptionLimitException.class)
+                                    .verify(Duration.ofSeconds(5L)))
+                            .thenCancel()
+                            .verify(Duration.ofSeconds(10L));
+                });
+    }
+
+    @Test
+    void streamTimesOut() {
+        addressBookProperties.setPageDelay(Duration.ofMillis(20L));
+        addressBookProperties.setPageSize(1);
+        addressBookProperties.setTimeout(Duration.ofMillis(200L));
+        var addressBook = addressBook();
+        for (int i = 0; i < 30; i++) {
+            addressBookEntry();
+        }
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(30)
+                .build();
+        final var received = new AtomicInteger();
+
+        StepVerifier.create(networkService.getNodes(filter))
+                .thenConsumeWhile(entry -> {
+                    received.incrementAndGet();
+                    return true;
+                })
+                .expectError(SubscriptionTimeoutException.class)
+                .verify(Duration.ofSeconds(5L));
+        assertThat(received.get()).isBetween(1, 29);
     }
 
     @Test

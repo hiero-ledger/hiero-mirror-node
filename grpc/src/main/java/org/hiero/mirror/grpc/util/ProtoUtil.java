@@ -9,11 +9,14 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
+import org.hiero.mirror.grpc.exception.SubscriptionLimitException;
+import org.hiero.mirror.grpc.exception.SubscriptionTimeoutException;
 import org.springframework.dao.NonTransientDataAccessResourceException;
 import org.springframework.dao.TransientDataAccessException;
 import reactor.core.Exceptions;
@@ -24,6 +27,7 @@ public final class ProtoUtil {
 
     static final String DB_ERROR = "Error querying the data source. Please retry later";
     static final String OVERFLOW_ERROR = "Client lags too much behind. Please retry later";
+    static final String SCHEDULER_CAPACITY = "Address book service is busy. Please retry later";
     static final String UNKNOWN_ERROR = "Unknown error";
 
     public static Instant fromTimestamp(Timestamp timestamp) {
@@ -50,6 +54,12 @@ public final class ProtoUtil {
             return clientError(t, Status.INVALID_ARGUMENT, t.getMessage());
         } else if (t instanceof EntityNotFoundException) {
             return clientError(t, Status.NOT_FOUND, t.getMessage());
+        } else if (t instanceof SubscriptionLimitException) {
+            return clientError(t, Status.RESOURCE_EXHAUSTED, t.getMessage());
+        } else if (t instanceof SubscriptionTimeoutException) {
+            return clientError(t, Status.DEADLINE_EXCEEDED, t.getMessage());
+        } else if (t instanceof RejectedExecutionException) {
+            return serverError(t, Status.RESOURCE_EXHAUSTED, SCHEDULER_CAPACITY);
         } else if (t instanceof TransientDataAccessException || t instanceof TimeoutException) {
             return serverError(t, Status.RESOURCE_EXHAUSTED, DB_ERROR);
         } else if (t instanceof NonTransientDataAccessResourceException) {
