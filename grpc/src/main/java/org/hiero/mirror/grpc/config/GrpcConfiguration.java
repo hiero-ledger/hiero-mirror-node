@@ -5,6 +5,7 @@ package org.hiero.mirror.grpc.config;
 import io.grpc.netty.NettyServerBuilder;
 import java.util.concurrent.Executor;
 import org.hiero.mirror.grpc.GrpcProperties;
+import org.hiero.mirror.grpc.service.AddressBookProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,9 +13,20 @@ import org.springframework.grpc.server.ServerBuilderCustomizer;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 @Configuration(proxyBeanMethods = false)
 class GrpcConfiguration {
+
+    @Bean(destroyMethod = "dispose")
+    @Qualifier("addressBook")
+    Scheduler addressBookScheduler(AddressBookProperties addressBookProperties) {
+        return Schedulers.newBoundedElastic(
+                addressBookProperties.getSchedulerSize(),
+                addressBookProperties.getSchedulerQueueSize(),
+                "address-book");
+    }
 
     @Bean
     @Qualifier("readOnly")
