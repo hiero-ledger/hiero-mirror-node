@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.163.0-rc1'
+      version: '0.164.0-rc1'
   dependsOn:
     - name: mirror
       namespace: common
@@ -110,7 +110,7 @@ spec:
           - index: 1
             pods:
               persistentVolume:
-                size: 15000Gi
+                size: 15599Gi
           - index: 2
             pods:
               persistentVolume:
