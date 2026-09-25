@@ -254,6 +254,36 @@ func (suite *accountRepositorySuite) TestGetAccountIdDbConnectionError() {
 	assert.Equal(suite.T(), types.AccountId{}, actual)
 }
 
+func (suite *accountRepositorySuite) TestGetAccountIdsEmpty() {
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
+
+	actual, err := repo.GetAccountIds(defaultContext, nil)
+
+	assert.Nil(suite.T(), err)
+	assert.Empty(suite.T(), actual)
+}
+
+func (suite *accountRepositorySuite) TestGetAccountIdsNumericAccounts() {
+	accountId1 := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(accountNum1))
+	accountId2 := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(accountNum2))
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
+
+	actual, err := repo.GetAccountIds(defaultContext, []types.AccountId{accountId1, accountId2})
+
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), []types.AccountId{accountId1, accountId2}, actual)
+}
+
+func (suite *accountRepositorySuite) TestGetAccountIdsDbConnectionError() {
+	aliasAccountId, _ := types.NewAccountIdFromAlias(account4Alias, 0, 0)
+	repo := NewAccountRepository(invalidDbClient, suite.treasuryEntityId)
+
+	actual, err := repo.GetAccountIds(defaultContext, []types.AccountId{aliasAccountId})
+
+	assert.NotNil(suite.T(), err)
+	assert.Nil(suite.T(), actual)
+}
+
 func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlock() {
 	// given
 	// transfers before or at the snapshot timestamp should not affect balance calculation
@@ -634,6 +664,39 @@ func (suite *accountRepositoryWithAliasSuite) TestGetAccountId() {
 	// then
 	assert.Nil(suite.T(), rErr)
 	assert.Equal(suite.T(), expected, actual)
+}
+
+func (suite *accountRepositoryWithAliasSuite) TestGetAccountIds() {
+	alias3, err := types.NewAccountIdFromAlias(account3Alias, 0, 0)
+	assert.NoError(suite.T(), err)
+	alias4, err := types.NewAccountIdFromAlias(account4Alias, 0, 0)
+	assert.NoError(suite.T(), err)
+	numeric := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(accountNum1))
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
+	expected := []types.AccountId{
+		types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(accountNum3)),
+		numeric,
+		types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(accountNum4)),
+	}
+
+	actual, rErr := repo.GetAccountIds(defaultContext, []types.AccountId{alias3, numeric, alias4})
+
+	assert.Nil(suite.T(), rErr)
+	assert.Equal(suite.T(), expected, actual)
+}
+
+func (suite *accountRepositoryWithAliasSuite) TestGetAccountIdsPartialNotFound() {
+	alias3, err := types.NewAccountIdFromAlias(account3Alias, 0, 0)
+	assert.NoError(suite.T(), err)
+	missingAlias := utils.MustDecode("0x1220aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	missing, err := types.NewAccountIdFromAlias(missingAlias, 0, 0)
+	assert.NoError(suite.T(), err)
+	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
+
+	actual, rErr := repo.GetAccountIds(defaultContext, []types.AccountId{alias3, missing})
+
+	assert.Equal(suite.T(), errors.ErrAccountNotFound, rErr)
+	assert.Nil(suite.T(), actual)
 }
 
 func (suite *accountRepositoryWithAliasSuite) TestGetAccountIdDeleted() {

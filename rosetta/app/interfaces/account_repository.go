@@ -19,6 +19,10 @@ type AccountRepository interface {
 	// GetAccountId returns the `shard.realm.num` format of the account from its alias if exists
 	GetAccountId(ctx context.Context, accountId types.AccountId) (types.AccountId, *rTypes.Error)
 
+	// GetAccountIds returns the `shard.realm.num` form of each account. Numeric accounts are returned unchanged.
+	// Returns ErrAccountNotFound if any alias does not resolve to a current, non-deleted account.
+	GetAccountIds(ctx context.Context, accountIds []types.AccountId) ([]types.AccountId, *rTypes.Error)
+
 	// RetrieveBalanceAtBlock returns the hbar balance of the account at a given block (provided by consensusEnd
 	// timestamp).
 	// balance = balanceAtLatestBalanceSnapshot + balanceChangeBetweenSnapshotAndBlock

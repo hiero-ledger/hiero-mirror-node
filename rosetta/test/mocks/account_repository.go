@@ -32,6 +32,14 @@ func (m *MockAccountRepository) GetAccountId(ctx context.Context, accountId type
 	return args.Get(0).(types.AccountId), args.Get(1).(*rTypes.Error)
 }
 
+func (m *MockAccountRepository) GetAccountIds(ctx context.Context, accountIds []types.AccountId) (
+	[]types.AccountId,
+	*rTypes.Error,
+) {
+	args := m.Called(ctx, accountIds)
+	return args.Get(0).([]types.AccountId), args.Get(1).(*rTypes.Error)
+}
+
 func (m *MockAccountRepository) RetrieveBalanceAtBlock(
 	ctx context.Context,
 	accountId types.AccountId,

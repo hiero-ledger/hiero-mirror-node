@@ -8,11 +8,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
 	hErrors "github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/interfaces"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/persistence/domain"
+	"github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -59,6 +61,8 @@ const (
                                  order by timestamp_range desc`
 	selectCurrentCryptoEntityByAlias = `select id from entity
                                  where alias = @alias and (deleted is null or deleted is false)`
+	selectCurrentCryptoEntitiesByAlias = `select id, alias from entity
+                                 where alias = any(@aliases) and (deleted is null or deleted is false)`
 	selectCryptoEntityById = `select id, deleted, key, timestamp_range
                               from entity
                               where type in ('ACCOUNT', 'CONTRACT') and id = @id and
@@ -156,6 +160,55 @@ func (ar *accountRepository) GetAccountId(ctx context.Context, accountId types.A
 	}
 
 	return types.NewAccountIdFromEntityId(entity.Id), nil
+}
+
+func (ar *accountRepository) GetAccountIds(ctx context.Context, accountIds []types.AccountId) (
+	[]types.AccountId,
+	*rTypes.Error,
+) {
+	resolved := make([]types.AccountId, len(accountIds))
+	aliasIndexes := make([]int, 0, len(accountIds))
+	aliases := make([][]byte, 0, len(accountIds))
+
+	for i, accountId := range accountIds {
+		if !accountId.HasAlias() {
+			resolved[i] = accountId
+			continue
+		}
+
+		aliasIndexes = append(aliasIndexes, i)
+		aliases = append(aliases, accountId.GetAlias())
+	}
+
+	if len(aliases) == 0 {
+		return resolved, nil
+	}
+
+	db, cancel := ar.dbClient.GetDbWithContext(ctx)
+	defer cancel()
+
+	var entities []domain.Entity
+	if err := db.Raw(
+		selectCurrentCryptoEntitiesByAlias,
+		sql.Named("aliases", pq.ByteaArray(aliases)),
+	).Scan(&entities).Error; err != nil {
+		return nil, hErrors.ErrDatabaseError
+	}
+
+	byAlias := make(map[string]domain.EntityId, len(entities))
+	for _, entity := range entities {
+		byAlias[string(entity.Alias)] = entity.Id
+	}
+
+	for j, alias := range aliases {
+		id, ok := byAlias[string(alias)]
+		if !ok {
+			return nil, hErrors.ErrAccountNotFound
+		}
+		resolved[aliasIndexes[j]] = types.NewAccountIdFromEntityId(id)
+	}
+
+	return resolved, nil
 }
 
 func (ar *accountRepository) RetrieveBalanceAtBlock(
