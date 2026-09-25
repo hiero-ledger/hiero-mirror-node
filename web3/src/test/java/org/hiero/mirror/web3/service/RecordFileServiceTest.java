@@ -4,15 +4,20 @@ package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
+import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.validation.HexValidator;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @RequiredArgsConstructor
 class RecordFileServiceTest extends Web3IntegrationTest {
     private final RecordFileService recordFileService;
+
+    @Resource
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void testFindByTimestamp() {
@@ -22,6 +27,45 @@ class RecordFileServiceTest extends Web3IntegrationTest {
                 .customize(e -> e.consensusEnd(timestamp))
                 .persist();
         assertThat(recordFileService.findByTimestamp(timestamp)).contains(recordFile);
+    }
+
+    @Test
+    void findByTimestampWarmsIndexCacheByIndex() {
+        final var timestamp = domainBuilder.timestamp();
+        final var recordFile = domainBuilder
+                .recordFile()
+                .customize(e -> e.consensusEnd(timestamp))
+                .persist();
+
+        // Resolving by timestamp warms the index cache under the record file's index.
+        assertThat(recordFileService.findByTimestamp(timestamp)).contains(recordFile);
+
+        jdbcTemplate.update("delete from record_file");
+
+        final var byIndex = BlockType.of(recordFile.getIndex().toString());
+        assertThat(recordFileService.findByBlockType(byIndex))
+                .as("findByBlockType(index) should be served from the index cache warmed by findByTimestamp")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByTimestampDoesNotWarmIndexCacheUnderTimestampKey() {
+        final var timestamp = domainBuilder.timestamp();
+        final var recordFile = domainBuilder
+                .recordFile()
+                .customize(e -> e.consensusEnd(timestamp))
+                .persist();
+
+        // Warm the index cache via a timestamp lookup, then remove the underlying row.
+        assertThat(recordFileService.findByTimestamp(timestamp)).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        // The index cache must only be keyed by block index, never by the timestamp: passing the timestamp
+        // as a block number must not resolve to the record file (guards against cross-key cache poisoning).
+        final var timestampAsBlock = BlockType.of(String.valueOf(timestamp));
+        assertThat(recordFileService.findByBlockType(timestampAsBlock))
+                .as("a timestamp passed as a block index must not hit the warmed index cache")
+                .isEmpty();
     }
 
     @Test

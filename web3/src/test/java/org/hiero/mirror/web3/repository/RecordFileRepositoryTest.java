@@ -11,6 +11,7 @@ import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @RequiredArgsConstructor
 class RecordFileRepositoryTest extends Web3IntegrationTest {
@@ -20,6 +21,9 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
 
     @Resource
     private RecordFileRepository recordFileRepository;
+
+    @Resource
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void findEarliest() {
@@ -66,6 +70,36 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
                 })
                 .persist();
         assertThat(recordFileRepository.findByTimestamp(timestamp)).contains(recordFile);
+    }
+
+    @Test
+    void findByIndexServesFromCacheWithoutQueryingDatabase() {
+        final var recordFile = domainBuilder.recordFile().persist();
+        final long index = recordFile.getIndex();
+
+        assertThat(recordFileRepository.findByIndex(index)).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+        assertThat(recordFileRepository.findByIndex(index))
+                .as("findByIndex should serve the cached record file without hitting the DB")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByTimestampServesFromCacheWithoutQueryingDatabase() {
+        final var timestamp = domainBuilder.timestamp();
+        final var recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> {
+                    r.consensusStart(timestamp);
+                    r.consensusEnd(timestamp + 1);
+                })
+                .persist();
+
+        assertThat(recordFileRepository.findByTimestamp(timestamp)).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+        assertThat(recordFileRepository.findByTimestamp(timestamp))
+                .as("findByTimestamp should serve the cached record file without hitting the DB")
+                .contains(recordFile);
     }
 
     @CsvSource({

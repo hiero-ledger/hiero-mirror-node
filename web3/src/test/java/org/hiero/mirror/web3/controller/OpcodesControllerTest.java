@@ -94,6 +94,7 @@ import org.mockito.Captor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -768,7 +769,7 @@ class OpcodesControllerTest {
 
         @Bean
         RecordFileService recordFileService(final RecordFileRepository recordFileRepository) {
-            return new RecordFileServiceImpl(recordFileRepository);
+            return new RecordFileServiceImpl(recordFileRepository, new ConcurrentMapCacheManager());
         }
 
         @Bean
