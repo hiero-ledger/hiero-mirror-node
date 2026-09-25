@@ -11,9 +11,7 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_RECOR
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
@@ -37,13 +35,7 @@ public interface RecordFileRepository extends PagingAndSortingRepository<RecordF
     @Query(value = "select * from record_file order by consensus_end desc limit 1", nativeQuery = true)
     Optional<RecordFile> findLatest();
 
-    @Caching(
-            cacheable =
-                    @Cacheable(
-                            cacheNames = CACHE_NAME,
-                            cacheManager = CACHE_MANAGER_RECORD_FILE_TIMESTAMP,
-                            unless = "#result == null"),
-            put = @CachePut(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_RECORD_FILE_INDEX))
+    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_RECORD_FILE_TIMESTAMP, unless = "#result == null")
     @Query("select r from RecordFile r where r.consensusEnd >= ?1 order by r.consensusEnd asc limit 1")
     Optional<RecordFile> findByTimestamp(long timestamp);
 }
