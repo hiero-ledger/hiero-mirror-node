@@ -13,6 +13,19 @@ final class SignatureUtilsTest {
     @CsvSource(emptyValue = "", nullValues = "null", textBlock = """
             null,''
             '',''
+            c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4,cd2a3d9f938e13cd947ec05abc7fe734df8dd826
+            ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,''
+            """)
+    @ParameterizedTest
+    void recoverAddressFromPrivateKey(String input, String output) {
+        final var keyBytes = input != null ? HexFormat.of().parseHex(input) : null;
+        final var expected = HexFormat.of().parseHex(output);
+        assertThat(SignatureUtils.recoverAddressFromPrivateKey(keyBytes)).isEqualTo(expected);
+    }
+
+    @CsvSource(emptyValue = "", nullValues = "null", textBlock = """
+            null,''
+            '',''
             02ff806fecbd31b4c377293cba8d2b78725965a4990e0ff1b1b29a1d2c614023,''
             02ff806fecbd31b4c377293cba8d2b78725965a4990e0ff1b1b29a1d2c61402310, efa0d905af20199aa03aca71cfa5f7647f29f439
             02ff806fecbd31b4c377293cba8d2b78725965a4990e0ff1b1b29a1d2c61402311,''

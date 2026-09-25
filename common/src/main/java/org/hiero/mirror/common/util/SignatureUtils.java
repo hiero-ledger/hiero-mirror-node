@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.util;
 
+import java.math.BigInteger;
 import java.util.Arrays;
 import lombok.experimental.UtilityClass;
 import org.bouncycastle.crypto.digests.KeccakDigest;
@@ -21,6 +22,31 @@ public final class SignatureUtils {
         final var curveParams = CustomNamedCurves.getByName("secp256k1");
         EC_DOMAIN_PARAMETERS = new ECDomainParameters(
                 curveParams.getCurve(), curveParams.getG(), curveParams.getN(), curveParams.getH());
+    }
+
+    /**
+     * Recovers the 20-byte EVM address from a secp256k1 private key.
+     *
+     * @param privateKeyBytes The bytes representing a secp256k1 private key
+     * @return The 20-byte EVM address or an empty byte array if the input is invalid
+     */
+    public static byte[] recoverAddressFromPrivateKey(byte @Nullable [] privateKeyBytes) {
+        if (privateKeyBytes == null || privateKeyBytes.length == 0) {
+            return DomainUtils.EMPTY_BYTE_ARRAY;
+        }
+
+        try {
+            final var privateKey = new BigInteger(1, privateKeyBytes);
+            if (privateKey.signum() <= 0 || privateKey.compareTo(EC_DOMAIN_PARAMETERS.getN()) >= 0) {
+                return DomainUtils.EMPTY_BYTE_ARRAY;
+            }
+
+            final var publicKey =
+                    EC_DOMAIN_PARAMETERS.getG().multiply(privateKey).normalize().getEncoded(true);
+            return recoverAddressFromPubKey(publicKey);
+        } catch (final Exception e) {
+            return DomainUtils.EMPTY_BYTE_ARRAY;
+        }
     }
 
     /**

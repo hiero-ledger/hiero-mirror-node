@@ -6,12 +6,16 @@ import static org.hiero.mirror.common.util.SignatureUtils.EC_DOMAIN_PARAMETERS;
 import static org.hiero.mirror.common.util.SignatureUtils.recoverAddressFromPubKey;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.hedera.node.app.hapi.utils.ethereum.CodeDelegation;
 import com.hedera.node.app.hapi.utils.ethereum.EthTxData;
 import com.hedera.node.app.hapi.utils.ethereum.EthTxSigs;
 import com.oracle.svm.core.annotate.Substitute;
 import com.oracle.svm.core.annotate.TargetClass;
 import java.math.BigInteger;
+import java.util.Optional;
 import lombok.experimental.UtilityClass;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.tuweni.bytes.Bytes32;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hyperledger.besu.crypto.SECP256K1;
@@ -27,6 +31,19 @@ final class EthTxSigsSubstitute {
     @VisibleForTesting
     static final SECP256K1 SECP256K1 = new SECP256K1();
 
+    private static final Logger log = LogManager.getLogger(EthTxSigsSubstitute.class);
+
+    static Optional<EthTxSigs> extractAuthoritySignature(CodeDelegation codeDelegation) {
+        try {
+            final var message = codeDelegation.calculateSignableMessage();
+            return Optional.of(
+                    recoverPublicKey(codeDelegation.yParity(), codeDelegation.r(), codeDelegation.s(), message));
+        } catch (final Exception e) {
+            log.warn("Exception thrown extracting code delegation authority signatures", e);
+            return Optional.empty();
+        }
+    }
+
     static EthTxSigs recoverPublicKey(int recoveryId, byte[] r, byte[] s, byte[] message) {
         final var messageHash = Bytes32.wrap(new Keccak.Digest256().digest(message));
         final var signature = new SECPSignature(new BigInteger(1, r), new BigInteger(1, s), (byte) recoveryId);
@@ -40,6 +57,11 @@ final class EthTxSigsSubstitute {
     // Target classes cannot have state, so we use this inner class as a workaround
     @TargetClass(className = "com.hedera.node.app.hapi.utils.ethereum.EthTxSigs")
     static final class Target {
+        @Substitute
+        public static Optional<EthTxSigs> extractAuthoritySignature(CodeDelegation codeDelegation) {
+            return EthTxSigsSubstitute.extractAuthoritySignature(codeDelegation);
+        }
+
         @Substitute
         public static EthTxSigs extractSignatures(EthTxData ethTx) {
             final var message = EthTxSigs.calculateSignableMessage(ethTx);
