@@ -10,17 +10,18 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractResult;
-import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
@@ -41,6 +42,7 @@ import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
+import org.hiero.mirror.web3.repository.projections.ContractTransactionHashLookup;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
@@ -124,10 +126,7 @@ public class OpcodeServiceImpl implements OpcodeService {
 
         switch (transactionIdOrHash) {
             case TransactionHashParameter transactionHash -> {
-                ContractTransactionHash contractTransactionHash = contractTransactionHashRepository
-                        .findByHash(transactionHash.hash().toArray())
-                        .orElseThrow(() ->
-                                new EntityNotFoundException("Contract transaction hash not found: " + transactionHash));
+                final var contractTransactionHash = resolveContractTransactionHash(transactionHash);
 
                 transaction = null;
                 consensusTimestamp = contractTransactionHash.getConsensusTimestamp();
@@ -158,6 +157,45 @@ public class OpcodeServiceImpl implements OpcodeService {
         }
 
         return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction);
+    }
+
+    /**
+     * Selects the result that best represents a hash shared by multiple results. A successful result always wins (the
+     * query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result sharing
+     * the hash by checking which candidates produced EVM output (a non-empty function_result), falling back to the
+     * latest by consensus timestamp (the query order).
+     */
+    private ContractTransactionHashLookup resolveContractTransactionHash(TransactionHashParameter transactionHash) {
+        final var candidates = contractTransactionHashRepository.findAllByHash(
+                transactionHash.hash().toArray());
+        if (candidates.isEmpty()) {
+            throw new EntityNotFoundException("Contract transaction hash not found: " + transactionHash);
+        }
+
+        final var first = candidates.getFirst();
+        if (candidates.size() == 1 || Objects.equals(first.getTransactionResult(), ResponseCodeEnum.SUCCESS_VALUE)) {
+            return first;
+        }
+
+        final var timestamps = new ArrayList<Long>(candidates.size());
+        final var contractIds = new ArrayList<Long>(candidates.size());
+        for (final var candidate : candidates) {
+            timestamps.add(candidate.getConsensusTimestamp());
+            contractIds.add(candidate.getEntityId());
+        }
+        final var executedTimestamp = contractResultRepository.findLatestExecutedTimestamp(timestamps, contractIds);
+        if (executedTimestamp.isEmpty()) {
+            return first;
+        }
+
+        final long winner = executedTimestamp.get();
+        for (final var candidate : candidates) {
+            if (candidate.getConsensusTimestamp() == winner) {
+                return candidate;
+            }
+        }
+
+        return first;
     }
 
     private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result, long consensusTimestamp) {

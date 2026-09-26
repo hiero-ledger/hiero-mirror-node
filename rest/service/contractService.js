@@ -215,7 +215,20 @@ class ContractService extends BaseService {
   static ethereumTransactionsByHashQuery = `select * from ${ContractTransactionHash.tableName}
         where ${ContractTransactionHash.HASH} = $1
         order by (${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}) desc,
-                 ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
+                 ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc`;
+
+  // Given candidate consensus timestamps and their contract ids, returns the latest one whose result produced EVM
+  // output (non-empty function_result), i.e. that actually executed, picking the latest when several executed.
+  // contract_id is the citus distribution column of contract_result and equals contract_transaction_hash.entity_id
+  // (see ContractResult.toContractTransactionHash), so constraining on it lets citus prune shards instead of scanning
+  // every one.
+  static executedContractResultsQuery = `select ${ContractResult.CONSENSUS_TIMESTAMP}
+        from ${ContractResult.tableName}
+        where ${ContractResult.CONSENSUS_TIMESTAMP} = any($1)
+          and ${ContractResult.CONTRACT_ID} = any($2)
+          and ${ContractResult.FUNCTION_RESULT} is not null
+          and octet_length(${ContractResult.FUNCTION_RESULT}) > 0
+        order by ${ContractResult.CONSENSUS_TIMESTAMP} desc
         limit 1`;
 
   getContractResultsByIdAndFiltersQuery(whereConditions, whereParams, order, limit) {
@@ -463,7 +476,8 @@ class ContractService extends BaseService {
   async getContractTransactionDetailsByHash(hash) {
     const rows = await super.getRows(ContractService.ethereumTransactionsByHashQuery, [hash]);
     if (rows.length !== 0) {
-      return rows.map((row) => new ContractTransactionHash(row));
+      const preferred = await this.pickPreferredContractTransactionHash(rows);
+      return [new ContractTransactionHash(preferred)];
     }
 
     if (!config.query.syntheticContractResults) {
@@ -500,6 +514,31 @@ class ContractService extends BaseService {
     `;
     const syntheticRows = await super.getRows(query, params);
     return syntheticRows.map((row) => new ContractTransactionHash(row));
+  }
+
+  /**
+   * Selects the row that best represents a transaction hash shared by multiple results. A successful result always
+   * wins (the query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result
+   * sharing the hash by checking which candidates produced EVM output (non-empty function_result), falling back to the
+   * latest by consensus timestamp (the input order).
+   */
+  async pickPreferredContractTransactionHash(rows) {
+    if (
+      rows.length === 1 ||
+      Number(rows[0][ContractTransactionHash.TRANSACTION_RESULT]) === Number(successTransactionResult)
+    ) {
+      return rows[0];
+    }
+
+    const timestamps = rows.map((row) => row[ContractTransactionHash.CONSENSUS_TIMESTAMP]);
+    const contractIds = rows.map((row) => row[ContractTransactionHash.ENTITY_ID]);
+    const executed = await super.getRows(ContractService.executedContractResultsQuery, [timestamps, contractIds]);
+    if (executed.length === 0) {
+      return rows[0];
+    }
+
+    const executedTimestamp = executed[0][ContractResult.CONSENSUS_TIMESTAMP];
+    return rows.find((row) => row[ContractTransactionHash.CONSENSUS_TIMESTAMP] === executedTimestamp) ?? rows[0];
   }
 
   async getInvolvedContractsByTimestampAndContractId(timestamp, contractId, matchByPayerAccount = false) {
