@@ -4,9 +4,30 @@ hiero:
   mirror:
     web3:
       api:
+        call:
+          enabled: true
+          response:
+            timeout: 4s
+            headers:
+              "Access-Control-Allow-Origin": "*"
         opcodes:
+          enabled: true
           request:
+            throttle: 1
+          response:
             timeout: 10s
+            headers:
+              "Access-Control-Allow-Origin": "*"
+              "Cache-Control": "public, max-age=600"
+        prestate:
+          enabled: false
+          request:
+            throttle: 10
+          response:
+            timeout: 4s
+            headers:
+              "Access-Control-Allow-Origin": "*"
+              "Cache-Control": "public, max-age=600"
       db:
         host: 127.0.0.1
         name: mirror_node
