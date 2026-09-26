@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.common;
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -13,12 +14,20 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.Web3Properties.ApiEndpointName;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.state.Utils;
+import org.hiero.mirror.web3.utils.HexUtils;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings("deprecation")
 @Getter
@@ -36,6 +45,9 @@ public class ContractCallContext {
     @Getter(AccessLevel.NONE)
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
 
+    @Setter
+    private ActionContext actionContext = null;
+
     /**
      * Optional API endpoint used to resolve a per-endpoint request timeout.
      */
@@ -44,6 +56,12 @@ public class ContractCallContext {
 
     @Setter
     private OpcodeContext opcodeContext = null;
+
+    /**
+     * Absolute epoch-millis deadline for this request. {@code 0} means fall back to the per-endpoint request timeout.
+     */
+    @Setter
+    private long deadlineMillis;
 
     @Setter
     private CallServiceParameters callServiceParameters;
@@ -71,6 +89,20 @@ public class ContractCallContext {
      */
     @Setter
     private Map<Bytes, StateOverride> stateOverrides;
+
+    /**
+     * Optional EVM {@code block.number} override from {@code block_override.number}. {@code null} means use the bound
+     * record file.
+     */
+    @Setter
+    private @Nullable Long blockOverrideNumber;
+
+    /**
+     * Optional EVM {@code block.timestamp} override from {@code block_override.time}, in nanoseconds since epoch.
+     * {@code null} means use the bound record file.
+     */
+    @Setter
+    private @Nullable Long blockOverrideTimeNanos;
 
     private ContractCallContext() {}
 
@@ -157,5 +189,57 @@ public class ContractCallContext {
 
     public RecordFile getRecordFile() {
         return blockSupplier.get();
+    }
+
+    public boolean isDeadlineExceeded() {
+        return deadlineMillis > 0 && remainingMillis(0L) <= 0L;
+    }
+
+    /**
+     * Milliseconds remaining until this request should stop work. Uses {@link #deadlineMillis} when set; otherwise
+     * {@code startTime + fallbackTimeoutMillis}.
+     */
+    public long remainingMillis(final long fallbackTimeoutMillis) {
+        final long deadline = deadlineMillis > 0 ? deadlineMillis : startTime + fallbackTimeoutMillis;
+        return deadline - System.currentTimeMillis();
+    }
+
+    public void applyStateOverrides(final List<StateOverride> overrides) {
+        if (overrides == null || overrides.isEmpty()) {
+            return;
+        }
+        final var addressToAccounts = new HashMap<Bytes, StateOverride>(overrides.size());
+        for (final var stateOverride : overrides) {
+            addressToAccounts.put(Bytes.wrap(Utils.parseHex(stateOverride.getAddress())), stateOverride);
+        }
+        this.stateOverrides = addressToAccounts;
+    }
+
+    /**
+     * Applies HIP-1485 {@code block_override}. A set {@code number} becomes EVM {@code block.number}; a set {@code time}
+     * becomes EVM {@code block.timestamp}.
+     */
+    public void applyBlockOverride(final @Nullable BlockOverride override) {
+        if (override == null) {
+            return;
+        }
+        try {
+            if (StringUtils.isNotBlank(override.getNumber())) {
+                blockOverrideNumber = HexUtils.parseValue(override.getNumber());
+            }
+            if (StringUtils.isNotBlank(override.getTime())) {
+                blockOverrideTimeNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue(override.getTime()), 0);
+            }
+        } catch (NumberFormatException e) {
+            throw new InvalidParametersException("Invalid block_override: " + e.getMessage());
+        }
+    }
+
+    public long evmBlockNumber(final long fallback) {
+        return blockOverrideNumber != null ? blockOverrideNumber : fallback;
+    }
+
+    public long evmBlockTimeNanos(final long fallback) {
+        return blockOverrideTimeNanos != null ? blockOverrideTimeNanos : fallback;
     }
 }

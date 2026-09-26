@@ -14,12 +14,14 @@ import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_ACCEPTABLE;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
+import static org.springframework.http.HttpStatus.REQUEST_TIMEOUT;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
@@ -28,6 +30,7 @@ import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidInputException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
+import org.hiero.mirror.web3.exception.TraceTimeoutException;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse.ErrorMessage;
 import org.jspecify.annotations.Nullable;
@@ -49,6 +52,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -121,6 +125,15 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(e, null, null, SERVICE_UNAVAILABLE, request);
     }
 
+    @ExceptionHandler
+    private ResponseEntity<?> traceTimeoutException(final TraceTimeoutException e, final WebRequest request) {
+        request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, e, SCOPE_REQUEST);
+        if (!e.getActionResponses().isEmpty()) {
+            return new ResponseEntity<>(e.getActionResponses(), REQUEST_TIMEOUT);
+        }
+        return handleExceptionInternal(e, null, null, REQUEST_TIMEOUT, request);
+    }
+
     /**
      * Temporary handler, intended for dealing with forthcoming features that are not yet available, such as the absence
      * of a precompile
@@ -145,7 +158,29 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-        var messages = ex.getAllErrors().stream().map(this::formatErrorMessage).toList();
+        return validationErrorResponse(ex.getAllErrors(), headers, status, request, ex);
+    }
+
+    @Nullable
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(
+            HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        final var errors = ex.getBeanResults().stream()
+                .flatMap(result -> result.getAllErrors().stream())
+                .toList();
+        if (errors.isEmpty()) {
+            return handleExceptionInternal(ex, null, headers, status, request);
+        }
+        return validationErrorResponse(errors, headers, status, request, ex);
+    }
+
+    private ResponseEntity<Object> validationErrorResponse(
+            final List<? extends ObjectError> errors,
+            final HttpHeaders headers,
+            final HttpStatusCode status,
+            final WebRequest request,
+            final Exception ex) {
+        var messages = errors.stream().map(this::formatErrorMessage).toList();
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, ex, SCOPE_REQUEST);
         return new ResponseEntity<>(new GenericErrorResponse(messages), headers, status);
     }

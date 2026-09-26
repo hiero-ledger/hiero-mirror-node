@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package org.hiero.mirror.web3.service.model;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import java.time.Duration;
+import lombok.RequiredArgsConstructor;
+import lombok.Value;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
+import org.jspecify.annotations.Nullable;
+
+@Value
+@RequiredArgsConstructor
+public class TraceRequest {
+
+    @Valid
+    ContractExecutionParameters contractExecutionParameters;
+
+    boolean onlyTopCall;
+
+    @NotNull
+    Duration timeout;
+
+    @Nullable
+    BlockOverride blockOverride;
+}
