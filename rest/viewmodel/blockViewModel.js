@@ -18,6 +18,7 @@ class BlockViewModel {
     this.name = recordFile.name;
     this.number = recordFile.index;
     this.previous_hash = addHexPrefix(recordFile.prevHash);
+    this.receipts_root = recordFile.receiptsRoot ? toHexString(recordFile.receiptsRoot, true, 64) : null;
     this.size = recordFile.size;
     this.timestamp = {
       from: nsToSecNs(recordFile.consensusStart),
