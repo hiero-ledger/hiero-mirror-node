@@ -18,9 +18,9 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "26.2.0")
-    set("blockNodeVersion", "0.41.1")
-    set("consensusNodeVersion", "0.78.0-rc.9")
-    set("hederaCryptographyVersion", "3.15.0")
+    set("blockNodeVersion", "0.42.0")
+    set("consensusNodeVersion", "0.79.0-alpha.2")
+    set("hederaCryptographyVersion", "3.16.0")
     set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
@@ -44,7 +44,7 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-17")
+        api("com.github.luben:zstd-jni:1.5.7-19")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
@@ -62,10 +62,10 @@ dependencies {
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
-        api("io.cucumber:cucumber-bom:7.34.8")
+        api("io.cucumber:cucumber-bom:7.34.9")
         api("io.fabric8:kubernetes-client-bom:7.9.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
-        api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.5")
+        api("io.hypersistence:hypersistence-utils-hibernate-71:3.16.0")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("net.java.dev.jna:jna:5.19.1")
         api("org.apache.commons:commons-collections4:4.6.0")
@@ -86,7 +86,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.54.20")
+        api("software.amazon.awssdk:bom:2.55.4")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
