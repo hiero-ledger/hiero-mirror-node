@@ -104,7 +104,7 @@ jobs:
       - name: Find changed modules
         id: changeset
         if: env.TRIGGERED_BY_TAG != 'true' && github.event_name != 'schedule'
-        uses: step-security/paths-filter@9098a7821b83402dbe267c0c801e7d580ce74f92 # v4.0.2
+        uses: step-security/paths-filter@5f3d1a83daa17363d18b529d60375e1e36566799 # v4.0.3
         with:
           base: ${{ env.BASE }}
           filters: |
