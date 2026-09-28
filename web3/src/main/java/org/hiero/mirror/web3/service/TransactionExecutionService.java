@@ -311,11 +311,11 @@ public class TransactionExecutionService {
     }
 
     private ActionSidecarContentTracer[] getOperationTracers() {
-        final var ctx = ContractCallContext.get();
-        if (ctx.getOpcodeContext() != null) {
+        final var context = ContractCallContext.get();
+        if (context.getOpcodeContext() != null) {
             return new ActionSidecarContentTracer[] {opcodeActionTracer};
         }
-        if (ctx.isTraceTransfers()) {
+        if (context.isTraceTransfers()) {
             return new ActionSidecarContentTracer[] {mirrorOperationActionTracer, simulateTransferActionTracer};
         }
         return new ActionSidecarContentTracer[] {mirrorOperationActionTracer};

@@ -4,4 +4,4 @@ package org.hiero.mirror.web3.viewmodel;
 
 import java.util.List;
 
-public record SimulateResponse(List<List<SimulateCallResult>> result) {}
+public record SimulateResponse(List<SimulateCallResult> result) {}

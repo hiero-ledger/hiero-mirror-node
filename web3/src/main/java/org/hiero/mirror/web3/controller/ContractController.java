@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.controller;
 
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.SIMULATE;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
@@ -111,7 +112,7 @@ class ContractController {
     @PostMapping(value = "/simulate")
     SimulateResponse simulate(@RequestBody @Valid SimulateRequest request) {
         // Ordered before throttling: tokens consumed for a rejected request are never restored.
-        if (!web3Properties.isEnableSimulate()) {
+        if (!web3Properties.isApiEnabled(SIMULATE)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Simulate is not supported.");
         }
         if (hasStateOverrides(request) && !web3Properties.isEnableStateOverrides()) {
@@ -124,8 +125,12 @@ class ContractController {
     }
 
     private boolean hasStateOverrides(SimulateRequest request) {
-        return request.getBlockStateCalls().stream()
-                .anyMatch(blockCall -> !blockCall.getStateOverrides().isEmpty());
+        for (final var blockCall : request.getBlockStateCalls()) {
+            if (!blockCall.getStateOverrides().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void validateSimulateMaxGasLimit(SimulateRequest request) {

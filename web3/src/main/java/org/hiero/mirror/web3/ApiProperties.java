@@ -13,6 +13,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class ApiProperties {
 
+    private boolean enabled = false;
+
     @NotNull
     @Valid
     private RequestProperties request = new RequestProperties();

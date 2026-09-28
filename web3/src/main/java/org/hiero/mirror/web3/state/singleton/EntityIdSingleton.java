@@ -56,15 +56,4 @@ final class EntityIdSingleton implements SingletonState<EntityNumber> {
         context.setEntityNumber(entityNumber);
         return entityNumber;
     }
-
-    // Gated to simulate: BinaryGasEstimator never resets the number, so bumping there would drift it per iteration.
-    @Override
-    public void onCommit(final EntityNumber entityNumber) {
-        if (ContractCallContext.isInitialized()) {
-            final var context = ContractCallContext.get();
-            if (context.isSimulate()) {
-                context.setEntityNumber(entityNumber);
-            }
-        }
-    }
 }

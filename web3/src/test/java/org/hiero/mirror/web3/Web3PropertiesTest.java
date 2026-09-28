@@ -5,6 +5,7 @@ package org.hiero.mirror.web3;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.OPCODES;
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.SIMULATE;
 
 import java.time.Duration;
 import org.hiero.mirror.web3.ApiProperties.RequestProperties;
@@ -19,6 +20,20 @@ class Web3PropertiesTest {
         assertThat(properties.getRequestTimeout(CALL)).isEqualTo(Duration.ofSeconds(4L));
         assertThat(properties.getRequestTimeout(OPCODES)).isEqualTo(Duration.ofSeconds(4L));
         assertThat(properties.getRequestTimeout(null)).isEqualTo(Duration.ofSeconds(4L));
+    }
+
+    @Test
+    void isApiEnabledDefaultsToDisabledOnlyForSimulate() {
+        var properties = new Web3Properties();
+
+        assertThat(properties.isApiEnabled(CALL)).isTrue();
+        assertThat(properties.isApiEnabled(SIMULATE)).isFalse();
+
+        var simulateApi = new ApiProperties();
+        simulateApi.setEnabled(true);
+        properties.getApi().put(SIMULATE, simulateApi);
+
+        assertThat(properties.isApiEnabled(SIMULATE)).isTrue();
     }
 
     @Test

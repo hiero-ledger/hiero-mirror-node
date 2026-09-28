@@ -523,8 +523,9 @@ paths:
         Backs `eth_simulateV1`. Each `block_state_calls` entry executes as its own virtual block against the
         single anchor block selected by `block` - calls within an entry are cumulative with each other, and real
         execution state resets back to the anchor baseline between entries. `state_overrides` are the exception -
-        they persist and accumulate across entries (later entries win per address). `transaction_index` and
-        `log_index` restart from 0 at the beginning of every entry. A reverted call does not abort the rest of
+        they persist and accumulate across entries (later entries win per address). Results are returned as a
+        single flat list; entry `i` is reported as block `anchor + i`, and `transaction_index` and `log_index`
+        restart from 0 at the beginning of every entry. A reverted call does not abort the rest of
         the batch. `state_overrides` reuses the same schema as `POST /api/v1/contracts/call` and is subject to
         the same feature flag.
       operationId: contractsSimulate
@@ -2885,11 +2886,11 @@ components:
           pattern: "^(0x)?[A-Fa-f0-9]{40}$"
           type: string
         balance:
-          description: Hexadecimal balance override in tinybars.
-          example: "0xFFFFFFFFFFFFFFFF"
-          format: binary
+          description: Balance override in tinybars, as a non-negative integer or a hexadecimal string.
+          example: 1208925819
           maxLength: 18
-          type: [string, "null"]
+          minimum: 0
+          type: [integer, string, "null"]
         code:
           description: Hexadecimal runtime bytecode override.
           example: "0x602a60005260206000f3"
@@ -2939,10 +2940,23 @@ components:
     SimulateCall:
       type: object
       properties:
+        access_list:
+          description: Optional EIP-2930 access list. Omitted or null if not provided.
+          type: [array, "null"]
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/AccessList"
+        authorization_list:
+          description: Optional EIP-7702 authorization list. Omitted or null if not provided.
+          type: [array, "null"]
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/AuthorizationList"
         data:
-          description: Hexadecimal method signature and encoded parameters.
+          description: Hexadecimal method signature and encoded parameters. Up to 131072 bytes as at most 262146 hexadecimal digits including optional leading 0x.
           example: "0x47f1aae7"
           format: binary
+          maxLength: 262146
           pattern: "^(0x)?[0-9a-fA-F]+$"
           type: [string, "null"]
         from:
@@ -2959,7 +2973,7 @@ components:
           minimum: 21000
           type: [integer, string, "null"]
         gasPrice:
-          description: Gas price used for each paid gas, as a number or a hexadecimal/decimal string.
+          description: Gas price used for each paid gas, as a number or a hexadecimal/decimal string. Also accepted as `gas_price`.
           example: 0
           minimum: 0
           type: [integer, string, "null"]
@@ -2967,6 +2981,7 @@ components:
           description: Accepted for compatibility with the HIP's example request, but unused - Mirror Node has no EIP-1559 fee market.
           example: "0xf"
           format: binary
+          maxLength: 66
           type: [string, "null"]
         to:
           description: The 20-byte hexadecimal EVM address the call is directed to.
@@ -2987,12 +3002,13 @@ components:
         calls:
           items:
             $ref: "#/components/schemas/SimulateCall"
-          type: [array, "null"]
+          type: array
         state_overrides:
           description: State overrides taking effect when this entry begins, persisting for the rest of the request (later entries win per address).
           items:
             $ref: "#/components/schemas/StateOverride"
-          type: [array, "null"]
+          maxItems: 10
+          type: array
     SimulateRequest:
       type: object
       properties:
@@ -3005,7 +3021,8 @@ components:
           description: Each entry executes as its own virtual block against the anchor block - cumulative within an entry, state reset between entries. Limited to 16 total calls across all entries.
           items:
             $ref: "#/components/schemas/SimulateBlockStateCall"
-          type: [array, "null"]
+          maxItems: 16
+          type: array
         trace_transfers:
           description: If true, synthesizes ERC20-style Transfer log entries for value transfers captured during execution. Defaults to false.
           example: true
@@ -3018,17 +3035,20 @@ components:
           format: binary
           type: string
         block_hash:
+          description: The anchor block hash for the first block_state_calls entry, and a synthetic hash derived from it for every later entry.
           format: binary
           type: string
         block_number:
-          format: binary
-          type: string
+          description: The anchor block number plus the index of the block_state_calls entry this log belongs to.
+          example: 20784967
+          type: integer
         data:
           format: binary
           type: string
         log_index:
-          format: binary
-          type: string
+          description: Position of this log within its block_state_calls entry, restarting at 0 for every entry.
+          example: 0
+          type: integer
         removed:
           type: boolean
         topics:
@@ -3041,8 +3061,9 @@ components:
           format: binary
           type: string
         transaction_index:
-          format: binary
-          type: string
+          description: Position of the call within its block_state_calls entry, restarting at 0 for every entry.
+          example: 0
+          type: integer
     SimulateCallResult:
       type: object
       properties:
@@ -3068,11 +3089,9 @@ components:
       type: object
       properties:
         result:
-          description: One inner array per block_state_calls entry, in order; each inner array maps 1:1, in order, to that entry's calls.
+          description: One result per call across all block_state_calls entries, in request order. Entries are distinguished by block_number and block_hash.
           items:
-            items:
-              $ref: "#/components/schemas/SimulateCallResult"
-            type: array
+            $ref: "#/components/schemas/SimulateCallResult"
           type: array
     HederaHash:
       type: string

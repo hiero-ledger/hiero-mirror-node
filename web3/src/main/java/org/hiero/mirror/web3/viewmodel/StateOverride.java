@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ADDRESS_LENGTH;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -10,6 +11,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.math.BigInteger;
 import java.util.List;
 import lombok.Data;
 import org.hiero.mirror.web3.validation.Hex;
@@ -32,7 +34,7 @@ public class StateOverride {
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH)
     private String address;
 
-    /** Hex-encoded balance override in tinybars (Hedera's smallest denomination). */
+    /** Balance override in tinybars (Hedera's smallest denomination), stored hex-encoded. */
     @Hex(maxLength = DECIMAL_MAX_LENGTH)
     private String balance;
 
@@ -62,6 +64,19 @@ public class StateOverride {
     @NotNull
     @Size(max = 100)
     private List<@Valid StorageEntry> stateDiff = List.of();
+
+    // Plain setter, not @JsonDeserialize: this module's HTTP binding may run on Jackson 3, which ignores it.
+    // HIP-1485 sends the balance as a JSON number, while strings keep their original hexadecimal meaning.
+    public void setBalance(final Object balance) {
+        this.balance = switch (balance) {
+            case null -> null;
+            case String text -> text;
+            case Integer number when number >= 0 -> HEX_PREFIX + Integer.toHexString(number);
+            case Long number when number >= 0 -> HEX_PREFIX + Long.toHexString(number);
+            case BigInteger number when number.signum() >= 0 -> HEX_PREFIX + number.toString(16);
+            default -> throw new IllegalArgumentException("expected a non-negative integer or a hexadecimal string");
+        };
+    }
 
     @AssertTrue(message = "state and state_diff are mutually exclusive")
     private boolean hasValidStorage() {

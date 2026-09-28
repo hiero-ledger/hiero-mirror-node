@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.Data;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
@@ -27,15 +28,22 @@ public class SimulateRequest {
 
     @JsonProperty("block_state_calls")
     @NotNull
+    @Size(max = MAX_CALLS)
     private List<@NotNull @Valid SimulateBlockStateCall> blockStateCalls = List.of();
 
     @JsonProperty("trace_transfers")
     private boolean traceTransfers;
 
-    // Null-safe: Bean Validation still runs this against an explicit JSON null, and an NPE here turns a 400 into a 500.
-    @AssertTrue(message = "total number of calls across block_state_calls must not exceed " + MAX_CALLS)
-    private boolean hasValidCallCount() {
-        return blockStateCalls == null || totalCallCount() <= MAX_CALLS;
+    public long totalGas() {
+        long totalGas = 0L;
+        for (final var blockCall : blockStateCalls) {
+            if (blockCall != null && blockCall.getCalls() != null) {
+                for (final var call : blockCall.getCalls()) {
+                    totalGas += call.getGas();
+                }
+            }
+        }
+        return totalGas;
     }
 
     // Zero calls otherwise reaches the throttle bucket as a 0-token request, which bucket4j rejects with its own
@@ -45,18 +53,19 @@ public class SimulateRequest {
         return blockStateCalls == null || totalCallCount() >= 1;
     }
 
-    private int totalCallCount() {
-        return blockStateCalls.stream()
-                .filter(blockCall -> blockCall != null && blockCall.getCalls() != null)
-                .mapToInt(blockCall -> blockCall.getCalls().size())
-                .sum();
+    // Null-safe: Bean Validation still runs this against an explicit JSON null, and an NPE here turns a 400 into a 500.
+    @AssertTrue(message = "total number of calls across block_state_calls must not exceed " + MAX_CALLS)
+    private boolean hasValidCallCount() {
+        return blockStateCalls == null || totalCallCount() <= MAX_CALLS;
     }
 
-    public long totalGas() {
-        return blockStateCalls.stream()
-                .filter(blockCall -> blockCall != null && blockCall.getCalls() != null)
-                .flatMap(blockCall -> blockCall.getCalls().stream())
-                .mapToLong(SimulateCall::getGas)
-                .sum();
+    private int totalCallCount() {
+        int totalCallCount = 0;
+        for (final var blockCall : blockStateCalls) {
+            if (blockCall != null && blockCall.getCalls() != null) {
+                totalCallCount += blockCall.getCalls().size();
+            }
+        }
+        return totalCallCount;
     }
 }

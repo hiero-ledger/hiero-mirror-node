@@ -4,7 +4,9 @@ package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings("deprecation")
 @Getter
@@ -67,6 +70,16 @@ public class ContractCallContext {
     private long gasRequirement;
 
     @Setter
+    private boolean traceTransfers;
+
+    private final List<CapturedTransfer> capturedTransfers = new ArrayList<>();
+
+    /**
+     * Index into {@link #capturedTransfers} where each currently open frame's transfers begin, innermost on top.
+     */
+    private final Deque<Integer> transferFrameStarts = new ArrayDeque<>();
+
+    @Setter
     private Supplier<RecordFile> blockSupplier = () -> null;
 
     /**
@@ -75,13 +88,19 @@ public class ContractCallContext {
     @Setter
     private Map<Bytes, StateOverride> stateOverrides;
 
+    /**
+     * Optional EVM {@code block.number} override from {@code block_override.number}. {@code null} means use the bound
+     * record file.
+     */
     @Setter
-    private boolean simulate;
+    private @Nullable Long blockOverrideNumber;
 
+    /**
+     * Optional EVM {@code block.timestamp} override from {@code block_override.time}, in nanoseconds since epoch.
+     * {@code null} means use the bound record file.
+     */
     @Setter
-    private boolean traceTransfers;
-
-    private final List<CapturedTransfer> capturedTransfers = new ArrayList<>();
+    private @Nullable Long blockOverrideTimeNanos;
 
     private ContractCallContext() {}
 
@@ -190,5 +209,13 @@ public class ContractCallContext {
 
     public RecordFile getRecordFile() {
         return blockSupplier.get();
+    }
+
+    public long evmBlockNumber(final long fallback) {
+        return blockOverrideNumber != null ? blockOverrideNumber : fallback;
+    }
+
+    public long evmBlockTimeNanos(final long fallback) {
+        return blockOverrideTimeNanos != null ? blockOverrideTimeNanos : fallback;
     }
 }
