@@ -31,6 +31,9 @@ spec:
       cliIngress:
         enabled: false
       minio:
+        image:
+          repository: pgsty/silo  # use minio fork maintained by PGSTY
+          tag: RELEASE.2026-09-16T00-00-00Z
         priorityClassName: high
       priorityClassName: high
       templates:
