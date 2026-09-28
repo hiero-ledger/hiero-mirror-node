@@ -37,9 +37,11 @@ import jakarta.persistence.EntityManager;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -56,6 +58,7 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.evm.config.EvmConfiguration;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TraceMemoryBudget;
@@ -92,9 +95,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -113,6 +119,9 @@ class OpcodesControllerTest {
     private static final DomainBuilder DOMAIN_BUILDER = new DomainBuilder();
     private final AtomicReference<OpcodesProcessingResult> opcodesResultCaptor = new AtomicReference<>();
     private final AtomicReference<ContractDebugParameters> expectedCallServiceParameters = new AtomicReference<>();
+
+    @Autowired
+    private Collection<CacheManager> cacheManagers;
 
     @Resource
     private MockMvc mockMvc;
@@ -267,6 +276,9 @@ class OpcodesControllerTest {
 
     @BeforeEach
     void setUp() {
+        cacheManagers.forEach(cacheManager -> cacheManager
+                .getCacheNames()
+                .forEach(name -> cacheManager.getCache(name).clear()));
         when(contractDebugService.processOpcodeCall(
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
                 .thenAnswer(invocation -> {
@@ -768,8 +780,48 @@ class OpcodesControllerTest {
         }
 
         @Bean
-        RecordFileService recordFileService(final RecordFileRepository recordFileRepository) {
-            return new RecordFileServiceImpl(recordFileRepository, new ConcurrentMapCacheManager());
+        RecordFileService recordFileService(
+                final RecordFileRepository recordFileRepository,
+                @Qualifier(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_EARLIEST) final CacheManager earliest,
+                @Qualifier(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_HASH) final CacheManager hash,
+                @Qualifier(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_INDEX) final CacheManager index,
+                @Qualifier(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_LATEST) final CacheManager latest,
+                @Qualifier(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_TIMESTAMP) final CacheManager timestamp) {
+            return new RecordFileServiceImpl(recordFileRepository, earliest, hash, index, latest, timestamp);
+        }
+
+        // The service drives these caches' native Caffeine instances, so a map-backed manager will not do. They are
+        // beans so setUp() can clear them between test methods; otherwise a record file cached by one method would be
+        // served to the next.
+        @Bean(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_EARLIEST)
+        CacheManager cacheManagerRecordFileEarliest() {
+            return caffeineCacheManager(EvmConfiguration.CACHE_NAME);
+        }
+
+        @Bean(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_HASH)
+        CacheManager cacheManagerRecordFileHash() {
+            return caffeineCacheManager(EvmConfiguration.CACHE_NAME);
+        }
+
+        @Bean(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_INDEX)
+        CacheManager cacheManagerRecordFileIndex() {
+            return caffeineCacheManager(EvmConfiguration.CACHE_NAME);
+        }
+
+        @Bean(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_LATEST)
+        CacheManager cacheManagerRecordFileLatest() {
+            return caffeineCacheManager(EvmConfiguration.CACHE_NAME_RECORD_FILE_LATEST);
+        }
+
+        @Bean(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_TIMESTAMP)
+        CacheManager cacheManagerRecordFileTimestamp() {
+            return caffeineCacheManager(EvmConfiguration.CACHE_NAME);
+        }
+
+        private static CacheManager caffeineCacheManager(final String cacheName) {
+            final var cacheManager = new CaffeineCacheManager();
+            cacheManager.setCacheNames(Set.of(cacheName));
+            return cacheManager;
         }
 
         @Bean

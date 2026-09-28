@@ -69,6 +69,114 @@ class RecordFileServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findByTimestampServesFromCacheWithoutQueryingDatabase() {
+        final var timestamp = domainBuilder.timestamp();
+        final var recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> {
+                    r.consensusStart(timestamp);
+                    r.consensusEnd(timestamp + 1);
+                })
+                .persist();
+
+        assertThat(recordFileService.findByTimestamp(timestamp)).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByTimestamp(timestamp))
+                .as("findByTimestamp should serve the cached record file without hitting the DB")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByTimestampDoesNotCacheMissingRecordFile() {
+        final var timestamp = domainBuilder.timestamp();
+        assertThat(recordFileService.findByTimestamp(timestamp)).isEmpty();
+
+        // A miss must never be cached: the record file for a transaction is resolvable as soon as it is ingested,
+        // rather than staying absent for the cache's full TTL.
+        final var recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> {
+                    r.consensusStart(timestamp);
+                    r.consensusEnd(timestamp + 1);
+                })
+                .persist();
+
+        assertThat(recordFileService.findByTimestamp(timestamp))
+                .as("a record file ingested after a miss must resolve immediately")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByIndexServesFromCacheWithoutQueryingDatabase() {
+        final var recordFile = domainBuilder.recordFile().persist();
+        final long index = recordFile.getIndex();
+
+        assertThat(recordFileService.findByIndex(index)).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByIndex(index))
+                .as("findByIndex should serve the cached record file without hitting the DB")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByIndexDoesNotCacheMissingRecordFile() {
+        final long index = 42L;
+        assertThat(recordFileService.findByIndex(index)).isEmpty();
+
+        // A miss must never be cached, otherwise a block requested just before it is ingested would stay
+        // unresolvable for the cache's full TTL.
+        final var recordFile =
+                domainBuilder.recordFile().customize(r -> r.index(index)).persist();
+
+        assertThat(recordFileService.findByIndex(index))
+                .as("a record file ingested after a miss must resolve immediately")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByBlockTypeHashServesFromCacheWithoutQueryingDatabase() {
+        final var recordFile = domainBuilder.recordFile().persist();
+        final var blockType = BlockType.of(HexValidator.HEX_PREFIX + recordFile.getHash());
+
+        assertThat(recordFileService.findByBlockType(blockType)).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByBlockType(blockType))
+                .as("a block hash lookup should serve the cached record file without hitting the DB")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByBlockTypeHashDoesNotCacheMissingRecordFile() {
+        final var hash = "a".repeat(96);
+        final var blockType = BlockType.of(HexValidator.HEX_PREFIX + hash);
+        assertThat(recordFileService.findByBlockType(blockType)).isEmpty();
+
+        final var recordFile =
+                domainBuilder.recordFile().customize(r -> r.hash(hash)).persist();
+
+        assertThat(recordFileService.findByBlockType(blockType))
+                .as("a record file ingested after a hash miss must resolve immediately")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByBlockTypeEarliestDoesNotCacheMissingRecordFile() {
+        assertThat(recordFileService.findByBlockType(BlockType.EARLIEST)).isEmpty();
+
+        // This cache has no TTL at all, so a cached miss would outlive every other one - it would persist for the
+        // lifetime of the process, leaving the genesis block permanently unresolvable.
+        final var recordFile =
+                domainBuilder.recordFile().customize(r -> r.index(0L)).persist();
+
+        assertThat(recordFileService.findByBlockType(BlockType.EARLIEST))
+                .as("a record file ingested after a miss must resolve immediately")
+                .contains(recordFile);
+    }
+
+    @Test
     void testFindByBlockTypeEarliest() {
         final var genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
@@ -85,6 +193,18 @@ class RecordFileServiceTest extends Web3IntegrationTest {
         final var recordFileLatest =
                 domainBuilder.recordFile().customize(f -> f.index(3L)).persist();
         assertThat(recordFileService.findByBlockType(BlockType.LATEST)).contains(recordFileLatest);
+    }
+
+    @Test
+    void findByBlockTypeLatestDoesNotCacheMissingRecordFile() {
+        assertThat(recordFileService.findByBlockType(BlockType.LATEST)).isEmpty();
+
+        // A miss must never be cached, so the first ingested record file resolves immediately.
+        final var recordFile = domainBuilder.recordFile().persist();
+
+        assertThat(recordFileService.findByBlockType(BlockType.LATEST))
+                .as("a record file ingested after a miss must resolve immediately")
+                .contains(recordFile);
     }
 
     @Test

@@ -11,7 +11,6 @@ import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 @RequiredArgsConstructor
 class RecordFileRepositoryTest extends Web3IntegrationTest {
@@ -22,16 +21,13 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
     @Resource
     private RecordFileRepository recordFileRepository;
 
-    @Resource
-    private JdbcTemplate jdbcTemplate;
-
     @Test
     void findEarliest() {
         final var genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         domainBuilder.recordFile().persist();
 
-        assertThat(recordFileRepository.findEarliest()).get().isEqualTo(genesisRecordFile);
+        assertThat(recordFileRepository.findEarliest()).contains(genesisRecordFile);
     }
 
     @Test
@@ -39,7 +35,7 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
         domainBuilder.recordFile().persist();
         var latest = domainBuilder.recordFile().persist();
 
-        assertThat(recordFileRepository.findLatest()).get().isEqualTo(latest);
+        assertThat(recordFileRepository.findLatest()).contains(latest);
     }
 
     @Test
@@ -72,36 +68,6 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
         assertThat(recordFileRepository.findByTimestamp(timestamp)).contains(recordFile);
     }
 
-    @Test
-    void findByIndexServesFromCacheWithoutQueryingDatabase() {
-        final var recordFile = domainBuilder.recordFile().persist();
-        final long index = recordFile.getIndex();
-
-        assertThat(recordFileRepository.findByIndex(index)).contains(recordFile);
-        jdbcTemplate.update("delete from record_file");
-        assertThat(recordFileRepository.findByIndex(index))
-                .as("findByIndex should serve the cached record file without hitting the DB")
-                .contains(recordFile);
-    }
-
-    @Test
-    void findByTimestampServesFromCacheWithoutQueryingDatabase() {
-        final var timestamp = domainBuilder.timestamp();
-        final var recordFile = domainBuilder
-                .recordFile()
-                .customize(r -> {
-                    r.consensusStart(timestamp);
-                    r.consensusEnd(timestamp + 1);
-                })
-                .persist();
-
-        assertThat(recordFileRepository.findByTimestamp(timestamp)).contains(recordFile);
-        jdbcTemplate.update("delete from record_file");
-        assertThat(recordFileRepository.findByTimestamp(timestamp))
-                .as("findByTimestamp should serve the cached record file without hitting the DB")
-                .contains(recordFile);
-    }
-
     @CsvSource({
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef00000000000000000000000000000000",
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -111,8 +77,6 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
         final var recordFile =
                 domainBuilder.recordFile().customize(r -> r.hash(HASH)).persist();
 
-        final var result = recordFileRepository.findByHash(value);
-        assertThat(result.isPresent()).isTrue();
-        assertThat(result).contains(recordFile);
+        assertThat(recordFileRepository.findByHash(value)).contains(recordFile);
     }
 }
