@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1733,16 +1734,45 @@ func TestGetRandomNodeAccountIdAllUnhealthyProbeFails(t *testing.T) {
 	assert.Equal(t, hiero.AccountID{}, picked)
 }
 
-func TestNewConstructionAPIServiceConfiguresReadmitPeriodsAndMonitor(t *testing.T) {
+func TestGetRandomNodeAccountIdAllNodesInActiveSdkBackoffFailsFast(t *testing.T) {
+	node3 := hiero.AccountID{Account: 3}
+	mirrorConfig := &config.Mirror{Rosetta: config.Config{
+		Network: defaultNetwork,
+		Nodes: config.NodeMap{
+			"127.0.0.1:50211": node3,
+		},
+	}}
+
+	service, err := NewConstructionAPIService(nil, onlineBaseService, mirrorConfig, nil, defaultContext)
+	assert.NoError(t, err)
+	cs := service.(*constructionAPIService)
+
+	// Fail a ping so the SDK puts node 3 into backoff (removing it from SDK healthy nodes)
+	cs.sdkClient.SetMaxAttempts(1)
+	_ = cs.sdkClient.Ping(node3)
+
+	var probeCalled atomic.Bool
+	pingMock := func(_ hiero.AccountID) error {
+		probeCalled.Store(true)
+		return nil
+	}
+	monitor := newTestNodeHealthMonitor(cs.sdkClient, config.NodeHealth{Timeout: 1 * time.Second}, pingMock, nil)
+	cs.nodeHealthMonitor = monitor
+
+	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
+	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
+	assert.Equal(t, hiero.AccountID{}, picked)
+	assert.False(t, probeCalled.Load(), "Probe must not be called when SDK has 0 healthy nodes")
+}
+
+func TestNewConstructionAPIServiceConfiguresMonitor(t *testing.T) {
 	mirrorConfig := &config.Mirror{Rosetta: config.Config{
 		Network: defaultNetwork,
 		Nodes:   defaultNodes,
 		NodeHealth: config.NodeHealth{
-			Enabled:          true,
-			Frequency:        50 * time.Millisecond,
-			MaxReadmitPeriod: 2 * time.Hour,
-			MinReadmitPeriod: 5 * time.Minute,
-			Timeout:          1 * time.Second,
+			Enabled:   true,
+			Frequency: 50 * time.Millisecond,
+			Timeout:   1 * time.Second,
 		},
 	}}
 
@@ -1753,8 +1783,7 @@ func TestNewConstructionAPIServiceConfiguresReadmitPeriodsAndMonitor(t *testing.
 	cs := service.(*constructionAPIService)
 
 	assert.NotNil(t, cs.nodeHealthMonitor)
-	assert.Equal(t, 5*time.Minute, cs.sdkClient.GetNodeMinReadmitPeriod())
-	assert.Equal(t, 2*time.Hour, cs.sdkClient.GetNodeMaxReadmitPeriod())
+	assert.Equal(t, defaultNodeMaxReadmitPeriod, cs.sdkClient.GetNodeMaxReadmitPeriod())
 }
 
 func TestNewConstructionAPIServiceOfflineNoMonitor(t *testing.T) {
@@ -1762,10 +1791,8 @@ func TestNewConstructionAPIServiceOfflineNoMonitor(t *testing.T) {
 		Network: defaultNetwork,
 		Nodes:   defaultNodes,
 		NodeHealth: config.NodeHealth{
-			Enabled:          true,
-			Frequency:        50 * time.Millisecond,
-			MaxReadmitPeriod: 2 * time.Hour,
-			MinReadmitPeriod: 5 * time.Minute,
+			Enabled:   true,
+			Frequency: 50 * time.Millisecond,
 		},
 	}}
 

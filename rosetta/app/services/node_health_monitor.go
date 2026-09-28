@@ -172,16 +172,6 @@ func (m *nodeHealthMonitor) pingUnhealthyNodes(ctx context.Context) {
 }
 
 func (m *nodeHealthMonitor) Probe(ctx context.Context, candidates []hiero.AccountID) (hiero.AccountID, bool) {
-	if len(candidates) == 0 && m.client != nil {
-		seen := make(map[string]struct{})
-		for _, nodeID := range m.client.GetNetwork() {
-			if _, ok := seen[nodeID.String()]; !ok {
-				seen[nodeID.String()] = struct{}{}
-				candidates = append(candidates, nodeID)
-			}
-		}
-	}
-
 	if len(candidates) == 0 {
 		return hiero.AccountID{}, false
 	}

@@ -33,8 +33,6 @@ hiero:
       nodeHealth:
         enabled: true
         frequency: 30s
-        maxReadmitPeriod: 1h
-        minReadmitPeriod: 2m
         timeout: 2s
       nodeRefreshInterval: 24h
       nodes:

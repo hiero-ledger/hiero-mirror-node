@@ -32,6 +32,7 @@ const (
 	maxValidDurationSeconds         = 180
 	defaultValidDurationSeconds     = maxValidDurationSeconds
 	maxValidDurationNanos           = maxValidDurationSeconds * 1_000_000_000
+	defaultNodeMaxReadmitPeriod     = 2 * time.Minute
 	metadataKeyAccountMap           = "account_map"
 	metadataKeyNodeAccountId        = "node_account_id"
 	metadataKeyValidDurationSeconds = "valid_duration"
@@ -527,6 +528,10 @@ func (c *constructionAPIService) getRandomNodeAccountId(ctx context.Context) (hi
 	}
 
 	nodeAccountIds := transaction.GetNodeAccountIDs()
+	if len(nodeAccountIds) == 0 {
+		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
+	}
+
 	if c.nodeHealthMonitor != nil {
 		candidates := nodeAccountIds
 		nodeAccountIds = c.nodeHealthMonitor.FilterHealthy(nodeAccountIds)
@@ -536,8 +541,6 @@ func (c *constructionAPIService) getRandomNodeAccountId(ctx context.Context) (hi
 			}
 			return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
 		}
-	} else if len(nodeAccountIds) == 0 {
-		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
 	}
 
 	maxValue := big.NewInt(int64(len(nodeAccountIds)))
@@ -651,12 +654,7 @@ func NewConstructionAPIService(
 
 	var nodeHealthMonitor NodeHealthMonitor
 	if baseService.IsOnline() {
-		if config.Rosetta.NodeHealth.MinReadmitPeriod > 0 {
-			sdkClient.SetNodeMinReadmitPeriod(config.Rosetta.NodeHealth.MinReadmitPeriod)
-		}
-		if config.Rosetta.NodeHealth.MaxReadmitPeriod > 0 {
-			sdkClient.SetNodeMaxReadmitPeriod(config.Rosetta.NodeHealth.MaxReadmitPeriod)
-		}
+		sdkClient.SetNodeMaxReadmitPeriod(defaultNodeMaxReadmitPeriod)
 
 		if config.Rosetta.NodeHealth.Enabled {
 			nodeHealthMonitor = NewNodeHealthMonitor(sdkClient, config.Rosetta.NodeHealth)

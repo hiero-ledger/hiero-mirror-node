@@ -209,7 +209,7 @@ func TestProbeTimeout(t *testing.T) {
 	assert.Equal(t, hiero.AccountID{}, recovered)
 }
 
-func TestProbeWithEmptyCandidatesAndClient(t *testing.T) {
+func TestProbeWithEmptyCandidates(t *testing.T) {
 	node3 := hiero.AccountID{Account: 3}
 	client, err := hiero.ClientForNetworkV2(map[string]hiero.AccountID{"10.0.0.1:50211": node3})
 	assert.NoError(t, err)
@@ -223,14 +223,10 @@ func TestProbeWithEmptyCandidatesAndClient(t *testing.T) {
 	m.MarkUnhealthy(node3)
 
 	recovered, ok := m.Probe(context.Background(), nil)
+	assert.False(t, ok)
+	assert.Equal(t, hiero.AccountID{}, recovered)
 
-	assert.True(t, ok)
-	assert.Equal(t, node3, recovered)
-}
-
-func TestProbeNoCandidatesNoClient(t *testing.T) {
-	m := newTestNodeHealthMonitor(nil, config.NodeHealth{Timeout: 500 * time.Millisecond}, nil, nil)
-	recovered, ok := m.Probe(context.Background(), nil)
+	recovered, ok = m.Probe(context.Background(), []hiero.AccountID{})
 	assert.False(t, ok)
 	assert.Equal(t, hiero.AccountID{}, recovered)
 }

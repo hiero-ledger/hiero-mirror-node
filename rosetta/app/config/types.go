@@ -34,11 +34,9 @@ type Config struct {
 }
 
 type NodeHealth struct {
-	Enabled          bool          `yaml:"enabled"`
-	Frequency        time.Duration `yaml:"frequency"`
-	MaxReadmitPeriod time.Duration `yaml:"maxReadmitPeriod"`
-	MinReadmitPeriod time.Duration `yaml:"minReadmitPeriod"`
-	Timeout          time.Duration `yaml:"timeout"`
+	Enabled   bool          `yaml:"enabled"`
+	Frequency time.Duration `yaml:"frequency"`
+	Timeout   time.Duration `yaml:"timeout"`
 }
 
 type Cache struct {
