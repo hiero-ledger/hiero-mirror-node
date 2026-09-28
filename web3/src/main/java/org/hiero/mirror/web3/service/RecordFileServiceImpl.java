@@ -43,20 +43,17 @@ public class RecordFileServiceImpl implements RecordFileService {
             @Qualifier(CACHE_MANAGER_RECORD_FILE_LATEST) final CacheManager latestCacheManager,
             @Qualifier(CACHE_MANAGER_RECORD_FILE_TIMESTAMP) final CacheManager timestampCacheManager) {
         this.earliestLookup = new CachedLookup<>(
-                nativeCache(earliestCacheManager, CACHE_NAME),
-                _ -> recordFileRepository.findEarliest().orElse(null));
+                nativeCache(earliestCacheManager, CACHE_NAME), loadAndIndex(_ -> recordFileRepository.findEarliest()));
         this.hashLookup = new CachedLookup<>(
-                nativeCache(hashCacheManager, CACHE_NAME),
-                hash -> recordFileRepository.findByHash(hash).orElse(null));
+                nativeCache(hashCacheManager, CACHE_NAME), loadAndIndex(recordFileRepository::findByHash));
         this.indexLookup = new CachedLookup<>(
                 nativeCache(indexCacheManager, CACHE_NAME),
                 index -> recordFileRepository.findByIndex(index).orElse(null));
         this.latestLookup = new CachedLookup<>(
                 nativeCache(latestCacheManager, CACHE_NAME_RECORD_FILE_LATEST),
-                _ -> recordFileRepository.findLatest().orElse(null));
+                loadAndIndex(_ -> recordFileRepository.findLatest()));
         this.timestampLookup = new CachedLookup<>(
-                nativeCache(timestampCacheManager, CACHE_NAME),
-                timestamp -> recordFileRepository.findByTimestamp(timestamp).orElse(null));
+                nativeCache(timestampCacheManager, CACHE_NAME), loadAndIndex(recordFileRepository::findByTimestamp));
     }
 
     @Override
@@ -80,12 +77,21 @@ public class RecordFileServiceImpl implements RecordFileService {
 
     @Override
     public Optional<RecordFile> findByTimestamp(Long timestamp) {
-        final var recordFile = timestampLookup.get(timestamp);
-        if (recordFile == null) {
-            return Optional.empty();
-        }
-        indexLookup.put(recordFile.getIndex(), recordFile);
-        return Optional.of(recordFile);
+        return Optional.ofNullable(timestampLookup.get(timestamp));
+    }
+
+    /**
+     * Wraps a record file query as a cache loader that also caches the loaded record file under its index. Record files
+     * never change once ingested, so one loaded by any other key can serve later block number lookups (e.g. BLOCKHASH).
+     * Returns null when there is no such record file, which Caffeine takes as "do not record an entry".
+     */
+    private <K> Function<K, RecordFile> loadAndIndex(final Function<K, Optional<RecordFile>> query) {
+        return key -> query.apply(key)
+                .map(recordFile -> {
+                    indexLookup.put(recordFile.getIndex(), recordFile);
+                    return recordFile;
+                })
+                .orElse(null);
     }
 
     @SuppressWarnings("unchecked")

@@ -790,9 +790,6 @@ class OpcodesControllerTest {
             return new RecordFileServiceImpl(recordFileRepository, earliest, hash, index, latest, timestamp);
         }
 
-        // The service drives these caches' native Caffeine instances, so a map-backed manager will not do. They are
-        // beans so setUp() can clear them between test methods; otherwise a record file cached by one method would be
-        // served to the next.
         @Bean(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_EARLIEST)
         CacheManager cacheManagerRecordFileEarliest() {
             return caffeineCacheManager(EvmConfiguration.CACHE_NAME);

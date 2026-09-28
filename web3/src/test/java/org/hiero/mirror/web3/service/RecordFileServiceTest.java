@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import jakarta.annotation.Resource;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.validation.HexValidator;
@@ -56,12 +57,9 @@ class RecordFileServiceTest extends Web3IntegrationTest {
                 .customize(e -> e.consensusEnd(timestamp))
                 .persist();
 
-        // Warm the index cache via a timestamp lookup, then remove the underlying row.
         assertThat(recordFileService.findByTimestamp(timestamp)).contains(recordFile);
         jdbcTemplate.update("delete from record_file");
 
-        // The index cache must only be keyed by block index, never by the timestamp: passing the timestamp
-        // as a block number must not resolve to the record file (guards against cross-key cache poisoning).
         final var timestampAsBlock = BlockType.of(String.valueOf(timestamp));
         assertThat(recordFileService.findByBlockType(timestampAsBlock))
                 .as("a timestamp passed as a block index must not hit the warmed index cache")
@@ -92,8 +90,6 @@ class RecordFileServiceTest extends Web3IntegrationTest {
         final var timestamp = domainBuilder.timestamp();
         assertThat(recordFileService.findByTimestamp(timestamp)).isEmpty();
 
-        // A miss must never be cached: the record file for a transaction is resolvable as soon as it is ingested,
-        // rather than staying absent for the cache's full TTL.
         final var recordFile = domainBuilder
                 .recordFile()
                 .customize(r -> {
@@ -125,8 +121,6 @@ class RecordFileServiceTest extends Web3IntegrationTest {
         final long index = 42L;
         assertThat(recordFileService.findByIndex(index)).isEmpty();
 
-        // A miss must never be cached, otherwise a block requested just before it is ingested would stay
-        // unresolvable for the cache's full TTL.
         final var recordFile =
                 domainBuilder.recordFile().customize(r -> r.index(index)).persist();
 
@@ -159,6 +153,61 @@ class RecordFileServiceTest extends Web3IntegrationTest {
 
         assertThat(recordFileService.findByBlockType(blockType))
                 .as("a record file ingested after a hash miss must resolve immediately")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByBlockTypeHashNormalizesCacheKey() {
+        final var recordFile = domainBuilder.recordFile().persist();
+
+        assertThat(recordFileService.findByBlockType(BlockType.of(HexValidator.HEX_PREFIX + recordFile.getHash())))
+                .contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        // BlockType.of() lowercases the hash, so every casing of it must share one cache entry.
+        final var upperCase =
+                BlockType.of(HexValidator.HEX_PREFIX + recordFile.getHash().toUpperCase(Locale.ROOT));
+        assertThat(recordFileService.findByBlockType(upperCase))
+                .as("an upper case hash should hit the cache entry of its lower case form")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByBlockTypeHashWarmsIndexCache() {
+        final var recordFile = domainBuilder.recordFile().persist();
+
+        assertThat(recordFileService.findByBlockType(BlockType.of(HexValidator.HEX_PREFIX + recordFile.getHash())))
+                .contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByIndex(recordFile.getIndex()))
+                .as("findByIndex should be served from the index cache warmed by the hash lookup")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByBlockTypeEarliestServesFromCacheWithoutQueryingDatabase() {
+        final var recordFile =
+                domainBuilder.recordFile().customize(r -> r.index(0L)).persist();
+
+        assertThat(recordFileService.findByBlockType(BlockType.EARLIEST)).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByBlockType(BlockType.EARLIEST))
+                .as("the earliest lookup should serve the cached record file without hitting the DB")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByBlockTypeEarliestWarmsIndexCache() {
+        final var recordFile =
+                domainBuilder.recordFile().customize(r -> r.index(0L)).persist();
+
+        assertThat(recordFileService.findByBlockType(BlockType.EARLIEST)).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByIndex(0L))
+                .as("findByIndex should be served from the index cache warmed by the earliest lookup")
                 .contains(recordFile);
     }
 
@@ -199,11 +248,34 @@ class RecordFileServiceTest extends Web3IntegrationTest {
     void findByBlockTypeLatestDoesNotCacheMissingRecordFile() {
         assertThat(recordFileService.findByBlockType(BlockType.LATEST)).isEmpty();
 
-        // A miss must never be cached, so the first ingested record file resolves immediately.
         final var recordFile = domainBuilder.recordFile().persist();
 
         assertThat(recordFileService.findByBlockType(BlockType.LATEST))
                 .as("a record file ingested after a miss must resolve immediately")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByBlockTypeLatestServesFromCacheWithoutQueryingDatabase() {
+        final var recordFile = domainBuilder.recordFile().persist();
+
+        assertThat(recordFileService.findByBlockType(BlockType.LATEST)).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByBlockType(BlockType.LATEST))
+                .as("the latest lookup should serve the cached record file without hitting the DB")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByBlockTypeLatestWarmsIndexCache() {
+        final var recordFile = domainBuilder.recordFile().persist();
+
+        assertThat(recordFileService.findByBlockType(BlockType.LATEST)).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByIndex(recordFile.getIndex()))
+                .as("findByIndex should be served from the index cache warmed by the latest lookup")
                 .contains(recordFile);
     }
 
