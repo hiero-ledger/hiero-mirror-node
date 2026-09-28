@@ -17,12 +17,18 @@ import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
+import static org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.web3.ApiEndpointName;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidInputException;
@@ -47,6 +53,7 @@ import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -57,6 +64,7 @@ import org.springframework.web.util.WebUtils;
 @ControllerAdvice
 @CustomLog
 @Order(Ordered.HIGHEST_PRECEDENCE)
+@RequiredArgsConstructor
 class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
     static final Set<ResponseCodeEnum> SERVER_RESPONSE_CODES = EnumSet.of(
@@ -68,6 +76,8 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
             UNKNOWN,
             WAITING_FOR_LEDGER_ID);
 
+    private final Web3Properties properties;
+
     @Bean
     @SuppressWarnings("java:S5122") // Make sure that enabling CORS is safe here.
     public WebMvcConfigurer corsConfigurer() {
@@ -77,6 +87,16 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
                 registry.addMapping("/api/v1/contracts/**").allowedOrigins("*");
             }
         };
+    }
+
+    @ModelAttribute
+    private void responseHeaders(HttpServletRequest request, HttpServletResponse response) {
+        if (request.getAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE) instanceof String requestMapping) {
+            var endpoint = ApiEndpointName.fromPath(requestMapping);
+            if (endpoint != null) {
+                properties.getApi(endpoint).getResponse().getHeaders().forEach(response::setHeader);
+            }
+        }
     }
 
     @ExceptionHandler

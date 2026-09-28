@@ -153,9 +153,15 @@ public final class EntityIdUtils {
     }
 
     public static EntityId entityIdFromContractId(final com.hedera.hapi.node.base.ContractID id) {
-        if (id == null || id.contractNum() == null) {
+        if (id == null) {
             return null;
         }
-        return EntityId.of(id.shardNum(), id.realmNum(), id.contractNum());
+        if (id.hasContractNum()) {
+            return EntityId.of(id.shardNum(), id.realmNum(), id.contractNum());
+        }
+        if (id.hasEvmAddress()) {
+            return fromEvmAddress(id.evmAddress().toByteArray());
+        }
+        return null;
     }
 }
