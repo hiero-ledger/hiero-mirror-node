@@ -716,6 +716,48 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
     }
 
     @Test
+    void updateContractFromEthereumCreateWithEmptySidecarInitcode() {
+        // given
+        final var callData = domainBuilder.bytes(64);
+        final var ethereumTransaction = domainBuilder
+                .ethereumTransaction(true)
+                .customize(x -> x.callData(callData).callDataId(null))
+                .get();
+        final var parentRecordItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .transactionBody(Builder::clearCallData)
+                .recordItem(r -> r.ethereumTransaction(ethereumTransaction))
+                .build();
+        final var recordItem = recordItemBuilder
+                .contractCreate()
+                .transactionBody(
+                        b -> b.clearAutoRenewAccountId().clearInitcode().clearFileID())
+                .record(x -> x.setParentConsensusTimestamp(
+                        parentRecordItem.getTransactionRecord().getConsensusTimestamp()))
+                .recordItem(r -> r.parent(parentRecordItem))
+                .sidecarRecords(sidecars -> sidecars.get(DEFAULT_BYTECODE_SIDECAR_INDEX)
+                        .getBytecodeBuilder()
+                        .clearInitcode())
+                .build();
+        final var contractId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());
+        final var timestamp = recordItem.getConsensusTimestamp();
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        assertEntity(contractId, timestamp).returns(null, Entity::getAutoRenewAccountId);
+        assertContract(contractId).returns(null, Contract::getFileId).returns(callData, Contract::getInitcode);
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
     void updateContractFromEthereumCreateWFileIDParent() {
         // given
         // parent item
