@@ -197,6 +197,9 @@ class NetworkServiceTest extends GrpcIntegrationTest {
                                     .verify(Duration.ofSeconds(5L)))
                             .thenCancel()
                             .verify(Duration.ofSeconds(10L));
+
+                    var third = networkService.getNodes(filter);
+                    StepVerifier.create(third).expectNextCount(1).thenCancel().verify(Duration.ofSeconds(10L));
                 });
     }
 
