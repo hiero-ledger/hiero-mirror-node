@@ -558,81 +558,52 @@ func (c *constructionAPIService) getIntMetadataValue(metadata map[string]any, me
 func (c *constructionAPIService) resolveAccountAliases(
 	ctx context.Context,
 	options map[string]any,
-) (string, *rTypes.Error) {
+) (emptyResult string, nilErr *rTypes.Error) {
 	if options[optionKeyAccountAliases] == nil {
-		return "", nil
+		return
 	}
 
 	if !c.BaseService.IsOnline() {
-		return "", errors.ErrEndpointNotSupportedInOfflineMode
+		return emptyResult, errors.ErrEndpointNotSupportedInOfflineMode
 	}
 
 	accountAliases, ok := options[optionKeyAccountAliases].(string)
 	if !ok {
-		return "", errors.ErrInvalidOptions
+		return emptyResult, errors.ErrInvalidOptions
 	}
 
 	if len(accountAliases) > maxAccountAliasesLength {
-		return "", errors.ErrInvalidOptions
+		return emptyResult, errors.ErrInvalidOptions
 	}
 
-	aliases, accountIds, rErr := parseAccountAliases(accountAliases, c.systemShard, c.systemRealm)
-	if rErr != nil {
-		return "", rErr
+	aliases := strings.Split(accountAliases, ",")
+	if len(aliases) > maxAccountAliases {
+		return emptyResult, errors.ErrInvalidOptions
 	}
 
-	if len(accountIds) == 1 {
-		found, rErr := c.accountRepo.GetAccountId(ctx, accountIds[0])
-		if rErr != nil {
-			return "", rErr
-		}
-		return fmt.Sprintf("%s:%s", aliases[0], found), nil
-	}
-
-	found, rErr := c.accountRepo.GetAccountIds(ctx, accountIds)
-	if rErr != nil {
-		return "", rErr
-	}
-
-	accountMap := make([]string, 0, len(found))
-	for i, accountAlias := range aliases {
-		accountMap = append(accountMap, fmt.Sprintf("%s:%s", accountAlias, found[i]))
-	}
-
-	return strings.Join(accountMap, ","), nil
-}
-
-func parseAccountAliases(accountAliases string, shard, realm int64) ([]string, []types.AccountId, *rTypes.Error) {
-	seen := make(map[string]struct{}, maxAccountAliases)
-	aliases := make([]string, 0, maxAccountAliases)
-	accountIds := make([]types.AccountId, 0, maxAccountAliases)
-	count := 0
-
-	for rawAlias := range strings.SplitSeq(accountAliases, ",") {
-		count++
-		if count > maxAccountAliases {
-			return nil, nil, errors.ErrInvalidOptions
+	var accountMap []string
+	seen := make(map[string]struct{}, len(aliases))
+	for _, accountAlias := range aliases {
+		accountId, err := types.NewAccountIdFromString(accountAlias, c.systemShard, c.systemRealm)
+		if err != nil {
+			return emptyResult, errors.ErrInvalidAccount
 		}
 
-		accountAlias := strings.TrimSpace(rawAlias)
-		if accountAlias == "" {
-			return nil, nil, errors.ErrInvalidAccount
-		}
-		if _, exists := seen[accountAlias]; exists {
+		// hex.DecodeString treats mixed-case alias strings as the same account
+		key := accountId.String()
+		if _, exists := seen[key]; exists {
 			continue
 		}
-		seen[accountAlias] = struct{}{}
+		seen[key] = struct{}{}
 
-		accountId, err := types.NewAccountIdFromString(accountAlias, shard, realm)
-		if err != nil {
-			return nil, nil, errors.ErrInvalidAccount
+		found, rErr := c.accountRepo.GetAccountId(ctx, accountId)
+		if rErr != nil {
+			return emptyResult, rErr
 		}
-
-		aliases = append(aliases, accountAlias)
-		accountIds = append(accountIds, accountId)
+		accountMap = append(accountMap, fmt.Sprintf("%s:%s", accountAlias, found))
 	}
 
-	return aliases, accountIds, nil
+	return strings.Join(accountMap, ","), nilErr
 }
 
 func isValidTransactionValidDuration(validDuration int64) bool {
