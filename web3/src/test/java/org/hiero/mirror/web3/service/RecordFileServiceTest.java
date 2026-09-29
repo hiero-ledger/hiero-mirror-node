@@ -2,23 +2,92 @@
 
 package org.hiero.mirror.web3.service;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_RECORD_FILE_LATEST;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.annotation.Resource;
+import java.time.Duration;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.validation.HexValidator;
 import org.hiero.mirror.web3.viewmodel.BlockType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @RequiredArgsConstructor
 class RecordFileServiceTest extends Web3IntegrationTest {
-    private final RecordFileService recordFileService;
+
+    private static final long CONSENSUS_END = RecordFileServiceTest.TIMESTAMP + 1;
+    private static final String HASH = "a".repeat(96);
+    private static final long INDEX = 5L;
+    private static final long TIMESTAMP = 100L;
+
+    /**
+     * A record file with the fixed keys above, served by {@link #serviceWithMockRepository} through a mocked repository
+     * so tests can control and count queries.
+     */
+    private RecordFile cachedRecordFile;
+
+    private CacheManager hashCacheManager;
+    private CacheManager indexCacheManager;
 
     @Resource
     private JdbcTemplate jdbcTemplate;
+
+    private RecordFileRepository mockRecordFileRepository;
+    private final RecordFileService recordFileService;
+    private RecordFileService serviceWithMockRepository;
+
+    /**
+     * Drives the expiry of the caches behind {@link #serviceWithMockRepository}.
+     */
+    private AtomicLong ticker;
+
+    private CacheManager timestampCacheManager;
+
+    @BeforeEach
+    void setupServiceWithMockRepository() {
+        ticker = new AtomicLong();
+        hashCacheManager = cacheManager(CACHE_NAME);
+        indexCacheManager = cacheManager(CACHE_NAME);
+        timestampCacheManager = cacheManager(CACHE_NAME);
+        mockRecordFileRepository = mock(RecordFileRepository.class);
+        serviceWithMockRepository = new RecordFileServiceImpl(
+                mockRecordFileRepository,
+                cacheManager(CACHE_NAME),
+                hashCacheManager,
+                indexCacheManager,
+                cacheManager(CACHE_NAME_RECORD_FILE_LATEST),
+                timestampCacheManager);
+        cachedRecordFile = domainBuilder
+                .recordFile()
+                .customize(
+                        r -> r.hash(HASH).index(INDEX).consensusStart(TIMESTAMP).consensusEnd(CONSENSUS_END))
+                .get();
+    }
 
     @Test
     void testFindByTimestamp() {
@@ -186,6 +255,60 @@ class RecordFileServiceTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findByIndexWarmsHashAndTimestampCaches() {
+        final var recordFile = domainBuilder.recordFile().persist();
+
+        assertThat(recordFileService.findByIndex(recordFile.getIndex())).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByBlockType(BlockType.of(HexValidator.HEX_PREFIX + recordFile.getHash())))
+                .as("a block hash lookup should be served from the hash cache warmed by the index lookup")
+                .contains(recordFile);
+        assertThat(recordFileService.findByTimestamp(recordFile.getConsensusEnd()))
+                .as("findByTimestamp should be served from the timestamp cache warmed by the index lookup")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByTimestampWarmsHashCache() {
+        final var recordFile = domainBuilder.recordFile().persist();
+
+        assertThat(recordFileService.findByTimestamp(recordFile.getConsensusStart()))
+                .contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByBlockType(BlockType.of(HexValidator.HEX_PREFIX + recordFile.getHash())))
+                .as("a block hash lookup should be served from the hash cache warmed by the timestamp lookup")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByBlockTypeHashWarmsTimestampCache() {
+        final var recordFile = domainBuilder.recordFile().persist();
+
+        assertThat(recordFileService.findByBlockType(BlockType.of(HexValidator.HEX_PREFIX + recordFile.getHash())))
+                .contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByTimestamp(recordFile.getConsensusEnd()))
+                .as("findByTimestamp should be served from the timestamp cache warmed by the hash lookup")
+                .contains(recordFile);
+    }
+
+    @Test
+    void findByBlockTypeLatestWarmsHashAndTimestampCaches() {
+        final var recordFile = domainBuilder.recordFile().persist();
+
+        assertThat(recordFileService.findByBlockType(BlockType.LATEST)).contains(recordFile);
+        jdbcTemplate.update("delete from record_file");
+
+        assertThat(recordFileService.findByBlockType(BlockType.of(HexValidator.HEX_PREFIX + recordFile.getHash())))
+                .contains(recordFile);
+        assertThat(recordFileService.findByTimestamp(recordFile.getConsensusEnd()))
+                .contains(recordFile);
+    }
+
+    @Test
     void findByBlockTypeEarliestServesFromCacheWithoutQueryingDatabase() {
         final var recordFile =
                 domainBuilder.recordFile().customize(r -> r.index(0L)).persist();
@@ -322,5 +445,134 @@ class RecordFileServiceTest extends Web3IntegrationTest {
         final var differentHash = HexValidator.HEX_PREFIX + "a".repeat(96);
         final var blockType = BlockType.of(differentHash);
         assertThat(recordFileService.findByBlockType(blockType)).isEmpty();
+    }
+
+    @Test
+    void concurrentMissesOnSameRecordFileByDifferentKeysDoNotDeadlock() {
+        final var recordFile = domainBuilder.recordFile().get();
+        final var bothLoading = new CountDownLatch(2);
+
+        // The mocked repository lets each query hold its cache entry until the other loader is also mid-load, so both
+        // loaders cross-populate the other's cache while their own entry is still being computed.
+        when(mockRecordFileRepository.findByHash(recordFile.getHash()))
+                .thenAnswer(_ -> awaitBoth(bothLoading, recordFile));
+        when(mockRecordFileRepository.findByIndex(recordFile.getIndex()))
+                .thenAnswer(_ -> awaitBoth(bothLoading, recordFile));
+
+        final var byHash = BlockType.of(HexValidator.HEX_PREFIX + recordFile.getHash());
+        // Daemon threads that are never awaited, so a regression fails on the timeout instead of hanging the build on
+        // threads blocked on each other's cache entry locks, which cannot be interrupted.
+        final var executor = Executors.newFixedThreadPool(2, runnable -> {
+            final var thread = new Thread(runnable);
+            thread.setDaemon(true);
+            return thread;
+        });
+        final var hashResult = executor.submit(() -> serviceWithMockRepository.findByBlockType(byHash));
+        final var indexResult = executor.submit(() -> serviceWithMockRepository.findByIndex(recordFile.getIndex()));
+        executor.shutdown();
+
+        assertThat(hashResult).succeedsWithin(Duration.ofSeconds(10)).isEqualTo(Optional.of(recordFile));
+        assertThat(indexResult).succeedsWithin(Duration.ofSeconds(10)).isEqualTo(Optional.of(recordFile));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Lookup.class)
+    void everyLoadWarmsCanonicalKeysAndRetainsRequestedKey(final Lookup lookup) {
+        when(lookup.query(mockRecordFileRepository)).thenReturn(Optional.of(cachedRecordFile));
+
+        assertThat(lookup.call(serviceWithMockRepository)).contains(cachedRecordFile);
+        assertThat(serviceWithMockRepository.findByIndex(INDEX)).contains(cachedRecordFile);
+        assertThat(serviceWithMockRepository.findByBlockType(BlockType.of(HexValidator.HEX_PREFIX + HASH)))
+                .contains(cachedRecordFile);
+        assertThat(serviceWithMockRepository.findByTimestamp(CONSENSUS_END)).contains(cachedRecordFile);
+        // Hash and timestamp cases use a prefix and an interior timestamp, distinct from the canonical keys.
+        assertThat(lookup.call(serviceWithMockRepository)).contains(cachedRecordFile);
+
+        lookup.query(verify(mockRecordFileRepository));
+        verifyNoMoreInteractions(mockRecordFileRepository);
+    }
+
+    @ParameterizedTest
+    @EnumSource(Lookup.class)
+    void cacheHitDoesNotRefreshOtherEntries(final Lookup lookup) {
+        when(lookup.query(mockRecordFileRepository)).thenReturn(Optional.of(cachedRecordFile));
+        assertThat(lookup.call(serviceWithMockRepository)).contains(cachedRecordFile);
+
+        ticker.set(Duration.ofMinutes(9).toNanos());
+        assertThat(lookup.call(serviceWithMockRepository)).contains(cachedRecordFile);
+        ticker.set(Duration.ofMinutes(11).toNanos());
+
+        assertThat(hashCacheManager.getCache(CACHE_NAME).get(HASH)).isNull();
+        assertThat(indexCacheManager.getCache(CACHE_NAME).get(INDEX)).isNull();
+        assertThat(timestampCacheManager.getCache(CACHE_NAME).get(CONSENSUS_END))
+                .isNull();
+        lookup.query(verify(mockRecordFileRepository));
+        verifyNoMoreInteractions(mockRecordFileRepository);
+    }
+
+    @ParameterizedTest
+    @EnumSource(Lookup.class)
+    void missingResultCanBeRetried(final Lookup lookup) {
+        when(lookup.query(mockRecordFileRepository))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(cachedRecordFile));
+
+        assertThat(lookup.call(serviceWithMockRepository)).isEmpty();
+        assertThat(lookup.call(serviceWithMockRepository)).contains(cachedRecordFile);
+        lookup.query(verify(mockRecordFileRepository, times(2)));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Lookup.class)
+    void failedLoadCanBeRetried(final Lookup lookup) {
+        final var failure = new DataAccessResourceFailureException("Database unavailable");
+        when(lookup.query(mockRecordFileRepository)).thenThrow(failure).thenReturn(Optional.of(cachedRecordFile));
+
+        assertThatThrownBy(() -> lookup.call(serviceWithMockRepository)).isSameAs(failure);
+        assertThat(lookup.call(serviceWithMockRepository)).contains(cachedRecordFile);
+        lookup.query(verify(mockRecordFileRepository, times(2)));
+    }
+
+    private static Optional<RecordFile> awaitBoth(final CountDownLatch bothLoading, final RecordFile recordFile)
+            throws InterruptedException {
+        bothLoading.countDown();
+        bothLoading.await(5, TimeUnit.SECONDS);
+        return Optional.of(recordFile);
+    }
+
+    private CacheManager cacheManager(final String name) {
+        final var manager = new CaffeineCacheManager();
+        manager.setCacheNames(Set.of(name));
+        manager.setCaffeine(Caffeine.newBuilder().ticker(ticker::get).expireAfterWrite(Duration.ofMinutes(10)));
+        return manager;
+    }
+
+    private enum Lookup {
+        EARLIEST,
+        HASH_PREFIX,
+        INDEX,
+        LATEST,
+        TIMESTAMP;
+
+        Optional<RecordFile> call(final RecordFileService service) {
+            return switch (this) {
+                case EARLIEST -> service.findByBlockType(BlockType.EARLIEST);
+                case HASH_PREFIX ->
+                    service.findByBlockType(BlockType.of(HexValidator.HEX_PREFIX + HASH.substring(0, 64)));
+                case INDEX -> service.findByIndex(RecordFileServiceTest.INDEX);
+                case LATEST -> service.findByBlockType(BlockType.LATEST);
+                case TIMESTAMP -> service.findByTimestamp(RecordFileServiceTest.TIMESTAMP);
+            };
+        }
+
+        Optional<RecordFile> query(final RecordFileRepository repository) {
+            return switch (this) {
+                case EARLIEST -> repository.findEarliest();
+                case HASH_PREFIX -> repository.findByHash(HASH.substring(0, 64));
+                case INDEX -> repository.findByIndex(RecordFileServiceTest.INDEX);
+                case LATEST -> repository.findLatest();
+                case TIMESTAMP -> repository.findByTimestamp(RecordFileServiceTest.TIMESTAMP);
+            };
+        }
     }
 }
