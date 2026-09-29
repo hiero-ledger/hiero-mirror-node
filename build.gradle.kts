@@ -19,8 +19,8 @@ plugins {
 extra.apply {
     set("besuVersion", "26.2.0")
     set("blockNodeVersion", "0.42.0")
-    set("consensusNodeVersion", "0.79.0-alpha.2")
-    set("hederaCryptographyVersion", "3.16.0")
+    set("consensusNodeVersion", "0.78.0-rc.9")
+    set("hederaCryptographyVersion", "3.15.0")
     set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
