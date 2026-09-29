@@ -73,6 +73,7 @@ jobs:
     name: GoSec Code Scan
     env:
       GO111MODULE: on
+      GOTOOLCHAIN: auto
     runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
@@ -93,8 +94,6 @@ jobs:
 
       - name: Run Gosec Security Scanner
         uses: securego/gosec@8c77519419e934a3e158dbf1a3fbbc0871b8c691 # latest
-        env:
-          GOTOOLCHAIN: auto
         with:
           args: ./...
 
