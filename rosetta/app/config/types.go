@@ -34,9 +34,11 @@ type Config struct {
 }
 
 type NodeHealth struct {
-	Enabled   bool          `yaml:"enabled"`
-	Frequency time.Duration `yaml:"frequency"`
-	Timeout   time.Duration `yaml:"timeout"`
+	Enabled        bool          `yaml:"enabled"`
+	Frequency      time.Duration `yaml:"frequency" validate:"min=30s"`
+	MaxConcurrency int           `yaml:"maxConcurrency" validate:"min=10"`
+	ProbeCooldown  time.Duration `yaml:"probeCooldown" validate:"min=5s"`
+	Timeout        time.Duration `yaml:"timeout" validate:"min=2s"`
 }
 
 type Cache struct {

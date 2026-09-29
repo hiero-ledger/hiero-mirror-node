@@ -3,6 +3,7 @@
 package services
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -23,9 +24,16 @@ import (
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/tools"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/test/mocks"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/test/utils"
+	sdkProto "github.com/hiero-ledger/hiero-sdk-go/v2/proto/sdk"
+	"github.com/hiero-ledger/hiero-sdk-go/v2/proto/services"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
+	pkgErrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -329,7 +337,7 @@ func TestConstructionCombineThrowsWithInvalidPublicKeyLength(t *testing.T) {
 		CurveType: rTypes.Edwards25519,
 	}
 
-	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
 	res, e := service.ConstructionCombine(defaultContext, request)
 
 	assert.Nil(t, res)
@@ -1271,31 +1279,66 @@ func TestConstructionSubmitOffline(t *testing.T) {
 	assert.Nil(t, res)
 }
 
-func TestConstructionSubmitExecutionFailureMarksNodeUnhealthy(t *testing.T) {
-	// given
-	request := &rTypes.ConstructionSubmitRequest{
-		NetworkIdentifier: networkIdentifier(),
-		SignedTransaction: validSignedTransaction,
+func TestConstructionSubmitNodeHealth(t *testing.T) {
+	tests := []struct {
+		name      string
+		down      bool
+		precheck  services.ResponseCodeEnum
+		unhealthy bool
+	}{
+		{name: "node down", down: true, unhealthy: true},
+		{name: "node busy", precheck: services.ResponseCodeEnum_BUSY, unhealthy: true},
+		{name: "user error", precheck: services.ResponseCodeEnum_INSUFFICIENT_PAYER_BALANCE},
+		{name: "success", precheck: services.ResponseCodeEnum_OK},
 	}
 
-	service, err := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil, defaultContext)
-	assert.NoError(t, err)
-	cs := service.(*constructionAPIService)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given validSignedTransaction, which is for node 0.0.4
+			consensusNode := newMockConsensusNode(t)
+			consensusNode.down.Store(tt.down)
+			consensusNode.precheck.Store(int32(tt.precheck))
+			cs, monitor := newTestSubmitService(t, consensusNode.address)
+			request := &rTypes.ConstructionSubmitRequest{
+				NetworkIdentifier: networkIdentifier(),
+				SignedTransaction: validSignedTransaction,
+			}
 
-	monitor := newTestNodeHealthMonitor(cs.sdkClient, config.NodeHealth{}, nil, nil)
-	cs.nodeHealthMonitor = monitor
+			// when
+			res, e := cs.ConstructionSubmit(defaultContext, request)
+
+			// then
+			assert.Equal(t, int32(1), consensusNode.requests.Load())
+			assert.Equal(t, tt.unhealthy, isUnhealthy(monitor, node4))
+			if tt.precheck == services.ResponseCodeEnum_OK && !tt.down {
+				assert.Nil(t, e)
+				assert.NotNil(t, res)
+				return
+			}
+
+			assert.Nil(t, res)
+			assert.Equal(t, errors.ErrTransactionSubmissionFailed.Code, e.Code)
+		})
+	}
+}
+
+func TestConstructionSubmitLocalFailureKeepsNodeHealthy(t *testing.T) {
+	// given a transaction for node 0.0.4 with a batch key, which the SDK rejects without contacting the node
+	consensusNode := newMockConsensusNode(t)
+	cs, monitor := newTestSubmitService(t, consensusNode.address)
+	request := &rTypes.ConstructionSubmitRequest{
+		NetworkIdentifier: networkIdentifier(),
+		SignedTransaction: addBatchKey(t, validSignedTransaction),
+	}
 
 	// when
 	res, e := cs.ConstructionSubmit(defaultContext, request)
 
 	// then
 	assert.Nil(t, res)
-	assert.NotNil(t, e)
 	assert.Equal(t, errors.ErrTransactionSubmissionFailed.Code, e.Code)
-
-	// Node 0.0.4 should now be marked unhealthy
-	filtered := monitor.FilterHealthy([]hiero.AccountID{{Account: 4}})
-	assert.Empty(t, filtered)
+	assert.Zero(t, consensusNode.requests.Load())
+	assert.Empty(t, monitor.unhealthyNodes)
 }
 
 func TestConstructionPreprocess(t *testing.T) {
@@ -1657,112 +1700,123 @@ func createTransactionHexString(transaction hiero.TransactionInterface, signed b
 	return tools.SafeAddHexPrefix(hex.EncodeToString(bytes))
 }
 
-func TestGetRandomNodeAccountIdFiltersUnhealthy(t *testing.T) {
-	node3 := hiero.AccountID{Account: 3}
-	node4 := hiero.AccountID{Account: 4}
-	mirrorConfig := &config.Mirror{Rosetta: config.Config{
-		Network: defaultNetwork,
-		Nodes: config.NodeMap{
-			"10.0.0.1:50211": node3,
-			"10.0.0.2:50211": node4,
-		},
-	}}
+// addBatchKey adds a batch key to the body of the transaction without re-signing it. Unlike the SDK, which sets the node
+// account id of a batched transaction to 0.0.0, anyone can build such bytes for any node.
+func addBatchKey(t *testing.T, transactionHex string) string {
+	data, err := hex.DecodeString(tools.SafeRemoveHexPrefix(transactionHex))
+	require.NoError(t, err)
 
+	list := sdkProto.TransactionList{}
+	require.NoError(t, proto.Unmarshal(data, &list))
+	batchKey := &services.Key{Key: &services.Key_Ed25519{Ed25519: privateKey.PublicKey().BytesRaw()}}
+	for _, transaction := range list.TransactionList {
+		signedTransaction := services.SignedTransaction{}
+		require.NoError(t, proto.Unmarshal(transaction.SignedTransactionBytes, &signedTransaction))
+		body := services.TransactionBody{}
+		require.NoError(t, proto.Unmarshal(signedTransaction.BodyBytes, &body))
+
+		body.BatchKey = batchKey
+		signedTransaction.BodyBytes, err = proto.Marshal(&body)
+		require.NoError(t, err)
+		transaction.SignedTransactionBytes, err = proto.Marshal(&signedTransaction)
+		require.NoError(t, err)
+	}
+
+	data, err = proto.Marshal(&list)
+	require.NoError(t, err)
+	return tools.SafeAddHexPrefix(hex.EncodeToString(data))
+}
+
+func newTestOnlineService(t *testing.T, nodes config.NodeMap) *constructionAPIService {
+	mirrorConfig := &config.Mirror{Rosetta: config.Config{Network: defaultNetwork, Nodes: nodes}}
 	service, err := NewConstructionAPIService(nil, onlineBaseService, mirrorConfig, nil, defaultContext)
-	assert.NoError(t, err)
-	cs := service.(*constructionAPIService)
+	require.NoError(t, err)
+	return service.(*constructionAPIService)
+}
 
-	// Create and attach mock monitor where node 4 is unhealthy
-	monitor := newTestNodeHealthMonitor(cs.sdkClient, config.NodeHealth{}, nil, nil)
+// newTestSubmitService creates a service submitting to node 0.0.4 at the address, with a monitor that isn't started.
+func newTestSubmitService(t *testing.T, address string) (*constructionAPIService, *nodeHealthMonitor) {
+	cs := newTestOnlineService(t, config.NodeMap{address: node4})
+	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency}
+	monitor := newNodeHealthMonitor(cs.sdkClient, cfg, cs.sdkClient.Ping)
+	cs.nodeHealthMonitor = monitor
+	return cs, monitor
+}
+
+func TestGetRandomNodeAccountIdFiltersUnhealthy(t *testing.T) {
+	cs := newTestOnlineService(t, config.NodeMap{"10.0.0.1:50211": node3, "10.0.0.2:50211": node4})
+	monitor := newNodeHealthMonitor(cs.sdkClient, config.NodeHealth{MaxConcurrency: testMaxConcurrency}, pingNodes())
 	monitor.MarkUnhealthy(node4)
 	cs.nodeHealthMonitor = monitor
 
 	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
+
 	assert.Nil(t, rErr)
 	assert.Equal(t, node3, picked)
 }
 
 func TestGetRandomNodeAccountIdAllUnhealthyProbeSucceeds(t *testing.T) {
-	node3 := hiero.AccountID{Account: 3}
-	mirrorConfig := &config.Mirror{Rosetta: config.Config{
-		Network: defaultNetwork,
-		Nodes: config.NodeMap{
-			"10.0.0.1:50211": node3,
-		},
-	}}
-
-	service, err := NewConstructionAPIService(nil, onlineBaseService, mirrorConfig, nil, defaultContext)
-	assert.NoError(t, err)
-	cs := service.(*constructionAPIService)
-
-	// Node 3 is unhealthy, but probe succeeds
-	pingMock := func(_ hiero.AccountID) error {
-		return nil
-	}
-	monitor := newTestNodeHealthMonitor(cs.sdkClient, config.NodeHealth{Timeout: 500 * time.Millisecond}, pingMock, nil)
+	cs := newTestOnlineService(t, config.NodeMap{"10.0.0.1:50211": node3})
+	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: 500 * time.Millisecond}
+	monitor := newNodeHealthMonitor(cs.sdkClient, cfg, pingNodes(node3))
 	monitor.MarkUnhealthy(node3)
 	cs.nodeHealthMonitor = monitor
 
 	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
+
 	assert.Nil(t, rErr)
 	assert.Equal(t, node3, picked)
+	assert.False(t, isUnhealthy(monitor, node3))
 }
 
 func TestGetRandomNodeAccountIdAllUnhealthyProbeFails(t *testing.T) {
-	node3 := hiero.AccountID{Account: 3}
-	mirrorConfig := &config.Mirror{Rosetta: config.Config{
-		Network: defaultNetwork,
-		Nodes: config.NodeMap{
-			"10.0.0.1:50211": node3,
-		},
-	}}
-
-	service, err := NewConstructionAPIService(nil, onlineBaseService, mirrorConfig, nil, defaultContext)
-	assert.NoError(t, err)
-	cs := service.(*constructionAPIService)
-
-	// Node 3 is unhealthy and probe fails
-	pingMock := func(_ hiero.AccountID) error {
-		return fmt.Errorf("down")
-	}
-	monitor := newTestNodeHealthMonitor(cs.sdkClient, config.NodeHealth{Timeout: 100 * time.Millisecond}, pingMock, nil)
+	cs := newTestOnlineService(t, config.NodeMap{"10.0.0.1:50211": node3})
+	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: 100 * time.Millisecond}
+	monitor := newNodeHealthMonitor(cs.sdkClient, cfg, pingNodes())
 	monitor.MarkUnhealthy(node3)
 	cs.nodeHealthMonitor = monitor
 
 	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
+
 	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
 	assert.Equal(t, hiero.AccountID{}, picked)
 }
 
 func TestGetRandomNodeAccountIdAllNodesInActiveSdkBackoffFailsFast(t *testing.T) {
-	node3 := hiero.AccountID{Account: 3}
-	mirrorConfig := &config.Mirror{Rosetta: config.Config{
-		Network: defaultNetwork,
-		Nodes: config.NodeMap{
-			"127.0.0.1:50211": node3,
-		},
-	}}
+	// given a node that failed a request, so the SDK has put it into backoff
+	consensusNode := newMockConsensusNode(t)
+	consensusNode.down.Store(true)
+	cs := newTestOnlineService(t, config.NodeMap{consensusNode.address: node3})
+	require.Error(t, cs.sdkClient.Ping(node3))
 
-	service, err := NewConstructionAPIService(nil, onlineBaseService, mirrorConfig, nil, defaultContext)
-	assert.NoError(t, err)
-	cs := service.(*constructionAPIService)
-
-	// Fail a ping so the SDK puts node 3 into backoff (removing it from SDK healthy nodes)
-	cs.sdkClient.SetMaxAttempts(1)
-	_ = cs.sdkClient.Ping(node3)
-
-	var probeCalled atomic.Bool
-	pingMock := func(_ hiero.AccountID) error {
-		probeCalled.Store(true)
+	var pings atomic.Int32
+	ping := func(hiero.AccountID) error {
+		pings.Add(1)
 		return nil
 	}
-	monitor := newTestNodeHealthMonitor(cs.sdkClient, config.NodeHealth{Timeout: 1 * time.Second}, pingMock, nil)
-	cs.nodeHealthMonitor = monitor
+	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: time.Second}
+	cs.nodeHealthMonitor = newNodeHealthMonitor(cs.sdkClient, cfg, ping)
 
+	// when
 	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
+
+	// then
 	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
 	assert.Equal(t, hiero.AccountID{}, picked)
-	assert.False(t, probeCalled.Load(), "Probe must not be called when SDK has 0 healthy nodes")
+	assert.Zero(t, pings.Load(), "Probe must not be called when SDK has 0 healthy nodes")
+}
+
+func TestGetHealthyNodeAccountIdsDeduplicatesNodeAddresses(t *testing.T) {
+	client := newTestClient(t, map[string]hiero.AccountID{
+		"10.0.0.1:50211": node3,
+		"10.0.0.1:50212": node3,
+		"10.0.0.2:50211": node4,
+	})
+
+	nodeAccountIds, err := getHealthyNodeAccountIds(client)
+
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []hiero.AccountID{node3, node4}, nodeAccountIds)
 }
 
 func TestNewConstructionAPIServiceConfiguresMonitor(t *testing.T) {
@@ -1770,63 +1824,103 @@ func TestNewConstructionAPIServiceConfiguresMonitor(t *testing.T) {
 		Network: defaultNetwork,
 		Nodes:   defaultNodes,
 		NodeHealth: config.NodeHealth{
-			Enabled:   true,
-			Frequency: 50 * time.Millisecond,
-			Timeout:   1 * time.Second,
+			Enabled:        true,
+			Frequency:      10 * time.Second,
+			MaxConcurrency: testMaxConcurrency,
+			Timeout:        2 * time.Second,
 		},
 	}}
 
-	ctx := t.Context()
+	// A done context stops the monitor before it pings the nodes, which aren't reachable
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
 	service, err := NewConstructionAPIService(nil, onlineBaseService, mirrorConfig, nil, ctx)
 	assert.NoError(t, err)
 	cs := service.(*constructionAPIService)
 
 	assert.NotNil(t, cs.nodeHealthMonitor)
-	assert.Equal(t, defaultNodeMaxReadmitPeriod, cs.sdkClient.GetNodeMaxReadmitPeriod())
+	assert.Equal(t, 5*time.Second, cs.sdkClient.GetNodeMaxBackoff())
+	assert.Equal(t, 5*time.Second, cs.sdkClient.GetNodeMaxReadmitPeriod())
 }
 
-func TestNewConstructionAPIServiceOfflineNoMonitor(t *testing.T) {
-	mirrorConfig := &config.Mirror{Rosetta: config.Config{
-		Network: defaultNetwork,
-		Nodes:   defaultNodes,
-		NodeHealth: config.NodeHealth{
-			Enabled:   true,
-			Frequency: 50 * time.Millisecond,
-		},
-	}}
+func TestNewConstructionAPIServiceWithoutMonitorKeepsSdkDefaults(t *testing.T) {
+	sdkDefaults := newTestClient(t, defaultNodes)
+	tests := []struct {
+		name        string
+		baseService BaseService
+		enabled     bool
+	}{
+		{name: "disabled", baseService: onlineBaseService},
+		{name: "offline", baseService: offlineBaseService, enabled: true},
+	}
 
-	service, err := NewConstructionAPIService(nil, offlineBaseService, mirrorConfig, nil, defaultContext)
-	assert.NoError(t, err)
-	cs := service.(*constructionAPIService)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mirrorConfig := &config.Mirror{Rosetta: config.Config{
+				Network:    defaultNetwork,
+				NodeHealth: config.NodeHealth{Enabled: tt.enabled, Frequency: 50 * time.Millisecond},
+				Nodes:      defaultNodes,
+			}}
 
-	assert.Nil(t, cs.nodeHealthMonitor)
+			service, err := NewConstructionAPIService(nil, tt.baseService, mirrorConfig, nil, t.Context())
+
+			assert.NoError(t, err)
+			cs := service.(*constructionAPIService)
+			assert.Nil(t, cs.nodeHealthMonitor)
+			assert.Equal(t, sdkDefaults.GetNodeMaxBackoff(), cs.sdkClient.GetNodeMaxBackoff())
+			assert.Equal(t, sdkDefaults.GetNodeMaxReadmitPeriod(), cs.sdkClient.GetNodeMaxReadmitPeriod())
+		})
+	}
 }
 
 func TestIsNodeError(t *testing.T) {
-	assert.False(t, isNodeError(nil))
+	busy := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusBusy}
+	insufficientPayerBalance := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInsufficientPayerBalance}
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{name: "nil"},
+		{name: "insufficient payer balance", err: insufficientPayerBalance},
+		{name: "invalid signature", err: hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidSignature}},
+		{name: "busy", err: busy, expected: true},
+		{
+			name:     "platform not active",
+			err:      hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformNotActive},
+			expected: true,
+		},
+		{
+			name:     "platform transaction not created",
+			err:      hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformTransactionNotCreated},
+			expected: true,
+		},
+		{
+			name:     "invalid node account",
+			err:      hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidNodeAccount},
+			expected: true,
+		},
+		// The SDK wraps the status of the last attempt when it gives up retrying
+		{name: "wrapped busy", err: pkgErrors.Wrapf(busy, "retry %d/%d", 1, 1), expected: true},
+		{name: "wrapped user error", err: pkgErrors.Wrapf(insufficientPayerBalance, "retry %d/%d", 1, 1)},
+		{
+			name:     "unavailable",
+			err:      pkgErrors.Wrapf(status.Error(codes.Unavailable, "connection refused"), "retry %d/%d", 1, 1),
+			expected: true,
+		},
+		{name: "deadline exceeded", err: status.Error(codes.DeadlineExceeded, "timeout"), expected: true},
+		{name: "resource exhausted", err: status.Error(codes.ResourceExhausted, "dial timeout"), expected: true},
+		{name: "internal", err: status.Error(codes.Internal, "stream reset"), expected: true},
+		{name: "invalid argument", err: status.Error(codes.InvalidArgument, "bad request")},
+		// Errors the SDK raises before contacting the node
+		{name: "unknown node", err: hiero.ErrInvalidNodeAccountIDSet{NodeAccountID: nodeAccountId}},
+		{name: "batch key", err: fmt.Errorf("cannot execute batchified transaction outside of BatchTransaction")},
+	}
 
-	// Precheck user errors
-	precheckUserErr := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInsufficientPayerBalance}
-	assert.False(t, isNodeError(precheckUserErr))
-
-	precheckInvalidSig := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidSignature}
-	assert.False(t, isNodeError(precheckInvalidSig))
-
-	// Precheck node errors
-	precheckBusy := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusBusy}
-	assert.True(t, isNodeError(precheckBusy))
-
-	precheckNotActive := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformNotActive}
-	assert.True(t, isNodeError(precheckNotActive))
-
-	precheckNotCreated := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformTransactionNotCreated}
-	assert.True(t, isNodeError(precheckNotCreated))
-
-	precheckInvalidNode := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidNodeAccount}
-	assert.True(t, isNodeError(precheckInvalidNode))
-
-	// Generic transport or wrapped errors
-	assert.True(t, isNodeError(fmt.Errorf("connection refused")))
-	assert.True(t, isNodeError(fmt.Errorf("context deadline exceeded")))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isNodeError(tt.err))
+		})
+	}
 }

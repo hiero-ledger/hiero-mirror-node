@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/pkg/errors"
@@ -90,6 +91,10 @@ func LoadConfig() (*Mirror, error) {
 		mirrorConfig.Rosetta.Nodes = nodeMap
 	}
 
+	if err := validateConfig(mirrorConfig); err != nil {
+		return nil, err
+	}
+
 	var password = mirrorConfig.Rosetta.Db.Password
 	mirrorConfig.Rosetta.Db.Password = "***" // Don't print password
 	log.Infof("Using configuration: %+v", &config)
@@ -131,6 +136,23 @@ func mergeExternalConfigFile(v *viper.Viper) error {
 
 	log.Infof("Loaded external config file: %s", v.ConfigFileUsed())
 	return nil
+}
+
+// validateConfig checks the constraints in the validate tags of the configuration structs
+func validateConfig(mirrorConfig *Mirror) error {
+	err := validator.New().Struct(mirrorConfig)
+	validationErrors, ok := err.(validator.ValidationErrors)
+	if !ok {
+		return err
+	}
+
+	violations := make([]string, 0, len(validationErrors))
+	for _, fieldError := range validationErrors {
+		violations = append(violations, fmt.Sprintf("%s is %v, want %s=%s",
+			fieldError.Namespace(), fieldError.Value(), fieldError.Tag(), fieldError.Param()))
+	}
+
+	return errors.Errorf("Invalid configuration: %s", strings.Join(violations, "; "))
 }
 
 func nodeMapDecodeHookFunc(from, to reflect.Type, data any) (any, error) {

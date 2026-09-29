@@ -23,6 +23,8 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/thanhpk/randstr v1.0.6
 	github.com/weaveworks/common v0.0.0-20230728070032-dd9e68f319d5
+	golang.org/x/sync v0.23.0
+	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/postgres v1.6.3
@@ -122,9 +124,7 @@ require (
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df // indirect
 	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
-	google.golang.org/grpc v1.83.2 // indirect
 )

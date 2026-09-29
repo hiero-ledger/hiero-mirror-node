@@ -690,6 +690,11 @@ The following table lists the available properties along with their default valu
 | `hiero.mirror.rosetta.http.writeTimeout`          | 10000000000         | The maximum duration in nanoseconds before timing out writes of the response                        |
 | `hiero.mirror.rosetta.log.level`                  | info                | The log level                                                                                       |
 | `hiero.mirror.rosetta.network`                    | DEMO                | Which network to use. Can be either `DEMO`, `MAINNET`, `PREVIEWNET`, `TESTNET` or `OTHER`.          |
+| `hiero.mirror.rosetta.nodeHealth.enabled`         | true                | Whether to ping every node periodically and not use unhealthy nodes until they answer again         |
+| `hiero.mirror.rosetta.nodeHealth.frequency`       | 30s                 | How often to ping every node to check its health. At least `30s`                                    |
+| `hiero.mirror.rosetta.nodeHealth.maxConcurrency`  | 20                  | The maximum number of nodes the node health monitor pings at once. At least `10`                    |
+| `hiero.mirror.rosetta.nodeHealth.probeCooldown`   | 10s                 | How long to skip probing after a probe finds no node when every node is unhealthy. At least `5s`    |
+| `hiero.mirror.rosetta.nodeHealth.timeout`         | 2s                  | How long to wait for a node to answer when every node is unhealthy. At least `2s`                   |
 | `hiero.mirror.rosetta.nodeRefreshInterval`        | 24h                 | The fixed period between scheduled network address book updates. Can accept values like `10m`, `2h` |
 | `hiero.mirror.rosetta.nodeVersion`                | 0                   | The default canonical version of the node runtime                                                   |
 | `hiero.mirror.rosetta.nodes`                      | {}                  | A map of main nodes with its service endpoint as the key and the node account id as its value       |
