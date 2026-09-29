@@ -10,6 +10,7 @@ import {
   responseHeadersLabel,
 } from '../constants';
 import {NotFoundError} from '../errors';
+import setLastBlockConsensusTimestampHeader from './lastBlockConsensusTimestamp';
 import {JSONStringify} from '../utils';
 
 const {
@@ -45,6 +46,7 @@ const responseHandler = async (req, res, next) => {
   if (linksNext) {
     res.set(LINK_NEXT_HEADER, linkNextHeaderValue(linksNext));
   }
+  await setLastBlockConsensusTimestampHeader(res);
   const contentType = res.get(contentTypeHeader);
 
   res.locals[responseBodyLabel] = contentType === APPLICATION_JSON ? JSONStringify(responseData) : responseData;

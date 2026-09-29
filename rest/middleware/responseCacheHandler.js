@@ -4,6 +4,9 @@ import Negotiator from 'negotiator';
 import crypto from 'crypto';
 
 import {Cache} from '../cache';
+import setLastBlockConsensusTimestampHeader, {
+  LAST_BLOCK_CONSENSUS_TIMESTAMP_HEADER,
+} from './lastBlockConsensusTimestamp';
 import {CachedApiResponse} from '../model';
 import config from '../config';
 import {
@@ -73,6 +76,7 @@ const responseCacheCheckHandler = async (req, res) => {
   }
 
   res.set(headers);
+  await setLastBlockConsensusTimestampHeader(res);
   res.status(statusCode);
   if (body !== undefined) {
     res.send(body);
@@ -109,6 +113,7 @@ const responseCacheUpdateHandler = async (req, res) => {
       delete headers[CACHE_CONTROL_HEADER];
       delete headers[CONTENT_ENCODING_HEADER];
       delete headers[CONTENT_LENGTH_HEADER];
+      delete headers[LAST_BLOCK_CONSENSUS_TIMESTAMP_HEADER];
       delete headers[VARY_HEADER];
 
       const statusCode = isUnmodified ? httpStatusCodes.OK.code : res.statusCode;

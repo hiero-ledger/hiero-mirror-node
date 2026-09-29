@@ -5,6 +5,7 @@ import {jest} from '@jest/globals';
 import config from '../../config';
 import {NotFoundError} from '../../errors';
 import {responseHandler} from '../../middleware';
+import RecordFileService from '../../service/recordFileService';
 import {JSONStringify} from '../../utils';
 import {contentTypeHeader, responseHeadersLabel} from '../../constants.js';
 
@@ -89,5 +90,15 @@ describe('Response middleware', () => {
   test('should NOT set the Link next header and confirm it exists', async () => {
     await responseHandler(mockRequest, mockResponse, nextMiddleware);
     expect(mockResponse.set).toHaveBeenCalledTimes(1);
+  });
+
+  test('Last block consensus timestamp header', async () => {
+    mockResponse.get.mockReturnValue('application/json; charset=utf-8');
+    const consensusEnd = jest.spyOn(RecordFileService, 'getLatestConsensusEnd').mockResolvedValue('123');
+
+    await responseHandler(mockRequest, mockResponse, nextMiddleware);
+
+    expect(mockResponse.set).toHaveBeenCalledWith('x-last-block-consensus-timestamp', '123');
+    consensusEnd.mockRestore();
   });
 });

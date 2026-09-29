@@ -71,7 +71,7 @@ app.use(
   })
 );
 app.use(express.json());
-app.use(cors());
+app.use(cors({exposedHeaders: ['X-Last-Block-Consensus-Timestamp']}));
 
 if (config.response.compression) {
   logger.info('Response compression is enabled');

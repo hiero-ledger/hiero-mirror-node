@@ -146,6 +146,14 @@ class RecordFileService extends BaseService {
     return row === null ? null : new RecordFile(row);
   }
 
+  async getLatestConsensusEnd() {
+    const row = await super.getSingleRow(
+      `select ${RecordFile.CONSENSUS_END} from ${RecordFile.tableName} order by ${RecordFile.CONSENSUS_END} desc limit 1`,
+      []
+    );
+    return row === null ? null : row[RecordFile.CONSENSUS_END];
+  }
+
   async getBlocks(filters) {
     const {where, params} = buildWhereSqlStatement(filters.whereQuery);
 
