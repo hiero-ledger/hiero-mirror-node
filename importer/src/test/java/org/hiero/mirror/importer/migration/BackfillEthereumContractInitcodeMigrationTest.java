@@ -102,6 +102,7 @@ final class BackfillEthereumContractInitcodeMigrationTest extends ImporterIntegr
     private long persistEthereumCreatedContract(byte[] initcode, byte[] callData, int parentType) {
         final long createdTimestamp = domainBuilder.timestamp();
         final long parentTimestamp = domainBuilder.timestamp();
+        final var payerAccountId = domainBuilder.entityId();
         final var entity =
                 domainBuilder.entity(domainBuilder.entityId(), createdTimestamp).persist();
         final var contractId = entity.getId();
@@ -114,6 +115,7 @@ final class BackfillEthereumContractInitcodeMigrationTest extends ImporterIntegr
                 .transaction()
                 .customize(t -> t.consensusTimestamp(parentTimestamp)
                         .entityId(EntityId.of(contractId))
+                        .payerAccountId(payerAccountId)
                         .parentConsensusTimestamp(null)
                         .type(parentType))
                 .persist();
@@ -121,13 +123,17 @@ final class BackfillEthereumContractInitcodeMigrationTest extends ImporterIntegr
                 .transaction()
                 .customize(t -> t.consensusTimestamp(createdTimestamp)
                         .entityId(EntityId.of(contractId))
+                        .payerAccountId(payerAccountId)
                         .parentConsensusTimestamp(parentTimestamp)
                         .type(CONTRACT_CREATE))
                 .persist();
         if (parentType == ETHEREUM_TRANSACTION) {
             domainBuilder
                     .ethereumTransaction(true)
-                    .customize(e -> e.callData(callData).callDataId(null).consensusTimestamp(parentTimestamp))
+                    .customize(e -> e.callData(callData)
+                            .callDataId(null)
+                            .consensusTimestamp(parentTimestamp)
+                            .payerAccountId(payerAccountId))
                     .persist();
         }
         return contractId;
