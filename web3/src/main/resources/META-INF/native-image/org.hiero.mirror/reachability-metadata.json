@@ -1,0 +1,63 @@
+{
+  "comment": [
+    "libsecp256k1 FFM downcalls (com.hedera.cryptography.libsecp256k1.Libsecp256k1)",
+    "1: secp256k1_context_create",
+    "2: secp256k1_context_randomize",
+    "3: secp256k1_ec_pubkey_create, secp256k1_ecdsa_signature_parse_compact, secp256k1_ecdsa_signature_normalize",
+    "4: secp256k1_ec_pubkey_parse",
+    "5: secp256k1_ecdsa_recoverable_signature_parse_compact",
+    "6: secp256k1_ecdsa_verify, secp256k1_ecdsa_recover, secp256k1_ecdsa_recoverable_signature_serialize_compact",
+    "7: secp256k1_ec_pubkey_serialize",
+    "8: secp256k1_ecdsa_sign_recoverable"
+  ],
+  "foreign": {
+    "downcalls": [
+      {
+        "returnType": "void*",
+        "parameterTypes": ["int"]
+      },
+      {
+        "returnType": "int",
+        "parameterTypes": ["void*", "void*"],
+        "options": { "critical": { "allowHeapAccess": true } }
+      },
+      {
+        "returnType": "int",
+        "parameterTypes": ["void*", "void*", "void*"],
+        "options": { "critical": { "allowHeapAccess": true } }
+      },
+      {
+        "returnType": "int",
+        "parameterTypes": ["void*", "void*", "void*", "size_t"],
+        "options": { "critical": { "allowHeapAccess": true } }
+      },
+      {
+        "returnType": "int",
+        "parameterTypes": ["void*", "void*", "void*", "int"],
+        "options": { "critical": { "allowHeapAccess": true } }
+      },
+      {
+        "returnType": "int",
+        "parameterTypes": ["void*", "void*", "void*", "void*"],
+        "options": { "critical": { "allowHeapAccess": true } }
+      },
+      {
+        "returnType": "int",
+        "parameterTypes": ["void*", "void*", "void*", "void*", "int"],
+        "options": { "critical": { "allowHeapAccess": true } }
+      },
+      {
+        "returnType": "int",
+        "parameterTypes": [
+          "void*",
+          "void*",
+          "void*",
+          "void*",
+          "void*",
+          "void*"
+        ],
+        "options": { "critical": { "allowHeapAccess": true } }
+      }
+    ]
+  }
+}
