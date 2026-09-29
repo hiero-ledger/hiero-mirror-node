@@ -43,7 +43,7 @@ public class RecordFileServiceImpl implements RecordFileService {
             @Qualifier(CACHE_MANAGER_RECORD_FILE_INDEX) final CacheManager indexCacheManager,
             @Qualifier(CACHE_MANAGER_RECORD_FILE_LATEST) final CacheManager latestCacheManager,
             @Qualifier(CACHE_MANAGER_RECORD_FILE_TIMESTAMP) final CacheManager timestampCacheManager) {
-        final Consumer<RecordFile> onLoad = this::cacheByAllKeys;
+        final Consumer<Optional<RecordFile>> onLoad = this::cacheByAllKeys;
         this.earliestLookup = new CachedLookup<>(
                 nativeCache(earliestCacheManager, CACHE_NAME), _ -> recordFileRepository.findEarliest(), onLoad);
         this.hashLookup =
@@ -61,12 +61,12 @@ public class RecordFileServiceImpl implements RecordFileService {
     @Override
     public Optional<RecordFile> findByBlockType(BlockType block) {
         if (block == BlockType.EARLIEST) {
-            return Optional.ofNullable(earliestLookup.get(SINGLE_ENTRY_KEY));
+            return earliestLookup.get(SINGLE_ENTRY_KEY);
         } else if (block == BlockType.LATEST) {
-            return Optional.ofNullable(latestLookup.get(SINGLE_ENTRY_KEY));
+            return latestLookup.get(SINGLE_ENTRY_KEY);
         } else if (block.isHash()) {
             // The block.name() format is already validated by BlockType.of()
-            return Optional.ofNullable(hashLookup.get(block.name()));
+            return hashLookup.get(block.name());
         }
 
         return findByIndex(block.number());
@@ -74,45 +74,40 @@ public class RecordFileServiceImpl implements RecordFileService {
 
     @Override
     public Optional<RecordFile> findByIndex(long index) {
-        return Optional.ofNullable(indexLookup.get(index));
+        return indexLookup.get(index);
     }
 
     @Override
     public Optional<RecordFile> findByTimestamp(Long timestamp) {
-        return Optional.ofNullable(timestampLookup.get(timestamp));
+        return timestampLookup.get(timestamp);
     }
 
     /**
      * Warms the full hash, index and consensus-end timestamp keys after each successful database load, never on a
      * cache hit. Hash prefixes and other transaction timestamps are cached under their requested key when queried.
-     * Hash and index entries expire after write; timestamp entries expire after access.
+     * Hash and index entries expire after write; timestamp entries expire after access. Every cache shares the
+     * loaded Optional instance, so warming allocates nothing.
      */
-    private void cacheByAllKeys(final RecordFile recordFile) {
-        cacheByHash(recordFile);
-        cacheByIndex(recordFile);
-        cacheByTimestamp(recordFile);
-    }
+    private void cacheByAllKeys(final Optional<RecordFile> result) {
+        if (result.isEmpty()) {
+            return;
+        }
 
-    private void cacheByHash(final RecordFile recordFile) {
-        hashLookup.put(recordFile.getHash(), recordFile);
-    }
-
-    private void cacheByIndex(final RecordFile recordFile) {
-        indexLookup.put(recordFile.getIndex(), recordFile);
-    }
-
-    private void cacheByTimestamp(final RecordFile recordFile) {
-        timestampLookup.put(recordFile.getConsensusEnd(), recordFile);
+        final var recordFile = result.get();
+        hashLookup.put(recordFile.getHash(), result);
+        indexLookup.put(recordFile.getIndex(), result);
+        timestampLookup.put(recordFile.getConsensusEnd(), result);
     }
 
     @SuppressWarnings("unchecked")
-    private static <K> Cache<K, RecordFile> nativeCache(final CacheManager cacheManager, final String cacheName) {
+    private static <K> Cache<K, Optional<RecordFile>> nativeCache(
+            final CacheManager cacheManager, final String cacheName) {
         final var cache = cacheManager.getCache(cacheName);
         if (!(cache instanceof CaffeineCache caffeineCache)) {
             throw new IllegalStateException("Expected a Caffeine cache named " + cacheName);
         }
 
-        return (Cache<K, RecordFile>) (Cache<?, ?>) caffeineCache.getNativeCache();
+        return (Cache<K, Optional<RecordFile>>) (Cache<?, ?>) caffeineCache.getNativeCache();
     }
 
     /**
@@ -120,24 +115,36 @@ public class RecordFileServiceImpl implements RecordFileService {
      * the cache entry is computed, never inside the mapping function: writing to another cache from there would hold
      * this cache's entry lock while waiting on the other's, and two concurrent misses on the same record file by
      * different keys (e.g. hash and index) could deadlock. Other callers can read the source entry before warming
-     * finishes, so they may still miss another cache. Empty results and failures leave no cached entry, so callers
-     * waiting on the same key may each retry the query instead of sharing that result.
+     * finishes, so they may still miss another cache. Present results are cached as the repository's own Optional,
+     * and a hit is served by getIfPresent before any capturing lambda is built, so a cache hit allocates nothing.
+     * Empty results and failures leave no cached entry, so callers waiting on the same key may each retry the query
+     * instead of sharing that result.
      */
     private record CachedLookup<K>(
-            Cache<K, RecordFile> cache, Function<K, Optional<RecordFile>> query, Consumer<RecordFile> onLoad) {
+            Cache<K, Optional<RecordFile>> cache,
+            Function<K, Optional<RecordFile>> query,
+            Consumer<Optional<RecordFile>> onLoad) {
 
-        RecordFile get(final K key) {
-            final var loaded = new RecordFile[1];
-            final var recordFile =
-                    cache.get(key, k -> loaded[0] = query.apply(k).orElse(null));
-            if (loaded[0] != null) {
-                onLoad.accept(loaded[0]);
+        Optional<RecordFile> get(final K key) {
+            final var cached = cache.getIfPresent(key);
+            if (cached != null) {
+                return cached;
             }
 
-            return recordFile;
+            final var loaded = new boolean[1];
+            final var recordFile = cache.get(key, k -> {
+                final var result = query.apply(k);
+                loaded[0] = result.isPresent();
+                return loaded[0] ? result : null;
+            });
+            if (loaded[0]) {
+                onLoad.accept(recordFile);
+            }
+
+            return recordFile != null ? recordFile : Optional.empty();
         }
 
-        void put(final K key, final RecordFile recordFile) {
+        void put(final K key, final Optional<RecordFile> recordFile) {
             cache.put(key, recordFile);
         }
     }
