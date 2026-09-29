@@ -43,9 +43,13 @@ hiero:
         host: 192.168.120.51
         port: 12000
       network: TESTNET`
-	realmEnvKey     = "HIERO_MIRROR_COMMON_REALM"
-	serviceEndpoint = "192.168.0.1:50211"
-	shardEnvKey     = "HIERO_MIRROR_COMMON_SHARD"
+	nodeHealthFrequencyEnvKey      = "HIERO_MIRROR_ROSETTA_NODEHEALTH_FREQUENCY"
+	nodeHealthMaxConcurrencyEnvKey = "HIERO_MIRROR_ROSETTA_NODEHEALTH_MAXCONCURRENCY"
+	nodeHealthProbeCooldownEnvKey  = "HIERO_MIRROR_ROSETTA_NODEHEALTH_PROBECOOLDOWN"
+	nodeHealthTimeoutEnvKey        = "HIERO_MIRROR_ROSETTA_NODEHEALTH_TIMEOUT"
+	realmEnvKey                    = "HIERO_MIRROR_COMMON_REALM"
+	serviceEndpoint                = "192.168.0.1:50211"
+	shardEnvKey                    = "HIERO_MIRROR_COMMON_SHARD"
 )
 
 var expectedNodeRefreshInterval = 30 * time.Minute
@@ -55,6 +59,11 @@ func TestLoadDefaultConfig(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, getDefaultConfig(), config)
+	assert.True(t, config.Rosetta.NodeHealth.Enabled)
+	assert.Equal(t, 30*time.Second, config.Rosetta.NodeHealth.Frequency)
+	assert.Equal(t, 20, config.Rosetta.NodeHealth.MaxConcurrency)
+	assert.Equal(t, 10*time.Second, config.Rosetta.NodeHealth.ProbeCooldown)
+	assert.Equal(t, 2*time.Second, config.Rosetta.NodeHealth.Timeout)
 }
 
 func TestLoadDefaultConfigInvalidYamlString(t *testing.T) {
@@ -177,6 +186,59 @@ func TestLoadCustomConfigInvalidYaml(t *testing.T) {
 			config, err := LoadConfig()
 
 			assert.Error(t, err)
+			assert.Nil(t, config)
+		})
+	}
+}
+
+func TestLoadConfigInvalidNodeHealth(t *testing.T) {
+	tests := []struct {
+		name     string
+		env      map[string]string
+		expected string
+	}{
+		{
+			name:     "frequency",
+			env:      map[string]string{nodeHealthFrequencyEnvKey: "9s"},
+			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.Frequency is 9s, want min=30s",
+		},
+		{
+			name:     "max concurrency",
+			env:      map[string]string{nodeHealthMaxConcurrencyEnvKey: "0"},
+			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.MaxConcurrency is 0, want min=10",
+		},
+		{
+			name:     "probe cooldown",
+			env:      map[string]string{nodeHealthProbeCooldownEnvKey: "4s"},
+			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.ProbeCooldown is 4s, want min=5s",
+		},
+		{
+			name:     "timeout",
+			env:      map[string]string{nodeHealthTimeoutEnvKey: "100ms"},
+			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.Timeout is 100ms, want min=2s",
+		},
+		{
+			name: "frequency and timeout",
+			env:  map[string]string{nodeHealthFrequencyEnvKey: "0s", nodeHealthTimeoutEnvKey: "200ms"},
+			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.Frequency is 0s, want min=30s; " +
+				"Mirror.Rosetta.NodeHealth.Timeout is 200ms, want min=2s",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			em := newEnvManager()
+			for key, value := range tt.env {
+				em.SetEnv(key, value)
+			}
+			t.Cleanup(em.Cleanup)
+
+			// when
+			config, err := LoadConfig()
+
+			// then
+			assert.EqualError(t, err, tt.expected)
 			assert.Nil(t, config)
 		})
 	}

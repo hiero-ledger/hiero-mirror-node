@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
+	stdErrors "errors"
 	"fmt"
 	"maps"
 	"math/big"
@@ -24,6 +25,8 @@ import (
 	"github.com/hiero-ledger/hiero-sdk-go/v2/proto/services"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
@@ -44,6 +47,7 @@ const (
 type constructionAPIService struct {
 	BaseService
 	accountRepo        interfaces.AccountRepository
+	nodeHealthMonitor  NodeHealthMonitor
 	sdkClient          *hiero.Client
 	systemShard        int64
 	systemRealm        int64
@@ -166,8 +170,7 @@ func (c *constructionAPIService) ConstructionMetadata(
 		metadata[metadataKeyAccountMap] = resolved
 	}
 
-	// node account id
-	nodeAccountId, rErr := c.getRandomNodeAccountId()
+	nodeAccountId, rErr := c.getRandomNodeAccountId(ctx)
 	if rErr != nil {
 		return nil, rErr
 	}
@@ -353,11 +356,14 @@ func (c *constructionAPIService) ConstructionSubmit(
 
 	hash := tools.SafeAddHexPrefix(hex.EncodeToString(hashBytes))
 	transactionId, _ := hiero.TransactionGetTransactionID(transaction)
-	log.Infof("Submitting transaction %s (hash %s) to node %s", transactionId,
-		hash, transaction.GetNodeAccountIDs()[0])
+	nodeAccountId := transaction.GetNodeAccountIDs()[0]
+	log.Infof("Submitting transaction %s (hash %s) to node %s", transactionId, hash, nodeAccountId)
 
 	_, err = hiero.TransactionExecute(transaction, c.sdkClient)
 	if err != nil {
+		if c.nodeHealthMonitor != nil && isNodeError(err) {
+			c.nodeHealthMonitor.MarkUnhealthy(nodeAccountId)
+		}
 		log.Errorf("Failed to execute transaction %s (hash %s): %s", transactionId, hash, err)
 		return nil, errors.AddErrorDetails(
 			errors.ErrTransactionSubmissionFailed,
@@ -512,28 +518,27 @@ func (c *constructionAPIService) getSdkPayerAccountId(payerAccountId types.Accou
 	return payer, nil
 }
 
-func (c *constructionAPIService) getRandomNodeAccountId() (hiero.AccountID, *rTypes.Error) {
-	// Create a transfer transaction and freeze it with the client to get the list of healthy nodes from SDK
-	transaction, err := hiero.NewTransferTransaction().
-		SetTransactionID(hiero.TransactionIDGenerate(hiero.AccountID{Account: 2})).
-		FreezeWith(c.sdkClient)
-	if err != nil {
+func (c *constructionAPIService) getRandomNodeAccountId(ctx context.Context) (hiero.AccountID, *rTypes.Error) {
+	candidates, err := getHealthyNodeAccountIds(c.sdkClient)
+	if err != nil || len(candidates) == 0 {
+		// No need to probe, the SDK doesn't send any request to a node in backoff, not even a ping
 		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
 	}
 
-	nodeAccountIds := transaction.GetNodeAccountIDs()
-	if len(nodeAccountIds) == 0 {
-		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
+	if c.nodeHealthMonitor == nil {
+		return randomNodeAccountId(candidates), nil
 	}
 
-	maxValue := big.NewInt(int64(len(nodeAccountIds)))
-	index, err := rand.Int(rand.Reader, maxValue)
-	if err != nil {
-		log.Errorf("Failed to get a random number, use 0 instead: %s", err)
-		return nodeAccountIds[0], nil
+	if healthy := c.nodeHealthMonitor.FilterHealthy(candidates); len(healthy) != 0 {
+		return randomNodeAccountId(healthy), nil
 	}
 
-	return nodeAccountIds[index.Int64()], nil
+	// Every node the SDK would use is marked unhealthy, check if any has recovered before giving up
+	if recovered, ok := c.nodeHealthMonitor.Probe(ctx, candidates); ok {
+		return recovered, nil
+	}
+
+	return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
 }
 
 func (c *constructionAPIService) getIntMetadataValue(metadata map[string]any, metadataKey string) (int64, *rTypes.Error) {
@@ -598,6 +603,7 @@ func NewConstructionAPIService(
 	baseService BaseService,
 	config *config.Mirror,
 	transactionConstructor construction.TransactionConstructor,
+	serverContext context.Context,
 ) (server.ConstructionAPIServicer, error) {
 	var err error
 	var sdkClient *hiero.Client
@@ -634,14 +640,86 @@ func NewConstructionAPIService(
 	// disable SDK auto retry
 	sdkClient.SetMaxAttempts(1)
 
+	var nodeHealthMonitor NodeHealthMonitor
+	if baseService.IsOnline() && config.Rosetta.NodeHealth.Enabled {
+		nodeHealthMonitor = NewNodeHealthMonitor(sdkClient, config.Rosetta.NodeHealth)
+		nodeHealthMonitor.Start(serverContext)
+	}
+
 	return &constructionAPIService{
 		accountRepo:        accountRepo,
 		BaseService:        baseService,
+		nodeHealthMonitor:  nodeHealthMonitor,
 		sdkClient:          sdkClient,
 		systemShard:        config.Common.Shard,
 		systemRealm:        config.Common.Realm,
 		transactionHandler: transactionConstructor,
 	}, nil
+}
+
+// isNodeError reports whether a submission failed because of the node rather than the transaction. It matches the
+// failures the SDK puts a node in backoff for, plus the node-level precheck statuses. Anything else, including errors
+// the SDK raises locally for a malformed transaction before contacting the node, doesn't count against the node.
+func isNodeError(err error) bool {
+	if preCheckErr, ok := stdErrors.AsType[hiero.ErrHederaPreCheckStatus](err); ok {
+		return isNodeStatus(preCheckErr.Status)
+	}
+
+	switch status.Code(err) {
+	case codes.DeadlineExceeded, codes.Internal, codes.ResourceExhausted, codes.Unavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// isNodeStatus reports whether a precheck status is about the state of the node rather than the request.
+func isNodeStatus(precheckStatus hiero.Status) bool {
+	switch precheckStatus {
+	case hiero.StatusBusy,
+		hiero.StatusInvalidNodeAccount,
+		hiero.StatusPlatformNotActive,
+		hiero.StatusPlatformTransactionNotCreated:
+		return true
+	default:
+		return false
+	}
+}
+
+// getHealthyNodeAccountIds returns the distinct account ids of the nodes the SDK considers healthy. The SDK tracks
+// health per node address, so freezing a transaction lists a node once per healthy address.
+func getHealthyNodeAccountIds(client *hiero.Client) ([]hiero.AccountID, error) {
+	transaction, err := hiero.NewTransferTransaction().
+		SetTransactionID(hiero.TransactionIDGenerate(hiero.AccountID{Account: 2})).
+		FreezeWith(client)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeAccountIds := transaction.GetNodeAccountIDs()
+	distinct := make([]hiero.AccountID, 0, len(nodeAccountIds))
+	seen := make(map[string]struct{}, len(nodeAccountIds))
+	for _, nodeAccountId := range nodeAccountIds {
+		key := nodeAccountId.String()
+		if _, ok := seen[key]; ok {
+			continue
+		}
+
+		seen[key] = struct{}{}
+		distinct = append(distinct, nodeAccountId)
+	}
+
+	return distinct, nil
+}
+
+func randomNodeAccountId(nodeAccountIds []hiero.AccountID) hiero.AccountID {
+	index, err := rand.Int(rand.Reader, big.NewInt(int64(len(nodeAccountIds))))
+	if err != nil {
+		log.Errorf("Failed to get a random number, use 0 instead: %s", err)
+		return nodeAccountIds[0]
+	}
+
+	return nodeAccountIds[index.Int64()]
 }
 
 func getFrozenTransactionBodyBytes(transaction hiero.TransactionInterface) ([]byte, *rTypes.Error) {

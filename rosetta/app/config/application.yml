@@ -30,6 +30,12 @@ hiero:
       log:
         level: info
       network: demo
+      nodeHealth:
+        enabled: true
+        frequency: 30s
+        maxConcurrency: 20
+        probeCooldown: 10s
+        timeout: 2s
       nodeRefreshInterval: 24h
       nodes:
       nodeVersion: 0
