@@ -2235,7 +2235,7 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
   const contractRevertResult = TransactionResult.getProtoId('CONTRACT_REVERT_EXECUTED');
   const insufficientPayerBalanceResult = TransactionResult.getProtoId('INSUFFICIENT_PAYER_BALANCE');
 
-  // Reverted while executing against a contract at T1, so it produced EVM output (non-empty function_result).
+  // Reverted while executing against a contract at T1, so it consumed gas (non-null gas_consumed).
   const executedResult = {
     consensus_timestamp: 1,
     contract_id: entityId1.num,
@@ -2245,11 +2245,11 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
     transaction_index: 1,
     transaction_hash: ethereumTxHash,
     transaction_nonce: 11,
-    function_result: '0x1234',
+    gas_consumed: 500,
     gasLimit: 1000,
   };
 
-  // Fails pre-execution, so it produced no EVM output (function_result stays null), later at T2.
+  // Fails pre-execution, so it consumed no gas (gas_consumed stays null), later at T2.
   const stubResult = {
     consensus_timestamp: 2,
     contract_id: entityId0.num,
@@ -2279,8 +2279,8 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
 
   test('Prefers a failed contract create (executed, entity 0) over a later failure with the same entity', async () => {
     // The reviewer's original concern: a failed contract create executed (its constructor reverted) so it has a
-    // non-empty function_result, but its entity id is 0 because no contract was created. Keying on function_result
-    // rather than entity id still prefers it over a later failure result that also has entity 0.
+    // non-null gas_consumed, but its entity id is 0 because no contract was created. Keying on gas_consumed rather
+    // than entity id still prefers it over a later failure result that also has entity 0.
     const failedCreate = {...executedResult, contract_id: entityId0.num};
     await integrationDomainOps.loadContractResults([failedCreate, stubResult]);
 
@@ -2298,7 +2298,7 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
 
   test('Returns the failure result when no genuine execution shares the hash', async () => {
     // e.g. an ethereum transaction that only ever failed pre-execution (INSUFFICIENT_PAYER_BALANCE). With no
-    // function_result on any candidate, it must still resolve rather than returning nothing.
+    // gas_consumed on any candidate, it must still resolve rather than returning nothing.
     await integrationDomainOps.loadContractResults([stubResult]);
 
     const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
@@ -2314,7 +2314,7 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
   });
 
   test('Returns the latest when only pre-execution failures share the hash (INSUFFICIENT_GAS then DUPLICATE_TRANSACTION)', async () => {
-    // Two attempts of the same eth transaction that never executed, so neither has a function_result. With no genuine
+    // Two attempts of the same eth transaction that never executed, so neither has a gas_consumed. With no genuine
     // execution to prefer, the lookup must still resolve - to the latest - rather than returning nothing.
     const insufficientGasResult = TransactionResult.getProtoId('INSUFFICIENT_GAS');
     const duplicateTransactionResult = TransactionResult.getProtoId('DUPLICATE_TRANSACTION');
@@ -2335,7 +2335,7 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
   });
 
   test('Prefers the latest genuine execution when several executed share the hash', async () => {
-    // Two genuine executions (non-empty function_result) share the hash; the latest by consensus timestamp wins.
+    // Two genuine executions (non-null gas_consumed) share the hash; the latest by consensus timestamp wins.
     const earlierExecution = {...executedResult, consensus_timestamp: 1};
     const laterExecution = {...executedResult, consensus_timestamp: 2, transaction_nonce: 12};
     await integrationDomainOps.loadContractResults([earlierExecution, laterExecution]);

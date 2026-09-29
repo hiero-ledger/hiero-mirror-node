@@ -111,8 +111,8 @@ final class OpcodeServiceImplTest {
 
     @Test
     void resolvesHashToGenuineExecutionOverLaterFailure() {
-        // A genuine execution at T1 (non-empty function_result) and a later pre-execution failure result at T2 (empty
-        // function_result) share a hash. The repository returns them latest-first.
+        // A genuine execution at T1 (non-null gas_consumed) and a later pre-execution failure result at T2 (null
+        // gas_consumed) share a hash. The repository returns them latest-first.
         final var hash = DOMAIN_BUILDER.bytes(32);
         final var executed =
                 lookup(1L, DOMAIN_BUILDER.entityId().getId(), ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE);
@@ -129,9 +129,9 @@ final class OpcodeServiceImplTest {
 
     @Test
     void resolvesHashToFailedContractCreateOverLaterFailure() {
-        // A failed contract create executed (its constructor reverted) so it has a non-empty function_result, but its
-        // entity id is 0 because no contract was created. Keying on function_result rather than entity id still prefers
-        // it over a later failure result that also has entity 0.
+        // A failed contract create executed (its constructor reverted) so it has a non-null gas_consumed, but its
+        // entity id is 0 because no contract was created. Keying on gas_consumed rather than entity id still prefers it
+        // over a later failure result that also has entity 0.
         final var hash = DOMAIN_BUILDER.bytes(32);
         final var failedCreate = lookup(1L, 0L, ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE);
         final var failure = lookup(2L, 0L, ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE);
@@ -163,7 +163,7 @@ final class OpcodeServiceImplTest {
     @Test
     void resolvesHashToLatestWhenOnlyPreExecutionFailuresShareHash() {
         // Two attempts of the same eth transaction that never executed (INSUFFICIENT_GAS at T1,
-        // DUPLICATE_TRANSACTION at T2), neither with a function_result. With no genuine execution to prefer,
+        // DUPLICATE_TRANSACTION at T2), neither with a gas_consumed. With no genuine execution to prefer,
         // resolution must still return one - the latest - rather than nothing.
         final var hash = DOMAIN_BUILDER.bytes(32);
         final var insufficientGas = lookup(1L, 0L, ResponseCodeEnum.INSUFFICIENT_GAS_VALUE);

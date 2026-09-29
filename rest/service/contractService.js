@@ -217,8 +217,8 @@ class ContractService extends BaseService {
         order by (${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}) desc,
                  ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc`;
 
-  // Given candidate consensus timestamps and their contract ids, returns the latest one whose result produced EVM
-  // output (non-empty function_result), i.e. that actually executed, picking the latest when several executed.
+  // Given candidate consensus timestamps and their contract ids, returns the latest one whose result consumed gas
+  // (non-null gas_consumed), i.e. that actually executed, picking the latest when several executed.
   // contract_id is the citus distribution column of contract_result and equals contract_transaction_hash.entity_id
   // (see ContractResult.toContractTransactionHash), so constraining on it lets citus prune shards instead of scanning
   // every one.
@@ -226,8 +226,7 @@ class ContractService extends BaseService {
         from ${ContractResult.tableName}
         where ${ContractResult.CONSENSUS_TIMESTAMP} = any($1)
           and ${ContractResult.CONTRACT_ID} = any($2)
-          and ${ContractResult.FUNCTION_RESULT} is not null
-          and octet_length(${ContractResult.FUNCTION_RESULT}) > 0
+          and ${ContractResult.GAS_CONSUMED} is not null
         order by ${ContractResult.CONSENSUS_TIMESTAMP} desc
         limit 1`;
 
@@ -519,8 +518,8 @@ class ContractService extends BaseService {
   /**
    * Selects the row that best represents a transaction hash shared by multiple results. A successful result always
    * wins (the query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result
-   * sharing the hash by checking which candidates produced EVM output (non-empty function_result), falling back to the
-   * latest by consensus timestamp (the input order).
+   * sharing the hash by checking which candidates consumed gas (non-null gas_consumed), falling back to the latest by
+   * consensus timestamp (the input order).
    */
   async pickPreferredContractTransactionHash(rows) {
     if (

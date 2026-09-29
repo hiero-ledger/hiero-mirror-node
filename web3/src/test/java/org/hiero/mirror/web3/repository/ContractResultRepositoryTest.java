@@ -22,25 +22,20 @@ class ContractResultRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findLatestExecutedTimestampReturnsOnlyThoseWithFunctionResult() {
-        // A genuine execution has a non-empty function_result.
+    void findLatestExecutedTimestampReturnsOnlyThoseWithGasConsumed() {
+        // A genuine execution has a non-null gas_consumed.
         final var executed = domainBuilder
                 .contractResult()
                 .customize(c -> c.consensusTimestamp(1L))
                 .persist();
-        // A pre-execution failure result has no function_result (null and empty must both be excluded).
-        final var nullResult = domainBuilder
+        // A later pre-execution failure result has no gas_consumed.
+        final var notExecuted = domainBuilder
                 .contractResult()
-                .customize(c -> c.consensusTimestamp(2L).functionResult(null))
-                .persist();
-        final var emptyResult = domainBuilder
-                .contractResult()
-                .customize(c -> c.consensusTimestamp(3L).functionResult(new byte[0]))
+                .customize(c -> c.consensusTimestamp(2L).gasConsumed(null))
                 .persist();
 
-        final var contractIds =
-                List.of(executed.getContractId(), nullResult.getContractId(), emptyResult.getContractId());
-        assertThat(contractResultRepository.findLatestExecutedTimestamp(List.of(1L, 2L, 3L), contractIds))
+        final var contractIds = List.of(executed.getContractId(), notExecuted.getContractId());
+        assertThat(contractResultRepository.findLatestExecutedTimestamp(List.of(1L, 2L), contractIds))
                 .contains(executed.getConsensusTimestamp());
     }
 
@@ -76,13 +71,13 @@ class ContractResultRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findLatestExecutedTimestampReturnsEmptyWhenNoneExecuted() {
-        final var nullResult = domainBuilder
+        final var notExecuted = domainBuilder
                 .contractResult()
-                .customize(c -> c.consensusTimestamp(1L).functionResult(null))
+                .customize(c -> c.consensusTimestamp(1L).gasConsumed(null))
                 .persist();
 
         assertThat(contractResultRepository.findLatestExecutedTimestamp(
-                        List.of(1L, 2L), List.of(nullResult.getContractId())))
+                        List.of(1L, 2L), List.of(notExecuted.getContractId())))
                 .isEmpty();
     }
 }

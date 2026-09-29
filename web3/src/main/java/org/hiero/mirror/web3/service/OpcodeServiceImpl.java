@@ -16,6 +16,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -162,8 +164,8 @@ public class OpcodeServiceImpl implements OpcodeService {
     /**
      * Selects the result that best represents a hash shared by multiple results. A successful result always wins (the
      * query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result sharing
-     * the hash by checking which candidates produced EVM output (a non-empty function_result), falling back to the
-     * latest by consensus timestamp (the query order).
+     * the hash by checking which candidates consumed gas (a non-null gas_consumed), falling back to the latest by
+     * consensus timestamp (the query order).
      */
     private ContractTransactionHashLookup resolveContractTransactionHash(TransactionHashParameter transactionHash) {
         final var candidates = contractTransactionHashRepository.findAllByHash(
@@ -177,25 +179,17 @@ public class OpcodeServiceImpl implements OpcodeService {
             return first;
         }
 
-        final var timestamps = new ArrayList<Long>(candidates.size());
-        final var contractIds = new ArrayList<Long>(candidates.size());
+        final var candidatesByTimestamp = HashMap.<Long, ContractTransactionHashLookup>newHashMap(candidates.size());
+        final var contractIds = HashSet.<Long>newHashSet(candidates.size());
         for (final var candidate : candidates) {
-            timestamps.add(candidate.getConsensusTimestamp());
+            candidatesByTimestamp.putIfAbsent(candidate.getConsensusTimestamp(), candidate);
             contractIds.add(candidate.getEntityId());
         }
-        final var executedTimestamp = contractResultRepository.findLatestExecutedTimestamp(timestamps, contractIds);
-        if (executedTimestamp.isEmpty()) {
-            return first;
-        }
 
-        final long winner = executedTimestamp.get();
-        for (final var candidate : candidates) {
-            if (candidate.getConsensusTimestamp() == winner) {
-                return candidate;
-            }
-        }
-
-        return first;
+        return contractResultRepository
+                .findLatestExecutedTimestamp(candidatesByTimestamp.keySet(), contractIds)
+                .map(candidatesByTimestamp::get)
+                .orElse(first);
     }
 
     private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result, long consensusTimestamp) {
