@@ -38,6 +38,8 @@ const (
 	metadataKeyValidUntilNanos      = "valid_until_nanos"
 	optionKeyAccountAliases         = "account_aliases"
 	optionKeyOperationType          = "operation_type"
+	maxAccountAliases               = 10
+	maxAccountAliasesLength         = 2048
 )
 
 // constructionAPIService implements the server.ConstructionAPIServicer interface.
@@ -570,12 +572,29 @@ func (c *constructionAPIService) resolveAccountAliases(
 		return emptyResult, errors.ErrInvalidOptions
 	}
 
+	if len(accountAliases) > maxAccountAliasesLength {
+		return emptyResult, errors.ErrInvalidOptions
+	}
+
+	aliases := strings.Split(accountAliases, ",")
+	if len(aliases) > maxAccountAliases {
+		return emptyResult, errors.ErrInvalidOptions
+	}
+
 	var accountMap []string
-	for accountAlias := range strings.SplitSeq(accountAliases, ",") {
+	seen := make(map[string]struct{}, len(aliases))
+	for _, accountAlias := range aliases {
 		accountId, err := types.NewAccountIdFromString(accountAlias, c.systemShard, c.systemRealm)
 		if err != nil {
 			return emptyResult, errors.ErrInvalidAccount
 		}
+
+		// hex.DecodeString treats mixed-case alias strings as the same account
+		key := accountId.String()
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
 
 		found, rErr := c.accountRepo.GetAccountId(ctx, accountId)
 		if rErr != nil {
