@@ -1,25 +1,26 @@
 -- Backfill contract.initcode from inline Ethereum calldata when the bytecode sidecar left it empty.
 -- type 8 is CONTRACTCREATEINSTANCE and type 50 is ETHEREUMTRANSACTION.
 
-with contract_create_calldata as materialized (
-  select child.entity_id as id,
-         child.consensus_timestamp as created_timestamp,
-         et.call_data
-  from ethereum_transaction et
-  join transaction parent
-    on parent.payer_account_id = et.payer_account_id
-   and parent.consensus_timestamp = et.consensus_timestamp
-   and parent.type = 50
-  join transaction child
-    on child.payer_account_id = parent.payer_account_id
-   and child.parent_consensus_timestamp = parent.consensus_timestamp
-   and child.type = 8
-  where octet_length(et.call_data) > 0
+with contracts_missing_initcode as materialized (
+  select c.id, e.created_timestamp
+  from contract c
+  join entity e on e.id = c.id
+  where octet_length(c.initcode) = 0
 )
 update contract c
-set initcode = contract_create_calldata.call_data
-from contract_create_calldata
-join entity e on e.id = contract_create_calldata.id
-where c.id = e.id
-  and e.created_timestamp = contract_create_calldata.created_timestamp
-  and coalesce(octet_length(c.initcode), 0) = 0;
+set initcode = et.call_data,
+    file_id = null
+from contracts_missing_initcode missing
+join transaction child
+  on child.entity_id = missing.id
+ and child.consensus_timestamp = missing.created_timestamp
+ and child.type = 8
+join transaction parent
+  on parent.payer_account_id = child.payer_account_id
+ and parent.consensus_timestamp = child.parent_consensus_timestamp
+ and parent.type = 50
+join ethereum_transaction et
+  on et.payer_account_id = parent.payer_account_id
+ and et.consensus_timestamp = parent.consensus_timestamp
+where c.id = missing.id
+  and octet_length(et.call_data) > 0;

@@ -30,6 +30,7 @@ final class BackfillEthereumContractInitcodeMigrationTest extends ImporterIntegr
 
     private static final int CONTRACT_CREATE = TransactionType.CONTRACTCREATEINSTANCE.getProtoId();
     private static final int ETHEREUM_TRANSACTION = TransactionType.ETHEREUMTRANSACTION.getProtoId();
+    private static final byte[] EMPTY_BYTECODE = new byte[0];
 
     @Test
     void empty() {
@@ -38,68 +39,63 @@ final class BackfillEthereumContractInitcodeMigrationTest extends ImporterIntegr
     }
 
     @Test
-    void backfillsNullInitcodeFromCallData() {
-        final var callData = domainBuilder.bytes(32);
-        final var contractId = persistEthereumCreatedContract(null, callData, ETHEREUM_TRANSACTION);
-
-        runMigration();
-
-        assertThat(findInitcode(contractId)).isEqualTo(callData);
-    }
-
-    @Test
     void backfillsEmptyInitcodeFromCallData() {
         final var callData = domainBuilder.bytes(16);
-        final var contractId = persistEthereumCreatedContract(new byte[0], callData, ETHEREUM_TRANSACTION);
+        final var created = persistEthereumCreatedContract(EMPTY_BYTECODE, callData, ETHEREUM_TRANSACTION);
 
         runMigration();
 
-        assertThat(findInitcode(contractId)).isEqualTo(callData);
+        assertThat(findInitcode(created.id())).isEqualTo(callData);
+        assertThat(findFileId(created.id())).isNull();
     }
 
     @Test
     void leavesExistingInitcodeUnchanged() {
         final var existing = domainBuilder.bytes(8);
-        final var contractId = persistEthereumCreatedContract(existing, domainBuilder.bytes(32), ETHEREUM_TRANSACTION);
+        final var created = persistEthereumCreatedContract(existing, domainBuilder.bytes(32), ETHEREUM_TRANSACTION);
 
         runMigration();
 
-        assertThat(findInitcode(contractId)).isEqualTo(existing);
+        assertThat(findInitcode(created.id())).isEqualTo(existing);
+        assertThat(findFileId(created.id())).isEqualTo(created.fileId());
     }
 
     @Test
     void leavesNonEthereumParentUnchanged() {
-        final var contractId = persistEthereumCreatedContract(
+        final var created = persistEthereumCreatedContract(
                 null, domainBuilder.bytes(32), TransactionType.CONTRACTCALL.getProtoId());
 
         runMigration();
 
-        assertThat(findInitcode(contractId)).isNull();
+        assertThat(findInitcode(created.id())).isNull();
+        assertThat(findFileId(created.id())).isEqualTo(created.fileId());
     }
 
     @Test
     void leavesEmptyCallDataUnchanged() {
-        final var contractId = persistEthereumCreatedContract(null, new byte[0], ETHEREUM_TRANSACTION);
+        final var created = persistEthereumCreatedContract(EMPTY_BYTECODE, EMPTY_BYTECODE, ETHEREUM_TRANSACTION);
 
         runMigration();
 
-        assertThat(findInitcode(contractId)).isNull();
+        assertThat(findInitcode(created.id())).isEmpty();
+        assertThat(findFileId(created.id())).isEqualTo(created.fileId());
     }
 
     @Test
     void isIdempotent() {
         final var callData = domainBuilder.bytes(24);
-        final var contractId = persistEthereumCreatedContract(null, callData, ETHEREUM_TRANSACTION);
+        final var created = persistEthereumCreatedContract(EMPTY_BYTECODE, callData, ETHEREUM_TRANSACTION);
 
         runMigration();
-        final var afterFirstRun = findInitcode(contractId);
+        final var afterFirstRun = findInitcode(created.id());
         runMigration();
 
         assertThat(afterFirstRun).isEqualTo(callData);
-        assertThat(findInitcode(contractId)).isEqualTo(afterFirstRun);
+        assertThat(findInitcode(created.id())).isEqualTo(afterFirstRun);
+        assertThat(findFileId(created.id())).isNull();
     }
 
-    private long persistEthereumCreatedContract(byte[] initcode, byte[] callData, int parentType) {
+    private CreatedContract persistEthereumCreatedContract(byte[] initcode, byte[] callData, int parentType) {
         final long createdTimestamp = domainBuilder.timestamp();
         final long parentTimestamp = domainBuilder.timestamp();
         final var payerAccountId = domainBuilder.entityId();
@@ -107,9 +103,9 @@ final class BackfillEthereumContractInitcodeMigrationTest extends ImporterIntegr
                 domainBuilder.entity(domainBuilder.entityId(), createdTimestamp).persist();
         final var contractId = entity.getId();
 
-        domainBuilder
+        final var contract = domainBuilder
                 .contract()
-                .customize(c -> c.fileId(null).id(contractId).initcode(initcode))
+                .customize(c -> c.id(contractId).initcode(initcode))
                 .persist();
         domainBuilder
                 .transaction()
@@ -136,11 +132,15 @@ final class BackfillEthereumContractInitcodeMigrationTest extends ImporterIntegr
                             .payerAccountId(payerAccountId))
                     .persist();
         }
-        return contractId;
+        return new CreatedContract(contractId, contract.getFileId().getId());
     }
 
     private long countContracts() {
         return jdbcOperations.queryForObject("select count(*) from contract", Long.class);
+    }
+
+    private Long findFileId(long contractId) {
+        return jdbcOperations.queryForObject("select file_id from contract where id = ?", Long.class, contractId);
     }
 
     private byte[] findInitcode(long contractId) {
@@ -155,6 +155,8 @@ final class BackfillEthereumContractInitcodeMigrationTest extends ImporterIntegr
         final var file = TestUtils.getResource("db/migration/" + migrationFilepath);
         ownerJdbcTemplate.update(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
     }
+
+    private record CreatedContract(long id, long fileId) {}
 
     static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
