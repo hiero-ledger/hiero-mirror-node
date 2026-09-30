@@ -9,6 +9,7 @@ import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.service.OpcodeService;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
+import org.hiero.mirror.web3.utils.GzipEncoding;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.server.ResponseStatusException;
 
 @CustomLog
@@ -26,7 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/contracts/results")
 class OpcodesController {
 
-    static final String MISSING_GZIP_HEADER_MESSAGE = "Accept-Encoding: gzip header is required";
+    static final String MISSING_GZIP_HEADER_MESSAGE = GzipEncoding.MISSING_GZIP_HEADER_MESSAGE;
 
     private final OpcodeService opcodeService;
     private final ThrottleManager throttleManager;
@@ -57,7 +57,7 @@ class OpcodesController {
             @RequestParam(required = false, defaultValue = "false") boolean storage,
             @RequestHeader(value = HttpHeaders.ACCEPT_ENCODING) String acceptEncoding) {
         if (properties.isEnabled()) {
-            validateAcceptEncodingHeader(acceptEncoding);
+            GzipEncoding.require(acceptEncoding);
             throttleManager.throttleOpcodeRequest();
 
             final var request = new OpcodeRequest(transactionIdOrHash, stack, memory, storage);
@@ -65,23 +65,5 @@ class OpcodesController {
         }
 
         throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-    }
-
-    /**
-     * Validates if the "Accept-Encoding" header contains "gzip". This is necessary because the response
-     * from this endpoint is huge and without compression this will result in big network latency.
-     * @param acceptEncodingHeader the passed "Accept-Encoding" header from the request
-     */
-    private void validateAcceptEncodingHeader(String acceptEncodingHeader) {
-        if (acceptEncodingHeader == null || !acceptEncodingHeader.toLowerCase().contains("gzip")) {
-            throw HttpClientErrorException.create(
-                    MISSING_GZIP_HEADER_MESSAGE,
-                    HttpStatus.NOT_ACCEPTABLE,
-                    HttpStatus.NOT_ACCEPTABLE.getReasonPhrase(),
-                    null, // headers
-                    null, // body
-                    null // charset
-                    );
-        }
     }
 }

@@ -460,9 +460,15 @@ class OpcodesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
 
-        assertThat(tracerOptionsCaptor.getValue()).isEqualTo(options);
+        verifyTracerOptionsMatch(tracerOptionsCaptor.getValue(), options);
         assertThat(callServiceParametersCaptor.getValue())
                 .isEqualTo(expectedCallServiceParameters.get().toBuilder().build());
+    }
+
+    private void verifyTracerOptionsMatch(final OpcodeContext actual, final OpcodeContext expected) {
+        assertThat(actual.isStack()).isEqualTo(expected.isStack());
+        assertThat(actual.isMemory()).isEqualTo(expected.isMemory());
+        assertThat(actual.isStorage()).isEqualTo(expected.isStorage());
     }
 
     @ParameterizedTest

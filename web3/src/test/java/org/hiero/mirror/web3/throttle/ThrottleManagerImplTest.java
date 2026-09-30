@@ -86,6 +86,41 @@ final class ThrottleManagerImplTest {
     }
 
     @Test
+    void traceRequestNotThrottled() {
+        throttleManager.throttleTraceRequest(request());
+    }
+
+    @Test
+    void throttleTraceRequestRateLimit() {
+        throttleProperties.setTraceRequestsPerSecond(1);
+        throttleManager = createThrottleManager();
+        var request = request();
+        request.setGas(21_000L);
+
+        throttleManager.throttleTraceRequest(request);
+        assertThatThrownBy(() -> throttleManager.throttleTraceRequest(request()))
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    void throttleTraceRequestGasLimit() {
+        var request = request();
+        throttleManager.throttleTraceRequest(request);
+        assertThatThrownBy(() -> throttleManager.throttleTraceRequest(request()))
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(GAS_PER_SECOND_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    void restoreAfterTraceRequest() {
+        var request = request();
+        throttleManager.throttleTraceRequest(request);
+        throttleManager.restore(request.getGas());
+        throttleManager.throttleTraceRequest(request);
+    }
+
+    @Test
     void throttleGasLimit() {
         var request = request();
         throttleManager.throttle(request);
@@ -302,6 +337,8 @@ final class ThrottleManagerImplTest {
         var gasLimitBucket = createBucket(throttleProperties.getGasPerSecond());
         var rateLimitBucket = createBucket(throttleProperties.getRequestsPerSecond());
         var opcodeRateLimitBucket = createBucket(throttleProperties.getOpcodeRequestsPerSecond());
-        return new ThrottleManagerImpl(gasLimitBucket, rateLimitBucket, opcodeRateLimitBucket, throttleProperties);
+        var traceRateLimitBucket = createBucket(throttleProperties.getTraceRequestsPerSecond());
+        return new ThrottleManagerImpl(
+                gasLimitBucket, rateLimitBucket, opcodeRateLimitBucket, traceRateLimitBucket, throttleProperties);
     }
 }
