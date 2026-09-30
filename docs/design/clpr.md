@@ -95,23 +95,31 @@ separate ingestion path for CLPR:
    carrier for CLPR to begin with (see point 2), so a dedicated record-stream code path would be dead code; if a
    future network somehow needs CLPR over a pure record stream, that would require its own follow-up design once a
    concrete carrier for the verifier-derived fields is defined.
-4. To make that state available to the handler, CLPR follows the same mechanism the importer already uses for
-   other block-stream-only data (see `importer/src/main/java/org/hiero/mirror/importer/downloader/block/transformer/`,
-   e.g. `TokenAirdropTransformer`): a `BlockTransactionTransformer` per CLPR transaction type that needs
-   verifier-derived enrichment reads the relevant `StateChange`s from `StateChangeContext` and populates the
-   synthetic `TransactionRecord` the importer builds from the block stream. The standard `TransactionHandler` then
-   processes that `RecordItem` exactly like it would a native record-stream item — no new parsing mechanism is
-   introduced.
-5. The importer persists to PostgreSQL following the existing current + history table pattern.
-6. `rest-java` (jOOQ-based) exposes read endpoints over the persisted state.
+4. **`RecordItem` — the object every `TransactionHandler` actually consumes — has no slot for this data either.**
+   `RecordItem` wraps a classic `TransactionRecord` plus a list of classic `TransactionSidecarRecord`s (see
+   `common/src/main/java/org/hiero/mirror/common/domain/transaction/RecordItem.java`), and neither proto has any
+   CLPR-specific field or oneof case. This is different from e.g. `ContractStateChange`, which has a real sidecar
+   case to populate, or `TokenAirdrop`, which has a real `TransactionRecord.newPendingAirdrops` field — CLPR has
+   neither. So the existing `BlockTransactionTransformer` pattern (see
+   `importer/src/main/java/org/hiero/mirror/importer/downloader/block/transformer/`, e.g. `TokenAirdropTransformer`)
+   can't be reused unmodified by just populating the synthetic `TransactionRecord`; it needs a companion change.
+5. Since `RecordItem` is an importer-internal Java class, not a strict 1:1 mirror of the wire proto (it already
+   carries non-proto fields like `hookParent`), the fix is to **add new CLPR-specific fields to `RecordItem`**
+   (e.g. the parsed `clpr_channel_value`/`clpr_connector_value`/`clpr_message_value` state changes relevant to the
+   transaction). A `ClprXxxTransformer` per CLPR transaction type that needs verifier-derived enrichment reads the
+   relevant `StateChange`s from `StateChangeContext` and populates those new `RecordItem` fields at build time; the
+   corresponding `TransactionHandler` then reads them directly, the same way it reads `transactionBody` or
+   `transactionRecord` today. This is CLPR-specific handler awareness, not a fully source-agnostic mechanism.
+6. The importer persists to PostgreSQL following the existing current + history table pattern.
+7. `rest-java` (jOOQ-based) exposes read endpoints over the persisted state.
 
 ```
 Consensus node (CLPR Service)
   → block stream (TransactionResult/Output + StateChanges: clpr_channel_value, clpr_connector_value,
     clpr_message_value/_key, clpr_ledger_configuration_value, clpr_endpoint_manifest_value)
-  → importer block-to-record transformation (ClprXxxTransformer reads StateChangeContext, builds synthetic
-    TransactionRecord)
-  → importer TransactionHandlers + EntityListener (same pipeline as record-stream transactions)
+  → importer block-to-record transformation (ClprXxxTransformer reads StateChangeContext, populates new
+    CLPR-specific fields on RecordItem — there is no existing TransactionRecord/sidecar slot for this data)
+  → importer TransactionHandlers (read the new RecordItem fields) + EntityListener
   → PostgreSQL (clpr_channel/_history, clpr_connector/_history, clpr_ledger_configuration/_history,
     clpr_endpoint_manifest/_history, clpr_message)
   → rest-java (read APIs)
@@ -133,12 +141,12 @@ is also undocumented in the HIP text itself, but for a different reason (it's Hi
 | #   | `HederaFunctionality`           | `TransactionBody` / `Query` field    | What mirror node must persist                                                                                                                                                                                                                                                                                                                                                        |
 | --- | ------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 117 | `ClprUpdateLedgerConfiguration` | `clprUpdateLedgerConfiguration` (tx) | Update the `clpr_ledger_configuration` singleton row (throttles, timestamp); close out prior history row.                                                                                                                                                                                                                                                                            |
-| 118 | `ClprRegisterChannel`           | `clprRegisterChannel` (tx)           | Insert a `clpr_channel` row in `PENDING` status keyed by the (not-yet-revealed) `ownership_commitment`; no `channel_id` is known yet.                                                                                                                                                                                                                                                |
+| 118 | `ClprRegisterChannel`           | `clprRegisterChannel` (tx)           | Only the `ownership_commitment` hash is available (no `channel_id` yet); whether the mirror node persists anything for this commit-only phase is an [open question](#database-schema-design).                                                                                                                                                                                        |
 | 119 | `ClprCompleteChannel`           | `clprCompleteChannel` (tx)           | Transition the pending row to `ACTIVE`, recording `channel_id`, `verifier_contract`, `verifier_fingerprint`, initial `trust_anchor`/`trust_anchor_id`, `channel_context`, and initial `endpoint_manifest_version` — populated via the corresponding `ClprCompleteChannelTransformer` from the `clpr_channel_value` state change, since these fields are verifier-derived.            |
 | 120 | `ClprCloseChannel`              | `clprCloseChannel` (tx)              | Either delete/mark an abandoned `PENDING` commitment, or transition an active Channel's status toward `CLOSING`/`CLOSED`.                                                                                                                                                                                                                                                            |
 | 121 | `ClprGetLedgerConfiguration`    | `clprGetLedgerConfiguration` (query) | Read-only; no persistence — served from the current `clpr_ledger_configuration` row.                                                                                                                                                                                                                                                                                                 |
 | 122 | `ClprSubmitBundle`              | `clprSubmitBundle` (tx)              | Append dispatched `ClprMessage`/`ClprMessageReply`/`ClprControlMessage` entries to `clpr_message` (populated via `ClprSubmitBundleTransformer` from `clpr_message_value`/`clpr_message_key`, since payload contents come from the verifier, not the transaction body); update `channel.next_message_id` / `received_message_id` / running hashes / status from `clpr_channel_value`. |
-| 124 | `ClprRegisterConnector`         | `clprRegisterConnector` (tx)         | Insert a pending connector commitment (commitment hash only; no `connector_id` yet).                                                                                                                                                                                                                                                                                                 |
+| 124 | `ClprRegisterConnector`         | `clprRegisterConnector` (tx)         | Only a commitment hash is available (no `connector_id` yet); whether the mirror node persists anything for this commit-only phase is an [open question](#database-schema-design).                                                                                                                                                                                                    |
 | 125 | `ClprDeregisterConnector`       | `clprDeregisterConnector` (tx)       | Close out the `clpr_connector`/`clpr_connector_history` row and record `stake_recipient`.                                                                                                                                                                                                                                                                                            |
 | 126 | `ClprCompleteConnector`         | `clprCompleteConnector` (tx)         | Insert the `clpr_connector` row keyed by `(channel_id, connector_id)` with `connector_contract`, `admin_key`, `locked_stake`.                                                                                                                                                                                                                                                        |
 | 127 | `ClprEndpointPublication`       | `clpr_endpoint_publication` (tx)     | Hiero-internal, node-to-node protocol transaction — **out of scope** for the cross-ledger-facing tables; optionally worth ingesting only if the mirror node wants to expose per-node CLPR endpoint publication history as an operational/debugging aid.                                                                                                                              |
@@ -162,6 +170,18 @@ it is modeled as a single table, not a current/history pair.
 Column order within each table groups fixed 8-byte columns (`bigint`) first, then enums/booleans, then
 variable-length columns (`bytea`/`varchar`/`int8range`) last, to avoid PostgreSQL padding waste from unfavorable
 alignment (see https://www.enterprisedb.com/blog/rocks-and-sand).
+
+> **Open question: do we need to persist pending (unrevealed) commitments at all?** `clpr_channel`/`clpr_connector`
+> below are keyed by `channel_id`/`connector_id`, but per the commit-reveal scheme
+> (`ClprRegisterChannel`/`ClprRegisterConnector` submit only a commitment hash; `channel_id`/`connector_id` aren't
+> revealed until `ClprCompleteChannel`/`ClprCompleteConnector`), those ids don't exist yet at registration time —
+> so as currently keyed, these tables cannot hold a row for the commit-only phase. Before changing the schema to
+> accommodate it (e.g. a separate table keyed by the commitment hash), it's worth asking whether the mirror node
+> needs to track pending commitments at all, or whether it's sufficient to only start persisting a Channel/Connector
+> once `Complete*` reveals its real id (i.e. every persisted row is already past `PENDING`). This affects the
+> `clpr_channel_status` enum's `PENDING` value below and the inventory rows for `ClprRegisterChannel`/
+> `ClprRegisterConnector` — both currently assume pending commitments are persisted, which isn't yet a settled
+> requirement.
 
 ### 1. Channel Tables
 
@@ -356,22 +376,25 @@ need a mirror-node-facing `TransactionType` if it's not ingested; see the
 For handlers whose fields come straight off the transaction body (e.g. `ClprRegisterChannel`'s
 `ownership_commitment`, `ClprCompleteConnector`'s `connector_contract`/`admin_key`/`locked_stake`), processing is a
 direct field mapping, same as any simple create-style transaction handler. For handlers whose resulting state is
-verifier-derived (`ClprCompleteChannel`, `ClprSubmitBundle`, `ClprCloseChannel`'s terminal transitions), the
-by-then-populated `RecordItem` (enriched by the transformer described below) already carries the verifier-derived
-values, so the handler reads them the same way it would read any other record field. `ClprSubmitBundle` can dispatch
-multiple messages in one transaction, so its handler calls the entity listener once per dispatched message.
+verifier-derived (`ClprCompleteChannel`, `ClprSubmitBundle`, `ClprCloseChannel`'s terminal transitions), the handler
+reads the new CLPR-specific fields the transformer added to `RecordItem` (see below) — not the transaction body,
+and not the classic `TransactionRecord`, since neither carries this data. `ClprSubmitBundle` can dispatch multiple
+messages in one transaction, so its handler calls the entity listener once per dispatched message.
 
-### 3. Block Stream Transformers
+### 3. Block Stream Transformers and `RecordItem` Extensions
 
 Following the existing `importer/src/main/java/org/hiero/mirror/importer/downloader/block/transformer/` pattern
 (`AbstractBlockTransactionTransformer`, one `@Named` subclass per `TransactionType` that needs enrichment beyond
-what the base class copies automatically):
+what the base class copies automatically), but with one difference from the existing transformers: since neither
+`TransactionRecord` nor `TransactionSidecarRecord` has a CLPR-specific field or case (unlike e.g. `ContractStateChange`
+or `TokenAirdrop`'s `newPendingAirdrops`), these transformers populate **new CLPR-specific fields added to
+`RecordItem` itself** rather than the synthetic `TransactionRecord`:
 
-- `ClprCompleteChannelTransformer` — reads the channel's `StateChangeContext` entry and populates the synthetic
-  `TransactionRecord` with the verifier-assigned `trust_anchor`, `channel_context`, and `endpoint_manifest_version`.
+- `ClprCompleteChannelTransformer` — reads the channel's `StateChangeContext` entry and populates `RecordItem`'s new
+  CLPR channel fields with the verifier-assigned `trust_anchor`, `channel_context`, and `endpoint_manifest_version`.
 - `ClprSubmitBundleTransformer` — reads the dispatched `clpr_message_value` entries from `StateChangeContext` and
-  makes them available for the handler to expand into `clpr_message` rows; also reads the updated
-  `clpr_channel_value` (queue positions, running hashes, status).
+  populates `RecordItem`'s new CLPR message field for the handler to expand into `clpr_message` rows; also reads the
+  updated `clpr_channel_value` (queue positions, running hashes, status).
 - `ClprCloseChannelTransformer` — reads the resulting channel status/queue state for the `CLOSING`/`DRAINED`/`CLOSED`
   transitions.
 
@@ -605,7 +628,10 @@ process feedback:
    them — they presumably fall back to the generic `proto_bytes_key`/`proto_bytes_value` cases. Please confirm
    this is intentional (a `PENDING` Channel/Connector really is just a commitment hash with no other associated
    state) so the mirror node knows a `PENDING`-status Channel/Connector row has no fields beyond
-   `ownership_commitment`/`commitment` until the reveal transaction lands.
+   `ownership_commitment`/`commitment` until the reveal transaction lands. **This question is only worth asking if
+   the mirror node ends up persisting pending commitments at all** — see the
+   [open question in Database Schema Design](#database-schema-design); if we decide not to track the commit-only
+   phase, this item is moot.
 3. **`ClprSubmitBundleTransactionBody.endpoint_node_id` and `.endpoint_signature` are marked `deprecated = true`**
    in the proto with no equivalent note in the HIP's §10.3 spec text. The HIP still describes `endpoint_node_id`
    as required, node-signed authority for bundle submission. Please clarify the current authority model for who
