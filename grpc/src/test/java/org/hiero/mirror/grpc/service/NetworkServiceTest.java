@@ -8,7 +8,6 @@ import static org.hiero.mirror.grpc.service.NetworkServiceImpl.INVALID_FILE_ID;
 
 import io.grpc.Context;
 import jakarta.validation.ConstraintViolationException;
-import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -44,7 +43,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     private final NetworkService networkService;
     private final NodeStakeRepository nodeStakeRepository;
 
-    private int maxConcurrentPerConnection;
+    private int maxConcurrentPerClient;
     private int maxLimit;
     private Duration pageDelay;
     private int pageSize;
@@ -52,7 +51,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
     @BeforeEach
     void setup() {
-        maxConcurrentPerConnection = addressBookProperties.getMaxConcurrentPerConnection();
+        maxConcurrentPerClient = addressBookProperties.getMaxConcurrentPerClient();
         maxLimit = addressBookProperties.getMaxLimit();
         pageDelay = addressBookProperties.getPageDelay();
         pageSize = addressBookProperties.getPageSize();
@@ -61,7 +60,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
     @AfterEach
     void cleanup() {
-        addressBookProperties.setMaxConcurrentPerConnection(maxConcurrentPerConnection);
+        addressBookProperties.setMaxConcurrentPerClient(maxConcurrentPerClient);
         addressBookProperties.setMaxLimit(maxLimit);
         addressBookProperties.setPageDelay(pageDelay);
         addressBookProperties.setPageSize(pageSize);
@@ -173,7 +172,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
     @Test
     void concurrentSubscriptionsLimitedPerConnection() {
-        addressBookProperties.setMaxConcurrentPerConnection(1);
+        addressBookProperties.setMaxConcurrentPerClient(1);
         addressBookProperties.setPageDelay(Duration.ofSeconds(30L));
         addressBookProperties.setPageSize(1);
         var addressBook = addressBook();
@@ -183,10 +182,8 @@ class NetworkServiceTest extends GrpcIntegrationTest {
                 .fileId(addressBook.getFileId())
                 .limit(2)
                 .build();
-        var address = new InetSocketAddress("203.0.113.9", 4242);
-
         Context.current()
-                .withValue(RemoteAddressInterceptor.REMOTE_ADDRESS, address)
+                .withValue(RemoteAddressInterceptor.REMOTE_ADDRESS, "203.0.113.9")
                 .run(() -> {
                     var first = networkService.getNodes(filter);
                     var second = networkService.getNodes(filter);

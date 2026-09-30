@@ -46,7 +46,7 @@ public class NetworkServiceImpl implements NetworkService {
     private static final long NODE_STAKE_EMPTY_TABLE_TIMESTAMP = 0L;
     private static final String STREAM_TIMEOUT = "Address book subscription timed out";
 
-    private final ConcurrentHashMap<String, AtomicInteger> activeSubscriptions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Integer> activeSubscriptions = new ConcurrentHashMap<>();
     private final AddressBookProperties addressBookProperties;
     private final AddressBookRepository addressBookRepository;
     private final AddressBookEntryRepository addressBookEntryRepository;
@@ -95,16 +95,13 @@ public class NetworkServiceImpl implements NetworkService {
     }
 
     private void acquire(String clientKey) {
-        final var limit = addressBookProperties.getMaxConcurrentPerConnection();
+        final var limit = addressBookProperties.getMaxConcurrentPerClient();
         final var admitted = new AtomicBoolean();
         activeSubscriptions.compute(clientKey, (key, active) -> {
-            if (active != null && active.get() >= limit) {
+            if (active != null && active >= limit) {
                 return active;
             }
-            admitted.set(true);
-            final var next = active == null ? new AtomicInteger() : active;
-            next.incrementAndGet();
-            return next;
+            return active == null ? 0 : active + 1;
         });
         if (!admitted.get()) {
             throw new SubscriptionLimitException(TOO_MANY_SUBSCRIPTIONS);
@@ -116,7 +113,7 @@ public class NetworkServiceImpl implements NetworkService {
         if (remoteAddress == null) {
             return ANONYMOUS_CLIENT;
         }
-        return remoteAddress.toString();
+        return remoteAddress;
     }
 
     private int effectiveLimit(int requested) {
@@ -124,11 +121,8 @@ public class NetworkServiceImpl implements NetworkService {
         if (requested <= 0) {
             return maxLimit;
         }
-        if (requested > maxLimit) {
-            log.info("Clamping address book limit {} to server maximum {}", requested, maxLimit);
-            return maxLimit;
-        }
-        return requested;
+
+        return Math.min(requested, maxLimit);
     }
 
     private AddressBookContext loadContext(EntityId fileId) {
@@ -174,7 +168,7 @@ public class NetworkServiceImpl implements NetworkService {
 
     private void release(String clientKey) {
         activeSubscriptions.compute(clientKey, (key, active) -> {
-            if (active == null || active.decrementAndGet() <= 0) {
+            if (active == null || active <= 0) {
                 return null;
             }
             return active;

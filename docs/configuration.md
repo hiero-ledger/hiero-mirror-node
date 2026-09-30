@@ -416,7 +416,7 @@ value, it is recommended to only populate overridden properties in the custom `a
 | ---------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
 | `hiero.mirror.grpc.addressbook.cacheExpiry`                | 2s               | The amount of time to cache address book entries                                                          |
 | `hiero.mirror.grpc.addressbook.cacheSize`                  | 50               | The maximum number of address book pages to cache                                                         |
-| `hiero.mirror.grpc.addressbook.maxConcurrentPerConnection` | 2                | The maximum number of concurrent address book subscriptions permitted for each client connection          |
+| `hiero.mirror.grpc.addressbook.maxConcurrentPerClient`     | 2                | The maximum number of concurrent address book subscriptions permitted for each client                     |
 | `hiero.mirror.grpc.addressbook.maxLimit`                   | 1000             | The maximum entries returned per subscription. Non-positive and larger limits are clamped to this value   |
 | `hiero.mirror.grpc.addressbook.pageDelay`                  | 250ms            | The amount of time to sleep between paging for address book entries                                       |
 | `hiero.mirror.grpc.addressbook.pageSize`                   | 10               | The maximum number of address book entries to return in a single page                                     |

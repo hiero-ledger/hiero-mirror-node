@@ -27,7 +27,7 @@ public final class ProtoUtil {
 
     static final String DB_ERROR = "Error querying the data source. Please retry later";
     static final String OVERFLOW_ERROR = "Client lags too much behind. Please retry later";
-    static final String SCHEDULER_CAPACITY = "Address book service is busy. Please retry later";
+    static final String SCHEDULER_CAPACITY = "Service is busy. Please retry later";
     static final String UNKNOWN_ERROR = "Unknown error";
 
     public static Instant fromTimestamp(Timestamp timestamp) {

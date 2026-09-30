@@ -25,7 +25,7 @@ public class AddressBookProperties {
 
     @Max(16)
     @Min(1)
-    private int maxConcurrentPerConnection = 2;
+    private int maxConcurrentPerClient = 2;
 
     @Max(10_000)
     @Min(1)
@@ -55,5 +55,5 @@ public class AddressBookProperties {
 
     @DurationMin(millis = 50L)
     @NotNull
-    private Duration timeout = Duration.ofMinutes(2L);
+    private Duration timeout = Duration.ofSeconds(4L);
 }
