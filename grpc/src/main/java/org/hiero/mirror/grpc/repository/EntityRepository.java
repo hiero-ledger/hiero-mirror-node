@@ -11,6 +11,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.repository.CrudRepository;
 
 public interface EntityRepository extends CrudRepository<Entity, Long> {
-    @Cacheable(cacheNames = CACHE_NAME, cacheManager = ENTITY_CACHE, unless = "#result == null")
+    @Cacheable(cacheNames = CACHE_NAME, cacheManager = ENTITY_CACHE, unless = "@spelHelper.isNullOrEmpty(#result)")
     Optional<Entity> findById(long entityId);
 }
