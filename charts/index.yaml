@@ -2,6 +2,107 @@ apiVersion: v1
 entries:
   hedera-mirror:
   - apiVersion: v2
+    appVersion: 0.164.0
+    created: "2026-10-01T16:13:04.48243621Z"
+    dependencies:
+    - alias: grpc
+      condition: grpc.enabled
+      name: hedera-mirror-grpc
+      repository: file://../hedera-mirror-grpc
+      tags:
+      - api
+      - java
+      version: '>=0.18.0-0'
+    - alias: graphql
+      condition: graphql.enabled
+      name: hedera-mirror-graphql
+      repository: file://../hedera-mirror-graphql
+      tags:
+      - api
+      - java
+      version: '>=0.18.0-0'
+    - alias: importer
+      condition: importer.enabled
+      name: hedera-mirror-importer
+      repository: file://../hedera-mirror-importer
+      tags:
+      - java
+      version: '>=0.18.0-0'
+    - alias: monitor
+      condition: monitor.enabled
+      name: hedera-mirror-monitor
+      repository: file://../hedera-mirror-monitor
+      tags:
+      - java
+      version: '>=0.18.0-0'
+    - alias: pinger
+      condition: pinger.enabled
+      name: hedera-mirror-pinger
+      repository: file://../hedera-mirror-pinger
+      tags:
+      - go
+      version: '>=0.150.0-0'
+    - alias: postgresql
+      condition: postgresql.enabled
+      name: postgresql-ha
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: 15.3.17
+    - condition: redis.enabled
+      name: redis
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: 22.0.7
+    - alias: rest
+      condition: rest.enabled
+      name: hedera-mirror-rest
+      repository: file://../hedera-mirror-rest
+      tags:
+      - api
+      - javascript
+      version: '>=0.18.0-0'
+    - alias: restjava
+      condition: restjava.enabled
+      name: hedera-mirror-rest-java
+      repository: file://../hedera-mirror-rest-java
+      tags:
+      - api
+      - java
+      version: '>=0.18.0-0'
+    - alias: rosetta
+      condition: rosetta.enabled
+      name: hedera-mirror-rosetta
+      repository: file://../hedera-mirror-rosetta
+      tags:
+      - api
+      - go
+      version: '>=0.18.0-0'
+    - alias: web3
+      condition: web3.enabled
+      name: hedera-mirror-web3
+      repository: file://../hedera-mirror-web3
+      tags:
+      - api
+      - java
+      version: '>=0.18.0-0'
+    description: Mirror Node mirrors data from consensus nodes and serves it via an
+      API
+    digest: fc3479846ec8ba75fa348b4757da26236478d36bce3fd1b62d0da6fddfb73da4
+    home: https://github.com/hiero-ledger/hiero-mirror-node
+    icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
+    keywords:
+    - blockchain
+    - dlt
+    - hedera
+    - hiero
+    - hashgraph
+    - mirror
+    maintainers:
+    - email: mirrornode@hedera.com
+      name: Mirror Node Team
+    name: hedera-mirror
+    urls:
+    - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-0.164.0.tgz
+    version: 0.164.0
+  - apiVersion: v2
     appVersion: 0.164.0-rc2
     created: "2026-10-01T15:14:49.818060603Z"
     dependencies:
@@ -45750,6 +45851,57 @@ entries:
     version: 0.4.0
   hedera-mirror-common:
   - apiVersion: v2
+    appVersion: 0.164.0
+    created: "2026-10-01T16:13:04.579521689Z"
+    dependencies:
+    - alias: minio
+      condition: minio.enabled
+      name: minio
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: 17.0.21
+    - condition: loki.enabled
+      name: loki
+      repository: https://grafana.github.io/helm-charts
+      version: 6.29.0
+    - condition: prometheus-adapter.enabled
+      name: prometheus-adapter
+      repository: oci://ghcr.io/prometheus-community/charts
+      version: 4.14.1
+    - alias: prometheus
+      condition: prometheus.enabled
+      name: kube-prometheus-stack
+      repository: oci://ghcr.io/prometheus-community/charts
+      version: 70.4.2
+    - condition: promtail.enabled
+      name: promtail
+      repository: oci://ghcr.io/grafana/helm-charts
+      version: 6.16.6
+    - alias: stackgres
+      condition: stackgres.enabled
+      name: stackgres-operator
+      repository: https://stackgres.io/downloads/stackgres-k8s/stackgres/helm/
+      version: 1.18.6
+    - condition: traefik.enabled
+      name: traefik
+      repository: oci://ghcr.io/traefik/helm
+      version: 35.0.0
+    - alias: zfs
+      condition: zfs.enabled
+      name: openebs
+      repository: oci://ghcr.io/openebs/charts
+      version: 4.4.0
+    description: Mirror Node common components installed globally for use across namespaces
+    digest: c7707ad2b64ab753b29ce9fe07217baa56d3674329091fe041286cb28b2c5715
+    home: https://github.com/hiero-ledger/hiero-mirror-node
+    icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
+    maintainers:
+    - email: mirrornode@hedera.com
+      name: Mirror Node Team
+    name: hedera-mirror-common
+    urls:
+    - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-common-0.164.0.tgz
+    version: 0.164.0
+  - apiVersion: v2
     appVersion: 0.164.0-rc2
     created: "2026-10-01T15:14:49.997521555Z"
     dependencies:
@@ -70985,6 +71137,20 @@ entries:
     version: 0.4.0
   hedera-mirror-graphql:
   - apiVersion: v2
+    appVersion: 0.164.0
+    created: "2026-10-01T16:13:04.580201046Z"
+    description: GraphQL API for the Mirror Node
+    digest: f1e9b42dfa8fd792c034e7f40b32221ec88d349ed7c0798305573e9de2265cb1
+    home: https://github.com/hiero-ledger/hiero-mirror-node
+    icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
+    maintainers:
+    - email: mirrornode@hedera.com
+      name: Mirror Node Team
+    name: hedera-mirror-graphql
+    urls:
+    - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-graphql-0.164.0.tgz
+    version: 0.164.0
+  - apiVersion: v2
     appVersion: 0.164.0-rc2
     created: "2026-10-01T15:14:49.998436498Z"
     description: GraphQL API for the Mirror Node
@@ -75647,6 +75813,20 @@ entries:
     - https://hashgraph.github.io/hedera-mirror-node/charts/hedera-mirror-graphql-0.76.0-rc1.tgz
     version: 0.76.0-rc1
   hedera-mirror-grpc:
+  - apiVersion: v2
+    appVersion: 0.164.0
+    created: "2026-10-01T16:13:04.580787404Z"
+    description: GRPC API for the Mirror Node
+    digest: 3db72c9c7e7c124112219ae2b2f26c0b7822fbb3f154a2ec4472945d6594e02b
+    home: https://github.com/hiero-ledger/hiero-mirror-node
+    icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
+    maintainers:
+    - email: mirrornode@hedera.com
+      name: Mirror Node Team
+    name: hedera-mirror-grpc
+    urls:
+    - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-grpc-0.164.0.tgz
+    version: 0.164.0
   - apiVersion: v2
     appVersion: 0.164.0-rc2
     created: "2026-10-01T15:14:49.99927723Z"
@@ -84664,6 +84844,21 @@ entries:
     - https://hashgraph.github.io/hedera-mirror-node/charts/hedera-mirror-grpc-0.4.0.tgz
     version: 0.4.0
   hedera-mirror-importer:
+  - apiVersion: v2
+    appVersion: 0.164.0
+    created: "2026-10-01T16:13:04.581193932Z"
+    description: Mirror Importer downloads and validates file streams from the cloud
+      and imports them into the database
+    digest: 4bd7281a14ea4baddc07174c0bd8ed55ce5829ccaadd189915131fc4cde30974
+    home: https://github.com/hiero-ledger/hiero-mirror-node
+    icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
+    maintainers:
+    - email: mirrornode@hedera.com
+      name: Mirror Node Team
+    name: hedera-mirror-importer
+    urls:
+    - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-importer-0.164.0.tgz
+    version: 0.164.0
   - apiVersion: v2
     appVersion: 0.164.0-rc2
     created: "2026-10-01T15:14:49.999821141Z"
@@ -94240,6 +94435,20 @@ entries:
     version: 0.4.0
   hedera-mirror-monitor:
   - apiVersion: v2
+    appVersion: 0.164.0
+    created: "2026-10-01T16:13:04.58164288Z"
+    description: End to End Monitor for the Mirror Node
+    digest: 0f698e11df1032bdba69687a2046f8d385b77d6cf57d8b1b94403ab9abff1d2c
+    home: https://github.com/hiero-ledger/hiero-mirror-node
+    icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
+    maintainers:
+    - email: mirrornode@hedera.com
+      name: Mirror Node Team
+    name: hedera-mirror-monitor
+    urls:
+    - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-monitor-0.164.0.tgz
+    version: 0.164.0
+  - apiVersion: v2
     appVersion: 0.164.0-rc2
     created: "2026-10-01T15:14:50.000422842Z"
     description: End to End Monitor for the Mirror Node
@@ -102987,6 +103196,20 @@ entries:
     version: 0.10.0-rc1
   hedera-mirror-pinger:
   - apiVersion: v2
+    appVersion: 0.164.0
+    created: "2026-10-01T16:13:04.581944879Z"
+    description: Light weight pinger for network
+    digest: d6debdb7b334881a20490b3f3d872c772c0f1bc8b6dc38e0cf33119eca31f279
+    home: https://github.com/hiero-ledger/hiero-mirror-node
+    icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
+    maintainers:
+    - email: mirrornode@hedera.com
+      name: Mirror Node Team
+    name: hedera-mirror-pinger
+    urls:
+    - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-pinger-0.164.0.tgz
+    version: 0.164.0
+  - apiVersion: v2
     appVersion: 0.164.0-rc2
     created: "2026-10-01T15:14:50.000798473Z"
     description: Light weight pinger for network
@@ -103729,6 +103952,20 @@ entries:
     - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-pinger-0.150.0-rc1.tgz
     version: 0.150.0-rc1
   hedera-mirror-rest:
+  - apiVersion: v2
+    appVersion: 0.164.0
+    created: "2026-10-01T16:13:04.582719066Z"
+    description: REST API for the Mirror Node
+    digest: 307a56db912c63982667f6a0458af81158846f700376c74bcac705774bcde954
+    home: https://github.com/hiero-ledger/hiero-mirror-node
+    icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
+    maintainers:
+    - email: mirrornode@hedera.com
+      name: Mirror Node Team
+    name: hedera-mirror-rest
+    urls:
+    - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-rest-0.164.0.tgz
+    version: 0.164.0
   - apiVersion: v2
     appVersion: 0.164.0-rc2
     created: "2026-10-01T15:14:50.001700176Z"
@@ -112747,6 +112984,20 @@ entries:
     version: 0.4.0
   hedera-mirror-rest-java:
   - apiVersion: v2
+    appVersion: 0.164.0
+    created: "2026-10-01T16:13:04.583555652Z"
+    description: Java REST API for the Mirror Node
+    digest: 785cb154cb7720b7deb99af200eb4608cc056e144e62ee54be4ec224939fabba
+    home: https://github.com/hiero-ledger/hiero-mirror-node
+    icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
+    maintainers:
+    - email: mirrornode@hedera.com
+      name: Mirror Node Team
+    name: hedera-mirror-rest-java
+    urls:
+    - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-rest-java-0.164.0.tgz
+    version: 0.164.0
+  - apiVersion: v2
     appVersion: 0.164.0-rc2
     created: "2026-10-01T15:14:50.002562838Z"
     description: Java REST API for the Mirror Node
@@ -116305,6 +116556,20 @@ entries:
     - https://hashgraph.github.io/hedera-mirror-node/charts/hedera-mirror-rest-java-0.94.0-rc1.tgz
     version: 0.94.0-rc1
   hedera-mirror-rosetta:
+  - apiVersion: v2
+    appVersion: 0.164.0
+    created: "2026-10-01T16:13:04.584413568Z"
+    description: Rosetta API for the Mirror Node
+    digest: 754c10291a0da3453a1ad3c0b0b8e723e59c76a94abbcb28bda92fc56928321e
+    home: https://github.com/hiero-ledger/hiero-mirror-node
+    icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
+    maintainers:
+    - email: mirrornode@hedera.com
+      name: Mirror Node Team
+    name: hedera-mirror-rosetta
+    urls:
+    - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-rosetta-0.164.0.tgz
+    version: 0.164.0
   - apiVersion: v2
     appVersion: 0.164.0-rc2
     created: "2026-10-01T15:14:50.00348413Z"
@@ -123685,6 +123950,20 @@ entries:
     version: 0.28.0-rc1
   hedera-mirror-web3:
   - apiVersion: v2
+    appVersion: 0.164.0
+    created: "2026-10-01T16:13:04.585223525Z"
+    description: Web3 API for the Mirror Node
+    digest: 7a899ea132f967fb5804b4100be3eb78ec87f7701f29ef2b10cc5f9681b6c1d7
+    home: https://github.com/hiero-ledger/hiero-mirror-node
+    icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
+    maintainers:
+    - email: mirrornode@hedera.com
+      name: Mirror Node Team
+    name: hedera-mirror-web3
+    urls:
+    - https://hiero-ledger.github.io/hiero-mirror-node/charts/hedera-mirror-web3-0.164.0.tgz
+    version: 0.164.0
+  - apiVersion: v2
     appVersion: 0.164.0-rc2
     created: "2026-10-01T15:14:50.004300602Z"
     description: Web3 API for the Mirror Node
@@ -130450,4 +130729,4 @@ entries:
     urls:
     - https://hashgraph.github.io/hedera-mirror-node/charts/hedera-mirror-web3-0.35.0-rc1.tgz
     version: 0.35.0-rc1
-generated: "2026-10-01T15:14:49.782829246Z"
+generated: "2026-10-01T16:13:04.463736389Z"
