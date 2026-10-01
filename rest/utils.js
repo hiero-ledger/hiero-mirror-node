@@ -101,14 +101,6 @@ const isPositiveLong = (num, allowZero = false) => {
 };
 
 /**
- * Validates that the value is a non-negative long that does not exceed the maximum possible HBAR supply.
- * @param {number|string} balance
- * @return {boolean}
- */
-const isValidBalance = (balance) =>
-  isPositiveLong(balance, true) && BigInt(balance) <= constants.MAX_HBAR_SUPPLY_TINYBARS;
-
-/**
  * Strip the 0x prefix
  * @param val
  * @returns {*}
@@ -294,7 +286,7 @@ const filterValidityChecks = (param, op, val) => {
   // Validate the value
   switch (param) {
     case constants.filterKeys.ACCOUNT_BALANCE:
-      ret = isValidBalance(val);
+      ret = isPositiveLong(val, true);
       break;
     case constants.filterKeys.ACCOUNT_ID:
       ret = EntityId.isValidEntityId(val);
@@ -1851,7 +1843,6 @@ export {
   isTestEnv,
   isValidEthHash,
   isValidEthHashOrHederaHash,
-  isValidBalance,
   isValidUserFileId,
   isValidOperatorQuery,
   isValidPublicKeyQuery,
