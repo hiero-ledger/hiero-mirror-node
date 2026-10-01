@@ -169,11 +169,26 @@ const durationQueryConfigKeys = [
 ];
 
 const parseQueryConfig = () => {
-  const {query} = getConfig();
+  const {db, query} = getConfig();
+  const {maxConnections} = db.pool;
+  if (query.maxAccountBalanceConcurrency == null) {
+    query.maxAccountBalanceConcurrency = Math.max(1, Math.floor(maxConnections / 2));
+  }
+
   const {maxAccountBalanceConcurrency} = query;
   if (!Number.isInteger(maxAccountBalanceConcurrency) || maxAccountBalanceConcurrency < 0) {
     throw new InvalidConfigError(
       `query.maxAccountBalanceConcurrency must be a non-negative integer: ${maxAccountBalanceConcurrency}`
+    );
+  }
+
+  // An enabled limit must leave pool connections for other requests, or account.balance queries can take them all. A
+  // single-connection pool cannot reserve one, but a limit of 1 still bounds them better than disabling the limit.
+  const maxAllowedConcurrency = Math.max(1, maxConnections - 1);
+  if (maxAccountBalanceConcurrency > maxAllowedConcurrency) {
+    throw new InvalidConfigError(
+      `query.maxAccountBalanceConcurrency (${maxAccountBalanceConcurrency}) must be at most ${maxAllowedConcurrency} ` +
+        `with db.pool.maxConnections (${maxConnections}), or 0 to disable the limit`
     );
   }
 

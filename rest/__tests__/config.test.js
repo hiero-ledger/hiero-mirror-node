@@ -253,7 +253,7 @@ describe('Override query config', () => {
     await expect(loadCustomConfig(customConfig(queryConfig))).rejects.toThrowErrorMatchingSnapshot();
   });
 
-  test.each([-1, 1.5, 'abc', null])('invalid maxAccountBalanceConcurrency %p', async (maxAccountBalanceConcurrency) => {
+  test.each([-1, 1.5, 'abc'])('invalid maxAccountBalanceConcurrency %p', async (maxAccountBalanceConcurrency) => {
     await expect(loadCustomConfig(customConfig({maxAccountBalanceConcurrency}))).rejects.toThrow(
       'query.maxAccountBalanceConcurrency must be a non-negative integer'
     );
@@ -263,6 +263,62 @@ describe('Override query config', () => {
     const config = await loadCustomConfig(customConfig({maxAccountBalanceConcurrency: 0}));
     expect(config.rest.query.maxAccountBalanceConcurrency).toBe(0);
   });
+
+  const poolAndQueryConfig = (maxConnections, maxAccountBalanceConcurrency) => ({
+    hiero: {
+      mirror: {
+        rest: {
+          db: {pool: {maxConnections}},
+          query: {maxAccountBalanceConcurrency},
+        },
+      },
+    },
+  });
+
+  test.each`
+    maxConnections | maxAccountBalanceConcurrency | maxAllowed
+    ${5}           | ${5}                         | ${4}
+    ${5}           | ${6}                         | ${4}
+    ${2}           | ${2}                         | ${1}
+    ${1}           | ${2}                         | ${1}
+  `(
+    'maxAccountBalanceConcurrency $maxAccountBalanceConcurrency too high for pool size $maxConnections',
+    async ({maxConnections, maxAccountBalanceConcurrency, maxAllowed}) => {
+      await expect(loadCustomConfig(poolAndQueryConfig(maxConnections, maxAccountBalanceConcurrency))).rejects.toThrow(
+        `query.maxAccountBalanceConcurrency (${maxAccountBalanceConcurrency}) must be at most ${maxAllowed} ` +
+          `with db.pool.maxConnections (${maxConnections}), or 0 to disable the limit`
+      );
+    }
+  );
+
+  test.each`
+    maxConnections | expected
+    ${10}          | ${5}
+    ${5}           | ${2}
+    ${3}           | ${1}
+    ${2}           | ${1}
+    ${1}           | ${1}
+  `(
+    'maxAccountBalanceConcurrency defaults to $expected with pool size $maxConnections',
+    async ({maxConnections, expected}) => {
+      const config = await loadCustomConfig(poolAndQueryConfig(maxConnections, null));
+      expect(config.rest.query.maxAccountBalanceConcurrency).toBe(expected);
+    }
+  );
+
+  test.each`
+    maxConnections | maxAccountBalanceConcurrency
+    ${5}           | ${4}
+    ${2}           | ${1}
+    ${1}           | ${1}
+    ${1}           | ${0}
+  `(
+    'maxAccountBalanceConcurrency $maxAccountBalanceConcurrency allowed with pool size $maxConnections',
+    async ({maxConnections, maxAccountBalanceConcurrency}) => {
+      const config = await loadCustomConfig(poolAndQueryConfig(maxConnections, maxAccountBalanceConcurrency));
+      expect(config.rest.query.maxAccountBalanceConcurrency).toBe(maxAccountBalanceConcurrency);
+    }
+  );
 });
 
 describe('Override db pool config', () => {

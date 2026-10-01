@@ -59,7 +59,7 @@ hiero:
       port: 5551
       query:
         bindTimestampRange: false
-        maxAccountBalanceConcurrency: 5
+        maxAccountBalanceConcurrency: null # Defaults to half of db.pool.maxConnections
         maxFileAttempts: 12
         maxRecordFileCloseInterval: 10s
         maxRepeatedQueryParameters: 100
