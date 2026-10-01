@@ -46,14 +46,13 @@ public class SimulateRequest {
         return totalGas;
     }
 
-    // Zero calls otherwise reaches the throttle bucket as a 0-token request, which bucket4j rejects with its own
-    // exception.
+    // Zero calls would reach the throttle as a 0-token request, which bucket4j rejects.
     @AssertTrue(message = "at least one call is required across block_state_calls")
     private boolean hasAtLeastOneCall() {
         return blockStateCalls == null || totalCallCount() >= 1;
     }
 
-    // Null-safe: Bean Validation still runs this against an explicit JSON null, and an NPE here turns a 400 into a 500.
+    // Null-safe, as Bean Validation also runs this on an explicit JSON null.
     @AssertTrue(message = "total number of calls across block_state_calls must not exceed " + MAX_CALLS)
     private boolean hasValidCallCount() {
         return blockStateCalls == null || totalCallCount() <= MAX_CALLS;

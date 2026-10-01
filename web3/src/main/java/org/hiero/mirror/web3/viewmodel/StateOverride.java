@@ -65,8 +65,9 @@ public class StateOverride {
     @Size(max = 100)
     private List<@Valid StorageEntry> stateDiff = List.of();
 
-    // Plain setter, not @JsonDeserialize: this module's HTTP binding may run on Jackson 3, which ignores it.
-    // HIP-1485 sends the balance as a JSON number, while strings keep their original hexadecimal meaning.
+    // Plain setter, as the Jackson 3 HTTP binding ignores Jackson 2's @JsonDeserialize. A JSON number is decimal, while
+    // a
+    // string stays hexadecimal.
     public void setBalance(final Object balance) {
         this.balance = switch (balance) {
             case null -> null;

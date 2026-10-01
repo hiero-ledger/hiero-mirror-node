@@ -14,7 +14,7 @@ import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
 import org.jspecify.annotations.NonNull;
 
-// Does not cover SELFDESTRUCT beneficiary transfers, which complete via a different frame lifecycle - a known gap.
+// SELFDESTRUCT beneficiary transfers are not captured.
 @Named
 public class SimulateTransferActionTracer implements ActionSidecarContentTracer {
     @Override
@@ -35,8 +35,7 @@ public class SimulateTransferActionTracer implements ActionSidecarContentTracer 
         }
     }
 
-    // Besu only marks a frame COMPLETED_SUCCESS/FAILED after its last operation, so this is the first point where a
-    // frame's value transfer is known to have stuck - including frames without code, which never execute an operation.
+    // A frame's final state is only known on exit; frames without code never reach tracePostExecution.
     @Override
     public void traceContextExit(@NonNull final MessageFrame frame) {
         final var context = ContractCallContext.get();
@@ -47,10 +46,10 @@ public class SimulateTransferActionTracer implements ActionSidecarContentTracer 
         final int frameStart = context.getTransferFrameStarts().pop();
         final var transfers = context.getCapturedTransfers();
         if (frame.getState() != MessageFrame.State.COMPLETED_SUCCESS) {
-            // A failed frame rolls back its own transfer and every transfer made by its sub-calls.
+            // A failed frame reverts its sub-calls' transfers too.
             transfers.subList(frameStart, transfers.size()).clear();
         } else if (!frame.getValue().isZero()) {
-            // Inserted ahead of the sub-calls' transfers, which were captured first because they exited first.
+            // Sub-calls exit first, so the parent's transfer goes ahead of theirs.
             transfers.add(
                     frameStart,
                     new CapturedTransfer(frame.getSenderAddress(), frame.getRecipientAddress(), frame.getValue()));

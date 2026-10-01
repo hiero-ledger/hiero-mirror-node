@@ -32,7 +32,7 @@ public class SimulateCall {
     // A 256-bit EVM quantity, in hexadecimal digits.
     private static final int QUANTITY_MAX_LENGTH = 64;
 
-    // Accepted and validated per HIP-1485, not yet applied to execution (same as debug_traceCall).
+    // Validated, but not yet applied to execution.
     @JsonProperty("access_list")
     @Nullable
     @Size(max = ACCESS_LIST_MAX_SIZE)
@@ -58,9 +58,7 @@ public class SimulateCall {
     @Min(0)
     private long gasPrice;
 
-    /**
-     * Accepted for compatibility with the HIP's example request, but unused: Mirror Node has no EIP-1559 fee market.
-     */
+    // Accepted but unused, as there is no EIP-1559 fee market.
     @Hex(maxLength = QUANTITY_MAX_LENGTH)
     @JsonProperty("max_fee_per_gas")
     private String maxFeePerGas;
@@ -71,7 +69,7 @@ public class SimulateCall {
     @PositiveOrZero
     private long value;
 
-    // Plain setters, not @JsonDeserialize: this module's HTTP binding may run on Jackson 3, which ignores it.
+    // Plain setters, as the Jackson 3 HTTP binding ignores Jackson 2's @JsonDeserialize.
     public void setGas(final Object gas) {
         if (gas != null) {
             this.gas = parseValue(gas);

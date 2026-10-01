@@ -17,11 +17,16 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.Web3Properties.ApiEndpointName;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.CapturedTransfer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.utils.HexUtils;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.jspecify.annotations.Nullable;
@@ -32,6 +37,13 @@ public class ContractCallContext {
 
     public static final String CONTEXT_NAME = "ContractCallContext";
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
+
+    // Sentinel stored in the committed cache to indicate a key was explicitly deleted
+    public static final Object TOMBSTONE = new Object();
+
+    /** Writes committed by earlier blocks of a simulate request. */
+    @Getter(AccessLevel.NONE)
+    private final Map<Integer, Map<Object, Object>> committedCache = new HashMap<>();
 
     @Getter(AccessLevel.NONE)
     private final Map<Integer, Map<Object, Object>> readCache = new HashMap<>();
@@ -145,26 +157,13 @@ public class ContractCallContext {
         writeCache.clear();
     }
 
-    /**
-     * Deep copy of the current write cache, so a later call can be rolled back without losing earlier calls' state.
-     */
-    public Map<Integer, Map<Object, Object>> snapshotWriteCache() {
-        final var snapshot = new HashMap<Integer, Map<Object, Object>>(writeCache.size());
-        writeCache.forEach((stateId, cache) -> snapshot.put(stateId, new HashMap<>(cache)));
-        return snapshot;
-    }
-
-    public void restoreWriteCache(final Map<Integer, Map<Object, Object>> snapshot) {
+    /** Commits the pending writes, which the next block then reads as its original state. */
+    public void commitWriteCache() {
+        writeCache.forEach((stateId, cache) -> {
+            final var committed = committedCache.computeIfAbsent(stateId, _ -> new HashMap<>());
+            cache.forEach((key, value) -> committed.put(key, value == null ? TOMBSTONE : value));
+        });
         writeCache.clear();
-        snapshot.forEach((stateId, cache) -> writeCache.put(stateId, new HashMap<>(cache)));
-    }
-
-    /**
-     * Reads through {@link #stateOverrides} are memoized here, so this must be cleared whenever the active
-     * overrides change - otherwise a later read could still return a value from an override no longer in effect.
-     */
-    public void clearReadCache() {
-        readCache.clear();
     }
 
     public boolean useHistorical() {
@@ -203,12 +202,36 @@ public class ContractCallContext {
         return readCache.computeIfAbsent(stateId, _ -> new HashMap<>());
     }
 
+    public Map<Object, Object> getCommittedCacheState(final int stateId) {
+        return committedCache.computeIfAbsent(stateId, _ -> new HashMap<>());
+    }
+
     public Map<Object, Object> getWriteCacheState(final int stateId) {
         return writeCache.computeIfAbsent(stateId, _ -> new HashMap<>());
     }
 
     public RecordFile getRecordFile() {
         return blockSupplier.get();
+    }
+
+    /**
+     * Applies HIP-1485 {@code block_override}. A set {@code number} becomes EVM {@code block.number}; a set {@code time}
+     * becomes EVM {@code block.timestamp}.
+     */
+    public void applyBlockOverride(final @Nullable BlockOverride override) {
+        if (override == null) {
+            return;
+        }
+        try {
+            if (StringUtils.isNotBlank(override.getNumber())) {
+                blockOverrideNumber = HexUtils.parseValue(override.getNumber());
+            }
+            if (StringUtils.isNotBlank(override.getTime())) {
+                blockOverrideTimeNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue(override.getTime()), 0);
+            }
+        } catch (NumberFormatException e) {
+            throw new InvalidParametersException("Invalid block_override: " + e.getMessage());
+        }
     }
 
     public long evmBlockNumber(final long fallback) {

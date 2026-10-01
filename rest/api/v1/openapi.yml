@@ -521,9 +521,8 @@ paths:
       summary: Simulate a bundle of smart contract calls
       description:
         Backs `eth_simulateV1`. Each `block_state_calls` entry executes as its own virtual block against the
-        single anchor block selected by `block` - calls within an entry are cumulative with each other, and real
-        execution state resets back to the anchor baseline between entries. `state_overrides` are the exception -
-        they persist and accumulate across entries (later entries win per address). Results are returned as a
+        anchor block selected by `block` - state accumulates across all calls and entries, each entry building on
+        the previous one. `state_overrides` persist and accumulate across entries (later entries win per address). Results are returned as a
         single flat list; entry `i` is reported as block `anchor + i`, and `transaction_index` and `log_index`
         restart from 0 at the beginning of every entry. A reverted call does not abort the rest of
         the batch. `state_overrides` reuses the same schema as `POST /api/v1/contracts/call` and is subject to
@@ -562,6 +561,12 @@ paths:
                 $ref: "#/components/schemas/Error"
         500:
           description: Generic error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        501:
+          description: Not implemented error
           content:
             application/json:
               schema:
@@ -2996,9 +3001,23 @@ components:
           example: 1
           minimum: 0
           type: [integer, string, "null"]
+    BlockOverride:
+      type: object
+      description: Optional EVM block context override. `number` and `time` cannot be populated simultaneously.
+      properties:
+        number:
+          description: Hexadecimal or decimal block number used as the EVM block.number
+          type: [string, "null"]
+          example: "0x100"
+        time:
+          description: Unix timestamp used as the EVM block.timestamp
+          type: [string, "null"]
+          example: "0x65f9e0c0"
     SimulateBlockStateCall:
       type: object
       properties:
+        block_override:
+          $ref: "#/components/schemas/BlockOverride"
         calls:
           items:
             $ref: "#/components/schemas/SimulateCall"
@@ -3018,7 +3037,7 @@ components:
           pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
           type: [string, "null"]
         block_state_calls:
-          description: Each entry executes as its own virtual block against the anchor block - cumulative within an entry, state reset between entries. Limited to 16 total calls across all entries.
+          description: Each entry executes as its own virtual block on top of the previous entry, with state accumulating across entries. Limited to 16 entries and 16 total calls.
           items:
             $ref: "#/components/schemas/SimulateBlockStateCall"
           maxItems: 16

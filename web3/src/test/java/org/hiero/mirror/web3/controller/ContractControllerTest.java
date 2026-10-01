@@ -838,10 +838,10 @@ final class ContractControllerTest {
     }
 
     @Test
-    void simulateDisabledIsBadRequestWithoutConsumingThrottle() throws Exception {
+    void simulateDisabledIsNotImplementedWithoutConsumingThrottle() throws Exception {
         final var request = simulateRequest(1);
 
-        simulate(request).andExpect(status().isBadRequest());
+        simulate(request).andExpect(status().isNotImplemented());
 
         verify(throttleManager, never()).throttleSimulateRequest(anyLong());
     }
@@ -1010,6 +1010,8 @@ final class ContractControllerTest {
                 "{\"block_state_calls\": [{\"calls\": []}]}",
                 "{\"block_state_calls\": [{\"calls\": [" + tooManyCalls + "]}]}",
                 "{\"block_state_calls\": [" + tooManyEntries + "]}",
+                "{\"block_state_calls\": [{\"block_override\": {\"number\": \"0x1\", \"time\": \"0x2\"}, \"calls\": ["
+                        + call + "]}]}",
                 "{\"block_state_calls\": [{\"calls\": [" + call + "], \"state_overrides\": [" + tooManyOverrides
                         + "]}]}",
                 "{\"block_state_calls\": [{\"calls\": [" + call

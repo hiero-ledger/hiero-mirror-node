@@ -9,16 +9,18 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 import org.springframework.validation.annotation.Validated;
 
-/**
- * One entry of {@link SimulateRequest#getBlockStateCalls()}: a virtual block of cumulative calls plus the
- * {@link StateOverride}s that take effect when it begins. Unlike the calls, overrides persist into later entries.
- */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Validated
 public class SimulateBlockStateCall {
+
+    @JsonProperty("block_override")
+    @Nullable
+    @Valid
+    private BlockOverride blockOverride;
 
     @NotNull
     private List<@NotNull @Valid SimulateCall> calls = List.of();

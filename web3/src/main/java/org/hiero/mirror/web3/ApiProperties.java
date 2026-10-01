@@ -13,7 +13,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class ApiProperties {
 
-    private boolean enabled = false;
+    private boolean enabled = true;
 
     @NotNull
     @Valid

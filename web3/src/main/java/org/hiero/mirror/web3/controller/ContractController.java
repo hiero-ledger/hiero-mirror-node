@@ -113,7 +113,7 @@ class ContractController {
     SimulateResponse simulate(@RequestBody @Valid SimulateRequest request) {
         // Ordered before throttling: tokens consumed for a rejected request are never restored.
         if (!web3Properties.isApiEnabled(SIMULATE)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Simulate is not supported.");
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }
         if (hasStateOverrides(request) && !web3Properties.isEnableStateOverrides()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
