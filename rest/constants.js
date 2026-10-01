@@ -8,6 +8,7 @@ const THIRTY_ONE_MINUTES = 31n * 60n;
 const MAX_INT32 = 2147483647;
 const MAX_LONG = 2n ** 63n - 1n;
 const MIN_LONG = -(2n ** 63n);
+const MAX_HBAR_SUPPLY_TINYBARS = 5_000_000_000_000_000_000n;
 const ONE_DAY_IN_NS = 86_400_000_000_000n;
 const ZERO_UINT256 = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const AUTO_RENEW_PERIOD_MULTIPLE = BigInt(1e9);
@@ -163,6 +164,7 @@ const httpStatusCodes = {
   OK: new StatusCode(200, 'OK'),
   PARTIAL_CONTENT: new StatusCode(206, 'Partial mirror node'),
   SERVICE_UNAVAILABLE: new StatusCode(503, 'Service unavailable'),
+  TOO_MANY_REQUESTS: new StatusCode(429, 'Too many requests'),
   UNAUTHORIZED: new StatusCode(401, 'Unauthorized'),
   UNMODIFIED: new StatusCode(304, 'Not Modified'),
   isSuccess: (code) => code >= 200 && code < 300,
@@ -189,6 +191,7 @@ export {
   SIXTY_SECONDS,
   THIRTY_ONE_MINUTES,
   MAX_INT32,
+  MAX_HBAR_SUPPLY_TINYBARS,
   MAX_LONG,
   MIN_LONG,
   ONE_DAY_IN_NS,

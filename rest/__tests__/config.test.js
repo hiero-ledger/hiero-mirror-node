@@ -216,6 +216,7 @@ describe('Override query config', () => {
     };
     const expected = {
       bindTimestampRange: true,
+      maxAccountBalanceConcurrency: 5,
       maxFileAttempts: 12,
       maxRecordFileCloseInterval: '8s',
       maxRecordFileCloseIntervalNs: 8000000000n,
@@ -250,6 +251,17 @@ describe('Override query config', () => {
     ${'invalid maxTransactionsTimestampRange'}                  | ${{maxTransactionsTimestampRange: '1z'}}
   `('$name', async ({queryConfig}) => {
     await expect(loadCustomConfig(customConfig(queryConfig))).rejects.toThrowErrorMatchingSnapshot();
+  });
+
+  test.each([-1, 1.5, 'abc', null])('invalid maxAccountBalanceConcurrency %p', async (maxAccountBalanceConcurrency) => {
+    await expect(loadCustomConfig(customConfig({maxAccountBalanceConcurrency}))).rejects.toThrow(
+      'query.maxAccountBalanceConcurrency must be a non-negative integer'
+    );
+  });
+
+  test('maxAccountBalanceConcurrency of 0 is allowed', async () => {
+    const config = await loadCustomConfig(customConfig({maxAccountBalanceConcurrency: 0}));
+    expect(config.rest.query.maxAccountBalanceConcurrency).toBe(0);
   });
 });
 

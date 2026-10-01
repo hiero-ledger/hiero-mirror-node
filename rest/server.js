@@ -11,6 +11,7 @@ import compression from 'compression';
 // local files
 import accounts from './accounts';
 import balances from './balances';
+import limitConcurrency from './concurrencyLimiter';
 import extendExpress from './extendExpress';
 import config from './config';
 import * as constants from './constants';
@@ -98,7 +99,16 @@ if (applicationCacheEnabled) {
 }
 
 // accounts routes
-app.getExt(`${apiPrefix}/accounts`, accounts.getAccounts);
+// Cap how many requests with account.balance filter can run at once to keep them from exhausting the connection
+// pool. Query keys are already lowercased by requestQueryParser.
+app.getExt(
+  `${apiPrefix}/accounts`,
+  limitConcurrency(accounts.getAccounts, {
+    applies: (req) => req.query[constants.filterKeys.ACCOUNT_BALANCE] !== undefined,
+    max: config.query.maxAccountBalanceConcurrency,
+    name: constants.filterKeys.ACCOUNT_BALANCE,
+  })
+);
 app.getExt(`${apiPrefix}/accounts/:${constants.filterKeys.ID_OR_ALIAS_OR_EVM_ADDRESS}`, accounts.getOneAccount);
 app.use(`${apiPrefix}/${AccountRoutes.resource}`, AccountRoutes.router);
 

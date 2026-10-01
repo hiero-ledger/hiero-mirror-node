@@ -170,6 +170,13 @@ const durationQueryConfigKeys = [
 
 const parseQueryConfig = () => {
   const {query} = getConfig();
+  const {maxAccountBalanceConcurrency} = query;
+  if (!Number.isInteger(maxAccountBalanceConcurrency) || maxAccountBalanceConcurrency < 0) {
+    throw new InvalidConfigError(
+      `query.maxAccountBalanceConcurrency must be a non-negative integer: ${maxAccountBalanceConcurrency}`
+    );
+  }
+
   const {precedingTransactionTypes} = query.transactions;
   if (!Array.isArray(precedingTransactionTypes)) {
     throw new InvalidConfigError(

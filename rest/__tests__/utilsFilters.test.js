@@ -151,6 +151,11 @@ describe('utils buildComparatorFilter tests', () => {
       value: '1234567890.000000006',
     });
   });
+  test('Verify buildComparatorFilter does not throw for an object value from a nested key like timestamp[$ne]=0', () => {
+    const objectValue = {$ne: '0'};
+    const filter = utils.buildComparatorFilter(constants.filterKeys.TIMESTAMP, objectValue);
+    expect(filter).toStrictEqual({key: constants.filterKeys.TIMESTAMP, operator: undefined, value: objectValue});
+  });
 });
 
 const verifyBuildComparatorFilter = (key, val, expectedFilter) => {
@@ -580,12 +585,15 @@ describe('utils validateAndParseFilters account balance key tests', () => {
     // invalid format
     utils.buildComparatorFilter(key, 'y'),
     utils.buildComparatorFilter(key, '23456789012345678901234'),
+    // exceeds the maximum HBAR supply
+    utils.buildComparatorFilter(key, '5000000000000000001'),
+    utils.buildComparatorFilter(key, '9223372036854775807'),
   ];
 
   const filters = [
     utils.buildComparatorFilter(key, '0'),
     utils.buildComparatorFilter(key, '1000000000'),
-    utils.buildComparatorFilter(key, '9223372036854775807'),
+    utils.buildComparatorFilter(key, '5000000000000000000'),
   ];
 
   verifyValidAndInvalidFilters(invalidFilters, filters);

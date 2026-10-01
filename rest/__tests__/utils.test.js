@@ -502,6 +502,42 @@ describe('Utils isPositiveLong', () => {
   });
 });
 
+describe('Utils isValidBalance', () => {
+  test('Verify valid for 0', () => {
+    expect(utils.isValidBalance('0')).toBeTrue();
+  });
+  test('Verify valid for a small balance', () => {
+    expect(utils.isValidBalance('123')).toBeTrue();
+  });
+  test('Verify valid for the max HBAR supply in tinybars', () => {
+    expect(utils.isValidBalance('5000000000000000000')).toBeTrue();
+  });
+  test('Verify invalid for one tinybar above the max HBAR supply', () => {
+    expect(utils.isValidBalance('5000000000000000001')).toBeFalse();
+  });
+  test('Verify invalid for a value above the max HBAR supply but below max long', () => {
+    expect(utils.isValidBalance('9000000000000000000')).toBeFalse();
+  });
+  test('Verify invalid for a negative balance', () => {
+    expect(utils.isValidBalance('-1')).toBeFalse();
+  });
+  test('Verify invalid for a non-numeric balance', () => {
+    expect(utils.isValidBalance('abc')).toBeFalse();
+  });
+});
+
+describe('Utils paramValidityChecks', () => {
+  test('Verify valid for a normal string value', () => {
+    expect(utils.paramValidityChecks(constants.filterKeys.ACCOUNT_BALANCE, 'gt:45')).toBeTrue();
+  });
+  test('Verify invalid for undefined value', () => {
+    expect(utils.paramValidityChecks(constants.filterKeys.ACCOUNT_BALANCE, undefined)).toBeFalse();
+  });
+  test('Verify invalid without throwing for an object value from a nested key like account.balance[$ne]=0', () => {
+    expect(utils.paramValidityChecks(constants.filterKeys.ACCOUNT_BALANCE, {$ne: '0'})).toBeFalse();
+  });
+});
+
 describe('Utils isValidEthHash', () => {
   test('Verify invalid for empty input', () => {
     expect(utils.isValidEthHash()).toBeFalse();

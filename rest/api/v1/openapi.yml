@@ -23,6 +23,12 @@ paths:
                 $ref: "#/components/schemas/AccountsResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
+        429:
+          description: Too many concurrent account.balance requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       tags:
         - accounts
   /api/v1/accounts/{idOrAliasOrEvmAddress}:
@@ -4661,7 +4667,7 @@ components:
           value: lte:700
       schema:
         type: string
-        pattern: ^((gte?|lte?|eq|ne)\:)?\d{1,10}$
+        pattern: ^((gte?|lte?|eq|ne)\:)?\d{1,19}$
     accountIdQueryParam:
       name: account.id
       in: query
