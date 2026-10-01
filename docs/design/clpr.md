@@ -144,7 +144,7 @@ is also undocumented in the HIP text itself, but for a different reason (it's Hi
 | 119 | `ClprCompleteChannel`           | `clprCompleteChannel` (tx)           | Insert the new `clpr_channel` row in `ACTIVE` status, recording `channel_id`, `ownership_commitment` (carried forward, not cleared), `verifier_contract`, `verifier_fingerprint`, initial `trust_anchor`/`trust_anchor_id`, `channel_context`, and initial `endpoint_manifest_version` — populated via the corresponding `ClprCompleteChannelTransformer` from the `clpr_channel_value` state change, since these fields are verifier-derived. Per `ClprCompleteChannelHandler`, the `clpr_channel_pending_commitment` row is **not** deleted at this point — it remains in consensus state for the life of the Channel (see row 120 and Feedback). |
 | 120 | `ClprCloseChannel`              | `clprCloseChannel` (tx)              | If no Channel exists yet for the supplied `ownership_commitment` (still pending/abandoned), mark the `clpr_channel_pending_commitment` row `deleted=true`. If a Channel exists, transition its status toward `CLOSING`/`DRAINED`/`CLOSED` — per `ClprCloseChannelHandler`, this path does **not** touch `clpr_channel_pending_commitment`, so a completed Channel's pending row is never cleaned up even once `CLOSED` (see Feedback).                                                                                                                                                                                                              |
 | 121 | `ClprGetLedgerConfiguration`    | `clprGetLedgerConfiguration` (query) | Read-only; no persistence — served from the current `clpr_ledger_configuration` row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| 122 | `ClprSubmitBundle`              | `clprSubmitBundle` (tx)              | Append dispatched `ClprMessage`/`ClprMessageReply`/`ClprControlMessage` entries to `clpr_message` (populated via `ClprSubmitBundleTransformer` from `clpr_message_value`/`clpr_message_key`, since payload contents come from the verifier, not the transaction body); update `channel.next_message_id` / `received_message_id` / running hashes / status from `clpr_channel_value`.                                                                                                                                                                                                                                                                |
+| 122 | `ClprSubmitBundle`              | `clprSubmitBundle` (tx)              | Append dispatched `ClprMessage`/`ClprMessageReply`/`ClprControlMessage` entries to `clpr_message` (populated via `ClprSubmitBundleTransformer` from `clpr_message_value`/`clpr_message_key`, since payload contents come from the verifier, not the transaction body); `connector_id` is read directly for `ClprMessage` rows, left `null` for `ClprControlMessage` rows, and derived for `ClprMessageReply` rows by looking up the Data Message it replies to (see [Database Schema Design](#database-schema-design)); update `channel.next_message_id` / `received_message_id` / running hashes / status from `clpr_channel_value`.               |
 | 124 | `ClprRegisterConnector`         | `clprRegisterConnector` (tx)         | Insert a row into `clpr_connector_pending_commitment` keyed by `commitment`; no `connector_id` is known yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | 125 | `ClprDeregisterConnector`       | `clprDeregisterConnector` (tx)       | Close out the `clpr_connector`/`clpr_connector_history` row and record `stake_recipient`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | 126 | `ClprCompleteConnector`         | `clprCompleteConnector` (tx)         | Mark the matching `clpr_connector_pending_commitment` row `deleted=true` immediately (per `ClprCompleteConnectorHandler`, unlike the Channel side) and insert the `clpr_connector` row keyed by `(channel_id, connector_id)` with `connector_contract`, `admin_key`, `locked_stake`.                                                                                                                                                                                                                                                                                                                                                                |
@@ -384,6 +384,14 @@ create index if not exists clpr_message__connector_id
 select create_distributed_table('clpr_message', 'channel_id', colocate_with => 'clpr_channel');
 ```
 
+**`connector_id` is not directly available for every message type.** Per `clpr_message.proto`: `ClprMessage`
+(Data) carries `connector_id` directly. `ClprControlMessage` has no connector association at all — `connector_id`
+is legitimately `null` for these rows. `ClprMessageReply` (Response) has **no `connector_id` field on the wire** —
+only `message_id` (the Data Message it responds to), `status`, and `message_reply_data`. So when inserting a
+Response row, the importer derives `connector_id` by looking up the Data Message it replies to (same `channel_id`,
+`message_id = reply_to_message_id`) and copying its `connector_id` — that Data row is guaranteed to already exist,
+since every Response is generated for a Data Message that was enqueued earlier in the same channel.
+
 The `connector_id` index supports the [Messages per Connector API](#3-messages-per-connector-api)'s
 `connector_id`-filtered, `message.id`-ordered lookup — safe to paginate this way since a Connector is bound to
 exactly one Channel (`connector_id` is derived as `keccak256(channelId || publicKey || salt)`), so its messages
@@ -463,7 +471,11 @@ direct field mapping, same as any simple create-style transaction handler. For h
 verifier-derived (`ClprCompleteChannel`, `ClprSubmitBundle`, `ClprCloseChannel`'s terminal transitions), the handler
 reads the new CLPR-specific fields the transformer added to `RecordItem` (see below) — not the transaction body,
 and not the classic `TransactionRecord`, since neither carries this data. `ClprSubmitBundle` can dispatch multiple
-messages in one transaction, so its handler calls the entity listener once per dispatched message.
+messages in one transaction, so its handler calls the entity listener once per dispatched message. For a
+`ClprMessageReply` entry, the handler looks up the Data Message's `connector_id` (same channel,
+`message_id = reply.message_id`, already persisted earlier in the same or a prior bundle) before building the
+`ClprMessage` domain object, since the reply payload itself carries no `connector_id` (see
+[Database Schema Design](#database-schema-design)).
 
 ### 3. Block Stream Transformers and `RecordItem` Extensions
 
@@ -623,7 +635,10 @@ GET /api/v1/clpr/connectors/{connectorId}/messages
 ```
 
 `connector_id` is derived as `keccak256(channelId || publicKey || salt)`, so it's effectively unique on its own
-without needing `channelId` in the path (see the [pending-commitment mechanism](#hip-1535-feedback--required-clarifications)).
+without needing `channelId` in the path. Returns Data Messages the Connector authorized directly and the Response
+Messages addressed to it (both have a `connector_id` on `clpr_message` — see
+[Database Schema Design](#database-schema-design)); Control Messages never appear here, since they have no
+Connector association.
 
 Response format:
 
@@ -633,6 +648,7 @@ Response format:
     {
       "message_id": 5,
       "channel_id": "0x1a2b3c...",
+      "connector_id": "0x4d5e6f...",
       "type": "DATA",
       "sender": "0x4d5e6f...",
       "target_application": "0x7788...",
@@ -678,6 +694,7 @@ Response format:
   "messages": [
     {
       "message_id": 5,
+      "connector_id": "0x4d5e6f...",
       "type": "DATA",
       "sender": "0x4d5e6f...",
       "target_application": "0x7788...",
@@ -693,6 +710,9 @@ Response format:
   }
 }
 ```
+
+`connector_id` is `null` for Control Messages, which have no Connector association (see
+[Database Schema Design](#database-schema-design)).
 
 Payload bytes (`message_data`) are returned opaque/hex-encoded per the [Non-Goals](#non-goals) above.
 
