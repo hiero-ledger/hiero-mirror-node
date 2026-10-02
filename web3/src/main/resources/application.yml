@@ -7,6 +7,10 @@ hiero:
         opcodes:
           request:
             timeout: 10s
+        simulate:
+          enabled: false
+          request:
+            timeout: 4s
       db:
         host: 127.0.0.1
         name: mirror_node

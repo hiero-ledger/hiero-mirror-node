@@ -47,6 +47,22 @@ public class Web3Properties {
 
     public enum ApiEndpointName {
         CALL,
-        OPCODES
+        OPCODES,
+        SIMULATE
+    }
+
+    /**
+     * Whether the API identified by {@code endpoint} is enabled. Missing configuration is treated as enabled except for
+     * {@link ApiEndpointName#SIMULATE}, which is disabled until explicitly turned on.
+     */
+    public boolean isApiEnabled(final ApiEndpointName endpoint) {
+        if (endpoint == null) {
+            return true;
+        }
+        final var properties = api.get(endpoint);
+        if (properties == null) {
+            return endpoint != ApiEndpointName.SIMULATE;
+        }
+        return properties.isEnabled();
     }
 }

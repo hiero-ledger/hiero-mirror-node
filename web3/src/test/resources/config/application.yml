@@ -3,6 +3,11 @@
 hiero:
   mirror:
     web3:
+      api:
+        simulate:
+          request:
+            # The 4s default is too short for a cold test JVM's first call
+            timeout: 60s
       cache:
         # Caffeine has no "ms" short form; PT0.1S is 100ms to keep cache-expiry tests fast
         entity: expireAfterWrite=PT0.1S,maximumSize=10000,recordStats

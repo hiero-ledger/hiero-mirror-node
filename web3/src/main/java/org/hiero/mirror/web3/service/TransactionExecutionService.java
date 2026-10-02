@@ -43,6 +43,7 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.SimulateTransferActionTracer;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -68,6 +69,7 @@ public class TransactionExecutionService {
     private final EvmProperties evmProperties;
     private final OpcodeActionTracer opcodeActionTracer;
     private final MirrorOperationActionTracer mirrorOperationActionTracer;
+    private final SimulateTransferActionTracer simulateTransferActionTracer;
     private final SystemEntity systemEntity;
     private final TransactionExecutorFactory transactionExecutorFactory;
 
@@ -309,9 +311,14 @@ public class TransactionExecutionService {
     }
 
     private ActionSidecarContentTracer[] getOperationTracers() {
-        return ContractCallContext.get().getOpcodeContext() != null
-                ? new ActionSidecarContentTracer[] {opcodeActionTracer}
-                : new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
+        final var context = ContractCallContext.get();
+        if (context.getOpcodeContext() != null) {
+            return new ActionSidecarContentTracer[] {opcodeActionTracer};
+        }
+        if (context.isTraceTransfers()) {
+            return new ActionSidecarContentTracer[] {mirrorOperationActionTracer, simulateTransferActionTracer};
+        }
+        return new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
     }
 
     private SequencedCollection<String> populateChildTransactionErrors(
