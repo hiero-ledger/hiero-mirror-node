@@ -109,15 +109,11 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
             }
 
             final var hexFormat = HexFormat.of();
-            final var chainId = tuple.get(0).data();
             final var authorization = Authorization.builder()
-                    .chainId(
-                            ArrayUtils.isEmpty(chainId)
-                                    ? HEX_PREFIX + "0"
-                                    : HEX_PREFIX + new BigInteger(1, chainId).toString(16))
+                    .chainId(toQuantity(tuple.get(0).data()))
                     .address(HEX_PREFIX + hexFormat.formatHex(tuple.get(1).data()))
-                    .nonce(tuple.get(2).asLong())
-                    .yParity(tuple.get(3).asByte() == 0 ? HEX_PREFIX + "0" : HEX_PREFIX + "1")
+                    .nonce(authorizationNonce(tuple.get(2)))
+                    .yParity(toQuantity(tuple.get(3).data()))
                     .r(HEX_PREFIX + hexFormat.formatHex(tuple.get(4).data()))
                     .s(HEX_PREFIX + hexFormat.formatHex(tuple.get(5).data()))
                     .build();
@@ -130,8 +126,6 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
 
     @Override
     protected byte[] encode(EthereumTransaction ethereumTransaction) {
-        var authorizationList = encodeAuthorizationList(ethereumTransaction.getAuthorizationList());
-
         return RLPEncoder.sequence(
                 EIP7702_TYPE_BYTES,
                 List.of(
@@ -144,7 +138,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                         getValue(ethereumTransaction),
                         ethereumTransaction.getCallData(),
                         encodeAccessList(ethereumTransaction.getAccessList()),
-                        authorizationList,
+                        encodeAuthorizationList(ethereumTransaction.getAuthorizationList()),
                         Integers.toBytes(ethereumTransaction.getRecoveryId()),
                         ethereumTransaction.getSignatureR(),
                         ethereumTransaction.getSignatureS()));
@@ -158,25 +152,72 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
         var encodedList = new ArrayList<List<byte[]>>();
         for (var auth : authorizations) {
             encodedList.add(List.of(
-                    decodeHex(auth.getChainId()),
-                    decodeHex(auth.getAddress()),
+                    encodeQuantity(auth.getChainId()),
+                    decodeBytes(auth.getAddress()),
                     Integers.toBytes(auth.getNonce()),
-                    Integers.toBytes(Integer.parseInt(auth.getYParity().substring(2), 16)),
-                    decodeHex(auth.getR()),
-                    decodeHex(auth.getS())));
+                    encodeQuantity(auth.getYParity()),
+                    decodeBytes(auth.getR()),
+                    decodeBytes(auth.getS())));
         }
         return encodedList;
     }
 
+    private byte[] decodeBytes(String hex) {
+        var stripped = stripHexPrefix(hex);
+        if (stripped.length() % 2 != 0) {
+            throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Invalid hex string: " + hex);
+        }
+        return decodeEvenHex(stripped, hex);
+    }
+
     private byte[] decodeHex(String hex) {
+        var stripped = stripHexPrefix(hex);
+        if (stripped.length() % 2 != 0) {
+            stripped = "0" + stripped;
+        }
+        return decodeEvenHex(stripped, hex);
+    }
+
+    private static String stripHexPrefix(String hex) {
+        return hex.startsWith(HEX_PREFIX) ? hex.substring(HEX_PREFIX.length()) : hex;
+    }
+
+    private byte[] decodeEvenHex(String stripped, String hex) {
         try {
-            var stripped = hex.startsWith(HEX_PREFIX) ? hex.substring(2) : hex;
-            if (stripped.length() % 2 != 0) {
-                stripped = "0" + stripped;
-            }
             return Hex.decodeHex(stripped);
         } catch (Exception e) {
             throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Invalid hex string: " + hex);
         }
+    }
+
+    private long authorizationNonce(RLPItem nonce) {
+        try {
+            return nonce.asLong();
+        } catch (IllegalArgumentException e) {
+            throw new InvalidEthereumBytesException(
+                    TRANSACTION_TYPE_NAME, "Authorization nonce is not a canonical integer");
+        }
+    }
+
+    /**
+     * Canonical integer 0 is {@code "0x0"} and encodes as an empty RLP string. A payload that starts with {@code 0x00}
+     * keeps those bytes, so an empty chain id and a chain id of {@code 0x00} do not collapse.
+     */
+    private String toQuantity(byte[] data) {
+        if (ArrayUtils.isEmpty(data)) {
+            return HEX_PREFIX + "0";
+        }
+        if (data[0] == 0) {
+            return HEX_PREFIX + HexFormat.of().formatHex(data);
+        }
+        return HEX_PREFIX + new BigInteger(1, data).toString(16);
+    }
+
+    private byte[] encodeQuantity(String hex) {
+        var stripped = hex.startsWith(HEX_PREFIX) ? hex.substring(HEX_PREFIX.length()) : hex;
+        if (stripped.isEmpty() || stripped.equals("0")) {
+            return ArrayUtils.EMPTY_BYTE_ARRAY;
+        }
+        return decodeHex(hex);
     }
 }
