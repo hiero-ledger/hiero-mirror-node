@@ -242,7 +242,9 @@ const paramValidityChecks = (param, opAndVal, filterValidator = filterValidityCh
   let val = null;
   let op = null;
 
-  if (opAndVal === undefined) {
+  // A non-string value, e.g. an object produced by the qs query string parser (see middleware/requestHandler.js) from a
+  // nested key like account.balance[$ne]=0, is never valid and must not reach the string operations below.
+  if (typeof opAndVal !== 'string') {
     return ret;
   }
 
@@ -1260,6 +1262,17 @@ const buildFilters = (query) => {
 };
 
 const buildComparatorFilter = (name, filter) => {
+  // An object produced by the qs query string parser (see middleware/requestHandler.js) from a nested key like
+  // timestamp[$ne]=0, is never valid and must not reach the string operations below. Return a comparator with
+  // no operator so validation rejects it with a 400.
+  if (typeof filter !== 'string') {
+    return {
+      key: name,
+      operator: undefined,
+      value: filter,
+    };
+  }
+
   const splitVal = filter.split(':');
   const value = splitVal.pop();
   const operator = splitVal.pop() ?? 'eq';
@@ -1857,6 +1870,7 @@ export {
   parseTimestampParam,
   parseTimestampQueryParam,
   parseTokenBalances,
+  paramValidityChecks,
   randomString,
   resultSuccess,
   toHexString,
