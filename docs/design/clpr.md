@@ -119,8 +119,9 @@ Consensus node (CLPR Service)
   → importer block-to-record transformation (ClprXxxTransformer reads StateChangeContext, populates new
     CLPR-specific fields on RecordItem — there is no existing TransactionRecord/sidecar slot for this data)
   → importer TransactionHandlers (read the new RecordItem fields) + EntityListener
-  → PostgreSQL (clpr_channel_pending_commitment, clpr_channel/_history, clpr_connector_pending_commitment,
-    clpr_connector/_history, clpr_ledger_configuration/_history, clpr_endpoint_manifest/_history, clpr_message)
+  → PostgreSQL (clpr_channel_pending_commitment/_history, clpr_channel/_history,
+    clpr_connector_pending_commitment/_history, clpr_connector/_history, clpr_ledger_configuration/_history,
+    clpr_endpoint_manifest/_history, clpr_message)
   → rest-java (read APIs)
 ```
 
@@ -137,19 +138,19 @@ excluded — see [Non-Goals](#non-goals) and the [Feedback](#hip-1535-feedback--
 why it exists in the reference proto despite being a Rejected Idea in the HIP text. `ClprEndpointPublication` (127)
 is also undocumented in the HIP text itself, but for a different reason (it's Hiero-internal) — see above.
 
-| #   | `HederaFunctionality`           | `TransactionBody` / `Query` field    | What mirror node must persist                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| --- | ------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 117 | `ClprUpdateLedgerConfiguration` | `clprUpdateLedgerConfiguration` (tx) | Update the `clpr_ledger_configuration` singleton row (throttles, timestamp); close out prior history row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| 118 | `ClprRegisterChannel`           | `clprRegisterChannel` (tx)           | Insert a row into `clpr_channel_pending_commitment` keyed by `ownership_commitment`; no `channel_id` is known yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| 119 | `ClprCompleteChannel`           | `clprCompleteChannel` (tx)           | Insert the new `clpr_channel` row in `ACTIVE` status, recording `channel_id`, `ownership_commitment` (carried forward, not cleared), `verifier_contract`, `verifier_fingerprint`, initial `trust_anchor`/`trust_anchor_id`, `channel_context`, and initial `endpoint_manifest_version` — populated via the corresponding `ClprCompleteChannelTransformer` from the `clpr_channel_value` state change, since these fields are verifier-derived. Per `ClprCompleteChannelHandler`, the `clpr_channel_pending_commitment` row is **not** deleted at this point — it remains in consensus state for the life of the Channel (see row 120 and Feedback). |
-| 120 | `ClprCloseChannel`              | `clprCloseChannel` (tx)              | If no Channel exists yet for the supplied `ownership_commitment` (still pending/abandoned), mark the `clpr_channel_pending_commitment` row `deleted=true`. If a Channel exists, transition its status toward `CLOSING`/`DRAINED`/`CLOSED` — per `ClprCloseChannelHandler`, this path does **not** touch `clpr_channel_pending_commitment`, so a completed Channel's pending row is never cleaned up even once `CLOSED` (see Feedback).                                                                                                                                                                                                              |
-| 121 | `ClprGetLedgerConfiguration`    | `clprGetLedgerConfiguration` (query) | Read-only; no persistence — served from the current `clpr_ledger_configuration` row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| 122 | `ClprSubmitBundle`              | `clprSubmitBundle` (tx)              | Append dispatched `ClprMessage`/`ClprMessageReply`/`ClprControlMessage` entries to `clpr_message` (populated via `ClprSubmitBundleTransformer` from `clpr_message_value`/`clpr_message_key`, since payload contents come from the verifier, not the transaction body); `connector_id` is read directly for `ClprMessage` rows, left `null` for `ClprControlMessage` rows, and derived for `ClprMessageReply` rows by looking up the Data Message it replies to (see [Database Schema Design](#database-schema-design)); update `channel.next_message_id` / `received_message_id` / running hashes / status from `clpr_channel_value`.               |
-| 124 | `ClprRegisterConnector`         | `clprRegisterConnector` (tx)         | Insert a row into `clpr_connector_pending_commitment` keyed by `commitment`; no `connector_id` is known yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| 125 | `ClprDeregisterConnector`       | `clprDeregisterConnector` (tx)       | Close out the `clpr_connector`/`clpr_connector_history` row and record `stake_recipient`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| 126 | `ClprCompleteConnector`         | `clprCompleteConnector` (tx)         | Mark the matching `clpr_connector_pending_commitment` row `deleted=true` immediately (per `ClprCompleteConnectorHandler`, unlike the Channel side) and insert the `clpr_connector` row keyed by `(channel_id, connector_id)` with `connector_contract`, `admin_key`, `locked_stake`.                                                                                                                                                                                                                                                                                                                                                                |
-| 127 | `ClprEndpointPublication`       | `clpr_endpoint_publication` (tx)     | Hiero-internal, node-to-node protocol transaction — **out of scope** for the cross-ledger-facing tables; optionally worth ingesting only if the mirror node wants to expose per-node CLPR endpoint publication history as an operational/debugging aid.                                                                                                                                                                                                                                                                                                                                                                                             |
-| 128 | `ClprGetEndpointManifest`       | `clprGetEndpointManifest` (query)    | Read-only; no persistence — served from the current `clpr_endpoint_manifest` row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| #   | `HederaFunctionality`           | `TransactionBody` / `Query` field    | What mirror node must persist                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --- | ------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 117 | `ClprUpdateLedgerConfiguration` | `clprUpdateLedgerConfiguration` (tx) | Update the `clpr_ledger_configuration` singleton row (throttles, timestamp); close out prior history row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 118 | `ClprRegisterChannel`           | `clprRegisterChannel` (tx)           | Insert a row into `clpr_channel_pending_commitment` keyed by `ownership_commitment`; no `channel_id` is known yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 119 | `ClprCompleteChannel`           | `clprCompleteChannel` (tx)           | Insert the new `clpr_channel` row in `ACTIVE` status, recording `channel_id`, `ownership_commitment` (carried forward, not cleared), `verifier_contract`, `verifier_fingerprint`, initial `trust_anchor`/`trust_anchor_id`, `channel_context`, and initial `endpoint_manifest_version` — populated via the corresponding `ClprCompleteChannelTransformer` from the `clpr_channel_value` state change, since these fields are verifier-derived. Per `ClprCompleteChannelHandler`, the real consensus state leaves `clpr_channel_pending_commitment`'s entry untouched indefinitely (see row 120). The mirror node still sets `completed_timestamp` on that row itself — a self-contained recomputation of `ownership_commitment` from this transaction's own fields, not reliant on consensus state — purely so the Pending Channels API can exclude it. |
+| 120 | `ClprCloseChannel`              | `clprCloseChannel` (tx)              | If no Channel exists yet for the supplied `ownership_commitment` (still pending/abandoned), mark the `clpr_channel_pending_commitment` row `deleted=true`. If a Channel exists, transition its status toward `CLOSING`/`DRAINED`/`CLOSED` — per `ClprCloseChannelHandler`, this path does **not** touch `clpr_channel_pending_commitment` in real consensus state (see row 119); the mirror node already closed out that row itself at completion time via `completed_timestamp`, so there's nothing left to reconcile here.                                                                                                                                                                                                                                                                                                                            |
+| 121 | `ClprGetLedgerConfiguration`    | `clprGetLedgerConfiguration` (query) | Read-only; no persistence — served from the current `clpr_ledger_configuration` row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 122 | `ClprSubmitBundle`              | `clprSubmitBundle` (tx)              | Append dispatched `ClprMessage`/`ClprMessageReply`/`ClprControlMessage` entries to `clpr_message` (populated via `ClprSubmitBundleTransformer` from `clpr_message_value`/`clpr_message_key`, since payload contents come from the verifier, not the transaction body); `connector_id` is read directly for `ClprMessage` rows, left `null` for `ClprControlMessage` rows, and derived for `ClprMessageReply` rows by looking up the Data Message it replies to (see [Database Schema Design](#database-schema-design)); update `channel.next_message_id` / `received_message_id` / running hashes / status from `clpr_channel_value`.                                                                                                                                                                                                                   |
+| 124 | `ClprRegisterConnector`         | `clprRegisterConnector` (tx)         | Insert a row into `clpr_connector_pending_commitment` keyed by `commitment`; no `connector_id` is known yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 125 | `ClprDeregisterConnector`       | `clprDeregisterConnector` (tx)       | Close out the `clpr_connector`/`clpr_connector_history` row and record `stake_recipient`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 126 | `ClprCompleteConnector`         | `clprCompleteConnector` (tx)         | Set `completed_timestamp` on the matching `clpr_connector_pending_commitment` row immediately (matching the real consensus-state removal in `ClprCompleteConnectorHandler`, unlike the Channel side) and insert the `clpr_connector` row keyed by `(channel_id, connector_id)` with `connector_contract`, `admin_key`, `locked_stake`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 127 | `ClprEndpointPublication`       | `clpr_endpoint_publication` (tx)     | Hiero-internal, node-to-node protocol transaction — **out of scope** for the cross-ledger-facing tables; optionally worth ingesting only if the mirror node wants to expose per-node CLPR endpoint publication history as an operational/debugging aid.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 128 | `ClprGetEndpointManifest`       | `clprGetEndpointManifest` (query)    | Read-only; no persistence — served from the current `clpr_endpoint_manifest` row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 Two additional CLPR state singletons are visible in the block stream but not driven by their own dedicated
 transaction: `clpr_endpoint_manifest_construction_value` (Hiero-internal, see Non-Goals) and the
@@ -170,31 +171,46 @@ Column order within each table groups fixed 8-byte columns (`bigint`) first, the
 variable-length columns (`bytea`/`varchar`/`int8range`) last, to avoid PostgreSQL padding waste from unfavorable
 alignment (see https://www.enterprisedb.com/blog/rocks-and-sand).
 
-Table and column definitions are identical between the `v1` and `v2` (Citus) migrations. The only difference is
-that the `v2` migration additionally runs the `create_distributed_table`/`create_reference_table` calls shown at
-the end of each SQL block below; `v1` does not.
+Table and column definitions are identical between the `v1` and `v2` (Citus) migrations, with one exception:
+`clpr_message` is additionally time-partitioned (and gains a `clpr_message_lookup` side table) in `v2` only — see
+[Message Queue](#4-message-queue-append-only). For every other table except `clpr_ledger_configuration`/
+`clpr_endpoint_manifest` (which stay plain, undistributed tables in both profiles — see
+[below](#3-ledger-configuratioadd support in monitor to submit new transaction types (used for 10k testing)n-and-endpoint-manifest-singletons)), the only difference is that the `v2` migration
+additionally runs the `create_distributed_table` calls shown at the end of each SQL block; `v1` does not.
 
 Unrevealed Channel commitments — the commit phase, before `ClprCompleteChannel` reveals `channel_id` — are
 persisted in a separate table, `clpr_channel_pending_commitment`. `clpr_channel` is keyed by `channel_id`, but per
-the commit-reveal scheme `ClprRegisterChannel` submits only a
-commitment hash — `channel_id` isn't revealed until `ClprCompleteChannel` — so `clpr_channel` cannot hold a row for
-the commit-only phase. A minimal table keyed by the commitment hash is sufficient: per `clpr_register_channel.proto`/
-`clpr_complete_channel.proto`, `ClprRegisterChannel` submits only `ownership_commitment = keccak256(channel_id ||
-public_key)` (computed off-chain, so `channel_id`/`public_key` stay secret), and `ClprCompleteChannel` correlates
-back to it by recomputing that same hash from the _revealed_ `channel_id`/`public_key` and doing a direct key
-lookup in `STATE_ID_CLPR_PENDING_COMMITMENTS` — a plain set-membership check, with nothing else tying the two
-transactions together. That means the map's value needs no richer structure than a bare marker, so
-`clpr_channel_pending_commitment` only needs the commitment hash itself plus `created_timestamp` (see below).
-`clpr_channel` itself only ever holds post-reveal rows, so `channel_id` is always known by the time a row is
-written there — `PENDING` is removed from `clpr_channel_status` accordingly.
+the commit-reveal scheme `ClprRegisterChannel` submits only a commitment hash — `channel_id` isn't revealed until
+`ClprCompleteChannel` — so `clpr_channel` cannot hold a row for the commit-only phase. Per
+`clpr_register_channel.proto`/`clpr_complete_channel.proto`, `ClprRegisterChannel` submits only
+`ownership_commitment = keccak256(channel_id || public_key)` (computed off-chain, so `channel_id`/`public_key` stay
+secret), and `ClprCompleteChannel` correlates back to it by recomputing that same hash from the _revealed_
+`channel_id`/`public_key`. `clpr_channel` itself only ever holds post-reveal rows, so `channel_id` is always known
+by the time a row is written there — `PENDING` is removed from `clpr_channel_status` accordingly.
+
+`clpr_channel_pending_commitment` is a proper `@Upsertable(history = true)` current + history pair, like
+`ClprChannel`/`ClprConnector`, not a plain insert-only table — it has a real lifecycle (register → completed, or
+register → abandoned) that legitimately needs updating after insert, the same reason Channel/Connector get history
+tables. Per [Transaction & Query Inventory](#transaction--query-inventory) row 119, the real consensus state never
+removes a Channel's commitment from `STATE_ID_CLPR_PENDING_COMMITMENTS` at completion — but the mirror node's own
+`ClprCompleteChannelTransactionHandler` still recomputes the same `ownership_commitment` hash (pure function of
+that transaction's own `channel_id`/`public_key` fields, no verifier/state-change data needed) purely to write
+`completed_timestamp` back onto this row, by its own primary key — a shard-local point-update, not a cross-table
+join, since this table is distributed by `ownership_commitment`, unrelated to `clpr_channel`'s `channel_id`
+distribution. This lets [Pending Channels](#5-pending-channels-api) correctly exclude completed commitments without
+ever joining across the two tables. `deleted` remains reserved for genuinely-abandoned (never-completed)
+commitments, set by `ClprCloseChannel`.
 
 `ClprRegisterConnector`/`ClprCompleteConnector` use the same commit-reveal _commit_ mechanism
 (`commitment = keccak256(connectorId || pubKey)`), persisted the same way in `clpr_connector_pending_commitment`
-(see below). The _cleanup_ behavior is **not** symmetric with Channels, though: per `ClprCompleteConnectorHandler`,
-the Connector's commitment is removed from `STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS` immediately at completion
-(`commitmentStore.remove(...)`, step 9), unlike `ClprCompleteChannelHandler`, which leaves the Channel's commitment
-in place indefinitely. So a Connector's pending row is marked `deleted=true` at `ClprCompleteConnector` time, while
-a Channel's is not touched until (and unless) it's abandoned via `ClprCloseChannel`.
+(also `@Upsertable(history = true)`, see below). The _cleanup_ behavior is **not** symmetric with Channels, though:
+per `ClprCompleteConnectorHandler`, the Connector's commitment is removed from
+`STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS` immediately at completion (`commitmentStore.remove(...)`, step 9),
+unlike `ClprCompleteChannelHandler`, which leaves the Channel's commitment in place indefinitely. Mirroring that
+real removal, `ClprCompleteConnectorTransactionHandler` sets `completed_timestamp` immediately, in the same
+transaction that completes the Connector — there's no separate abandonment path for Connectors today (no handler
+ever marks a Connector's pending row `deleted=true`), so that column stays reserved for schema symmetry with
+Channel's table, not a currently-reachable state.
 
 ### 1. Channel Tables
 
@@ -204,12 +220,30 @@ create type clpr_channel_status as enum ('ACTIVE', 'PAUSED', 'CLOSING', 'DRAINED
 
 create table if not exists clpr_channel_pending_commitment
 (
-    created_timestamp    bigint   not null,
-    deleted              boolean  not null default false,
-    ownership_commitment bytea    not null,
+    completed_timestamp  bigint,
+    created_timestamp    bigint      not null,
+    deleted              boolean     not null default false,
+    ownership_commitment bytea       not null,
+    timestamp_range      int8range   not null,
 
     primary key (ownership_commitment)
 );
+
+-- Partial index: only rows still genuinely pending are indexed, so its size tracks
+-- that shrinking subset rather than the ever-growing total (nothing is ever
+-- physically deleted — see Pending Channels API). Supports the API's
+-- deleted=false AND completed_timestamp IS NULL filter directly.
+create index if not exists clpr_channel_pending_commitment__created_timestamp
+    on clpr_channel_pending_commitment (created_timestamp)
+    where not deleted and completed_timestamp is null;
+
+create table if not exists clpr_channel_pending_commitment_history
+(
+    like clpr_channel_pending_commitment including defaults
+);
+
+create index if not exists clpr_channel_pending_commitment_history__timestamp_range
+    on clpr_channel_pending_commitment_history using gist (timestamp_range);
 
 create table if not exists clpr_channel
 (
@@ -246,6 +280,7 @@ create index if not exists clpr_channel_history__timestamp_range
     on clpr_channel_history using gist (timestamp_range);
 
 select create_distributed_table('clpr_channel_pending_commitment', 'ownership_commitment');
+select create_distributed_table('clpr_channel_pending_commitment_history', 'ownership_commitment');
 select create_distributed_table('clpr_channel', 'channel_id');
 select create_distributed_table('clpr_channel_history', 'channel_id');
 ```
@@ -259,12 +294,22 @@ The `chain_id` index supports both the [Chain API](#1-chain-api)'s `chain_id`+co
 -- add_clpr_connector_support.sql
 create table if not exists clpr_connector_pending_commitment
 (
-    created_timestamp  bigint   not null,
-    deleted            boolean  not null default false,
-    commitment         bytea    not null,
+    completed_timestamp bigint,
+    created_timestamp   bigint      not null,
+    deleted             boolean     not null default false,
+    commitment          bytea       not null,
+    timestamp_range     int8range   not null,
 
     primary key (commitment)
 );
+
+create table if not exists clpr_connector_pending_commitment_history
+(
+    like clpr_connector_pending_commitment including defaults
+);
+
+create index if not exists clpr_connector_pending_commitment_history__timestamp_range
+    on clpr_connector_pending_commitment_history using gist (timestamp_range);
 
 create table if not exists clpr_connector
 (
@@ -290,6 +335,7 @@ create index if not exists clpr_connector_history__timestamp_range
     on clpr_connector_history using gist (timestamp_range);
 
 select create_distributed_table('clpr_connector_pending_commitment', 'commitment');
+select create_distributed_table('clpr_connector_pending_commitment_history', 'commitment');
 select create_distributed_table('clpr_connector', 'channel_id', colocate_with => 'clpr_channel');
 select create_distributed_table('clpr_connector_history', 'channel_id', colocate_with => 'clpr_channel');
 ```
@@ -342,21 +388,38 @@ create table if not exists clpr_endpoint_manifest_history
 
 create index if not exists clpr_endpoint_manifest_history__timestamp_range
     on clpr_endpoint_manifest_history using gist (timestamp_range);
-
-select create_reference_table('clpr_ledger_configuration');
-select create_reference_table('clpr_ledger_configuration_history');
-select create_reference_table('clpr_endpoint_manifest');
-select create_reference_table('clpr_endpoint_manifest_history');
 ```
 
-Both are network-wide singletons (one row each), so they use `create_reference_table` (replicated to every node for
-fast local reads) rather than `create_distributed_table` — hash-distributing a single row would just pin it to one
-shard anyway, with none of a reference table's replication benefit.
+These four stay as plain, ordinary Postgres tables in `v2` — no `create_distributed_table` or `create_reference_table`
+call at all, matching how this codebase already treats comparable small, infrequently-updated config/admin tables
+(e.g. `network_stake`, `address_book`): nothing joins against them from a distributed table (unlike `entity`, which
+is genuinely why tables like `topic_message_lookup` need `create_reference_table`), and neither is even exposed via
+REST in this iteration (see [REST API Implementation](#rest-api-implementation)), so reference-table replication
+would add write-side coordination overhead across every worker node for no actual benefit. This also means `v1` and
+`v2`'s migrations for these two tables are identical byte-for-byte, not just in table/column definitions.
 
 ### 4. Message Queue (Append-Only)
 
+`clpr_channel`, `clpr_connector`, and `clpr_message` all stay colocated by `channel_id` — the same choice
+`topic_message` makes (colocated with `entity` by `topic_id`), not the one `transaction_hash` makes (distributed by
+its own `hash`, no colocation). This keeps `Messages per Channel` and `Connectors per Channel` shard-local: Citus
+can route both straight to the one shard that `channel_id` hashes to, without touching any other shard.
+
+Colocation only solves _which shard_ a query hits, though — it says nothing about _which time partition within that
+shard_. `clpr_message` is still time-partitioned by `consensus_timestamp` in `v2` (for the reasons in
+[Performance Considerations](#2-performance-considerations)), and a query filtered only by `channel_id`/`message_id`
+still can't be pruned to one partition without a timestamp bound — exactly the problem `topic_message_lookup`
+solves for `topic_message`'s `sequence_number`. So `clpr_message` needs both: colocation (shard pruning) _and_ a
+lookup table (partition pruning) — they're independent mechanisms solving two different dimensions, not
+alternatives to each other.
+
+**This is the one table where `v1` and `v2` diverge in structure.** `topic_message` is unpartitioned in `v1` and
+time-partitioned in `v2`; `clpr_message` follows the same split.
+
+#### `v1` (unpartitioned)
+
 ```sql
--- add_clpr_message_support.sql
+-- add_clpr_message_support.sql (v1)
 create type clpr_message_type as enum ('DATA', 'RESPONSE', 'CONTROL');
 create type clpr_message_reply_status as enum
     ('SUCCESS', 'APPLICATION_ERROR', 'CONNECTOR_NOT_FOUND', 'CONNECTOR_UNDERFUNDED');
@@ -380,8 +443,77 @@ create table if not exists clpr_message
 
 create index if not exists clpr_message__connector_id
     on clpr_message (connector_id, message_id);
+```
+
+#### `v2` (time-partitioned)
+
+Postgres requires a partitioned table's primary key (if any) to include the partition column. `topic_message`
+dropped its primary key entirely in `v2` (`V1.93.1__drop_topic_message_primary_key.sql` upstream) rather than
+include `consensus_timestamp` in it. `clpr_message` does the same, for the same reason — the replacement indexes
+and the lookup table that replaces the dropped PK's lookup role are explained after the SQL:
+
+```sql
+-- add_clpr_message_support.sql (v2)
+create type clpr_message_type as enum ('DATA', 'RESPONSE', 'CONTROL');
+create type clpr_message_reply_status as enum
+    ('SUCCESS', 'APPLICATION_ERROR', 'CONNECTOR_NOT_FOUND', 'CONNECTOR_UNDERFUNDED');
+
+create table if not exists clpr_message
+(
+    consensus_timestamp  bigint                      not null,
+    message_id           bigint                      not null,
+    reply_to_message_id  bigint,
+    message_type         clpr_message_type           not null,
+    reply_status         clpr_message_reply_status,
+    channel_id           bytea                       not null,
+    connector_id         bytea,
+    message_data         bytea,
+    running_hash         bytea                       not null,
+    sender               bytea,
+    target_application   bytea
+) partition by range (consensus_timestamp);
+
+create index if not exists clpr_message__channel_id_timestamp
+    on clpr_message (channel_id, consensus_timestamp);
+
+create index if not exists clpr_message__channel_id_message_id
+    on clpr_message (channel_id, message_id);
+
+create index if not exists clpr_message__connector_id
+    on clpr_message (connector_id, message_id);
 
 select create_distributed_table('clpr_message', 'channel_id', colocate_with => 'clpr_channel');
+
+-- start_from is CLPR's own enablement date, a new constant separate from the
+-- existing partitionStartDate (network genesis) other tables use here.
+select create_time_partitions(table_name := 'public.clpr_message',
+                              partition_interval := ${partitionTimeInterval},
+                              start_from := <clpr-enablement-date>::timestamptz,
+                              end_at := CURRENT_TIMESTAMP + ${partitionTimeInterval});
+
+-- Resolves (channel_id, message_id) to a timestamp range for partition pruning,
+-- the same role topic_message_lookup plays for sequence_number. Keyed by the
+-- stable (channel_id, partition) pair, not by message_id_range itself, so
+-- extending a partition's range as more messages arrive is a cheap in-place
+-- UPDATE on a fixed key, not a delete+reinsert churn every time the range
+-- grows — matching topic_message_lookup's own primary key: (topic_id, partition),
+-- not (topic_id, sequence_number_range). Colocated with clpr_channel by
+-- channel_id, same as clpr_message itself, so this resolution step is also
+-- shard-local, not just the final query.
+create table if not exists clpr_message_lookup
+(
+    channel_id         bytea      not null,
+    partition          text       not null,
+    message_id_range   int8range  not null,
+    timestamp_range    int8range  not null,
+
+    primary key (channel_id, partition)
+);
+
+create index if not exists clpr_message_lookup__message_id_range
+    on clpr_message_lookup using gist (channel_id, message_id_range);
+
+select create_distributed_table('clpr_message_lookup', 'channel_id', colocate_with => 'clpr_channel');
 ```
 
 **`connector_id` is not directly available for every message type.** Per `clpr_message.proto`: `ClprMessage`
@@ -395,22 +527,36 @@ since every Response is generated for a Data Message that was enqueued earlier i
 The `connector_id` index supports the [Messages per Connector API](#3-messages-per-connector-api)'s
 `connector_id`-filtered, `message.id`-ordered lookup — safe to paginate this way since a Connector is bound to
 exactly one Channel (`connector_id` is derived as `keccak256(channelId || publicKey || salt)`), so its messages
-share that Channel's monotonic `message_id` sequence. No index on `consensus_timestamp` is needed since none of the
-six scoped REST APIs filter or paginate by it. Distributing by `channel_id` makes `Messages per Channel` and
-`Connectors per Channel` shard-local (both filter by `channel_id` directly). `Messages per Connector` (filters by
-`connector_id`) and `Channels per Chain`/the Chain API (filter by `chain_id`) are not the distribution column, so
-those scatter-gather across all shards regardless of colocation.
+share that Channel's monotonic `message_id` sequence. `Messages per Connector` requires `channelId` in its path for
+exactly this reason, so — like `Messages per Channel` and `Connectors per Channel` — it's shard-local (all three
+filter by `channel_id` directly). `Channels per Chain` and the Chain API remain scatter-gather, since `chain_id`
+isn't the distribution column and (unlike a Connector) a `chain_id` claim doesn't map to any single Channel. Being
+shard-local doesn't make a query partition-local for free, though — colocation and time-partitioning are
+independent — so within whichever shard a `message.id`-filtered query lands on, it still needs
+`clpr_message_lookup` to resolve a `consensus_timestamp` bound before it can prune to the right time partition.
+Once that bound is resolved, `clpr_message__channel_id_message_id` — the `v2` replacement for the primary key
+dropped above — finds the exact row within that partition, mirroring `topic_message__topic_id_seqnum`'s role for
+`topic_message`.
 
 > **Distribution strategy.** CLPR tables have no natural Hiero `EntityId` to colocate against — `channel_id` and
 > `connector_id` are protocol-level 32-byte values, not Hiero entity numbers. Since `channel_id` is the root of the
-> natural parent-child relationship
-> (Connectors and Messages both belong to exactly one Channel), `clpr_channel`/`clpr_channel_history` are
-> hash-distributed by `channel_id`, and `clpr_connector(_history)`/`clpr_message` are hash-distributed by
-> `channel_id` too, `colocate_with => 'clpr_channel'`, so per-channel queries stay shard-local.
-> `clpr_channel_pending_commitment` and `clpr_connector_pending_commitment` have no `channel_id` at all, so each is
-> distributed by its own key (`ownership_commitment`/`commitment`). `clpr_ledger_configuration(_history)`/
-> `clpr_endpoint_manifest(_history)` are network-wide singletons, so they're `create_reference_table`s instead (see
-> above).
+> natural parent-child relationship (Connectors and Messages both belong to exactly one Channel),
+> `clpr_channel`/`clpr_channel_history` are hash-distributed by `channel_id`, and
+> `clpr_connector(_history)`/`clpr_message`/`clpr_message_lookup` are hash-distributed by `channel_id` too,
+> `colocate_with => 'clpr_channel'`, so per-channel queries stay shard-local — the same choice `topic_message`
+> makes by colocating with `entity`. `clpr_message` is additionally time-partitioned by `consensus_timestamp` in
+> `v2` only (see above) — distribution (shard dimension) and partitioning (time dimension) are orthogonal and both
+> apply to it. `clpr_channel_pending_commitment` and `clpr_connector_pending_commitment` have no `channel_id` at
+> all, so each is distributed by its own key (`ownership_commitment`/`commitment`).
+> `clpr_ledger_configuration(_history)`/`clpr_endpoint_manifest(_history)` get neither treatment — they stay plain,
+> undistributed tables (see above).
+>
+> **Open risk, not yet resolved**: colocating `clpr_connector`/`clpr_message` by `channel_id` means one
+> disproportionately active Channel's entire volume still concentrates on whichever single shard that Channel's
+> `channel_id` hashes to — this design accepts that risk for now (matching `topic_message`'s own accepted skew
+> risk across topics) rather than adopting `transaction_hash`'s alternative of distributing by a uniform hash
+> column with no colocation, which would eliminate the hotspot risk at the cost of making every query
+> scatter-gather. Revisit if real CLPR deployments show a small number of Channels dominating total volume.
 
 ## Importer Module Changes
 
@@ -420,24 +566,29 @@ New domain classes under `common/src/main/java/org/hiero/mirror/common/domain/cl
 `AbstractX` / `X` / `XHistory` pattern (`@Upsertable(history = true)` on the abstract base, current and history
 subclasses each map to their own table) used by `AbstractToken`/`Token`/`TokenHistory`:
 
-- **`ClprChannelPendingCommitment`**: a plain, non-history `@Entity` with id `ownershipCommitment`,
-  `createdTimestamp`, and `deleted`. Inserted by `ClprRegisterChannelTransactionHandler`. Per
-  `ClprCloseChannelHandler` in `hiero-consensus-node`, only `ClprCloseChannelTransactionHandler` ever marks a row
-  `deleted=true`, and only for a still-pending (never-completed) commitment — `ClprCompleteChannelTransactionHandler`
-  does **not** touch this table at all (see [Transaction & Query Inventory](#transaction--query-inventory) row 119
-  and [Feedback](#hip-1535-feedback--required-clarifications)). Never has a history variant since there's no value
-  in tracking intermediate states of a commit-only row.
+- **`ClprChannelPendingCommitment`** (+ history): id `ownershipCommitment`, `createdTimestamp`,
+  `completedTimestamp`, `deleted`, `timestampRange`. Inserted by `ClprRegisterChannelTransactionHandler`. Unlike
+  real consensus state (where `ClprCompleteChannelHandler` never touches the pending-commitment map — see
+  [Transaction & Query Inventory](#transaction--query-inventory) row 119), the mirror node's own
+  `ClprCompleteChannelTransactionHandler` sets `completedTimestamp` on this row (a self-contained computation from
+  that transaction's own `channel_id`/`public_key`, needing no verifier/state-change data), purely so
+  [Pending Channels](#5-pending-channels-api) can exclude completed commitments without a cross-table join.
+  `ClprCloseChannelTransactionHandler` sets `deleted=true` instead, for a genuinely-abandoned (never-completed)
+  commitment. Uses `@Upsertable(history = true)` like `ClprChannel`/`ClprConnector`, since it has a real lifecycle
+  worth tracking, not a plain insert-only entity.
 - **`ClprChannel`** (+ history): `channelId`, `chainId`, `status`, `ownershipCommitment`, `verifierContractId`,
   `verifierFingerprint`, `trustAnchor`, `trustAnchorId`, `channelContext`, `endpointManifestVersion`,
   `nextMessageId`, `receivedMessageId`, `ackedMessageId`, `sentRunningHash`, `receivedRunningHash`,
   `createdTimestamp`, `timestampRange`. Per `ClprCompleteChannelHandler` in `hiero-consensus-node`,
   `ownershipCommitment` is stored on the real `ClprChannel` state record itself (not just the pending-commitment
   table) — it persists there for the Channel's entire lifetime.
-- **`ClprConnectorPendingCommitment`**: a plain, non-history `@Entity` with id `commitment`, `createdTimestamp`, and
-  `deleted`. Inserted by `ClprRegisterConnectorTransactionHandler`. Per `ClprCompleteConnectorHandler`, marked
-  `deleted=true` immediately by `ClprCompleteConnectorTransactionHandler` — unlike
-  `ClprChannelPendingCommitment`, there is no never-completed/abandoned-commitment cleanup path, since
-  `ClprDeregisterConnectorHandler` only ever operates on an already-completed Connector.
+- **`ClprConnectorPendingCommitment`** (+ history): id `commitment`, `createdTimestamp`, `completedTimestamp`,
+  `deleted`, `timestampRange` — the same shape as `ClprChannelPendingCommitment`. Inserted by
+  `ClprRegisterConnectorTransactionHandler`. Per `ClprCompleteConnectorHandler`, the real commitment _is_ removed
+  immediately at completion, so `ClprCompleteConnectorTransactionHandler` sets `completedTimestamp` in that same
+  transaction. `deleted` stays reserved for schema symmetry — no handler ever sets it today, since
+  `ClprDeregisterConnectorHandler` only ever operates on an already-completed Connector, so there's no
+  never-completed/abandoned-commitment path for Connectors.
 - **`ClprConnector`** (+ history): composite id `(channelId, connectorId)`, `connectorContractId`, `adminKey`,
   `lockedStake`, `inFlightMessageCount`, `slashCount`, `createdTimestamp`, `timestampRange`.
 - **`ClprLedgerConfiguration`** (+ history) and **`ClprEndpointManifest`** (+ history): singleton rows, fields as
@@ -448,7 +599,7 @@ subclasses each map to their own table) used by `AbstractToken`/`Token`/`TokenHi
 ### 2. Transaction Handlers
 
 One handler per new `TransactionType`, following the existing `@Named class extends AbstractTransactionHandler`
-pattern (e.g. `TokenAirdropTransactionHandler`):
+pattern:
 
 - `ClprRegisterChannelTransactionHandler`
 - `ClprCompleteChannelTransactionHandler`
@@ -504,15 +655,16 @@ Add to `importer/src/main/java/org/hiero/mirror/importer/parser/record/entity/En
 existing `default void onX(X x) {}` pattern:
 
 - `onClprChannel(ClprChannel)`
-- `onClprChannelPendingCommitment(ClprChannelPendingCommitment)` — used both to insert the row at
-  `ClprRegisterChannel` time and, via the same upsert-by-`ownershipCommitment` mechanism, to mark it `deleted=true`
-  when `ClprCloseChannel` abandons a still-pending commitment — consistent with this codebase's `deleted` boolean
-  convention, rather than a physical row delete, since `EntityListener` has no delete-oriented methods anywhere.
-  Not called from `ClprCompleteChannel` (see row 119 of the inventory).
+- `onClprChannelPendingCommitment(ClprChannelPendingCommitment)` — called from three different handlers, all
+  upserting by the `ownershipCommitment` primary key via the standard `@Upsertable(history = true)` mechanism (the
+  same partial-update-with-history pattern `ClprChannel`'s own `status` transitions use, not a one-off upsert):
+  insert at `ClprRegisterChannel` time; set `completedTimestamp` at `ClprCompleteChannel` time (a mirror-node-only
+  enrichment — real consensus state never touches this row then, see row 119 of the inventory); set `deleted=true`
+  when `ClprCloseChannel` abandons a still-pending commitment.
 - `onClprConnector(ClprConnector)`
-- `onClprConnectorPendingCommitment(ClprConnectorPendingCommitment)` — used both to insert the row at
-  `ClprRegisterConnector` time and, via the same upsert-by-`commitment` mechanism, to mark it `deleted=true`
-  immediately at `ClprCompleteConnector` time (see row 126 of the inventory).
+- `onClprConnectorPendingCommitment(ClprConnectorPendingCommitment)` — insert at `ClprRegisterConnector` time; set
+  `completedTimestamp` at `ClprCompleteConnector` time (matching the real consensus-state removal there, see row
+  126 of the inventory). No handler sets `deleted=true` today — see [Domain Models](#1-domain-models).
 - `onClprEndpointManifest(ClprEndpointManifest)`
 - `onClprLedgerConfiguration(ClprLedgerConfiguration)`
 - `onClprMessage(ClprMessage)`
@@ -524,7 +676,8 @@ New `JpaRepository`-based repositories for `ClprChannelPendingCommitment`, `Clpr
 `ClprMessage`, keyed by their respective (possibly composite) ids. Given the six REST APIs now scoped in
 [REST API Implementation](#rest-api-implementation), `ClprChannelRepository` needs a `chain.id`-filtered lookup and
 a distinct-`chain_id`-with-count aggregation for the Chain API (a `group by`, not a simple CRUD method);
-`ClprMessageRepository` needs lookups by both `channel_id` and `connector_id`.
+`ClprMessageRepository` needs lookups by both `channel_id` and `connector_id`, plus the `v2` `clpr_message_lookup`
+resolution step described in [Message Queue](#4-message-queue-append-only).
 
 ## REST API Implementation
 
@@ -543,8 +696,10 @@ Ledger configuration and endpoint manifest read endpoints are explicitly **not**
 registrant at commit time, with no meaningful ascending/descending order, so the Channels and Connectors list APIs
 below paginate by `created_timestamp` (with the id as tiebreaker), not by the id itself. `message_id`, by contrast,
 is a per-channel monotonically increasing, immutable sequence number (`next_message_id` in the schema), so the
-Messages APIs safely paginate by `message.id` directly. `chain_id` is a free-form string claim (see Feedback item
-4), so the Chain API paginates lexicographically by `chain.id` itself rather than by time.
+Messages APIs safely paginate by `message.id` directly — though in `v2`, since `clpr_message` is time-partitioned
+(see [Message Queue](#4-message-queue-append-only)), that requires first resolving `message.id` to a
+`consensus_timestamp` bound via `clpr_message_lookup`, not a plain index lookup. `chain_id` is a free-form string
+claim (see Feedback item 4), so the Chain API paginates lexicographically by `chain.id` itself rather than by time.
 
 ### 1. Chain API
 
@@ -631,12 +786,19 @@ Response format:
 ### 3. Messages per Connector API
 
 ```
-GET /api/v1/clpr/connectors/{connectorId}/messages
+GET /api/v1/clpr/channels/{channelId}/connectors/{connectorId}/messages
 ```
 
-`connector_id` is derived as `keccak256(channelId || publicKey || salt)`, so it's effectively unique on its own
-without needing `channelId` in the path. Returns Data Messages the Connector authorized directly and the Response
-Messages addressed to it (both have a `connector_id` on `clpr_message` — see
+`channelId` is required in the path, not just `connectorId` — this matches the protocol's own identity model, not
+just a sharding optimization. Per `clpr_connector.proto`, `ClprConnectorKey`'s doc comment states it "uniquely
+identifies a Connector **within a specific Channel**," and the authoritative on-ledger state key is always the
+composite `(channel_id, connector_id)`, never `connector_id` alone — unlike `chain_id`, which is an unverifiable,
+unscoped claim (see Feedback item 4). Nesting under its Channel is therefore both spec-faithful and keeps this
+query shard-local via `channel_id`, the same as [Messages per Channel](#4-messages-per-channel-api). A client with
+a real `connectorId` already has its `channelId` in hand regardless, since that's how the Connector was discovered
+in the first place (via [Connectors per Channel](#6-connectors-per-channel-api)). Returns Data Messages the
+Connector authorized directly
+and the Response Messages addressed to it (both have a `connector_id` on `clpr_message` — see
 [Database Schema Design](#database-schema-design)); Control Messages never appear here, since they have no
 Connector association.
 
@@ -660,7 +822,7 @@ Response format:
     }
   ],
   "links": {
-    "next": "/api/v1/clpr/connectors/0x4d5e6f.../messages?message.id=lt:5&limit=1"
+    "next": "/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages?message.id=lt:5&limit=1"
   }
 }
 ```
@@ -669,17 +831,27 @@ Payload bytes (`message_data`) are returned opaque/hex-encoded per the [Non-Goal
 
 #### Query Parameters
 
-| Parameter    | Type    | Description                          | Default | Validation                                                     |
-| ------------ | ------- | ------------------------------------ | ------- | -------------------------------------------------------------- |
-| `message.id` | integer | Filter/paginate by `message_id`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; positive integer |
-| `type`       | string  | Filter by message type               | none    | One of `DATA`, `RESPONSE`, `CONTROL`                           |
-| `limit`      | integer | Maximum number of messages to return | `25`    | Must be between 1 and 100                                      |
-| `order`      | string  | Sort order for results               | `desc`  | Must be either `asc` or `desc`                                 |
+| Parameter    | Type    | Description                          | Default | Validation                                                                                                                                                                                                             |
+| ------------ | ------- | ------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `message.id` | integer | Filter/paginate by `message_id`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; positive integer. In `v2`, resolved to a `consensus_timestamp` bound via `clpr_message_lookup` for partition pruning (see [Message Queue](#4-message-queue-append-only)) |
+| `timestamp`  | string  | Filter by `consensus_timestamp`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (following this codebase's `maxTransactionsTimestampRangeNs`-style convention, e.g. 30 days)                    |
+| `type`       | string  | Filter by message type               | none    | One of `DATA`, `RESPONSE`, `CONTROL`; **requires** `message.id` or `timestamp` to also be supplied (see below)                                                                                                         |
+| `limit`      | integer | Maximum number of messages to return | `25`    | Must be between 1 and 100                                                                                                                                                                                              |
+| `order`      | string  | Sort order for results               | `desc`  | Must be either `asc` or `desc`                                                                                                                                                                                         |
+
+With no filters, `channelId` + `connectorId` already pin this query to `clpr_message__connector_id`, which — being
+a direct, selective point lookup — lets Postgres take the latest `limit` rows for that Connector without touching
+partitions it doesn't need, the same way `ORDER BY ... LIMIT` against any indexed column works. `type` breaks that:
+it's low-cardinality (3 values, no index of its own), so filtering by it without a bound could force scanning back
+through many unrelated rows — and many partitions — to accumulate `limit` matches, especially for the rarer
+`CONTROL` type. That's why `type` specifically requires `message.id` or `timestamp` alongside it, while a plain
+fetch or a `connectorId`-only fetch doesn't need either.
 
 **Examples:**
 
-- `/api/v1/clpr/connectors/0x4d5e6f.../messages` — Get all messages handled by a Connector, newest first
-- `/api/v1/clpr/connectors/0x4d5e6f.../messages?type=eq:DATA&limit=10` — Get first 10 Data messages
+- `/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages` — Get all messages handled by a Connector, newest first
+- `/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages?type=eq:DATA&timestamp=gte:1726874345.000000000&limit=10` — Get first 10 Data messages within a bounded time window
+- `/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages?timestamp=gte:1726874345.000000000&limit=10` — Get 10 messages within a bounded time window
 
 ### 4. Messages per Channel API
 
@@ -718,17 +890,26 @@ Payload bytes (`message_data`) are returned opaque/hex-encoded per the [Non-Goal
 
 #### Query Parameters
 
-| Parameter    | Type    | Description                          | Default | Validation                                                     |
-| ------------ | ------- | ------------------------------------ | ------- | -------------------------------------------------------------- |
-| `message.id` | integer | Filter/paginate by `message_id`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; positive integer |
-| `type`       | string  | Filter by message type               | none    | One of `DATA`, `RESPONSE`, `CONTROL`                           |
-| `limit`      | integer | Maximum number of messages to return | `25`    | Must be between 1 and 100                                      |
-| `order`      | string  | Sort order for results               | `desc`  | Must be either `asc` or `desc`                                 |
+| Parameter    | Type    | Description                          | Default | Validation                                                                                                                                                                                                             |
+| ------------ | ------- | ------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `message.id` | integer | Filter/paginate by `message_id`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; positive integer. In `v2`, resolved to a `consensus_timestamp` bound via `clpr_message_lookup` for partition pruning (see [Message Queue](#4-message-queue-append-only)) |
+| `timestamp`  | string  | Filter by `consensus_timestamp`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (following this codebase's `maxTransactionsTimestampRangeNs`-style convention, e.g. 30 days)                    |
+| `type`       | string  | Filter by message type               | none    | One of `DATA`, `RESPONSE`, `CONTROL`; **requires** `message.id` or `timestamp` to also be supplied (see below)                                                                                                         |
+| `limit`      | integer | Maximum number of messages to return | `25`    | Must be between 1 and 100                                                                                                                                                                                              |
+| `order`      | string  | Sort order for results               | `desc`  | Must be either `asc` or `desc`                                                                                                                                                                                         |
+
+With no filters, `channel_id` alone already lets Postgres take the latest `limit` rows for this Channel directly off
+`clpr_message__channel_id_timestamp`, without touching partitions it doesn't need — the same `ORDER BY ... LIMIT`
+behavior any indexed column gets. `type` breaks that: it's low-cardinality (3 values, no index of its own), so
+filtering by it without a bound could force scanning back through many unrelated rows — and many partitions — to
+accumulate `limit` matches, especially for the rarer `CONTROL` type. That's why `type` specifically requires
+`message.id` or `timestamp` alongside it, the same rule as [Messages per Connector](#3-messages-per-connector-api);
+a plain fetch doesn't need either.
 
 **Examples:**
 
 - `/api/v1/clpr/channels/0x1a2b3c.../messages` — Get all messages on a Channel, newest first
-- `/api/v1/clpr/channels/0x1a2b3c.../messages?type=eq:DATA&limit=10` — Get first 10 Data messages
+- `/api/v1/clpr/channels/0x1a2b3c.../messages?type=eq:DATA&message.id=lt:50&limit=10` — Get first 10 Data messages before a given id
 - `/api/v1/clpr/channels/0x1a2b3c.../messages?message.id=lt:5&limit=5` — Get 5 messages with id less than 5
 
 ### 5. Pending Channels API
@@ -737,10 +918,15 @@ Payload bytes (`message_data`) are returned opaque/hex-encoded per the [Non-Goal
 GET /api/v1/clpr/channels/pending
 ```
 
-Lists `clpr_channel_pending_commitment` rows — Channels registered (commit phase) but not yet completed (reveal
-phase). Per [Database Schema Design](#database-schema-design), `channel_id` is never known for these
-rows; they're keyed only by `ownership_commitment`. `deleted=true` rows (abandoned via `ClprCloseChannel`) are
-excluded by default, consistent with this codebase's `deleted` boolean convention.
+Lists `clpr_channel_pending_commitment` rows that are genuinely still pending — i.e. `deleted = false and
+completed_timestamp is null`. Both exclusions matter: `deleted=true` rows were abandoned via `ClprCloseChannel`, and
+`completed_timestamp is not null` rows have already been promoted to a real `clpr_channel` (real consensus state
+never removes their commitment entry — see [Transaction & Query Inventory](#transaction--query-inventory) row 119 —
+so without this second filter, completed Channels would incorrectly still show up here indefinitely). This filter
+is served by `clpr_channel_pending_commitment__created_timestamp`, a partial index covering only still-pending rows
+(see [Database Schema Design](#database-schema-design)), so lookup cost tracks the shrinking "actually pending"
+subset rather than the ever-growing total table size. `channel_id` is never known for these rows; they're keyed
+only by `ownership_commitment`.
 
 Response format:
 
@@ -869,7 +1055,8 @@ process feedback:
   drain to `CLOSED`, asserting `clpr_channel`/`clpr_channel_history` rows at each transition.
 - Full Connector lifecycle: `registerConnector` → `completeConnector` → message dispatch affecting
   `in_flight_message_count`/`slash_count` → `deregisterConnector`.
-- Database migration tests for the new tables, including the `v2` Citus distribution/reference-table calls (see
+- Database migration tests for the new tables, including the `v2` Citus distribution/reference-table calls and
+  `clpr_message`'s `v2`-only time-partitioning plus `clpr_message_lookup` (see
   [Database Schema Design](#database-schema-design)).
 
 ### 3. Acceptance Tests
@@ -902,20 +1089,24 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
 ### 1. Database Migrations
 
 - New Flyway migrations under `importer/src/main/resources/db/migration/{v1,v2}` for
-  `clpr_channel_pending_commitment`, `clpr_channel(_history)`, `clpr_connector_pending_commitment`,
+  `clpr_channel_pending_commitment(_history)`, `clpr_channel(_history)`, `clpr_connector_pending_commitment(_history)`,
   `clpr_connector(_history)`, `clpr_ledger_configuration(_history)`, `clpr_endpoint_manifest(_history)`, and
-  `clpr_message`, following the
-  append-only migration convention (never edit a merged migration).
-- The `v2` (Citus) migrations include the `create_distributed_table`/`create_reference_table` calls specified in
-  [Database Schema Design](#database-schema-design).
+  `clpr_message`, following the append-only migration convention (never edit a merged migration).
+- The `v2` (Citus) migrations include the `create_distributed_table` calls specified in
+  [Database Schema Design](#database-schema-design) for every table except `clpr_ledger_configuration`/
+  `clpr_endpoint_manifest`, which stay plain, undistributed tables in both profiles. `clpr_message`'s `v2` migration
+  additionally declares it `partition by range (consensus_timestamp)`, registers it with `create_time_partitions`,
+  and creates the `clpr_message_lookup` table — `v1`'s `clpr_message` migration stays unpartitioned, matching
+  `topic_message`'s existing `v1`/`v2` split.
 
 ### 2. Performance Considerations
 
 - `ClprSubmitBundle` can enqueue up to `MaxMessagesPerBundle` messages per transaction — batch-insert
   `clpr_message` rows within a single `RecordItem`'s processing rather than issuing one insert per message.
 - The message table has no natural TTL/archival policy defined by the protocol; large, long-lived Channels could
-  accumulate very large `clpr_message` tables. Partitioning by `channel_id` or `consensus_timestamp` should be
-  evaluated once real message volumes from a production CLPR deployment are known.
+  accumulate very large `clpr_message` tables, so `clpr_message` is time-partitioned by `consensus_timestamp` in
+  `v2` — decided now, in the initial schema, rather than deferred (see
+  [Message Queue](#4-message-queue-append-only)), following the `topic_message` precedent.
 
 ## Monitoring
 
@@ -929,6 +1120,45 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
   variant) rather than silently dropping them, mirroring the HIP's own "MUST reject rather than skip" philosophy
   for forward compatibility (§6.1).
 
+## Monitor
+
+The `monitor` module generates synthetic transactions against a live network for load/throughput testing (e.g.
+10k+ TPS scenarios) and verifies they round-trip through the mirror node. CLPR support here follows the existing
+`TransactionSupplier` pattern (`monitor/src/main/java/org/hiero/mirror/monitor/publish/transaction/`) used for every
+other transaction type — but with one real blocker worth flagging now rather than discovering later.
+
+### Blocked on SDK support
+
+CLPR is not supported in the Hiero Java SDK —
+no typed transaction classes exist for it, which every existing `TransactionSupplier` relies on. This is a
+dependency for whoever picks up the follow-up task, not something this design resolves on its own.
+
+### Supplier design (once unblocked)
+
+Each CLPR transaction type worth load-testing gets its own `TransactionSupplier` implementation under a new
+`publish/transaction/clpr/` package — a `@Data` POJO with `jakarta.validation`-annotated config fields and a `get()`
+method returning the built SDK transaction — plus a new entry in the `TransactionType` enum (e.g.
+`CLPR_REGISTER_CHANNEL(ClprRegisterChannelTransactionSupplier::new)`), so it can be selected by name in a
+`hiero.mirror.monitor.publish.scenarios.<name>` YAML entry (`type`, `tps`, `properties`) — the same configuration
+shape every other scenario already uses.
+
+One new requirement this introduces: the Channel/Connector commit-reveal lifecycle (register → complete) spans two
+separate transactions correlated by a locally-computed commitment hash, so a realistic CLPR scenario needs
+**stateful** suppliers that remember commitments between calls — e.g. a `ClprCompleteChannelTransactionSupplier`
+that consumes not-yet-completed `(channel_id, public_key, commitment)` tuples produced by a paired
+`ClprRegisterChannelTransactionSupplier`. The existing single-transaction-type suppliers surveyed don't share state
+across suppliers this way, so this is new ground for the monitor module, not an existing pattern to copy.
+
+### Round-trip verification needs no new code
+
+`RestSubscriber` (`monitor/src/main/java/org/hiero/mirror/monitor/subscribe/rest/RestSubscriber.java`) already
+verifies round-trip ingestion generically, by polling the mirror node's `GET /api/v1/transactions/{transactionId}`
+for any transaction type until it appears. Since every CLPR transaction gets a standard `TransactionID` and is
+persisted to the generic `transaction` table by the normal importer pipeline (see
+[Transaction Handlers](#2-transaction-handlers)) regardless of its CLPR-specific tables, this existing,
+transaction-type-agnostic mechanism works for CLPR with no monitor-side changes — only the supplier (publish) side
+needs new code.
+
 ## Non-Functional Requirements
 
 ### 1. Performance Requirements
@@ -941,11 +1171,13 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
 ### 2. Scalability Requirements
 
 - `clpr_message` must support efficient pagination by `(channel_id, message_id)` for Channels that accumulate a
-  large message history.
-- Per the Citus (`v2`) distribution strategy in [Database Schema Design](#database-schema-design), only queries
-  filtered by `channel_id` (Connectors per Channel, Messages per Channel) are shard-local; Messages per Connector
-  and Channels per Chain/the Chain API filter by `connector_id`/`chain_id` instead, so those scatter-gather across
-  shards regardless of colocation.
+  large message history — in `v2`, via time-partitioning plus `clpr_message_lookup`, not an unbounded partition
+  scan (see [Message Queue](#4-message-queue-append-only)).
+- Per the Citus (`v2`) distribution strategy in [Database Schema Design](#database-schema-design), queries filtered
+  by `channel_id` — `Connectors per Channel`, `Messages per Channel`, and `Messages per Connector` (which requires
+  `channelId` in its path for this reason) — are shard-local. `Channels per Chain` and the `Chain` API filter by
+  `chain_id` instead, which isn't the distribution column, so those scatter-gather across shards regardless of
+  colocation (to be addressed separately).
 
 ### 3. Reliability Requirements
 
@@ -961,24 +1193,28 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
 depend on the [HIP-1535 clarifications](#hip-1535-feedback--required-clarifications) above.
 
 1. **DB schema migration for CLPR core tables.** Flyway migrations (`v1` and `v2`) for
-   `clpr_channel_pending_commitment`, `clpr_channel(_history)`, `clpr_connector_pending_commitment`,
-   `clpr_connector(_history)`, `clpr_ledger_configuration(_history)`, and `clpr_endpoint_manifest(_history)`,
-   including the `v2` Citus `create_distributed_table`/`create_reference_table` calls from
-   [Database Schema Design](#database-schema-design).
-2. **DB schema migration for `clpr_message`.** Separate from (1) since it's a different table shape
-   (append-only, no history pair) and highest-volume table; include indexing/partitioning strategy.
+   `clpr_channel_pending_commitment(_history)`, `clpr_channel(_history)`,
+   `clpr_connector_pending_commitment(_history)`, `clpr_connector(_history)`, `clpr_ledger_configuration(_history)`,
+   and `clpr_endpoint_manifest(_history)`, including the `v2` Citus `create_distributed_table` calls from
+   [Database Schema Design](#database-schema-design) (the last two tables stay plain, undistributed tables in both
+   profiles).
+2. **DB schema migration for `clpr_message` (+ `clpr_message_lookup` in `v2`).** Separate from (1) since it's a
+   different table shape (append-only, no history pair, and the only table where `v1`/`v2` diverge — see
+   [Message Queue](#4-message-queue-append-only)) and the highest-volume table.
 3. **Importer: Channel lifecycle transaction handlers and transformers.** `ClprRegisterChannel`,
    `ClprCompleteChannel`, `ClprCloseChannel` handlers plus the `BlockTransactionTransformer`s for verifier-derived
    Channel fields.
 4. **Importer: Connector lifecycle transaction handlers.** `ClprRegisterConnector`, `ClprCompleteConnector`,
    `ClprDeregisterConnector` handlers.
 5. **Importer: bundle/message ingestion.** `ClprSubmitBundleTransactionHandler` plus `ClprSubmitBundleTransformer`
-   that expands a bundle's verifier-dispatched messages into `clpr_message` rows; depends on (2) and (3).
+   that expands a bundle's verifier-dispatched messages into `clpr_message` rows, maintaining `clpr_message_lookup`
+   ranges alongside them in `v2`; depends on (2) and (3).
 6. **Importer: ledger configuration and endpoint manifest ingestion.** `ClprUpdateLedgerConfigurationTransactionHandler`
    plus handling for the endpoint manifest singleton.
 7. **REST API: the six read endpoints scoped in [REST API Implementation](#rest-api-implementation)** — Chain,
    Channels per chain, Messages per connector, Messages per channel, Pending channels, and Connectors per channel.
 8. **Acceptance tests for the CLPR Channel/Connector lifecycle**, gated on a working verifier and a
    CLPR-enabled test network being available to the acceptance suite.
-9. **Monitor support**, if warranted, for synthetic CLPR transaction generation/validation, following the
-   pattern of the existing `monitor` module for other transaction types.
+9. **Monitor support** for synthetic CLPR transaction generation and 10k+ TPS load testing — see
+   [Monitor](#monitor). Blocked on Hiero Java SDK CLPR support (or a raw-protobuf workaround) landing first; the
+   stateful commit-reveal supplier design is new ground for the module, not a copy of an existing pattern.
