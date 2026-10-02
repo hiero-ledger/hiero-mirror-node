@@ -1049,6 +1049,14 @@ func TestConstructionPayloadsAliasError(t *testing.T) {
 			name:     "invalid account id",
 			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: fmt.Sprintf("%s:abc", aliasStr)}),
 		},
+		{
+			name:     "account map entry missing separator",
+			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: aliasStr}),
+		},
+		{
+			name:     "matching prefix without separator",
+			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: aliasStr + ",other:0.0.100"}),
+		},
 	}
 
 	for _, tt := range tests {
