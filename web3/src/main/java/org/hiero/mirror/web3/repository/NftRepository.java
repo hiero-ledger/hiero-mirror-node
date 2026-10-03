@@ -15,7 +15,10 @@ import org.springframework.data.repository.CrudRepository;
 public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
 
     @Override
-    @Cacheable(cacheNames = CACHE_NAME_NFT, cacheManager = CACHE_MANAGER_TOKEN, unless = "#result == null")
+    @Cacheable(
+            cacheNames = CACHE_NAME_NFT,
+            cacheManager = CACHE_MANAGER_TOKEN,
+            unless = "@spelHelper.isNullOrEmpty(#result)")
     Optional<Nft> findById(AbstractNft.Id id);
 
     @Query(

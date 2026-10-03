@@ -14,7 +14,7 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
-import org.hiero.mirror.web3.repository.RecordFileRepository;
+import org.hiero.mirror.web3.service.RecordFileService;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.fluent.SimpleBlockValues;
 import org.hyperledger.besu.evm.frame.MessageFrame;
@@ -44,7 +44,7 @@ class MirrorBlockHashOperationTest {
     private EvmProperties evmProperties;
 
     @Mock
-    private RecordFileRepository recordFileRepository;
+    private RecordFileService recordFileService;
 
     @InjectMocks
     private MirrorBlockHashOperation operation;
@@ -139,7 +139,7 @@ class MirrorBlockHashOperationTest {
         blockValues.setNumber(recordFile.getIndex() + 1);
         given(messageFrame.popStackItem()).willReturn(Bytes.ofUnsignedLong(recordFile.getIndex()));
         given(messageFrame.getBlockValues()).willReturn(blockValues);
-        given(recordFileRepository.findByIndex(recordFile.getIndex())).willReturn(Optional.of(recordFile));
+        given(recordFileService.findByIndex(recordFile.getIndex())).willReturn(Optional.of(recordFile));
 
         // When
         var result = operation.execute(messageFrame, null);
@@ -166,7 +166,7 @@ class MirrorBlockHashOperationTest {
         blockValues.setNumber(currentBlockNumber);
         given(messageFrame.popStackItem()).willReturn(Bytes.ofUnsignedLong(soughtBlock));
         given(messageFrame.getBlockValues()).willReturn(blockValues);
-        lenient().when(recordFileRepository.findByIndex(soughtBlock)).thenReturn(Optional.of(recordFile));
+        lenient().when(recordFileService.findByIndex(soughtBlock)).thenReturn(Optional.of(recordFile));
 
         // When
         var result = operation.execute(messageFrame, null);
@@ -193,7 +193,7 @@ class MirrorBlockHashOperationTest {
         blockValues.setNumber(1);
         given(messageFrame.popStackItem()).willReturn(Bytes.ofUnsignedLong(0));
         given(messageFrame.getBlockValues()).willReturn(blockValues);
-        given(recordFileRepository.findByIndex(0)).willReturn(Optional.empty());
+        given(recordFileService.findByIndex(0)).willReturn(Optional.empty());
 
         // When
         var result = operation.execute(messageFrame, null);

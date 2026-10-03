@@ -231,6 +231,7 @@ describe('Override query config', () => {
       maxValidStartTimestampDrift: '1s',
       maxValidStartTimestampDriftNs: 1000000000n,
       strictTimestampParam: true,
+      syntheticContractIdResults: false,
       syntheticContractResults: true,
       topicMessageLookup: false,
       transactions: {
