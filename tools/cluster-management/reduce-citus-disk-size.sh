@@ -117,6 +117,76 @@ function configureAndValidate() {
   fi
 }
 
+function execOnNode() {
+  local pod="$1"
+  local cmd="$2"
+  kubectl exec -n "${COMMON_NAMESPACE}" "${pod}" -- chroot /node-fs /bin/bash -c "${cmd}"
+}
+
+# Runs the zfs snapshot/send/receive chain detached on the node so that a local
+# disconnect can't kill it, then polls for completion. Safe to re-run: it picks
+# up an already-running copy, resumes an interrupted receive from its saved
+# token, or skips a copy that already finished.
+function copyZfsVolume() {
+  local pod="$1" sourcePool="$2" destPool="$3" pvcVolume="$4" compression="$5" recordsize="$6" reservation="$7"
+  local logFile="/tmp/zfs-migrate-${pvcVolume}.log"
+  local exitFile="/tmp/zfs-migrate-${pvcVolume}.exit"
+  local resumeToken remoteCmd alreadyRunning datasetExists exitCode
+
+  exitCode=$(execOnNode "${pod}" "cat ${exitFile} 2>/dev/null" || true)
+  if [[ "${exitCode}" == "0" ]]; then
+    log "Copy for ${pvcVolume} already finished successfully in a previous run; skipping"
+    return 0
+  elif [[ -n "${exitCode}" ]]; then
+    log "A previous background copy for ${pvcVolume} failed (exit ${exitCode}); see ${logFile} in pod ${pod}. Checking for a resumable token..."
+  fi
+
+  alreadyRunning=$(execOnNode "${pod}" "pgrep -f 'zfs receive.*${destPool}/${pvcVolume}'" || true)
+  if [[ -n "${alreadyRunning}" ]]; then
+    log "Copy for ${pvcVolume} is already running in the background from an earlier invocation of this script; re-attaching"
+  else
+    resumeToken=$(execOnNode "${pod}" "zfs get -Ho value receive_resume_token ${destPool}/${pvcVolume} 2>/dev/null" || true)
+    [[ "${resumeToken}" == "-" ]] && resumeToken=""
+
+    datasetExists=false
+    execOnNode "${pod}" "zfs list ${destPool}/${pvcVolume}" &>/dev/null && datasetExists=true
+
+    if [[ -n "${resumeToken}" ]]; then
+      log "Found an interrupted receive for ${pvcVolume}; resuming from the saved token instead of re-copying from scratch"
+      remoteCmd="set -o pipefail; zfs send -t ${resumeToken} | pv | zfs receive -s ${destPool}/${pvcVolume}"
+    elif [[ "${datasetExists}" == "true" ]]; then
+      log "ERROR: ${destPool}/${pvcVolume} exists but is neither resumable nor actively copying, and has no recorded exit status. Inspect it manually (zfs list / zfs get receive_resume_token) before re-running."
+      exit 1
+    else
+      log "Starting copy for ${pvcVolume} to ${destPool} in the background so a local disconnect can't interrupt it (check progress with: kubectl exec -n ${COMMON_NAMESPACE} ${pod} -- chroot /node-fs tail -f ${logFile})"
+      remoteCmd="set -o pipefail; \
+zfs snapshot ${sourcePool}/${pvcVolume}@initial && \
+zfs send -c ${sourcePool}/${pvcVolume}@initial | pv | \
+zfs receive -s -o compression=${compression} -o recordsize=${recordsize} -o reservation=${reservation} -o mountpoint=legacy ${destPool}/${pvcVolume} && \
+zfs destroy ${destPool}/${pvcVolume}@initial"
+    fi
+
+    execOnNode "${pod}" "rm -f ${exitFile}; setsid bash -c '${remoteCmd}; echo \$? >${exitFile}' </dev/null >${logFile} 2>&1 &"
+  fi
+
+  log "Waiting for copy of ${pvcVolume} to finish"
+  while true; do
+    if exitCode=$(execOnNode "${pod}" "cat ${exitFile} 2>/dev/null"); then
+      if [[ -n "${exitCode}" ]]; then
+        if [[ "${exitCode}" == "0" ]]; then
+          log "Copy for ${pvcVolume} finished successfully"
+          return 0
+        fi
+        log "Copy for ${pvcVolume} failed (exit ${exitCode}); see ${logFile} in pod ${pod}. Re-run the script to resume from the saved receive token."
+        exit 1
+      fi
+    else
+      log "Could not reach pod ${pod} to check copy progress (transient connection issue?); retrying"
+    fi
+    sleep 30
+  done
+}
+
 function reduceDiskSizes() {
   for diskIndex in "${!DISKS_TO_REDUCE[@]}"; do
     DISK_NAME=${DISKS_TO_REDUCE[$diskIndex]}
@@ -220,17 +290,8 @@ EOF
             '. += {newPvcSize: $NEW_PVC_SIZE} |
              . += {newPvcSizeBytes: $RESERVATION}')")
       fi
-      kubectl exec -it -n "${COMMON_NAMESPACE}" "${DAEMONSET_POD}" -- bash -c \
-      "chroot /node-fs /bin/bash -c  \
-      'zfs snapshot ${POOL_NAME}/${PVC_VOLUME}@initial && \
-      zfs send ${POOL_NAME}/${PVC_VOLUME}@initial | pv | \
-      zfs receive \
-      -o compression=${COMPRESSION} \
-      -o recordsize=${RECORD_SIZE} \
-      -o reservation=${RESERVATION} \
-      -o mountpoint=legacy \
-      ${TEMP_POOL_NAME}/${PVC_VOLUME} && \
-      zfs destroy ${TEMP_POOL_NAME}/${PVC_VOLUME}@initial'"
+      copyZfsVolume "${DAEMONSET_POD}" "${POOL_NAME}" "${TEMP_POOL_NAME}" "${PVC_VOLUME}" \
+        "${COMPRESSION}" "${RECORD_SIZE}" "${RESERVATION}"
 
       log "Finished copy for pvc ${PVC_VOLUME} to ${TEMP_POOL_NAME}/${PVC_VOLUME}"
     done
