@@ -107,6 +107,9 @@ public class HookStorage {
 
     public static class HookStorageBuilder {
 
+        // A slot without a value is deleted. Kept in sync with the value by value(byte[])
+        private boolean deleted = true;
+
         private Id ensureId() {
             this.id = this.id == null ? new Id() : new Id(this.id.getHookId(), this.id.getKey(), this.id.getOwnerId());
             return this.id;

@@ -4,6 +4,7 @@ package org.hiero.mirror.restjava.repository;
 
 import static java.lang.Long.MAX_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import java.util.TreeSet;
@@ -51,6 +52,30 @@ final class HookRepositoryTest extends RestJavaIntegrationTest {
 
         final var result = hookRepository.findHooks(request, OWNER_ID_1);
         assertThat(result).extracting(Hook::getHookId).containsExactly(1L, 3L);
+    }
+
+    @Test
+    @DisplayName("findHooks returns deleted hooks")
+    void findHooksIncludesDeleted() {
+        persistHook(OWNER_ID_1, 1L);
+        domainBuilder
+                .hook()
+                .customize(hook -> hook.ownerId(OWNER_ID_1).hookId(2L).deleted(true))
+                .persist();
+
+        final var request = HooksRequest.builder()
+                .hookIds(new TreeSet<>())
+                .lowerBound(0L)
+                .upperBound(MAX_VALUE)
+                .limit(LIMIT)
+                .order(Direction.ASC)
+                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID_1)))
+                .build();
+
+        final var result = hookRepository.findHooks(request, OWNER_ID_1);
+        assertThat(result)
+                .extracting(Hook::getHookId, Hook::getDeleted)
+                .containsExactly(tuple(1L, false), tuple(2L, true));
     }
 
     @Test

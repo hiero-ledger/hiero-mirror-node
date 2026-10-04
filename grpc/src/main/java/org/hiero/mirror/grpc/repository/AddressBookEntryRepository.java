@@ -2,12 +2,8 @@
 
 package org.hiero.mirror.grpc.repository;
 
-import static org.hiero.mirror.grpc.config.CacheConfiguration.ADDRESS_BOOK_ENTRY_CACHE;
-import static org.hiero.mirror.grpc.config.CacheConfiguration.CACHE_NAME;
-
 import java.util.List;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
@@ -23,10 +19,6 @@ public interface AddressBookEntryRepository extends CrudRepository<AddressBookEn
             Long stake,
             Long nodeAccountId) {}
 
-    @Cacheable(
-            cacheManager = ADDRESS_BOOK_ENTRY_CACHE,
-            cacheNames = CACHE_NAME,
-            unless = "@spelHelper.isNullOrEmpty(#result)")
     @Query(value = """
         select abe.consensus_timestamp as consensus_timestamp,
                abe.description as description,

@@ -30,7 +30,7 @@ class HookRepositoryCustomImpl implements HookRepositoryCustom, JooqRepository {
     @Override
     public List<Hook> findHooks(HooksRequest request, long ownerId) {
         var h = Tables.HOOK;
-        Condition condition = h.OWNER_ID.eq(ownerId).and(h.DELETED.eq(false));
+        Condition condition = h.OWNER_ID.eq(ownerId);
         condition = condition.and(h.HOOK_ID.ge(request.getLowerBound())).and(h.HOOK_ID.le(request.getUpperBound()));
         if (!request.getHookIds().isEmpty()) {
             condition = condition.and(h.HOOK_ID.in(request.getHookIds()));

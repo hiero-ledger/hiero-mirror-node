@@ -12,7 +12,9 @@ import java.sql.SQLException;
 import java.time.Duration;
 import javax.sql.DataSource;
 import lombok.SneakyThrows;
+import org.hiero.mirror.web3.ApiProperties;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.Web3Properties.ApiEndpointName;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -72,6 +74,50 @@ class QueryTimeoutConfigurationTest {
                     .hasMessageContaining("Transaction timed out after");
             return null;
         });
+    }
+
+    @Test
+    void endpointTimeoutOverridesGlobalTimeout() throws SQLException {
+        // given — the global timeout has already elapsed, but the opcodes endpoint allows more time
+        web3Properties.setRequestTimeout(Duration.ZERO);
+        web3Properties.getApi().put(ApiEndpointName.OPCODES, apiProperties(Duration.ofSeconds(10L)));
+        final var wrapped = wrap();
+
+        // when
+        ContractCallContext.run(context -> {
+            context.setApi(ApiEndpointName.OPCODES);
+            prepareStatement(wrapped);
+            return null;
+        });
+
+        // then
+        verify(connection).prepareStatement("select 1");
+    }
+
+    @Test
+    void endpointTimeoutAppliesOnlyToItsEndpoint() {
+        // given
+        web3Properties.setRequestTimeout(Duration.ZERO);
+        web3Properties.getApi().put(ApiEndpointName.OPCODES, apiProperties(Duration.ofSeconds(10L)));
+        final var wrapped = wrap();
+
+        // when, then — a different endpoint on the same DataSource still uses the global timeout
+        ContractCallContext.run(context -> {
+            context.setApi(ApiEndpointName.OPCODES);
+            prepareStatement(wrapped);
+            return null;
+        });
+        ContractCallContext.run(context -> {
+            context.setApi(ApiEndpointName.CALL);
+            assertThatThrownBy(() -> prepareStatement(wrapped)).isInstanceOf(QueryTimeoutException.class);
+            return null;
+        });
+    }
+
+    private static ApiProperties apiProperties(final Duration timeout) {
+        final var apiProperties = new ApiProperties();
+        apiProperties.getRequest().setTimeout(timeout);
+        return apiProperties;
     }
 
     private BeanPostProcessor postProcessor() {
