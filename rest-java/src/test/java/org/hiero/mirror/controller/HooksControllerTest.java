@@ -712,6 +712,53 @@ final class HooksControllerTest extends ControllerTest {
             assertThat(actual).isEqualTo(expectedResponse);
         }
 
+        @Test
+        @DisplayName("historical storage returns the deletion when it is the latest change for a key")
+        void historicalStorageReturnsLatestDeletedChange() {
+            // given — the slot is written and then deleted within the queried window
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
+            final byte[] key = HexFormat.of().parseHex(KEY1.replace("0x", ""));
+
+            persistHookStorageChangeWithValue(
+                    ownerId,
+                    HOOK_ID,
+                    key,
+                    TimestampParameter.valueOf(TIMESTAMP1).value(),
+                    new byte[] {0x0a});
+            final var deletion = persistHookStorageChangeWithValue(
+                    ownerId,
+                    HOOK_ID,
+                    key,
+                    TimestampParameter.valueOf(TIMESTAMP2).value(),
+                    new byte[0]);
+
+            final var expectedSlot = HookStorage.builder()
+                    .ownerId(ownerId.getId())
+                    .hookId(HOOK_ID)
+                    .key(key)
+                    .modifiedTimestamp(deletion.getConsensusTimestamp())
+                    .value(new byte[0])
+                    .build();
+            final var expectedResponse = new HooksStorageResponse();
+            expectedResponse.setHookId(HOOK_ID);
+            expectedResponse.setOwnerId(ownerId.toString());
+            expectedResponse.setStorage(mapExpectedHookStorage(List.of(expectedSlot)));
+            expectedResponse.setLinks(new Links());
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri(uriBuilder -> uriBuilder
+                            .queryParam("timestamp", "lte:" + TIMESTAMP2)
+                            .build(Map.of("account_id", OWNER_ID, "hookId", HOOK_ID)))
+                    .retrieve()
+                    .body(HooksStorageResponse.class);
+
+            // then — the empty value at the deletion timestamp, not the stale value written before it
+            assertThat(actual).isEqualTo(expectedResponse);
+        }
+
         private HookStorageChange persistHookStorageChangeWithValue(
                 EntityId ownerId, long hookId, byte[] key, long timestamp, byte[] valueWritten) {
             return domainBuilder

@@ -11,11 +11,11 @@ import org.mapstruct.Mapping;
 @Mapper(config = MapperConfiguration.class, uses = CustomFeeMapper.class)
 public interface TopicMapper {
 
-    @Mapping(target = "topicId", source = "topic.id")
-    @Mapping(target = "timestamp", source = "topic.timestampRange")
+    @Mapping(target = "topicId", source = "entity.id")
+    @Mapping(target = "timestamp", source = "entity.timestampRange")
     @Mapping(
             target = "createdTimestamp",
-            source = "topic.createdTimestamp",
+            source = "entity.createdTimestamp",
             qualifiedByName = CommonMapper.QUALIFIER_TIMESTAMP)
     @Mapping(target = "adminKey", source = "topic.adminKey")
     @Mapping(target = "submitKey", source = "topic.submitKey")

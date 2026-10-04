@@ -99,7 +99,6 @@ class HookRepositoryCustomImpl implements HookRepositoryCustom, JooqRepository {
         Condition condition = t.OWNER_ID
                 .eq(ownerId)
                 .and(t.HOOK_ID.eq(request.getHookId()))
-                .and(t.DELETED.eq(false))
                 .and(t.KEY.ge(request.getKeyLowerBound()))
                 .and(t.KEY.le(request.getKeyUpperBound()));
         if (!request.getKeys().isEmpty()) {
