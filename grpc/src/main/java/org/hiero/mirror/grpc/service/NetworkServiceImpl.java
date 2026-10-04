@@ -161,7 +161,8 @@ public class NetworkServiceImpl implements NetworkService {
         }
     }
 
-    private record ServiceEndpointRow(
+    // Public so that it can be registered for reflection in RuntimeHintsConfiguration
+    public record ServiceEndpointRow(
             @JsonProperty("domain_name") String domainName,
             @JsonProperty("ip_address_v4") String ipAddressV4,
             @JsonProperty("port") Integer port) {}
