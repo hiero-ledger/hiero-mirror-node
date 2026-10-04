@@ -18,9 +18,9 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "26.2.0")
-    set("blockNodeVersion", "0.42.0")
-    set("consensusNodeVersion", "0.78.0-rc.9")
-    set("hederaCryptographyVersion", "3.15.0")
+    set("blockNodeVersion", "0.44.0")
+    set("consensusNodeVersion", "0.79.0-alpha.2")
+    set("hederaCryptographyVersion", "3.16.1")
     set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
@@ -44,11 +44,11 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-19")
+        api("com.github.luben:zstd-jni:1.5.7-20")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.7.1-jre")
+        api("com.google.guava:guava:33.7.2-jre")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
@@ -58,12 +58,12 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.78.0-beta.1")
+        api("com.hedera.hashgraph:sdk:2.78.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
-        api("io.cucumber:cucumber-bom:7.34.9")
-        api("io.fabric8:kubernetes-client-bom:7.9.0")
+        api("io.cucumber:cucumber-bom:8.0.3")
+        api("io.fabric8:kubernetes-client-bom:8.0.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.16.0")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
@@ -86,7 +86,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.55.4")
+        api("software.amazon.awssdk:bom:2.55.9")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
