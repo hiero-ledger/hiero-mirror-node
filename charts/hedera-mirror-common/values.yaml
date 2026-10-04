@@ -469,6 +469,7 @@ zfs:
     enabled: false
   autoGrow:
     growPercent: 10
+    headroomGb: 20
     intervalSeconds: 120
     maxStepGb: 50
     thresholdPercent: 80
