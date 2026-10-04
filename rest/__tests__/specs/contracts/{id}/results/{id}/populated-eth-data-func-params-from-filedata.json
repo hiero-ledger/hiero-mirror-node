@@ -1,5 +1,5 @@
 {
-  "description": "Contract results api call using contract id and timestamp for transaction with type = 50, no contractResult.function_params",
+  "description": "Contract results by contract id and timestamp reconstruct empty function_parameters from call-data file state at the transaction timestamp, ignoring later FileUpdate/FileAppend",
   "setup": {
     "contracts": [
       {
@@ -154,26 +154,38 @@
     ],
     "filedata": [
       {
+        "_description": "FileCreate with call data D1 before the ethereum transaction",
         "file_data": [12, 11, 10, 9, 8, 7, 255],
-        "consensus_timestamp": "987654000123000",
+        "consensus_timestamp": "167654000123000",
         "entity_id": "5001",
         "high_volume": false,
-        "high_volume_pricing_multiplier": null
+        "high_volume_pricing_multiplier": null,
+        "transaction_type": 17
       },
       {
         "file_data": [16, 28],
-        "consensus_timestamp": "987654000123005",
+        "consensus_timestamp": "167654000123005",
         "entity_id": "5002",
         "high_volume": false,
         "high_volume_pricing_multiplier": null
       },
       {
+        "_description": "FileAppend to D1 before the ethereum transaction",
         "file_data": [128],
-        "consensus_timestamp": "987654000123010",
+        "consensus_timestamp": "167654000123010",
         "entity_id": "5001",
         "high_volume": false,
         "high_volume_pricing_multiplier": null,
         "transaction_type": 16
+      },
+      {
+        "_description": "FileUpdate after the ethereum transaction must not change historical function_parameters",
+        "file_data": [1, 2, 3, 4],
+        "consensus_timestamp": "167654000123500",
+        "entity_id": "5001",
+        "high_volume": false,
+        "high_volume_pricing_multiplier": null,
+        "transaction_type": 19
       }
     ]
   },

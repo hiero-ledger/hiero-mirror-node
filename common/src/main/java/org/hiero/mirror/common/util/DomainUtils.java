@@ -456,7 +456,7 @@ public class DomainUtils {
     }
 
     public static byte[] toEvmAddress(EntityId contractId) {
-        if (EntityId.isEmpty(contractId)) {
+        if (contractId != EntityId.ZERO && EntityId.isEmpty(contractId)) {
             throw new InvalidEntityException("Empty contractId");
         }
 

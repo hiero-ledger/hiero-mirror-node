@@ -66,7 +66,8 @@ public class RestApiClient {
                 .repeat(() -> StringUtils.isNotBlank(next.get()));
     }
 
-    public Mono<HttpStatusCode> getNetworkStakeStatusCode() {
-        return webClientRestJava.get().uri("/network/stake").exchangeToMono(r -> Mono.just(r.statusCode()));
+    public Mono<HttpStatusCode> getTransactionsStatusCode() {
+        return webClientRest.get().uri("/transactions?limit=1&order=desc").exchangeToMono(r -> r.releaseBody()
+                .thenReturn(r.statusCode()));
     }
 }

@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -308,6 +309,23 @@ func TestConstructionCombineThrowsWithInvalidPublicKey(t *testing.T) {
 	assert.Equal(t, errors.ErrInvalidPublicKey, e)
 }
 
+func TestConstructionCombineThrowsWithInvalidPublicKeyLength(t *testing.T) {
+	secp256k1PrivateKey, err := hiero.PrivateKeyGenerateEcdsa()
+	assert.NoError(t, err)
+
+	request := getConstructionCombineRequest()
+	request.Signatures[0].PublicKey = &rTypes.PublicKey{
+		Bytes:     secp256k1PrivateKey.PublicKey().BytesRaw(),
+		CurveType: rTypes.Edwards25519,
+	}
+
+	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	res, e := service.ConstructionCombine(defaultContext, request)
+
+	assert.Nil(t, res)
+	assert.Equal(t, errors.ErrInvalidPublicKey, e)
+}
+
 func TestConstructionCombineThrowsWithInvalidSignature(t *testing.T) {
 	// given:
 	request := getConstructionCombineRequest()
@@ -508,6 +526,49 @@ func TestConstructionMetadataOnline(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestConstructionMetadataDeduplicatesAliases(t *testing.T) {
+	// given
+	accountId := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(100))
+	mockAccountRepo := &mocks.MockAccountRepository{}
+	mockAccountRepo.
+		On("GetAccountId", defaultContext, mock.MatchedBy(func(accountId types.AccountId) bool {
+			return accountId.String() == aliasStr
+		})).
+		Return(accountId, mocks.NilError).
+		Once()
+	mockTransactionConstructor := &mocks.MockTransactionConstructor{}
+	mockTransactionConstructor.
+		On("GetDefaultMaxTransactionFee", types.OperationTypeCryptoTransfer).
+		Return(types.HbarAmount{Value: 100}, mocks.NilError)
+	randomNodeAccountId := hiero.AccountID{Account: uint64(rand.Intn(100) + 1)}
+	nodes := map[string]hiero.AccountID{"10.0.0.1:50211": randomNodeAccountId}
+	mirrorConfig := &config.Mirror{Rosetta: config.Config{
+		Network: defaultNetwork,
+		Nodes:   nodes,
+	}}
+	request := &rTypes.ConstructionMetadataRequest{
+		NetworkIdentifier: networkIdentifier(),
+		Options: map[string]any{
+			optionKeyAccountAliases: aliasStr + "," + ed25519AliasPrefix + strings.ToUpper(publicKeyStr),
+			optionKeyOperationType:  types.OperationTypeCryptoTransfer,
+		},
+	}
+
+	// when
+	service, _ := NewConstructionAPIService(
+		mockAccountRepo,
+		onlineBaseService,
+		mirrorConfig,
+		mockTransactionConstructor,
+	)
+	res, err := service.ConstructionMetadata(defaultContext, request)
+
+	// then
+	mockAccountRepo.AssertExpectations(t)
+	assert.Nil(t, err)
+	assert.Equal(t, fmt.Sprintf("%s:%s", aliasStr, accountId), res.Metadata[metadataKeyAccountMap])
+}
+
 func TestConstructionMetadataOffline(t *testing.T) {
 	// given
 	mockTransactionConstructor := &mocks.MockTransactionConstructor{}
@@ -610,6 +671,26 @@ func TestConstructionMetadataFailsWhenInvalidOptions(t *testing.T) {
 				NetworkIdentifier: networkIdentifier(),
 				Options: map[string]any{
 					optionKeyAccountAliases: 1,
+					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
+				},
+			},
+		},
+		{
+			name: "too many account aliases",
+			request: &rTypes.ConstructionMetadataRequest{
+				NetworkIdentifier: networkIdentifier(),
+				Options: map[string]any{
+					optionKeyAccountAliases: strings.Repeat(aliasStr+",", maxAccountAliases) + aliasStr,
+					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
+				},
+			},
+		},
+		{
+			name: "account aliases exceed max length",
+			request: &rTypes.ConstructionMetadataRequest{
+				NetworkIdentifier: networkIdentifier(),
+				Options: map[string]any{
+					optionKeyAccountAliases: strings.Repeat("a", maxAccountAliasesLength+1),
 					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
 				},
 			},

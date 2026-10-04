@@ -10,17 +10,20 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractResult;
-import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
@@ -35,11 +38,13 @@ import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.TraceMemoryBudget;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
+import org.hiero.mirror.web3.repository.projections.ContractTransactionHashLookup;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
@@ -68,6 +73,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final ContractResultRepository contractResultRepository;
     private final CommonEntityAccessor commonEntityAccessor;
     private final OpcodesProperties opcodesProperties;
+    private final TraceMemoryBudget traceMemoryBudget;
     private final MeterRegistry meterRegistry;
     private Counter opcodesCounter;
     private Counter memoryWordsCounter;
@@ -95,16 +101,22 @@ public class OpcodeServiceImpl implements OpcodeService {
         return ContractCallContext.run(ctx -> {
             ctx.setApi(OPCODES);
             final var params = buildCallServiceParameters(opcodeRequest.getTransactionIdOrHashParameter());
-            final var opcodeContext = new OpcodeContext(opcodeRequest, (int) params.getGas() / 3, opcodesProperties);
+            final var opcodeContext =
+                    new OpcodeContext(opcodeRequest, (int) params.getGas() / 3, opcodesProperties, traceMemoryBudget);
 
             ctx.setOpcodeContext(opcodeContext);
 
-            final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
-            opcodesCounter.increment(opcodeContext.getExecutedOpcodes());
-            memoryWordsCounter.increment(opcodeContext.getCapturedMemoryWords());
-            stackCounter.increment(opcodeContext.getCapturedStack());
-            storageCounter.increment(opcodeContext.getCapturedStorage());
-            return buildOpcodesResponse(result, params.getConsensusTimestamp());
+            try {
+                final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
+                return buildOpcodesResponse(result, params.getConsensusTimestamp());
+            } finally {
+                // Recorded regardless of outcome, so a failed trace's captured memory/stack/storage isn't missed.
+                opcodesCounter.increment(opcodeContext.getExecutedOpcodes());
+                memoryWordsCounter.increment(opcodeContext.getCapturedMemoryWords());
+                stackCounter.increment(opcodeContext.getCapturedStack());
+                storageCounter.increment(opcodeContext.getCapturedStorage());
+                opcodeContext.releaseReservedBudget();
+            }
         });
     }
 
@@ -116,10 +128,7 @@ public class OpcodeServiceImpl implements OpcodeService {
 
         switch (transactionIdOrHash) {
             case TransactionHashParameter transactionHash -> {
-                ContractTransactionHash contractTransactionHash = contractTransactionHashRepository
-                        .findByHash(transactionHash.hash().toArray())
-                        .orElseThrow(() ->
-                                new EntityNotFoundException("Contract transaction hash not found: " + transactionHash));
+                final var contractTransactionHash = resolveContractTransactionHash(transactionHash);
 
                 transaction = null;
                 consensusTimestamp = contractTransactionHash.getConsensusTimestamp();
@@ -150,6 +159,37 @@ public class OpcodeServiceImpl implements OpcodeService {
         }
 
         return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction);
+    }
+
+    /**
+     * Selects the result that best represents a hash shared by multiple results. A successful result always wins (the
+     * query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result sharing
+     * the hash by checking which candidates consumed gas (a non-null gas_consumed), falling back to the latest by
+     * consensus timestamp (the query order).
+     */
+    private ContractTransactionHashLookup resolveContractTransactionHash(TransactionHashParameter transactionHash) {
+        final var candidates = contractTransactionHashRepository.findAllByHash(
+                transactionHash.hash().toArray());
+        if (candidates.isEmpty()) {
+            throw new EntityNotFoundException("Contract transaction hash not found: " + transactionHash);
+        }
+
+        final var first = candidates.getFirst();
+        if (candidates.size() == 1 || Objects.equals(first.getTransactionResult(), ResponseCodeEnum.SUCCESS_VALUE)) {
+            return first;
+        }
+
+        final var candidatesByTimestamp = HashMap.<Long, ContractTransactionHashLookup>newHashMap(candidates.size());
+        final var contractIds = HashSet.<Long>newHashSet(candidates.size());
+        for (final var candidate : candidates) {
+            candidatesByTimestamp.putIfAbsent(candidate.getConsensusTimestamp(), candidate);
+            contractIds.add(candidate.getEntityId());
+        }
+
+        return contractResultRepository
+                .findLatestExecutedTimestamp(candidatesByTimestamp.keySet(), contractIds)
+                .map(candidatesByTimestamp::get)
+                .orElse(first);
     }
 
     private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result, long consensusTimestamp) {

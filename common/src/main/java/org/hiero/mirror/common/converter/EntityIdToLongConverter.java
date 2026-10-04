@@ -13,6 +13,10 @@ public class EntityIdToLongConverter implements Converter<EntityId, Long> {
 
     @Override
     public Long convert(EntityId source) {
+        if (source == EntityId.ZERO) {
+            return 0L;
+        }
+
         return source == null || EntityId.isEmpty(source) ? null : source.getId();
     }
 }

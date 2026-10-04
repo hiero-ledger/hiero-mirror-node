@@ -23,6 +23,7 @@ updates:
       interval: "weekly"
 
   - directories:
+      - "/charts/marketplace/gcp"
       - "/graphql"
       - "/grpc"
       - "/importer"

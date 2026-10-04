@@ -23,7 +23,6 @@ import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.util.Utility;
@@ -105,12 +104,8 @@ public class EntityIdServiceImpl implements EntityIdService {
 
     // It's possible for failed EthereumTransactions to attempt to call non-existent addresses that show up in receipt
     private Optional<EntityId> convertSafely(ContractID contractId) {
-        try {
-            return Optional.ofNullable(EntityId.of(contractId));
-        } catch (InvalidEntityException e) {
-            log.warn("Unable to convert {} to EntityId: {}", contractId, e.getMessage());
-            return Optional.empty();
-        }
+        final var entityId = EntityId.tryOf(contractId);
+        return EntityId.isEmpty(entityId) ? Optional.empty() : Optional.ofNullable(entityId);
     }
 
     private @NonNull Optional<EntityId> cacheLookup(ByteString key, Callable<Optional<EntityId>> loader) {

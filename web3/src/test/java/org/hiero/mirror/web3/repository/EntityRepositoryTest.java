@@ -279,6 +279,94 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findActiveByIdAndTimestampDeletedAfterBlockNotResurrected() {
+        final long aliveStart = domainBuilder.timestamp();
+        final long deleteTimestamp = aliveStart + 100L;
+        final long id = domainBuilder.entityId().getId();
+
+        // The entity was alive in the past and then deleted at deleteTimestamp.
+        final var entityHistory = domainBuilder
+                .entityHistory()
+                .customize(e -> e.id(id).deleted(false).timestampRange(Range.closedOpen(aliveStart, deleteTimestamp)))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(id).deleted(true).timestampRange(Range.atLeast(deleteTimestamp)))
+                .persist();
+
+        // Before the deletion the entity resolves to its pre-deletion (alive) state.
+        assertThat(entityRepository.findActiveByIdAndTimestamp(id, aliveStart))
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(entityHistory);
+
+        // At and after the deletion the entity must not be resurrected from the stale pre-deletion history row.
+        assertThat(entityRepository.findActiveByIdAndTimestamp(id, deleteTimestamp))
+                .isEmpty();
+        assertThat(entityRepository.findActiveByIdAndTimestamp(id, deleteTimestamp + 50L))
+                .isEmpty();
+    }
+
+    @Test
+    void findActiveByIdAndTimestampDeletedInHistoryNotResurrected() {
+        // Entity was deleted, then modified again while deleted, so a deleted=true row landed in history.
+        final long deleteTimestamp = domainBuilder.timestamp();
+        final long modifyTimestamp = deleteTimestamp + 100L;
+        final long id = domainBuilder.entityId().getId();
+
+        domainBuilder
+                .entityHistory()
+                .customize(
+                        e -> e.id(id).deleted(true).timestampRange(Range.closedOpen(deleteTimestamp, modifyTimestamp)))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(id).deleted(true).timestampRange(Range.atLeast(modifyTimestamp)))
+                .persist();
+
+        // A block inside the deleted history interval must resolve to absent.
+        assertThat(entityRepository.findActiveByIdAndTimestamp(id, deleteTimestamp + 50L))
+                .isEmpty();
+    }
+
+    @Test
+    void findActiveByEvmAddressAndTimestampDeletedAfterBlockNotResurrected() {
+        final long aliveStart = domainBuilder.timestamp();
+        final long deleteTimestamp = aliveStart + 100L;
+        final long id = domainBuilder.entityId().getId();
+        final byte[] evmAddress = domainBuilder.evmAddress();
+
+        final var entityHistory = domainBuilder
+                .entityHistory()
+                .customize(e -> e.id(id)
+                        .evmAddress(evmAddress)
+                        .createdTimestamp(aliveStart)
+                        .deleted(false)
+                        .timestampRange(Range.closedOpen(aliveStart, deleteTimestamp)))
+                .persist();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(id)
+                        .evmAddress(evmAddress)
+                        .createdTimestamp(aliveStart)
+                        .deleted(true)
+                        .timestampRange(Range.atLeast(deleteTimestamp)))
+                .persist();
+
+        // Before the deletion the entity resolves to its pre-deletion (alive) state.
+        assertThat(entityRepository.findActiveByEvmAddressAndTimestamp(evmAddress, aliveStart))
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(entityHistory);
+
+        // At and after the deletion the entity must not be resurrected from the stale pre-deletion history row.
+        assertThat(entityRepository.findActiveByEvmAddressAndTimestamp(evmAddress, deleteTimestamp))
+                .isEmpty();
+        assertThat(entityRepository.findActiveByEvmAddressAndTimestamp(evmAddress, deleteTimestamp + 50L))
+                .isEmpty();
+    }
+
+    @Test
     void findByEvmAddressOrAliasSuccessWithAlias() {
         final var alias = domainBuilder.key();
         final var entity = domainBuilder.entity().customize(e -> e.alias(alias)).persist();

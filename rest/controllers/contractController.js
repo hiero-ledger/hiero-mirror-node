@@ -537,8 +537,12 @@ class ContractController extends BaseController {
       conditions.push(`${ContractResult.getFullName(ContractResult.TRANSACTION_NONCE)} = 0`);
     }
 
+    // Special case: don't include synthetic contract results created from synthetic contract logs when the query is for
+    // a specific contract, a workaround for #14365
     const includeSynthetic =
-      config.query.syntheticContractResults && contractId === undefined && contractResultFromInValues.length === 0;
+      config.query.syntheticContractResults &&
+      (contractId == null || config.query.syntheticContractIdResults) &&
+      contractResultFromInValues.length === 0;
 
     return {
       conditions,
@@ -880,7 +884,10 @@ class ContractController extends BaseController {
     if (contractId == null) {
       return;
     }
-    const {conditions, params, order, limit, skip} = await this.extractContractResultsByIdQuery(filters, contractId);
+    const {conditions, includeSynthetic, params, order, limit, skip} = await this.extractContractResultsByIdQuery(
+      filters,
+      contractId
+    );
     if (skip) {
       return;
     }
@@ -888,7 +895,13 @@ class ContractController extends BaseController {
     conditions.push(nonEvmTransactionResultsCondition);
     conditions.push(nonNullTransactionIndexCondition);
 
-    const rows = await ContractService.getContractResultsByIdAndFilters(conditions, params, order, limit);
+    const rows = await ContractService.getContractResultsByIdAndFilters(
+      conditions,
+      params,
+      order,
+      limit,
+      includeSynthetic
+    );
     if (rows.length === 0) {
       return;
     }
@@ -1045,11 +1058,7 @@ class ContractController extends BaseController {
     }
 
     const ethTransaction = ethTransactions[0];
-
-    let fileData = null;
-    if (utils.isValidUserFileId(ethTransaction?.callDataId)) {
-      fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
-    }
+    const fileData = await this.getCallDataFileAtTimestamp(ethTransaction, contractResults[0].consensusTimestamp);
 
     if (isNil(contractResults[0].callResult)) {
       // set 206 partial response
@@ -1184,6 +1193,7 @@ class ContractController extends BaseController {
     const convertToHbar = utils.parseHbarParam(req.query.hbar);
 
     let transactionDetails;
+    let matchByPayerAccount = false;
 
     const {transactionIdOrHash} = req.params;
     if (utils.isValidEthHash(transactionIdOrHash)) {
@@ -1203,6 +1213,7 @@ class ContractController extends BaseController {
       transactionDetails = transactions[0];
       // want to look up involved contract parties using the payer account id
       transactionDetails.entityId = transactionDetails.payerAccountId;
+      matchByPayerAccount = true;
     }
 
     if (!transactionDetails) {
@@ -1211,7 +1222,8 @@ class ContractController extends BaseController {
 
     const contractDetails = await ContractService.getInvolvedContractsByTimestampAndContractId(
       transactionDetails.consensusTimestamp,
-      transactionDetails.entityId
+      transactionDetails.entityId,
+      matchByPayerAccount
     );
 
     if (!contractDetails) {
@@ -1233,12 +1245,7 @@ class ContractController extends BaseController {
 
     const contractResult = contractResults[0];
     const ethTransaction = ethTransactions[0];
-
-    let fileData = null;
-
-    if (utils.isValidUserFileId(ethTransaction?.callDataId)) {
-      fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
-    }
+    const fileData = await this.getCallDataFileAtTimestamp(ethTransaction, contractResult.consensusTimestamp);
 
     let gasPrice = null;
     if (ethTransaction == null) {
@@ -1266,7 +1273,11 @@ class ContractController extends BaseController {
 
   getDetailedContractResults = async (contractDetails, contractId = undefined) => {
     return Promise.all([
-      ContractService.getContractResultsByTimestamps(contractDetails.consensusTimestamp, contractDetails.contractIds),
+      ContractService.getContractResultsByTimestamps(
+        contractDetails.consensusTimestamp,
+        contractDetails.contractIds,
+        config.query.syntheticContractResults
+      ),
       TransactionService.getEthTransactionByTimestampAndPayerId(
         contractDetails.consensusTimestamp,
         contractDetails.payerAccountId
@@ -1350,6 +1361,23 @@ class ContractController extends BaseController {
         next: nextLink,
       },
     };
+  };
+
+  /**
+   * Reconstructs offloaded ethereum call data from the call-data file as of the transaction's consensus timestamp.
+   * Hedera files are mutable, so current file contents must not be used for historical results.
+   *
+   * @param {object|null|undefined} ethTransaction
+   * @param {string|number|bigint} consensusTimestamp
+   * @returns {Promise<{file_data: Buffer|string}|null>}
+   */
+  getCallDataFileAtTimestamp = async (ethTransaction, consensusTimestamp) => {
+    if (!utils.isValidUserFileId(ethTransaction?.callDataId)) {
+      return null;
+    }
+
+    const fileContents = await FileDataService.getFileData(ethTransaction.callDataId, consensusTimestamp);
+    return isNil(fileContents) ? null : {file_data: fileContents};
   };
 
   setContractResultsResponse = (

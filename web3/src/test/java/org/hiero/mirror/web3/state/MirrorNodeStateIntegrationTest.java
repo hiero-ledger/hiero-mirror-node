@@ -27,6 +27,7 @@ import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TO
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TOKEN_RELS_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0530TokenSchema.AIRDROPS_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema.NODE_REWARDS_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0700TokenSchema.NODE_PAYMENTS_STATE_ID;
 import static com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema.TRANSACTION_RECEIPTS_STATE_ID;
 import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.CONGESTION_LEVEL_STARTS_STATE_ID;
 import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.THROTTLE_USAGE_SNAPSHOTS_STATE_ID;
@@ -54,6 +55,7 @@ import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema;
 import com.hedera.node.app.service.token.impl.schemas.V0530TokenSchema;
 import com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema;
+import com.hedera.node.app.service.token.impl.schemas.V0700TokenSchema;
 import com.hedera.node.app.state.recordcache.RecordCacheService;
 import com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema;
 import com.hedera.node.app.throttle.CongestionThrottleService;
@@ -90,7 +92,12 @@ final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
             FileService.NAME, List.of(new V0490FileSchema()),
             RecordCacheService.NAME, List.of(new V0490RecordCacheSchema()),
             ScheduleService.NAME, List.of(new V0490ScheduleSchema(), new V0570ScheduleSchema()),
-            TokenService.NAME, List.of(new V0490TokenSchema(), new V0530TokenSchema(), new V0610TokenSchema()));
+            TokenService.NAME,
+                    List.of(
+                            new V0490TokenSchema(),
+                            new V0530TokenSchema(),
+                            new V0610TokenSchema(),
+                            new V0700TokenSchema()));
 
     private final Set<Integer> statesNotNeeded = Set.of(SCHEDULED_ORDERS_STATE_ID, STAKING_INFOS_STATE_ID);
 
@@ -127,8 +134,8 @@ final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
 
         // CongestionThrottleService
         Map<Integer, Class<?>> congestionThrottleServiceDataSources = Map.of(
-                THROTTLE_USAGE_SNAPSHOTS_STATE_ID, SingletonState.class,
-                CONGESTION_LEVEL_STARTS_STATE_ID, SingletonState.class);
+                THROTTLE_USAGE_SNAPSHOTS_STATE_ID, DefaultSingleton.class,
+                CONGESTION_LEVEL_STARTS_STATE_ID, DefaultSingleton.class);
         verifyServiceDataSources(states, CongestionThrottleService.NAME, congestionThrottleServiceDataSources);
 
         // ContractService
@@ -142,7 +149,7 @@ final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
         // EntityIdService
         Map<Integer, Class<?>> entityIdServiceDataSources = Map.of(
                 ENTITY_ID_STATE_ID, SingletonState.class,
-                ENTITY_COUNTS_STATE_ID, SingletonState.class);
+                ENTITY_COUNTS_STATE_ID, DefaultSingleton.class);
         verifyServiceDataSources(states, EntityIdService.NAME, entityIdServiceDataSources);
 
         // FeeService
@@ -186,6 +193,8 @@ final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
                 STAKING_NETWORK_REWARDS_STATE_ID,
                 DefaultSingleton.class,
                 NODE_REWARDS_STATE_ID,
+                DefaultSingleton.class,
+                NODE_PAYMENTS_STATE_ID,
                 DefaultSingleton.class);
         verifyServiceDataSources(states, TokenService.NAME, tokenServiceDataSources);
     }

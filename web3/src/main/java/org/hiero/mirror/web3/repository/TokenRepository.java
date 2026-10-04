@@ -17,10 +17,16 @@ import org.springframework.data.repository.CrudRepository;
 public interface TokenRepository extends CrudRepository<Token, Long> {
 
     @Override
-    @Cacheable(cacheNames = CACHE_NAME_TOKEN, cacheManager = CACHE_MANAGER_TOKEN, unless = "#result == null")
+    @Cacheable(
+            cacheNames = CACHE_NAME_TOKEN,
+            cacheManager = CACHE_MANAGER_TOKEN,
+            unless = "@spelHelper.isNullOrEmpty(#result)")
     Optional<Token> findById(Long tokenId);
 
-    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_TOKEN_TYPE, unless = "#result == null")
+    @Cacheable(
+            cacheNames = CACHE_NAME,
+            cacheManager = CACHE_MANAGER_TOKEN_TYPE,
+            unless = "@spelHelper.isNullOrEmpty(#result)")
     @Query(value = """
             select t.type
             from token t

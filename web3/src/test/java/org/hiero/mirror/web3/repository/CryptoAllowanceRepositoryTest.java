@@ -452,6 +452,42 @@ class CryptoAllowanceRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findByOwnerAndTimestampRevokedAfterBlockNotResurrected() {
+        final long owner = domainBuilder.entityId().getId();
+        final long spender = domainBuilder.entityId().getId();
+        final long grantedStart = domainBuilder.timestamp();
+        final long revokeTimestamp = grantedStart + 100L;
+
+        // The allowance was granted in the past and then revoked (current row amountGranted=0) at revokeTimestamp.
+        domainBuilder
+                .cryptoAllowanceHistory()
+                .customize(a -> a.owner(owner)
+                        .spender(spender)
+                        .amount(100L)
+                        .amountGranted(100L)
+                        .timestampRange(Range.closedOpen(grantedStart, revokeTimestamp)))
+                .persist();
+        domainBuilder
+                .cryptoAllowance()
+                .customize(a -> a.owner(owner)
+                        .spender(spender)
+                        .amount(0L)
+                        .amountGranted(0L)
+                        .timestampRange(Range.atLeast(revokeTimestamp)))
+                .persist();
+
+        // Before the revocation the allowance is returned.
+        assertThat(cryptoAllowanceRepository.findByOwnerAndTimestamp(owner, grantedStart, htsContractId()))
+                .hasSize(1);
+
+        // At and after the revocation it must not be resurrected from the stale granted history row.
+        assertThat(cryptoAllowanceRepository.findByOwnerAndTimestamp(owner, revokeTimestamp, htsContractId()))
+                .isEmpty();
+        assertThat(cryptoAllowanceRepository.findByOwnerAndTimestamp(owner, revokeTimestamp + 50L, htsContractId()))
+                .isEmpty();
+    }
+
+    @Test
     void findByOwnerAndTimestampWithFullTransferReturnsEmpty() {
         long spender = 1L;
         long ownerId = 2L;

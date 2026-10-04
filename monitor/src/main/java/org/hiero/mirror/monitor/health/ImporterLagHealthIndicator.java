@@ -56,8 +56,8 @@ final class ImporterLagHealthIndicator implements HealthIndicator {
             final var resp = prometheusClient.query(query);
             return evaluate(resp);
         } catch (final Exception e) {
-            log.warn("Importer lag health check failed; returning UP: {}", e.getMessage());
-            return up();
+            log.warn("Importer lag health check failed; returning UNKNOWN: {}", e.getMessage());
+            return unknown();
         }
     }
 
@@ -66,26 +66,43 @@ final class ImporterLagHealthIndicator implements HealthIndicator {
     }
 
     private Health evaluate(final PrometheusApiClient.PrometheusQueryResponse resp) {
-        if (resp == null) {
-            return up();
-        }
-
-        final var series = resp.getSeries();
-        if (series.isEmpty()) {
-            return up();
-        }
-
         final var localCluster = properties.getLocalCluster();
-        final var lagByCluster = parseLagByCluster(series);
+        final var threshold = properties.getThresholdSeconds();
+
+        if (resp == null || resp.getSeries().isEmpty()) {
+            log.info("Importer lag for {}: no data available, threshold={}s, result=UNKNOWN", localCluster, threshold);
+            return unknown();
+        }
+
+        final var lagByCluster = parseLagByCluster(resp.getSeries());
         final var localLag = lagByCluster.get(localCluster);
 
         if (!isLagAboveThreshold(localLag)) {
+            log.info("Importer lag for {}: lag={}s, threshold={}s, result=UP", localCluster, localLag, threshold);
             return up();
         }
 
         lagByCluster.remove(localCluster);
         final var bestOther = bestOtherLag(lagByCluster);
-        return isOtherClearlyBetter(bestOther, localLag) ? down() : up();
+
+        if (bestOther.isEmpty()) {
+            log.info(
+                    "Importer lag for {}: lag={}s exceeds threshold={}s but no peer data to compare against, result=UNKNOWN",
+                    localCluster,
+                    localLag,
+                    threshold);
+            return unknown();
+        }
+
+        final var health = isOtherClearlyBetter(bestOther.getAsDouble(), localLag) ? down() : up();
+        log.info(
+                "Importer lag for {}: lag={}s, threshold={}s, bestPeerLag={}s, result={}",
+                localCluster,
+                localLag,
+                threshold,
+                bestOther.getAsDouble(),
+                health.getStatus());
+        return health;
     }
 
     private boolean isLagAboveThreshold(final Double lagSeconds) {
@@ -100,9 +117,9 @@ final class ImporterLagHealthIndicator implements HealthIndicator {
                 .min();
     }
 
-    private boolean isOtherClearlyBetter(final OptionalDouble bestOther, final double localLag) {
+    private boolean isOtherClearlyBetter(final double bestOtherLag, final double localLag) {
         final var margin = properties.getThresholdSeconds();
-        return bestOther.isPresent() && (bestOther.getAsDouble() + margin) < localLag;
+        return (bestOtherLag + margin) < localLag;
     }
 
     private Map<String, Double> parseLagByCluster(final List<PrometheusApiClient.PrometheusSeries> series) {
@@ -145,5 +162,9 @@ final class ImporterLagHealthIndicator implements HealthIndicator {
 
     private static Health down() {
         return Health.down().build();
+    }
+
+    private static Health unknown() {
+        return Health.unknown().build();
     }
 }

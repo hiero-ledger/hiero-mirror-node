@@ -1,4 +1,4 @@
-FROM node:24.20.0-trixie-slim@sha256:50c3b2f6988dfc307b86e5301d69611af31f4789bdf232863b07d3b02fe55ae0 AS builder
+FROM node:24.21.0-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe AS builder
 WORKDIR /dist
 
 RUN apt-get update && \
@@ -19,7 +19,7 @@ RUN npm run build && \
         -type d \( -name tests -o -name __tests__ \) \
     \) -exec rm -rf {} + 2>/dev/null || true
 
-FROM node:24.20.0-trixie-slim@sha256:50c3b2f6988dfc307b86e5301d69611af31f4789bdf232863b07d3b02fe55ae0
+FROM node:24.21.0-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe
 LABEL maintainer="mirrornode@hedera.com"
 
 ENV NODE_ENV=production
@@ -31,6 +31,12 @@ WORKDIR /home/node/app/
 COPY --from=builder --chown=node:node /dist/buildDist ./
 COPY --from=builder /usr/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2
 COPY --from=builder /etc/ld.so.preload /etc/ld.so.preload
+
+# Temporarily install latest OS updates until next Node.js
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
 
 USER node
 

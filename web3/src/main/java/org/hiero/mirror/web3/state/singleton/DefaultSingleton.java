@@ -2,14 +2,20 @@
 
 package org.hiero.mirror.web3.state.singleton;
 
-import java.util.concurrent.atomic.AtomicReference;
-import lombok.RequiredArgsConstructor;
+import static java.util.Objects.requireNonNull;
 
-@RequiredArgsConstructor
+import java.util.concurrent.atomic.AtomicReference;
+
 public class DefaultSingleton extends AtomicReference<Object> implements SingletonState<Object> {
 
     private final String serviceName;
     private final int id;
+
+    public DefaultSingleton(final String serviceName, final int id, final Object defaultValue) {
+        super(requireNonNull(defaultValue));
+        this.serviceName = serviceName;
+        this.id = id;
+    }
 
     @Override
     public int getStateId() {

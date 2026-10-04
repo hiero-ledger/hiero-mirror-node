@@ -14,7 +14,10 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface ContractRepository extends CrudRepository<Contract, Long> {
 
-    @Cacheable(cacheNames = CACHE_NAME_CONTRACT, cacheManager = CACHE_MANAGER_CONTRACT, unless = "#result == null")
+    @Cacheable(
+            cacheNames = CACHE_NAME_CONTRACT,
+            cacheManager = CACHE_MANAGER_CONTRACT,
+            unless = "@spelHelper.isNullOrEmpty(#result)")
     @Query("select runtime_bytecode from contract where id = :contractId")
     Optional<ContractRuntimeBytecode> findRuntimeBytecode(final Long contractId);
 }

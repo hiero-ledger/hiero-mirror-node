@@ -68,6 +68,7 @@ final class TokenRelationshipReadableKVState extends AbstractReadableKVState<Ent
         final var timestamp = ContractCallContext.get().getTimestamp();
         // The accountId will always be in the format "shard.realm.num"
         return findTokenAccount(tokenId, accountId, timestamp)
+                .filter(ta -> Boolean.TRUE.equals(ta.getAssociated()))
                 .map(ta -> tokenRelationFromEntity(tokenId, accountId, ta, timestamp))
                 .orElse(null);
     }

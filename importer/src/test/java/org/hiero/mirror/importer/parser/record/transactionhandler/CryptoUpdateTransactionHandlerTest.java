@@ -267,6 +267,19 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .returns(null, Entity::getEthereumNonce));
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    void updateTransactionInvalidProxyAccountId() {
+        var invalidProxy =
+                AccountID.newBuilder().setShardNum(5000).setAccountNum(1).build();
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .recordItem(r -> r.hapiVersion(new Version(0, 28, 0)))
+                .transactionBody(body -> body.setProxyAccountID(invalidProxy))
+                .build();
+        setupForCryptoUpdateTransactionTest(recordItem, t -> assertThat(t).returns(null, Entity::getProxyAccountId));
+    }
+
     @Test
     void updateTransactionDelegationAddressSkippedBeforePectra() {
         final var delegationAddressBytes = Hex.decode("a94f5374fce5edbc8e2a8697c15331677e6ebf0b");
@@ -291,7 +304,10 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
     private Map<Long, EntityTransaction> getExpectedEntityTransactions(RecordItem recordItem, Transaction transaction) {
         var body = recordItem.getTransactionBody().getCryptoUpdateAccount();
         return getExpectedEntityTransactions(
-                recordItem, transaction, EntityId.of(body.getStakedAccountId()), EntityId.of(body.getProxyAccountID()));
+                recordItem,
+                transaction,
+                EntityId.of(body.getStakedAccountId()),
+                EntityId.tryOf(body.getProxyAccountID()));
     }
 
     private void setupForCryptoUpdateTransactionTest(RecordItem recordItem, Consumer<Entity> extraAssertions) {

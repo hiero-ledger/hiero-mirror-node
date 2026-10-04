@@ -29,6 +29,7 @@ import org.springframework.data.annotation.Transient;
 public final class EntityId implements Comparable<EntityId> {
 
     public static final EntityId EMPTY = new EntityId(0L);
+    public static final EntityId ZERO = new EntityId(0L);
     public static final String INVALID_ENTITY_EXCEPTION_PROPERTY = "HIERO_MIRROR_COMMON_INVALIDENTITYEXCEPTION";
 
     static final int NUM_BITS = 38;
@@ -100,8 +101,16 @@ public final class EntityId implements Comparable<EntityId> {
         return of(contractID.getShardNum(), contractID.getRealmNum(), contractID.getContractNum());
     }
 
+    public static EntityId tryOf(ContractID contractID) {
+        return tryOf(contractID.getShardNum(), contractID.getRealmNum(), contractID.getContractNum());
+    }
+
     public static EntityId of(FileID fileID) {
         return of(fileID.getShardNum(), fileID.getRealmNum(), fileID.getFileNum());
+    }
+
+    public static EntityId tryOf(FileID fileID) {
+        return tryOf(fileID.getShardNum(), fileID.getRealmNum(), fileID.getFileNum());
     }
 
     public static EntityId of(ScheduleID scheduleID) {

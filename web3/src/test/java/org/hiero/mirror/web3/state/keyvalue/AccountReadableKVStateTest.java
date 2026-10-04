@@ -29,6 +29,7 @@ import com.hedera.node.config.VersionedConfiguration;
 import com.hedera.node.config.data.ContractsConfig;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import com.hedera.services.utils.EntityIdUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -667,6 +668,18 @@ class AccountReadableKVStateTest {
                 .returns(systemAccount, Account::accountId)
                 .returns(0L, Account::tinybarBalance)
                 .returns(EMPTY_KEY_LIST, Account::key));
+    }
+
+    @Test
+    void returnsNonEmptyDummyAccountForRewardAccount() {
+        final var rewardAccount = EntityIdUtils.toAccountId(systemEntity.stakingRewardAccount());
+
+        assertThat(accountReadableKVState.readFromDataSource(rewardAccount)).satisfies(account -> assertThat(account)
+                .isNotNull()
+                .returns(rewardAccount, Account::accountId)
+                .returns(1L, Account::tinybarBalance)
+                .returns(EMPTY_KEY_LIST, Account::key));
+        verify(commonEntityAccessor, never()).get(eq(rewardAccount), any());
     }
 
     @Test

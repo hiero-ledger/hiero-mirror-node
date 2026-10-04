@@ -32,8 +32,6 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
             ), nft_updated as (
               update nft
                 set account_id = :newTreasury,
-                    delegating_spender = null,
-                    spender = null,
                     timestamp_range = int8range(:consensusTimestamp, null)
               where token_id = :tokenId and account_id = :previousTreasury
               returning serial_number

@@ -4,7 +4,8 @@ import isEmpty from 'lodash/isEmpty';
 import range from 'lodash/range';
 
 import BaseService from './baseService';
-import {getResponseLimit} from '../config';
+import config, {getResponseLimit} from '../config';
+import {getTransactionHash} from '../transactionHash';
 import {
   filterKeys,
   HEX_PREFIX,
@@ -214,7 +215,19 @@ class ContractService extends BaseService {
   static ethereumTransactionsByHashQuery = `select * from ${ContractTransactionHash.tableName}
         where ${ContractTransactionHash.HASH} = $1
         order by (${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}) desc,
-                 ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
+                 ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc`;
+
+  // Given candidate consensus timestamps and their contract ids, returns the latest one whose result consumed gas
+  // (non-null gas_consumed), i.e. that actually executed, picking the latest when several executed.
+  // contract_id is the citus distribution column of contract_result and equals contract_transaction_hash.entity_id
+  // (see ContractResult.toContractTransactionHash), so constraining on it lets citus prune shards instead of scanning
+  // every one.
+  static executedContractResultsQuery = `select ${ContractResult.CONSENSUS_TIMESTAMP}
+        from ${ContractResult.tableName}
+        where ${ContractResult.CONSENSUS_TIMESTAMP} = any($1)
+          and ${ContractResult.CONTRACT_ID} = any($2)
+          and ${ContractResult.GAS_CONSUMED} is not null
+        order by ${ContractResult.CONSENSUS_TIMESTAMP} desc
         limit 1`;
 
   getContractResultsByIdAndFiltersQuery(whereConditions, whereParams, order, limit) {
@@ -230,20 +243,21 @@ class ContractService extends BaseService {
     return [query, params];
   }
 
-  getSyntheticContractResultsQuery(whereConditions, whereParams, order, limit) {
+  getSyntheticContractResultsQuery(whereConditions, whereParams, order, limit, excludeWildcard = true) {
     const params = [...whereParams];
     const contractResultAlias = `${ContractResult.tableAlias}.`;
     const clAlias = `${ContractLog.tableAlias}.`;
 
+    const logContractIdExpression = `coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID})`;
+
     const allConditions = whereConditions
       .filter((condition) => {
-        // synthetic logs have no nonce; callers with sender_id/contract_id use includeSynthetic=false
+        // synthetic logs have no nonce or sender_id; callers filtering on those use includeSynthetic=false
         if (condition.includes(ContractResult.TRANSACTION_NONCE)) {
           return false;
         }
         if (
           condition.includes(ContractResult.SENDER_ID) ||
-          condition.includes(`${contractResultAlias}${ContractResult.CONTRACT_ID}`) ||
           condition.includes(`${contractResultAlias}${ContractResult.TRANSACTION_RESULT}`)
         ) {
           return false;
@@ -263,10 +277,16 @@ class ContractService extends BaseService {
             `${clAlias}${ContractLog.TRANSACTION_INDEX}`
           );
         }
+        if (condition.includes(`${contractResultAlias}${ContractResult.CONTRACT_ID}`)) {
+          return condition.replaceAll(`${contractResultAlias}${ContractResult.CONTRACT_ID}`, logContractIdExpression);
+        }
         return condition;
       });
 
     allConditions.push(`${clAlias}${ContractLog.SYNTHETIC} is true`);
+    if (excludeWildcard) {
+      allConditions.push(`(${this.syntheticNftWildcardTransferPredicate(params)})`);
+    }
 
     const whereClause = `where ${allConditions.join(' and ')}`;
     params.push(limit);
@@ -397,7 +417,7 @@ class ContractService extends BaseService {
     return rows.map((row) => new ContractState(row));
   }
 
-  async getContractResultsByTimestamps(timestamps, involvedContractIds = []) {
+  async getContractResultsByTimestamps(timestamps, involvedContractIds = [], includeSynthetic = false) {
     let params = [timestamps];
     let timestampsOpAndValue = '= $1';
     if (Array.isArray(timestamps)) {
@@ -420,8 +440,25 @@ class ContractService extends BaseService {
     ].join('\n');
 
     const rows = await super.getRows(query, params);
+    if (rows.length !== 0 || !includeSynthetic) {
+      return rows.map((row) => {
+        return {
+          ...new ContractResult(row),
+          evmAddress: row.evm_address,
+        };
+      });
+    }
 
-    return rows.map((row) => {
+    // Fall back to a synthetic result built from contract_log.
+    const [syntheticQuery, syntheticParams] = this.getSyntheticContractResultsQuery(
+      conditions,
+      params,
+      'asc',
+      1,
+      false
+    );
+    const syntheticRows = await super.getRows(syntheticQuery, syntheticParams);
+    return syntheticRows.map((row) => {
       return {
         ...new ContractResult(row),
         evmAddress: row.evm_address,
@@ -437,30 +474,153 @@ class ContractService extends BaseService {
    */
   async getContractTransactionDetailsByHash(hash) {
     const rows = await super.getRows(ContractService.ethereumTransactionsByHashQuery, [hash]);
-    return rows.map((row) => new ContractTransactionHash(row));
+    if (rows.length !== 0) {
+      const preferred = await this.pickPreferredContractTransactionHash(rows);
+      return [new ContractTransactionHash(preferred)];
+    }
+
+    if (!config.query.syntheticContractResults) {
+      return [];
+    }
+
+    // Resolve hash -> timestamp via the indexed transaction_hash table, then query contract_log by timestamp.
+    const transactionHashRows = await getTransactionHash(hash, {order: 'asc'});
+    if (transactionHashRows.length === 0) {
+      return [];
+    }
+    const {consensus_timestamp: consensusTimestamp} = transactionHashRows[0];
+
+    const clAlias = `${ContractLog.tableAlias}.`;
+    const params = [consensusTimestamp];
+    const conditions = [
+      `${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} = $1`,
+      `${clAlias}${ContractLog.SYNTHETIC} is true`,
+    ];
+
+    const query = `
+      select
+        ${clAlias}${ContractLog.PAYER_ACCOUNT_ID} as ${ContractTransactionHash.PAYER_ACCOUNT_ID},
+        coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${
+      ContractTransactionHash.ENTITY_ID
+    },
+        ${clAlias}${ContractLog.TRANSACTION_HASH} as ${ContractTransactionHash.HASH},
+        ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} as ${ContractTransactionHash.CONSENSUS_TIMESTAMP},
+        ${successTransactionResult} as ${ContractTransactionHash.TRANSACTION_RESULT}
+      from ${ContractLog.tableName} ${ContractLog.tableAlias}
+      where ${conditions.join(' and ')}
+      order by ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP}, ${clAlias}${ContractLog.INDEX}
+      limit 1
+    `;
+    const syntheticRows = await super.getRows(query, params);
+    return syntheticRows.map((row) => new ContractTransactionHash(row));
   }
 
-  async getInvolvedContractsByTimestampAndContractId(timestamp, contractId) {
+  /**
+   * Selects the row that best represents a transaction hash shared by multiple results. A successful result always
+   * wins (the query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result
+   * sharing the hash by checking which candidates consumed gas (non-null gas_consumed), falling back to the latest by
+   * consensus timestamp (the input order).
+   */
+  async pickPreferredContractTransactionHash(rows) {
+    if (
+      rows.length === 1 ||
+      Number(rows[0][ContractTransactionHash.TRANSACTION_RESULT]) === Number(successTransactionResult)
+    ) {
+      return rows[0];
+    }
+
+    const timestamps = rows.map((row) => row[ContractTransactionHash.CONSENSUS_TIMESTAMP]);
+    const contractIds = rows.map((row) => row[ContractTransactionHash.ENTITY_ID]);
+    const executed = await super.getRows(ContractService.executedContractResultsQuery, [timestamps, contractIds]);
+    if (executed.length === 0) {
+      return rows[0];
+    }
+
+    const executedTimestamp = executed[0][ContractResult.CONSENSUS_TIMESTAMP];
+    return rows.find((row) => row[ContractTransactionHash.CONSENSUS_TIMESTAMP] === executedTimestamp) ?? rows[0];
+  }
+
+  async getInvolvedContractsByTimestampAndContractId(timestamp, contractId, matchByPayerAccount = false) {
     if (!timestamp || contractId === null || contractId === undefined) {
       return null;
     }
     const contractDetails = await super.getSingleRow(ContractService.involvedContractsQuery, [timestamp, contractId]);
-    return contractDetails === null ? null : new ContractTransaction(contractDetails);
+    if (contractDetails !== null) {
+      return new ContractTransaction(contractDetails);
+    }
+
+    if (!config.query.syntheticContractResults) {
+      return null;
+    }
+
+    // Fall back to contract_log, matched by contract entity or payer per caller intent.
+    const clAlias = `${ContractLog.tableAlias}.`;
+    const params = [timestamp, contractId];
+    const matchCondition = matchByPayerAccount
+      ? `${clAlias}${ContractLog.PAYER_ACCOUNT_ID} = $2`
+      : `coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) = $2`;
+    const conditions = [
+      `${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} = $1`,
+      `${clAlias}${ContractLog.SYNTHETIC} is true`,
+      matchCondition,
+    ];
+
+    const query = `
+      with matched as (
+        select
+          ${clAlias}${ContractLog.PAYER_ACCOUNT_ID} as ${ContractTransaction.PAYER_ACCOUNT_ID},
+          coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${
+      ContractTransaction.ENTITY_ID
+    },
+          ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} as ${ContractTransaction.CONSENSUS_TIMESTAMP}
+        from ${ContractLog.tableName} ${ContractLog.tableAlias}
+        where ${conditions.join(' and ')}
+        order by ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP}, ${clAlias}${ContractLog.INDEX}
+        limit 1
+      ), involved_contracts as (
+        select array_agg(distinct coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${
+      ContractLog.CONTRACT_ID
+    })) as ${ContractTransaction.CONTRACT_IDS}
+        from ${ContractLog.tableName} ${ContractLog.tableAlias}
+        where ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP} = $1 and ${clAlias}${ContractLog.SYNTHETIC} is true
+      )
+      select matched.*, involved_contracts.${ContractTransaction.CONTRACT_IDS}
+      from matched, involved_contracts
+    `;
+    const syntheticDetails = await super.getSingleRow(query, params);
+    return syntheticDetails === null ? null : new ContractTransaction(syntheticDetails);
   }
 
   /**
-   * Exclude synthetic NFT treasury-change Transfer logs (topic0 = Transfer AND topic3 = 0xffffffffffffffff).
-   * NULL topic0 or topic3 is kept via IS DISTINCT FROM.
+   * "Keep" predicate matching every log except an NFT wildcard-transfer log (topic0 = Transfer AND
+   * topic3 = 0xffffffffffffffff), regardless of whether it is stream-ingested or importer-generated synthetic. NULL
+   * topic0 or topic3 is kept via IS DISTINCT FROM. Pushes the two topic params and returns the predicate without any
+   * synthetic guard, so callers can compose their own synthetic handling (see appendSyntheticNftTransferExclusion).
+   *
+   * @param {*[]} params
+   * @return {string}
+   */
+  syntheticNftWildcardTransferPredicate(params) {
+    params.push(TRANSFER_EVENT_TOPIC0, SYNTHETIC_NFT_SERIAL_TOPIC3);
+    return `${ContractLog.getFullName(ContractLog.TOPIC0)} is distinct from $${
+      params.length - 1
+    } or ${ContractLog.getFullName(ContractLog.TOPIC3)} is distinct from $${params.length}`;
+  }
+
+  /**
+   * Exclude importer-generated synthetic NFT treasury-change Transfer logs (synthetic = true AND topic0 = Transfer AND
+   * topic3 = 0xffffffffffffffff) from queries that return a mix of synthetic and genuine logs. The synthetic flag is the
+   * authoritative discriminator; without it genuine EVM logs whose indexed tokenId is 2^64-1 (stored as the same trimmed
+   * topic3) would be wrongly suppressed. Non-synthetic logs are kept via IS NOT TRUE.
    *
    * @param {*[]} params
    * @param {string[]} conditions
    */
   appendSyntheticNftTransferExclusion(params, conditions) {
-    params.push(TRANSFER_EVENT_TOPIC0, SYNTHETIC_NFT_SERIAL_TOPIC3);
     conditions.push(
-      `(${ContractLog.getFullName(ContractLog.TOPIC0)} is distinct from $${
-        params.length - 1
-      } or ${ContractLog.getFullName(ContractLog.TOPIC3)} is distinct from $${params.length})`
+      `(${ContractLog.getFullName(ContractLog.SYNTHETIC)} is not true or ${this.syntheticNftWildcardTransferPredicate(
+        params
+      )})`
     );
   }
 

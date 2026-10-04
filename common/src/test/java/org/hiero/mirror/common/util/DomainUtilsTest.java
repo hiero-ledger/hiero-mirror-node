@@ -528,6 +528,8 @@ final class DomainUtilsTest {
         assertThat(DomainUtils.toEvmAddress(entityId)).asHexString().isEqualTo(expected);
         assertThatThrownBy(() -> DomainUtils.toEvmAddress((EntityId) null)).isInstanceOf(InvalidEntityException.class);
         assertThatThrownBy(() -> DomainUtils.toEvmAddress(EntityId.EMPTY)).isInstanceOf(InvalidEntityException.class);
+        assertThat(DomainUtils.toEvmAddress(EntityId.ZERO))
+                .isEqualTo(new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
     }
 
     @Test

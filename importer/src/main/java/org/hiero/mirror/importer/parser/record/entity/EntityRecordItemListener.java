@@ -6,7 +6,6 @@ import static org.hiero.mirror.common.domain.token.NftTransfer.WILDCARD_SERIAL_N
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.UnknownFieldSet;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -18,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -78,6 +76,11 @@ public class EntityRecordItemListener implements RecordItemListener {
     public void onItem(final RecordItem recordItem) throws ImporterException {
         if (!parserProperties.isEnabled()) {
             return;
+        }
+
+        if (EntityId.isEmpty(recordItem.getPayerAccountId())) {
+            DomainUtils.logRecoverableError(
+                    "Invalid payer account ID for consensusTimestamp {}", recordItem.getConsensusTimestamp());
         }
 
         final var persistProperties = entityProperties.getPersist();
@@ -206,7 +209,7 @@ public class EntityRecordItemListener implements RecordItemListener {
                         : null);
         transaction.setType(recordItem.getTransactionType());
         transaction.setValidDurationSeconds(validDurationSeconds);
-        transaction.setValidStartNs(DomainUtils.timeStampInNanos(transactionId.getTransactionValidStart()));
+        transaction.setValidStartNs(DomainUtils.timestampInNanosMax(transactionId.getTransactionValidStart()));
 
         if (txRecord.hasParentConsensusTimestamp()) {
             transaction.setParentConsensusTimestamp(
@@ -398,6 +401,16 @@ public class EntityRecordItemListener implements RecordItemListener {
         return entityIdService.lookup(accountId).orElse(EntityId.EMPTY);
     }
 
+    private EntityId resolveTransferAccount(AccountID accountId) {
+        final var entityId = EntityId.tryOf(accountId);
+
+        if (EntityId.isEmpty(entityId) && !AccountID.getDefaultInstance().equals(accountId)) {
+            return EntityId.ZERO;
+        }
+
+        return entityId;
+    }
+
     @SuppressWarnings("java:S1168")
     private byte[][] getMaxCustomFees(TransactionBody body, RecordItem recordItem) {
         int count = body.getMaxCustomFeesCount();
@@ -419,7 +432,10 @@ public class EntityRecordItemListener implements RecordItemListener {
     }
 
     private void insertFungibleTokenTransfers(
-            RecordItem recordItem, TokenTransferList tokenTransferList, Set<ApprovalKey> approvedDebits) {
+            RecordItem recordItem,
+            EntityId tokenId,
+            TokenTransferList tokenTransferList,
+            Set<ApprovalKey> approvedDebits) {
         if (tokenTransferList.getTransfersList().isEmpty()) {
             return;
         }
@@ -428,7 +444,6 @@ public class EntityRecordItemListener implements RecordItemListener {
         long consensusTimestamp = recordItem.getConsensusTimestamp();
         boolean isTokenDissociate = body.hasTokenDissociate();
         var payerAccountId = recordItem.getPayerAccountId();
-        var tokenId = EntityId.of(tokenTransferList.getToken());
         var tokenTransfers = tokenTransferList.getTransfersList();
         int tokenTransferCount = tokenTransfers.size();
 
@@ -440,7 +455,8 @@ public class EntityRecordItemListener implements RecordItemListener {
                 || recordItem.getTransactionType() == TransactionType.TOKENCREATION.getProtoId();
 
         for (AccountAmount accountAmount : tokenTransfers) {
-            EntityId accountId = EntityId.of(accountAmount.getAccountID());
+            var accountId = EntityId.tryOf(accountAmount.getAccountID());
+            accountId = EntityId.isEmpty(accountId) ? EntityId.ZERO : accountId;
             long amount = accountAmount.getAmount();
             var tokenTransfer = isDeletedTokenDissociate ? new DissociateTokenTransfer() : new TokenTransfer();
             tokenTransfer.setAmount(amount);
@@ -495,17 +511,15 @@ public class EntityRecordItemListener implements RecordItemListener {
         var tokenTransferListsList = recordItem.getTransactionRecord().getTokenTransferListsList();
 
         for (int i = 0; i < tokenTransferListsList.size(); i++) {
-            TokenTransferList tokenTransferList = tokenTransferListsList.get(i);
+            final var tokenTransferList = tokenTransferListsList.get(i);
+            var tokenId = EntityId.tryOf(tokenTransferList.getToken());
+            tokenId = EntityId.isEmpty(tokenId) ? EntityId.ZERO : tokenId;
 
-            insertFungibleTokenTransfers(recordItem, tokenTransferList, approvedDebits);
-            insertNonFungibleTokenTransfers(recordItem, transaction, tokenTransferList, approvedDebits);
+            insertFungibleTokenTransfers(recordItem, tokenId, tokenTransferList, approvedDebits);
+            insertNonFungibleTokenTransfers(recordItem, transaction, tokenId, tokenTransferList, approvedDebits);
 
             if (i == 0) {
-                var tokenId = tokenTransferList.getToken();
-                var entityTokenId = EntityId.of(tokenId);
-
-                syntheticContractResultService.create(
-                        new TransferContractResult(recordItem, entityTokenId, payerAccountId));
+                syntheticContractResultService.create(new TransferContractResult(recordItem, tokenId, payerAccountId));
             }
         }
 
@@ -545,6 +559,7 @@ public class EntityRecordItemListener implements RecordItemListener {
     private void insertNonFungibleTokenTransfers(
             RecordItem recordItem,
             Transaction transaction,
+            EntityId entityTokenId,
             TokenTransferList tokenTransferList,
             Set<ApprovalKey> approvedDebits) {
         if (tokenTransferList.getNftTransfersList().isEmpty()) {
@@ -552,15 +567,12 @@ public class EntityRecordItemListener implements RecordItemListener {
         }
 
         long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var tokenId = tokenTransferList.getToken();
-        var entityTokenId = EntityId.of(tokenId);
-
         for (var nftTransfer : tokenTransferList.getNftTransfersList()) {
             long serialNumber = nftTransfer.getSerialNumber();
-            var receiverId = EntityId.of(nftTransfer.getReceiverAccountID());
-            var senderId = EntityId.of(nftTransfer.getSenderAccountID());
+            final var receiverId = resolveTransferAccount(nftTransfer.getReceiverAccountID());
+            final var senderId = resolveTransferAccount(nftTransfer.getSenderAccountID());
 
-            var nftTransferDomain = new org.hiero.mirror.common.domain.token.NftTransfer();
+            final var nftTransferDomain = new org.hiero.mirror.common.domain.token.NftTransfer();
             nftTransferDomain.setIsApproval(
                     approvedDebits.contains(new ApprovalKey(senderId, entityTokenId, serialNumber)));
             nftTransferDomain.setReceiverAccountId(receiverId);
@@ -660,25 +672,25 @@ public class EntityRecordItemListener implements RecordItemListener {
                     signature = signaturePair.getRSA3072();
                     break;
                 case SIGNATURE_NOT_SET:
-                    Map<Integer, UnknownFieldSet.Field> unknownFields =
-                            signaturePair.getUnknownFields().asMap();
+                    final var unknownFields = signaturePair.getUnknownFields().asMap();
 
                     // If we encounter a signature that our version of the protobuf does not yet support, it will
                     // return SIGNATURE_NOT_SET. Hence we should look in the unknown fields for the new signature.
                     // ByteStrings are stored as length-delimited on the wire, so we search the unknown fields for a
                     // field that has exactly one length-delimited value and assume it's our new signature bytes.
-                    for (Map.Entry<Integer, UnknownFieldSet.Field> entry : unknownFields.entrySet()) {
-                        UnknownFieldSet.Field field = entry.getValue();
-                        if (field.getLengthDelimitedList().size() == 1) {
+                    for (final var entry : unknownFields.entrySet()) {
+                        final var field = entry.getValue();
+                        final var key = entry.getKey();
+
+                        if (field.getLengthDelimitedList().size() == 1 && key != null && DomainUtils.isSmallint(key)) {
                             signature = field.getLengthDelimitedList().get(0);
-                            type = entry.getKey();
+                            type = DomainUtils.toSmallint(key);
                             break;
                         }
                     }
 
                     if (signature == null) {
-                        Utility.handleRecoverableError(
-                                "Unsupported signature at {}: {}", consensusTimestamp, unknownFields);
+                        Utility.handleRecoverableError("Unsupported signature at {}", consensusTimestamp);
                         continue;
                     }
                     break;

@@ -3,6 +3,8 @@
 package org.hiero.mirror.common.util;
 
 import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.jspecify.annotations.NullMarked;
 
@@ -13,8 +15,18 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 public final class SpelHelper {
 
-    public boolean isNullOrEmpty(Collection<?> value) {
-        return value == null || value.isEmpty();
+    public boolean isNullOrEmpty(Object value) {
+        if (value == null) {
+            return true;
+        } else if (value instanceof Optional<?> optional) {
+            return optional.isEmpty();
+        } else if (value instanceof Collection<?> collection) {
+            return collection.isEmpty();
+        } else if (value instanceof Map<?, ?> map) {
+            return map.isEmpty();
+        }
+
+        return false;
     }
 
     public Bytes getCacheKey(byte[] value) {

@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {
@@ -250,6 +250,70 @@ class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
         var payerId = recordItem.getPayerAccountId();
         var timestamp = recordItem.getConsensusTimestamp();
         var transaction = getTransaction(payerId, timestamp);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener, times(1)).onSchedule(assertArg(t -> assertThat(t)
+                .isNotNull()
+                .returns(timestamp, Schedule::getConsensusTimestamp)
+                .returns(payerId, Schedule::getCreatorAccountId)
+                .returns(null, Schedule::getExecutedTimestamp)
+                .satisfies(s -> assertThat(s.getExpirationTime()).isPositive())
+                .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
+                .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
+                .returns(true, Schedule::isWaitForExpiry)));
+    }
+
+    @Test
+    void updateTransactionInvalidPayer() {
+        // given
+        final var recordItem = recordItemBuilder
+                .scheduleCreate()
+                .transactionBody(t -> t.setPayerAccountID(AccountID.newBuilder().setAccountNum(-1L)))
+                .receipt(r -> r.setScheduleID(recordItemBuilder.scheduleId()))
+                .build();
+        final var timestamp = recordItem.getConsensusTimestamp();
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener, times(1)).onSchedule(assertArg(t -> assertThat(t)
+                .isNotNull()
+                .returns(recordItem.getPayerAccountId(), Schedule::getCreatorAccountId)
+                .returns(recordItem.getPayerAccountId(), Schedule::getPayerAccountId)));
+    }
+
+    @Test
+    void updateTransactionInvalidSender() {
+        // given
+        final var scheduleId = recordItemBuilder.scheduleId();
+        final var ethereumTransaction = domainBuilder.ethereumTransaction(false).get();
+
+        final var parentRecordItem = recordItemBuilder
+                .ethereumTransaction(false)
+                .record(r -> r.getContractCallResultBuilder()
+                        .setSenderId(AccountID.newBuilder().setAccountNum(-1L)))
+                .recordItem(r -> r.ethereumTransaction(ethereumTransaction))
+                .build();
+
+        final var recordItem = recordItemBuilder
+                .scheduleCreate()
+                .recordItem(r -> r.parent(parentRecordItem).previous(parentRecordItem))
+                .receipt(r -> r.setScheduleID(scheduleId))
+                .record(r -> r.setParentConsensusTimestamp(
+                        parentRecordItem.getTransactionRecord().getConsensusTimestamp()))
+                .build();
+
+        final var payerId = recordItem.getPayerAccountId();
+        final var timestamp = recordItem.getConsensusTimestamp();
+        final var transaction = getTransaction(payerId, timestamp);
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
