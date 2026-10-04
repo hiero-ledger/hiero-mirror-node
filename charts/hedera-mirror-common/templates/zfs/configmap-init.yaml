@@ -42,10 +42,13 @@ data:
     ENV_FILE="${ROOT_MOUNT_DIR}/etc/environment"
 
     # Auto-grow configuration
+    #  - DISK_AUTOGROW_HEADROOM_GB: keep the disk/pool this many GB ahead of the declared
+    #    PVC size, so the declared size never claims the pool's last few GB of raw capacity
     #  - DISK_AUTOGROW_INTERVAL_SECONDS: how often to check (0 = disable loop)
     #  - DISK_AUTOGROW_MAX_STEP_GB: maximum GB to grow in a single operation (also caps PVC increase)
     #  - DISK_AUTOGROW_PERCENT: percentage of current PVC size to grow (we use the smaller of percent vs max step)
     #  - DISK_AUTOGROW_THRESHOLD_PERCENT: dataset usage % to trigger grow
+    DISK_AUTOGROW_HEADROOM_GB="${DISK_AUTOGROW_HEADROOM_GB:-20}"
     DISK_AUTOGROW_INTERVAL_SECONDS="${DISK_AUTOGROW_INTERVAL_SECONDS:-120}"
     DISK_AUTOGROW_MAX_STEP_GB="${DISK_AUTOGROW_MAX_STEP_GB:-50}"
     DISK_AUTOGROW_PERCENT="${DISK_AUTOGROW_PERCENT:-10}"
@@ -105,7 +108,11 @@ data:
       gcloud compute disks describe "${DISK_NAME}" --zone "${ZONE}" --format="value(sizeGb)" 2>/dev/null || true
     }
 
-    # Echoes the zpool's current total size in GB;
+    # Echoes the zpool's current total size, in the same unit gcloud disk sizes
+    # use everywhere else in this script (nominally "GB", but gcloud's --size
+    # flag and sizeGb field are actually GiB - see growDiskToSizeGb). Must stay
+    # in this unit so it can be compared/added directly against getDiskSizeGb()
+    # and fed straight into gcloud compute disks resize --size=.
     function getPoolSizeGb() {
       local sizeBytes
       sizeBytes="$(chroot "${ROOT_MOUNT_DIR}" /bin/bash -c "zpool list -Hpo size \"${POOL}\"" 2>/dev/null || true)"
@@ -115,7 +122,7 @@ data:
         return 0
       fi
 
-      echo $(( sizeBytes / 1000000000 ))
+      echo $(( sizeBytes / 1073741824 ))
     }
 
     function growDiskToSizeGb() {
@@ -147,6 +154,14 @@ data:
           log "Failed to resize disk ${DISK_NAME}"
           return 1
         fi
+      fi
+
+      # During bootstrap this runs before ensureDiskAttached/setupZFSPool, so the
+      # disk may not be attached to this node yet and there's no local pool to
+      # scan. Only require the scan to succeed once the device is actually here.
+      if ! chroot "${ROOT_MOUNT_DIR}" /bin/bash -c "test -b /dev/sdb" &>/dev/null; then
+        log "/dev/sdb not attached to this node yet; skipping pool expand for now"
+        return 0
       fi
 
       if ! forceSizeScanWithRetry; then
@@ -705,17 +720,6 @@ data:
       done
     }
 
-    # Converts a GB value to GiB (floor).
-    # Echoes GiB value
-    function gbToGiFloor() {
-      local gb="$1"
-      if ! [[ "${gb}" =~ ^[0-9]+$ ]] || (( gb <= 0 )); then
-        echo ""
-        return 0
-      fi
-      echo $(( (gb * 1000000000) / 1073741824 ))
-    }
-
     # Iterate ZFS datasets on this node and resize them if necessary
     function checkAndGrowDatasets() {
       log "Checking ZFS datasets in pool ${POOL} on node ${NODE_NAME} (${NODE_ID})"
@@ -830,14 +834,17 @@ data:
           continue
         fi
 
-        local poolSizeGi
-        poolSizeGi="$(gbToGiFloor "${currentPoolSizeGb}")"
+        # getPoolSizeGb() is already in the same (GiB) unit as Gi, so no conversion needed here.
+        local poolSizeGi="${currentPoolSizeGb}"
 
-        # Don't grow further if the last patch never landed - declared size is still behind the pool.
-        if [[ -n "${poolSizeGi}" ]] && (( currentIntGi < poolSizeGi )); then
-          log "ERROR: declared size (${currentIntGi}Gi) is behind actual pool size (${poolSizeGi}Gi) for sgshardedcluster ${pvcNamespace}/${shardedClusterName} group ${citusGroupInt}; a previous grow was not reflected. Retrying that patch instead of growing further."
-          patchShardedClusterVolumeSize "${sgClusterName}" "${pvcNamespace}" "${poolSizeGi}" || \
-            log "Failed to catch up sgshardedcluster ${pvcNamespace}/${sgClusterName} to ${poolSizeGi}Gi"
+        # The declared size is expected to trail the pool by DISK_AUTOGROW_HEADROOM_GB
+        # (see newSizeGb/targetGi below), so only treat it as "behind" if it has fallen
+        # further behind than that, meaning a previous patch never landed.
+        local expectedGi=$(( poolSizeGi > DISK_AUTOGROW_HEADROOM_GB ? poolSizeGi - DISK_AUTOGROW_HEADROOM_GB : poolSizeGi ))
+        if (( currentIntGi < expectedGi )); then
+          log "ERROR: declared size (${currentIntGi}Gi) is behind the expected size (${expectedGi}Gi = pool ${poolSizeGi}Gi - ${DISK_AUTOGROW_HEADROOM_GB}Gi headroom) for sgshardedcluster ${pvcNamespace}/${shardedClusterName} group ${citusGroupInt}; a previous grow was not reflected. Retrying that patch instead of growing further."
+          patchShardedClusterVolumeSize "${sgClusterName}" "${pvcNamespace}" "${expectedGi}" || \
+            log "Failed to catch up sgshardedcluster ${pvcNamespace}/${sgClusterName} to ${expectedGi}Gi"
           continue
         fi
 
@@ -857,10 +864,12 @@ data:
         log "Autogrow: pool ${currentPoolSizeGb}GB -> ${newSizeGb}GB (+${incrementGi}Gi)"
 
         if growDiskToSizeGb "${newSizeGb}"; then
-          local targetGi
-          targetGi="$(gbToGiFloor "${newSizeGb}")"
+          # newSizeGb is already in the same (GiB) unit as Gi; keep the declared size
+          # DISK_AUTOGROW_HEADROOM_GB behind it so the PVC never claims the pool's
+          # entire raw capacity.
+          local targetGi=$(( newSizeGb > DISK_AUTOGROW_HEADROOM_GB ? newSizeGb - DISK_AUTOGROW_HEADROOM_GB : newSizeGb ))
           if [[ -z "${targetGi}" || "${targetGi}" -le 0 ]]; then
-            log "Unable to convert newSizeGb=${newSizeGb} to Gi; skipping sgshardedcluster patch"
+            log "Invalid newSizeGb=${newSizeGb}; skipping sgshardedcluster patch"
           else
             patchShardedClusterVolumeSize "${sgClusterName}" "${pvcNamespace}" "${targetGi}" || \
               log "Failed to patch sgshardedcluster for sgcluster ${pvcNamespace}/${sgClusterName}"
