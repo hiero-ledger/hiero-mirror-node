@@ -1057,6 +1057,10 @@ func TestConstructionPayloadsAliasError(t *testing.T) {
 			name:     "matching prefix without separator",
 			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: aliasStr + ",other:0.0.100"}),
 		},
+		{
+			name:     "account map entry with extra separator",
+			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: fmt.Sprintf("%s:%s:0.0.100", aliasStr, aliasStr)}),
+		},
 	}
 
 	for _, tt := range tests {
