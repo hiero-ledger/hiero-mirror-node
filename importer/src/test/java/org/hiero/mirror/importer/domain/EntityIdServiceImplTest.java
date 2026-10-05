@@ -27,6 +27,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.transaction.support.TransactionOperations;
 
 @RequiredArgsConstructor
 @ExtendWith(OutputCaptureExtension.class)
@@ -60,6 +61,7 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
 
     private final EntityRepository entityRepository;
     private final EntityIdService entityIdService;
+    private final TransactionOperations transactionOperations;
 
     private static Stream<Arguments> shardAndRealmData() {
         return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 0L), Arguments.of(0L, 1L), Arguments.of(1L, 2L));
@@ -256,6 +258,25 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         assertThat(output.getAll()).containsIgnoringCase(RECOVERABLE_ERROR_LOG_PREFIX);
     }
 
+    @Test
+    void lookupContractEvmAddressNoMatchThenNotify() {
+        // given
+        final var contract = domainBuilder
+                .entity()
+                .customize(e -> e.alias(null).type(CONTRACT))
+                .get();
+        final var contractId = getProtoContractId(contract);
+
+        // when the lookup misses, the empty result is cached
+        assertThat(entityIdService.lookup(contractId, false)).isEmpty();
+        entityRepository.save(contract);
+        assertThat(entityIdService.lookup(contractId, false)).isEmpty();
+
+        // then the notification for the created entity replaces the cached empty result
+        entityIdService.notify(contract);
+        assertThat(entityIdService.lookup(contractId)).hasValue(contract.toEntityId());
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void lookupContractEvmAddressRecoverableError(boolean throwRecoverableError, CapturedOutput output) {
@@ -371,6 +392,58 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         assertThat(entityIdService.lookup(accountId)).isEmpty();
     }
 
+    @Test
+    void notifyAccountDeletedThenRecreated() {
+        // given
+        final var account = domainBuilder.entity().get();
+        final var alias = getProtoAccountId(account);
+        final var evmAddress = alias.toBuilder()
+                .setAlias(DomainUtils.fromBytes(account.getEvmAddress()))
+                .build();
+        final var recreated = domainBuilder
+                .entity()
+                .customize(e -> e.alias(account.getAlias()).evmAddress(account.getEvmAddress()))
+                .get();
+        entityIdService.notify(account);
+
+        // when deleted, the cached mappings are invalidated though the delete carries neither the alias nor the evm
+        // address
+        entityIdService.notify(getDeleted(account));
+        assertThat(entityIdService.lookup(alias)).isEmpty();
+        assertThat(entityIdService.lookup(evmAddress)).isEmpty();
+
+        // then a new account reusing the alias and the evm address replaces the cached mapping
+        entityIdService.notify(recreated);
+        assertThat(entityIdService.lookup(alias)).hasValue(recreated.toEntityId());
+        assertThat(entityIdService.lookup(evmAddress)).hasValue(recreated.toEntityId());
+    }
+
+    @Test
+    void notifyAccountDeletedThenRecreatedWithEvmAddress() {
+        // given an account with a public key alias and the evm address derived from it
+        final var account = domainBuilder
+                .entity()
+                .customize(e -> e.alias(ALIAS_ECDSA_SECP256K1).evmAddress(EVM_ADDRESS))
+                .get();
+        final var alias = getProtoAccountId(account);
+        final var evmAddress =
+                alias.toBuilder().setAlias(DomainUtils.fromBytes(EVM_ADDRESS)).build();
+        // A hollow account's alias is its evm address, so it doesn't carry the public key alias
+        final var recreated = domainBuilder
+                .entity()
+                .customize(e -> e.alias(EVM_ADDRESS).evmAddress(EVM_ADDRESS))
+                .get();
+        entityIdService.notify(account);
+        entityIdService.notify(getDeleted(account));
+
+        // when
+        entityIdService.notify(recreated);
+
+        // then
+        assertThat(entityIdService.lookup(evmAddress)).hasValue(recreated.toEntityId());
+        assertThat(entityIdService.lookup(alias)).hasValue(recreated.toEntityId());
+    }
+
     @ParameterizedTest
     @CsvSource(value = {"false", ","})
     void notifyContract(Boolean deleted) {
@@ -391,6 +464,150 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         entityIdService.notify(contract);
         var contractId = getProtoContractId(contract);
         assertThat(entityIdService.lookup(contractId)).isEmpty();
+    }
+
+    @Test
+    void notifyContractDeletedThenRecreated() {
+        // given
+        final var contract = domainBuilder
+                .entity()
+                .customize(c -> c.alias(null).type(CONTRACT))
+                .get();
+        final var contractId = getProtoContractId(contract);
+        final var recreated = domainBuilder
+                .entity()
+                .customize(
+                        c -> c.alias(null).evmAddress(contract.getEvmAddress()).type(CONTRACT))
+                .get();
+        entityIdService.notify(contract);
+
+        // when deleted, the cached mapping is invalidated though the delete doesn't carry the evm address
+        entityIdService.notify(getDeleted(contract));
+        assertThat(entityIdService.lookup(contractId)).isEmpty();
+
+        // then a new contract reusing the evm address replaces the cached mapping
+        entityIdService.notify(recreated);
+        assertThat(entityIdService.lookup(contractId)).hasValue(recreated.toEntityId());
+    }
+
+    @Test
+    void notifyDeletedBeforePersisted() {
+        // given the mappings are loaded from the database
+        final var account = domainBuilder.entity().persist();
+        final var alias = getProtoAccountId(account);
+        final var evmAddress = alias.toBuilder()
+                .setAlias(DomainUtils.fromBytes(account.getEvmAddress()))
+                .build();
+        assertThat(entityIdService.lookup(alias)).hasValue(account.toEntityId());
+        assertThat(entityIdService.lookup(evmAddress)).hasValue(account.toEntityId());
+
+        transactionOperations.executeWithoutResult(status -> {
+            // when the delete is not yet persisted
+            entityIdService.notify(getDeleted(account));
+
+            // then the lookups don't resolve to the entity still in the database
+            assertThat(entityIdService.lookup(alias)).isEmpty();
+            assertThat(entityIdService.lookup(evmAddress)).isEmpty();
+        });
+    }
+
+    @Test
+    void notifyDeletedBeforePersistedThenRolledBack() {
+        // given
+        final var account = domainBuilder.entity().persist();
+        final var alias = getProtoAccountId(account);
+        assertThat(entityIdService.lookup(alias)).hasValue(account.toEntityId());
+
+        // when
+        transactionOperations.executeWithoutResult(status -> {
+            entityIdService.notify(getDeleted(account));
+            assertThat(entityIdService.lookup(alias)).isEmpty();
+            status.setRollbackOnly();
+        });
+
+        // then
+        assertThat(entityIdService.lookup(alias)).hasValue(account.toEntityId());
+    }
+
+    @Test
+    void notifyDeletedBeforePersistedWithAliasNotCached() {
+        // given only the evm address mapping is cached
+        final var account = domainBuilder
+                .entity()
+                .customize(e -> e.alias(ALIAS_ECDSA_SECP256K1).evmAddress(EVM_ADDRESS))
+                .persist();
+        final var alias = getProtoAccountId(account);
+        final var evmAddress =
+                alias.toBuilder().setAlias(DomainUtils.fromBytes(EVM_ADDRESS)).build();
+        final var recreated = domainBuilder
+                .entity()
+                .customize(e -> e.alias(EVM_ADDRESS).evmAddress(EVM_ADDRESS))
+                .get();
+        assertThat(entityIdService.lookup(evmAddress)).hasValue(account.toEntityId());
+
+        transactionOperations.executeWithoutResult(status -> {
+            // when the delete is not yet persisted and a hollow account reuses the evm address
+            entityIdService.notify(getDeleted(account));
+            entityIdService.notify(recreated);
+
+            // then the public key alias isn't resolved to the deleted account still in the database
+            assertThat(entityIdService.lookup(alias)).hasValue(recreated.toEntityId());
+            assertThat(entityIdService.lookup(evmAddress)).hasValue(recreated.toEntityId());
+
+            // persist the delete
+            account.setDeleted(true);
+            entityRepository.save(account);
+        });
+
+        // and neither once the delete is persisted
+        assertThat(entityIdService.lookup(alias)).hasValue(recreated.toEntityId());
+        assertThat(entityIdService.lookup(evmAddress)).hasValue(recreated.toEntityId());
+    }
+
+    @Test
+    void notifyDeletedThenUndeleted() {
+        // given
+        final var contract = domainBuilder
+                .entity()
+                .customize(c -> c.alias(null).type(CONTRACT))
+                .get();
+        final var contractId = getProtoContractId(contract);
+        final var undeleted = contract.toEntityId().toEntity();
+        undeleted.setDeleted(false);
+        undeleted.setType(CONTRACT);
+        entityIdService.notify(contract);
+
+        transactionOperations.executeWithoutResult(status -> {
+            entityIdService.notify(getDeleted(contract));
+            assertThat(entityIdService.lookup(contractId)).isEmpty();
+
+            // when
+            entityIdService.notify(undeleted);
+
+            // then
+            assertThat(entityIdService.lookup(contractId)).hasValue(contract.toEntityId());
+        });
+
+        assertThat(entityIdService.lookup(contractId)).hasValue(contract.toEntityId());
+    }
+
+    @Test
+    void notifyDeletedWithEncodedEvmAddress() {
+        // given an evm address which encodes the entity id, so it isn't mapped to the entity
+        final var entityId = EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), EVM_ADDRESS_NUM);
+        final var contractId = ContractID.newBuilder()
+                .setEvmAddress(DomainUtils.fromBytes(PARSABLE_EVM_ADDRESS))
+                .build();
+        final var deleted = entityId.toEntity();
+        deleted.setDeleted(true);
+        deleted.setType(CONTRACT);
+        assertThat(entityIdService.lookup(contractId)).hasValue(entityId);
+
+        // when
+        entityIdService.notify(deleted);
+
+        // then
+        assertThat(entityIdService.lookup(contractId)).hasValue(entityId);
     }
 
     @Test
@@ -427,6 +644,14 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
                 .setAlias(DomainUtils.fromBytes(domainBuilder.evmAddress()))
                 .build();
         assertThat(entityIdService.lookup(accountId)).isNotPresent();
+    }
+
+    // The partial entity the delete transaction handlers pass to the entity listener
+    private Entity getDeleted(final Entity entity) {
+        final var deleted = entity.toEntityId().toEntity();
+        deleted.setDeleted(true);
+        deleted.setType(entity.getType());
+        return deleted;
     }
 
     private AccountID getProtoAccountId(Entity account) {

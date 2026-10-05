@@ -1276,6 +1276,164 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         .isEqualTo(dbAccountEntityBefore));
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void cryptoDeleteThenCreateWithSameAlias(final boolean singleRecordFile) {
+        // given
+        final var cryptoCreate = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(b -> b.setAlias(ALIAS_KEY))
+                .build();
+        final var deletedAccountId =
+                cryptoCreate.getTransactionRecord().getReceipt().getAccountID();
+        final var cryptoDelete = recordItemBuilder
+                .cryptoDelete()
+                .transactionBody(b -> b.setDeleteAccountID(deletedAccountId))
+                .build();
+        // The alias is no longer in use, so the transfer to it creates a new account with the same alias
+        final var cryptoRecreate = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(b -> b.setAlias(ALIAS_KEY))
+                .build();
+        final var recreatedAccountId =
+                cryptoRecreate.getTransactionRecord().getReceipt().getAccountID();
+        final var payerAccountId = recordItemBuilder.accountId();
+        final var cryptoTransfer = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBody(b -> b.setTransfers(TransferList.newBuilder()
+                        .addAccountAmounts(recordItemBuilder.accountAmount(payerAccountId, -300))
+                        .addAccountAmounts(accountAliasAmount(ALIAS_KEY, 100))
+                        .addAccountAmounts(accountAliasAmount(EVM_ADDRESS_KEY, 200))))
+                .record(r -> r.setTransferList(TransferList.newBuilder()
+                        .addAccountAmounts(recordItemBuilder.accountAmount(payerAccountId, -300))
+                        .addAccountAmounts(recordItemBuilder.accountAmount(recreatedAccountId, 300))))
+                .build();
+        final var recordItems = new ArrayList<>(List.of(cryptoCreate, cryptoDelete));
+
+        // when
+        if (!singleRecordFile) {
+            parseRecordItemsAndCommit(recordItems);
+            recordItems.clear();
+        }
+
+        recordItems.addAll(List.of(cryptoRecreate, cryptoTransfer));
+        parseRecordItemsAndCommit(recordItems);
+
+        // then
+        final var deleted = EntityId.of(deletedAccountId);
+        final var recreated = EntityId.of(recreatedAccountId);
+        final var expectedItemizedTransfers = List.of(
+                ItemizedTransfer.builder()
+                        .amount(-300L)
+                        .entityId(EntityId.of(payerAccountId))
+                        .isApproval(false)
+                        .build(),
+                ItemizedTransfer.builder()
+                        .amount(100L)
+                        .entityId(recreated)
+                        .isApproval(false)
+                        .build(),
+                ItemizedTransfer.builder()
+                        .amount(200L)
+                        .entityId(recreated)
+                        .isApproval(false)
+                        .build());
+        assertAll(
+                () -> assertThat(recreated).isNotEqualTo(deleted),
+                () -> assertThat(entityRepository.findById(deleted.getId()))
+                        .get()
+                        .returns(true, Entity::getDeleted)
+                        .returns(ALIAS_ECDSA_SECP256K1, Entity::getAlias)
+                        .returns(EVM_ADDRESS, Entity::getEvmAddress),
+                () -> assertThat(entityRepository.findById(recreated.getId()))
+                        .get()
+                        .returns(false, Entity::getDeleted)
+                        .returns(ALIAS_ECDSA_SECP256K1, Entity::getAlias)
+                        .returns(EVM_ADDRESS, Entity::getEvmAddress),
+                () -> assertThat(entityRepository.findByAlias(ALIAS_ECDSA_SECP256K1))
+                        .hasValue(recreated.getId()),
+                () -> assertThat(entityRepository.findByEvmAddress(EVM_ADDRESS)).hasValue(recreated.getId()),
+                () -> assertThat(transactionRepository.findById(cryptoTransfer.getConsensusTimestamp()))
+                        .get()
+                        .returns(
+                                expectedItemizedTransfers,
+                                org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer));
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            false
+            # clear cache before the delete to test the scenario the alias is looked up from db before the delete is
+            # persisted
+            true
+            """)
+    void cryptoDeleteThenCreateHollowAccountWithSameEvmAddress(final boolean clearCache) {
+        // given an account with a public key alias is deleted
+        final var cryptoCreate = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(b -> b.setAlias(ALIAS_KEY))
+                .build();
+        final var deletedAccountId =
+                cryptoCreate.getTransactionRecord().getReceipt().getAccountID();
+        final var cryptoDelete = recordItemBuilder
+                .cryptoDelete()
+                .transactionBody(b -> b.setDeleteAccountID(deletedAccountId))
+                .build();
+        // and a hollow account is created with the evm address derived from that public key
+        final var hollowCreate = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(b -> b.setAlias(EVM_ADDRESS_KEY))
+                .record(r -> r.setEvmAddress(EVM_ADDRESS_KEY))
+                .build();
+        final var hollowAccountId =
+                hollowCreate.getTransactionRecord().getReceipt().getAccountID();
+        final var payerAccountId = recordItemBuilder.accountId();
+        // and an approved transfer debits the hollow account by the public key alias
+        final var cryptoTransfer = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBody(b -> b.setTransfers(TransferList.newBuilder()
+                        .addAccountAmounts(accountAliasAmount(ALIAS_KEY, -100).setIsApproval(true))
+                        .addAccountAmounts(recordItemBuilder.accountAmount(payerAccountId, 100))))
+                .record(r -> r.setTransferList(TransferList.newBuilder()
+                        .addAccountAmounts(recordItemBuilder.accountAmount(hollowAccountId, -100))
+                        .addAccountAmounts(recordItemBuilder.accountAmount(payerAccountId, 100))))
+                .build();
+
+        // when
+        parseRecordItemsAndCommit(List.of(cryptoCreate));
+        if (clearCache) {
+            resetCacheManager(cacheManager);
+        }
+
+        parseRecordItemsAndCommit(List.of(cryptoDelete, hollowCreate, cryptoTransfer));
+
+        // then
+        final var hollow = EntityId.of(hollowAccountId);
+        final var expectedItemizedTransfers = List.of(
+                ItemizedTransfer.builder()
+                        .amount(-100L)
+                        .entityId(hollow)
+                        .isApproval(true)
+                        .build(),
+                ItemizedTransfer.builder()
+                        .amount(100L)
+                        .entityId(EntityId.of(payerAccountId))
+                        .isApproval(false)
+                        .build());
+        assertAll(
+                () -> assertThat(hollow).isNotEqualTo(EntityId.of(deletedAccountId)),
+                () -> assertThat(entityRepository.findByEvmAddress(EVM_ADDRESS)).hasValue(hollow.getId()),
+                () -> assertThat(transactionRepository.findById(cryptoTransfer.getConsensusTimestamp()))
+                        .get()
+                        .returns(
+                                expectedItemizedTransfers,
+                                org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer),
+                () -> assertThat(cryptoTransferRepository.findById(
+                                new CryptoTransfer.Id(-100L, cryptoTransfer.getConsensusTimestamp(), hollow.getId())))
+                        .get()
+                        .returns(true, CryptoTransfer::getIsApproval));
+    }
+
     @Test
     void cryptoDeleteFailedTransaction() {
         createAccount();
