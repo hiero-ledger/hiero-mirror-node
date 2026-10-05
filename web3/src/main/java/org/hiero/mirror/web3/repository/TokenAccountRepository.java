@@ -19,7 +19,10 @@ import org.springframework.data.repository.query.Param;
 public interface TokenAccountRepository extends CrudRepository<TokenAccount, AbstractTokenAccount.Id> {
 
     @Override
-    @Cacheable(cacheNames = CACHE_NAME_TOKEN_ACCOUNT, cacheManager = CACHE_MANAGER_TOKEN, unless = "#result == null")
+    @Cacheable(
+            cacheNames = CACHE_NAME_TOKEN_ACCOUNT,
+            cacheManager = CACHE_MANAGER_TOKEN,
+            unless = "@spelHelper.isNullOrEmpty(#result)")
     @Query(value = """
                     select
                       ta.account_id,
