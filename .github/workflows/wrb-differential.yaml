@@ -27,7 +27,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 50
     env:
-      BLOCK_NODE_VERSION: v0.42.0
+      BLOCK_NODE_VERSION: v0.44.0
       BLOCK_STREAM_STREAM_MODE: RECORDS
       CONSENSUS_NODE_VERSION: v0.78.0-rc.9
       HELM_RELEASE_NAME: mirror-1

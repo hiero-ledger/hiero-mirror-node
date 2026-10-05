@@ -19,11 +19,11 @@ plugins {
 extra.apply {
     set("besuVersion", "26.2.0")
     set("blockNodeVersion", "0.44.0")
-    set("consensusNodeVersion", "0.79.0-alpha.2")
-    set("hederaCryptographyVersion", "3.16.1")
+    set("consensusNodeVersion", "0.78.0-rc.9")
+    set("hederaCryptographyVersion", "3.15.0")
     set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
-    set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.21.9") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.2.18.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.21.0")
@@ -86,6 +86,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
+        api("org.xerial.snappy:snappy-java:1.1.10.11") // Temporary until next Besu
         api("software.amazon.awssdk:bom:2.55.9")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
