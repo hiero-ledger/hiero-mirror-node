@@ -92,20 +92,21 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
                 shouldProcessMetadata ? body.getMetadata().getValue().toByteArray() : null;
         var expectedMetadataKey = shouldProcessMetadata ? body.getMetadataKey().toByteArray() : null;
         assertTokenUpdate(timestamp, tokenId, id -> assertEquals(autoRenewAccountId.getId(), id));
-        verify(entityListener).onToken(assertArg(t -> assertThat(t)
-                .returns(body.getFeeScheduleKey().toByteArray(), Token::getFeeScheduleKey)
-                .returns(body.getFreezeKey().toByteArray(), Token::getFreezeKey)
-                .returns(body.getKycKey().toByteArray(), Token::getKycKey)
-                .returns(Range.atLeast(timestamp), Token::getTimestampRange)
-                .returns(body.getName(), Token::getName)
-                .returns(expectedMetadata, Token::getMetadata)
-                .returns(expectedMetadataKey, Token::getMetadataKey)
-                .returns(body.getPauseKey().toByteArray(), Token::getPauseKey)
-                .returns(body.getSupplyKey().toByteArray(), Token::getSupplyKey)
-                .returns(body.getSymbol(), Token::getSymbol)
-                .returns(EntityId.of(body.getTreasury()), Token::getTreasuryAccountId)
-                .returns(tokenId.getId(), Token::getTokenId)
-                .returns(body.getWipeKey().toByteArray(), Token::getWipeKey)));
+        verify(entityListener)
+                .onToken(assertArg(t -> assertThat(t)
+                        .returns(body.getFeeScheduleKey().toByteArray(), Token::getFeeScheduleKey)
+                        .returns(body.getFreezeKey().toByteArray(), Token::getFreezeKey)
+                        .returns(body.getKycKey().toByteArray(), Token::getKycKey)
+                        .returns(Range.atLeast(timestamp), Token::getTimestampRange)
+                        .returns(body.getName(), Token::getName)
+                        .returns(expectedMetadata, Token::getMetadata)
+                        .returns(expectedMetadataKey, Token::getMetadataKey)
+                        .returns(body.getPauseKey().toByteArray(), Token::getPauseKey)
+                        .returns(body.getSupplyKey().toByteArray(), Token::getSupplyKey)
+                        .returns(body.getSymbol(), Token::getSymbol)
+                        .returns(EntityId.of(body.getTreasury()), Token::getTreasuryAccountId)
+                        .returns(tokenId.getId(), Token::getTokenId)
+                        .returns(body.getWipeKey().toByteArray(), Token::getWipeKey)));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(
                         getExpectedEntityTransactions(recordItem, transaction, autoRenewAccountId, treasuryId));
@@ -142,19 +143,20 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // Then
-        verify(entityListener).onToken(assertArg(t -> assertThat(t)
-                .returns(null, Token::getFeeScheduleKey)
-                .returns(null, Token::getFreezeKey)
-                .returns(recordItem.getConsensusTimestamp(), Token::getTimestampLower)
-                .returns(null, Token::getMetadata)
-                .returns(null, Token::getMetadataKey)
-                .returns(null, Token::getName)
-                .returns(null, Token::getPauseKey)
-                .returns(null, Token::getSupplyKey)
-                .returns(null, Token::getSymbol)
-                .returns(null, Token::getTreasuryAccountId)
-                .returns(transaction.getEntityId().getId(), Token::getTokenId)
-                .returns(null, Token::getWipeKey)));
+        verify(entityListener)
+                .onToken(assertArg(t -> assertThat(t)
+                        .returns(null, Token::getFeeScheduleKey)
+                        .returns(null, Token::getFreezeKey)
+                        .returns(recordItem.getConsensusTimestamp(), Token::getTimestampLower)
+                        .returns(null, Token::getMetadata)
+                        .returns(null, Token::getMetadataKey)
+                        .returns(null, Token::getName)
+                        .returns(null, Token::getPauseKey)
+                        .returns(null, Token::getSupplyKey)
+                        .returns(null, Token::getSymbol)
+                        .returns(null, Token::getTreasuryAccountId)
+                        .returns(transaction.getEntityId().getId(), Token::getTokenId)
+                        .returns(null, Token::getWipeKey)));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }
@@ -244,23 +246,24 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @SuppressWarnings("java:S6103")
     void assertTokenUpdate(long timestamp, EntityId tokenId, Consumer<Long> assertAutoRenewAccountId) {
-        verify(entityListener).onEntity(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .satisfies(e -> assertAutoRenewAccountId.accept(e.getAutoRenewAccountId()))
-                .satisfies(e -> assertThat(e.getAutoRenewPeriod()).isPositive())
-                .returns(null, Entity::getCreatedTimestamp)
-                .returns(false, Entity::getDeleted)
-                .satisfies(e -> assertThat(e.getExpirationTimestamp()).isPositive())
-                .returns(tokenId.getId(), Entity::getId)
-                .satisfies(e -> assertThat(e.getKey()).isNotEmpty())
-                .returns(null, Entity::getMaxAutomaticTokenAssociations)
-                .satisfies(e -> assertThat(e.getMemo()).isNotEmpty())
-                .returns(tokenId.getNum(), Entity::getNum)
-                .returns(null, Entity::getProxyAccountId)
-                .satisfies(e -> assertThat(e.getPublicKey()).isNotEmpty())
-                .returns(tokenId.getRealm(), Entity::getRealm)
-                .returns(tokenId.getShard(), Entity::getShard)
-                .returns(EntityType.TOKEN, Entity::getType)
-                .returns(Range.atLeast(timestamp), Entity::getTimestampRange)));
+        verify(entityListener)
+                .onEntity(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .satisfies(e -> assertAutoRenewAccountId.accept(e.getAutoRenewAccountId()))
+                        .satisfies(e -> assertThat(e.getAutoRenewPeriod()).isPositive())
+                        .returns(null, Entity::getCreatedTimestamp)
+                        .returns(false, Entity::getDeleted)
+                        .satisfies(e -> assertThat(e.getExpirationTimestamp()).isPositive())
+                        .returns(tokenId.getId(), Entity::getId)
+                        .satisfies(e -> assertThat(e.getKey()).isNotEmpty())
+                        .returns(null, Entity::getMaxAutomaticTokenAssociations)
+                        .satisfies(e -> assertThat(e.getMemo()).isNotEmpty())
+                        .returns(tokenId.getNum(), Entity::getNum)
+                        .returns(null, Entity::getProxyAccountId)
+                        .satisfies(e -> assertThat(e.getPublicKey()).isNotEmpty())
+                        .returns(tokenId.getRealm(), Entity::getRealm)
+                        .returns(tokenId.getShard(), Entity::getShard)
+                        .returns(EntityType.TOKEN, Entity::getType)
+                        .returns(Range.atLeast(timestamp), Entity::getTimestampRange)));
     }
 }
