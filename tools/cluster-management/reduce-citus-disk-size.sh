@@ -25,6 +25,19 @@ TEMP_DISK_DEVICE="sdc"
 SG_WEBHOOK_FILE="/tmp/sg-webhook-${EPOCH_SECONDS}.yaml"
 WORKER_DEFAULT_SIZE="${WORKER_DEFAULT_SIZE:-300Gi}"
 
+# StorageClass parameters are arbitrary strings controlled by whoever manages
+# the zfs StorageClass/Helm values, but they get spliced unescaped into nested
+# `bash -c '...'` commands run as root in a privileged node chroot later on.
+# Reject anything outside a safe charset here so a crafted value can't break
+# out of that quoting downstream.
+function requireSafeToken() {
+  local name="$1" value="$2" pattern="$3"
+  if [[ ! "${value}" =~ ${pattern} ]]; then
+    log "${name} '${value}' contains characters that are not allowed. Exiting"
+    exit 1
+  fi
+}
+
 function configureAndValidate() {
   GCP_TARGET_PROJECT="$(readUserInput "Enter GCP Project for target: ")"
   if [[ -z "${GCP_TARGET_PROJECT}" ]]; then
@@ -68,6 +81,7 @@ function configureAndValidate() {
     log "POOL_NAME can not be empty. Exiting"
     exit 1
   fi
+  requireSafeToken "POOL_NAME" "${POOL_NAME}" '^[A-Za-z0-9_.:-]+$'
   TEMP_POOL_NAME="${POOL_NAME}-new"
 
   RECORD_SIZE="$(kubectl get storageclasses.storage.k8s.io zfs -o jsonpath='{.parameters.recordsize}')"
@@ -75,12 +89,14 @@ function configureAndValidate() {
     log "RECORD_SIZE can not be empty. Exiting"
     exit 1
   fi
+  requireSafeToken "RECORD_SIZE" "${RECORD_SIZE}" '^[0-9]+[KkMm]?$'
 
   COMPRESSION="$(kubectl get storageclasses.storage.k8s.io zfs -o jsonpath='{.parameters.compression}')"
   if [[ -z "${COMPRESSION}" ]]; then
     log "COMPRESSION can not be empty. Exiting"
     exit 1
   fi
+  requireSafeToken "COMPRESSION" "${COMPRESSION}" '^[A-Za-z0-9-]+$'
 
   AVAILABLE_DISKS="$(gcloud compute disks list \
   --project "${GCP_TARGET_PROJECT}" \
