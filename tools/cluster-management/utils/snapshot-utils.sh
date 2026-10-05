@@ -26,6 +26,25 @@ function setupZfsVolumeForRecovery() {
     log "pvcName is required"
     return 1
   fi
+
+  # pvcName and backupLabel are spliced unescaped into the YAML heredoc below
+  # and originate from data an attacker could control (GCE snapshot
+  # descriptions, SGBackup status). Validate the charset and, for pvcName,
+  # that it actually names a PVC that exists, so untrusted content can't
+  # change the manifest's structure.
+  if [[ ! "${pvcName}" =~ ^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$ ]]; then
+    log "pvcName '${pvcName}' is not a valid Kubernetes resource name; refusing to proceed"
+    return 1
+  fi
+  if ! kubectl get pvc "${pvcName}" -n "${namespace}" >/dev/null 2>&1; then
+    log "pvcName '${pvcName}' does not exist as a PVC in namespace ${namespace}; refusing to proceed"
+    return 1
+  fi
+  if [[ -n "${backupLabel}" && ! "${backupLabel}" =~ ^[A-Za-z0-9+/=]+$ ]]; then
+    log "backupLabel is not valid base64; refusing to proceed"
+    return 1
+  fi
+
   local jobName="${pvcName}-recovery"
 
   log "Setting up volume for ${pvcName}"
