@@ -98,11 +98,10 @@ separate ingestion path for CLPR:
 3. **`RecordItem` — the object every `TransactionHandler` actually consumes — has no slot for this data either.**
    `RecordItem` wraps a classic `TransactionRecord` plus a list of classic `TransactionSidecarRecord`s (see
    `common/src/main/java/org/hiero/mirror/common/domain/transaction/RecordItem.java`), and neither proto has any
-   CLPR-specific field or oneof case. This is different from e.g. `ContractStateChange`, which has a real sidecar
-   case to populate, or `TokenAirdrop`, which has a real `TransactionRecord.newPendingAirdrops` field — CLPR has
-   neither. So the existing `BlockTransactionTransformer` pattern (see
-   `importer/src/main/java/org/hiero/mirror/importer/downloader/block/transformer/`, e.g. `TokenAirdropTransformer`)
-   can't be reused unmodified by just populating the synthetic `TransactionRecord`; it needs a companion change.
+   CLPR-specific field or oneof case — there is no sidecar case or `TransactionRecord` field to populate for this
+   data at all. So the existing `BlockTransactionTransformer` pattern (see
+   `importer/src/main/java/org/hiero/mirror/importer/downloader/block/transformer/`) can't be reused unmodified by
+   just populating the synthetic `TransactionRecord`; it needs a companion change.
 4. Since `RecordItem` is an importer-internal Java class, not a strict 1:1 mirror of the wire proto (it already
    carries non-proto fields like `hookParent`), the fix is to **add new CLPR-specific fields to `RecordItem`**
    (e.g. the parsed `clpr_channel_value`/`clpr_connector_value`/`clpr_message_value` state changes relevant to the
@@ -874,17 +873,20 @@ Response format:
 
 #### Query Parameters
 
-| Parameter   | Type    | Description                            | Default | Validation                                                                                                                                                                     |
-| ----------- | ------- | -------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `status`    | string  | Filter by Channel status               | none    | One of `ACTIVE`, `PAUSED`, `CLOSING`, `DRAINED`, `CLOSED` (pending, unrevealed commitments aren't in `clpr_channel` — see the [Pending Channels API](#5-pending-channels-api)) |
-| `timestamp` | string  | Filter/paginate by `created_timestamp` | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; seconds.nanoseconds format                                                                                                       |
-| `limit`     | integer | Maximum number of Channels to return   | `25`    | Must be between 1 and 100                                                                                                                                                      |
-| `order`     | string  | Sort order for results                 | `desc`  | Must be either `asc` or `desc`                                                                                                                                                 |
+| Parameter    | Type    | Description                            | Default | Validation                                                                                                                                                                     |
+| ------------ | ------- | -------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `channel.id` | string  | Filter by `channel_id`                 | none    | Supports `eq:` only — `channel_id` is opaque with no meaningful order (see Pagination note above); `channel_id` is this table's primary key, so `eq:` is a direct lookup       |
+| `status`     | string  | Filter by Channel status               | none    | One of `ACTIVE`, `PAUSED`, `CLOSING`, `DRAINED`, `CLOSED` (pending, unrevealed commitments aren't in `clpr_channel` — see the [Pending Channels API](#5-pending-channels-api)) |
+| `timestamp`  | string  | Filter/paginate by `created_timestamp` | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; seconds.nanoseconds format                                                                                                       |
+| `limit`      | integer | Maximum number of Channels to return   | `25`    | Must be between 1 and 100                                                                                                                                                      |
+| `order`      | string  | Sort order for results                 | `desc`  | Must be either `asc` or `desc`                                                                                                                                                 |
 
 **Examples:**
 
 - `/api/v1/clpr/chains/eip155:1/channels` — Get all Channels claiming `chain_id=eip155:1`, newest first
 - `/api/v1/clpr/chains/eip155:1/channels?status=eq:ACTIVE&limit=10` — Get first 10 active Channels on that chain
+- `/api/v1/clpr/chains/eip155:1/channels?channel.id=eq:0x1a2b3c...` — Get a specific Channel by id (still requires
+  its `chainId` in the path, since this isn't a dedicated single-Channel endpoint)
 
 ### 3. Messages per Connector API
 
