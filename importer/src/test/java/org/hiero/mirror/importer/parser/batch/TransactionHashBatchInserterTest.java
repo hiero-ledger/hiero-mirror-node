@@ -227,7 +227,7 @@ class TransactionHashBatchInserterTest extends ImporterIntegrationTest {
                             (ConnectionHolder) TransactionSynchronizationManager.getResource(datasource);
                     markAndCloseConnection(connectionHolder.getConnection());
                 }))
-                .hasMessageStartingWith("Unable to commit against JDBC Connection");
+                .hasMessageStartingWith("JDBC commit failed");
 
         assertThat(transactionRepository.findAll()).isEmpty();
         shardMap.keySet().forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))

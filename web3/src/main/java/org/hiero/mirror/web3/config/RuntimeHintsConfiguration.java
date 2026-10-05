@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.config;
 
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_ONLY;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.METHODS_ONLY;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.NONE;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedPackage;
@@ -11,8 +12,11 @@ import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerResourcePa
 
 import com.hedera.node.app.hapi.utils.sysfiles.domain.throttling.ThrottleGroup;
 import com.swirlds.config.api.ConfigData;
+import org.hibernate.validator.internal.util.logging.Log_$logger;
+import org.hibernate.validator.internal.util.logging.Messages_$bundle;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
+import org.hiero.mirror.web3.repository.ContractTransactionHashLookupRowMapper;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -52,6 +56,13 @@ final class RuntimeHintsConfiguration {
                     "com.esaulpaugh.headlong.abi.Quintuple[]",
                     "com.esaulpaugh.headlong.abi.Sextuple[]",
                     "com.esaulpaugh.headlong.abi.Triple[]");
+
+            registerReflectionTypes(
+                    hints,
+                    CONSTRUCTORS_ONLY,
+                    ContractTransactionHashLookupRowMapper.class,
+                    Log_$logger.class,
+                    Messages_$bundle.class);
 
             registerReflectionTypes(
                     hints,

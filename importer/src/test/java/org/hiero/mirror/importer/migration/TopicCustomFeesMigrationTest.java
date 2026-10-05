@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.nio.charset.StandardCharsets;
 import java.sql.Types;
 import java.util.ArrayList;
@@ -22,6 +21,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.CustomFee;
 import org.hiero.mirror.common.domain.topic.Topic;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
@@ -222,7 +222,7 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
             ps.setLong(5, entity.getRealm());
             ps.setLong(6, entity.getShard());
             ps.setBytes(7, entity.getSubmitKey());
-            ps.setString(8, PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()));
+            ps.setString(8, RangeUtils.rangeToString(entity.getTimestampRange()));
             ps.setString(9, entity.getType().toString());
         };
 
@@ -290,7 +290,7 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
             .realm(rs.getLong("realm"))
             .shard(rs.getLong("shard"))
             .createdTimestamp((Long) rs.getObject("created_timestamp"))
-            .timestampRange(PostgreSQLGuavaRangeType.longRange(rs.getString("timestamp_range")))
+            .timestampRange(org.hiero.mirror.common.util.RangeUtils.rangeLong(rs.getString("timestamp_range")))
             .type(EntityType.valueOf(rs.getString("type")))
             .key(rs.getBytes("key"))
             .memo(rs.getString("memo"))
@@ -302,7 +302,7 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
     private final RowMapper<Topic> topicRowMapper = (rs, rowNum) -> Topic.builder()
             .id(rs.getLong("id"))
             .createdTimestamp((Long) rs.getObject("created_timestamp"))
-            .timestampRange(PostgreSQLGuavaRangeType.longRange(rs.getString("timestamp_range")))
+            .timestampRange(org.hiero.mirror.common.util.RangeUtils.rangeLong(rs.getString("timestamp_range")))
             .adminKey(rs.getBytes("admin_key"))
             .submitKey(rs.getBytes("submit_key"))
             .build();
@@ -310,7 +310,7 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
     private final RowMapper<CustomFee> customFeeRowMapper = (rs, rowNum) -> CustomFee.builder()
             .entityId(rs.getLong("entity_id"))
             .fixedFees(Collections.emptyList())
-            .timestampRange(PostgreSQLGuavaRangeType.longRange(rs.getString("timestamp_range")))
+            .timestampRange(org.hiero.mirror.common.util.RangeUtils.rangeLong(rs.getString("timestamp_range")))
             .build();
 
     @Builder(toBuilder = true)

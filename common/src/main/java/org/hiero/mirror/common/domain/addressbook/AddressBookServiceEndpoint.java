@@ -3,9 +3,6 @@
 package org.hiero.mirror.common.domain.addressbook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -14,50 +11,78 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Builder(toBuilder = true)
+@Builder
 @Data
-@Entity
-@IdClass(AddressBookServiceEndpoint.Id.class)
+@Table
 @NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 public class AddressBookServiceEndpoint implements Persistable<AddressBookServiceEndpoint.Id> {
 
-    @jakarta.persistence.Id
-    private long consensusTimestamp;
-
-    @jakarta.persistence.Id
-    @Column(name = "ip_address_v4")
-    private String ipAddressV4;
-
-    @jakarta.persistence.Id
-    private long nodeId;
-
-    @jakarta.persistence.Id
-    private Integer port;
-
-    @jakarta.persistence.Id
-    private String domainName;
-
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     @JsonIgnore
-    @Override
-    public Id getId() {
-        Id id = new Id();
-        id.setConsensusTimestamp(consensusTimestamp);
-        id.setDomainName(domainName);
-        id.setIpAddressV4(ipAddressV4);
-        id.setNodeId(nodeId);
-        id.setPort(port);
-        return id;
-    }
+    private Id id;
 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Since we never update and use a natural ID, avoid querying before insert
+    }
+
+    public void setConsensusTimestamp(long consensusTimestamp) {
+        id().setConsensusTimestamp(consensusTimestamp);
+    }
+
+    public void setIpAddressV4(String ipAddressV4) {
+        id().setIpAddressV4(ipAddressV4);
+    }
+
+    public void setNodeId(long nodeId) {
+        id().setNodeId(nodeId);
+    }
+
+    public void setPort(Integer port) {
+        id().setPort(port);
+    }
+
+    public void setDomainName(String domainName) {
+        id().setDomainName(domainName);
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+
+        return id;
+    }
+
+    public long getConsensusTimestamp() {
+        return id != null ? id.getConsensusTimestamp() : 0L;
+    }
+
+    public String getIpAddressV4() {
+        return id != null ? id.getIpAddressV4() : null;
+    }
+
+    public long getNodeId() {
+        return id != null ? id.getNodeId() : 0L;
+    }
+
+    public Integer getPort() {
+        return id != null ? id.getPort() : null;
+    }
+
+    public String getDomainName() {
+        return id != null ? id.getDomainName() : null;
     }
 
     @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class Id implements Serializable {
 
         @Serial
@@ -65,7 +90,6 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
 
         private long consensusTimestamp;
 
-        @Column(name = "ip_address_v4")
         private String ipAddressV4;
 
         private long nodeId;

@@ -2,17 +2,20 @@
 
 package org.hiero.mirror.common.tableusage;
 
-import jakarta.persistence.EntityManager;
 import java.io.Serializable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
+import org.springframework.data.jdbc.repository.support.JdbcRepositoryFactoryBean;
+import org.springframework.data.relational.core.mapping.RelationalMappingContext;
+import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
+import org.springframework.util.Assert;
 
-public final class TrackingRepositoryFactoryBean<R extends JpaRepository<T, I>, T, I extends Serializable>
-        extends JpaRepositoryFactoryBean<R, T, I> {
+public final class TrackingRepositoryFactoryBean<R extends Repository<T, I>, T, I extends Serializable>
+        extends JdbcRepositoryFactoryBean<R, T, I> {
+
+    private RelationalMappingContext relationalMappingContext;
 
     /**
-     * Creates a new {@link JpaRepositoryFactoryBean} for the given repository interface.
+     * Creates a new {@link JdbcRepositoryFactoryBean} for the given repository interface.
      *
      * @param repositoryInterface must not be {@literal null}.
      */
@@ -21,9 +24,18 @@ public final class TrackingRepositoryFactoryBean<R extends JpaRepository<T, I>, 
     }
 
     @Override
-    protected RepositoryFactorySupport createRepositoryFactory(final EntityManager em) {
-        RepositoryFactorySupport factory = super.createRepositoryFactory(em);
-        factory.addRepositoryProxyPostProcessor(new TrackingRepositoryProxyPostProcessor(em));
+    public void setMappingContext(final RelationalMappingContext mappingContext) {
+        super.setMappingContext(mappingContext);
+        this.relationalMappingContext = mappingContext;
+    }
+
+    @Override
+    protected RepositoryFactorySupport doCreateRepositoryFactory() {
+        RepositoryFactorySupport factory = super.doCreateRepositoryFactory();
+        Assert.state(
+                relationalMappingContext != null,
+                "RelationalMappingContext must be set before the repository factory is created");
+        factory.addRepositoryProxyPostProcessor(new TrackingRepositoryProxyPostProcessor(relationalMappingContext));
         return factory;
     }
 }

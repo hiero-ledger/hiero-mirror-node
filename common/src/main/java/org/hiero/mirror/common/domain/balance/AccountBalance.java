@@ -4,15 +4,6 @@ package org.hiero.mirror.common.domain.balance;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Embeddable;
-import jakarta.persistence.EmbeddedId;
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.NamedAttributeNode;
-import jakarta.persistence.NamedEntityGraph;
-import jakarta.persistence.OneToMany;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,17 +12,18 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Builder
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Entity
-@NamedEntityGraph(name = "AccountBalance.tokenBalances", attributeNodes = @NamedAttributeNode("tokenBalances"))
+@Table
 public class AccountBalance implements Persistable<AccountBalance.Id>, StreamItem {
 
     private long balance;
@@ -39,35 +31,29 @@ public class AccountBalance implements Persistable<AccountBalance.Id>, StreamIte
     @Builder.Default
     @EqualsAndHashCode.Exclude
     @JsonIgnore
-    @OneToMany(
-            cascade = {CascadeType.ALL},
-            orphanRemoval = true)
-    // set updatable = false to prevent additional hibernate query
-    @JoinColumn(name = "accountId", updatable = false)
-    @JoinColumn(name = "consensusTimestamp", updatable = false)
+    @Transient
     private List<TokenBalance> tokenBalances = new ArrayList<>();
 
-    @EmbeddedId
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     @JsonUnwrapped
     private Id id;
 
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update balances and use a natural ID, avoid Hibernate querying before insert
+        // Since we never update balances and use a natural ID, avoid Spring Data JDBC querying before insert
+        return true;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    @Embeddable
     public static class Id implements Serializable {
-
         private static final long serialVersionUID = 1345295043157256768L;
 
         private long consensusTimestamp;
 
-        @Convert(converter = EntityIdConverter.class)
         private EntityId accountId;
     }
 }

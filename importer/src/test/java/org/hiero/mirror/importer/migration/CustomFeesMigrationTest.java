@@ -5,8 +5,6 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -23,9 +21,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.collections4.ListUtils;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.token.FallbackFee;
 import org.hiero.mirror.common.domain.token.FixedFee;
@@ -39,6 +34,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
+import org.springframework.data.annotation.Id;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.util.StreamUtils;
 
@@ -336,10 +332,12 @@ class CustomFeesMigrationTest extends ImporterIntegrationTest {
             var migrated = new PostMigrationCustomFee();
             migrated.setTokenId(migrationCustomFee.getTokenId());
             migrated.setTimestampLower(migrationCustomFee.getCreatedTimestamp());
-            var collectorAccountId =
-                    EntityIdConverter.INSTANCE.convertToEntityAttribute(migrationCustomFee.getCollectorAccountId());
-            var denominatingTokenId =
-                    EntityIdConverter.INSTANCE.convertToEntityAttribute(migrationCustomFee.getDenominatingTokenId());
+            var collectorAccountId = migrationCustomFee.getCollectorAccountId() != null
+                    ? org.hiero.mirror.common.domain.entity.EntityId.of(migrationCustomFee.getCollectorAccountId())
+                    : null;
+            var denominatingTokenId = migrationCustomFee.getDenominatingTokenId() != null
+                    ? org.hiero.mirror.common.domain.entity.EntityId.of(migrationCustomFee.getDenominatingTokenId())
+                    : null;
             if (migrationCustomFee.getCollectorAccountId() != null
                     && migrationCustomFee.getAmount() != null
                     && migrationCustomFee.getAmountDenominator() == null
@@ -393,17 +391,13 @@ class CustomFeesMigrationTest extends ImporterIntegrationTest {
 
     @AllArgsConstructor
     @Data
-    @Entity
     @NoArgsConstructor
     private static class PostMigrationCustomFee implements History {
 
-        @JdbcTypeCode(SqlTypes.JSON)
         private List<FixedFee> fixedFees;
 
-        @JdbcTypeCode(SqlTypes.JSON)
         private List<FractionalFee> fractionalFees;
 
-        @JdbcTypeCode(SqlTypes.JSON)
         private List<RoyaltyFee> royaltyFees;
 
         private Range<Long> timestampRange;

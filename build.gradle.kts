@@ -20,13 +20,20 @@ extra.apply {
     set("besuVersion", "26.2.0")
     set("blockNodeVersion", "0.42.0")
     set("consensusNodeVersion", "0.78.0-rc.9")
+    set("grpc-java.version", "1.83.1") // Temporary until next Spring Boot
     set("hederaCryptographyVersion", "3.15.0")
+    set("httpclient5.version", "5.6.2") // Temporary until next Spring Boot
+    set("httpcore5.version", "5.4.3") // Temporary until next Spring Boot
     set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
     set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
+    set("logback.version", "1.5.36") // Temporary until next Spring Boot
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.2.18.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.21.0")
+    set("protobufVersion", "4.34.1")
+    set("springGrpcVersion", "1.0.3")
+    set("postgresql.version", "42.7.13") // Temporary until next Spring Boot
     set("tomcat.version", "11.0.26") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
@@ -40,6 +47,8 @@ dependencies {
         val consensusNodeVersion = rootProject.extra["consensusNodeVersion"] as String
         val hederaCryptographyVersion = rootProject.extra["hederaCryptographyVersion"] as String
         val mapStructVersion = rootProject.extra["mapStructVersion"] as String
+        val protobufVersion = rootProject.extra["protobufVersion"] as String
+        val springGrpcVersion = rootProject.extra["springGrpcVersion"] as String
         val tuweniVersion = rootProject.extra["tuweniVersion"] as String
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
@@ -49,6 +58,7 @@ dependencies {
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
         api("com.google.guava:guava:33.7.1-jre")
+        api("com.google.protobuf:protobuf-java:$protobufVersion")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
@@ -85,6 +95,8 @@ dependencies {
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
+        api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
+        api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:6.0.0")
         api("software.amazon.awssdk:bom:2.55.4")
         api("tech.pegasys:jc-kzg-4844:1.0.0")

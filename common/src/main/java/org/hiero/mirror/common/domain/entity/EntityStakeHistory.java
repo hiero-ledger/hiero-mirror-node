@@ -2,13 +2,13 @@
 
 package org.hiero.mirror.common.domain.entity;
 
-import jakarta.persistence.Entity;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
+@Table
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 public class EntityStakeHistory extends AbstractEntityStake {

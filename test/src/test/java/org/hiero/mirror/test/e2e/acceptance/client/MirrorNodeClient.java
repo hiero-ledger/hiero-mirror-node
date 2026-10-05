@@ -386,6 +386,10 @@ public class MirrorNodeClient {
         return callRestJavaEndpoint(supplyEndpoint, NetworkSupplyResponse.class);
     }
 
+    public boolean hasPartialState() {
+        return partialStateSupplier.get();
+    }
+
     public Nft getNftInfo(String tokenId, long serialNumber) {
         log.debug("Verify serial number '{}' for token '{}' is returned by Mirror Node", serialNumber, tokenId);
         return callRestEndpoint("/tokens/{tokenId}/nfts/{serialNumber}", Nft.class, tokenId, serialNumber);
@@ -518,10 +522,6 @@ public class MirrorNodeClient {
         log.debug("Retrieving outstanding airdrops for account '{}' returned by Mirror Node", accountId);
         return callRestJavaEndpoint(
                 "/accounts/{accountId}/airdrops/outstanding", TokenAirdropsResponse.class, accountId.toString());
-    }
-
-    public boolean hasPartialState() {
-        return partialStateSupplier.get();
     }
 
     public AccountsResponse getAccounts(int limit) {

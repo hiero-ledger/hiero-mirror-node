@@ -2,21 +2,21 @@
 
 package org.hiero.mirror.common.domain.tss;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import java.util.List;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
+@Table
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @ToString(onlyExplicitlyIncluded = true)
@@ -31,7 +31,24 @@ public class Ledger {
     @ToString.Include
     private byte[] ledgerId;
 
+    @JsonIgnore
+    @Column("node_contributions")
+    private LedgerNodeContributionListHolder nodeContributionsColumn;
+
     @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<LedgerNodeContribution> nodeContributions;
+    public List<LedgerNodeContribution> getNodeContributions() {
+        return nodeContributionsColumn == null ? null : nodeContributionsColumn.items();
+    }
+
+    public void setNodeContributions(List<LedgerNodeContribution> value) {
+        this.nodeContributionsColumn = LedgerNodeContributionListHolder.of(value);
+    }
+
+    public abstract static class LedgerBuilder<C extends Ledger, B extends LedgerBuilder<C, B>> {
+
+        public B nodeContributions(List<LedgerNodeContribution> value) {
+            this.nodeContributionsColumn = LedgerNodeContributionListHolder.of(value);
+            return self();
+        }
+    }
 }

@@ -3,11 +3,12 @@
 package org.hiero.mirror.restjava.service;
 
 import jakarta.inject.Named;
-import jakarta.persistence.EntityNotFoundException;
+
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.parameter.EntityIdAliasParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdEvmAddressParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdNumParameter;

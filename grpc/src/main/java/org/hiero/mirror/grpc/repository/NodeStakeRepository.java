@@ -11,19 +11,20 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface NodeStakeRepository extends CrudRepository<NodeStake, NodeStake.Id> {
-    @Query(value = "select max(consensus_timestamp) from node_stake", nativeQuery = true)
+    @Query(value = "select max(consensus_timestamp) from node_stake")
     Optional<Long> findLatestTimestamp();
 
+    @Query(value = "select * from node_stake where consensus_timestamp = :consensusTimestamp")
     List<NodeStake> findAllByConsensusTimestamp(long consensusTimestamp);
 
     // An empty map may be cached, indicating the node_stake table is empty
     @Cacheable(cacheManager = NODE_STAKE_CACHE, cacheNames = CACHE_NAME)
     default Map<Long, Long> findAllStakeByConsensusTimestamp(long consensusTimestamp) {
         return findAllByConsensusTimestamp(consensusTimestamp).stream()
-                .collect(Collectors.toUnmodifiableMap(NodeStake::getNodeId, NodeStake::getStake));
+                .collect(Collectors.toUnmodifiableMap(n -> n.getId().getNodeId(), NodeStake::getStake));
     }
 }

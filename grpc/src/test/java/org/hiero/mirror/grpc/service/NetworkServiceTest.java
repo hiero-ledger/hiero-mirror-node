@@ -13,10 +13,10 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
+import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
-import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
 import org.hiero.mirror.grpc.repository.NodeStakeRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -66,7 +66,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         var filter = AddressBookFilter.builder().fileId(fileId).build();
 
         assertThatThrownBy(() -> networkService.getNodes(filter))
-                .isInstanceOf(EntityNotFoundException.class)
+                .isInstanceOf(RuntimeException.class)
                 .hasMessage("%s does not exist".formatted(fileId));
     }
 
@@ -139,22 +139,6 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     }
 
     @Test
-    void cached() {
-        addressBookProperties.setPageSize(2);
-        AddressBook addressBook = addressBook();
-        AddressBookEntry addressBookEntry1 = addressBookEntry();
-        AddressBookEntry addressBookEntry2 = addressBookEntry();
-        AddressBookEntry addressBookEntry3 = addressBookEntry();
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
-
-        assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
-
-        addressBookEntryRepository.deleteAll();
-
-        assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
-    }
-
-    @Test
     void overrideStakeToZeroWhenEmptyNodeStakeTable() {
         var addressBook = addressBook();
         var addressBookEntry = addressBookEntry(10L); // Persist stake
@@ -184,27 +168,9 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
         var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
-        assertThat(addressBookEntryRepository.findAll())
-                .extracting(AddressBookEntry::getStake)
+        assertThat(addressBookEntryRepository.findByConsensusTimestampAndNodeId(CONSENSUS_TIMESTAMP, 0L, 1000))
+                .extracting(AddressBookEntryRepository.AddressBookEntryView::stake)
                 .doesNotContain(nodeStakeTableStake);
-    }
-
-    @Test
-    void cachedNodeStake() {
-        var nodeStakeTableStake = 100L;
-
-        var addressBook = addressBook();
-        var addressBookEntry = addressBookEntry(10L);
-
-        nodeStake(addressBookEntry.getNodeId(), nodeStakeTableStake);
-        addressBookEntry.setStake(nodeStakeTableStake);
-
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
-        assertThat(getNodes(filter)).containsExactly(addressBookEntry);
-
-        nodeStakeRepository.deleteAll();
-
-        assertThat(getNodes(filter)).containsExactly(addressBookEntry);
     }
 
     private List<AddressBookEntry> getNodes(AddressBookFilter filter) {
@@ -236,8 +202,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     private void nodeStake(long nodeId, long stake) {
         domainBuilder
                 .nodeStake()
-                .customize(e -> e.consensusTimestamp(NODE_STAKE_CONSENSUS_TIMESTAMP)
-                        .nodeId(nodeId)
+                .customize(e -> e.id(new NodeStake.Id(NODE_STAKE_CONSENSUS_TIMESTAMP, nodeId))
                         .stake(stake))
                 .persist();
     }

@@ -33,7 +33,6 @@ import com.hederahashgraph.api.proto.java.Key;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
-import jakarta.persistence.EntityManager;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.Arrays;
@@ -63,7 +62,6 @@ import org.hiero.mirror.web3.evm.config.EvmConfiguration;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TraceMemoryBudget;
-import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
@@ -787,18 +785,8 @@ class OpcodesControllerTest {
     public static class TestConfig {
 
         @Bean
-        EvmProperties evmProperties() {
-            return new EvmProperties();
-        }
-
-        @Bean
         MeterRegistry meterRegistry() {
             return new SimpleMeterRegistry();
-        }
-
-        @Bean
-        EntityManager entityManager() {
-            return mock(EntityManager.class);
         }
 
         @Bean

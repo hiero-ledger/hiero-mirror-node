@@ -95,16 +95,14 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
         var expected = List.of(tuple(true, 2), tuple(false, 1));
         assertThat(repository.countByAccountIdAndAssociatedGroupedByBalanceIsPositive(accId))
                 .extracting(
-                        TokenAccountAssociationsCount::getIsPositiveBalance,
-                        TokenAccountAssociationsCount::getTokenCount)
+                        TokenAccountAssociationsCount::isPositiveBalance, TokenAccountAssociationsCount::getTokenCount)
                 .containsExactlyInAnyOrderElementsOf(expected);
 
         // Verify cached result
         repository.deleteAll();
         assertThat(repository.countByAccountIdAndAssociatedGroupedByBalanceIsPositive(accId))
                 .extracting(
-                        TokenAccountAssociationsCount::getIsPositiveBalance,
-                        TokenAccountAssociationsCount::getTokenCount)
+                        TokenAccountAssociationsCount::isPositiveBalance, TokenAccountAssociationsCount::getTokenCount)
                 .containsExactlyInAnyOrderElementsOf(expected);
         assertThat(repository.countByAccountIdAndAssociatedGroupedByBalanceIsPositive(nextAccountId))
                 .isEmpty();
@@ -333,8 +331,7 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                         accId, associatedStart))
                 .hasSize(1)
                 .extracting(
-                        TokenAccountAssociationsCount::getIsPositiveBalance,
-                        TokenAccountAssociationsCount::getTokenCount)
+                        TokenAccountAssociationsCount::isPositiveBalance, TokenAccountAssociationsCount::getTokenCount)
                 .containsExactlyInAnyOrder(tuple(true, 1));
 
         // At and after the disassociation it must not be resurrected from the stale associated history row.
@@ -354,8 +351,7 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                         tokenAccount.getAccountId(), tokenAccount.getTimestampLower() + 1))
                 .hasSize(1)
                 .extracting(
-                        TokenAccountAssociationsCount::getIsPositiveBalance,
-                        TokenAccountAssociationsCount::getTokenCount)
+                        TokenAccountAssociationsCount::isPositiveBalance, TokenAccountAssociationsCount::getTokenCount)
                 .containsExactlyInAnyOrder(tuple(true, 1));
     }
 
@@ -392,8 +388,7 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                         tokenAccount.getAccountId(), tokenAccount.getTimestampLower()))
                 .hasSize(1)
                 .extracting(
-                        TokenAccountAssociationsCount::getIsPositiveBalance,
-                        TokenAccountAssociationsCount::getTokenCount)
+                        TokenAccountAssociationsCount::isPositiveBalance, TokenAccountAssociationsCount::getTokenCount)
                 .containsExactlyInAnyOrder(tuple(false, 1));
     }
 
@@ -421,8 +416,7 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                         accountId, tokenAccountHistory.getTimestampLower() + 1))
                 .hasSize(1)
                 .extracting(
-                        TokenAccountAssociationsCount::getIsPositiveBalance,
-                        TokenAccountAssociationsCount::getTokenCount)
+                        TokenAccountAssociationsCount::isPositiveBalance, TokenAccountAssociationsCount::getTokenCount)
                 .containsExactlyInAnyOrder(tuple(true, 2));
     }
 
@@ -441,8 +435,7 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                         accountId, tokenAccountHistory.getTimestampLower()))
                 .hasSize(1)
                 .extracting(
-                        TokenAccountAssociationsCount::getIsPositiveBalance,
-                        TokenAccountAssociationsCount::getTokenCount)
+                        TokenAccountAssociationsCount::isPositiveBalance, TokenAccountAssociationsCount::getTokenCount)
                 .containsExactlyInAnyOrder(tuple(true, 2));
     }
 
@@ -475,8 +468,7 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                         accId, tokenAccountHistory.getTimestampLower() + 1))
                 .hasSize(2)
                 .extracting(
-                        TokenAccountAssociationsCount::getIsPositiveBalance,
-                        TokenAccountAssociationsCount::getTokenCount)
+                        TokenAccountAssociationsCount::isPositiveBalance, TokenAccountAssociationsCount::getTokenCount)
                 .containsExactlyInAnyOrder(tuple(true, 2), tuple(false, 1));
     }
 }

@@ -5,8 +5,6 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
-import jakarta.persistence.Id;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,6 +22,7 @@ import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
@@ -32,6 +31,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
+import org.springframework.data.annotation.Id;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.util.StreamUtils;
 
@@ -169,7 +169,7 @@ class UpdateTokenFreezeKycStatusMigrationTest extends ImporterIntegrationTest {
             ps.setLong(7, token.getMaxSupply());
             ps.setString(8, token.getName());
             ps.setString(9, token.getSymbol());
-            ps.setString(10, PostgreSQLGuavaRangeType.INSTANCE.asString(token.getTimestampRange()));
+            ps.setString(10, RangeUtils.rangeToString(token.getTimestampRange()));
             ps.setLong(11, token.getTokenId());
             ps.setLong(12, token.getTreasuryAccountId());
         });
@@ -198,7 +198,7 @@ class UpdateTokenFreezeKycStatusMigrationTest extends ImporterIntegrationTest {
                 .pauseStatus(TokenPauseStatusEnum.valueOf(rs.getString("pause_status")))
                 .supplyType(TokenSupplyTypeEnum.valueOf(rs.getString("supply_type")))
                 .symbol(rs.getString("symbol"))
-                .timestampRange(PostgreSQLGuavaRangeType.longRange(rs.getString("timestamp_range")))
+                .timestampRange(RangeUtils.rangeLong(rs.getString("timestamp_range")))
                 .tokenId(rs.getLong("token_id"))
                 .totalSupply(rs.getLong("total_supply"))
                 .treasuryAccountId(EntityId.of(rs.getLong("treasury_account_id")))

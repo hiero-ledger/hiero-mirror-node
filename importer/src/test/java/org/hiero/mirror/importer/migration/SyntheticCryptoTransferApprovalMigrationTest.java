@@ -755,11 +755,7 @@ class SyntheticCryptoTransferApprovalMigrationTest extends ImporterIntegrationTe
 
     private TokenTransfer persistTokenTransfer(EntityId entityId, Long consensusTimestamp, boolean isApproval) {
         long consensus = consensusTimestamp == null ? getTimestampWithinBoundary() : consensusTimestamp;
-        var id = TokenTransfer.Id.builder()
-                .accountId(entityId)
-                .consensusTimestamp(consensus)
-                .tokenId(domainBuilder.entityId())
-                .build();
+        var id = new TokenTransfer.Id(consensus, domainBuilder.entityId(), entityId);
         return domainBuilder
                 .tokenTransfer()
                 .customize(t -> t.amount(-10) // debit from account

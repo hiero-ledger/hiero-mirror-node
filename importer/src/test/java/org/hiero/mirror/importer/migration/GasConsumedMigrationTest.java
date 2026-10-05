@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.Array;
@@ -22,6 +21,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
@@ -118,7 +118,8 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
 
         var ca1 = domainBuilder
                 .contractAction()
-                .customize(ca -> ca.consensusTimestamp(ethTx.getConsensusTimestamp()))
+                .customize(
+                        ca -> ca.id(new ContractAction.Id(ethTx.getConsensusTimestamp(), (int) domainBuilder.number())))
                 .customize(ca -> ca.gasUsed(200L))
                 .customize(ca -> ca.callDepth(0))
                 .get();
@@ -126,7 +127,8 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
 
         var ca2 = domainBuilder
                 .contractAction()
-                .customize(ca -> ca.consensusTimestamp(ethTx.getConsensusTimestamp()))
+                .customize(
+                        ca -> ca.id(new ContractAction.Id(ethTx.getConsensusTimestamp(), (int) domainBuilder.number())))
                 .customize(ca -> ca.callDepth(1))
                 .get();
         persistContractAction(ca2);
@@ -214,7 +216,7 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
                 entity.getRealm(),
                 entity.getShard(),
                 entity.getCreatedTimestamp(),
-                PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()),
+                RangeUtils.rangeToString(entity.getTimestampRange()),
                 entity.getType().name());
     }
 

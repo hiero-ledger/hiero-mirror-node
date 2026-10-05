@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 
 import com.google.common.collect.Range;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,6 +19,7 @@ import lombok.SneakyThrows;
 import org.assertj.core.util.Lists;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.repository.RecordFileMigrationTest;
@@ -229,7 +229,7 @@ class ClearTokenMetadataMigrationTest extends RecordFileMigrationTest {
                 ps.setBytes(16, token.getSupplyKey());
                 ps.setString(17, token.getSupplyType().name());
                 ps.setString(18, token.getSymbol());
-                ps.setString(19, PostgreSQLGuavaRangeType.INSTANCE.asString(token.getTimestampRange()));
+                ps.setString(19, RangeUtils.rangeToString(token.getTimestampRange()));
                 ps.setLong(20, token.getTokenId());
                 ps.setLong(21, token.getTotalSupply());
                 ps.setLong(22, token.getTreasuryAccountId().getId());

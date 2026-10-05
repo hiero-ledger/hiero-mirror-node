@@ -5,7 +5,7 @@ package org.hiero.mirror.web3.repository;
 import java.util.Collection;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.contract.ContractResult;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
@@ -18,11 +18,14 @@ public interface ContractResultRepository extends CrudRepository<ContractResult,
     // shared by many results costs a single lookup. contract_id is the citus distribution column of contract_result
     // and equals contract_transaction_hash.entity_id (see ContractResult.toContractTransactionHash), so constraining on
     // it lets citus prune shards instead of scanning every one.
-    @Query(
-            value = "select consensus_timestamp from contract_result where consensus_timestamp in (:timestamps) "
-                    + "and contract_id in (:contractIds) "
-                    + "and gas_consumed is not null "
-                    + "order by consensus_timestamp desc limit 1",
-            nativeQuery = true)
+    @Query("""
+            select consensus_timestamp
+            from contract_result
+            where consensus_timestamp in (:timestamps)
+              and contract_id in (:contractIds)
+              and gas_consumed is not null
+            order by consensus_timestamp desc
+            limit 1
+            """)
     Optional<Long> findLatestExecutedTimestamp(Collection<Long> timestamps, Collection<Long> contractIds);
 }

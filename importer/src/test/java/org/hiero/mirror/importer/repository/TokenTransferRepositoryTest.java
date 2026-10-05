@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.token.TokenTransfer;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 
@@ -19,9 +20,9 @@ class TokenTransferRepositoryTest extends ImporterIntegrationTest {
         var tokenTransfer2 = domainBuilder
                 .tokenTransfer()
                 .customize(t -> {
-                    var id = tokenTransfer1.getId().toBuilder()
-                            .accountId(domainBuilder.entityId())
-                            .build();
+                    var existingId = tokenTransfer1.getId();
+                    var id = new TokenTransfer.Id(
+                            existingId.getConsensusTimestamp(), existingId.getTokenId(), domainBuilder.entityId());
                     t.id(id);
                 })
                 .persist();

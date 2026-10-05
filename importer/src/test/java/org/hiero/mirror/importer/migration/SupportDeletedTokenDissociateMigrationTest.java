@@ -7,8 +7,6 @@ import static org.hiero.mirror.common.domain.entity.EntityType.TOKEN;
 import static org.hiero.mirror.common.domain.token.TokenTypeEnum.FUNGIBLE_COMMON;
 import static org.hiero.mirror.common.domain.token.TokenTypeEnum.NON_FUNGIBLE_UNIQUE;
 
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import java.io.File;
 import java.sql.Types;
 import java.util.Collection;
@@ -21,7 +19,6 @@ import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.NftTransfer;
 import org.hiero.mirror.common.domain.token.Token;
@@ -461,8 +458,12 @@ class SupportDeletedTokenDissociateMigrationTest extends ImporterIntegrationTest
                         + "serial_number, token_id)"
                         + " values (?,?,?,?,?)",
                 nftTransfer.getConsensusTimestamp(),
-                EntityIdConverter.INSTANCE.convertToDatabaseColumn(nftTransfer.getReceiverAccountId()),
-                EntityIdConverter.INSTANCE.convertToDatabaseColumn(nftTransfer.getSenderAccountId()),
+                nftTransfer.getReceiverAccountId() != null
+                        ? nftTransfer.getReceiverAccountId().getId()
+                        : null,
+                nftTransfer.getSenderAccountId() != null
+                        ? nftTransfer.getSenderAccountId().getId()
+                        : null,
                 nftTransfer.getSerialNumber(),
                 nftTransfer.getTokenId());
     }
@@ -546,11 +547,7 @@ class SupportDeletedTokenDissociateMigrationTest extends ImporterIntegrationTest
         private Boolean associated;
         private Boolean automaticAssociation;
         private long createdTimestamp;
-
-        @Enumerated(EnumType.ORDINAL)
         private TokenFreezeStatusEnum freezeStatus;
-
-        @Enumerated(EnumType.ORDINAL)
         private TokenKycStatusEnum kycStatus;
 
         private long modifiedTimestamp;

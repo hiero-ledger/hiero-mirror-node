@@ -3,9 +3,6 @@
 package org.hiero.mirror.common.domain.contract;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -15,43 +12,54 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
+@Table
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
-@IdClass(ContractState.Id.class)
 @NoArgsConstructor
 @Upsertable
 public class ContractState {
 
     private static final int SLOT_BYTE_LENGTH = 32;
 
-    @jakarta.persistence.Id
-    private long contractId;
+    @org.springframework.data.annotation.Id
+    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
+    @JsonIgnore
+    private Id id;
 
-    @Column(updatable = false)
+    @InsertOnlyProperty
     private long createdTimestamp;
 
     private long modifiedTimestamp;
 
-    @jakarta.persistence.Id
-    @ToString.Exclude
-    private byte[] slot;
-
     @ToString.Exclude
     private byte[] value;
 
-    @JsonIgnore
-    public ContractState.Id getId() {
-        ContractState.Id id = new ContractState.Id();
-        id.setContractId(contractId);
-        id.setSlot(slot);
-        return id;
+    public void setContractId(long contractId) {
+        id().setContractId(contractId);
     }
 
     public void setSlot(byte[] slot) {
-        this.slot = DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH);
+        id().setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
+    }
+
+    public long getContractId() {
+        return id != null ? id.getContractId() : 0L;
+    }
+
+    public byte[] getSlot() {
+        return id != null ? id.getSlot() : null;
+    }
+
+    private Id id() {
+        if (id == null) {
+            id = new Id();
+        }
+        return id;
     }
 
     @Data
@@ -59,7 +67,27 @@ public class ContractState {
     @NoArgsConstructor
     public static class Id implements Serializable {
         private static final long serialVersionUID = 6192377810161178246L;
+
         private long contractId;
+
         private byte[] slot;
+    }
+
+    public static class ContractStateBuilder {
+
+        private Id ensureId() {
+            this.id = this.id == null ? new Id() : new Id(this.id.getContractId(), this.id.getSlot());
+            return this.id;
+        }
+
+        public ContractStateBuilder contractId(long contractId) {
+            ensureId().setContractId(contractId);
+            return this;
+        }
+
+        public ContractStateBuilder slot(byte[] slot) {
+            ensureId().setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
+            return this;
+        }
     }
 }

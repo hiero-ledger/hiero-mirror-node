@@ -13,7 +13,6 @@ import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TopicID;
-import jakarta.persistence.Transient;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -21,6 +20,7 @@ import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.Transient;
 
 /**
  * Common encapsulation for a Hedera entity identifier.
