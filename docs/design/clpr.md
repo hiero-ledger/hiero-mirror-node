@@ -79,7 +79,8 @@ separate ingestion path for CLPR:
 1. Every CLPR `TransactionBody` case (`clprRegisterChannel`, `clprCompleteChannel`, `clprCloseChannel`,
    `clprSubmitBundle`, `clprRegisterConnector`, `clprDeregisterConnector`, `clprCompleteConnector`,
    `clprUpdateLedgerConfiguration`) gets a dedicated `TransactionHandler`, the same as any other transaction type
-   (see [Importer Module Changes](#importer-module-changes)).
+   (see [Importer Module Changes](#importer-module-changes)). These eight cases aren't the only source of CLPR
+   state changes, though — see point 7 below.
 2. **CLPR's verifier-derived fields are only ever available via consensus state, not via any record-stream
    carrier — so this design assumes CLPR transactions are only ever delivered via block stream.** Checked against
    the reference implementation: none of `transaction_receipt.proto`, `transaction_record.proto`, or the sidecar
@@ -111,24 +112,69 @@ separate ingestion path for CLPR:
    `transactionRecord` today. This is CLPR-specific handler awareness, not a fully source-agnostic mechanism.
 5. The importer persists to PostgreSQL following the existing current + history table pattern.
 6. `rest-java` (jOOQ-based) exposes read endpoints over the persisted state.
+7. **CLPR state changes are not confined to the eight `TransactionBody` cases above.** Three real exceptions exist
+   in `hiero-consensus-node` main, and they don't all need the same fix:
+
+   - **`sendMessage`** is a system-contract call (`ClprSystemContract`, address `0x16e`/`0.0.366`) made inside a
+     `ContractCall` or `EthereumTransaction`. `SendMessageCall.execute()` calls `ClprServiceApi.sendMessage(...)`
+     directly, synchronously, inside that same transaction's handling — no child transaction is dispatched — so
+     its resulting state changes (outbound Data message, Channel `next_message_id`/`sent_running_hash`, Connector
+     `in_flight_message_count`) land in that same transaction's own block-stream `StateChanges` entry. This is a
+     **mirror-node-only fix**: CLPR state changes carry their own dedicated `StateIdentifier`s
+     (`SATE_ID_CLPR_MESSAGE_QUEUE`/`STATE_ID_CLPR_CHANNELS`/`STATE_ID_CLPR_CONNECTORS`), the same category
+     `STATE_ID_TOPICS_VALUE` belongs to — not raw, anonymous contract storage. So the fix is the same
+     `StateChangeContext` accessor pattern `ConsensusCreateTopicTransformer`/`getNewTopicId()` already uses: add
+     these `StateIdentifier` cases to `StateChangeContext`'s constructor switch, and have the existing
+     `ContractCall`/`EthereumTransaction` handling also read them when present. No new tables — the writes land
+     in `clpr_message`/`clpr_channel`/`clpr_connector`, which already exist; `sendMessage` is simply a second
+     source feeding them, alongside `ClprSubmitBundle`.
+   - **The ledger configuration** singleton's first row is written either by `ClprServiceImpl#doGenesisSetup`
+     (true genesis, block 0) or by `V0770ClprSchema.migrate()`'s non-genesis branch (CLPR added to an
+     already-running network via upgrade) — depending on whether the network is brand new or being upgraded.
+   - **The endpoint manifest** singleton (this ledger's own manifest of its own endpoints — not
+     `ClprChannel.endpoint_manifest_version`, a different, per-channel cached copy of the _peer's_ manifest that
+     `ClprSubmitBundle` does legitimately write) is kept current by a reconciler `HandleWorkflow` runs every
+     round, independent of whether the round contained any transactions.
+
+   The latter two share a root cause and **this is a consensus-node gap, not a mirror-node architecture
+   problem**: both can arise with no transaction to anchor to at all, and `state_changes.proto`'s `StateChanges`
+   message carries only a `consensus_timestamp` and a list of changes — nothing distinguishes
+   "migration-triggered" from "per-round reconciler" state changes. `BlockStreamReaderImpl.shouldSkip()` already
+   discards exactly this shape of block item outside genesis today, because there is no transaction for a
+   `TransactionHandler` to attach to. (Genesis itself is already covered:
+   `BlockStreamReaderImpl.readInitialState()`/`InitialStateReader`/`BlockFile.initialState` can be extended to
+   also parse the CLPR singletons at block 0 — but that only covers a brand-new network starting with CLPR
+   already enabled, not any network that reaches CLPR by upgrade, which is every existing Hiero network today.)
+   Precedent for the right fix already exists: network stake is also periodic and not triggered by any user
+   transaction, yet the consensus node emits it as its own synthetic system transaction
+   (`TransactionType.NODESTAKEUPDATE`) rather than a bare state change, flowing through
+   `NodeStakeUpdateTransactionHandler` via the ordinary per-transaction pipeline. The recommendation is for the
+   consensus-node team to emit the endpoint-manifest reconciliation and the upgrade-time ledger-configuration
+   initialization the same way. Until that exists upstream, neither can be ingested outside of true genesis.
 
 ```
 Consensus node (CLPR Service)
   → block stream (TransactionResult/Output + StateChanges: clpr_channel_value, clpr_connector_value,
-    clpr_message_value/_key, clpr_ledger_configuration_value, clpr_endpoint_manifest_value)
+    clpr_message_value/_key, clpr_ledger_configuration_value)
   → importer block-to-record transformation (ClprXxxTransformer reads StateChangeContext, populates new
     CLPR-specific fields on RecordItem — there is no existing TransactionRecord/sidecar slot for this data)
   → importer TransactionHandlers (read the new RecordItem fields) + EntityListener
   → PostgreSQL (clpr_channel_pending_commitment/_history, clpr_channel/_history,
     clpr_connector_pending_commitment/_history, clpr_connector/_history, clpr_ledger_configuration/_history,
-    clpr_endpoint_manifest/_history, clpr_message)
+    clpr_message)
   → rest-java (read APIs)
 ```
 
-`ClprEndpointPublicationTransactionBody` (field 91) and the `ClprEndpointManifestConstruction` singleton are
-Hiero-internal (explicitly called out as "not part of the cross-ledger CLPR spec" in the proto docs) — the mirror
-node only needs the _finalized_ `ClprEndpointManifest`, not the in-flight construction bookkeeping (see
-[Non-Goals](#non-goals)).
+This diagram covers the eight transaction-anchored cases, plus `sendMessage` (point 7 above) once its
+`StateChangeContext` extension lands. `clpr_endpoint_manifest_value` is deliberately absent: the per-round
+reconciler that produces it has no transaction to anchor to, so none of this pipeline reaches it today (point 7).
+`clpr_endpoint_manifest`/`_history` stay in the schema design below regardless, since the finalized manifest still
+needs to be queryable once ingestion is unblocked upstream.
+
+`ClprEndpointPublicationTransactionBody` (field 91) and the `ClprEndpointManifestConstruction` singleton are a
+separate, Hiero-internal concern (explicitly called out as "not part of the cross-ledger CLPR spec" in the proto
+docs) — the mirror node only needs the _finalized_ `ClprEndpointManifest`, not the in-flight construction
+bookkeeping (see [Non-Goals](#non-goals)).
 
 ## Transaction & Query Inventory
 
@@ -575,7 +621,15 @@ subclasses each map to their own table) used by `AbstractToken`/`Token`/`TokenHi
   [Pending Channels](#5-pending-channels-api) can exclude completed commitments without a cross-table join.
   `ClprCloseChannelTransactionHandler` sets `deleted=true` instead, for a genuinely-abandoned (never-completed)
   commitment. Uses `@Upsertable(history = true)` like `ClprChannel`/`ClprConnector`, since it has a real lifecycle
-  worth tracking, not a plain insert-only entity.
+  worth tracking, not a plain insert-only entity. `deleted` is a nullable `Boolean`, not a primitive, because the
+  generated upsert SQL uses `coalesce(incoming, existing, default)` per column — a handler that leaves a field
+  unset preserves whatever the existing row already had, which is how `ClprCompleteChannelTransactionHandler` and
+  `ClprCloseChannelTransactionHandler` can each touch only their own column. `ClprRegisterChannelHandler` writes
+  its commitment unconditionally at the consensus level (`WritablePendingCommitmentStore.put`, no existence
+  check), so the same `ownership_commitment` can be legitimately registered again after `ClprCloseChannel` swept
+  it. `ClprRegisterChannelTransactionHandler` must therefore explicitly set `deleted = false` on every upsert
+  (not leave it null) — otherwise `coalesce` preserves the prior sweep's `deleted = true`, and a
+  swept-then-re-registered commitment stays permanently invisible to the Pending Channels API.
 - **`ClprChannel`** (+ history): `channelId`, `chainId`, `status`, `ownershipCommitment`, `verifierContractId`,
   `verifierFingerprint`, `trustAnchor`, `trustAnchorId`, `channelContext`, `endpointManifestVersion`,
   `nextMessageId`, `receivedMessageId`, `ackedMessageId`, `sentRunningHash`, `receivedRunningHash`,
@@ -618,7 +672,9 @@ need a mirror-node-facing `TransactionType` if it's not ingested; see the
 
 For handlers whose fields come straight off the transaction body (e.g. `ClprRegisterChannel`'s
 `ownership_commitment`, `ClprCompleteConnector`'s `connector_contract`/`admin_key`/`locked_stake`), processing is a
-direct field mapping, same as any simple create-style transaction handler. For handlers whose resulting state is
+direct field mapping, same as any simple create-style transaction handler. `ClprRegisterChannelTransactionHandler`
+additionally always sets `deleted = false` explicitly on its upsert, rather than leaving it unset — see
+[Domain Models](#1-domain-models) for why that matters. For handlers whose resulting state is
 verifier-derived (`ClprCompleteChannel`, `ClprSubmitBundle`, `ClprCloseChannel`'s terminal transitions), the handler
 reads the new CLPR-specific fields the transformer added to `RecordItem` (see below) — not the transaction body,
 and not the classic `TransactionRecord`, since neither carries this data. `ClprSubmitBundle` can dispatch multiple
@@ -990,16 +1046,18 @@ Response format:
 
 #### Query Parameters
 
-| Parameter   | Type    | Description                            | Default | Validation                                   |
-| ----------- | ------- | -------------------------------------- | ------- | -------------------------------------------- |
-| `timestamp` | string  | Filter/paginate by `created_timestamp` | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:` |
-| `limit`     | integer | Maximum number of Connectors to return | `25`    | Must be between 1 and 100                    |
-| `order`     | string  | Sort order for results                 | `desc`  | Must be either `asc` or `desc`               |
+| Parameter      | Type    | Description                            | Default | Validation                                                                                                                                                                      |
+| -------------- | ------- | -------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connector.id` | string  | Filter by `connector_id`               | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:` (lexicographic byte comparison); part of this table's primary key alongside `channel_id`, so `eq:` is a direct, shard-local lookup |
+| `timestamp`    | string  | Filter/paginate by `created_timestamp` | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`                                                                                                                                    |
+| `limit`        | integer | Maximum number of Connectors to return | `25`    | Must be between 1 and 100                                                                                                                                                       |
+| `order`        | string  | Sort order for results                 | `desc`  | Must be either `asc` or `desc`                                                                                                                                                  |
 
 **Examples:**
 
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors` — Get all Connectors on a Channel, newest first
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors?limit=10` — Get first 10 Connectors
+- `/api/v1/clpr/channels/0x1a2b3c.../connectors?connector.id=eq:0x4d5e6f...` — Get a specific Connector by id
 
 ## HIP-1535 Feedback / Required Clarifications
 
