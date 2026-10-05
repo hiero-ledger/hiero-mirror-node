@@ -325,10 +325,10 @@ create table if not exists clpr_channel_history
 create index if not exists clpr_channel_history__timestamp_range
     on clpr_channel_history using gist (timestamp_range);
 
-select create_distributed_table('clpr_channel_pending_commitment', 'ownership_commitment');
-select create_distributed_table('clpr_channel_pending_commitment_history', 'ownership_commitment');
-select create_distributed_table('clpr_channel', 'channel_id');
-select create_distributed_table('clpr_channel_history', 'channel_id');
+select create_distributed_table('clpr_channel_pending_commitment', 'ownership_commitment', shard_count := ${hashShardCount});
+select create_distributed_table('clpr_channel_pending_commitment_history', 'ownership_commitment', colocate_with => 'clpr_channel_pending_commitment');
+select create_distributed_table('clpr_channel', 'channel_id', shard_count := ${shardCount});
+select create_distributed_table('clpr_channel_history', 'channel_id', colocate_with => 'clpr_channel');
 ```
 
 The `chain_id` index supports both the [Chain API](#1-chain-api)'s `chain_id`+count aggregation and the
@@ -380,8 +380,8 @@ create table if not exists clpr_connector_history
 create index if not exists clpr_connector_history__timestamp_range
     on clpr_connector_history using gist (timestamp_range);
 
-select create_distributed_table('clpr_connector_pending_commitment', 'commitment');
-select create_distributed_table('clpr_connector_pending_commitment_history', 'commitment');
+select create_distributed_table('clpr_connector_pending_commitment', 'commitment', shard_count := ${hashShardCount});
+select create_distributed_table('clpr_connector_pending_commitment_history', 'commitment', colocate_with => 'clpr_connector_pending_commitment');
 select create_distributed_table('clpr_connector', 'channel_id', colocate_with => 'clpr_channel');
 select create_distributed_table('clpr_connector_history', 'channel_id', colocate_with => 'clpr_channel');
 ```
@@ -402,6 +402,8 @@ create table if not exists clpr_ledger_configuration
     max_sync_bytes              bigint,
     protocol_version            bigint      not null,
     chain_id                    varchar     not null,
+    initial_trust_anchor        bytea,
+    initial_trust_anchor_id     bytea,
     service_address             bytea,
     timestamp_range             int8range   not null,
 
@@ -595,7 +597,13 @@ dropped above — finds the exact row within that partition, mirroring `topic_me
 > apply to it. `clpr_channel_pending_commitment` and `clpr_connector_pending_commitment` have no `channel_id` at
 > all, so each is distributed by its own key (`ownership_commitment`/`commitment`).
 > `clpr_ledger_configuration(_history)`/`clpr_endpoint_manifest(_history)` get neither treatment — they stay plain,
-> undistributed tables (see above).
+> undistributed tables (see above). Tables that aren't colocated with another table need an explicit `shard_count`,
+> since otherwise they each start a new colocation group at Citus's configured default. `clpr_channel` uses
+> `${shardCount}`, the same placeholder `entity` uses — `channel_id` is an opaque, registrant-chosen 32-byte value,
+> the same role `entity.id` plays for its own colocation group. `clpr_channel_pending_commitment`/
+> `clpr_connector_pending_commitment` use `${hashShardCount}` instead, the same placeholder `transaction_hash`/
+> `contract_transaction_hash` use — `ownership_commitment`/`commitment` are `keccak256` outputs, the same kind of
+> value as `transaction_hash.hash`, not a registrant-chosen identifier.
 >
 > **Open risk, not yet resolved**: colocating `clpr_connector`/`clpr_message` by `channel_id` means one
 > disproportionately active Channel's entire volume still concentrates on whichever single shard that Channel's
