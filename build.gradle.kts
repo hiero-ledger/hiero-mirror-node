@@ -62,7 +62,7 @@ dependencies {
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
-        api("io.cucumber:cucumber-bom:8.0.3")
+        api("io.cucumber:cucumber-bom:7.34.9")
         api("io.fabric8:kubernetes-client-bom:8.0.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.16.0")
