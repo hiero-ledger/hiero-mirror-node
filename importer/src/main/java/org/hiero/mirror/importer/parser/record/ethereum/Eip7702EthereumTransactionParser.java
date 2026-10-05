@@ -57,7 +57,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                             "RLP list size was %d but expected %d", rlpItems.size(), EIP7702_TYPE_RLP_ITEM_COUNT));
         }
 
-        final var authorizationList = parseAuthorizationList(rlpItems.get(9));
+        final var authorizationList = decodeAuthorizationList(rlpItems.get(9));
 
         final var ethereumTransaction = EthereumTransaction.builder()
                 .chainId(rlpItems.get(0).data())
@@ -78,7 +78,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
         return ethereumTransaction.build();
     }
 
-    private List<Authorization> parseAuthorizationList(RLPItem authorizationListItem) {
+    private List<Authorization> decodeAuthorizationList(RLPItem authorizationListItem) {
         if (!authorizationListItem.isList()) {
             throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Authorization list is not a list");
         }
@@ -110,10 +110,10 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
 
             final var hexFormat = HexFormat.of();
             final var authorization = Authorization.builder()
-                    .chainId(toQuantity(tuple.get(0).data()))
+                    .chainId(toHexQuantity(tuple.get(0).data()))
                     .address(HEX_PREFIX + hexFormat.formatHex(tuple.get(1).data()))
                     .nonce(authorizationNonce(tuple.get(2)))
-                    .yParity(toQuantity(tuple.get(3).data()))
+                    .yParity(toHexQuantity(tuple.get(3).data()))
                     .r(HEX_PREFIX + hexFormat.formatHex(tuple.get(4).data()))
                     .s(HEX_PREFIX + hexFormat.formatHex(tuple.get(5).data()))
                     .build();
@@ -152,10 +152,10 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
         var encodedList = new ArrayList<List<byte[]>>();
         for (var auth : authorizations) {
             encodedList.add(List.of(
-                    encodeQuantity(auth.getChainId()),
+                    fromHexQuantity(auth.getChainId()),
                     decodeBytes(auth.getAddress()),
                     Integers.toBytes(auth.getNonce()),
-                    encodeQuantity(auth.getYParity()),
+                    fromHexQuantity(auth.getYParity()),
                     decodeBytes(auth.getR()),
                     decodeBytes(auth.getS())));
         }
@@ -203,7 +203,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
      * Canonical integer 0 is {@code "0x0"} and encodes as an empty RLP string. A payload that starts with {@code 0x00}
      * keeps those bytes, so an empty chain id and a chain id of {@code 0x00} do not collapse.
      */
-    private String toQuantity(byte[] data) {
+    private String toHexQuantity(byte[] data) {
         if (ArrayUtils.isEmpty(data)) {
             return HEX_PREFIX + "0";
         }
@@ -213,8 +213,8 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
         return HEX_PREFIX + new BigInteger(1, data).toString(16);
     }
 
-    private byte[] encodeQuantity(String hex) {
-        var stripped = hex.startsWith(HEX_PREFIX) ? hex.substring(HEX_PREFIX.length()) : hex;
+    private byte[] fromHexQuantity(String hex) {
+        final var stripped = stripHexPrefix(hex);
         if (stripped.isEmpty() || stripped.equals("0")) {
             return ArrayUtils.EMPTY_BYTE_ARRAY;
         }
