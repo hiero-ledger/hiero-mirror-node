@@ -121,7 +121,7 @@ separate ingestion path for CLPR:
      its resulting state changes (outbound Data message, Channel `next_message_id`/`sent_running_hash`, Connector
      `in_flight_message_count`) land in that same transaction's own block-stream `StateChanges` entry. This is a
      **mirror-node-only fix**: CLPR state changes carry their own dedicated `StateIdentifier`s
-     (`SATE_ID_CLPR_MESSAGE_QUEUE`/`STATE_ID_CLPR_CHANNELS`/`STATE_ID_CLPR_CONNECTORS`), the same category
+     (`STATE_ID_CLPR_MESSAGE_QUEUE`/`STATE_ID_CLPR_CHANNELS`/`STATE_ID_CLPR_CONNECTORS`), the same category
      `STATE_ID_TOPICS_VALUE` belongs to — not raw, anonymous contract storage. So the fix is the same
      `StateChangeContext` accessor pattern `ConsensusCreateTopicTransformer`/`getNewTopicId()` already uses: add
      these `StateIdentifier` cases to `StateChangeContext`'s constructor switch, and have the existing
@@ -220,9 +220,9 @@ alignment (see https://www.enterprisedb.com/blog/rocks-and-sand).
 Table and column definitions are identical between the `v1` and `v2` (Citus) migrations, with one exception:
 `clpr_message` is additionally time-partitioned (and gains a `clpr_message_lookup` side table) in `v2` only — see
 [Message Queue](#4-message-queue-append-only). For every other table except `clpr_ledger_configuration`/
-`clpr_endpoint_manifest` (which stay plain, undistributed tables in both profiles — see
-[below](#3-ledger-configuratioadd support in monitor to submit new transaction types (used for 10k testing)n-and-endpoint-manifest-singletons)), the only difference is that the `v2` migration
-additionally runs the `create_distributed_table` calls shown at the end of each SQL block; `v1` does not.
+`clpr_endpoint_manifest`/`clpr_endpoint_manifest_endpoint` (which stay plain, undistributed tables in both profiles
+— see [below](#3-ledger-configuration-and-endpoint-manifest-singletons)), the only difference is that the `v2`
+migration additionally runs the `create_distributed_table` calls shown at the end of each SQL block; `v1` does not.
 
 Unrevealed Channel commitments — the commit phase, before `ClprCompleteChannel` reveals `channel_id` — are
 persisted in a separate table, `clpr_channel_pending_commitment`. `clpr_channel` is keyed by `channel_id`, but per
@@ -349,6 +349,15 @@ create table if not exists clpr_connector_pending_commitment
     primary key (commitment)
 );
 
+-- Partial index, same shape and rationale as clpr_channel_pending_commitment__created_timestamp: supports the
+-- Pending Connectors API's completed_timestamp IS NULL filter directly, tracking the shrinking still-pending
+-- subset rather than the ever-growing total. `deleted` is included only for schema symmetry with the Channel
+-- side — no handler sets it for Connectors today (see Domain Models) — so this filters on completed_timestamp
+-- alone in practice.
+create index if not exists clpr_connector_pending_commitment__created_timestamp
+    on clpr_connector_pending_commitment (created_timestamp)
+    where not deleted and completed_timestamp is null;
+
 create table if not exists clpr_connector_pending_commitment_history
 (
     like clpr_connector_pending_commitment including defaults
@@ -372,6 +381,9 @@ create table if not exists clpr_connector
     primary key (channel_id, connector_id)
 );
 
+create index if not exists clpr_connector__channel_id_created_timestamp
+    on clpr_connector (channel_id, created_timestamp);
+
 create table if not exists clpr_connector_history
 (
     like clpr_connector including defaults
@@ -383,8 +395,12 @@ create index if not exists clpr_connector_history__timestamp_range
 select create_distributed_table('clpr_connector_pending_commitment', 'commitment', shard_count := ${hashShardCount});
 select create_distributed_table('clpr_connector_pending_commitment_history', 'commitment', colocate_with => 'clpr_connector_pending_commitment');
 select create_distributed_table('clpr_connector', 'channel_id', colocate_with => 'clpr_channel');
-select create_distributed_table('clpr_connector_history', 'channel_id', colocate_with => 'clpr_channel');
+select create_distributed_table('clpr_connector_history', 'channel_id', colocate_with => 'clpr_connector');
 ```
+
+`clpr_connector__channel_id_created_timestamp` backs the [Connectors per Channel API](#7-connectors-per-channel-api)'s
+`timestamp`-ordered pagination — the primary key alone orders by `connector_id` within a `channel_id`, not by
+`created_timestamp`.
 
 ### 3. Ledger Configuration and Endpoint Manifest (Singletons)
 
@@ -422,11 +438,25 @@ create table if not exists clpr_endpoint_manifest
 (
     id                bigint      not null default 1, -- singleton row id
     version           bigint      not null,
-    endpoints         bytea,      -- serialized repeated ClprEndpoint, or normalized into a child table if queried directly
     service_address   bytea,
     timestamp_range   int8range   not null,
 
     primary key (id)
+);
+
+-- One row per ClprEndpoint entry, normalized rather than a serialized blob column, matching
+-- address_book_service_endpoint's relationship to address_book_entry. Append-only like that table too: a new
+-- manifest version's endpoints are inserted fresh, old versions' rows are never deleted, so history is implicit
+-- in having one row set per version rather than needing a separate _history table.
+create table if not exists clpr_endpoint_manifest_endpoint
+(
+    account_id       bigint,
+    port             bigint      not null,
+    version          bigint      not null,
+    ip_address       varchar     not null,
+    tls_certificate  bytea,
+
+    primary key (version, ip_address, port)
 );
 
 create table if not exists clpr_endpoint_manifest_history
@@ -438,13 +468,13 @@ create index if not exists clpr_endpoint_manifest_history__timestamp_range
     on clpr_endpoint_manifest_history using gist (timestamp_range);
 ```
 
-These four stay as plain, ordinary Postgres tables in `v2` — no `create_distributed_table` or `create_reference_table`
+These five stay as plain, ordinary Postgres tables in `v2` — no `create_distributed_table` or `create_reference_table`
 call at all, matching how this codebase already treats comparable small, infrequently-updated config/admin tables
-(e.g. `network_stake`, `address_book`): nothing joins against them from a distributed table (unlike `entity`, which
-is genuinely why tables like `topic_message_lookup` need `create_reference_table`), and neither is even exposed via
-REST in this iteration (see [REST API Implementation](#rest-api-implementation)), so reference-table replication
-would add write-side coordination overhead across every worker node for no actual benefit. This also means `v1` and
-`v2`'s migrations for these two tables are identical byte-for-byte, not just in table/column definitions.
+(e.g. `network_stake`, `address_book`): nothing joins against them from a distributed table, and none is even
+exposed via REST in this iteration (see [REST API Implementation](#rest-api-implementation)), so reference-table
+replication would add write-side coordination overhead across every worker node for no actual benefit. This also
+means `v1` and `v2`'s migrations for these tables are identical byte-for-byte, not just in table/column
+definitions.
 
 ### 4. Message Queue (Append-Only)
 
@@ -596,8 +626,9 @@ dropped above — finds the exact row within that partition, mirroring `topic_me
 > `v2` only (see above) — distribution (shard dimension) and partitioning (time dimension) are orthogonal and both
 > apply to it. `clpr_channel_pending_commitment` and `clpr_connector_pending_commitment` have no `channel_id` at
 > all, so each is distributed by its own key (`ownership_commitment`/`commitment`).
-> `clpr_ledger_configuration(_history)`/`clpr_endpoint_manifest(_history)` get neither treatment — they stay plain,
-> undistributed tables (see above). Tables that aren't colocated with another table need an explicit `shard_count`,
+> `clpr_ledger_configuration(_history)`/`clpr_endpoint_manifest(_history)`/`clpr_endpoint_manifest_endpoint` get
+> neither treatment — they stay plain, undistributed tables (see above). Tables that aren't colocated with another
+> table need an explicit `shard_count`,
 > since otherwise they each start a new colocation group at Citus's configured default. `clpr_channel` uses
 > `${shardCount}`, the same placeholder `entity` uses — `channel_id` is an opaque, registrant-chosen 32-byte value,
 > the same role `entity.id` plays for its own colocation group. `clpr_channel_pending_commitment`/
@@ -639,11 +670,18 @@ subclasses each map to their own table) used by `AbstractToken`/`Token`/`TokenHi
   (not leave it null) — otherwise `coalesce` preserves the prior sweep's `deleted = true`, and a
   swept-then-re-registered commitment stays permanently invisible to the Pending Channels API.
 - **`ClprChannel`** (+ history): `channelId`, `chainId`, `status`, `ownershipCommitment`, `verifierContractId`,
-  `verifierFingerprint`, `trustAnchor`, `trustAnchorId`, `channelContext`, `endpointManifestVersion`,
-  `nextMessageId`, `receivedMessageId`, `ackedMessageId`, `sentRunningHash`, `receivedRunningHash`,
-  `createdTimestamp`, `timestampRange`. Per `ClprCompleteChannelHandler` in `hiero-consensus-node`,
-  `ownershipCommitment` is stored on the real `ClprChannel` state record itself (not just the pending-commitment
-  table) — it persists there for the Channel's entire lifetime.
+  `verifierFingerprint`, `trustAnchor`, `trustAnchorId`, `channelContext`, `endpointManifest`,
+  `endpointManifestVersion`, `nextMessageId`, `receivedMessageId`, `ackedMessageId`, `sentRunningHash`,
+  `receivedRunningHash`, `lastConfigTimestamp`, `peerConfigTimestamp`, `peerThrottles` (expanded into
+  `peerMaxGasPerMessage`/`peerMaxLocalEndpoints`/`peerMaxMessagePayloadBytes`/`peerMaxMessagesPerBundle`/
+  `peerMaxPeerEndpoints`/`peerMaxQueueDepth`/`peerMaxSyncBytes`, matching how `ClprLedgerConfiguration`'s own
+  `throttles` are already expanded into columns rather than stored as a serialized blob), `createdTimestamp`,
+  `timestampRange`. Per `ClprCompleteChannelHandler` in `hiero-consensus-node`, `ownershipCommitment` is stored on
+  the real `ClprChannel` state record itself (not just the pending-commitment table) — it persists there for the
+  Channel's entire lifetime. `endpointManifest` is the cached _peer's_ manifest content — distinct from
+  `endpointManifestVersion`, and distinct from this ledger's own `ClprEndpointManifest` singleton (see
+  [Architecture](#architecture) point 7). `peerThrottles`/`peerConfigTimestamp`/`lastConfigTimestamp` are all
+  nullable: each is absent until the first config exchange with the peer actually happens.
 - **`ClprConnectorPendingCommitment`** (+ history): id `commitment`, `createdTimestamp`, `completedTimestamp`,
   `deleted`, `timestampRange` — the same shape as `ClprChannelPendingCommitment`. Inserted by
   `ClprRegisterConnectorTransactionHandler`. Per `ClprCompleteConnectorHandler`, the real commitment _is_ removed
@@ -737,7 +775,7 @@ existing `default void onX(X x) {}` pattern:
 
 New `JpaRepository`-based repositories for `ClprChannelPendingCommitment`, `ClprChannel`,
 `ClprConnectorPendingCommitment`, `ClprConnector`, `ClprLedgerConfiguration`, `ClprEndpointManifest`, and
-`ClprMessage`, keyed by their respective (possibly composite) ids. Given the six REST APIs now scoped in
+`ClprMessage`, keyed by their respective (possibly composite) ids. Given the seven REST APIs now scoped in
 [REST API Implementation](#rest-api-implementation), `ClprChannelRepository` needs a `chain.id`-filtered lookup and
 a distinct-`chain_id`-with-count aggregation for the Chain API (a `group by`, not a simple CRUD method);
 `ClprMessageRepository` needs lookups by both `channel_id` and `connector_id`, plus the `v2` `clpr_message_lookup`
@@ -745,14 +783,15 @@ resolution step described in [Message Queue](#4-message-queue-append-only).
 
 ## REST API Implementation
 
-Scoped to exactly six read APIs, following existing `rest-java` conventions (paginated, filterable):
+Scoped to exactly seven read APIs, following existing `rest-java` conventions (paginated, filterable):
 
 1. Chain
 2. Channels per chain
 3. Messages per connector
 4. Messages per channel
 5. Pending channels
-6. Connectors per channel
+6. Pending connectors
+7. Connectors per channel
 
 Ledger configuration and endpoint manifest read endpoints are explicitly **not** in scope for this iteration.
 
@@ -860,7 +899,7 @@ composite `(channel_id, connector_id)`, never `connector_id` alone — unlike `c
 unscoped claim (see Feedback item 4). Nesting under its Channel is therefore both spec-faithful and keeps this
 query shard-local via `channel_id`, the same as [Messages per Channel](#4-messages-per-channel-api). A client with
 a real `connectorId` already has its `channelId` in hand regardless, since that's how the Connector was discovered
-in the first place (via [Connectors per Channel](#6-connectors-per-channel-api)). Returns Data Messages the
+in the first place (via [Connectors per Channel](#7-connectors-per-channel-api)). Returns Data Messages the
 Connector authorized directly
 and the Response Messages addressed to it (both have a `connector_id` on `clpr_message` — see
 [Database Schema Design](#database-schema-design)); Control Messages never appear here, since they have no
@@ -1021,7 +1060,51 @@ Response format:
 - `/api/v1/clpr/channels/pending` — Get all pending channel commitments, newest first
 - `/api/v1/clpr/channels/pending?limit=10` — Get first 10 pending commitments
 
-### 6. Connectors per Channel API
+### 6. Pending Connectors API
+
+```
+GET /api/v1/clpr/connectors/pending
+```
+
+Same shape as [Pending Channels](#5-pending-channels-api), for the same reason: `ClprRegisterConnectorTransactionBody`
+carries only `commitment` — neither `channel_id` nor `connector_id` is known at registration time, since
+`connector_id = keccak256(channel_id || pub_key || salt)` is itself folded into the outer commitment hash. So this
+is necessarily a standalone, channel-independent endpoint, not nested under a Channel path. Lists
+`clpr_connector_pending_commitment` rows still genuinely pending — `completed_timestamp is null` (the `deleted`
+exclusion is included only for schema symmetry with the Channel side; no handler sets `deleted` for Connectors
+today — see [Domain Models](#1-domain-models)). Served by `clpr_connector_pending_commitment__created_timestamp`
+(see [Database Schema Design](#database-schema-design)).
+
+Response format:
+
+```json
+{
+  "pending_connectors": [
+    {
+      "commitment": "0x9c2e4a...",
+      "created_timestamp": "1726874345.123456789"
+    }
+  ],
+  "links": {
+    "next": "/api/v1/clpr/connectors/pending?timestamp=lt:1726874345.123456789&limit=1"
+  }
+}
+```
+
+#### Query Parameters
+
+| Parameter   | Type    | Description                            | Default | Validation                                   |
+| ----------- | ------- | -------------------------------------- | ------- | -------------------------------------------- |
+| `timestamp` | string  | Filter/paginate by `created_timestamp` | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:` |
+| `limit`     | integer | Maximum number of rows to return       | `25`    | Must be between 1 and 100                    |
+| `order`     | string  | Sort order for results                 | `desc`  | Must be either `asc` or `desc`               |
+
+**Examples:**
+
+- `/api/v1/clpr/connectors/pending` — Get all pending connector commitments, newest first
+- `/api/v1/clpr/connectors/pending?limit=10` — Get first 10 pending commitments
+
+### 7. Connectors per Channel API
 
 ```
 GET /api/v1/clpr/channels/{channelId}/connectors
@@ -1054,12 +1137,12 @@ Response format:
 
 #### Query Parameters
 
-| Parameter      | Type    | Description                            | Default | Validation                                                                                                                                                                      |
-| -------------- | ------- | -------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `connector.id` | string  | Filter by `connector_id`               | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:` (lexicographic byte comparison); part of this table's primary key alongside `channel_id`, so `eq:` is a direct, shard-local lookup |
-| `timestamp`    | string  | Filter/paginate by `created_timestamp` | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`                                                                                                                                    |
-| `limit`        | integer | Maximum number of Connectors to return | `25`    | Must be between 1 and 100                                                                                                                                                       |
-| `order`        | string  | Sort order for results                 | `desc`  | Must be either `asc` or `desc`                                                                                                                                                  |
+| Parameter      | Type    | Description                            | Default | Validation                                                                                                                                                                                             |
+| -------------- | ------- | -------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `connector.id` | string  | Filter by `connector_id`               | none    | Supports `eq:` only — `connector_id` is opaque with no meaningful order (see Pagination note below); part of this table's primary key alongside `channel_id`, so `eq:` is a direct, shard-local lookup |
+| `timestamp`    | string  | Filter/paginate by `created_timestamp` | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`                                                                                                                                                           |
+| `limit`        | integer | Maximum number of Connectors to return | `25`    | Must be between 1 and 100                                                                                                                                                                              |
+| `order`        | string  | Sort order for results                 | `desc`  | Must be either `asc` or `desc`                                                                                                                                                                         |
 
 **Examples:**
 
@@ -1128,8 +1211,7 @@ process feedback:
 ### 3. Acceptance Tests
 
 Gated on CLPR actually being enabled and testable against a live/dev network with a deployed verifier (e.g. a
-Hiero-to-Hiero test verifier, referenced in the `clpr-hiero` fork's `feat: Endpoint manifest Hiero to Hiero tests`
-work):
+Hiero-to-Hiero test verifier):
 
 ```gherkin
 Feature: CLPR Channel and Connector Lifecycle
@@ -1156,11 +1238,13 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
 
 - New Flyway migrations under `importer/src/main/resources/db/migration/{v1,v2}` for
   `clpr_channel_pending_commitment(_history)`, `clpr_channel(_history)`, `clpr_connector_pending_commitment(_history)`,
-  `clpr_connector(_history)`, `clpr_ledger_configuration(_history)`, `clpr_endpoint_manifest(_history)`, and
-  `clpr_message`, following the append-only migration convention (never edit a merged migration).
+  `clpr_connector(_history)`, `clpr_ledger_configuration(_history)`, `clpr_endpoint_manifest(_history)`,
+  `clpr_endpoint_manifest_endpoint`, and `clpr_message`, following the append-only migration convention (never edit
+  a merged migration).
 - The `v2` (Citus) migrations include the `create_distributed_table` calls specified in
   [Database Schema Design](#database-schema-design) for every table except `clpr_ledger_configuration`/
-  `clpr_endpoint_manifest`, which stay plain, undistributed tables in both profiles. `clpr_message`'s `v2` migration
+  `clpr_endpoint_manifest`/`clpr_endpoint_manifest_endpoint`, which stay plain, undistributed tables in both
+  profiles. `clpr_message`'s `v2` migration
   additionally declares it `partition by range (consensus_timestamp)`, registers it with `create_time_partitions`,
   and creates the `clpr_message_lookup` table — `v1`'s `clpr_message` migration stays unpartitioned, matching
   `topic_message`'s existing `v1`/`v2` split.
@@ -1261,9 +1345,9 @@ depend on the [HIP-1535 clarifications](#hip-1535-feedback--required-clarificati
 1. **DB schema migration for CLPR core tables.** Flyway migrations (`v1` and `v2`) for
    `clpr_channel_pending_commitment(_history)`, `clpr_channel(_history)`,
    `clpr_connector_pending_commitment(_history)`, `clpr_connector(_history)`, `clpr_ledger_configuration(_history)`,
-   and `clpr_endpoint_manifest(_history)`, including the `v2` Citus `create_distributed_table` calls from
-   [Database Schema Design](#database-schema-design) (the last two tables stay plain, undistributed tables in both
-   profiles).
+   `clpr_endpoint_manifest(_history)`, and `clpr_endpoint_manifest_endpoint`, including the `v2` Citus
+   `create_distributed_table` calls from [Database Schema Design](#database-schema-design) (the last three tables
+   stay plain, undistributed tables in both profiles).
 2. **DB schema migration for `clpr_message` (+ `clpr_message_lookup` in `v2`).** Separate from (1) since it's a
    different table shape (append-only, no history pair, and the only table where `v1`/`v2` diverge — see
    [Message Queue](#4-message-queue-append-only)) and the highest-volume table.
@@ -1277,8 +1361,9 @@ depend on the [HIP-1535 clarifications](#hip-1535-feedback--required-clarificati
    ranges alongside them in `v2`; depends on (2) and (3).
 6. **Importer: ledger configuration and endpoint manifest ingestion.** `ClprUpdateLedgerConfigurationTransactionHandler`
    plus handling for the endpoint manifest singleton.
-7. **REST API: the six read endpoints scoped in [REST API Implementation](#rest-api-implementation)** — Chain,
-   Channels per chain, Messages per connector, Messages per channel, Pending channels, and Connectors per channel.
+7. **REST API: the seven read endpoints scoped in [REST API Implementation](#rest-api-implementation)** — Chain,
+   Channels per chain, Messages per connector, Messages per channel, Pending channels, Pending connectors, and
+   Connectors per channel.
 8. **Acceptance tests for the CLPR Channel/Connector lifecycle**, gated on a working verifier and a
    CLPR-enabled test network being available to the acceptance suite.
 9. **Monitor support** for synthetic CLPR transaction generation and 10k+ TPS load testing — see
