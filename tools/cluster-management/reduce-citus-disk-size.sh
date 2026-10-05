@@ -133,7 +133,7 @@ function copyZfsVolume() {
   local exitFile="/tmp/zfs-migrate-${pvcVolume}.exit"
   local resumeToken remoteCmd alreadyRunning datasetExists exitCode
 
-  exitCode=$(execOnNode "${pod}" "cat ${exitFile} 2>/dev/null" || true)
+  exitCode=$(execOnNode "${pod}" "cat ${exitFile} 2>/dev/null" 2>/dev/null || true)
   if [[ "${exitCode}" == "0" ]]; then
     log "Copy for ${pvcVolume} already finished successfully in a previous run; skipping"
     return 0
@@ -141,11 +141,11 @@ function copyZfsVolume() {
     log "A previous background copy for ${pvcVolume} failed (exit ${exitCode}); see ${logFile} in pod ${pod}. Checking for a resumable token..."
   fi
 
-  alreadyRunning=$(execOnNode "${pod}" "pgrep -f 'zfs receive.*${destPool}/${pvcVolume}'" || true)
+  alreadyRunning=$(execOnNode "${pod}" "pgrep -f 'zfs receive.*${destPool}/${pvcVolume}'" 2>/dev/null || true)
   if [[ -n "${alreadyRunning}" ]]; then
     log "Copy for ${pvcVolume} is already running in the background from an earlier invocation of this script; re-attaching"
   else
-    resumeToken=$(execOnNode "${pod}" "zfs get -Ho value receive_resume_token ${destPool}/${pvcVolume} 2>/dev/null" || true)
+    resumeToken=$(execOnNode "${pod}" "zfs get -Ho value receive_resume_token ${destPool}/${pvcVolume} 2>/dev/null" 2>/dev/null || true)
     [[ "${resumeToken}" == "-" ]] && resumeToken=""
 
     datasetExists=false
@@ -153,7 +153,7 @@ function copyZfsVolume() {
 
     if [[ -n "${resumeToken}" ]]; then
       log "Found an interrupted receive for ${pvcVolume}; resuming from the saved token instead of re-copying from scratch"
-      remoteCmd="set -o pipefail; zfs send -t ${resumeToken} | pv | zfs receive -s ${destPool}/${pvcVolume}"
+      remoteCmd="set -o pipefail; zfs send -t ${resumeToken} | pv -f | zfs receive -s ${destPool}/${pvcVolume}"
     elif [[ "${datasetExists}" == "true" ]]; then
       log "ERROR: ${destPool}/${pvcVolume} exists but is neither resumable nor actively copying, and has no recorded exit status. Inspect it manually (zfs list / zfs get receive_resume_token) before re-running."
       exit 1
@@ -161,7 +161,7 @@ function copyZfsVolume() {
       log "Starting copy for ${pvcVolume} to ${destPool} in the background so a local disconnect can't interrupt it (check progress with: kubectl exec -n ${COMMON_NAMESPACE} ${pod} -- chroot /node-fs tail -f ${logFile})"
       remoteCmd="set -o pipefail; \
 zfs snapshot ${sourcePool}/${pvcVolume}@initial && \
-zfs send -c ${sourcePool}/${pvcVolume}@initial | pv | \
+zfs send -c ${sourcePool}/${pvcVolume}@initial | pv -f | \
 zfs receive -s -o compression=${compression} -o recordsize=${recordsize} -o reservation=${reservation} -o mountpoint=legacy ${destPool}/${pvcVolume} && \
 zfs destroy ${destPool}/${pvcVolume}@initial"
     fi
@@ -170,20 +170,80 @@ zfs destroy ${destPool}/${pvcVolume}@initial"
   fi
 
   log "Waiting for copy of ${pvcVolume} to finish"
+  local waitedSeconds=0
   while true; do
-    if exitCode=$(execOnNode "${pod}" "cat ${exitFile} 2>/dev/null"); then
-      if [[ -n "${exitCode}" ]]; then
-        if [[ "${exitCode}" == "0" ]]; then
-          log "Copy for ${pvcVolume} finished successfully"
-          return 0
+    local probe
+    # The remote side always exits 0 here (even when the exit file doesn't exist
+    # yet) so a nonzero/empty result from execOnNode means we genuinely couldn't
+    # reach the pod, not just "still copying" - cat alone would return 1 for a
+    # missing file and we'd misreport an ongoing copy as a connection problem.
+    if probe=$(execOnNode "${pod}" "if [ -f ${exitFile} ]; then cat ${exitFile}; else echo __PENDING__; fi" 2>/dev/null); then
+      if [[ "${probe}" == "__PENDING__" ]]; then
+        if (( waitedSeconds % 300 == 0 )); then
+          log "Still copying ${pvcVolume} (${waitedSeconds}s elapsed); tail ${logFile} in pod ${pod} for live progress"
         fi
-        log "Copy for ${pvcVolume} failed (exit ${exitCode}); see ${logFile} in pod ${pod}. Re-run the script to resume from the saved receive token."
+      elif [[ "${probe}" == "0" ]]; then
+        log "Copy for ${pvcVolume} finished successfully"
+        return 0
+      else
+        log "Copy for ${pvcVolume} failed (exit ${probe}); see ${logFile} in pod ${pod}. Re-run the script to resume from the saved receive token."
         exit 1
       fi
     else
       log "Could not reach pod ${pod} to check copy progress (transient connection issue?); retrying"
     fi
     sleep 30
+    waitedSeconds=$((waitedSeconds + 30))
+  done
+}
+
+# Creates a GCE snapshot asynchronously and polls the operation until it
+# reports done, retrying indefinitely instead of relying on gcloud's own
+# synchronous wait (which gives up after 1800s - too short for a snapshot of
+# a multi-TB disk, even though the snapshot keeps running fine server-side).
+# Only "gcloud compute snapshots create" supports --async among the gcloud
+# calls in this script; disks create/delete and instances attach/detach-disk
+# don't accept it and are fast metadata operations anyway, so they're left
+# as plain synchronous calls.
+function createSnapshotAndWait() {
+  local snapshotName="$1" sourceDiskName="$2" sourceDiskZone="$3" storageLocation="$4"
+  local opName
+
+  opName="$(gcloud compute snapshots create "${snapshotName}" \
+    --project="${GCP_TARGET_PROJECT}" \
+    --source-disk="${sourceDiskName}" \
+    --source-disk-zone="${sourceDiskZone}" \
+    --storage-location="${storageLocation}" \
+    --description="Resize for ${sourceDiskName}" \
+    --async --quiet --format="value(name)")"
+  opName="$(echo "${opName}" | tail -n1 | tr -d '[:space:]')"
+
+  if [[ -z "${opName}" ]]; then
+    log "Failed to start snapshot creation for ${snapshotName}"
+    return 1
+  fi
+
+  log "Snapshot ${snapshotName} creation started (operation ${opName}); waiting for it to complete"
+
+  while true; do
+    local status
+    status="$(gcloud compute operations describe "${opName}" --project="${GCP_TARGET_PROJECT}" --global \
+      --format="value(status)" 2>/dev/null || true)"
+
+    if [[ "${status}" == "DONE" ]]; then
+      local errorInfo
+      errorInfo="$(gcloud compute operations describe "${opName}" --project="${GCP_TARGET_PROJECT}" --global \
+        --format="value(error)" 2>/dev/null || true)"
+      if [[ -n "${errorInfo}" ]]; then
+        log "Snapshot ${snapshotName} operation ${opName} failed: ${errorInfo}"
+        return 1
+      fi
+      log "Snapshot ${snapshotName} completed successfully"
+      return 0
+    fi
+
+    log "Snapshot ${snapshotName} still in progress (operation ${opName}, status=${status:-unknown}); checking again in 60s"
+    sleep 60
   done
 }
 
@@ -304,9 +364,7 @@ EOF
        zpool export ${POOL_NAME}'"
 
     DISK_REGION=$(echo "${DISK_ZONE}" | cut -d '-' -f 1-2)
-    gcloud compute snapshots create "${NEW_DISK_NAME}" --project="${GCP_TARGET_PROJECT}" --source-disk="${NEW_DISK_NAME}" \
-    --source-disk-zone="${DISK_ZONE}" --storage-location="${DISK_REGION}" --description="Resize for ${DISK_NAME}" \
-    --quiet
+    createSnapshotAndWait "${NEW_DISK_NAME}" "${NEW_DISK_NAME}" "${DISK_ZONE}" "${DISK_REGION}"
     gcloud compute instances detach-disk "${INSTANCE_NAME}" --disk="${DISK_NAME}" --zone="${DISK_ZONE}" \
     --project="${GCP_TARGET_PROJECT}" --quiet
     gcloud compute disks delete "${DISK_NAME}" \
