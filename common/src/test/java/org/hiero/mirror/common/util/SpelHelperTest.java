@@ -37,9 +37,10 @@ final class SpelHelperTest {
                 Map.of(),
                 new HashMap<>(),
                 new TreeMap<>());
-        assertThat(values).allSatisfy(value -> assertThat(spelHelper.isNullOrEmpty(value))
-                .as("%s", value.getClass().getName())
-                .isTrue());
+        assertThat(values)
+                .allSatisfy(value -> assertThat(spelHelper.isNullOrEmpty(value))
+                        .as("%s", value.getClass().getName())
+                        .isTrue());
     }
 
     @Test
@@ -50,9 +51,10 @@ final class SpelHelperTest {
                 List.of(1),
                 Set.of(1),
                 Map.of("a", 1));
-        assertThat(values).allSatisfy(value -> assertThat(spelHelper.isNullOrEmpty(value))
-                .as("%s", value)
-                .isFalse());
+        assertThat(values)
+                .allSatisfy(value -> assertThat(spelHelper.isNullOrEmpty(value))
+                        .as("%s", value)
+                        .isFalse());
     }
 
     // Types without an explicit branch are never considered empty

@@ -66,7 +66,7 @@ abstract class AbstractEthereumTransactionParser implements EthereumTransactionP
 
     protected abstract byte[] encode(EthereumTransaction ethereumTransaction);
 
-    protected static List<AccessList> parseAccessList(RLPItem rlpAccessList, String transactionTypeName) {
+    protected static List<AccessList> decodeAccessList(RLPItem rlpAccessList, String transactionTypeName) {
         if (!rlpAccessList.isList()) {
             return List.of();
         }

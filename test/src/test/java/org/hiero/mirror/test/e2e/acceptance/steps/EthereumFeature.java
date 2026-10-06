@@ -68,9 +68,8 @@ public class EthereumFeature extends AbstractEstimateFeature {
         gasConsumedSelector =
                 Objects.requireNonNull(mirrorClient.getContractInfo(evmAddress).getBytecode());
 
-        // Temporarily disable this until we can fix missing bytecode on contract API for EthTx w/ embedded initcode
-        // final var transactionId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        // verifyGasConsumed(transactionId, evmAddress, false);
+        final var transactionId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        verifyGasConsumed(transactionId, evmAddress, false);
     }
 
     @Then("the mirror node REST API should return status {int} for the eth contract creation transaction")

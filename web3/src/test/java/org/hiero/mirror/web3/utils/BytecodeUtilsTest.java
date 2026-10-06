@@ -156,7 +156,8 @@ class BytecodeUtilsTest extends AbstractContractCallServiceTest {
         // A long free memory pointer setup followed by many CODECOPY markers and no RETURN previously caused the
         // greedy quantifiers to backtrack quadratically, the linear scan must reject it well within the timeout.
         final String adversarial = "60806040" + "39".repeat(1_000_000);
-        assertTimeoutPreemptively(Duration.ofSeconds(2), () -> assertThat(BytecodeUtils.isInitBytecode(adversarial))
-                .isFalse());
+        assertTimeoutPreemptively(
+                Duration.ofSeconds(2),
+                () -> assertThat(BytecodeUtils.isInitBytecode(adversarial)).isFalse());
     }
 }

@@ -46,8 +46,11 @@ public class SubscribeMetrics {
     }
 
     private TimeGauge newDurationGauge(Scenario<?, ?> scenario) {
-        return TimeGauge.builder(METRIC_DURATION, scenario, TimeUnit.NANOSECONDS, s -> s.getElapsed()
-                        .toNanos())
+        return TimeGauge.builder(
+                        METRIC_DURATION,
+                        scenario,
+                        TimeUnit.NANOSECONDS,
+                        s -> s.getElapsed().toNanos())
                 .description("How long the subscriber has been running")
                 .tag(TAG_PROTOCOL, scenario.getProtocol().toString())
                 .tag(TAG_SCENARIO, scenario.getName())
