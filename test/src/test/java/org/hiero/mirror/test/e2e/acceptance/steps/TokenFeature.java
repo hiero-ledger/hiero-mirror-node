@@ -290,8 +290,10 @@ public class TokenFeature extends AbstractFeature {
                 .amount(-transferAmount)
                 .isApproval(isApproval);
         var transactions = mirrorTransactionsResponse.getTransactions();
-        assertThat(transactions).hasSize(1).first().satisfies(t -> assertThat(t.getTokenTransfers())
-                .contains(expectedTokenTransfer));
+        assertThat(transactions)
+                .hasSize(1)
+                .first()
+                .satisfies(t -> assertThat(t.getTokenTransfers()).contains(expectedTokenTransfer));
     }
 
     @Given("I delete the allowance on token {token} for {account}")
@@ -805,8 +807,10 @@ public class TokenFeature extends AbstractFeature {
                 .amount(-transferAmount)
                 .isApproval(true);
         var transactions = mirrorTransactionsResponse.getTransactions();
-        assertThat(transactions).hasSize(1).first().satisfies(t -> assertThat(t.getTokenTransfers())
-                .contains(expectedTokenTransfer));
+        assertThat(transactions)
+                .hasSize(1)
+                .first()
+                .satisfies(t -> assertThat(t.getTokenTransfers()).contains(expectedTokenTransfer));
     }
 
     @Then("the mirror node REST API should confirm the NFT transfer and confirm the new owner is {account}")

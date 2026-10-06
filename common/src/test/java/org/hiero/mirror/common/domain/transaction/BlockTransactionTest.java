@@ -577,8 +577,9 @@ final class BlockTransactionTest {
 
         // when, then
         assertThat(blockTransaction)
-                .satisfies(b -> assertThat(b.getEvmTraceData()).isNotNull(), b -> assertThat(b.getTopicMessage())
-                        .isNotNull());
+                .satisfies(
+                        b -> assertThat(b.getEvmTraceData()).isNotNull(),
+                        b -> assertThat(b.getTopicMessage()).isNotNull());
     }
 
     @Test

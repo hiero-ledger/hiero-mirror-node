@@ -129,7 +129,6 @@ hiero:
             /api/v1/transactions/:transactionIdOrHash:
               { "cache-control": "public, max-age=600" }
           timeout: 630000
-        includeHostInLink: false
         keepAliveTimeout: 620000
         limit:
           default: 25

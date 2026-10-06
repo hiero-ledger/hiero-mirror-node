@@ -204,8 +204,9 @@ public class TopicFeature extends AbstractFeature {
 
         assertThat(topic)
                 .isNotNull()
-                .returns(operator.getPublicKey().toStringRaw(), t -> t.getAdminKey()
-                        .getKey())
+                .returns(
+                        operator.getPublicKey().toStringRaw(),
+                        t -> t.getAdminKey().getKey())
                 .returns(TypeEnum.ED25519, t -> topic.getAdminKey().getType())
                 .returns(TopicClient.autoRenewPeriod.getSeconds(), Topic::getAutoRenewPeriod)
                 .returns(deleted, Topic::getDeleted)

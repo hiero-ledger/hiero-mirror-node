@@ -73,8 +73,9 @@ final class FeeScheduleMapperTest {
         assertThat(result)
                 .returns(
                         commonMapper.mapTimestamp(fileData.getConsensusTimestamp()), NetworkFeesResponse::getTimestamp);
-        assertThat(result.getFees()).hasSize(3).isSortedAccordingTo((a, b) -> a.getTransactionType()
-                .compareToIgnoreCase(b.getTransactionType()));
+        assertThat(result.getFees())
+                .hasSize(3)
+                .isSortedAccordingTo((a, b) -> a.getTransactionType().compareToIgnoreCase(b.getTransactionType()));
 
         final var fees = result.getFees();
         assertThat(fees.getFirst())
@@ -103,8 +104,9 @@ final class FeeScheduleMapperTest {
         final var result = feeScheduleMapper.map(feeScheduleFile, exchangeRateFile, Bound.EMPTY, Sort.Direction.DESC);
 
         // then
-        assertThat(result.getFees()).hasSize(3).isSortedAccordingTo((a, b) -> b.getTransactionType()
-                .compareToIgnoreCase(a.getTransactionType()));
+        assertThat(result.getFees())
+                .hasSize(3)
+                .isSortedAccordingTo((a, b) -> b.getTransactionType().compareToIgnoreCase(a.getTransactionType()));
     }
 
     @Test

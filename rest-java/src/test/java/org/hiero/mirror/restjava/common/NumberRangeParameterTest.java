@@ -50,10 +50,12 @@ final class NumberRangeParameterTest {
     @Test
     @DisplayName("getInclusiveValue rejects an unsatisfiable edge bound instead of wrapping to the opposite bound")
     void getInclusiveValueRejectsUnsatisfiableBound() {
-        assertThrows(IllegalArgumentException.class, () -> new NumberRangeParameter(RangeOperator.GT, Long.MAX_VALUE)
-                .getInclusiveValue());
-        assertThrows(IllegalArgumentException.class, () -> new NumberRangeParameter(RangeOperator.LT, Long.MIN_VALUE)
-                .getInclusiveValue());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new NumberRangeParameter(RangeOperator.GT, Long.MAX_VALUE).getInclusiveValue());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new NumberRangeParameter(RangeOperator.LT, Long.MIN_VALUE).getInclusiveValue());
     }
 
     @ParameterizedTest

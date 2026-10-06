@@ -216,8 +216,9 @@ class PublishMetricsTest {
                 .hasSize(1)
                 .first()
                 .returns(SCENARIO_NAME, t -> t.getId().getTag(Tags.TAG_SCENARIO))
-                .returns(TransactionType.CONSENSUS_SUBMIT_MESSAGE.toString(), t -> t.getId()
-                        .getTag(Tags.TAG_TYPE));
+                .returns(
+                        TransactionType.CONSENSUS_SUBMIT_MESSAGE.toString(),
+                        t -> t.getId().getTag(Tags.TAG_TYPE));
 
         if (node != null) {
             iterableAssert

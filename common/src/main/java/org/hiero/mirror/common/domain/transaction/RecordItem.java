@@ -151,11 +151,14 @@ public class RecordItem implements StreamItem {
         if (contractTransactionPredicate == null || !contractTransactionPredicate.test(entityId)) {
             return;
         }
-        getContractTransactions().computeIfAbsent(entityId.getId(), key -> ContractTransaction.builder()
-                .entityId(key)
-                .payerAccountId(payerAccountId.getId())
-                .consensusTimestamp(consensusTimestamp)
-                .build());
+        getContractTransactions()
+                .computeIfAbsent(
+                        entityId.getId(),
+                        key -> ContractTransaction.builder()
+                                .entityId(key)
+                                .payerAccountId(payerAccountId.getId())
+                                .consensusTimestamp(consensusTimestamp)
+                                .build());
     }
 
     public void addEntityId(final EntityId entityId) {
@@ -192,9 +195,10 @@ public class RecordItem implements StreamItem {
                     .type(transactionType);
         }
 
-        getEntityTransactions().computeIfAbsent(entityId.getId(), id -> entityTransactionBuilder
-                .entityId(id)
-                .build());
+        getEntityTransactions()
+                .computeIfAbsent(
+                        entityId.getId(),
+                        id -> entityTransactionBuilder.entityId(id).build());
     }
 
     public Map<Long, EntityTransaction> getEntityTransactions() {

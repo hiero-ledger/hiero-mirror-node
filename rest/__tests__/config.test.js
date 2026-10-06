@@ -50,8 +50,8 @@ afterEach(() => {
 
 const assertCustomConfig = (actual, customConfig) => {
   // fields custom doesn't override
-  expect(actual.rest.response.includeHostInLink).toBe(false);
   expect(actual.rest.log.level).toBe('info');
+  expect(actual.rest.metrics.enabled).toBe(true);
 
   // fields overridden by custom
   expect(Number(actual.common.realm)).toBe(customConfig.hedera.mirror.common.realm);
@@ -71,7 +71,7 @@ describe('Load YAML configuration:', () => {
   test('./config/application.yml', async () => {
     const config = await loadConfig();
     expect(config.common.shard).not.toBeNull();
-    expect(config.rest.response.includeHostInLink).toBe(false);
+    expect(config.rest.metrics.enabled).toBe(true);
     expect(config.rest.log.level).toBe('info');
   });
 
@@ -126,9 +126,9 @@ describe('Load environment configuration:', () => {
   });
 
   test('Boolean', async () => {
-    process.env['HIERO_MIRROR_REST_RESPONSE_INCLUDEHOSTINLINK'] = 'true';
+    process.env['HIERO_MIRROR_REST_METRICS_ENABLED'] = 'false';
     const config = await loadConfig();
-    expect(config.rest.response.includeHostInLink).toBe(true);
+    expect(config.rest.metrics.enabled).toBe(false);
   });
 
   test('Camel case', async () => {

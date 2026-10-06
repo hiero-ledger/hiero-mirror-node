@@ -1963,11 +1963,13 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
         EntityId entityId = EntityId.of(contractId);
         byte[] evmAddress = getEvmAddress(contractIdType, entityId);
         ContractID protoContractId = getContractId(CONTRACT_ID, evmAddress);
-        var builder = domainBuilder.entity().customize(c -> c.evmAddress(evmAddress)
-                .id(entityId.getId())
-                .num(entityId.getNum())
-                .ethereumNonce(1L)
-                .type(CONTRACT));
+        var builder = domainBuilder
+                .entity()
+                .customize(c -> c.evmAddress(evmAddress)
+                        .id(entityId.getId())
+                        .num(entityId.getNum())
+                        .ethereumNonce(1L)
+                        .type(CONTRACT));
         if (customizer != null) {
             builder.customize(customizer);
         }
