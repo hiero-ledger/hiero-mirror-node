@@ -275,7 +275,7 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
                         .nonce(nonce)
                         .scheduled(false)
                         .parentConsensusTimestamp(parentConsensusTimestamp)
-                        .entityId(EntityId.of(0L, 0L, RecordItem.HOOK_CONTRACT_NUM)))
+                        .entityId(hookContractId()))
                 .persist();
     }
 
@@ -293,11 +293,14 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
         domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
-                        .contractId(EntityId.of(0L, 0L, RecordItem.HOOK_CONTRACT_NUM)
-                                .getId())
+                        .contractId(hookContractId().getId())
                         .transactionIndex(existingIndex)
                         .gasUsed(100L))
                 .persist();
+    }
+
+    private EntityId hookContractId() {
+        return EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), RecordItem.HOOK_CONTRACT_NUM);
     }
 
     private void persistContractLog(long consensusTimestamp, Integer existingIndex) {
