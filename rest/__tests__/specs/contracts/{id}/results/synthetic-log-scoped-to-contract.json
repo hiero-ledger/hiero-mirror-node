@@ -1,6 +1,11 @@
 {
   "description": "Contract-scoped results include only the queried contract's synthetic log, not another contract's",
   "setup": {
+    "config": {
+      "query": {
+        "syntheticContractIdResults": true
+      }
+    },
     "contracts": [
       {
         "created_timestamp": "187654000123000",

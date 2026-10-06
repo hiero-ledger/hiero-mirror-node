@@ -211,8 +211,9 @@ public final class BlockStreamReaderTest {
                 .returns(loadStart, BlockFile::getLoadStart)
                 .returns(bytes.length, BlockFile::getSize)
                 .returns(BlockStreamReader.VERSION, BlockFile::getVersion)
-                .satisfies(b -> assertThat(b.getHash()).isNotNull(), b -> assertThat(b.getPreviousHash())
-                        .isNotNull())
+                .satisfies(
+                        b -> assertThat(b.getHash()).isNotNull(),
+                        b -> assertThat(b.getPreviousHash()).isNotNull())
                 .extracting(BlockFile::getRecordFile)
                 .returns(expectedInitialState, RecordFile::getInitialState)
                 .returns(loadStart, RecordFile::getLoadStart)

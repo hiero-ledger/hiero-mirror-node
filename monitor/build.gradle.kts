@@ -11,6 +11,7 @@ dependencies {
     implementation(platform("io.fabric8:kubernetes-client-bom"))
     implementation(project(":common")) { isTransitive = false }
     implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.google.guava:guava")
     implementation("com.hedera.hashgraph:sdk")
     implementation("io.fabric8:kubernetes-client") {
