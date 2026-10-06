@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
+import static org.hiero.mirror.web3.utils.HexUtils.convertHexStringToLong;
 import static org.hiero.mirror.web3.utils.HexUtils.convertLongToHexString;
 import static org.hiero.mirror.web3.utils.HexUtils.convertValueToHexString;
-import static org.hiero.mirror.web3.utils.HexUtils.parseHexLong;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_EXECUTING;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_SUSPENDED;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.EXCEPTIONAL_HALT;
@@ -153,7 +153,7 @@ public class ActionTracer implements ActionSidecarContentTracer {
         if (action == null) {
             return;
         }
-        final var gasUsed = Math.max(0L, parseHexLong(action.getGas()) - frame.getRemainingGas());
+        final var gasUsed = Math.max(0L, convertHexStringToLong(action.getGas()) - frame.getRemainingGas());
         actionContext.finalizeAction(
                 frame.getDepth(),
                 haltError(frame),

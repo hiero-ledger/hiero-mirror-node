@@ -70,13 +70,13 @@ class HexUtilsTest {
     @CsvSource({"'0x0',0", "'0x1',1", "'0xa',10", "'0xff',255", "'0x100',256", "'ff',255", "'0X10',16", "'0x',0", "'',0"
     })
     @ParameterizedTest
-    void parseHexLong(String hex, long expected) {
-        assertThat(HexUtils.parseHexLong(hex)).isEqualTo(expected);
+    void convertHexStringToLong(String hex, long expected) {
+        assertThat(HexUtils.convertHexStringToLong(hex)).isEqualTo(expected);
     }
 
     @Test
-    void parseHexLongReturnsZeroForNull() {
-        assertThat(HexUtils.parseHexLong(null)).isEqualTo(0L);
+    void convertHexStringToLongReturnsZeroForNull() {
+        assertThat(HexUtils.convertHexStringToLong(null)).isEqualTo(0L);
     }
 
     @CsvSource({"'0x0',0", "'0x100',256", "'0X65f9e0c0',1710874816", "'256',256", "' 16 ',16"})

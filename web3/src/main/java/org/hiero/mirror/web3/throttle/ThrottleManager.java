@@ -10,7 +10,7 @@ public interface ThrottleManager {
 
     void throttleOpcodeRequest();
 
-    void throttleTraceRequest(ContractCallRequest request);
+    void throttleTraceRequest(int requestCount, long totalGas);
 
     void restore(long gas);
 }

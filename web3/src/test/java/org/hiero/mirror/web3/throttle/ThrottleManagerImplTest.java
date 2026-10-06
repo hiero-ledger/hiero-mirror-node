@@ -87,7 +87,8 @@ final class ThrottleManagerImplTest {
 
     @Test
     void traceRequestNotThrottled() {
-        throttleManager.throttleTraceRequest(request());
+        var request = request();
+        throttleManager.throttleTraceRequest(1, request.getGas());
     }
 
     @Test
@@ -97,8 +98,18 @@ final class ThrottleManagerImplTest {
         var request = request();
         request.setGas(21_000L);
 
-        throttleManager.throttleTraceRequest(request);
-        assertThatThrownBy(() -> throttleManager.throttleTraceRequest(request()))
+        throttleManager.throttleTraceRequest(1, request.getGas());
+        assertThatThrownBy(
+                        () -> throttleManager.throttleTraceRequest(1, request().getGas()))
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    void throttleTraceRequestBatchRateLimit() {
+        throttleProperties.setTraceRequestsPerSecond(1);
+        throttleManager = createThrottleManager();
+        assertThatThrownBy(() -> throttleManager.throttleTraceRequest(2, 21_000L))
                 .isInstanceOf(ThrottleException.class)
                 .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
     }
@@ -106,8 +117,16 @@ final class ThrottleManagerImplTest {
     @Test
     void throttleTraceRequestGasLimit() {
         var request = request();
-        throttleManager.throttleTraceRequest(request);
-        assertThatThrownBy(() -> throttleManager.throttleTraceRequest(request()))
+        throttleManager.throttleTraceRequest(1, request.getGas());
+        assertThatThrownBy(
+                        () -> throttleManager.throttleTraceRequest(1, request().getGas()))
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(GAS_PER_SECOND_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    void throttleTraceRequestBatchGasLimit() {
+        assertThatThrownBy(() -> throttleManager.throttleTraceRequest(2, GAS_PER_SECOND * 2))
                 .isInstanceOf(ThrottleException.class)
                 .hasMessageContaining(GAS_PER_SECOND_LIMIT_EXCEEDED);
     }
@@ -115,9 +134,9 @@ final class ThrottleManagerImplTest {
     @Test
     void restoreAfterTraceRequest() {
         var request = request();
-        throttleManager.throttleTraceRequest(request);
+        throttleManager.throttleTraceRequest(1, request.getGas());
         throttleManager.restore(request.getGas());
-        throttleManager.throttleTraceRequest(request);
+        throttleManager.throttleTraceRequest(1, request.getGas());
     }
 
     @Test

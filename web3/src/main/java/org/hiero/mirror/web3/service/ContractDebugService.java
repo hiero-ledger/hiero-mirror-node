@@ -34,6 +34,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class ContractDebugService extends ContractCallService {
     private final ContractActionRepository contractActionRepository;
+    private final ThrottleManager throttleManager;
 
     @SuppressWarnings("java:S107")
     public ContractDebugService(
@@ -52,6 +53,7 @@ public class ContractDebugService extends ContractCallService {
                 evmProperties,
                 transactionExecutionService);
         this.contractActionRepository = contractActionRepository;
+        this.throttleManager = throttleManager;
     }
 
     public OpcodesProcessingResult processOpcodeCall(
@@ -81,17 +83,20 @@ public class ContractDebugService extends ContractCallService {
             for (final var traceRequest : traceRequests) {
                 actionContext.setOnlyTopCall(traceRequest.isOnlyTopCall());
                 actionContext.beginCall();
-                ctx.applyStateOverrides(
-                        traceRequest.getContractExecutionParameters().getStateOverrides());
-                ctx.applyBlockOverride(traceRequest.getBlockOverride());
+                final var params = traceRequest.getContractExecutionParameters();
                 try {
-                    callContract(traceRequest.getContractExecutionParameters(), ctx);
+                    ctx.applyStateOverrides(params.getStateOverrides());
+                    ctx.applyBlockOverride(traceRequest.getBlockOverride());
+                    callContract(params, ctx);
                 } catch (final QueryTimeoutException e) {
                     throw new TraceTimeoutException(actionResponse(ctx));
                 } catch (final MirrorEvmTransactionException e) {
                     if (actionContext.isTimedOut()) {
                         throw new TraceTimeoutException(actionResponse(ctx));
                     }
+                    throw e;
+                } catch (final IllegalArgumentException | InvalidParametersException e) {
+                    throttleManager.restore(params.getGas());
                     throw e;
                 }
                 if (actionContext.isTimedOut()) {

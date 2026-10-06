@@ -9,14 +9,16 @@ import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.utils.Constants.ACTIONS_CALL_URI;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
+import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ACCESS_LIST_MAX_SIZE;
+import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.AUTHORIZATION_LIST_MAX_SIZE;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_ACCEPTABLE;
@@ -271,7 +273,7 @@ final class ContractControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(convert(TRACE_RESPONSES)));
 
-        verify(throttleManager).throttleTraceRequest(any());
+        verify(throttleManager).throttleTraceRequest(1, request.getGas());
         verify(contractDebugService)
                 .processTraceCall(argThat(
                         (List<TraceRequest> requests) -> isSingleTrace(requests, false, Duration.ofSeconds(4))));
@@ -293,7 +295,7 @@ final class ContractControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(convert(List.of(TRACE_RESPONSE, secondResponse))));
 
-        verify(throttleManager, times(2)).throttleTraceRequest(any());
+        verify(throttleManager).throttleTraceRequest(2, first.getGas() + second.getGas());
         verify(contractDebugService).processTraceCall(argThat((List<TraceRequest> requests) -> requests.size() == 2));
     }
 
@@ -302,7 +304,7 @@ final class ContractControllerTest {
         enableActionsApi();
         contractActionsCall(List.of()).andExpect(status().isBadRequest());
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(throttleManager, never()).throttleTraceRequest(any());
+        verify(throttleManager, never()).throttleTraceRequest(anyInt(), anyLong());
     }
 
     @Test
@@ -315,7 +317,7 @@ final class ContractControllerTest {
 
         contractActionsCall(request, true).andExpect(status().isOk());
 
-        verify(throttleManager).throttleTraceRequest(any());
+        verify(throttleManager).throttleTraceRequest(1, request.getGas());
         verify(contractDebugService)
                 .processTraceCall(
                         argThat((List<TraceRequest> requests) -> isSingleTrace(requests, true, Duration.ofSeconds(4))));
@@ -332,7 +334,7 @@ final class ContractControllerTest {
 
         contractActionsCall(request, null, timeout).andExpect(status().isOk());
 
-        verify(throttleManager).throttleTraceRequest(any());
+        verify(throttleManager).throttleTraceRequest(1, request.getGas());
         verify(contractDebugService)
                 .processTraceCall(argThat(
                         (List<TraceRequest> requests) -> isSingleTrace(requests, false, Duration.ofSeconds(4))));
@@ -348,7 +350,7 @@ final class ContractControllerTest {
 
         contractActionsCall(request, null, "1s").andExpect(status().isOk());
 
-        verify(throttleManager).throttleTraceRequest(any());
+        verify(throttleManager).throttleTraceRequest(1, request.getGas());
         verify(contractDebugService)
                 .processTraceCall(argThat(
                         (List<TraceRequest> requests) -> isSingleTrace(requests, false, Duration.ofSeconds(1))));
@@ -365,7 +367,7 @@ final class ContractControllerTest {
 
         contractActionsCall(request, null, timeout).andExpect(status().isOk());
 
-        verify(throttleManager).throttleTraceRequest(any());
+        verify(throttleManager).throttleTraceRequest(1, request.getGas());
         verify(contractDebugService)
                 .processTraceCall(argThat(
                         (List<TraceRequest> requests) -> isSingleTrace(requests, false, Duration.ofSeconds(4))));
@@ -380,14 +382,14 @@ final class ContractControllerTest {
 
         contractActionsCall(request, null, timeout).andExpect(status().isBadRequest());
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(throttleManager, never()).throttleTraceRequest(any());
+        verify(throttleManager, never()).throttleTraceRequest(anyInt(), anyLong());
     }
 
     @Test
     void actionsCallExceedingRateLimit() throws Exception {
         enableActionsApi();
         final var request = request();
-        doThrow(new ThrottleException("")).when(throttleManager).throttleTraceRequest(any());
+        doThrow(new ThrottleException("")).when(throttleManager).throttleTraceRequest(anyInt(), anyLong());
 
         contractActionsCall(request).andExpect(status().isTooManyRequests());
         verify(contractDebugService, never()).processTraceCall(any());
@@ -402,7 +404,7 @@ final class ContractControllerTest {
 
         contractActionsCall(request).andExpect(status().isBadRequest());
         verify(contractDebugService).processTraceCall(any());
-        verify(throttleManager).restore(request.getGas());
+        verify(throttleManager, never()).restore(anyLong());
     }
 
     @Test
@@ -419,7 +421,7 @@ final class ContractControllerTest {
                 .andExpect(content().string(new StringContains(NOT_ACCEPTABLE.getReasonPhrase())))
                 .andExpect(content().string(new StringContains(GzipEncoding.MISSING_GZIP_HEADER_MESSAGE)));
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(throttleManager, never()).throttleTraceRequest(any());
+        verify(throttleManager, never()).throttleTraceRequest(anyInt(), anyLong());
     }
 
     @Test
@@ -431,7 +433,7 @@ final class ContractControllerTest {
 
         contractActionsCall(request).andExpect(status().isBadRequest());
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(throttleManager, never()).throttleTraceRequest(any());
+        verify(throttleManager, never()).throttleTraceRequest(anyInt(), anyLong());
     }
 
     @Test
@@ -482,7 +484,7 @@ final class ContractControllerTest {
 
         contractActionsCall(request).andExpect(status().isNotImplemented());
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(throttleManager, never()).throttleTraceRequest(any());
+        verify(throttleManager, never()).throttleTraceRequest(anyInt(), anyLong());
     }
 
     @Test
@@ -593,11 +595,13 @@ final class ContractControllerTest {
         request.setValue(0);
         final var entry = new AccessListEntry();
         entry.setAddress("0x00000000000000000000000000000000000004e4");
-        request.setAccessList(Collections.nCopies(1_001, entry));
+        request.setAccessList(Collections.nCopies(ACCESS_LIST_MAX_SIZE + 1, entry));
 
         contractActionsCall(request)
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string(new StringContains("accessList field size must be between 0 and 1000")));
+                .andExpect(content()
+                        .string(new StringContains(
+                                "accessList field size must be between 0 and %d".formatted(ACCESS_LIST_MAX_SIZE))));
         verify(contractDebugService, never()).processTraceCall(any());
     }
 
@@ -608,12 +612,13 @@ final class ContractControllerTest {
         request.setValue(0);
         final var entry = new AuthorizationListEntry();
         entry.setAddress("0x00000000000000000000000000000000000004e4");
-        request.setAuthorizationList(Collections.nCopies(1_001, entry));
+        request.setAuthorizationList(Collections.nCopies(AUTHORIZATION_LIST_MAX_SIZE + 1, entry));
 
         contractActionsCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content()
-                        .string(new StringContains("authorizationList field size must be between 0 and 1000")));
+                        .string(new StringContains("authorizationList field size must be between 0 and %d"
+                                .formatted(AUTHORIZATION_LIST_MAX_SIZE))));
         verify(contractDebugService, never()).processTraceCall(any());
     }
 

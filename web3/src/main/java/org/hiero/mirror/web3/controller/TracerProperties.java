@@ -13,8 +13,6 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class TracerProperties {
 
-    private boolean enabled = false;
-
     @NotNull
     private Duration maxTimeout = Duration.ofSeconds(10);
 }

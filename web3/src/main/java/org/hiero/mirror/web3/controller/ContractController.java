@@ -100,16 +100,8 @@ class ContractController {
                     resolveTimeout(request.getTimeout()),
                     request.getBlockOverride()));
         }
-        for (final var request : requests) {
-            throttleManager.throttleTraceRequest(request);
-        }
-
-        try {
-            return contractDebugService.processTraceCall(traceRequests);
-        } catch (IllegalArgumentException | InvalidParametersException e) {
-            throttleManager.restore(totalGas);
-            throw e;
-        }
+        throttleManager.throttleTraceRequest(requests.size(), totalGas);
+        return contractDebugService.processTraceCall(traceRequests);
     }
 
     private void validateActionsRequest(final ActionTraceRequest request) {

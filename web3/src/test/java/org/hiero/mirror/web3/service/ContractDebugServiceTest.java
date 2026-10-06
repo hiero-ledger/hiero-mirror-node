@@ -6,11 +6,15 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REVERT_REASON;
 import static com.hedera.services.stream.proto.ContractActionType.SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
@@ -35,12 +39,14 @@ import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.service.model.TraceRequest;
+import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -50,6 +56,7 @@ import org.hiero.mirror.web3.web3j.generated.InternalCaller;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
@@ -60,6 +67,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
     @MockitoBean
     private ContractActionRepository contractActionRepository;
+
+    @MockitoSpyBean
+    private ThrottleManager throttleManager;
 
     @Test
     void processOpcodeCallMapsRevertedActionsToCorrectDepths() {
@@ -264,6 +274,43 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         assertThat(result).containsExactly(first, second);
         assertThat(remaining).isEmpty();
+    }
+
+    @Test
+    void processTraceCallRestoresFailedRequestGas() {
+        clearInvocations(throttleManager);
+        final var first = action("0x01", TypeEnum.CALL);
+        doAnswer(invocation -> {
+                    final var ctx = ContractCallContext.get();
+                    ctx.getActionContext().addAction(first, 0);
+                    return new EvmTransactionResult(
+                            SUCCESS,
+                            ContractFunctionResult.newBuilder()
+                                    .gasUsed(TRANSACTION_GAS_LIMIT)
+                                    .build());
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+
+        final var failedParams = ContractExecutionParameters.builder()
+                .block(BlockType.LATEST)
+                .callData(new byte[0])
+                .callType(ETH_CALL)
+                .gas(TRANSACTION_GAS_LIMIT / 2)
+                .receiver(Address.ZERO)
+                .sender(Address.ZERO)
+                .value(0L)
+                .build();
+        final var invalidOverride = new BlockOverride();
+        invalidOverride.setNumber("0xzz");
+
+        assertThatThrownBy(() -> contractDebugService.processTraceCall(List.of(
+                        new TraceRequest(executionParameters(), false, DEFAULT_TIMEOUT, null),
+                        new TraceRequest(failedParams, false, DEFAULT_TIMEOUT, invalidOverride))))
+                .isInstanceOf(InvalidParametersException.class)
+                .hasMessageContaining("Invalid block_override");
+        verify(throttleManager).restore(failedParams.getGas());
+        verify(throttleManager, never()).restore(TRANSACTION_GAS_LIMIT);
     }
 
     /**

@@ -149,7 +149,7 @@ public class TransactionExecutionService {
         } else {
             final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
 
-            if (collectsTrace(ContractCallContext.get())) {
+            if (shouldCollectTrace(ContractCallContext.get())) {
                 // Opcode and action traces need the failed result so collected data can be serialized.
                 return new EvmTransactionResult(status, result);
             }
@@ -309,7 +309,7 @@ public class TransactionExecutionService {
         throw new MirrorEvmTransactionException(PAYER_ACCOUNT_NOT_FOUND, message, StringUtils.EMPTY);
     }
 
-    private boolean collectsTrace(final ContractCallContext ctx) {
+    private boolean shouldCollectTrace(final ContractCallContext ctx) {
         return ctx.getOpcodeContext() != null || ctx.getActionContext() != null;
     }
 

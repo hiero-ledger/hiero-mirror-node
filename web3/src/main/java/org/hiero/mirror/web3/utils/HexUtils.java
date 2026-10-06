@@ -33,7 +33,7 @@ public class HexUtils {
         return "0x" + hex.substring(start);
     }
 
-    public static long parseHexLong(final @Nullable String hex) {
+    public static long convertHexStringToLong(final @Nullable String hex) {
         if (hex == null || hex.isEmpty()) {
             return 0L;
         }
@@ -50,7 +50,7 @@ public class HexUtils {
     public static long parseValue(final String value) {
         final var trimmed = value.trim();
         if (trimmed.startsWith("0x") || trimmed.startsWith("0X")) {
-            return parseHexLong(trimmed);
+            return convertHexStringToLong(trimmed);
         }
         return Long.parseUnsignedLong(trimmed, 10);
     }

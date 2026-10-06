@@ -28,8 +28,8 @@ public class ContractCallRequest {
 
     public static final int ADDRESS_LENGTH = 40;
     public static final long DATA_MAX_LENGTH = 300_000L;
-    public static final int ACCESS_LIST_MAX_SIZE = 1_000;
-    public static final int AUTHORIZATION_LIST_MAX_SIZE = 1_000;
+    public static final int ACCESS_LIST_MAX_SIZE = 7000;
+    public static final int AUTHORIZATION_LIST_MAX_SIZE = 1500;
 
     @JsonSerialize(using = BlockTypeSerializer.class)
     @JsonSetter(nulls = Nulls.SKIP)
