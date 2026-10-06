@@ -245,8 +245,9 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
 
     @Override
     protected void validateEthereumTransaction(EthereumTransaction ethereumTransaction) {
-        assertThat(ethereumTransaction).isNotNull().satisfies(t -> assertThat(t.getChainId())
-                .isNotEmpty());
+        assertThat(ethereumTransaction)
+                .isNotNull()
+                .satisfies(t -> assertThat(t.getChainId()).isNotEmpty());
     }
 
     private static Stream<Arguments> emptyAccessListHashCases() {

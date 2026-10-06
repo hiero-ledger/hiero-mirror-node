@@ -265,19 +265,20 @@ class ConsensusUpdateTopicTransactionHandlerTest extends AbstractTransactionHand
     }
 
     private void assertEntity(long timestamp, EntityId topicId, Long expectedAutoRenewAccountId) {
-        verify(entityListener, times(1)).onEntity(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(expectedAutoRenewAccountId, Entity::getAutoRenewAccountId)
-                .satisfies(e -> assertThat(e.getAutoRenewPeriod()).isPositive())
-                .returns(null, Entity::getCreatedTimestamp)
-                .returns(false, Entity::getDeleted)
-                .satisfies(e -> assertThat(e.getExpirationTimestamp()).isPositive())
-                .returns(topicId.getId(), Entity::getId)
-                .returns(topicId.getNum(), Entity::getNum)
-                .returns(topicId.getRealm(), Entity::getRealm)
-                .returns(topicId.getShard(), Entity::getShard)
-                .returns(Range.atLeast(timestamp), Entity::getTimestampRange)
-                .returns(TOPIC, Entity::getType)));
+        verify(entityListener, times(1))
+                .onEntity(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(expectedAutoRenewAccountId, Entity::getAutoRenewAccountId)
+                        .satisfies(e -> assertThat(e.getAutoRenewPeriod()).isPositive())
+                        .returns(null, Entity::getCreatedTimestamp)
+                        .returns(false, Entity::getDeleted)
+                        .satisfies(e -> assertThat(e.getExpirationTimestamp()).isPositive())
+                        .returns(topicId.getId(), Entity::getId)
+                        .returns(topicId.getNum(), Entity::getNum)
+                        .returns(topicId.getRealm(), Entity::getRealm)
+                        .returns(topicId.getShard(), Entity::getShard)
+                        .returns(Range.atLeast(timestamp), Entity::getTimestampRange)
+                        .returns(TOPIC, Entity::getType)));
     }
 
     private void assertTopic(
@@ -287,13 +288,14 @@ class ConsensusUpdateTopicTransactionHandlerTest extends AbstractTransactionHand
             byte[] expectedFeeExemptKeyList,
             byte[] expectedFeeScheduleKey,
             byte[] expectedSubmitKey) {
-        verify(entityListener).onTopic(assertArg(t -> assertThat(t)
-                .returns(expectedAdminKey, Topic::getAdminKey)
-                .returns(null, Topic::getCreatedTimestamp)
-                .returns(expectedFeeExemptKeyList, Topic::getFeeExemptKeyList)
-                .returns(expectedFeeScheduleKey, Topic::getFeeScheduleKey)
-                .returns(id, Topic::getId)
-                .returns(expectedSubmitKey, Topic::getSubmitKey)
-                .returns(Range.atLeast(timestamp), Topic::getTimestampRange)));
+        verify(entityListener)
+                .onTopic(assertArg(t -> assertThat(t)
+                        .returns(expectedAdminKey, Topic::getAdminKey)
+                        .returns(null, Topic::getCreatedTimestamp)
+                        .returns(expectedFeeExemptKeyList, Topic::getFeeExemptKeyList)
+                        .returns(expectedFeeScheduleKey, Topic::getFeeScheduleKey)
+                        .returns(id, Topic::getId)
+                        .returns(expectedSubmitKey, Topic::getSubmitKey)
+                        .returns(Range.atLeast(timestamp), Topic::getTimestampRange)));
     }
 }

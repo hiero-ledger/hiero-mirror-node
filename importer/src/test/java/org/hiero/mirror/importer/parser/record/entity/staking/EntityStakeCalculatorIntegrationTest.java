@@ -400,7 +400,8 @@ final class EntityStakeCalculatorIntegrationTest extends ImporterIntegrationTest
     }
 
     private DomainWrapper<EntityStake, EntityStake.EntityStakeBuilder<?, ?>> fromEntity(Entity entity) {
-        return domainBuilder.entityStake().customize(es -> es.id(entity.getId())
-                .stakedNodeIdStart(entity.getStakedNodeId()));
+        return domainBuilder
+                .entityStake()
+                .customize(es -> es.id(entity.getId()).stakedNodeIdStart(entity.getStakedNodeId()));
     }
 }
