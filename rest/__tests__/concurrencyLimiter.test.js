@@ -69,6 +69,17 @@ describe('limitConcurrency', () => {
     await Promise.all(pending);
   });
 
+  test('passes next through to the handler', async () => {
+    const handler = jest.fn();
+    const next = jest.fn();
+    const limited = limitConcurrency(handler, {applies, max: 1, name: 'test'});
+
+    await limited(limitedRequest, res, next);
+    await limited(unlimitedRequest, res, next);
+    expect(handler).toHaveBeenNthCalledWith(1, limitedRequest, res, next);
+    expect(handler).toHaveBeenNthCalledWith(2, unlimitedRequest, res, next);
+  });
+
   test('max of 0 disables the limit', () => {
     const handler = jest.fn();
     expect(limitConcurrency(handler, {applies, max: 0, name: 'test'})).toBe(handler);

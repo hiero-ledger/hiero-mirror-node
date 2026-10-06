@@ -23,9 +23,9 @@ const limitConcurrency = (handler, {applies, max, name}) => {
   }
 
   let active = 0;
-  return async (req, res) => {
+  return async (req, res, next) => {
     if (!applies(req)) {
-      return handler(req, res);
+      return handler(req, res, next);
     }
 
     if (active >= max) {
@@ -34,7 +34,7 @@ const limitConcurrency = (handler, {applies, max, name}) => {
 
     active += 1;
     try {
-      return await handler(req, res);
+      return await handler(req, res, next);
     } finally {
       active -= 1;
     }
