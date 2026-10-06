@@ -6,7 +6,6 @@ import static org.hiero.mirror.common.util.DomainUtils.createSha256Digest;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 
 import java.security.MessageDigest;
-import org.hiero.mirror.common.domain.DigestAlgorithm;
 
 final class ShaMessageDigestFactory {
 
@@ -14,12 +13,10 @@ final class ShaMessageDigestFactory {
     static final int SHA_384_SIZE = 48;
 
     static MessageDigest createMessageDigest(final int digestSize) {
-        if (digestSize == DigestAlgorithm.SHA_256.getSize()) {
-            return createSha256Digest();
-        } else if (digestSize == DigestAlgorithm.SHA_384.getSize()) {
-            return createSha384Digest();
-        }
-
-        throw new IllegalArgumentException("Unsupported digest size " + digestSize);
+        return switch (digestSize) {
+            case SHA_256_SIZE -> createSha256Digest();
+            case SHA_384_SIZE -> createSha384Digest();
+            default -> throw new IllegalArgumentException("Unsupported digest size " + digestSize);
+        };
     }
 }
