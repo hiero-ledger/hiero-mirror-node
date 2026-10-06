@@ -46,7 +46,7 @@ class NftRepositoryTest extends ImporterIntegrationTest {
                 .nft()
                 .customize(n -> n.accountId(oldTreasury).tokenId(tokenId))
                 .persist();
-        // The history row should preserve the delegating spender and spender
+        // The delegating spender and spender should be preserved on both the history row and the current row
         var nft3 = domainBuilder
                 .nft()
                 .customize(n -> n.accountId(oldTreasury)
@@ -77,11 +77,11 @@ class NftRepositoryTest extends ImporterIntegrationTest {
                 .containsExactlyInAnyOrder(tokenAccountOldTreasury, tokenAccountNewTreasury);
 
         var expectedNftList = Stream.concat(
-                        Stream.of(nft1, nft2, nft3).map(Nft::toBuilder).map(n -> n.accountId(newTreasury)
-                                .delegatingSpender(null)
-                                .spender(null)
-                                .timestampRange(Range.atLeast(updateTimestamp))
-                                .build()),
+                        Stream.of(nft1, nft2, nft3)
+                                .map(Nft::toBuilder)
+                                .map(n -> n.accountId(newTreasury)
+                                        .timestampRange(Range.atLeast(updateTimestamp))
+                                        .build()),
                         Stream.of(nft4, nft5, nft6))
                 .toList();
         // The only change to the history rows is closing the timestamp range

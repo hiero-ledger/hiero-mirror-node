@@ -136,9 +136,11 @@ final class CompositeRecordFileItemReaderTest {
         final var recordFile = reader.read(recordFileItem, 6);
 
         // then
-        assertRecordFileWithSidecars(recordFile, items -> assertThat(items)
-                .extracting(recordItem -> recordItem.getSidecarRecords().size())
-                .containsExactly(3, 0));
+        assertRecordFileWithSidecars(
+                recordFile,
+                items -> assertThat(items)
+                        .extracting(recordItem -> recordItem.getSidecarRecords().size())
+                        .containsExactly(3, 0));
     }
 
     @ParameterizedTest
@@ -154,9 +156,11 @@ final class CompositeRecordFileItemReaderTest {
         final var recordFile = reader.read(recordFileItem, 6);
 
         // then
-        assertRecordFileWithSidecars(recordFile, items -> assertThat(items)
-                .extracting(recordItem -> recordItem.getSidecarRecords().size())
-                .containsExactly(1, 0));
+        assertRecordFileWithSidecars(
+                recordFile,
+                items -> assertThat(items)
+                        .extracting(recordItem -> recordItem.getSidecarRecords().size())
+                        .containsExactly(1, 0));
     }
 
     @Test
@@ -174,8 +178,9 @@ final class CompositeRecordFileItemReaderTest {
                 items -> assertThat(items)
                         .extracting(recordItem -> recordItem.getSidecarRecords().size())
                         .containsExactly(3, 0),
-                sidecarFiles -> assertThat(sidecarFiles).allSatisfy(sidecarFile -> assertThat(sidecarFile.getBytes())
-                        .isNotEmpty()));
+                sidecarFiles -> assertThat(sidecarFiles)
+                        .allSatisfy(sidecarFile ->
+                                assertThat(sidecarFile.getBytes()).isNotEmpty()));
     }
 
     @Test
@@ -188,9 +193,11 @@ final class CompositeRecordFileItemReaderTest {
         final var recordFile = reader.read(recordFileItem, 6);
 
         // then
-        assertRecordFileWithSidecars(recordFile, items -> assertThat(items)
-                .extracting(recordItem -> recordItem.getSidecarRecords().size())
-                .containsOnly(0));
+        assertRecordFileWithSidecars(
+                recordFile,
+                items -> assertThat(items)
+                        .extracting(recordItem -> recordItem.getSidecarRecords().size())
+                        .containsOnly(0));
     }
 
     @Test
@@ -230,9 +237,11 @@ final class CompositeRecordFileItemReaderTest {
         final var recordFile = reader.read(recordFileItem, 6);
 
         // then
-        assertRecordFileWithSidecars(recordFile, items -> assertThat(items)
-                .extracting(recordItem -> recordItem.getSidecarRecords().size())
-                .containsExactly(3, 0));
+        assertRecordFileWithSidecars(
+                recordFile,
+                items -> assertThat(items)
+                        .extracting(recordItem -> recordItem.getSidecarRecords().size())
+                        .containsExactly(3, 0));
         assertThat(output.getAll())
                 .contains(
                         "Recoverable error. Missing sidecar file content for id %d of wrapped record file 2025-08-02T02_55_14.210243Z.rcd"
@@ -419,8 +428,11 @@ final class CompositeRecordFileItemReaderTest {
 
     private static void assertRecordFileWithSidecars(
             final RecordFile recordFile, final ThrowingConsumer<List<? extends RecordItem>> recordItemAssertion) {
-        assertRecordFileWithSidecars(recordFile, recordItemAssertion, sidecars -> assertThat(sidecars)
-                .allSatisfy(sidecar -> assertThat(sidecar.getBytes()).isNull()));
+        assertRecordFileWithSidecars(
+                recordFile,
+                recordItemAssertion,
+                sidecars -> assertThat(sidecars)
+                        .allSatisfy(sidecar -> assertThat(sidecar.getBytes()).isNull()));
     }
 
     private static void assertRecordFileWithSidecars(

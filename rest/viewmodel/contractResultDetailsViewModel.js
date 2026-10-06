@@ -16,6 +16,7 @@ import {WEIBARS_TO_TINYBARS} from '../constants';
  * Contract result details view model
  */
 class ContractResultDetailsViewModel extends ContractResultViewModel {
+  static _HEX_QUANTITY_PATTERN = /^0x[0-9a-fA-F]+$/;
   static _LEGACY_TYPE = 0;
   static _SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
   static _SUCCESS_RESULT = '0x1';
@@ -131,10 +132,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
         this.to = utils.toHexStringNonQuantity(ethTransaction.toAddress);
       }
       this.type = ethTransaction.type;
-      this.v =
-        this.type === ContractResultDetailsViewModel._LEGACY_TYPE && ethTransaction.signatureV
-          ? BigInt(utils.toHexStringNonQuantity(ethTransaction.signatureV))
-          : ethTransaction.recoveryId;
+      this.v = ContractResultDetailsViewModel._toV(this.type, ethTransaction);
 
       if (!isEmpty(ethTransaction.callData)) {
         this.function_parameters = utils.toHexStringNonQuantity(ethTransaction.callData);
@@ -152,6 +150,26 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     if (isNil(ethTransaction) && !convertToHbar && !isNil(contractResult.amount)) {
       this.amount = BigInt(contractResult.amount) * WEIBARS_TO_TINYBARS;
     }
+  }
+
+  /**
+   * Resolves the ethereum transaction `v` field.
+   * Legacy txs encode v as a numeric quantity from signature_v bytes. Empty or otherwise
+   * non-numeric signature_v (empty Buffer → '0x') is chain-controlled and must not throw;
+   * fall back to recovery_id.
+   *
+   * @param {number|null} type
+   * @param {EthereumTransaction} ethTransaction
+   * @returns {bigint|number|null}
+   */
+  static _toV(type, ethTransaction) {
+    if (type === ContractResultDetailsViewModel._LEGACY_TYPE) {
+      const signatureVHex = utils.toHexStringNonQuantity(ethTransaction.signatureV);
+      if (ContractResultDetailsViewModel._HEX_QUANTITY_PATTERN.test(signatureVHex)) {
+        return BigInt(signatureVHex);
+      }
+    }
+    return ethTransaction.recoveryId;
   }
 
   /**

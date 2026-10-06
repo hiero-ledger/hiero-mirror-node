@@ -64,6 +64,52 @@ describe('topicMessageViewModel tests', () => {
 
     expect(actual).toEqual(expected);
   });
+
+  test('Chunk info with initial transaction id missing transactionValidStart', () => {
+    const input = buildDefaultTopicMessageRow();
+    input.chunkNum = 2;
+    input.chunkTotal = 2;
+    // Serialized TransactionID containing accountID 0.0.3 no transactionValidStart
+    input.initialTransactionId = Buffer.from([18, 2, 24, 3]);
+    const actual = new TopicMessageViewModel(input, '');
+
+    const expected = buildDefaultTopicMessageViewModel();
+    expected.chunk_info = {
+      initial_transaction_id: {
+        account_id: '0.0.3',
+        nonce: 0,
+        scheduled: false,
+        transaction_valid_start: null,
+      },
+      number: 2,
+      total: 2,
+    };
+
+    expect(actual).toEqual(expected);
+  });
+
+  test('Chunk info with empty initial transaction id', () => {
+    const input = buildDefaultTopicMessageRow();
+    input.chunkNum = 2;
+    input.chunkTotal = 2;
+    // Serialized TransactionID with neither accountID nor transactionValidStart.
+    input.initialTransactionId = Buffer.from([]);
+    const actual = new TopicMessageViewModel(input, '');
+
+    const expected = buildDefaultTopicMessageViewModel();
+    expected.chunk_info = {
+      initial_transaction_id: {
+        account_id: null,
+        nonce: 0,
+        scheduled: false,
+        transaction_valid_start: null,
+      },
+      number: 2,
+      total: 2,
+    };
+
+    expect(actual).toEqual(expected);
+  });
 });
 
 test('Default running hash version', () => {

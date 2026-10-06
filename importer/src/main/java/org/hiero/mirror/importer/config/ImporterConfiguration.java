@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.config;
 
+import static org.hiero.mirror.common.domain.entity.EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY;
+
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import jakarta.annotation.PostConstruct;
@@ -36,6 +38,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @RequiredArgsConstructor
 @AutoConfigureBefore(FlywayAutoConfiguration.class) // Since this configuration creates FlywayConfigurationCustomizer
 class ImporterConfiguration {
+
+    static {
+        // Importer should not fail on invalid entity IDs so ingestion does not halt.
+        System.setProperty(INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
+    }
 
     private final BlockProperties blockProperties;
     private final ImporterProperties importerProperties;

@@ -11,6 +11,7 @@ dependencies {
     implementation(platform("io.fabric8:kubernetes-client-bom"))
     implementation(project(":common")) { isTransitive = false }
     implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.google.guava:guava")
     implementation("com.hedera.hashgraph:sdk")
     implementation("io.fabric8:kubernetes-client") {
@@ -36,7 +37,7 @@ dependencies {
     testImplementation("com.github.meanbeanlib:meanbean")
     testImplementation("io.fabric8:kubernetes-server-mock")
     testImplementation("io.projectreactor:reactor-test")
-    testImplementation("io.vertx:vertx-web:5.1.7") // Temporary until next Fabric8 version
+    testImplementation("io.vertx:vertx-web:5.2.0") // Temporary until next Fabric8 version
     testImplementation("uk.org.webcompere:system-stubs-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

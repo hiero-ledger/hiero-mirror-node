@@ -807,7 +807,6 @@ const getPaginationLink = (req, isEnd, lastValueMap, order) => {
     return null;
   }
 
-  const urlPrefix = config.response.includeHostInLink ? `${req.protocol}://${req.hostname}:${config.port}` : '';
   const nextParamQueries = getNextParamQueries(order, req.query, lastValueMap);
   if (nextParamQueries === null) {
     return null;
@@ -815,7 +814,7 @@ const getPaginationLink = (req, isEnd, lastValueMap, order) => {
 
   // remove the '/' at the end of req.path
   const path = req.path.endsWith('/') ? req.path.slice(0, -1) : req.path;
-  return urlPrefix + req.baseUrl + path + nextParamQueries;
+  return req.baseUrl + path + nextParamQueries;
 };
 
 /**

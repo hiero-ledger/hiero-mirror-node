@@ -336,7 +336,7 @@ describe('extractContractResultsByIdQuery', () => {
   const defaultContractId = 1;
   const defaultExpected = {
     conditions: [primaryContractFilter, 'cr.transaction_nonce = 0'],
-    includeSynthetic: true,
+    includeSynthetic: false,
     params: [defaultContractId],
     order: constants.orderFilterValues.DESC,
     limit: defaultLimit,
@@ -489,6 +489,28 @@ describe('extractContractResultsByIdQuery', () => {
       const result = await contracts.extractContractResultsByIdQuery([], undefined);
       expect(result.includeSynthetic).toBe(false);
     } finally {
+      config.query.syntheticContractResults = true;
+    }
+  });
+
+  test('contract endpoint - syntheticContractIdResults flag enabled → includeSynthetic true', async () => {
+    config.query.syntheticContractIdResults = true;
+    try {
+      const result = await contracts.extractContractResultsByIdQuery([], defaultContractId);
+      expect(result.includeSynthetic).toBe(true);
+    } finally {
+      config.query.syntheticContractIdResults = false;
+    }
+  });
+
+  test('contract endpoint - syntheticContractResults flag disabled → includeSynthetic false', async () => {
+    config.query.syntheticContractIdResults = true;
+    config.query.syntheticContractResults = false;
+    try {
+      const result = await contracts.extractContractResultsByIdQuery([], defaultContractId);
+      expect(result.includeSynthetic).toBe(false);
+    } finally {
+      config.query.syntheticContractIdResults = false;
       config.query.syntheticContractResults = true;
     }
   });
@@ -1532,7 +1554,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
              evm_address
       from contract_log cl
       left join entity e on id = contract_id
-      where cl.contract_id = $1 and (cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
+      where cl.contract_id = $1 and (cl.synthetic is not true or cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
       order by cl.consensus_timestamp desc, cl.index desc
       limit $4`
     );
@@ -1563,7 +1585,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,evm_address
       from contract_log cl
       left join entity e on id = contract_id
-      where cl.contract_id = $1 and cl.topic0 in ($2,$3) and cl.topic2 in ($4) and cl.topic3 in ($5,$6) and (cl.topic0 is distinct from $7 or cl.topic3 is distinct from $8)
+      where cl.contract_id = $1 and cl.topic0 in ($2,$3) and cl.topic2 in ($4) and cl.topic3 in ($5,$6) and (cl.synthetic is not true or cl.topic0 is distinct from $7 or cl.topic3 is distinct from $8)
       order by cl.consensus_timestamp desc, cl.index desc
       limit $9`
     );
@@ -1603,7 +1625,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
           contract_log cl
           left join entity e on id = contract_id
         where cl.contract_id = $1
-          and (cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
+          and (cl.synthetic is not true or cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
           and cl.consensus_timestamp = $5
           and cl.index >= $6
         order by
@@ -1630,7 +1652,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
           contract_log cl
           left join entity e on id = contract_id
         where cl.contract_id = $1
-          and (cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
+          and (cl.synthetic is not true or cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
           and cl.consensus_timestamp > $7
           and cl.consensus_timestamp < $8
         order by
@@ -1657,7 +1679,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
           contract_log cl
           left join entity e on id = contract_id
         where cl.contract_id = $1
-          and (cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
+          and (cl.synthetic is not true or cl.topic0 is distinct from $2 or cl.topic3 is distinct from $3)
           and cl.consensus_timestamp = $9
           and cl.index <= $10
         order by cl.consensus_timestamp desc, cl.index desc

@@ -1,0 +1,112 @@
+{
+  "description": "Contract results actions api call with a null caller action row (recoverable-error path persisted caller = NULL)",
+  "setup": {
+    "contracts": [
+      {
+        "created_timestamp": "987654999123200",
+        "evm_address": "70f2b2914a2a4b783faefb75f459a580616fcb5e",
+        "file_id": "5001",
+        "key": [1, 1, 1],
+        "num": "5001",
+        "timestamp_range": "[987654999123300,)"
+      }
+    ],
+    "contractresults": [
+      {
+        "amount": 20,
+        "bloom": [1, 1],
+        "call_result": [2, 2],
+        "consensus_timestamp": "1676540001234390005",
+        "contract_id": 5001,
+        "created_contract_ids": [],
+        "error_message": "",
+        "function_parameters": [3, 3],
+        "function_result": [4, 4],
+        "gas_limit": 1234556,
+        "gas_used": 987,
+        "payer_account_id": 5001,
+        "transaction_hash": "0x9db63968721fc76815d11b0b97734669bf88ae3810e07c199924553f0548eb98",
+        "transaction_nonce": 0
+      }
+    ],
+    "transactions": [
+      {
+        "consensus_timestamp": "1676540001234390005",
+        "type": 11,
+        "result": 22,
+        "valid_start_ns": "1676540001234390005",
+        "valid_start_timestamp": "1676540001234390005",
+        "transaction_hash": "hash1",
+        "payerAccountId": 5001,
+        "index": 1,
+        "nonce": 0
+      }
+    ],
+    "recordFiles": [
+      {
+        "index": 10,
+        "count": 1,
+        "hapi_version_major": "0",
+        "hapi_version_minor": "22",
+        "hapi_version_patch": "3",
+        "name": "2022-04-27T12_09_24.499938763Z.rcd",
+        "prev_hash": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "consensus_start": 1676540001234390000,
+        "consensus_end": 1676540001234490000,
+        "hash": "fbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1c"
+      }
+    ],
+    "contractactions": [
+      {
+        "call_depth": 1,
+        "call_type": 1,
+        "caller": null,
+        "caller_type": null,
+        "call_operation_type": 1,
+        "consensus_timestamp": "1676540001234390005",
+        "gas": 1000,
+        "gas_used": 900,
+        "index": 1,
+        "input": "0xabcd",
+        "payer_account_id": 5001,
+        "recipient_account": null,
+        "recipient_address": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
+        "recipient_contract": 5001,
+        "result_data": "0x1234",
+        "result_data_type": 11,
+        "value": 100
+      }
+    ]
+  },
+  "urls": [
+    "/api/v1/contracts/results/0.0.5001-1676540001-234390005/actions",
+    "/api/v1/contracts/results/0x9db63968721fc76815d11b0b97734669bf88ae3810e07c199924553f0548eb98/actions"
+  ],
+  "responseStatus": 200,
+  "responseJson": {
+    "actions": [
+      {
+        "call_depth": 1,
+        "call_type": "CALL",
+        "call_operation_type": "CALL",
+        "caller": null,
+        "caller_type": null,
+        "from": null,
+        "timestamp": "1676540001.234390005",
+        "gas": 1000,
+        "gas_used": 900,
+        "index": 1,
+        "input": "0xabcd",
+        "to": "0x70f2b2914a2a4b783faefb75f459a580616fcb5e",
+        "recipient": "0.0.5001",
+        "recipient_type": "CONTRACT",
+        "result_data": "0x1234",
+        "result_data_type": "OUTPUT",
+        "value": 100
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

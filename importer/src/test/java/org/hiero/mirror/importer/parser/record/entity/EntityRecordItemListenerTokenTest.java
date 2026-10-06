@@ -1334,6 +1334,65 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         assertThat(findHistory(Nft.class)).containsExactly(expectedNftHistory);
     }
 
+    @Test
+    void nftUpdateTreasuryPreservesSpender() {
+        // given
+        createAndAssociateToken(
+                TOKEN_ID,
+                NON_FUNGIBLE_UNIQUE,
+                SYMBOL,
+                CREATE_TIMESTAMP,
+                ASSOCIATE_TIMESTAMP,
+                PAYER2,
+                false,
+                false,
+                false,
+                TokenFreezeStatusEnum.NOT_APPLICABLE,
+                TokenKycStatusEnum.NOT_APPLICABLE,
+                TokenPauseStatusEnum.NOT_APPLICABLE,
+                0);
+
+        var delegatingSpender = domainBuilder.entityId();
+        var spender = domainBuilder.entityId();
+        var nft = domainBuilder
+                .nft()
+                .customize(n -> n.accountId(PAYER_ACCOUNT_ID)
+                        .createdTimestamp(CREATE_TIMESTAMP)
+                        .delegatingSpender(delegatingSpender.getId())
+                        .serialNumber(SERIAL_NUMBER_1)
+                        .spender(spender.getId())
+                        .timestampRange(Range.atLeast(CREATE_TIMESTAMP))
+                        .tokenId(DOMAIN_TOKEN_ID.getId()))
+                .persist();
+
+        var updateRecordItem = recordItemBuilder
+                .tokenUpdate()
+                .transactionBody(b -> b.clear().setToken(TOKEN_ID).setTreasury(PAYER2))
+                .record(r -> r.clearTokenTransferLists()
+                        .addTokenTransferLists(TokenTransferList.newBuilder()
+                                .setToken(TOKEN_ID)
+                                .addNftTransfers(NftTransfer.newBuilder()
+                                        .setReceiverAccountID(PAYER2)
+                                        .setSenderAccountID(PAYER)
+                                        .setSerialNumber(WILDCARD_SERIAL_NUMBER))))
+                .build();
+
+        // when
+        parseRecordItemAndCommit(updateRecordItem);
+
+        // then
+        long updateTimestamp = updateRecordItem.getConsensusTimestamp();
+        var expectedNft = nft.toBuilder()
+                .accountId(EntityId.of(PAYER2))
+                .timestampRange(Range.atLeast(updateTimestamp))
+                .build();
+        var expectedNftHistory = nft.toBuilder()
+                .timestampRange(Range.closedOpen(CREATE_TIMESTAMP, updateTimestamp))
+                .build();
+        assertThat(nftRepository.findAll()).containsExactly(expectedNft);
+        assertThat(findHistory(Nft.class)).containsExactly(expectedNftHistory);
+    }
+
     @ParameterizedTest
     @CsvSource(textBlock = """
                             true, true

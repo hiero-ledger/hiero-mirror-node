@@ -68,6 +68,7 @@ hiero:
         maxTransactionsTimestampRange: 60d
         maxValidStartTimestampDrift: 1s
         strictTimestampParam: true
+        syntheticContractIdResults: false
         syntheticContractResults: true
         topicMessageLookup: false
         transactions:
@@ -127,7 +128,6 @@ hiero:
             /api/v1/transactions/:transactionIdOrHash:
               { "cache-control": "public, max-age=600" }
           timeout: 630000
-        includeHostInLink: false
         keepAliveTimeout: 620000
         limit:
           default: 25

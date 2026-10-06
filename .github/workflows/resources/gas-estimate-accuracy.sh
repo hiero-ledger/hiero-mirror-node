@@ -20,6 +20,7 @@ skipped=0
 estimate_reverts=0
 api_errors=0
 page_fetch_failures=0
+nonReproducible=0
 
 log() {
   printf '%s\n' "$*"
@@ -33,6 +34,56 @@ fi
 hex_to_dec() {
   local hex="${1#0x}"
   printf '%d' "0x${hex}"
+}
+
+# Canonical hex for equality: optional 0x, case-insensitive, odd nibble padded,
+# leading zeros stripped so 0x1, 0x01, and 0x001 compare equal (empty/0x/0x0 too).
+normalize_hex() {
+  local hex="${1:-}"
+  if [[ "${hex}" == [0][xX]* ]]; then
+    hex="${hex:2}"
+  fi
+  hex="$(tr '[:upper:]' '[:lower:]' <<<"${hex}")"
+  if ((${#hex} % 2 == 1)); then
+    hex="0${hex}"
+  fi
+  hex="${hex#"${hex%%[!0]*}"}"
+  printf '%s' "${hex:-0}"
+}
+
+hex_equal() {
+  [[ "$(normalize_hex "$1")" == "$(normalize_hex "$2")" ]]
+}
+
+# True when eth_call replay matches the original contract result.
+# A consensus CONTRACT_REVERT_EXECUTED with a successful eth_call is not reproducible.
+is_reproducible_replay() {
+  local result_json="$1"
+  local http_code="$2"
+  local replay_body="$3"
+  local expected_result replay_result original_status
+
+  expected_result="$(jq -r '.call_result // empty' <<<"${result_json}")"
+  replay_result="$(jq -r '.result // empty' <<<"${replay_body}")"
+  original_status="$(jq -r '.result // empty' <<<"${result_json}")"
+
+  [[ "${http_code}" == "200" ]] \
+    && hex_equal "${expected_result}" "${replay_result}" \
+    && [[ "${original_status}" != "CONTRACT_REVERT_EXECUTED" ]]
+}
+
+# Sets http_code and body for a /contracts/call POST.
+post_contracts_call() {
+  local request_body="$1"
+  local tmp
+  tmp="$(mktemp)"
+  http_code="$(curl -sS -o "${tmp}" -w '%{http_code}' \
+    -X POST "${BASE_URL}/api/v1/contracts/call" \
+    -H 'Accept: application/json' \
+    -H 'Content-Type: application/json' \
+    --data "${request_body}" || true)"
+  body="$(cat "${tmp}")"
+  rm -f "${tmp}"
 }
 
 within_tolerance() {
@@ -185,17 +236,9 @@ check_result() {
     return 0
   fi
 
-  local attempt estimated
+  local attempt estimated body http_code
   for attempt in 1 2; do
-    local body http_code response
-    response="$(mktemp)"
-    http_code="$(curl -sS -o "${response}" -w '%{http_code}' \
-      -X POST "${BASE_URL}/api/v1/contracts/call" \
-      -H 'Accept: application/json' \
-      -H 'Content-Type: application/json' \
-      --data "${request}" || true)"
-    body="$(cat "${response}")"
-    rm -f "${response}"
+    post_contracts_call "${request}"
 
     if [[ "${http_code}" != "200" ]]; then
       if ((attempt == 2)); then
@@ -222,9 +265,6 @@ check_result() {
     fi
 
     estimated="$(hex_to_dec "${result_hex}")"
-    if ((attempt == 1)); then
-      checked=$((checked + 1))
-    fi
 
     if within_tolerance "${estimated}" "${consumed}"; then
       passed=$((passed + 1))
@@ -241,6 +281,16 @@ check_result() {
     fi
     break
   done
+
+  local replay_request
+  replay_request="$(jq -c '.estimate = false' <<<"${request}")"
+  post_contracts_call "${replay_request}"
+  if ! is_reproducible_replay "${result_json}" "${http_code}" "${body}"; then
+    nonReproducible=$((nonReproducible + 1))
+    return 0
+  fi
+
+  checked=$((checked + 1))
 
   failed=$((failed + 1))
   local pct
@@ -319,6 +369,7 @@ summary="$(cat <<EOF
   Executed validation request count: ${checked}
   Passed estimation count: ${passed}
   Out of tolerance estimation count: ${failed}
+  Non reproducible contract results: ${nonReproducible}
   Skipped request count: ${skipped}
   Reverted estimate request count: ${estimate_reverts}
   Errors count outside CONTRACT_REVERT_EXECUTED: ${api_errors}

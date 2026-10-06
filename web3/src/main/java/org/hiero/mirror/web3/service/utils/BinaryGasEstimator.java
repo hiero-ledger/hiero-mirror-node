@@ -60,7 +60,7 @@ public class BinaryGasEstimator {
 
         metricUpdater.accept(totalGasUsed, iterationsMade);
 
-        final long maxAllowedEstimate = (long) Math.ceil(initialGasUsed * 1.20);
+        final long maxAllowedEstimate = (long) Math.floor(initialGasUsed * 1.20);
         if (hi > maxAllowedEstimate) {
             return maxAllowedEstimate;
         }

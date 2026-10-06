@@ -30,7 +30,7 @@ import org.hiero.mirror.importer.util.Utility;
 
 @CustomLog
 @Named
-class TokenCreateTransactionHandler extends AbstractEntityCrudTransactionHandler {
+final class TokenCreateTransactionHandler extends AbstractEntityCrudTransactionHandler {
 
     private final EntityProperties entityProperties;
     private final TokenFeeScheduleUpdateTransactionHandler tokenFeeScheduleUpdateTransactionHandler;
@@ -90,13 +90,14 @@ class TokenCreateTransactionHandler extends AbstractEntityCrudTransactionHandler
             return;
         }
 
-        var transactionBody = recordItem.getTransactionBody().getTokenCreation();
-        long consensusTimestamp = transaction.getConsensusTimestamp();
-        boolean freezeDefault = transactionBody.getFreezeDefault();
-        var tokenId = transaction.getEntityId();
-        var treasury = EntityId.of(transactionBody.getTreasury());
+        final var transactionBody = recordItem.getTransactionBody().getTokenCreation();
+        final long consensusTimestamp = transaction.getConsensusTimestamp();
+        final boolean freezeDefault = transactionBody.getFreezeDefault();
+        final var tokenId = transaction.getEntityId();
+        var treasury = EntityId.tryOf(transactionBody.getTreasury());
+        treasury = EntityId.isEmpty(treasury) ? EntityId.ZERO : treasury;
 
-        var token = new Token();
+        final var token = new Token();
         token.setCreatedTimestamp(consensusTimestamp);
         token.setDecimals(transactionBody.getDecimals());
         token.setFreezeDefault(freezeDefault);

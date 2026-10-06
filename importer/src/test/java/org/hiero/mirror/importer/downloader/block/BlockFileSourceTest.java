@@ -212,10 +212,11 @@ final class BlockFileSourceTest {
         blockFileSource.get();
 
         // then
-        verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
-                .returns(null, BlockFile::getBytes)
-                .returns(blockNumber(0), BlockFile::getIndex)
-                .returns(true, from(block -> block.getSize() > 0))));
+        verify(blockStreamVerifier)
+                .verify(assertArg(b -> assertThat(b)
+                        .returns(null, BlockFile::getBytes)
+                        .returns(blockNumber(0), BlockFile::getIndex)
+                        .returns(true, from(block -> block.getSize() > 0))));
         verify(recordFileRepository).findLatest();
 
         final var logs = output.getAll();
@@ -259,10 +260,11 @@ final class BlockFileSourceTest {
         blockFileSource.get();
 
         // then
-        verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
-                .returns(null, BlockFile::getBytes)
-                .returns(blockNumber(0), BlockFile::getIndex)
-                .returns(true, from(block -> block.getSize() > 0))));
+        verify(blockStreamVerifier)
+                .verify(assertArg(b -> assertThat(b)
+                        .returns(null, BlockFile::getBytes)
+                        .returns(blockNumber(0), BlockFile::getIndex)
+                        .returns(true, from(block -> block.getSize() > 0))));
         verify(recordFileRepository).findLatest();
 
         var logs = output.getAll();
@@ -282,10 +284,11 @@ final class BlockFileSourceTest {
                 .getTo()
                 .resolve(StreamType.BLOCK.toBucketFilename(blockFile(1).getName()))
                 .toFile());
-        verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
-                .returns(expectedBytes, BlockFile::getBytes)
-                .returns(blockNumber(1), BlockFile::getIndex)
-                .returns(expectedBytes.length, BlockFile::getSize)));
+        verify(blockStreamVerifier)
+                .verify(assertArg(b -> assertThat(b)
+                        .returns(expectedBytes, BlockFile::getBytes)
+                        .returns(blockNumber(1), BlockFile::getIndex)
+                        .returns(expectedBytes.length, BlockFile::getSize)));
         verify(recordFileRepository).findLatest();
 
         logs = output.getAll();
@@ -352,10 +355,11 @@ final class BlockFileSourceTest {
         blockFileSource.get();
 
         // then
-        verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
-                .returns(null, BlockFile::getBytes)
-                .returns(block0.getIndex(), BlockFile::getIndex)
-                .returns(true, from(block -> block.getSize() > 0))));
+        verify(blockStreamVerifier)
+                .verify(assertArg(b -> assertThat(b)
+                        .returns(null, BlockFile::getBytes)
+                        .returns(block0.getIndex(), BlockFile::getIndex)
+                        .returns(true, from(block -> block.getSize() > 0))));
         verify(recordFileRepository).findLatest();
 
         final var logs = output.getAll();
@@ -380,9 +384,10 @@ final class BlockFileSourceTest {
         blockFileSource.get();
 
         // then
-        verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
-                .returns(block0.getIndex(), BlockFile::getIndex)
-                .returns(true, from(block -> block.getSize() > 0))));
+        verify(blockStreamVerifier)
+                .verify(assertArg(b -> assertThat(b)
+                        .returns(block0.getIndex(), BlockFile::getIndex)
+                        .returns(true, from(block -> block.getSize() > 0))));
         verify(recordFileRepository).findLatest();
     }
 
@@ -459,9 +464,10 @@ final class BlockFileSourceTest {
                 .hasMessage("Failed to download block file " + block0.getName());
 
         // then
-        verify(blockStreamVerifier).verify(assertArg(b -> assertThat(b)
-                .returns(block0.getIndex(), BlockFile::getIndex)
-                .returns(true, from(block -> block.getSize() > 0))));
+        verify(blockStreamVerifier)
+                .verify(assertArg(b -> assertThat(b)
+                        .returns(block0.getIndex(), BlockFile::getIndex)
+                        .returns(true, from(block -> block.getSize() > 0))));
         verify(recordFileRepository).findLatest();
 
         final var logs = output.getAll();

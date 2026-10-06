@@ -183,6 +183,7 @@ public class TransactionExecutionService {
                         .initcode(Bytes.wrap(params.getCallData()))
                         .gas(estimatedGas)
                         .autoRenewPeriod(new Duration(maxLifetime))
+                        .initialBalance(params.getValue())
                         .build())
                 .transactionFee(TX_FEE)
                 .build();

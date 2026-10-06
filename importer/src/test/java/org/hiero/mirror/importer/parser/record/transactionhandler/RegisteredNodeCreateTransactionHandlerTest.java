@@ -74,21 +74,22 @@ final class RegisteredNodeCreateTransactionHandlerTest extends AbstractTransacti
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onRegisteredNode(assertArg(registeredNode -> assertThat(registeredNode)
-                .returns(nodeCreate.getAdminKey().toByteArray(), RegisteredNode::getAdminKey)
-                .returns(false, RegisteredNode::isDeleted)
-                .returns(nodeCreate.getDescription(), RegisteredNode::getDescription)
-                .returns(receipt.getRegisteredNodeId(), RegisteredNode::getRegisteredNodeId)
-                .returns(consensusTimestamp, RegisteredNode::getCreatedTimestamp)
-                .returns(Range.atLeast(consensusTimestamp), RegisteredNode::getTimestampRange)
-                .returns(
-                        List.of(BLOCK_NODE.getId(), GENERAL_SERVICE.getId(), MIRROR_NODE.getId()),
-                        RegisteredNode::getType)
-                .extracting(
-                        RegisteredNode::getServiceEndpoints,
-                        InstanceOfAssertFactories.list(RegisteredServiceEndpoint.class))
-                .hasSize(4)
-                .allMatch(e -> e.getPort() > 0)));
+        verify(entityListener, times(1))
+                .onRegisteredNode(assertArg(registeredNode -> assertThat(registeredNode)
+                        .returns(nodeCreate.getAdminKey().toByteArray(), RegisteredNode::getAdminKey)
+                        .returns(false, RegisteredNode::isDeleted)
+                        .returns(nodeCreate.getDescription(), RegisteredNode::getDescription)
+                        .returns(receipt.getRegisteredNodeId(), RegisteredNode::getRegisteredNodeId)
+                        .returns(consensusTimestamp, RegisteredNode::getCreatedTimestamp)
+                        .returns(Range.atLeast(consensusTimestamp), RegisteredNode::getTimestampRange)
+                        .returns(
+                                List.of(BLOCK_NODE.getId(), GENERAL_SERVICE.getId(), MIRROR_NODE.getId()),
+                                RegisteredNode::getType)
+                        .extracting(
+                                RegisteredNode::getServiceEndpoints,
+                                InstanceOfAssertFactories.list(RegisteredServiceEndpoint.class))
+                        .hasSize(4)
+                        .allMatch(e -> e.getPort() > 0)));
         verify(applicationEventPublisher, times(1)).publishEvent(any(RegisteredNodeChangedEvent.class));
 
         assertThat(recordItem.getEntityTransactions())
@@ -174,14 +175,15 @@ final class RegisteredNodeCreateTransactionHandlerTest extends AbstractTransacti
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onRegisteredNode(assertArg(registeredNode -> assertThat(registeredNode)
-                .extracting(RegisteredNode::getServiceEndpoints)
-                .asInstanceOf(InstanceOfAssertFactories.list(RegisteredServiceEndpoint.class))
-                .first()
-                .extracting(RegisteredServiceEndpoint::getDomainName)
-                .asString()
-                .startsWith("hedera.com")
-                .doesNotContain(String.valueOf(DomainUtils.NULL_CHARACTER))));
+        verify(entityListener, times(1))
+                .onRegisteredNode(assertArg(registeredNode -> assertThat(registeredNode)
+                        .extracting(RegisteredNode::getServiceEndpoints)
+                        .asInstanceOf(InstanceOfAssertFactories.list(RegisteredServiceEndpoint.class))
+                        .first()
+                        .extracting(RegisteredServiceEndpoint::getDomainName)
+                        .asString()
+                        .startsWith("hedera.com")
+                        .doesNotContain(String.valueOf(DomainUtils.NULL_CHARACTER))));
         verify(applicationEventPublisher, times(1)).publishEvent(any(RegisteredNodeChangedEvent.class));
     }
 }

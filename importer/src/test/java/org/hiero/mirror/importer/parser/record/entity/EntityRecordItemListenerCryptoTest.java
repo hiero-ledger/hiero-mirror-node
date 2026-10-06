@@ -37,6 +37,7 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.ShardID;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -56,6 +57,7 @@ import org.assertj.core.api.Condition;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.IterableAssert;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.RecordItemBuilder.TransferType;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.AbstractCryptoAllowance.Id;
@@ -67,6 +69,8 @@ import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.token.Nft;
+import org.hiero.mirror.common.domain.token.NftTransfer;
+import org.hiero.mirror.common.domain.token.TokenTransfer;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.ErrataType;
 import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
@@ -2073,6 +2077,43 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         .map(transfer -> ((ItemizedTransfer) transfer).getEntityId())
                         .asInstanceOf(InstanceOfAssertFactories.LIST)
                         .containsExactlyInAnyOrderElementsOf(expectedEntityIds));
+    }
+
+    @Test
+    void cryptoTransferInvalidIds() {
+        final var invalidAccount = AccountID.newBuilder().setAccountNum(-1L).build();
+        final var invalidToken = TokenID.newBuilder().setTokenNum(-1L).build();
+        final var recordItem = recordItemBuilder
+                .cryptoTransfer(TransferType.ALL)
+                .record(t -> t.getTokenTransferListsBuilder(0).setToken(invalidToken))
+                .record(t -> t.getTokenTransferListsBuilder(1)
+                        .setToken(invalidToken)
+                        .getNftTransfersBuilder(0)
+                        .setReceiverAccountID(invalidAccount)
+                        .setSenderAccountID(invalidAccount))
+                .transactionBody(t -> t.getTokenTransfersBuilder(0).setToken(invalidToken))
+                .transactionBody(t -> t.getTokenTransfersBuilder(1)
+                        .setToken(invalidToken)
+                        .getNftTransfersBuilder(0)
+                        .setReceiverAccountID(invalidAccount)
+                        .setSenderAccountID(invalidAccount))
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        softly.assertThat(transactionRepository.findAll())
+                .first()
+                .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getNftTransfer)
+                .asInstanceOf(InstanceOfAssertFactories.list(NftTransfer.class))
+                .first()
+                .returns(EntityId.ZERO, NftTransfer::getReceiverAccountId)
+                .returns(EntityId.ZERO, NftTransfer::getSenderAccountId)
+                .returns(EntityId.ZERO, NftTransfer::getTokenId);
+        softly.assertThat(tokenTransferRepository.findAll())
+                .first()
+                .extracting(TokenTransfer::getId)
+                .extracting(TokenTransfer.Id::getTokenId)
+                .isEqualTo(EntityId.ZERO);
     }
 
     @Test
