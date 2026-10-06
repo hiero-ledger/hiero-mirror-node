@@ -23,7 +23,6 @@ public final class BlockRootHashDigest {
     private final List<BlockItem> traceDatum = new ArrayList<>();
 
     private Timestamp blockTimestamp;
-    private int digestSize;
     private boolean finalized;
     private byte[] previousBlocksTreeHash;
     private byte[] previousHash;
@@ -45,7 +44,6 @@ public final class BlockRootHashDigest {
                         previousBlocksTreeHash = DomainUtils.toBytes(blockFooter.getRootHashOfAllBlockHashesTree());
                         previousHash = DomainUtils.toBytes(blockFooter.getPreviousBlockRootHash());
                         startOfBlockStateHash = DomainUtils.toBytes(blockFooter.getStartOfBlockStateRootHash());
-                        digestSize = previousBlocksTreeHash.length;
                         yield null;
                     }
                     case EVENT_HEADER, ROUND_HEADER -> consensusHeaders;
@@ -70,16 +68,17 @@ public final class BlockRootHashDigest {
                     "blockTimestamp / previousBlocksTreeHash / previousHash / startOfBlockStateHash are not set");
         }
 
+        final int digestSize = previousHash.length;
         final var slots = new ArrayList<byte[]>(SLOT_COUNT);
         slots.add(previousHash);
         slots.add(previousBlocksTreeHash);
         slots.add(startOfBlockStateHash);
-        slots.add(computeBlockItemSubTreeRootHash(consensusHeaders));
-        slots.add(computeBlockItemSubTreeRootHash(inputs));
-        slots.add(computeBlockItemSubTreeRootHash(outputs));
-        slots.add(computeBlockItemSubTreeRootHash(stateChanges));
-        slots.add(computeBlockItemSubTreeRootHash(traceDatum));
-        appendReservedSlots(slots);
+        slots.add(computeBlockItemSubTreeRootHash(consensusHeaders, digestSize));
+        slots.add(computeBlockItemSubTreeRootHash(inputs, digestSize));
+        slots.add(computeBlockItemSubTreeRootHash(outputs, digestSize));
+        slots.add(computeBlockItemSubTreeRootHash(stateChanges, digestSize));
+        slots.add(computeBlockItemSubTreeRootHash(traceDatum, digestSize));
+        appendReservedSlots(digestSize, slots);
 
         final byte[] streamedRootHash = streamedRootOf(digestSize, slots);
         final var digest = ShaMessageDigestFactory.createMessageDigest(digestSize);
@@ -97,13 +96,14 @@ public final class BlockRootHashDigest {
         return hasher.computeRootHash();
     }
 
-    private void appendReservedSlots(final List<byte[]> slots) {
+    private void appendReservedSlots(final int digestSize, final List<byte[]> slots) {
+        final var emptyHash = IncrementalStreamingHasher.getEmptyTreeHash(digestSize);
         while (slots.size() < SLOT_COUNT) {
-            slots.add(IncrementalStreamingHasher.getEmptyTreeHash(digestSize));
+            slots.add(emptyHash);
         }
     }
 
-    private byte[] computeBlockItemSubTreeRootHash(final List<BlockItem> blockItems) {
+    private byte[] computeBlockItemSubTreeRootHash(final List<BlockItem> blockItems, final int digestSize) {
         final var hasher = new IncrementalStreamingHasher(digestSize);
         for (int i = 0; i < blockItems.size(); i++) {
             hasher.addLeaf(blockItems.get(i).toByteArray());

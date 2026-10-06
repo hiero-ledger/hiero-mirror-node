@@ -23,6 +23,7 @@ import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Collections;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.importer.TestUtils;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -174,8 +175,10 @@ final class BlockRootHashDigestTest {
         // given - the digest size is detected from the root hash of all block hashes tree
         final var digest = new BlockRootHashDigest();
         digest.addBlockItem(blockHeader());
-        digest.addBlockItem(
-                blockFooter(hashOf(SHA_256_SIZE, (byte) 1), new byte[size], hashOf(SHA_256_SIZE, (byte) 3)));
+        digest.addBlockItem(blockFooter(
+                TestUtils.generateRandomByteArray(size),
+                TestUtils.generateRandomByteArray(size),
+                TestUtils.generateRandomByteArray(size)));
 
         // when, then
         assertThatThrownBy(digest::digest)
