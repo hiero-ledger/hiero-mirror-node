@@ -13,7 +13,7 @@ spec:
       valuesFiles:
         - values.yaml
         - values-v2.yaml
-      version: '0.163.1'
+      version: '0.164.0'
   driftDetection:
     mode: enabled
     ignore:
@@ -79,6 +79,8 @@ spec:
         annotations:
           cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mirrornode-mainnet-na"} } }'
     zfs:
+      autoGrow:
+        thresholdPercent: 99
       init:
         diskPrefix: mainnet-na
 
