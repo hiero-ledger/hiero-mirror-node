@@ -25,11 +25,7 @@ TEMP_DISK_DEVICE="sdc"
 SG_WEBHOOK_FILE="/tmp/sg-webhook-${EPOCH_SECONDS}.yaml"
 WORKER_DEFAULT_SIZE="${WORKER_DEFAULT_SIZE:-300Gi}"
 
-# StorageClass parameters are arbitrary strings controlled by whoever manages
-# the zfs StorageClass/Helm values, but they get spliced unescaped into nested
-# `bash -c '...'` commands run as root in a privileged node chroot later on.
-# Reject anything outside a safe charset here so a crafted value can't break
-# out of that quoting downstream.
+# StorageClass parameters get spliced unescaped into privileged node commands later; reject unsafe characters now.
 function requireSafeToken() {
   local name="$1" value="$2" pattern="$3"
   if [[ ! "${value}" =~ ${pattern} ]]; then
@@ -139,14 +135,12 @@ function execOnNode() {
   kubectl exec -n "${COMMON_NAMESPACE}" "${pod}" -- chroot /node-fs /bin/bash -c "${cmd}"
 }
 
-# Runs the zfs snapshot/send/receive chain detached on the node so that a local
-# disconnect can't kill it, then polls for completion. Safe to re-run: it picks
-# up an already-running copy, resumes an interrupted receive from its saved
-# token, or skips a copy that already finished.
+# Runs the zfs snapshot/send/receive chain detached on the node so a local disconnect can't kill it, then polls for completion.
 function copyZfsVolume() {
   local pod="$1" sourcePool="$2" destPool="$3" pvcVolume="$4" compression="$5" recordsize="$6" reservation="$7"
-  local logFile="/tmp/zfs-migrate-${pvcVolume}.log"
-  local exitFile="/tmp/zfs-migrate-${pvcVolume}.exit"
+  # Keyed by EPOCH_SECONDS since destPool is recreated fresh every run; a marker left over from an earlier run must never match.
+  local logFile="/tmp/zfs-migrate-${pvcVolume}-${EPOCH_SECONDS}.log"
+  local exitFile="/tmp/zfs-migrate-${pvcVolume}-${EPOCH_SECONDS}.exit"
   local resumeToken remoteCmd alreadyRunning datasetExists exitCode
 
   exitCode=$(execOnNode "${pod}" "cat ${exitFile} 2>/dev/null" 2>/dev/null || true)
@@ -189,10 +183,7 @@ zfs destroy ${destPool}/${pvcVolume}@initial"
   local waitedSeconds=0
   while true; do
     local probe
-    # The remote side always exits 0 here (even when the exit file doesn't exist
-    # yet) so a nonzero/empty result from execOnNode means we genuinely couldn't
-    # reach the pod, not just "still copying" - cat alone would return 1 for a
-    # missing file and we'd misreport an ongoing copy as a connection problem.
+    # Remote probe always exits 0, so a failed execOnNode means we couldn't reach the pod, not that the copy is done.
     if probe=$(execOnNode "${pod}" "if [ -f ${exitFile} ]; then cat ${exitFile}; else echo __PENDING__; fi" 2>/dev/null); then
       if [[ "${probe}" == "__PENDING__" ]]; then
         if (( waitedSeconds % 300 == 0 )); then
@@ -213,14 +204,7 @@ zfs destroy ${destPool}/${pvcVolume}@initial"
   done
 }
 
-# Creates a GCE snapshot asynchronously and polls the operation until it
-# reports done, retrying indefinitely instead of relying on gcloud's own
-# synchronous wait (which gives up after 1800s - too short for a snapshot of
-# a multi-TB disk, even though the snapshot keeps running fine server-side).
-# Only "gcloud compute snapshots create" supports --async among the gcloud
-# calls in this script; disks create/delete and instances attach/detach-disk
-# don't accept it and are fast metadata operations anyway, so they're left
-# as plain synchronous calls.
+# Async + indefinite poll since gcloud's own sync wait times out after 1800s on multi-TB snapshots.
 function createSnapshotAndWait() {
   local snapshotName="$1" sourceDiskName="$2" sourceDiskZone="$3" storageLocation="$4"
   local opName

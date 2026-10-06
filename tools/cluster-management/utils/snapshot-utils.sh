@@ -27,11 +27,7 @@ function setupZfsVolumeForRecovery() {
     return 1
   fi
 
-  # pvcName and backupLabel are spliced unescaped into the YAML heredoc below
-  # and originate from data an attacker could control (GCE snapshot
-  # descriptions, SGBackup status). Validate the charset and, for pvcName,
-  # that it actually names a PVC that exists, so untrusted content can't
-  # change the manifest's structure.
+  # pvcName/backupLabel are foreign data spliced unescaped into the YAML heredoc below; validate before use.
   if [[ ! "${pvcName}" =~ ^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$ ]]; then
     log "pvcName '${pvcName}' is not a valid Kubernetes resource name; refusing to proceed"
     return 1
