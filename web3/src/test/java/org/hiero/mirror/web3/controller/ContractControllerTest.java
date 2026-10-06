@@ -4,6 +4,8 @@ package org.hiero.mirror.web3.controller;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.SIMULATE;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,6 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,11 +33,14 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
+import org.hiero.mirror.web3.ApiProperties;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
@@ -44,11 +50,18 @@ import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
+import org.hiero.mirror.web3.service.ContractSimulateService;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
+import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
+import org.hiero.mirror.web3.viewmodel.SimulateCall;
+import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
+import org.hiero.mirror.web3.viewmodel.SimulateLog;
+import org.hiero.mirror.web3.viewmodel.SimulateRequest;
+import org.hiero.mirror.web3.viewmodel.SimulateResponse;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls;
@@ -60,6 +73,7 @@ import org.hiero.mirror.web3.web3j.generated.ExchangeRatePrecompileHistorical;
 import org.hiero.mirror.web3.web3j.generated.NestedCallsHistorical;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContractHistorical;
 import org.hiero.mirror.web3.web3j.generated.TestAddressThis;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -87,6 +101,7 @@ import org.springframework.test.web.servlet.ResultActions;
 final class ContractControllerTest {
 
     private static final String CALL_URI = "/api/v1/contracts/call";
+    private static final String SIMULATE_URI = "/api/v1/contracts/simulate";
     private static final long THROTTLE_GAS_LIMIT = 10_000_000L;
     private static final String INIT_CODE = "0x6080604052348015600f57600080fd5b5060a38061001c6000396000f3";
 
@@ -101,6 +116,9 @@ final class ContractControllerTest {
 
     @MockitoBean
     private ContractExecutionService service;
+
+    @MockitoBean
+    private ContractSimulateService contractSimulateService;
 
     @MockitoBean
     private ThrottleManager throttleManager;
@@ -765,6 +783,249 @@ final class ContractControllerTest {
 
     private String numberErrorString(String field, String direction, long num) {
         return String.format("%s field must be %s than or equal to %d", field, direction, num);
+    }
+
+    @AfterEach
+    void resetWeb3Properties() {
+        enableSimulate(false);
+        web3Properties.setEnableStateOverrides(false);
+    }
+
+    private void enableSimulate(final boolean enabled) {
+        web3Properties
+                .getApi()
+                .computeIfAbsent(SIMULATE, _ -> new ApiProperties())
+                .setEnabled(enabled);
+    }
+
+    @SneakyThrows
+    private ResultActions simulate(SimulateRequest request) {
+        return simulate(convert(request));
+    }
+
+    @SneakyThrows
+    private ResultActions simulate(String requestBody) {
+        return mockMvc.perform(post(SIMULATE_URI)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody));
+    }
+
+    private SimulateRequest simulateRequest(int callCount) {
+        final var calls = new ArrayList<SimulateCall>();
+        for (int i = 0; i < callCount; i++) {
+            final var call = new SimulateCall();
+            call.setTo("0x00000000000000000000000000000000000004e4");
+            calls.add(call);
+        }
+        final var blockStateCall = new SimulateBlockStateCall();
+        blockStateCall.setCalls(calls);
+        final var request = new SimulateRequest();
+        request.setBlockStateCalls(List.of(blockStateCall));
+        return request;
+    }
+
+    @Test
+    void simulateSuccess() throws Exception {
+        enableSimulate(true);
+        final var request = simulateRequest(1);
+        final var response = new SimulateResponse(List.of());
+        given(contractSimulateService.simulate(request)).willReturn(response);
+
+        simulate(request).andExpect(status().isOk()).andExpect(content().string(convert(response)));
+
+        verify(throttleManager).throttleSimulateRequest(15_000_000L);
+    }
+
+    @Test
+    void simulateDisabledIsNotImplementedWithoutConsumingThrottle() throws Exception {
+        final var request = simulateRequest(1);
+
+        simulate(request).andExpect(status().isNotImplemented());
+
+        verify(throttleManager, never()).throttleSimulateRequest(anyLong());
+    }
+
+    @Test
+    void simulateWithStateOverridesDisabledIsBadRequestWithoutConsumingThrottle() throws Exception {
+        enableSimulate(true);
+        web3Properties.setEnableStateOverrides(false);
+        final var request = simulateRequest(1);
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e4");
+        override.setBalance("0x1");
+        request.getBlockStateCalls().getFirst().setStateOverrides(List.of(override));
+
+        simulate(request).andExpect(status().isBadRequest());
+
+        verify(throttleManager, never()).throttleSimulateRequest(anyLong());
+    }
+
+    @Test
+    void simulateExceedingMaxGasIsBadRequestWithoutConsumingThrottle() throws Exception {
+        enableSimulate(true);
+        final var request = simulateRequest(1);
+        request.getBlockStateCalls().getFirst().getCalls().getFirst().setGas(15_000_001L);
+
+        simulate(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString(numberErrorString("gas", "less", 15_000_000L))));
+
+        verify(throttleManager, never()).throttleSimulateRequest(anyLong());
+    }
+
+    @Test
+    void simulateBindsHexValuesSnakeCaseGasPriceAndIntegerBalance() throws Exception {
+        enableSimulate(true);
+        given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(new SimulateResponse(List.of()));
+
+        simulate("""
+                {
+                    "block_state_calls": [
+                        {
+                            "calls": [
+                                {
+                                    "from": "0x00000000000000000000000000000000000004e2",
+                                    "gas": null,
+                                    "gas_price": "0x10",
+                                    "to": "0x00000000000000000000000000000000000004e4",
+                                    "value": "0x1"
+                                }
+                            ],
+                            "state_overrides": [
+                                {
+                                    "address": "0x00000000000000000000000000000000000004e4",
+                                    "balance": 1208925819
+                                }
+                            ]
+                        }
+                    ]
+                }
+                """).andExpect(status().isOk());
+
+        verify(contractSimulateService).simulate(argThat(request -> {
+            final var entry = request.getBlockStateCalls().getFirst();
+            final var call = entry.getCalls().getFirst();
+            return call.getGas() == 15_000_000L
+                    && call.getGasPrice() == 16L
+                    && call.getValue() == 1L
+                    && "0x480ebe7b".equals(entry.getStateOverrides().getFirst().getBalance());
+        }));
+    }
+
+    @Test
+    void simulateAcceptsAccessAndAuthorizationLists() throws Exception {
+        enableSimulate(true);
+        given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(new SimulateResponse(List.of()));
+
+        simulate("""
+                {
+                    "block_state_calls": [
+                        {
+                            "calls": [
+                                {
+                                    "access_list": [
+                                        {
+                                            "address": "0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae",
+                                            "storage_keys": [
+                                                "0x0000000000000000000000000000000000000000000000000000000000000003"
+                                            ]
+                                        }
+                                    ],
+                                    "authorization_list": [
+                                        {
+                                            "address": "0x1111111111111111111111111111111111111111",
+                                            "chain_id": "0x127",
+                                            "nonce": 5,
+                                            "r": "0x2222222222222222222222222222222222222222222222222222222222222222",
+                                            "s": "0x3333333333333333333333333333333333333333333333333333333333333333",
+                                            "y_parity": 1
+                                        }
+                                    ],
+                                    "from": "0x00000000000000000000000000000000000004e2",
+                                    "to": "0x00000000000000000000000000000000000004e4"
+                                }
+                            ]
+                        }
+                    ]
+                }
+                """).andExpect(status().isOk());
+
+        verify(contractSimulateService).simulate(argThat(request -> {
+            final var call = request.getBlockStateCalls().getFirst().getCalls().getFirst();
+            return call.getAccessList().size() == 1
+                    && call.getAccessList().getFirst().getStorageKeys().size() == 1
+                    && call.getAuthorizationList().size() == 1
+                    && call.getAuthorizationList().getFirst().getNonce() == 5L;
+        }));
+    }
+
+    @Test
+    void simulateResponseIsFlatWithIntegerIndices() throws Exception {
+        enableSimulate(true);
+        final var log = new SimulateLog(
+                "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "0x5e28f54a56dc9df973a058cd54b3eeef8c67a1a613cb5db1df8a0a434c931d56",
+                20784968L,
+                "0x01",
+                1L,
+                false,
+                List.of(),
+                "0xe7217784e0c3f7b35d39303b1165046e9b7e8af9b9cf80d5d5f96c3163de8f51",
+                0L);
+        final var response = new SimulateResponse(List.of(
+                new SimulateCallResult("0x5208", List.of(), "0x", "0x1"),
+                new SimulateCallResult("0x6308", List.of(log), "0x", "0x1")));
+        given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(response);
+
+        simulate(simulateRequest(1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.length()").value(2))
+                .andExpect(jsonPath("$.result[1].logs[0].block_number").value(20784968L))
+                .andExpect(jsonPath("$.result[1].logs[0].log_index").value(1))
+                .andExpect(jsonPath("$.result[1].logs[0].transaction_index").value(0));
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidSimulateBodies")
+    void simulateInvalidBodyIsBadRequestWithoutConsumingThrottle(final String body) throws Exception {
+        enableSimulate(true);
+
+        simulate(body).andExpect(status().isBadRequest());
+
+        verify(throttleManager, never()).throttleSimulateRequest(anyLong());
+    }
+
+    private static Stream<String> invalidSimulateBodies() {
+        final var call = "{\"to\": \"0x00000000000000000000000000000000000004e4\"}";
+        final var tooManyCalls = String.join(",", Collections.nCopies(SimulateRequest.MAX_CALLS + 1, call));
+        final var tooManyEntries = "{\"calls\": [" + call + "]},"
+                + String.join(",", Collections.nCopies(SimulateRequest.MAX_CALLS, "{\"calls\": []}"));
+        final var override = "{\"address\": \"0x00000000000000000000000000000000000004e4\"}";
+        final var tooManyOverrides = String.join(",", Collections.nCopies(11, override));
+        return Stream.of(
+                "{\"block_state_calls\": null}",
+                "{\"block_state_calls\": []}",
+                "{\"block_state_calls\": [{\"calls\": null}]}",
+                "{\"block_state_calls\": [{\"calls\": []}]}",
+                "{\"block_state_calls\": [{\"calls\": [" + tooManyCalls + "]}]}",
+                "{\"block_state_calls\": [" + tooManyEntries + "]}",
+                "{\"block_state_calls\": [{\"block_override\": {\"number\": \"0x1\", \"time\": \"0x2\"}, \"calls\": ["
+                        + call + "]}]}",
+                "{\"block_state_calls\": [{\"calls\": [" + call + "], \"state_overrides\": [" + tooManyOverrides
+                        + "]}]}",
+                "{\"block_state_calls\": [{\"calls\": [" + call
+                        + "], \"state_overrides\": [{\"address\": \"0x00000000000000000000000000000000000004e4\", \"balance\": -1}]}]}",
+                "{\"block_state_calls\": [{\"calls\": [{\"access_list\": [{\"storage_keys\": []}], \"to\": \"0x00000000000000000000000000000000000004e4\"}]}]}");
+    }
+
+    @Test
+    void simulateAtMaxCallsIsAccepted() throws Exception {
+        enableSimulate(true);
+        final var request = simulateRequest(SimulateRequest.MAX_CALLS);
+        given(contractSimulateService.simulate(request)).willReturn(new SimulateResponse(List.of()));
+
+        simulate(request).andExpect(status().isOk());
     }
 
     @TestConfiguration

@@ -48,7 +48,7 @@ public abstract class ContractCallService {
     private final MeterProvider<Counter> gasUsedCounter;
     private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
-    private final ThrottleManager throttleManager;
+    protected final ThrottleManager throttleManager;
     private final TransactionExecutionService transactionExecutionService;
 
     @SuppressWarnings("java:S107")
