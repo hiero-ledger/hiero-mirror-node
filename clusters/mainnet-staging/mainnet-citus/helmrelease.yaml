@@ -64,6 +64,7 @@ spec:
       env:
         HIERO_MIRROR_REST_CACHE_RESPONSE_ENABLED: "false"
         HIERO_MIRROR_REST_CHAINID: "0x127"
+        HIERO_MIRROR_REST_QUERY_MAXACCOUNTBALANCECONCURRENCY: "0"
       hpa:
         metrics:
           - type: Resource
