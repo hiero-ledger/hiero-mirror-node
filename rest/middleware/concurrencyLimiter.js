@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {TooManyRequestsError} from './errors';
+import {TooManyRequestsError} from '../errors';
 
 /**
  * Wraps a route handler so that at most max matching requests run it concurrently in this process/pod. Excess requests are

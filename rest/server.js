@@ -11,7 +11,6 @@ import compression from 'compression';
 // local files
 import accounts from './accounts';
 import balances from './balances';
-import limitConcurrency from './concurrencyLimiter';
 import extendExpress from './extendExpress';
 import config from './config';
 import * as constants from './constants';
@@ -25,6 +24,7 @@ import {isTestEnv} from './utils';
 import {
   authHandler,
   handleError,
+  limitConcurrency,
   openApiValidator,
   requestLogger,
   requestQueryParser,

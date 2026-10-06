@@ -2,8 +2,8 @@
 
 import {jest} from '@jest/globals';
 
-import limitConcurrency from '../concurrencyLimiter';
-import {TooManyRequestsError} from '../errors';
+import {TooManyRequestsError} from '../../errors';
+import {limitConcurrency} from '../../middleware';
 
 // A handler whose invocations stay in flight until released, so concurrency can be controlled by the test
 const pendingHandler = () => {
