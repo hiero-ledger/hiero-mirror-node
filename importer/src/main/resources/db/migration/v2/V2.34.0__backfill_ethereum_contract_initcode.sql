@@ -13,13 +13,10 @@ from missing_contract_ids missing
 join transaction child
   on child.entity_id = missing.id
  and child.type = 8
-join transaction parent
-  on parent.payer_account_id = child.payer_account_id
- and parent.consensus_timestamp = child.parent_consensus_timestamp
- and parent.type = 50
+ and child.parent_consensus_timestamp is not null
 join ethereum_transaction et
-  on et.payer_account_id = parent.payer_account_id
- and et.consensus_timestamp = parent.consensus_timestamp
+  on et.payer_account_id = child.payer_account_id
+ and et.consensus_timestamp = child.parent_consensus_timestamp
 where octet_length(et.call_data) > 0;
 
 update contract c
