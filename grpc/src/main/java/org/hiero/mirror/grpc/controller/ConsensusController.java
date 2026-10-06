@@ -9,6 +9,7 @@ import com.hedera.mirror.api.proto.ConsensusTopicResponse;
 import com.hederahashgraph.api.proto.java.ConsensusMessageChunkInfo;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
+import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import java.util.Objects;
@@ -19,6 +20,7 @@ import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import org.hiero.mirror.grpc.service.TopicMessageService;
+import org.hiero.mirror.grpc.util.GrpcFlowControlSubscriber;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.springframework.grpc.server.service.GrpcService;
 import reactor.core.publisher.Mono;
@@ -41,15 +43,17 @@ final class ConsensusController extends ConsensusServiceGrpc.ConsensusServiceImp
 
     @Override
     public void subscribeTopic(ConsensusTopicQuery request, StreamObserver<ConsensusTopicResponse> responseObserver) {
-        final var disposable = Mono.fromCallable(() -> toFilter(request))
+        if (!(responseObserver instanceof ServerCallStreamObserver<ConsensusTopicResponse> serverCallStreamObserver)) {
+            log.warn("Expected a ServerCallStreamObserver but got {}", responseObserver.getClass());
+            responseObserver.onError(Status.INTERNAL.asRuntimeException());
+            return;
+        }
+
+        Mono.fromCallable(() -> toFilter(request))
                 .flatMapMany(topicMessageService::subscribeTopic)
                 .map(this::toResponse)
                 .onErrorMap(ProtoUtil::toStatusRuntimeException)
-                .subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
-
-        if (responseObserver instanceof ServerCallStreamObserver serverCallStreamObserver) {
-            serverCallStreamObserver.setOnCancelHandler(disposable::dispose);
-        }
+                .subscribe(new GrpcFlowControlSubscriber<>(serverCallStreamObserver));
     }
 
     private TopicMessageFilter toFilter(ConsensusTopicQuery query) {

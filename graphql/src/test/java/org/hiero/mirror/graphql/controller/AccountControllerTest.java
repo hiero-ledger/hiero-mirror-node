@@ -43,12 +43,15 @@ class AccountControllerTest extends GraphqlIntegrationTest {
             """)
     @ParameterizedTest
     void invalidInput(String query, String error) {
-        tester.document(query).execute().errors().satisfy(r -> assertThat(r)
-                .hasSize(1)
-                .first()
-                .extracting(ResponseError::getMessage)
-                .asString()
-                .contains(error));
+        tester.document(query)
+                .execute()
+                .errors()
+                .satisfy(r -> assertThat(r)
+                        .hasSize(1)
+                        .first()
+                        .extracting(ResponseError::getMessage)
+                        .asString()
+                        .contains(error));
     }
 
     @CsvSource(textBlock = """

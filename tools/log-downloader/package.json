@@ -1,6 +1,6 @@
 {
   "name": "@hiero-ledger/mirror-log-downloader",
-  "version": "0.164.0-SNAPSHOT",
+  "version": "0.165.0-SNAPSHOT",
   "description": "Bulk download REST API logs from google cloud logging",
   "main": "index.js",
   "private": true,
@@ -13,9 +13,9 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@google-cloud/logging": "12.0.1",
-    "parse-duration": "2.1.8",
-    "yargs": "18.1.0"
+    "@google-cloud/logging": "12.1.0",
+    "parse-duration": "2.1.9",
+    "yargs": "18.2.0"
   },
   "peerDependencies": {
     "ansi-regex": "6.3.0",

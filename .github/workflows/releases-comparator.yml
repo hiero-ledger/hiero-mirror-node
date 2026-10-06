@@ -79,7 +79,7 @@ jobs:
           verify-signature: true
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v4
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v4
 
       - name: Run diff script
         env:
@@ -96,6 +96,7 @@ jobs:
             "com/hedera/hapi/node/state/file/File.java"
             "com/hedera/hapi/node/state/schedule/Schedule.java"
             "com/swirlds/state/spi/ReadableKVStateBase.java"
+            "com/swirlds/state/spi/ReadableSingletonStateBase.java"
             "com/swirlds/state/spi/WritableKVStateBase.java"
             "com/swirlds/state/spi/WritableSingletonStateBase.java"
           )

@@ -537,7 +537,12 @@ class ContractController extends BaseController {
       conditions.push(`${ContractResult.getFullName(ContractResult.TRANSACTION_NONCE)} = 0`);
     }
 
-    const includeSynthetic = config.query.syntheticContractResults && contractResultFromInValues.length === 0;
+    // Special case: don't include synthetic contract results created from synthetic contract logs when the query is for
+    // a specific contract, a workaround for #14365
+    const includeSynthetic =
+      config.query.syntheticContractResults &&
+      (contractId == null || config.query.syntheticContractIdResults) &&
+      contractResultFromInValues.length === 0;
 
     return {
       conditions,
@@ -1188,6 +1193,7 @@ class ContractController extends BaseController {
     const convertToHbar = utils.parseHbarParam(req.query.hbar);
 
     let transactionDetails;
+    let matchByPayerAccount = false;
 
     const {transactionIdOrHash} = req.params;
     if (utils.isValidEthHash(transactionIdOrHash)) {
@@ -1207,6 +1213,7 @@ class ContractController extends BaseController {
       transactionDetails = transactions[0];
       // want to look up involved contract parties using the payer account id
       transactionDetails.entityId = transactionDetails.payerAccountId;
+      matchByPayerAccount = true;
     }
 
     if (!transactionDetails) {
@@ -1215,7 +1222,8 @@ class ContractController extends BaseController {
 
     const contractDetails = await ContractService.getInvolvedContractsByTimestampAndContractId(
       transactionDetails.consensusTimestamp,
-      transactionDetails.entityId
+      transactionDetails.entityId,
+      matchByPayerAccount
     );
 
     if (!contractDetails) {
@@ -1265,7 +1273,11 @@ class ContractController extends BaseController {
 
   getDetailedContractResults = async (contractDetails, contractId = undefined) => {
     return Promise.all([
-      ContractService.getContractResultsByTimestamps(contractDetails.consensusTimestamp, contractDetails.contractIds),
+      ContractService.getContractResultsByTimestamps(
+        contractDetails.consensusTimestamp,
+        contractDetails.contractIds,
+        config.query.syntheticContractResults
+      ),
       TransactionService.getEthTransactionByTimestampAndPayerId(
         contractDetails.consensusTimestamp,
         contractDetails.payerAccountId

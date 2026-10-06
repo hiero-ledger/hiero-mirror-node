@@ -219,8 +219,9 @@ final class DomainUtilsTest {
         var timeNanos = DomainUtils.convertToNanos(seconds, nanos);
         var fromTimeStamp = Instant.ofEpochSecond(0, timeNanos);
 
-        assertAll(() -> assertThat(seconds).isEqualTo(fromTimeStamp.getEpochSecond()), () -> assertThat(nanos)
-                .isEqualTo(fromTimeStamp.getNano()));
+        assertAll(
+                () -> assertThat(seconds).isEqualTo(fromTimeStamp.getEpochSecond()),
+                () -> assertThat(nanos).isEqualTo(fromTimeStamp.getNano()));
     }
 
     @ParameterizedTest(name = "with seconds {0} and nanos {1}")
@@ -528,6 +529,8 @@ final class DomainUtilsTest {
         assertThat(DomainUtils.toEvmAddress(entityId)).asHexString().isEqualTo(expected);
         assertThatThrownBy(() -> DomainUtils.toEvmAddress((EntityId) null)).isInstanceOf(InvalidEntityException.class);
         assertThatThrownBy(() -> DomainUtils.toEvmAddress(EntityId.EMPTY)).isInstanceOf(InvalidEntityException.class);
+        assertThat(DomainUtils.toEvmAddress(EntityId.ZERO))
+                .isEqualTo(new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
     }
 
     @Test

@@ -207,19 +207,20 @@ class AccountReadableKVStateTest {
     void accountFieldsMatchEntityFields() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(
-                        new AccountID(
-                                entity.getShard(),
-                                entity.getRealm(),
-                                new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
-                .returns(
-                        TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
-                        Account::expirationSecond)
-                .returns(entity.getBalance(), Account::tinybarBalance)
-                .returns(entity.getAutoRenewPeriod(), Account::autoRenewSeconds)
-                .returns(entity.getMaxAutomaticTokenAssociations(), Account::maxAutoAssociations));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(
+                                new AccountID(
+                                        entity.getShard(),
+                                        entity.getRealm(),
+                                        new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
+                                com.hedera.hapi.node.state.token.Account::accountId)
+                        .returns(
+                                TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
+                                Account::expirationSecond)
+                        .returns(entity.getBalance(), Account::tinybarBalance)
+                        .returns(entity.getAutoRenewPeriod(), Account::autoRenewSeconds)
+                        .returns(entity.getMaxAutomaticTokenAssociations(), Account::maxAutoAssociations));
     }
 
     @Test
@@ -248,14 +249,15 @@ class AccountReadableKVStateTest {
     void missingAccountKeyMatchesDefaultValues() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(
-                        new AccountID(
-                                entity.getShard(),
-                                entity.getRealm(),
-                                new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
-                .returns(EMPTY_KEY_LIST, Account::key));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(
+                                new AccountID(
+                                        entity.getShard(),
+                                        entity.getRealm(),
+                                        new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
+                                com.hedera.hapi.node.state.token.Account::accountId)
+                        .returns(EMPTY_KEY_LIST, Account::key));
     }
 
     @Test
@@ -268,22 +270,23 @@ class AccountReadableKVStateTest {
         when(evmProperties.getVersionedConfiguration()).thenReturn(mockedConfiguration);
         when(mockedConfiguration.getConfigData(ContractsConfig.class)).thenReturn(mockedContractsConfig);
         when(mockedContractsConfig.maxKvPairsIndividual()).thenReturn(1);
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(
-                        new AccountID(
-                                contractEntity.getShard(),
-                                contractEntity.getRealm(),
-                                new OneOf<>(AccountOneOfType.ACCOUNT_NUM, contractEntity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
-                .returns(
-                        Key.newBuilder()
-                                .contractID(ContractID.newBuilder()
-                                        .shardNum(contractEntity.getShard())
-                                        .realmNum(contractEntity.getRealm())
-                                        .contractNum(contractEntity.getNum())
-                                        .build())
-                                .build(),
-                        Account::key));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(
+                                new AccountID(
+                                        contractEntity.getShard(),
+                                        contractEntity.getRealm(),
+                                        new OneOf<>(AccountOneOfType.ACCOUNT_NUM, contractEntity.getNum())),
+                                com.hedera.hapi.node.state.token.Account::accountId)
+                        .returns(
+                                Key.newBuilder()
+                                        .contractID(ContractID.newBuilder()
+                                                .shardNum(contractEntity.getShard())
+                                                .realmNum(contractEntity.getRealm())
+                                                .contractNum(contractEntity.getNum())
+                                                .build())
+                                        .build(),
+                                Account::key));
     }
 
     @Test
@@ -299,20 +302,21 @@ class AccountReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         entity.setEvmAddress(Bytes.wrap(evmAddress).toByteArray());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(
-                        new AccountID(
-                                entity.getShard(),
-                                entity.getRealm(),
-                                new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
-                .returns(
-                        TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
-                        Account::expirationSecond)
-                .returns(entity.getBalance(), Account::tinybarBalance)
-                .returns(entity.getAutoRenewPeriod(), Account::autoRenewSeconds)
-                .returns(entity.getMaxAutomaticTokenAssociations(), Account::maxAutoAssociations)
-                .returns(Bytes.wrap(entity.getEvmAddress()), Account::alias));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(
+                                new AccountID(
+                                        entity.getShard(),
+                                        entity.getRealm(),
+                                        new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
+                                com.hedera.hapi.node.state.token.Account::accountId)
+                        .returns(
+                                TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
+                                Account::expirationSecond)
+                        .returns(entity.getBalance(), Account::tinybarBalance)
+                        .returns(entity.getAutoRenewPeriod(), Account::autoRenewSeconds)
+                        .returns(entity.getMaxAutomaticTokenAssociations(), Account::maxAutoAssociations)
+                        .returns(Bytes.wrap(entity.getEvmAddress()), Account::alias));
     }
 
     @Test
@@ -322,20 +326,21 @@ class AccountReadableKVStateTest {
         entity.setEvmAddress(null);
         entity.setAlias(Bytes.wrap(ecdsaPublicKey).toByteArray());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(
-                        new AccountID(
-                                entity.getShard(),
-                                entity.getRealm(),
-                                new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
-                        com.hedera.hapi.node.state.token.Account::accountId)
-                .returns(
-                        TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
-                        Account::expirationSecond)
-                .returns(entity.getBalance(), Account::tinybarBalance)
-                .returns(entity.getAutoRenewPeriod(), Account::autoRenewSeconds)
-                .returns(entity.getMaxAutomaticTokenAssociations(), Account::maxAutoAssociations)
-                .returns(Bytes.wrap(entity.getAlias()), Account::alias));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(
+                                new AccountID(
+                                        entity.getShard(),
+                                        entity.getRealm(),
+                                        new OneOf<>(AccountOneOfType.ACCOUNT_NUM, entity.getNum())),
+                                com.hedera.hapi.node.state.token.Account::accountId)
+                        .returns(
+                                TimeUnit.SECONDS.convert(entity.getEffectiveExpiration(), TimeUnit.NANOSECONDS),
+                                Account::expirationSecond)
+                        .returns(entity.getBalance(), Account::tinybarBalance)
+                        .returns(entity.getAutoRenewPeriod(), Account::autoRenewSeconds)
+                        .returns(entity.getMaxAutomaticTokenAssociations(), Account::maxAutoAssociations)
+                        .returns(Bytes.wrap(entity.getAlias()), Account::alias));
     }
 
     @Test
@@ -363,15 +368,16 @@ class AccountReadableKVStateTest {
         entity.setDeleted(null);
         entity.setProxyAccountId(null);
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(
-                        TimeUnit.SECONDS.convert(AbstractEntity.DEFAULT_EXPIRY_TIMESTAMP, TimeUnit.NANOSECONDS),
-                        Account::expirationSecond)
-                .returns(0L, Account::numberOwnedNfts)
-                .returns(false, Account::deleted)
-                .returns(DEFAULT_AUTO_RENEW_PERIOD, Account::autoRenewSeconds)
-                .returns(0, Account::maxAutoAssociations)
-                .returns(0, Account::usedAutoAssociations));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(
+                                TimeUnit.SECONDS.convert(AbstractEntity.DEFAULT_EXPIRY_TIMESTAMP, TimeUnit.NANOSECONDS),
+                                Account::expirationSecond)
+                        .returns(0L, Account::numberOwnedNfts)
+                        .returns(false, Account::deleted)
+                        .returns(DEFAULT_AUTO_RENEW_PERIOD, Account::autoRenewSeconds)
+                        .returns(0, Account::maxAutoAssociations)
+                        .returns(0, Account::usedAutoAssociations));
     }
 
     @Test
@@ -625,8 +631,9 @@ class AccountReadableKVStateTest {
 
         verify(nftAllowanceRepository, never()).findByOwnerAndApprovedForAllIsTrue(entity.getId());
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(approveForAllAllowances, Account::approveForAllNftAllowances));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account ->
+                        assertThat(account).returns(approveForAllAllowances, Account::approveForAllNftAllowances));
 
         verify(nftAllowanceRepository).findByOwnerAndApprovedForAllIsTrue(entity.getId());
     }
@@ -640,9 +647,10 @@ class AccountReadableKVStateTest {
 
         verify(tokenAccountRepository, never()).countByAccountIdAndAssociatedGroupedByBalanceIsPositive(entity.getId());
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(POSITIVE_BALANCES + NEGATIVE_BALANCES, Account::numberAssociations)
-                .returns(POSITIVE_BALANCES, Account::numberPositiveBalances));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(POSITIVE_BALANCES + NEGATIVE_BALANCES, Account::numberAssociations)
+                        .returns(POSITIVE_BALANCES, Account::numberPositiveBalances));
 
         verify(tokenAccountRepository, times(1))
                 .countByAccountIdAndAssociatedGroupedByBalanceIsPositive(entity.getId());
@@ -656,9 +664,10 @@ class AccountReadableKVStateTest {
                         .getReadCacheState(AliasesReadableKVState.STATE_ID)
                         .containsKey(EVM_ADDRESS_BYTES))
                 .isFalse();
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(ACCOUNT_ID, Account::accountId)
-                .returns(EVM_ADDRESS_BYTES.value(), Account::alias));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(ACCOUNT_ID, Account::accountId)
+                        .returns(EVM_ADDRESS_BYTES.value(), Account::alias));
         assertThat(contractCallContext
                         .getReadCacheState(AliasesReadableKVState.STATE_ID)
                         .containsKey(EVM_ADDRESS_BYTES))
@@ -683,11 +692,25 @@ class AccountReadableKVStateTest {
         final var systemAccount = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 50L));
         when(commonEntityAccessor.get(systemAccount, Optional.empty())).thenReturn(Optional.empty());
 
-        assertThat(accountReadableKVState.readFromDataSource(systemAccount)).satisfies(account -> assertThat(account)
-                .isNotNull()
-                .returns(systemAccount, Account::accountId)
-                .returns(0L, Account::tinybarBalance)
-                .returns(EMPTY_KEY_LIST, Account::key));
+        assertThat(accountReadableKVState.readFromDataSource(systemAccount))
+                .satisfies(account -> assertThat(account)
+                        .isNotNull()
+                        .returns(systemAccount, Account::accountId)
+                        .returns(0L, Account::tinybarBalance)
+                        .returns(EMPTY_KEY_LIST, Account::key));
+    }
+
+    @Test
+    void returnsNonEmptyDummyAccountForRewardAccount() {
+        final var rewardAccount = EntityIdUtils.toAccountId(systemEntity.stakingRewardAccount());
+
+        assertThat(accountReadableKVState.readFromDataSource(rewardAccount))
+                .satisfies(account -> assertThat(account)
+                        .isNotNull()
+                        .returns(rewardAccount, Account::accountId)
+                        .returns(1L, Account::tinybarBalance)
+                        .returns(EMPTY_KEY_LIST, Account::key));
+        verify(commonEntityAccessor, never()).get(eq(rewardAccount), any());
     }
 
     @Test
@@ -712,10 +735,11 @@ class AccountReadableKVStateTest {
                 missingAccountBytes,
                 stateOverride(missingAccountBytes.toHex(), OVERRIDE_BALANCE_HEX, OVERRIDE_NONCE_HEX, null)));
 
-        assertThat(accountReadableKVState.get(missingAccount)).satisfies(account -> assertThat(account)
-                .returns(missingAccount, Account::accountId)
-                .returns(OVERRIDE_BALANCE, Account::tinybarBalance)
-                .returns(OVERRIDE_NONCE, Account::ethereumNonce));
+        assertThat(accountReadableKVState.get(missingAccount))
+                .satisfies(account -> assertThat(account)
+                        .returns(missingAccount, Account::accountId)
+                        .returns(OVERRIDE_BALANCE, Account::tinybarBalance)
+                        .returns(OVERRIDE_NONCE, Account::ethereumNonce));
     }
 
     @Test
@@ -740,9 +764,10 @@ class AccountReadableKVStateTest {
                 LONG_ZERO_ADDRESS_BYTES,
                 stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), OVERRIDE_BALANCE_HEX, OVERRIDE_NONCE_HEX, null)));
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(OVERRIDE_BALANCE, Account::tinybarBalance)
-                .returns(OVERRIDE_NONCE, Account::ethereumNonce));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(OVERRIDE_BALANCE, Account::tinybarBalance)
+                        .returns(OVERRIDE_NONCE, Account::ethereumNonce));
     }
 
     @Test
@@ -754,9 +779,10 @@ class AccountReadableKVStateTest {
                 LONG_ZERO_ADDRESS_BYTES,
                 stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), OVERRIDE_BALANCE_HEX, null, null)));
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(OVERRIDE_BALANCE, Account::tinybarBalance)
-                .doesNotReturn(BALANCE, Account::tinybarBalance));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(OVERRIDE_BALANCE, Account::tinybarBalance)
+                        .doesNotReturn(BALANCE, Account::tinybarBalance));
     }
 
     @Test
@@ -766,9 +792,10 @@ class AccountReadableKVStateTest {
         contractCallContext.setStateOverrides(Map.of(
                 LONG_ZERO_ADDRESS_BYTES, stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), null, null, "0x6080604052")));
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(BALANCE, Account::tinybarBalance)
-                .returns(0L, Account::ethereumNonce));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(BALANCE, Account::tinybarBalance)
+                        .returns(0L, Account::ethereumNonce));
     }
 
     @Test
@@ -806,9 +833,10 @@ class AccountReadableKVStateTest {
         contractCallContext.setStateOverrides(
                 Map.of(LONG_ZERO_ADDRESS_BYTES, stateOverrideWithStorage(LONG_ZERO_ADDRESS_BYTES.toHex(), false)));
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(false, Account::smartContract)
-                .returns(Bytes.wrap(delegation), Account::delegationAddress));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(false, Account::smartContract)
+                        .returns(Bytes.wrap(delegation), Account::delegationAddress));
     }
 
     @Test
@@ -822,9 +850,10 @@ class AccountReadableKVStateTest {
         contractCallContext.setStateOverrides(
                 Map.of(LONG_ZERO_ADDRESS_BYTES, stateOverrideWithStorage(LONG_ZERO_ADDRESS_BYTES.toHex(), true)));
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(false, Account::smartContract)
-                .returns(Bytes.wrap(delegation), Account::delegationAddress));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(false, Account::smartContract)
+                        .returns(Bytes.wrap(delegation), Account::delegationAddress));
     }
 
     @Test
@@ -838,9 +867,10 @@ class AccountReadableKVStateTest {
         contractCallContext.setStateOverrides(Map.of(
                 LONG_ZERO_ADDRESS_BYTES, stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), null, null, "0x6080604052")));
 
-        assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
-                .returns(true, Account::smartContract)
-                .returns(Bytes.wrap(delegation), Account::delegationAddress));
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account)
+                        .returns(true, Account::smartContract)
+                        .returns(Bytes.wrap(delegation), Account::delegationAddress));
     }
 
     @Test

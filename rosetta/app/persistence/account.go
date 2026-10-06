@@ -282,6 +282,7 @@ func (ar *accountRepository) getLatestBalanceSnapshot(ctx context.Context, accou
 			hErrors.ErrDatabaseError.Message,
 			fmt.Sprintf("%v looking for previous account_balance partition before %d", err, timestamp),
 		)
+		return 0, nil, hErrors.ErrDatabaseError
 	}
 
 	// gets the most recent balance at or before timestamp

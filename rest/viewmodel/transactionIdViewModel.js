@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import isNil from 'lodash/isNil';
+
 import EntityId from '../entityId';
 import {nsToSecNs} from '../utils';
 
@@ -16,13 +18,14 @@ class TransactionIdViewModel {
     if (transactionId?.$typeName === 'proto.TransactionID') {
       const {accountID, transactionValidStart, nonce, scheduled} = transactionId;
       const acc = accountID?.account;
-      this.account_id = EntityId.of(accountID.shardNum, accountID.realmNum, acc.value).toString();
+      this.account_id = isNil(acc?.value)
+        ? null
+        : EntityId.of(accountID.shardNum, accountID.realmNum, acc.value).toString();
       this.nonce = nonce;
       this.scheduled = scheduled;
-      this.transaction_valid_start = `${transactionValidStart.seconds}.${String(transactionValidStart.nanos).padStart(
-        9,
-        '0'
-      )}`;
+      this.transaction_valid_start = isNil(transactionValidStart)
+        ? null
+        : `${transactionValidStart.seconds}.${String(transactionValidStart.nanos).padStart(9, '0')}`;
     } else {
       // handle db format. Handle nil case for nonce and scheduled
       this.account_id = EntityId.parse(transactionId.payerAccountId).toString();

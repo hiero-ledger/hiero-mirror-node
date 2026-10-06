@@ -66,12 +66,15 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .recordItem(r -> r.hapiVersion(new Version(0, 28, 0)))
                 .transactionBody(body -> body.clear().setDeclineReward(BoolValue.of(declineReward)))
                 .build();
-        setupForCryptoUpdateTransactionTest(withStakedNodeIdSet, t -> assertThat(t)
-                .returns(declineReward, Entity::getDeclineReward)
-                .returns(null, Entity::getStakedAccountId)
-                .returns(null, Entity::getStakedNodeId)
-                .returns(
-                        Utility.getEpochDay(withStakedNodeIdSet.getConsensusTimestamp()), Entity::getStakePeriodStart));
+        setupForCryptoUpdateTransactionTest(
+                withStakedNodeIdSet,
+                t -> assertThat(t)
+                        .returns(declineReward, Entity::getDeclineReward)
+                        .returns(null, Entity::getStakedAccountId)
+                        .returns(null, Entity::getStakedNodeId)
+                        .returns(
+                                Utility.getEpochDay(withStakedNodeIdSet.getConsensusTimestamp()),
+                                Entity::getStakePeriodStart));
     }
 
     @ParameterizedTest
@@ -86,13 +89,16 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .transactionBody(body ->
                         body.clear().setStakedAccountId(accountId).setMaxAutomaticTokenAssociations(Int32Value.of(-1)))
                 .build();
-        setupForCryptoUpdateTransactionTest(withStakedNodeIdSet, t -> assertThat(t)
-                .returns(null, Entity::getDeclineReward)
-                .returns(-1, Entity::getMaxAutomaticTokenAssociations)
-                .returns(accountNum, Entity::getStakedAccountId)
-                .returns(-1L, Entity::getStakedNodeId)
-                .returns(
-                        Utility.getEpochDay(withStakedNodeIdSet.getConsensusTimestamp()), Entity::getStakePeriodStart));
+        setupForCryptoUpdateTransactionTest(
+                withStakedNodeIdSet,
+                t -> assertThat(t)
+                        .returns(null, Entity::getDeclineReward)
+                        .returns(-1, Entity::getMaxAutomaticTokenAssociations)
+                        .returns(accountNum, Entity::getStakedAccountId)
+                        .returns(-1L, Entity::getStakedNodeId)
+                        .returns(
+                                Utility.getEpochDay(withStakedNodeIdSet.getConsensusTimestamp()),
+                                Entity::getStakePeriodStart));
     }
 
     @ParameterizedTest
@@ -103,12 +109,15 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .recordItem(r -> r.hapiVersion(new Version(0, minorVersion, 0)))
                 .transactionBody(body -> body.setStakedNodeId(nodeId))
                 .build();
-        setupForCryptoUpdateTransactionTest(withStakedNodeIdSet, t -> assertThat(t)
-                .returns(nodeId, Entity::getStakedNodeId)
-                .returns(0L, Entity::getStakedAccountId)
-                .returns(true, Entity::getDeclineReward)
-                .returns(
-                        Utility.getEpochDay(withStakedNodeIdSet.getConsensusTimestamp()), Entity::getStakePeriodStart));
+        setupForCryptoUpdateTransactionTest(
+                withStakedNodeIdSet,
+                t -> assertThat(t)
+                        .returns(nodeId, Entity::getStakedNodeId)
+                        .returns(0L, Entity::getStakedAccountId)
+                        .returns(true, Entity::getDeclineReward)
+                        .returns(
+                                Utility.getEpochDay(withStakedNodeIdSet.getConsensusTimestamp()),
+                                Entity::getStakePeriodStart));
     }
 
     @Test
@@ -126,11 +135,13 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .customize(t -> t.consensusTimestamp(timestamp))
                 .get();
         getTransactionHandler().updateTransaction(transaction, withStakedNodeIdSet);
-        assertCryptoUpdate(timestamp, t -> assertThat(t)
-                .returns(null, Entity::getDeclineReward)
-                .returns(null, Entity::getStakedAccountId)
-                .returns(null, Entity::getStakedNodeId)
-                .returns(null, Entity::getStakePeriodStart));
+        assertCryptoUpdate(
+                timestamp,
+                t -> assertThat(t)
+                        .returns(null, Entity::getDeclineReward)
+                        .returns(null, Entity::getStakedAccountId)
+                        .returns(null, Entity::getStakedNodeId)
+                        .returns(null, Entity::getStakePeriodStart));
     }
 
     @Test
@@ -248,9 +259,11 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .transactionBody(body -> body.setDelegationAddress(DomainUtils.fromBytes(delegationAddressBytes)))
                 .recordItem(r -> r.blockstream(true).accountEthereumNonce(7L).hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
-        setupForCryptoUpdateTransactionTest(recordItem, t -> assertThat(t)
-                .returns(delegationAddressBytes, Entity::getDelegationAddress)
-                .returns(7L, Entity::getEthereumNonce));
+        setupForCryptoUpdateTransactionTest(
+                recordItem,
+                t -> assertThat(t)
+                        .returns(delegationAddressBytes, Entity::getDelegationAddress)
+                        .returns(7L, Entity::getEthereumNonce));
     }
 
     @Test
@@ -262,9 +275,11 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .transactionBody(body -> body.setDelegationAddress(DomainUtils.fromBytes(delegationAddressBytes)))
                 .recordItem(r -> r.blockstream(true).accountEthereumNonce(7L).hapiVersion(HAPI_VERSION_0_77_0))
                 .build();
-        setupForCryptoUpdateTransactionTest(recordItem, t -> assertThat(t)
-                .returns(delegationAddressBytes, Entity::getDelegationAddress)
-                .returns(null, Entity::getEthereumNonce));
+        setupForCryptoUpdateTransactionTest(
+                recordItem,
+                t -> assertThat(t)
+                        .returns(delegationAddressBytes, Entity::getDelegationAddress)
+                        .returns(null, Entity::getEthereumNonce));
     }
 
     @SuppressWarnings("deprecation")

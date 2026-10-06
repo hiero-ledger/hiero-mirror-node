@@ -117,12 +117,12 @@ class RestApiClientTest {
     }
 
     @Test
-    void getNetworkStakeStatusCode() {
+    void getTransactionsStatusCode() {
         when(exchangeFunction.exchange(isA(ClientRequest.class)))
                 .thenReturn(Mono.just(
                         ClientResponse.create(HttpStatus.SERVICE_UNAVAILABLE).build()));
 
-        StepVerifier.withVirtualTime(() -> restApiClient.getNetworkStakeStatusCode())
+        StepVerifier.withVirtualTime(() -> restApiClient.getTransactionsStatusCode())
                 .thenAwait(WAIT)
                 .expectNext(HttpStatusCode.valueOf(503))
                 .expectComplete()
@@ -143,7 +143,7 @@ class RestApiClientTest {
                 .thenReturn(Mono.just(
                         ClientResponse.create(HttpStatus.SERVICE_UNAVAILABLE).build()));
 
-        StepVerifier.withVirtualTime(() -> restApiClient.getNetworkStakeStatusCode())
+        StepVerifier.withVirtualTime(() -> restApiClient.getTransactionsStatusCode())
                 .thenAwait(WAIT)
                 .expectNext(HttpStatusCode.valueOf(503))
                 .expectComplete()

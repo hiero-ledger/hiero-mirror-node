@@ -21,13 +21,16 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
 
     @Caching(
             cacheable = {
-                @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_ENTITY, unless = "#result == null"),
+                @Cacheable(
+                        cacheNames = CACHE_NAME,
+                        cacheManager = CACHE_MANAGER_ENTITY,
+                        unless = "@spelHelper.isNullOrEmpty(#result)"),
                 @Cacheable(
                         cacheNames = CACHE_NAME,
                         cacheManager = CACHE_MANAGER_SYSTEM_ACCOUNT,
                         condition =
                                 "#entityId < 1000 && !T(org.hiero.mirror.web3.common.ContractCallContext).isBalanceCallSafe()",
-                        unless = "#result == null")
+                        unless = "@spelHelper.isNullOrEmpty(#result)")
             })
     Optional<Entity> findByIdAndDeletedIsFalse(Long entityId);
 
@@ -35,14 +38,14 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             cacheNames = CACHE_NAME_EVM_ADDRESS,
             cacheManager = CACHE_MANAGER_ENTITY,
             key = "@spelHelper.getCacheKey(#alias)",
-            unless = "#result == null")
+            unless = "@spelHelper.isNullOrEmpty(#result)")
     Optional<Entity> findByEvmAddressAndDeletedIsFalse(byte[] alias);
 
     @Cacheable(
             cacheNames = CACHE_NAME_ALIAS,
             cacheManager = CACHE_MANAGER_ENTITY,
             key = "@spelHelper.getCacheKey(#alias)",
-            unless = "#result == null")
+            unless = "@spelHelper.isNullOrEmpty(#result)")
     @Query(value = """
         select *
         from entity

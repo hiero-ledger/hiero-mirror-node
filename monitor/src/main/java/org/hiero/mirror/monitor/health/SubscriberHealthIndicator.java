@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.net.ConnectException;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -34,7 +35,12 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
     private static final Mono<Health> UP = health(Status.UP, "");
     private static final Mono<Health> DOWN = health(Status.DOWN, "");
 
+    private final Object hysteresisLock = new Object();
+    private Status lastReportedStatus = Status.UP;
+    private int consecutiveUp = 0;
+
     private final ReleaseHealthProperties releaseHealthProperties;
+    private final SubscriberHealthProperties subscriberHealthProperties;
     private final MirrorSubscriber mirrorSubscriber;
     private final RestApiClient restApiClient;
     private final TransactionGenerator transactionGenerator;
@@ -47,20 +53,61 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
                 .register(meterRegistry);
     }
 
-    private static Mono<Health> health(Status status, String reason) {
-        Health.Builder health = Health.status(status);
+    private static Health status(Status status, String reason) {
+        final var health = Health.status(status);
         if (StringUtils.isNotBlank(reason)) {
             health.withDetail("reason", reason);
         }
-        return Mono.just(health.build());
+        return health.build();
+    }
+
+    private static Mono<Health> health(Status status, String reason) {
+        return Mono.just(status(status, reason));
     }
 
     @Override
     public Mono<Health> health() {
-        return restNetworkStakeHealth()
+        return restTransactionsHealth()
                 .flatMap(health ->
                         health.getStatus() == Status.UP ? publishing().switchIfEmpty(subscribing()) : Mono.just(health))
+                .map(this::applyRecoveryHysteresis)
                 .doOnNext(this::recordHealthMetric);
+    }
+
+    // Report DOWN immediately, but require recoveryThreshold consecutive genuinely UP results before
+    // clearing it, so a sustained outage isn't masked by one lucky healthy poll - or by an ambiguous
+    // UNKNOWN result, which isn't confirmation of recovery - in between.
+    private Health applyRecoveryHysteresis(Health computed) {
+        final var awaitingRecovery = status(
+                Status.DOWN,
+                "Awaiting %d consecutive healthy checks to recover"
+                        .formatted(subscriberHealthProperties.getRecoveryThreshold()));
+
+        synchronized (hysteresisLock) {
+            if (computed.getStatus() == Status.DOWN) {
+                consecutiveUp = 0;
+                lastReportedStatus = Status.DOWN;
+                return computed;
+            }
+
+            if (lastReportedStatus != Status.DOWN) {
+                lastReportedStatus = computed.getStatus();
+                return computed;
+            }
+
+            if (computed.getStatus() != Status.UP) {
+                consecutiveUp = 0;
+                return awaitingRecovery;
+            }
+
+            if (++consecutiveUp < subscriberHealthProperties.getRecoveryThreshold()) {
+                return awaitingRecovery;
+            }
+
+            consecutiveUp = 0;
+            lastReportedStatus = Status.UP;
+            return computed;
+        }
     }
 
     private void recordHealthMetric(Health health) {
@@ -90,9 +137,9 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
                 .switchIfEmpty(getHealthForZeroRate());
     }
 
-    private Mono<Health> restNetworkStakeHealth() {
+    private Mono<Health> restTransactionsHealth() {
         return restApiClient
-                .getNetworkStakeStatusCode()
+                .getTransactionsStatusCode()
                 .flatMap(statusCode -> {
                     if (statusCode.is2xxSuccessful()) {
                         return UP;
@@ -100,7 +147,7 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
 
                     var status = statusCode.is5xxServerError() ? Status.DOWN : Status.UNKNOWN;
                     var statusMessage =
-                            String.format("Network stake status is %s with status code %s", status, statusCode.value());
+                            String.format("Transactions status is %s with status code %s", status, statusCode.value());
                     log.error(statusMessage);
                     return health(status, statusMessage);
                 })
@@ -110,12 +157,14 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
                     // Connection issue can be caused by database being down, since the rest API service will become
                     // unavailable eventually
                     var rootCause = ExceptionUtils.getRootCause(e);
-                    if (rootCause instanceof ConnectException || rootCause instanceof TimeoutException) {
+                    if (rootCause instanceof ConnectException
+                            || rootCause instanceof TimeoutException
+                            || rootCause instanceof UnknownHostException) {
                         status = Status.DOWN;
                     }
 
                     var statusMessage =
-                            String.format("Network stake status is %s with error: %s", status, e.getMessage());
+                            String.format("Transactions status is %s with error: %s", status, e.getMessage());
                     log.error(statusMessage);
                     return health(status, statusMessage);
                 });

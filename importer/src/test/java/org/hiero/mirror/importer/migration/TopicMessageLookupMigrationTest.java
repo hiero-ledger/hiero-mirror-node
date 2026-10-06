@@ -191,10 +191,11 @@ class TopicMessageLookupMigrationTest extends AbstractTopicMessageLookupIntegrat
                     .customize(r -> r.consensusStart(consensusStart).consensusEnd(consensusEnd))
                     .persist();
 
-            List.of(topicId1, topicId2, topicId3).forEach(topicId -> domainBuilder
-                    .topicEntity()
-                    .customize(t -> t.id(topicId.getId()).num(topicId.getNum()))
-                    .persist());
+            List.of(topicId1, topicId2, topicId3)
+                    .forEach(topicId -> domainBuilder
+                            .topicEntity()
+                            .customize(t -> t.id(topicId.getId()).num(topicId.getNum()))
+                            .persist());
 
             // partition 1
             domainBuilder

@@ -197,8 +197,9 @@ class CompositeTransactionGeneratorTest {
         List<Integer> warmupCounts = counts.subList(0, warmUpSeconds);
         List<Integer> stableCounts = counts.subList(warmUpSeconds, counts.size());
         assertThat(warmupCounts).isSorted().allSatisfy(n -> assertThat(n * 1.0).isLessThan(totalTps));
-        assertThat(stableCounts).isNotEmpty().allSatisfy(n -> assertThat(n * 1.0)
-                .isCloseTo(totalTps, withinPercentage(5)));
+        assertThat(stableCounts)
+                .isNotEmpty()
+                .allSatisfy(n -> assertThat(n * 1.0).isCloseTo(totalTps, withinPercentage(5)));
     }
 
     @Test
