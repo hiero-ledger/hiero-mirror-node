@@ -30,7 +30,7 @@ public class BlockFileBuilder {
         var firstConsensusTimestamp = blockTransactions.isEmpty()
                 ? domainBuilder.protoTimestamp()
                 : blockTransactions.getFirst().getTransactionResult().getConsensusTimestamp();
-        byte[] previousHash = domainBuilder.bytes(48);
+        byte[] previousHash = domainBuilder.bytes(DigestAlgorithm.SHA_256.getSize());
         long consensusStart = DomainUtils.timestampInNanosMax(firstConsensusTimestamp);
         long consensusEnd = blockTransactions.isEmpty()
                 ? consensusStart
@@ -48,8 +48,8 @@ public class BlockFileBuilder {
                 .consensusEnd(consensusEnd)
                 .consensusStart(consensusStart)
                 .count((long) blockTransactions.size())
-                .digestAlgorithm(DigestAlgorithm.SHA_384)
-                .hash(DomainUtils.bytesToHex(domainBuilder.bytes(48)))
+                .digestAlgorithm(DigestAlgorithm.SHA_256)
+                .hash(DomainUtils.bytesToHex(domainBuilder.bytes(DigestAlgorithm.SHA_256.getSize())))
                 .index(blockNumber)
                 .items(blockTransactions)
                 .loadStart(System.currentTimeMillis())

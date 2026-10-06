@@ -27,7 +27,7 @@ final class RecordFileRepositoryTest extends ImporterIntegrationTest {
                 .recordFile()
                 .customize(rf -> {
                     if (hasPreviousWrappedRecordBlockHash) {
-                        rf.previousWrappedRecordBlockHash(domainBuilder.bytes(48));
+                        rf.previousWrappedRecordBlockHash(domainBuilder.bytes(32));
                     }
                 })
                 .persist();

@@ -21,13 +21,15 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockItemSet;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 import org.hiero.mirror.importer.util.Utility;
 
 public final class BlockGenerator {
 
-    private static final byte[] ALL_ZERO_HASH = new byte[48];
+    private static final int HASH_SIZE = DigestAlgorithm.SHA_256.getSize();
+    private static final byte[] ALL_ZERO_HASH = new byte[HASH_SIZE];
 
     private final Duration interval;
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
@@ -44,7 +46,7 @@ public final class BlockGenerator {
         if (blockNumber == 0) {
             previousBlockRootHash = ALL_ZERO_HASH;
         } else {
-            previousBlockRootHash = recordItemBuilder.randomBytes(48);
+            previousBlockRootHash = recordItemBuilder.randomBytes(HASH_SIZE);
         }
 
         recordItemBuilder.setNow(startTime);

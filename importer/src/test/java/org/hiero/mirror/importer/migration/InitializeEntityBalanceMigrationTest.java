@@ -143,8 +143,8 @@ final class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest
                 .recordFile()
                 .customize(r -> {
                     if (wrapped) {
-                        r.wrappedRecordBlockHash(domainBuilder.bytes(48))
-                                .previousWrappedRecordBlockHash(domainBuilder.bytes(48));
+                        r.wrappedRecordBlockHash(domainBuilder.bytes(32))
+                                .previousWrappedRecordBlockHash(domainBuilder.bytes(32));
                     } else {
                         r.version(BlockStreamReader.VERSION);
                     }

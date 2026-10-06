@@ -139,7 +139,7 @@ final class HistoricalAccountInfoMigrationTest extends ImporterIntegrationTest {
         // given
         domainBuilder
                 .recordFile()
-                .customize(r -> r.index(blockNumber).wrappedRecordBlockHash(domainBuilder.bytes(48)))
+                .customize(r -> r.index(blockNumber).wrappedRecordBlockHash(domainBuilder.bytes(32)))
                 .persist();
 
         // when / then

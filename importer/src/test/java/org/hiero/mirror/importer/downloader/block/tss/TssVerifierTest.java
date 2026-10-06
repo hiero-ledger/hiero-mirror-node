@@ -88,7 +88,7 @@ final class TssVerifierTest {
 
         // when, then
         assertThatThrownBy(() -> tssVerifier.verify(
-                        0, TestUtils.generateRandomByteArray(48), TEST_ARTIFACT.signatureWithWraps()))
+                        0, TestUtils.generateRandomByteArray(32), TEST_ARTIFACT.signatureWithWraps()))
                 .isInstanceOf(SignatureVerificationException.class)
                 .hasMessage("TSS signature verification failed for block 0");
         verify(ledgerRepository).findTopByOrderByConsensusTimestampDesc();

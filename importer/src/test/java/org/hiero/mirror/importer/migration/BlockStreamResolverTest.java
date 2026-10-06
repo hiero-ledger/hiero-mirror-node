@@ -98,7 +98,7 @@ final class BlockStreamResolverTest extends ImporterIntegrationTest {
     }
 
     private void persistRecordFile(final long index, final int version, final boolean wrapped) {
-        final byte[] wrappedRecordBlockHash = wrapped ? domainBuilder.bytes(48) : null;
+        final byte[] wrappedRecordBlockHash = wrapped ? domainBuilder.bytes(32) : null;
         domainBuilder
                 .recordFile()
                 .customize(r -> r.index(index).version(version).wrappedRecordBlockHash(wrappedRecordBlockHash))

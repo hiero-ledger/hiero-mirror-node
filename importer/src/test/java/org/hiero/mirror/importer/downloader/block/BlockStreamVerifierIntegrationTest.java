@@ -95,7 +95,7 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                         r.hash(recordFile.getPreviousHash()).index(recordFile.getIndex() - 1);
                         if (hasPreviousWrappedRecordBlockHash) {
                             r.wrappedRecordBlockHash(recordFile.getPreviousWrappedRecordBlockHash())
-                                    .previousWrappedRecordBlockHash(domainBuilder.bytes(48));
+                                    .previousWrappedRecordBlockHash(domainBuilder.bytes(32));
                         }
                     })
                     .persist();
@@ -143,7 +143,7 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                 .recordFile()
                 .customize(r -> r.hash(recordFile.getPreviousHash())
                         .index(recordFile.getIndex() - 1)
-                        .wrappedRecordBlockHash(domainBuilder.bytes(48)))
+                        .wrappedRecordBlockHash(domainBuilder.bytes(32)))
                 .persist();
 
         // when, then
@@ -161,7 +161,7 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                 .recordFile()
                 .customize(r -> r.hash(recordFile.getPreviousHash())
                         .index(recordFile.getIndex() - 1)
-                        .wrappedRecordBlockHash(domainBuilder.bytes(48)))
+                        .wrappedRecordBlockHash(domainBuilder.bytes(32)))
                 .persist();
 
         // when, then
@@ -291,8 +291,8 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                         .name("2025-06-01T00_00_10.207594022Z.rcd")
                         .previousHash(
                                 "da6ee1fdd0aedd8dd61275daf05441bfb1a4bbc39c65621eb18f0ab9e7aa02a9039f29f21f658a9cea62e18877740c00")
-                        .previousWrappedRecordBlockHash(TestUtils.generateRandomByteArray(48))
-                        .wrappedRecordBlockHash(TestUtils.generateRandomByteArray(48))
+                        .previousWrappedRecordBlockHash(TestUtils.generateRandomByteArray(32))
+                        .wrappedRecordBlockHash(TestUtils.generateRandomByteArray(32))
                         .version(6)
                         .build())
                 .build();

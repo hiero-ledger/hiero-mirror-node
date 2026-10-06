@@ -37,7 +37,7 @@ final class FileTransformerTest extends AbstractTransformerTest {
         final var blockTransaction =
                 blockTransactionBuilder.fileCreate(expectedRecordItem).build();
         final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
-        blockFile.setPreviousWrappedRecordBlockHash(recordItemBuilder.randomBytes(48));
+        blockFile.setPreviousWrappedRecordBlockHash(recordItemBuilder.randomBytes(32));
 
         // when
         final var recordFile = blockFileTransformer.transform(blockFile);
