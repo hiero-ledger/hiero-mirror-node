@@ -85,5 +85,7 @@ spec:
         annotations:
           cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mirrornode-mainnet-eu"} } }'
     zfs:
+      autoGrow:
+        thresholdPercent: 99
       init:
         diskPrefix: mainnet-eu
