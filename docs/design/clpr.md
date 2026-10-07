@@ -119,14 +119,13 @@ separate ingestion path for CLPR:
      directly, synchronously, inside that same transaction's handling — no child transaction is dispatched — so
      its resulting state changes (outbound Data message, Channel `next_message_id`/`sent_running_hash`, Connector
      `in_flight_message_count`) land in that same transaction's own block-stream `StateChanges` entry. This is a
-     **mirror-node-only fix**: CLPR state changes carry their own dedicated `StateIdentifier`s
-     (`STATE_ID_CLPR_MESSAGE_QUEUE`/`STATE_ID_CLPR_CHANNELS`/`STATE_ID_CLPR_CONNECTORS`), the same category
-     `STATE_ID_TOPICS_VALUE` belongs to — not raw, anonymous contract storage. So the fix is the same
-     `StateChangeContext` accessor pattern `ConsensusCreateTopicTransformer`/`getNewTopicId()` already uses: add
-     these `StateIdentifier` cases to `StateChangeContext`'s constructor switch, and have the existing
-     `ContractCall`/`EthereumTransaction` handling also read them when present. No new tables — the writes land
-     in `clpr_message`/`clpr_channel`/`clpr_connector`, which already exist; `sendMessage` is simply a second
-     source feeding them, alongside `ClprSubmitBundle`.
+     **mirror-node-only fix**: CLPR state changes carry their own dedicated, self-describing `StateIdentifier`s
+     (`STATE_ID_CLPR_MESSAGE_QUEUE`/`STATE_ID_CLPR_CHANNELS`/`STATE_ID_CLPR_CONNECTORS`), not raw, anonymous
+     contract storage — so no detection of which contract was called is needed. The fix is to add these three
+     `StateIdentifier` cases to `StateChangeContext`'s constructor switch, with accessors for each, and have the
+     existing `ContractCall`/`EthereumTransaction` handling also read them when present. No new tables — the
+     writes land in `clpr_message`/`clpr_channel`/`clpr_connector`, which already exist; `sendMessage` is simply a
+     second source feeding them, alongside `ClprSubmitBundle`.
    - **The ledger configuration** singleton's first row is written either by `ClprServiceImpl#doGenesisSetup`
      (true genesis, block 0) or by `V0770ClprSchema.migrate()`'s non-genesis branch (CLPR added to an
      already-running network via upgrade) — depending on whether the network is brand new or being upgraded.
@@ -144,12 +143,10 @@ separate ingestion path for CLPR:
    `BlockStreamReaderImpl.readInitialState()`/`InitialStateReader`/`BlockFile.initialState` can be extended to
    also parse the CLPR singletons at block 0 — but that only covers a brand-new network starting with CLPR
    already enabled, not any network that reaches CLPR by upgrade, which is every existing Hiero network today.)
-   Precedent for the right fix already exists: network stake is also periodic and not triggered by any user
-   transaction, yet the consensus node emits it as its own synthetic system transaction
-   (`TransactionType.NODESTAKEUPDATE`) rather than a bare state change, flowing through
-   `NodeStakeUpdateTransactionHandler` via the ordinary per-transaction pipeline. The recommendation is for the
-   consensus-node team to emit the endpoint-manifest reconciliation and the upgrade-time ledger-configuration
-   initialization the same way. Until that exists upstream, neither can be ingested outside of true genesis.
+   The recommendation is for the consensus-node team to emit the endpoint-manifest reconciliation and the
+   upgrade-time ledger-configuration initialization as their own synthetic system transactions, so they flow
+   through the ordinary per-transaction pipeline like everything else. Until that exists upstream, neither can be
+   ingested outside of true genesis.
 
 ```
 Consensus node (CLPR Service)
@@ -205,7 +202,6 @@ unlike Channels/Connectors/Messages; see Feedback).
 
 ## Database Schema Design
 
-Following the current + history pattern used for other long-lived, mutable Hiero entities (tokens, topics):
 **Channel**, **Connector**, and **ledger configuration** get current + history table pairs
 (their state mutates repeatedly over their lifetime and history has audit value per HIP-1535 §11). The
 **endpoint manifest** is a network-wide singleton that also mutates over time, so it gets the same treatment. The
@@ -443,8 +439,7 @@ create table if not exists clpr_endpoint_manifest
     primary key (id)
 );
 
--- One row per ClprEndpoint entry, normalized rather than a serialized blob column, matching
--- address_book_service_endpoint's relationship to address_book_entry. Append-only like that table too: a new
+-- One row per ClprEndpoint entry, normalized rather than a serialized blob column. Append-only: a new
 -- manifest version's endpoints are inserted fresh, old versions' rows are never deleted, so history is implicit
 -- in having one row set per version rather than needing a separate _history table.
 create table if not exists clpr_endpoint_manifest_endpoint
@@ -468,30 +463,27 @@ create index if not exists clpr_endpoint_manifest_history__timestamp_range
 ```
 
 These five stay as plain, ordinary Postgres tables in `v2` — no `create_distributed_table` or `create_reference_table`
-call at all, matching how this codebase already treats comparable small, infrequently-updated config/admin tables
-(e.g. `network_stake`, `address_book`): nothing joins against them from a distributed table, and none is even
-exposed via REST in this iteration (see [REST API Implementation](#rest-api-implementation)), so reference-table
-replication would add write-side coordination overhead across every worker node for no actual benefit. This also
-means `v1` and `v2`'s migrations for these tables are identical byte-for-byte, not just in table/column
+call at all: nothing joins against them from a distributed table, and none is even exposed via REST in this
+iteration (see [REST API Implementation](#rest-api-implementation)), so reference-table replication would add
+write-side coordination overhead across every worker node for no actual benefit. This also means `v1` and `v2`'s
+migrations for these tables are identical byte-for-byte, not just in table/column
 definitions.
 
 ### 4. Message Queue (Append-Only)
 
-`clpr_channel`, `clpr_connector`, and `clpr_message` all stay colocated by `channel_id` — the same choice
-`topic_message` makes (colocated with `entity` by `topic_id`), not the one `transaction_hash` makes (distributed by
-its own `hash`, no colocation). This keeps `Messages per Channel` and `Connectors per Channel` shard-local: Citus
-can route both straight to the one shard that `channel_id` hashes to, without touching any other shard.
+`clpr_channel`, `clpr_connector`, and `clpr_message` all stay colocated by `channel_id`. This keeps `Messages per
+Channel` and `Connectors per Channel` shard-local: Citus can route both straight to the one shard that `channel_id`
+hashes to, without touching any other shard.
 
 Colocation only solves _which shard_ a query hits, though — it says nothing about _which time partition within that
 shard_. `clpr_message` is still time-partitioned by `consensus_timestamp` in `v2` (for the reasons in
 [Performance Considerations](#2-performance-considerations)), and a query filtered only by `channel_id`/`message_id`
-still can't be pruned to one partition without a timestamp bound — exactly the problem `topic_message_lookup`
-solves for `topic_message`'s `sequence_number`. So `clpr_message` needs both: colocation (shard pruning) _and_ a
-lookup table (partition pruning) — they're independent mechanisms solving two different dimensions, not
-alternatives to each other.
+still can't be pruned to one partition without a timestamp bound. So `clpr_message` needs both: colocation (shard
+pruning) _and_ a lookup table (partition pruning) — they're independent mechanisms solving two different
+dimensions, not alternatives to each other.
 
-**This is the one table where `v1` and `v2` diverge in structure.** `topic_message` is unpartitioned in `v1` and
-time-partitioned in `v2`; `clpr_message` follows the same split.
+**This is the one table where `v1` and `v2` diverge in structure.** `clpr_message` is unpartitioned in `v1` and
+time-partitioned in `v2`.
 
 #### `v1` (unpartitioned)
 
@@ -524,10 +516,9 @@ create index if not exists clpr_message__connector_id
 
 #### `v2` (time-partitioned)
 
-Postgres requires a partitioned table's primary key (if any) to include the partition column. `topic_message`
-dropped its primary key entirely in `v2` (`V1.93.1__drop_topic_message_primary_key.sql` upstream) rather than
-include `consensus_timestamp` in it. `clpr_message` does the same, for the same reason — the replacement indexes
-and the lookup table that replaces the dropped PK's lookup role are explained after the SQL:
+Postgres requires a partitioned table's primary key (if any) to include the partition column. Rather than include
+`consensus_timestamp` in `clpr_message`'s primary key, this design drops the primary key entirely in `v2` — the
+replacement indexes and the lookup table that replace the dropped PK's lookup role are explained after the SQL:
 
 ```sql
 -- add_clpr_message_support.sql (v2)
@@ -568,15 +559,12 @@ select create_time_partitions(table_name := 'public.clpr_message',
                               start_from := <clpr-enablement-date>::timestamptz,
                               end_at := CURRENT_TIMESTAMP + ${partitionTimeInterval});
 
--- Resolves (channel_id, message_id) to a timestamp range for partition pruning,
--- the same role topic_message_lookup plays for sequence_number. Keyed by the
+-- Resolves (channel_id, message_id) to a timestamp range for partition pruning. Keyed by the
 -- stable (channel_id, partition) pair, not by message_id_range itself, so
 -- extending a partition's range as more messages arrive is a cheap in-place
 -- UPDATE on a fixed key, not a delete+reinsert churn every time the range
--- grows — matching topic_message_lookup's own primary key: (topic_id, partition),
--- not (topic_id, sequence_number_range). Colocated with clpr_channel by
--- channel_id, same as clpr_message itself, so this resolution step is also
--- shard-local, not just the final query.
+-- grows. Colocated with clpr_channel by channel_id, same as clpr_message
+-- itself, so this resolution step is also shard-local, not just the final query.
 create table if not exists clpr_message_lookup
 (
     channel_id         bytea      not null,
@@ -612,43 +600,38 @@ shard-local doesn't make a query partition-local for free, though — colocation
 independent — so within whichever shard a `message.id`-filtered query lands on, it still needs
 `clpr_message_lookup` to resolve a `consensus_timestamp` bound before it can prune to the right time partition.
 Once that bound is resolved, `clpr_message__channel_id_message_id` — the `v2` replacement for the primary key
-dropped above — finds the exact row within that partition, mirroring `topic_message__topic_id_seqnum`'s role for
-`topic_message`.
+dropped above — finds the exact row within that partition.
 
-> **Distribution strategy.** CLPR tables have no natural Hiero `EntityId` to colocate against — `channel_id` and
-> `connector_id` are protocol-level 32-byte values, not Hiero entity numbers. Since `channel_id` is the root of the
-> natural parent-child relationship (Connectors and Messages both belong to exactly one Channel),
-> `clpr_channel`/`clpr_channel_history` are hash-distributed by `channel_id`, and
+> **Distribution strategy.** `channel_id` and `connector_id` are protocol-level 32-byte values with no numeric
+> entity id. Since `channel_id` is the root of the natural parent-child relationship (Connectors and Messages both
+> belong to exactly one Channel), `clpr_channel`/`clpr_channel_history` are hash-distributed by `channel_id`, and
 > `clpr_connector(_history)`/`clpr_message`/`clpr_message_lookup` are hash-distributed by `channel_id` too,
-> `colocate_with => 'clpr_channel'`, so per-channel queries stay shard-local — the same choice `topic_message`
-> makes by colocating with `entity`. `clpr_message` is additionally time-partitioned by `consensus_timestamp` in
-> `v2` only (see above) — distribution (shard dimension) and partitioning (time dimension) are orthogonal and both
-> apply to it. `clpr_channel_pending_commitment` and `clpr_connector_pending_commitment` have no `channel_id` at
-> all, so each is distributed by its own key (`ownership_commitment`/`commitment`).
+> `colocate_with => 'clpr_channel'`, so per-channel queries stay shard-local. `clpr_message` is additionally
+> time-partitioned by `consensus_timestamp` in `v2` only (see above) — distribution (shard dimension) and
+> partitioning (time dimension) are orthogonal and both apply to it. `clpr_channel_pending_commitment` and
+> `clpr_connector_pending_commitment` have no `channel_id` at all, so each is distributed by its own key
+> (`ownership_commitment`/`commitment`).
 > `clpr_ledger_configuration(_history)`/`clpr_endpoint_manifest(_history)`/`clpr_endpoint_manifest_endpoint` get
 > neither treatment — they stay plain, undistributed tables (see above). Tables that aren't colocated with another
-> table need an explicit `shard_count`,
-> since otherwise they each start a new colocation group at Citus's configured default. `clpr_channel` uses
-> `${shardCount}`, the same placeholder `entity` uses — `channel_id` is an opaque, registrant-chosen 32-byte value,
-> the same role `entity.id` plays for its own colocation group. `clpr_channel_pending_commitment`/
-> `clpr_connector_pending_commitment` use `${hashShardCount}` instead, the same placeholder `transaction_hash`/
-> `contract_transaction_hash` use — `ownership_commitment`/`commitment` are `keccak256` outputs, the same kind of
-> value as `transaction_hash.hash`, not a registrant-chosen identifier.
+> table need an explicit `shard_count`, since otherwise they each start a new colocation group at Citus's
+> configured default. `clpr_channel` uses `${shardCount}` — `channel_id` is an opaque, registrant-chosen 32-byte
+> value. `clpr_channel_pending_commitment`/`clpr_connector_pending_commitment` use `${hashShardCount}` instead —
+> `ownership_commitment`/`commitment` are `keccak256` outputs, not a registrant-chosen identifier, so they need the
+> lower shard count tuned for genuinely hash-valued distribution columns.
 >
 > **Open risk, not yet resolved**: colocating `clpr_connector`/`clpr_message` by `channel_id` means one
 > disproportionately active Channel's entire volume still concentrates on whichever single shard that Channel's
-> `channel_id` hashes to — this design accepts that risk for now (matching `topic_message`'s own accepted skew
-> risk across topics) rather than adopting `transaction_hash`'s alternative of distributing by a uniform hash
-> column with no colocation, which would eliminate the hotspot risk at the cost of making every query
-> scatter-gather. Revisit if real CLPR deployments show a small number of Channels dominating total volume.
+> `channel_id` hashes to — this design accepts that risk for now, rather than distributing by a uniform hash column
+> with no colocation, which would eliminate the hotspot risk at the cost of making every query scatter-gather.
+> Revisit if real CLPR deployments show a small number of Channels dominating total volume.
 
 ## Importer Module Changes
 
 ### 1. Domain Models
 
-New domain classes under `common/src/main/java/org/hiero/mirror/common/domain/clpr/` follow the same
-`AbstractX` / `X` / `XHistory` pattern (`@Upsertable(history = true)` on the abstract base, current and history
-subclasses each map to their own table) used by `AbstractToken`/`Token`/`TokenHistory`:
+New domain classes under `common/src/main/java/org/hiero/mirror/common/domain/clpr/` follow an `AbstractX` / `X` /
+`XHistory` pattern: `@Upsertable(history = true)` on the abstract base, with current and history subclasses each
+mapping to their own table:
 
 - **`ClprChannelPendingCommitment`** (+ history): id `ownershipCommitment`, `createdTimestamp`,
   `completedTimestamp`, `deleted`, `timestampRange`. Inserted by `ClprRegisterChannelTransactionHandler`. Unlike
@@ -734,9 +717,8 @@ messages in one transaction, so its handler calls the entity listener once per d
 Following the existing `importer/src/main/java/org/hiero/mirror/importer/downloader/block/transformer/` pattern
 (`AbstractBlockTransactionTransformer`, one `@Named` subclass per `TransactionType` that needs enrichment beyond
 what the base class copies automatically), but with one difference from the existing transformers: since neither
-`TransactionRecord` nor `TransactionSidecarRecord` has a CLPR-specific field or case (unlike e.g. `ContractStateChange`
-or `TokenAirdrop`'s `newPendingAirdrops`), these transformers populate **new CLPR-specific fields added to
-`RecordItem` itself** rather than the synthetic `TransactionRecord`:
+`TransactionRecord` nor `TransactionSidecarRecord` has a CLPR-specific field or case, these transformers populate
+**new CLPR-specific fields added to `RecordItem` itself** rather than the synthetic `TransactionRecord`:
 
 - `ClprCompleteChannelTransformer` — reads the channel's `StateChangeContext` entry and populates `RecordItem`'s new
   CLPR channel fields with the verifier-assigned `trust_anchor`, `channel_context`, and `endpoint_manifest_version`.
@@ -1248,8 +1230,7 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
   `clpr_endpoint_manifest`/`clpr_endpoint_manifest_endpoint`, which stay plain, undistributed tables in both
   profiles. `clpr_message`'s `v2` migration
   additionally declares it `partition by range (consensus_timestamp)`, registers it with `create_time_partitions`,
-  and creates the `clpr_message_lookup` table — `v1`'s `clpr_message` migration stays unpartitioned, matching
-  `topic_message`'s existing `v1`/`v2` split.
+  and creates the `clpr_message_lookup` table — `v1`'s `clpr_message` migration stays unpartitioned.
 
 ### 2. Performance Considerations
 
@@ -1258,7 +1239,7 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
 - The message table has no natural TTL/archival policy defined by the protocol; large, long-lived Channels could
   accumulate very large `clpr_message` tables, so `clpr_message` is time-partitioned by `consensus_timestamp` in
   `v2` — decided now, in the initial schema, rather than deferred (see
-  [Message Queue](#4-message-queue-append-only)), following the `topic_message` precedent.
+  [Message Queue](#4-message-queue-append-only)).
 
 ## Monitoring
 
