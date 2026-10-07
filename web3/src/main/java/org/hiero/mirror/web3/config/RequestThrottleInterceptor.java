@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.web3.throttle;
+package org.hiero.mirror.web3.config;
 
 import static org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE;
 
@@ -20,11 +20,11 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 @Named
 @RequiredArgsConstructor
-public final class RequestThrottleInterceptor implements HandlerInterceptor {
+final class RequestThrottleInterceptor implements HandlerInterceptor {
 
     private static final String REQUEST_PER_SECOND_LIMIT_EXCEEDED = "Requests per second rate limit exceeded";
 
-    private final Map<ThrottleKey, Bucket> buckets = new ConcurrentHashMap<>();
+    private final Map<ApiEndpointName, Bucket> buckets = new ConcurrentHashMap<>();
     private final Web3Properties web3Properties;
 
     @Override
@@ -44,8 +44,7 @@ public final class RequestThrottleInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        final var key = new ThrottleKey(endpoint);
-        final var bucket = buckets.computeIfAbsent(key, ignored -> createBucket(rateLimit));
+        final var bucket = buckets.computeIfAbsent(endpoint, ignored -> createBucket(rateLimit));
         if (!bucket.tryConsume(1)) {
             throw new ThrottleException(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
         }
@@ -60,6 +59,4 @@ public final class RequestThrottleInterceptor implements HandlerInterceptor {
                 .build();
         return Bucket.builder().addLimit(limit).build();
     }
-
-    private record ThrottleKey(ApiEndpointName endpoint) {}
 }

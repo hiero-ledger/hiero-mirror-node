@@ -794,7 +794,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         assertThatExceptionOfType(EntityNotFoundException.class)
                 .isThrownBy(() ->
                         opcodeService.processOpcodeCall(new OpcodeRequest(transactionIdOrHash, true, false, false)))
-                .withMessage("Contract transaction hash not found.");
+                .withMessage("Contract transaction hash not found: " + transactionIdOrHash);
     }
 
     private byte getByteFromBoolean(final boolean bool) {

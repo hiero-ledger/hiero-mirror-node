@@ -129,23 +129,31 @@ final class TouchedAccountCollector {
         final int pageSize = properties.getStateChangePageSize();
         final boolean diffMode = prestateContext.getPrestateRequest().diffMode();
 
+        // contract_id is never negative, so this key is strictly before every stored row.
+        long contractId = -1L;
+        byte[] slot = new byte[0];
         for (int page = 0; page < maxPages; page++) {
-            final int offset = page * pageSize;
             final var stateChanges = diffMode
                     ? contractStateChangeRepository.findModifiedByConsensusTimestamp(
-                            consensusTimestamp, pageSize, offset)
-                    : contractStateChangeRepository.findByConsensusTimestamp(consensusTimestamp, pageSize, offset);
+                            consensusTimestamp, contractId, slot, pageSize)
+                    : contractStateChangeRepository.findByConsensusTimestamp(
+                            consensusTimestamp, contractId, slot, pageSize);
 
             for (final var stateChange : stateChanges) {
-                final long contractId = stateChange.getContractId();
-                prestateContext.addAccount(contractId);
-                prestateContext.addPreStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueRead());
-                prestateContext.addPostStorageSlot(contractId, stateChange.getSlot(), stateChange.getValueWritten());
+                final long stateChangeContractId = stateChange.getContractId();
+                prestateContext.addAccount(stateChangeContractId);
+                prestateContext.addPreStorageSlot(
+                        stateChangeContractId, stateChange.getSlot(), stateChange.getValueRead());
+                prestateContext.addPostStorageSlot(
+                        stateChangeContractId, stateChange.getSlot(), stateChange.getValueWritten());
             }
 
             if (stateChanges.size() < pageSize) {
                 return;
             }
+            final var last = stateChanges.getLast();
+            contractId = last.getContractId();
+            slot = last.getSlot();
         }
     }
 

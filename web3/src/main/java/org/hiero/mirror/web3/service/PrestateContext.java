@@ -43,14 +43,14 @@ final class PrestateContext {
     }
 
     public void addAccount(@Nullable final EntityId accountId) {
-        if (accountId == null || EntityId.isEmpty(accountId)) {
+        if (EntityId.isEmpty(accountId)) {
             return;
         }
         addAccount(accountId.getId());
     }
 
     public void addAccount(final long accountId) {
-        if (accountId == 0L || accounts.contains(accountId)) {
+        if (accountId == 0L) {
             return;
         }
         if (isFull()) {

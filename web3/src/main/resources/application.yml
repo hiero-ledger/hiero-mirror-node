@@ -13,7 +13,7 @@ hiero:
         opcodes:
           enabled: true
           request:
-            throttle: 1
+            throttle: 10
           response:
             timeout: 10s
             headers:

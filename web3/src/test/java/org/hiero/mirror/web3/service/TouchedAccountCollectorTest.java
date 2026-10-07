@@ -292,15 +292,16 @@ final class TouchedAccountCollectorTest {
 
         collector.collect(context(true, false));
 
-        verify(contractStateChangeRepository, never()).findByConsensusTimestamp(anyLong(), anyInt(), anyInt());
-        verify(contractStateChangeRepository, never()).findModifiedByConsensusTimestamp(anyLong(), anyInt(), anyInt());
+        verify(contractStateChangeRepository, never()).findByConsensusTimestamp(anyLong(), anyLong(), any(), anyInt());
+        verify(contractStateChangeRepository, never())
+                .findModifiedByConsensusTimestamp(anyLong(), anyLong(), any(), anyInt());
     }
 
     @Test
     void collectLoadsAllStateChangesWhenNotDiffMode() {
         stubNoActions();
         stubNoNonceSources();
-        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP, 5000, 0))
+        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP, -1L, new byte[0], 5000))
                 .thenReturn(List.of(stateChange(VALUE_READ, VALUE_WRITTEN)));
 
         final var context = context(false, true);
@@ -311,28 +312,31 @@ final class TouchedAccountCollectorTest {
         assertThat(context.getPostStorageByContract().get(RECIPIENT_CONTRACT.getId()))
                 .containsEntry(wrapToWordSize(STORAGE_SLOT), wrapToWordSize(VALUE_WRITTEN));
         assertThat(context.getAccounts()).contains(RECIPIENT_CONTRACT.getId());
-        verify(contractStateChangeRepository, never()).findModifiedByConsensusTimestamp(anyLong(), anyInt(), anyInt());
+        verify(contractStateChangeRepository, never())
+                .findModifiedByConsensusTimestamp(anyLong(), anyLong(), any(), anyInt());
     }
 
     @Test
     void collectLoadsOnlyModifiedStateChangesInDiffMode() {
         stubNoActions();
         stubNoNonceSources();
-        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(CONSENSUS_TIMESTAMP, 5000, 0))
+        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(
+                        CONSENSUS_TIMESTAMP, -1L, new byte[0], 5000))
                 .thenReturn(List.of(stateChange(VALUE_READ, VALUE_WRITTEN)));
 
         final var context = context(true, true);
         collector.collect(context);
 
         assertThat(context.getPreStorageByContract()).containsKey(RECIPIENT_CONTRACT.getId());
-        verify(contractStateChangeRepository, never()).findByConsensusTimestamp(anyLong(), anyInt(), anyInt());
+        verify(contractStateChangeRepository, never()).findByConsensusTimestamp(anyLong(), anyLong(), any(), anyInt());
     }
 
     @Test
     void collectOmitsEmptyAndZeroStorageValues() {
         stubNoActions();
         stubNoNonceSources();
-        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(CONSENSUS_TIMESTAMP, 5000, 0))
+        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(
+                        CONSENSUS_TIMESTAMP, -1L, new byte[0], 5000))
                 .thenReturn(List.of(
                         stateChange(new byte[0], VALUE_WRITTEN),
                         stateChange(VALUE_READ, null),
@@ -356,9 +360,11 @@ final class TouchedAccountCollectorTest {
         final var properties = new PrestateProperties();
         properties.setStateChangeMaxPages(2);
         properties.setStateChangePageSize(1);
-        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(CONSENSUS_TIMESTAMP, 1, 0))
-                .thenReturn(List.of(stateChange(VALUE_READ, VALUE_WRITTEN)));
-        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(CONSENSUS_TIMESTAMP, 1, 1))
+        final var firstPage = stateChange(VALUE_READ, VALUE_WRITTEN);
+        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(CONSENSUS_TIMESTAMP, -1L, new byte[0], 1))
+                .thenReturn(List.of(firstPage));
+        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(
+                        CONSENSUS_TIMESTAMP, firstPage.getContractId(), firstPage.getSlot(), 1))
                 .thenReturn(List.of(ContractStateChange.builder()
                         .contractId(CALLER.getId())
                         .slot(new byte[] {0x02})
@@ -379,16 +385,19 @@ final class TouchedAccountCollectorTest {
         final var properties = new PrestateProperties();
         properties.setStateChangeMaxPages(5);
         properties.setStateChangePageSize(2);
-        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(CONSENSUS_TIMESTAMP, 2, 0))
-                .thenReturn(List.of(stateChange(VALUE_READ, VALUE_WRITTEN), stateChange(VALUE_READ, VALUE_WRITTEN)));
-        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(CONSENSUS_TIMESTAMP, 2, 2))
+        final var firstPage = List.of(stateChange(VALUE_READ, VALUE_WRITTEN), stateChange(VALUE_READ, VALUE_WRITTEN));
+        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(CONSENSUS_TIMESTAMP, -1L, new byte[0], 2))
+                .thenReturn(firstPage);
+        final var last = firstPage.getLast();
+        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(
+                        CONSENSUS_TIMESTAMP, last.getContractId(), last.getSlot(), 2))
                 .thenReturn(List.of(stateChange(VALUE_READ, VALUE_WRITTEN)));
 
         final var context = context(properties, true, true);
         collector.collect(context);
 
         verify(contractStateChangeRepository, times(2))
-                .findModifiedByConsensusTimestamp(eq(CONSENSUS_TIMESTAMP), eq(2), anyInt());
+                .findModifiedByConsensusTimestamp(eq(CONSENSUS_TIMESTAMP), anyLong(), any(), eq(2));
     }
 
     @Test

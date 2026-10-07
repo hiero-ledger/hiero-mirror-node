@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
+import static org.hiero.mirror.common.util.DomainUtils.fromHexQuantity;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX_CAPITAL;
 
@@ -20,6 +21,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -35,11 +37,8 @@ final class AuthorizationExtractor {
 
     void extractSigners(final PrestateContext prestateContext, final EthereumTransaction ethereumTransaction) {
         final var authorizations = ethereumTransaction.getAuthorizationList();
-        if (authorizations == null || authorizations.isEmpty()) {
-            return;
-        }
 
-        if (prestateContext.isFull()) {
+        if (authorizations == null || authorizations.isEmpty() || prestateContext.isFull()) {
             return;
         }
 
@@ -123,7 +122,7 @@ final class AuthorizationExtractor {
         if (address == null || address.length != EVM_ADDRESS_LENGTH) {
             return null;
         }
-        return new RecoveredAuthorization(address, nonce, parseHex(authorization.getChainId()));
+        return new RecoveredAuthorization(address, nonce, codeDelegation.chainId());
     }
 
     private record RecoveredAuthorization(byte[] address, long nonce, byte[] chainId) {}
@@ -149,7 +148,7 @@ final class AuthorizationExtractor {
         }
         try {
             return new CodeDelegation(
-                    parseHex(authorization.getChainId()),
+                    fromHexQuantity(authorization.getChainId()),
                     parseHex(authorization.getAddress()),
                     authorization.getNonce(),
                     parseYParity(authorization.getYParity()),
@@ -168,7 +167,7 @@ final class AuthorizationExtractor {
         if (transactionChainId == null) {
             return false;
         }
-        return Arrays.equals(stripLeadingZeros(authorizationChainId), stripLeadingZeros(transactionChainId));
+        return Arrays.equals(DomainUtils.trim(authorizationChainId), DomainUtils.trim(transactionChainId));
     }
 
     private static boolean isZero(final byte[] bytes) {
@@ -183,24 +182,16 @@ final class AuthorizationExtractor {
         return true;
     }
 
-    private static byte[] stripLeadingZeros(final byte[] bytes) {
-        int index = 0;
-        while (index < bytes.length - 1 && bytes[index] == 0) {
-            index++;
-        }
-        return index == 0 ? bytes : Arrays.copyOfRange(bytes, index, bytes.length);
-    }
-
     private static byte[] parseHex(final @Nullable String hex) {
         if (hex == null || hex.isEmpty()) {
-            return new byte[0];
+            return DomainUtils.EMPTY_BYTE_ARRAY;
         }
         var stripped = hex;
         if (stripped.startsWith(HEX_PREFIX) || stripped.startsWith(HEX_PREFIX_CAPITAL)) {
             stripped = stripped.substring(HEX_PREFIX.length());
         }
         if (stripped.isEmpty()) {
-            return new byte[0];
+            return DomainUtils.EMPTY_BYTE_ARRAY;
         }
         if ((stripped.length() & 1) == 1) {
             stripped = "0" + stripped;

@@ -32,7 +32,6 @@ import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.PrestateService;
-import org.hiero.mirror.web3.throttle.RequestThrottleInterceptor;
 import org.hiero.mirror.web3.utils.TransactionProviderEnum;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.junit.jupiter.api.AfterEach;
@@ -51,6 +50,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.HandlerInterceptor;
 
 @AutoConfigureMockMvc
 final class PrestateControllerTest extends Web3IntegrationTest {
@@ -67,7 +67,7 @@ final class PrestateControllerTest extends Web3IntegrationTest {
     private Web3Properties web3Properties;
 
     @MockitoBean
-    private RequestThrottleInterceptor requestThrottleInterceptor;
+    private HandlerInterceptor requestThrottleInterceptor;
 
     @MockitoSpyBean
     private PrestateService prestateService;

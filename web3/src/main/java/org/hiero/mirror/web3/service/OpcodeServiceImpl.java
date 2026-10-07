@@ -10,15 +10,11 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
@@ -41,10 +37,8 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TraceMemoryBudget;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
-import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
-import org.hiero.mirror.web3.repository.projections.ContractTransactionHashLookup;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
@@ -67,7 +61,7 @@ public class OpcodeServiceImpl implements OpcodeService {
 
     private final RecordFileService recordFileService;
     private final ContractDebugService contractDebugService;
-    private final ContractTransactionHashRepository contractTransactionHashRepository;
+    private final TransactionExecutionService transactionExecutionService;
     private final EthereumTransactionRepository ethereumTransactionRepository;
     private final TransactionRepository transactionRepository;
     private final ContractResultRepository contractResultRepository;
@@ -128,7 +122,8 @@ public class OpcodeServiceImpl implements OpcodeService {
 
         switch (transactionIdOrHash) {
             case TransactionHashParameter transactionHash -> {
-                final var contractTransactionHash = resolveContractTransactionHash(transactionHash);
+                final var contractTransactionHash =
+                        transactionExecutionService.resolveContractTransactionHash(transactionHash);
 
                 transaction = null;
                 consensusTimestamp = contractTransactionHash.getConsensusTimestamp();
@@ -159,37 +154,6 @@ public class OpcodeServiceImpl implements OpcodeService {
         }
 
         return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction);
-    }
-
-    /**
-     * Selects the result that best represents a hash shared by multiple results. A successful result always wins (the
-     * query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result sharing
-     * the hash by checking which candidates consumed gas (a non-null gas_consumed), falling back to the latest by
-     * consensus timestamp (the query order).
-     */
-    private ContractTransactionHashLookup resolveContractTransactionHash(TransactionHashParameter transactionHash) {
-        final var candidates = contractTransactionHashRepository.findAllByHash(
-                transactionHash.hash().toArray());
-        if (candidates.isEmpty()) {
-            throw new EntityNotFoundException("Contract transaction hash not found: " + transactionHash);
-        }
-
-        final var first = candidates.getFirst();
-        if (candidates.size() == 1 || Objects.equals(first.getTransactionResult(), ResponseCodeEnum.SUCCESS_VALUE)) {
-            return first;
-        }
-
-        final var candidatesByTimestamp = HashMap.<Long, ContractTransactionHashLookup>newHashMap(candidates.size());
-        final var contractIds = HashSet.<Long>newHashSet(candidates.size());
-        for (final var candidate : candidates) {
-            candidatesByTimestamp.putIfAbsent(candidate.getConsensusTimestamp(), candidate);
-            contractIds.add(candidate.getEntityId());
-        }
-
-        return contractResultRepository
-                .findLatestExecutedTimestamp(candidatesByTimestamp.keySet(), contractIds)
-                .map(candidatesByTimestamp::get)
-                .orElse(first);
     }
 
     private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result, long consensusTimestamp) {

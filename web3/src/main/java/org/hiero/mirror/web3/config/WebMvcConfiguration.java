@@ -4,9 +4,9 @@ package org.hiero.mirror.web3.config;
 
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
-import org.hiero.mirror.web3.throttle.RequestThrottleInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
+import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -14,7 +14,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @RequiredArgsConstructor
 final class WebMvcConfiguration implements WebMvcConfigurer {
 
-    private final RequestThrottleInterceptor requestThrottleInterceptor;
+    private final HandlerInterceptor requestThrottleInterceptor;
 
     @Override
     public void addFormatters(FormatterRegistry registry) {

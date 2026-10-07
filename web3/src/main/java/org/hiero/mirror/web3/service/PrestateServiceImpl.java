@@ -39,7 +39,6 @@ import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.ContractRepository;
-import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
@@ -56,11 +55,11 @@ final class PrestateServiceImpl implements PrestateService {
 
     private final AccountBalanceRepository accountBalanceRepository;
     private final ContractRepository contractRepository;
-    private final ContractTransactionHashRepository contractTransactionHashRepository;
     private final EntityRepository entityRepository;
     private final PrestateProperties prestateProperties;
     private final SystemEntity systemEntity;
     private final TouchedAccountCollector touchedAccountCollector;
+    private final TransactionExecutionService transactionExecutionService;
     private final TransactionRepository transactionRepository;
 
     private enum DiffRole {
@@ -360,8 +359,7 @@ final class PrestateServiceImpl implements PrestateService {
                 continue;
             }
             if (runtimeBytecode.length > maxBytecodeBytes || totalBytes + runtimeBytecode.length > maxBytecodeBytes) {
-                throw new InvalidParametersException(
-                        "Prestate bytecode exceeds hiero.mirror.web3.prestate.maxBytecodeBytes");
+                throw new InvalidParametersException("Prestate bytecode exceeds maximum allowed size");
             }
             bytecodes.put(contract.getId(), runtimeBytecode);
             totalBytes += runtimeBytecode.length;
@@ -403,9 +401,8 @@ final class PrestateServiceImpl implements PrestateService {
     private long resolveConsensusTimestamp(final TransactionIdOrHashParameter transactionIdOrHash) {
         return switch (transactionIdOrHash) {
             case TransactionHashParameter transactionHash ->
-                contractTransactionHashRepository
-                        .findByHash(transactionHash.hash().toArrayUnsafe())
-                        .orElseThrow(() -> new EntityNotFoundException("Contract transaction hash not found."))
+                transactionExecutionService
+                        .resolveContractTransactionHash(transactionHash)
                         .getConsensusTimestamp();
             case TransactionIdParameter transactionId -> {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());

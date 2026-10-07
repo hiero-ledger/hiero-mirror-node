@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.SignatureUtils.EC_DOMAIN_PARAMETERS;
 
@@ -262,7 +263,7 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
     }
 
     private static Authorization signedAuthorization(final KeyPair keyPair, final byte[] target, final long nonce) {
-        return signedAuthorization(keyPair, target, nonce, new byte[] {0}, "0x0");
+        return signedAuthorization(keyPair, target, nonce, EMPTY_BYTE_ARRAY, "0x0");
     }
 
     private static Authorization signedAuthorization(

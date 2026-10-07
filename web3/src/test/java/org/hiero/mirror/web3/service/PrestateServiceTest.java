@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CRYPTOCREATEACCOUNT;
+import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.common.util.SignatureUtils.EC_DOMAIN_PARAMETERS;
@@ -1148,7 +1149,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
         assertThatThrownBy(() -> prestateService.processPrestateCall(createRequest(fixture.hash(), false, true, false)))
                 .isInstanceOf(InvalidParametersException.class)
-                .hasMessageContaining("hiero.mirror.web3.prestate.maxBytecodeBytes");
+                .hasMessage("Prestate bytecode exceeds maximum allowed size");
     }
 
     @Test
@@ -1399,7 +1400,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     }
 
     private static Authorization signedAuthorization(final KeyPair keyPair, final byte[] target, final long nonce) {
-        final var unsigned = new CodeDelegation(new byte[] {0}, target, nonce, 0, new byte[] {1}, new byte[] {1});
+        final var unsigned = new CodeDelegation(EMPTY_BYTE_ARRAY, target, nonce, 0, new byte[] {1}, new byte[] {1});
         final var message = unsigned.calculateSignableMessage();
         final var hash = Bytes32.wrap(new Keccak.Digest256().digest(message));
         final var signature = SECP256K1.sign(hash, keyPair);

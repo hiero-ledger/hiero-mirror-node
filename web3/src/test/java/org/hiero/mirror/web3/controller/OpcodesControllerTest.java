@@ -32,11 +32,9 @@ import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -45,7 +43,6 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.domain.DomainBuilder;
-import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.Opcode;
@@ -56,24 +53,16 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
-import org.hiero.mirror.web3.evm.config.EvmConfiguration;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TraceMemoryBudget;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
-import org.hiero.mirror.web3.repository.ContractResultRepository;
-import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
-import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
-import org.hiero.mirror.web3.repository.RecordFileRepository;
-import org.hiero.mirror.web3.repository.TransactionRepository;
-import org.hiero.mirror.web3.repository.projections.ContractTransactionHashLookup;
 import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hiero.mirror.web3.throttle.RequestThrottleInterceptor;
 import org.hiero.mirror.web3.utils.TransactionProviderEnum;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -90,13 +79,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
-import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -104,6 +87,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.HandlerInterceptor;
 
 @AutoConfigureMockMvc
 @ExtendWith(MockitoExtension.class)
@@ -113,9 +97,6 @@ class OpcodesControllerTest extends Web3IntegrationTest {
 
     private final AtomicReference<OpcodesProcessingResult> opcodesResultCaptor = new AtomicReference<>();
     private final AtomicReference<ContractDebugParameters> expectedCallServiceParameters = new AtomicReference<>();
-
-    @Autowired
-    private Collection<CacheManager> cacheManagers;
 
     @Resource
     private MockMvc mockMvc;
@@ -139,7 +120,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
     private ContractDebugService contractDebugService;
 
     @MockitoBean
-    private RequestThrottleInterceptor requestThrottleInterceptor;
+    private HandlerInterceptor requestThrottleInterceptor;
 
     @Captor
     private ArgumentCaptor<ContractDebugParameters> callServiceParametersCaptor;
@@ -258,10 +239,6 @@ class OpcodesControllerTest extends Web3IntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        cacheManagers.forEach(cacheManager -> cacheManager
-                .getCacheNames()
-                .forEach(name -> cacheManager.getCache(name).clear()));
-
         when(requestThrottleInterceptor.preHandle(any(), any(), any())).thenReturn(true);
         when(contractDebugService.processOpcodeCall(
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
@@ -283,32 +260,13 @@ class OpcodesControllerTest extends Web3IntegrationTest {
         mockMvc.perform(opcodesRequest(transactionIdOrHash)).andExpect(status().isNotImplemented());
     }
 
-    private static ContractTransactionHashLookup lookup(final ContractTransactionHash hash) {
-        return new ContractTransactionHashLookup() {
-            @Override
-            public long getConsensusTimestamp() {
-                return hash.getConsensusTimestamp();
-            }
+    TransactionIdOrHashParameter persistTransaction(final TransactionProviderEnum provider) {
+        provider.init(domainBuilder);
 
-            @Override
-            public long getEntityId() {
-                return hash.getEntityId();
-            }
-
-            @Override
-            public long getPayerAccountId() {
-                return hash.getPayerAccountId();
-            }
-
-            @Override
-            public Integer getTransactionResult() {
-                return hash.getTransactionResult();
-            }
-        };
-    }
-
-    TransactionIdOrHashParameter setUp(final TransactionProviderEnum provider) {
-        provider.init(DOMAIN_BUILDER);
+        final var transactionWrapper = provider.getTransaction();
+        final var ethTransactionWrapper = provider.getEthTransaction();
+        final var transaction = transactionWrapper.get();
+        final var ethTransaction = ethTransactionWrapper.get();
 
         final var consensusTimestamp = transaction.getConsensusTimestamp();
         final var recordFile = provider.getRecordFile().persist();
@@ -352,28 +310,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
                 .block(BlockType.of(recordFile.getIndex().toString()))
                 .build());
 
-        when(contractTransactionHashRepository.findAllByHash(hash))
-                .thenReturn(List.of(lookup(contractTransactionHash)));
-        when(transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                        payerAccountId, validStartNs))
-                .thenReturn(List.of(transaction));
-        when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(
-                        contractTransactionHash.getConsensusTimestamp(),
-                        EntityId.of(contractTransactionHash.getPayerAccountId())))
-                .thenReturn(Optional.ofNullable(ethTransaction));
-        when(contractResultRepository.findById(consensusTimestamp)).thenReturn(Optional.of(contractResult));
-        when(recordFileRepository.findByTimestamp(consensusTimestamp)).thenReturn(Optional.of(recordFile));
-        when(commonEntityAccessor.evmAddressFromId(contractId, Optional.of(consensusTimestamp)))
-                .thenReturn(contractAddress);
-        when(commonEntityAccessor.evmAddressFromId(senderId, Optional.of(consensusTimestamp)))
-                .thenReturn(senderAddress);
-        when(commonEntityAccessor.get(contractAddress, Optional.of(consensusTimestamp)))
-                .thenReturn(Optional.ofNullable(contractEntity));
-        when(commonEntityAccessor.get(contractAddress, Optional.empty()))
-                .thenReturn(Optional.ofNullable(contractEntity));
-        when(commonEntityAccessor.get(senderAddress, Optional.empty())).thenReturn(Optional.of(senderEntity));
-
-        if (ethTransaction != null) {
+        if (provider.hasEthTransaction()) {
             return new TransactionHashParameter(Bytes.of(hash));
         }
         return new TransactionIdParameter(transaction.getPayerAccountId(), instant(transaction.getValidStartNs()));
@@ -496,23 +433,17 @@ class OpcodesControllerTest extends Web3IntegrationTest {
         final TransactionIdOrHashParameter transactionIdOrHash;
         final GenericErrorResponse expectedError;
         final var message = NOT_FOUND.getReasonPhrase();
-        final GenericErrorResponse expectedError =
-                switch (transactionIdOrHash) {
-                    case TransactionHashParameter parameter -> {
-                        reset(contractTransactionHashRepository);
-                        when(contractTransactionHashRepository.findAllByHash(
-                                        parameter.hash().toArray()))
-                                .thenReturn(List.of());
-                        yield new GenericErrorResponse(message, "Contract transaction hash not found: " + parameter);
-                    }
-                    case TransactionIdParameter parameter -> {
-                        reset(transactionRepository);
-                        when(transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                                        parameter.payerAccountId(), convertToNanosMax(parameter.validStart())))
-                                .thenReturn(Collections.emptyList());
-                        yield new GenericErrorResponse(message, "Transaction not found: " + parameter);
-                    }
-                };
+
+        if (providerEnum.hasEthTransaction()) {
+            transactionIdOrHash = new TransactionHashParameter(Bytes.of(providerEnum.getHash()));
+            expectedError =
+                    new GenericErrorResponse(message, "Contract transaction hash not found: " + transactionIdOrHash);
+        } else {
+            final var transaction = providerEnum.getTransaction().get();
+            transactionIdOrHash =
+                    new TransactionIdParameter(transaction.getPayerAccountId(), instant(transaction.getValidStartNs()));
+            expectedError = new GenericErrorResponse(message, "Transaction not found: " + transactionIdOrHash);
+        }
 
         mockMvc.perform(opcodesRequest(transactionIdOrHash))
                 .andExpect(status().isNotFound())
@@ -792,101 +723,6 @@ class OpcodesControllerTest extends Web3IntegrationTest {
                                                     "0x0000000000000000000000000000000000000000000000000000000000000014")
                                             : Collections.emptyMap())
                             .reason(null));
-        }
-    }
-
-    @TestConfiguration
-    public static class TestConfig {
-
-        @Bean
-        EvmProperties evmProperties() {
-            return new EvmProperties();
-        }
-
-        @Bean
-        MeterRegistry meterRegistry() {
-            return new SimpleMeterRegistry();
-        }
-
-        @Bean
-        EntityManager entityManager() {
-            return mock(EntityManager.class);
-        }
-
-        @Bean
-        TransactionOperations transactionOperations() {
-            return mock(TransactionOperations.class);
-        }
-
-        @Bean
-        RecordFileService recordFileService(
-                final RecordFileRepository recordFileRepository,
-                @Qualifier(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_EARLIEST) final CacheManager earliest,
-                @Qualifier(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_HASH) final CacheManager hash,
-                @Qualifier(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_INDEX) final CacheManager index,
-                @Qualifier(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_LATEST) final CacheManager latest,
-                @Qualifier(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_TIMESTAMP) final CacheManager timestamp) {
-            return new RecordFileServiceImpl(recordFileRepository, earliest, hash, index, latest, timestamp);
-        }
-
-        @Bean(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_EARLIEST)
-        CacheManager cacheManagerRecordFileEarliest() {
-            return caffeineCacheManager(EvmConfiguration.CACHE_NAME);
-        }
-
-        @Bean(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_HASH)
-        CacheManager cacheManagerRecordFileHash() {
-            return caffeineCacheManager(EvmConfiguration.CACHE_NAME);
-        }
-
-        @Bean(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_INDEX)
-        CacheManager cacheManagerRecordFileIndex() {
-            return caffeineCacheManager(EvmConfiguration.CACHE_NAME);
-        }
-
-        @Bean(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_LATEST)
-        CacheManager cacheManagerRecordFileLatest() {
-            return caffeineCacheManager(EvmConfiguration.CACHE_NAME_RECORD_FILE_LATEST);
-        }
-
-        @Bean(EvmConfiguration.CACHE_MANAGER_RECORD_FILE_TIMESTAMP)
-        CacheManager cacheManagerRecordFileTimestamp() {
-            return caffeineCacheManager(EvmConfiguration.CACHE_NAME);
-        }
-
-        private static CacheManager caffeineCacheManager(final String cacheName) {
-            final var cacheManager = new CaffeineCacheManager();
-            cacheManager.setCacheNames(Set.of(cacheName));
-            return cacheManager;
-        }
-
-        @Bean
-        OpcodeService opcodeService(
-                final RecordFileService recordFileService,
-                final ContractDebugService contractDebugService,
-                final ContractTransactionHashRepository contractTransactionHashRepository,
-                final EthereumTransactionRepository ethereumTransactionRepository,
-                final TransactionRepository transactionRepository,
-                final ContractResultRepository contractResultRepository,
-                final CommonEntityAccessor commonEntityAccessor,
-                final OpcodesProperties opcodesProperties,
-                final MeterRegistry meterRegistry) {
-            return new OpcodeServiceImpl(
-                    recordFileService,
-                    contractDebugService,
-                    contractTransactionHashRepository,
-                    ethereumTransactionRepository,
-                    transactionRepository,
-                    contractResultRepository,
-                    commonEntityAccessor,
-                    opcodesProperties,
-                    new TraceMemoryBudget(opcodesProperties),
-                    meterRegistry);
-        }
-
-        @Bean
-        OpcodesProperties opCodeTracerConfiguration() {
-            return new OpcodesProperties();
         }
     }
 }
