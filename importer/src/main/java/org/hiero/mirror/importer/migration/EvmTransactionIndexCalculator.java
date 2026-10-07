@@ -5,7 +5,7 @@ package org.hiero.mirror.importer.migration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -13,19 +13,18 @@ final class EvmTransactionIndexCalculator {
 
     private EvmTransactionIndexCalculator() {}
 
-    static List<Result> compute(@NonNull List<Row> rows, long hookContractId) {
-        var results = new ArrayList<Result>();
-        var indexByTimestamp = new HashMap<Long, Long>();
-        var byTimestamp = indexRowsByTimestamp(rows);
+    static List<Update> compute(@NonNull List<Row> rows, long hookContractId) {
+        final var updates = new ArrayList<Update>();
+        final var indexByTimestamp = new HashMap<Long, Long>();
         long counter = 0L;
 
         for (int i = 0; i < rows.size(); i++) {
-            var row = rows.get(i);
+            final var row = rows.get(i);
             if (!row.hasContractResult() && !row.syntheticLogOnly()) {
                 continue;
             }
 
-            var contractRelatedParentTimestamp = resolveContractRelatedParent(rows, byTimestamp, i, hookContractId);
+            final var contractRelatedParentTimestamp = resolveContractRelatedParent(rows, i, hookContractId);
 
             Long evmIndex;
             if (contractRelatedParentTimestamp != null
@@ -37,25 +36,29 @@ final class EvmTransactionIndexCalculator {
                 evmIndex = null;
             }
 
-            if (evmIndex != null) {
+            if (evmIndex != null && row.hasContractResult()) {
                 indexByTimestamp.put(row.consensusTimestamp(), evmIndex);
             }
-            results.add(new Result(row.consensusTimestamp(), evmIndex));
+
+            if (!Objects.equals(evmIndex, row.transactionIndex())) {
+                updates.add(new Update(row.consensusTimestamp(), evmIndex));
+            }
         }
 
-        return results;
+        return updates;
     }
 
-    private static @Nullable Long resolveContractRelatedParent(
-            List<Row> rows, Map<Long, Integer> byTimestamp, int currentIndex, long hookContractId) {
-        var current = rows.get(currentIndex);
+    private static @Nullable Long resolveContractRelatedParent(List<Row> rows, int currentIndex, long hookContractId) {
+        final var current = rows.get(currentIndex);
+        final var parentTimestamp = current.parentConsensusTimestamp();
+        if (parentTimestamp == null) {
+            return null;
+        }
 
-        if (current.hasContractResult()
-                && current.parentConsensusTimestamp() != null
-                && current.contractId() != hookContractId) {
+        if (current.hasContractResult() && current.contractId() != hookContractId) {
             for (int j = currentIndex - 1; j >= 0; j--) {
-                var candidate = rows.get(j);
-                if (candidate.consensusTimestamp() == current.parentConsensusTimestamp()) {
+                final var candidate = rows.get(j);
+                if (candidate.consensusTimestamp() == parentTimestamp) {
                     // walked back onto the current row's own direct parent - stop, no hook found
                     break;
                 }
@@ -69,25 +72,7 @@ final class EvmTransactionIndexCalculator {
             }
         }
 
-        if (current.parentConsensusTimestamp() != null) {
-            var parentIndex = byTimestamp.get(current.parentConsensusTimestamp());
-            if (parentIndex != null) {
-                var parent = rows.get(parentIndex);
-                if (parent.hasContractResult()) {
-                    return parent.consensusTimestamp();
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static Map<Long, Integer> indexRowsByTimestamp(List<Row> rows) {
-        var map = new HashMap<Long, Integer>(rows.size());
-        for (int i = 0; i < rows.size(); i++) {
-            map.put(rows.get(i).consensusTimestamp(), i);
-        }
-        return map;
+        return parentTimestamp;
     }
 
     record Row(
@@ -96,7 +81,8 @@ final class EvmTransactionIndexCalculator {
             boolean hasContractResult,
             long contractId,
             long gasUsed,
-            boolean syntheticLogOnly) {}
+            boolean syntheticLogOnly,
+            @Nullable Long transactionIndex) {}
 
-    record Result(long consensusTimestamp, @Nullable Long evmIndex) {}
+    record Update(long consensusTimestamp, @Nullable Long transactionIndex) {}
 }
