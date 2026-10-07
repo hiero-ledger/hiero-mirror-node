@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
 import com.hedera.node.app.service.contract.impl.hevm.HederaOperationsRegistry;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hyperledger.besu.evm.EvmSpecVersion;
 import org.hyperledger.besu.evm.MainnetEVMs;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,11 @@ final class RuntimeHintsConfigurationTest {
         assertThat(RuntimeHintsPredicates.reflection().onType(TypeReference.of("com.esaulpaugh.headlong.abi.Single[]")))
                 .accepts(hints);
         assertThat(RuntimeHintsPredicates.reflection().onType(ContractCallResponse.class))
+                .accepts(hints);
+        assertThat(RuntimeHintsPredicates.reflection()
+                        .onMethodInvocation(BlockOverride.class, "hasExclusiveNumberAndTime"))
+                .accepts(hints);
+        assertThat(RuntimeHintsPredicates.reflection().onMethodInvocation(StateOverride.class, "hasValidStorage"))
                 .accepts(hints);
     }
 
