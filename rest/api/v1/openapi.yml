@@ -2803,9 +2803,7 @@ components:
           minimum: 0
           type: [integer, "null"]
         state_overrides:
-          description: >-
-            Per-address state overrides applied only for this call. Requires state overrides to be enabled.
-            `state` and `state_diff` on an entry are mutually exclusive.
+          description: Per-address state overrides applied only for this call. Requires state overrides to be enabled.
           items:
             $ref: "#/components/schemas/StateOverride"
           maxItems: 10
@@ -2836,17 +2834,20 @@ components:
         balance:
           description: Hex-encoded balance override in tinybars.
           example: "0x1"
+          format: binary
           maxLength: 18
           pattern: "^(0x)?[0-9a-fA-F]{1,16}$"
           type: [string, "null"]
         code:
           description: Hex-encoded runtime bytecode override.
           example: "0x6080604052"
+          format: binary
           pattern: "^(0x)?[0-9a-fA-F]*$"
           type: [string, "null"]
         nonce:
           description: Hex-encoded nonce override.
           example: "0x1"
+          format: binary
           maxLength: 18
           pattern: "^(0x)?[0-9a-fA-F]{1,16}$"
           type: [string, "null"]
@@ -2871,6 +2872,7 @@ components:
         key:
           description: 32-byte hex-encoded storage slot key.
           example: "0x0000000000000000000000000000000000000000000000000000000000000001"
+          format: binary
           maxLength: 66
           minLength: 64
           pattern: "^(0x)?[0-9a-fA-F]{64}$"
@@ -2878,6 +2880,7 @@ components:
         value:
           description: 32-byte hex-encoded storage slot value.
           example: "0x0000000000000000000000000000000000000000000000000000000000000001"
+          format: binary
           maxLength: 66
           minLength: 64
           pattern: "^(0x)?[0-9a-fA-F]{64}$"
