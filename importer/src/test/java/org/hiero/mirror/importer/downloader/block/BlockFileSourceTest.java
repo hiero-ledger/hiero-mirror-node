@@ -9,7 +9,8 @@ import static org.assertj.core.api.Assertions.from;
 import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 import static org.hiero.mirror.importer.TestUtils.generateRandomByteArray;
 import static org.hiero.mirror.importer.TestUtils.zstd;
-import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_BLOCK_FILES;
+import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_SHA_256_BLOCK_FILES;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.getSha256BlockStreams;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.assertArg;
@@ -107,7 +108,7 @@ final class BlockFileSourceTest {
     private S3Proxy s3Proxy;
 
     private static BlockFile blockFile(int index) {
-        return TEST_BLOCK_FILES.get(index);
+        return TEST_SHA_256_BLOCK_FILES.get(index);
     }
 
     @BeforeEach
@@ -171,9 +172,7 @@ final class BlockFileSourceTest {
                 properties,
                 streamFileProvider);
 
-        var fromPath = Path.of("data", "blockstreams");
-        fileCopier = FileCopier.create(
-                        TestUtils.getResource(fromPath.toString()).toPath(), dataPath)
+        fileCopier = FileCopier.create(getSha256BlockStreams(), dataPath)
                 .to(properties.getBucketName())
                 .to(importerProperties.getNetwork())
                 .to(StreamType.BLOCK.getPath());
