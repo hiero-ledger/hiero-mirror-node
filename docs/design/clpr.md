@@ -12,7 +12,7 @@ This is tracked by [issue #14356](https://github.com/hiero-ledger/hiero-mirror-n
 milestone `0.165.0`. The issue asks for three things, each addressed by a section below:
 
 1. A design document (this document).
-2. Mirror-node-specific feedback on the HIP (see [Consensus-Node Asks](#consensus-node-asks)).
+2. Mirror-node-specific feedback on the HIP (see [Consensus-Node Assumptions](#consensus-node-assumptions)).
 3. A breakdown of follow-up implementation tasks (see [Proposed Follow-up Implementation Tasks](#proposed-follow-up-implementation-tasks)).
 
 ## Goals
@@ -42,7 +42,7 @@ milestone `0.165.0`. The issue asks for three things, each addressed by a sectio
 - Rosetta, gRPC, GraphQL, or web3 support for CLPR — scoped to REST (`rest-java`) only for this iteration.
 - Message redaction (`ClprRedactMessage`). HIP-1535 §10.6 states this mechanism was removed from the specification
   under Rejected Ideas; this design follows the HIP text and does not persist or expose it, despite the reference
-  implementation's proto still defining it (see [Consensus-Node Asks](#consensus-node-asks)).
+  implementation's proto still defining it (see [Consensus-Node Assumptions](#consensus-node-assumptions)).
 
 ## Background
 
@@ -144,7 +144,7 @@ separate ingestion path for CLPR:
    also parse the CLPR singletons at block 0 — but that only covers a brand-new network starting with CLPR
    already enabled, not any network that reaches CLPR by upgrade, which is every existing Hiero network today.)
    Until this is resolved upstream, neither can be ingested outside of true genesis — see
-   [Consensus-Node Asks](#consensus-node-asks).
+   [Consensus-Node Assumptions](#consensus-node-assumptions).
 
 ```
 Consensus node (CLPR Service)
@@ -174,7 +174,7 @@ bookkeeping (see [Non-Goals](#non-goals)).
 
 All CLPR `HederaFunctionality` values that are in scope for this design (verified against `basic_types.proto`,
 `transaction.proto`, and `query.proto` in `hiero-consensus-node`). `ClprRedactMessage` (123) is deliberately
-excluded — see [Non-Goals](#non-goals) and [Consensus-Node Asks](#consensus-node-asks) for
+excluded — see [Non-Goals](#non-goals) and [Consensus-Node Assumptions](#consensus-node-assumptions) for
 why it exists in the reference proto despite being a Rejected Idea in the HIP text. `ClprEndpointPublication` (127)
 is also undocumented in the HIP text itself, but for a different reason (it's Hiero-internal) — see above.
 
@@ -211,11 +211,11 @@ variable-length columns (`bytea`/`varchar`/`int8range`) last, to avoid PostgreSQ
 alignment (see https://www.enterprisedb.com/blog/rocks-and-sand).
 
 Table and column definitions are identical between the `v1` and `v2` (Citus) migrations. For every table except
-`clpr_ledger_configuration`/`clpr_endpoint_manifest`/`clpr_endpoint_manifest_endpoint` (which stay plain,
-undistributed tables in both profiles — see
-[below](#3-ledger-configuration-and-endpoint-manifest-singletons)), the `v2` migration additionally runs the
-`create_distributed_table` calls shown at the end of each SQL block; `v1` does not. `clpr_message` also differs in
-how its partitions get created between profiles — see [Message Queue](#4-message-queue-append-only).
+`clpr_channel_pending_commitment`/`clpr_connector_pending_commitment`, `clpr_ledger_configuration`,
+`clpr_endpoint_manifest`, and `clpr_endpoint_manifest_endpoint` (which all stay plain, undistributed tables in both
+profiles — see the relevant subsections below), the `v2` migration additionally runs the `create_distributed_table`
+calls shown at the end of each SQL block; `v1` does not. `clpr_message` also differs in how its partitions get
+created between profiles — see [Message Queue](#4-message-queue-append-only).
 
 Unrevealed Channel commitments — the commit phase, before `ClprCompleteChannel` reveals `channel_id` — are
 persisted in a separate table, `clpr_channel_pending_commitment`. `clpr_channel` is keyed by `channel_id`, but per
@@ -234,11 +234,10 @@ tables. Per [Transaction & Query Inventory](#transaction--query-inventory) row 1
 removes a Channel's commitment from `STATE_ID_CLPR_PENDING_COMMITMENTS` at completion — but the mirror node's own
 `ClprCompleteChannelTransactionHandler` still recomputes the same `ownership_commitment` hash (pure function of
 that transaction's own `channel_id`/`public_key` fields, no verifier/state-change data needed) purely to write
-`completed_timestamp` back onto this row, by its own primary key — a shard-local point-update, not a cross-table
-join, since this table is distributed by `ownership_commitment`, unrelated to `clpr_channel`'s `channel_id`
-distribution. This lets [Pending Channels](#5-pending-channels-api) correctly exclude completed commitments without
-ever joining across the two tables. `deleted` remains reserved for genuinely-abandoned (never-completed)
-commitments, set by `ClprCloseChannel`.
+`completed_timestamp` back onto this row, by its own primary key — a direct point-update, not a cross-table join.
+This lets [Pending Channels](#5-pending-channels-api) correctly exclude completed commitments without ever joining
+across the two tables. `deleted` remains reserved for genuinely-abandoned (never-completed) commitments, set by
+`ClprCloseChannel`.
 
 `ClprRegisterConnector`/`ClprCompleteConnector` use the same commit-reveal _commit_ mechanism
 (`commitment = keccak256(connectorId || pubKey)`), persisted the same way in `clpr_connector_pending_commitment`
@@ -318,11 +317,14 @@ create table if not exists clpr_channel_history
 create index if not exists clpr_channel_history__timestamp_range
     on clpr_channel_history using gist (timestamp_range);
 
-select create_distributed_table('clpr_channel_pending_commitment', 'ownership_commitment', shard_count := ${hashShardCount});
-select create_distributed_table('clpr_channel_pending_commitment_history', 'ownership_commitment', colocate_with => 'clpr_channel_pending_commitment');
 select create_distributed_table('clpr_channel', 'channel_id', shard_count := ${shardCount});
 select create_distributed_table('clpr_channel_history', 'channel_id', colocate_with => 'clpr_channel');
 ```
+
+`clpr_channel_pending_commitment`/`_history` stay plain, undistributed tables in both profiles: nothing joins
+against them from a distributed table, and their write volume — one row per Channel ever registered, written once
+at registration and updated at most once or twice more — is low enough not to bottleneck a single coordinator-local
+table, even though the row count isn't tiny.
 
 The `chain_id` index supports both the [Chain API](#1-chain-api)'s `chain_id`+count aggregation and the
 [Channels per Chain API](#2-channels-per-chain-api)'s `chain_id`-filtered, `created_timestamp`-ordered lookup.
@@ -385,11 +387,13 @@ create table if not exists clpr_connector_history
 create index if not exists clpr_connector_history__timestamp_range
     on clpr_connector_history using gist (timestamp_range);
 
-select create_distributed_table('clpr_connector_pending_commitment', 'commitment', shard_count := ${hashShardCount});
-select create_distributed_table('clpr_connector_pending_commitment_history', 'commitment', colocate_with => 'clpr_connector_pending_commitment');
 select create_distributed_table('clpr_connector', 'channel_id', colocate_with => 'clpr_channel');
 select create_distributed_table('clpr_connector_history', 'channel_id', colocate_with => 'clpr_connector');
 ```
+
+`clpr_connector_pending_commitment`/`_history` stay plain, undistributed tables in both profiles too, for the same
+reason as the Channel side: no distributed table joins against them, and their write volume — one row per
+Connector ever registered — is low enough not to bottleneck a single coordinator-local table.
 
 `clpr_connector__channel_id_created_timestamp` backs the [Connectors per Channel API](#7-connectors-per-channel-api)'s
 `timestamp`-ordered pagination — the primary key alone orders by `connector_id` within a `channel_id`, not by
@@ -632,11 +636,10 @@ is legitimately `null` for these rows. `ClprMessageReply` (Response) has **no `c
 only `message_id`, `status`, and `message_reply_data`. A Response is always generated while processing the inbound
 Data message it answers (`ClprSubmitBundleHandler`'s dispatch step reads that Data message's own `connector_id`
 before enqueuing the Reply), but that inbound Data message is never itself persisted to state, so there is no
-local row for the importer to copy `connector_id` from. Until the consensus-node team adds `connector_id` to
-`ClprMessageReply`'s own state representation — which only requires persisting a value the handler already has in
-memory at Reply-construction time, not decoding anything new (see [Consensus-Node Asks](#consensus-node-asks)) —
-`connector_id` stays `null`
-for Response rows, the same as Control rows.
+local row for the importer to copy `connector_id` from. This design assumes the consensus-node team's confirmed
+plan to make this derivable from the initial Data message's own state — once that lands, the importer reads
+`connector_id` from there the same way it already does for Data rows; until then, `connector_id` stays `null` for
+Response rows, the same as Control rows.
 
 The `connector_id` index supports the [Messages per Connector API](#3-messages-per-connector-api)'s
 `connector_id`-filtered, `message.id`-ordered lookup — safe to paginate this way since a Connector is bound to
@@ -657,16 +660,14 @@ dropped above — finds the exact row within that partition.
 > `clpr_connector(_history)`/`clpr_message`/`clpr_message_lookup` are hash-distributed by `channel_id` too,
 > `colocate_with => 'clpr_channel'`, so per-channel queries stay shard-local in `v2`. `clpr_message` is additionally
 > time-partitioned by `consensus_timestamp` in both profiles (see above) — distribution (shard dimension, `v2`
-> only) and partitioning (time dimension, both profiles) are orthogonal and both apply to it. `clpr_channel_pending_commitment` and
-> `clpr_connector_pending_commitment` have no `channel_id` at all, so each is distributed by its own key
-> (`ownership_commitment`/`commitment`).
-> `clpr_ledger_configuration(_history)`/`clpr_endpoint_manifest(_history)`/`clpr_endpoint_manifest_endpoint` get
-> neither treatment — they stay plain, undistributed tables (see above). Tables that aren't colocated with another
-> table need an explicit `shard_count`, since otherwise they each start a new colocation group at Citus's
-> configured default. `clpr_channel` uses `${shardCount}` — `channel_id` is an opaque, registrant-chosen 32-byte
-> value. `clpr_channel_pending_commitment`/`clpr_connector_pending_commitment` use `${hashShardCount}` instead —
-> `ownership_commitment`/`commitment` are `keccak256` outputs, not a registrant-chosen identifier, so they need the
-> lower shard count tuned for genuinely hash-valued distribution columns.
+> only) and partitioning (time dimension, both profiles) are orthogonal and both apply to it.
+> `clpr_channel_pending_commitment`/`clpr_connector_pending_commitment` and
+> `clpr_ledger_configuration(_history)`/`clpr_endpoint_manifest(_history)`/`clpr_endpoint_manifest_endpoint` all
+> stay plain, undistributed tables (see above): none is joined against from a distributed table, and each has a
+> write pattern too low-volume to need sharding. Tables that aren't colocated with another table need an explicit
+> `shard_count`, since otherwise they each start a new colocation group at Citus's configured default — `clpr_channel`
+> is the only such table here, using `${shardCount}` since `channel_id` is an opaque, registrant-chosen 32-byte
+> value.
 >
 > **Open risk, not yet resolved**: colocating `clpr_connector`/`clpr_message` by `channel_id` means one
 > disproportionately active Channel's entire volume still concentrates on whichever single shard that Channel's
@@ -1188,55 +1189,47 @@ Response format:
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors?limit=10` — Get first 10 Connectors
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors?connector.id=eq:0x4d5e6f...` — Get a specific Connector by id
 
-## Consensus-Node Asks
+## Consensus-Node Assumptions
 
-Five concrete asks for the consensus-node/HIP-1535 team, found while tracing CLPR state back to where it's written
-and reconciling the HIP text against the actual protobuf definitions in `hiero-ledger/hiero-consensus-node`
-(`hapi/hedera-protobuf-java-api/src/main/proto/`) — not general process feedback.
+Raised with and clarified by the consensus-node/HIP-1535 team, found while tracing CLPR state back to where it's
+written and reconciling the HIP text against the actual protobuf definitions in `hiero-ledger/hiero-consensus-node`
+(`hapi/hedera-protobuf-java-api/src/main/proto/`). None of these block this design; they're documented here as the
+assumptions it's building on.
 
-1. **Reconcile the redaction proto/HIP mismatch.** What: either remove the dead proto surface or update the HIP to
-   reflect that it shipped. Why: HIP-1535 §10.6 states _"Values `123` and `127` are reserved and intentionally not
-   assigned here; an earlier internal message-redaction mechanism occupied them and has since been removed from
-   the specification"_, listing message redaction under **Rejected Ideas** with a pointer to ADR
-   `2026-08-01-remove-message-redaction.md`. But the actual `basic_types.proto` still assigns
-   `ClprRedactMessage = 123` as a live `HederaFunctionality` value, `transaction.proto` wires `clprRedactMessage`
-   into `TransactionBody` field 87, and `clpr_redact_message.proto`, `ClprRedactedMessage`, and
-   `ClprMessageReplyStatus.REDACTED` are all fully specified in the state protos. This design follows the HIP text
-   and excludes redaction entirely (see [Non-Goals](#non-goals)), but the mismatch should still be resolved
-   upstream. (`ClprEndpointPublication = 127` is unrelated to redaction despite sharing a footnote in the HIP — it
-   is a legitimate, separate, Hiero-internal transaction; see [Architecture](#architecture).)
-2. **Clarify the bundle-submission authority model.** What: confirm who may submit a `ClprSubmitBundle` now that
-   `endpoint_node_id`/`endpoint_signature` are deprecated, and whether the mirror node should still record a
-   submitting-endpoint attribution on `clpr_message`/`clpr_channel` rows. Why: `ClprSubmitBundleTransactionBody.
-endpoint_node_id` and `.endpoint_signature` are marked `deprecated = true` in the proto with no equivalent note
-   in the HIP's §10.3 spec text, which still describes `endpoint_node_id` as required, node-signed authority for
-   bundle submission.
-3. **Link the deprecated `ClprLedgerConfiguration.endpoints` field from the HIP text.** What: reference the
-   deprecation annotation and its issue-tracker pointer ("see issue: remove ConfigUpdate endpoint propagation +
-   PeerEndpointRosterEntry") from the HIP itself. Why: HIP §4.3 describes the field's replacement (the separate
-   `ClprEndpointManifest`) but not the deprecation notice, so implementers reading only the HIP could accidentally
-   read/write the deprecated field. Not blocking.
-4. **Add `connector_id` to `ClprMessageReply`.** What: persist `connector_id` on `ClprMessageReply` (or the stored
-   `ClprMessageValue` for Response entries) — this only requires persisting a value the handler already has, not
-   decoding anything new. Why: `ClprSubmitBundleHandler` always has the inbound Data message's `connector_id` in
-   memory at the moment it builds a Reply (`dataMsg.connectorId()`, read just before
-   `outbound.enqueueReply(...)`), but that value is never written anywhere in `ClprMessageReply`'s own state
-   representation, and the inbound Data message itself is never persisted to state either. Until this lands, the
-   mirror node has no way to attribute a Response message to a Connector at all (see
-   [Database Schema Design](#database-schema-design)).
-5. **Emit the endpoint-manifest reconciliation and upgrade-time ledger-configuration initialization as their own
-   synthetic system transactions.** What: give both a real `TransactionResult`/`TransactionOutput` in the block
-   stream, the same way `NODESTAKEUPDATE` already does for periodic, non-user-triggered state. Why: both can
-   currently arise with no transaction to anchor to at all — the endpoint-manifest reconciler runs every round
-   regardless of whether the round contains any transaction, and on a network that adds CLPR via upgrade (every
-   existing Hiero network today), the ledger configuration's initial row is created the same way, at the upgrade's
-   restart block. `state_changes.proto`'s `StateChanges` message carries only a `consensus_timestamp` and a list
-   of changes — nothing distinguishes "migration-triggered" from "per-round reconciler" state changes — and
+1. **Redaction proto cleanup.** `ClprRedactMessage = 123` is live in `basic_types.proto`, `transaction.proto` wires
+   `clprRedactMessage` into `TransactionBody` field 87, and `clpr_redact_message.proto`/`ClprRedactedMessage`/
+   `ClprMessageReplyStatus.REDACTED` are all fully specified in the state protos — despite HIP-1535 §10.6 listing
+   redaction under **Rejected Ideas** (ADR `2026-08-01-remove-message-redaction.md`) and stating fields `123`/`127`
+   were freed up after its removal. The consensus-node team has confirmed redaction should be removed from the
+   proto, since it isn't in use. This design already follows the HIP text and excludes redaction entirely
+   regardless (see [Non-Goals](#non-goals)). (`ClprEndpointPublication = 127` is unrelated to redaction despite
+   sharing a footnote in the HIP — it's a legitimate, separate, Hiero-internal transaction; see
+   [Architecture](#architecture).)
+2. **Bundle-submission authority.** `ClprSubmitBundleTransactionBody.endpoint_node_id`/`.endpoint_signature` are
+   `deprecated = true` with no equivalent note in the HIP's §10.3 text, which still describes `endpoint_node_id` as
+   required, node-signed authority for bundle submission. The consensus-node team has confirmed submitting a
+   bundle is fully permissionless — anyone can submit one. This design assumes there is no endpoint-authority
+   attribution for the mirror node to record; at most, the submitting account is available the same way it already
+   is for every transaction, via the generic `transaction.payer_account_id` — no CLPR-specific field needed.
+3. **Deprecated field cleanup.** `ClprSubmitBundleTransactionBody`'s deprecated fields (above) and
+   `ClprLedgerConfiguration.endpoints` (moved to the separate `ClprEndpointManifest`, described in HIP §4.3 but
+   without its deprecation notice referenced from the HIP text) are expected to be removed outright from the proto
+   rather than merely documented, per the consensus-node team's stated preference to clean these up while the
+   protocol isn't yet finalized.
+4. **Formal block-stream artifacts for the endpoint-manifest reconciliation and upgrade-time ledger-configuration
+   initialization.** Both currently arise with no transaction to anchor to at all — the endpoint-manifest
+   reconciler runs every round regardless of whether the round contains any transaction, and on a network that
+   adds CLPR via upgrade (every existing Hiero network today), the ledger configuration's initial row is created
+   the same way, at the upgrade's restart block.
    `BlockStreamReaderImpl.shouldSkip()` already discards exactly this shape of block item outside genesis today,
    because there is no transaction for a `TransactionHandler` to attach to. (Genesis itself is already covered:
    `BlockStreamReaderImpl.readInitialState()`/`InitialStateReader`/`BlockFile.initialState` can be extended to
    also parse the CLPR singletons at block 0 — but that only covers a brand-new network starting with CLPR
-   already enabled, not any network that reaches CLPR by upgrade. See [Architecture](#architecture), point 7.)
+   already enabled, not any network that reaches CLPR by upgrade. See [Architecture](#architecture), point 7.) The
+   consensus-node team agrees with the underlying principle — that mirror node needs a formal block-stream artifact
+   for state it's expected to track — without yet committing to the specific mechanism. This design assumes that
+   artifact will take the same shape `NODESTAKEUPDATE` already does for other periodic, non-user-triggered state:
+   a synthetic system transaction, flowing through the ordinary per-transaction pipeline.
 
 ## Testing Strategy
 
@@ -1309,9 +1302,11 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
   `clpr_endpoint_manifest_endpoint`, and `clpr_message`, following the append-only migration convention (never edit
   a merged migration).
 - The `v2` (Citus) migrations include the `create_distributed_table` calls specified in
-  [Database Schema Design](#database-schema-design) for every table except `clpr_ledger_configuration`/
-  `clpr_endpoint_manifest`/`clpr_endpoint_manifest_endpoint`, which stay plain, undistributed tables in both
-  profiles. `clpr_message` is `partition by range (consensus_timestamp)` and time-partitioned in both `v1` and
+  [Database Schema Design](#database-schema-design) for every table except `clpr_channel_pending_commitment(_history)`,
+  `clpr_connector_pending_commitment(_history)`, `clpr_ledger_configuration(_history)`,
+  `clpr_endpoint_manifest(_history)`, and `clpr_endpoint_manifest_endpoint`, which all stay plain, undistributed
+  tables in both profiles. `clpr_message` is `partition by range (consensus_timestamp)` and time-partitioned in
+  both `v1` and
   `v2` — `v2` registers partitions via `create_time_partitions`; `v1` uses its own stored procedure, since no
   Citus helper is available there. `clpr_message_lookup`, which resolves partition pruning for it, is created in
   both profiles too, but is itself an ordinary, unpartitioned table.
@@ -1417,14 +1412,14 @@ needs new code.
 ## Proposed Follow-up Implementation Tasks
 
 **These are proposals only — no GitHub issues have been created.** Scoping, sequencing, and milestone assignment
-depend on the [Consensus-Node Asks](#consensus-node-asks) above.
+depend on the [Consensus-Node Assumptions](#consensus-node-assumptions) above.
 
 1. **DB schema migration for CLPR core tables.** Flyway migrations (`v1` and `v2`) for
    `clpr_channel_pending_commitment(_history)`, `clpr_channel(_history)`,
    `clpr_connector_pending_commitment(_history)`, `clpr_connector(_history)`, `clpr_ledger_configuration(_history)`,
    `clpr_endpoint_manifest(_history)`, and `clpr_endpoint_manifest_endpoint`, including the `v2` Citus
-   `create_distributed_table` calls from [Database Schema Design](#database-schema-design) (the last three tables
-   stay plain, undistributed tables in both profiles).
+   `create_distributed_table` calls from [Database Schema Design](#database-schema-design) for `clpr_channel(_history)`
+   and `clpr_connector(_history)` — every other table in this list stays plain, undistributed in both profiles.
 2. **DB schema migration for `clpr_message` (+ `clpr_message_lookup`, both profiles).** Separate from (1) since
    it's a different table shape (append-only, no history pair, time-partitioned in both `v1` and `v2` — see
    [Message Queue](#4-message-queue-append-only)) and the highest-volume table.
