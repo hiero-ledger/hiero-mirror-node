@@ -141,9 +141,10 @@ class EntityRecordItemListenerUtilTest extends AbstractEntityRecordItemListenerT
                     .first()
                     .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getType)
                     .isEqualTo(TransactionBody.DataCase.DATA_NOT_SET.getNumber());
-            assertThat(entityTransactionRepository.findAll()).isNotEmpty().allSatisfy(entityTransaction -> assertThat(
-                            entityTransaction.getType())
-                    .isEqualTo(TransactionBody.DataCase.DATA_NOT_SET.getNumber()));
+            assertThat(entityTransactionRepository.findAll())
+                    .isNotEmpty()
+                    .allSatisfy(entityTransaction -> assertThat(entityTransaction.getType())
+                            .isEqualTo(TransactionBody.DataCase.DATA_NOT_SET.getNumber()));
         } finally {
             persistProperties.setEntityTransactions(backupEntityTransactionsValue);
         }
@@ -167,9 +168,10 @@ class EntityRecordItemListenerUtilTest extends AbstractEntityRecordItemListenerT
                     .first()
                     .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getResult)
                     .isEqualTo((int) Short.MAX_VALUE);
-            assertThat(entityTransactionRepository.findAll()).isNotEmpty().allSatisfy(entityTransaction -> assertThat(
-                            entityTransaction.getResult())
-                    .isEqualTo(Short.MAX_VALUE));
+            assertThat(entityTransactionRepository.findAll())
+                    .isNotEmpty()
+                    .allSatisfy(entityTransaction ->
+                            assertThat(entityTransaction.getResult()).isEqualTo(Short.MAX_VALUE));
         } finally {
             persistProperties.setEntityTransactions(backupEntityTransactionsValue);
         }

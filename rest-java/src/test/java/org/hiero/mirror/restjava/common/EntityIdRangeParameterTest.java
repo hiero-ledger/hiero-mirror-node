@@ -95,15 +95,20 @@ class EntityIdRangeParameterTest {
     @Test
     @DisplayName("getInclusiveValue rejects an unsatisfiable edge bound instead of wrapping to the opposite id bound")
     void getInclusiveValueRejectsUnsatisfiableBound() {
-        assertThrows(IllegalArgumentException.class, () -> new EntityIdRangeParameter(RangeOperator.GT, Long.MAX_VALUE)
-                .getInclusiveValue());
-        assertThrows(IllegalArgumentException.class, () -> new EntityIdRangeParameter(RangeOperator.LT, Long.MIN_VALUE)
-                .getInclusiveValue());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new EntityIdRangeParameter(RangeOperator.GT, Long.MAX_VALUE).getInclusiveValue());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new EntityIdRangeParameter(RangeOperator.LT, Long.MIN_VALUE).getInclusiveValue());
 
-        assertThrows(IllegalArgumentException.class, () -> EntityIdRangeParameter.valueOf("gt:511.65535.274877906943")
-                .getInclusiveValue());
-        assertThrows(IllegalArgumentException.class, () -> EntityIdRangeParameter.valueOf("lt:512.0.0")
-                .getInclusiveValue());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> EntityIdRangeParameter.valueOf("gt:511.65535.274877906943")
+                        .getInclusiveValue());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> EntityIdRangeParameter.valueOf("lt:512.0.0").getInclusiveValue());
     }
 
     @Test

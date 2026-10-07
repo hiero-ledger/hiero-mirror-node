@@ -173,11 +173,13 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         int transactions = 2;
         int entities = 2;
         final var logsBloom = new LogsBloomFilter();
-        var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
-                .entities(entities)
-                .subType(SubType.CONTRACT_CALL)
-                .nonce(5)
-                .isScheduled(false));
+        var recordFileTemplate = recordFileBuilder
+                .recordFile()
+                .recordItems(i -> i.count(transactions)
+                        .entities(entities)
+                        .subType(SubType.CONTRACT_CALL)
+                        .nonce(5)
+                        .isScheduled(false));
         var recordFile = recordFileTemplate.build();
         recordFile.getItems().forEach(r -> {
             var rec = r.getTransactionRecord();
@@ -203,13 +205,15 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         int transactions = 2;
         int entities = 2;
         final var logsBloom = new LogsBloomFilter();
-        var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
-                .entities(entities)
-                .subType(SubType.CONTRACT_CALL)
-                .nonce(5)
-                .isScheduled(false)
-                .parentConsensusTimestamp(
-                        Timestamp.newBuilder().setSeconds(1403434L).build()));
+        var recordFileTemplate = recordFileBuilder
+                .recordFile()
+                .recordItems(i -> i.count(transactions)
+                        .entities(entities)
+                        .subType(SubType.CONTRACT_CALL)
+                        .nonce(5)
+                        .isScheduled(false)
+                        .parentConsensusTimestamp(
+                                Timestamp.newBuilder().setSeconds(1403434L).build()));
         var recordFile = recordFileTemplate.build();
         recordFile.getItems().forEach(r -> {
             var rec = r.getTransactionRecord();
@@ -235,11 +239,13 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         int transactions = 2;
         int entities = 2;
         final var logsBloom = new LogsBloomFilter();
-        var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
-                .entities(entities)
-                .subType(SubType.CONTRACT_CALL)
-                .nonce(8)
-                .isScheduled(true));
+        var recordFileTemplate = recordFileBuilder
+                .recordFile()
+                .recordItems(i -> i.count(transactions)
+                        .entities(entities)
+                        .subType(SubType.CONTRACT_CALL)
+                        .nonce(8)
+                        .isScheduled(true));
         var recordFile = recordFileTemplate.build();
         recordFile.getItems().forEach(r -> {
             var rec = r.getTransactionRecord();
@@ -265,13 +271,15 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         int transactions = 2;
         int entities = 1;
         final var logsBloom = new LogsBloomFilter();
-        var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
-                .entities(entities)
-                .subType(SubType.CONTRACT_CALL)
-                .nonce(5)
-                .isScheduled(false)
-                .parentConsensusTimestamp(
-                        Timestamp.newBuilder().setSeconds(1403434L).build()));
+        var recordFileTemplate = recordFileBuilder
+                .recordFile()
+                .recordItems(i -> i.count(transactions)
+                        .entities(entities)
+                        .subType(SubType.CONTRACT_CALL)
+                        .nonce(5)
+                        .isScheduled(false)
+                        .parentConsensusTimestamp(
+                                Timestamp.newBuilder().setSeconds(1403434L).build()));
         var recordFile = recordFileTemplate.build();
         var transactionRecord = recordFile.getItems().get(1).getTransactionRecord();
         var result = transactionRecord.hasContractCreateResult()
@@ -298,11 +306,13 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         var recordFile = recordFileBuilder
                 .recordFile()
                 .recordItems(i -> i.count(transactions)
-                        .template(() -> recordItemBuilder.fileUpdate().record(r -> r.getTransactionIDBuilder()
-                                .setNonce(7)
-                                .setScheduled(false)
-                                .setAccountID(com.hederahashgraph.api.proto.java.AccountID.newBuilder()
-                                        .setAccountNum(50)))))
+                        .template(() -> recordItemBuilder
+                                .fileUpdate()
+                                .record(r -> r.getTransactionIDBuilder()
+                                        .setNonce(7)
+                                        .setScheduled(false)
+                                        .setAccountID(com.hederahashgraph.api.proto.java.AccountID.newBuilder()
+                                                .setAccountNum(50)))))
                 .build();
 
         // when
@@ -321,8 +331,9 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
     void parseWithLogIndexValidation() {
         // given
         int transactions = 10;
-        var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
-                .type(TransactionType.CONTRACTCALL));
+        var recordFileTemplate = recordFileBuilder
+                .recordFile()
+                .recordItems(i -> i.count(transactions).type(TransactionType.CONTRACTCALL));
         var recordFile = recordFileTemplate.build();
 
         // when

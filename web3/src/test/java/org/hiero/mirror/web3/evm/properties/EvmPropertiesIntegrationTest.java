@@ -49,8 +49,9 @@ final class EvmPropertiesIntegrationTest extends Web3IntegrationTest {
     @Test
     void verifyUpstreamPropertiesExist() {
         Set<String> propertyKeys = properties.getProperties().keySet();
-        propertyKeys.stream().forEach(configKey -> assertThat(getContractsConfigKey(configKey))
-                .isEqualTo(configKey));
+        propertyKeys.stream()
+                .forEach(configKey ->
+                        assertThat(getContractsConfigKey(configKey)).isEqualTo(configKey));
     }
 
     @Test

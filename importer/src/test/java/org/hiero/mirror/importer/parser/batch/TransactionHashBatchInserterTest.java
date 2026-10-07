@@ -66,8 +66,9 @@ class TransactionHashBatchInserterTest extends ImporterIntegrationTest {
 
             batchPersister.persist(transactionHashes);
             // Inside a different transaction so will not be available when queried here
-            shardMap.keySet().forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
-                    .isEmpty());
+            shardMap.keySet()
+                    .forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
+                            .isEmpty());
             assertThat(transactionHashRepository.findAll()).isEmpty();
 
             return new ConcurrentHashMap<>(hashBatchInserter.getThreadConnections());
@@ -112,8 +113,9 @@ class TransactionHashBatchInserterTest extends ImporterIntegrationTest {
             batchPersister.persist(batch2Hashes);
 
             // Inside a different transaction so will not be available when queried here
-            shardMap.keySet().forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
-                    .isEmpty());
+            shardMap.keySet()
+                    .forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
+                            .isEmpty());
             assertThat(transactionHashRepository.findAll()).isEmpty();
 
             return new ConcurrentHashMap<>(hashBatchInserter.getThreadConnections());
@@ -206,8 +208,9 @@ class TransactionHashBatchInserterTest extends ImporterIntegrationTest {
                 .hasMessage("intentional");
 
         assertThat(transactionRepository.findAll()).isEmpty();
-        shardMap.keySet().forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
-                .isEmpty());
+        shardMap.keySet()
+                .forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
+                        .isEmpty());
         assertThat(transactionHashRepository.findAll()).isEmpty();
     }
 
@@ -230,8 +233,9 @@ class TransactionHashBatchInserterTest extends ImporterIntegrationTest {
                 .hasMessageStartingWith("Unable to commit against JDBC Connection");
 
         assertThat(transactionRepository.findAll()).isEmpty();
-        shardMap.keySet().forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
-                .isEmpty());
+        shardMap.keySet()
+                .forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
+                        .isEmpty());
         assertThat(transactionHashRepository.findAll()).isEmpty();
     }
 
@@ -243,12 +247,15 @@ class TransactionHashBatchInserterTest extends ImporterIntegrationTest {
             assertThat(transactionRepository.findAll()).containsExactlyInAnyOrderElementsOf(transactions);
 
             batchPersister.persist(transactionHashes);
-            shardMap.keySet().forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
-                    .isEmpty());
+            shardMap.keySet()
+                    .forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
+                            .isEmpty());
 
             assertThat(hashBatchInserter.getThreadConnections()).isNotEmpty();
-            hashBatchInserter.getThreadConnections().values().forEach(threadState -> assertThat(threadState.getStatus())
-                    .isEqualTo(-1));
+            hashBatchInserter
+                    .getThreadConnections()
+                    .values()
+                    .forEach(threadState -> assertThat(threadState.getStatus()).isEqualTo(-1));
 
             // Get connection of thread transaction
             var threadToClose =
@@ -295,8 +302,9 @@ class TransactionHashBatchInserterTest extends ImporterIntegrationTest {
 
             transactionHashes.iterator().next().setHash(bytes);
             batchPersister.persist(transactionHashes);
-            shardMap.keySet().forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
-                    .isEmpty());
+            shardMap.keySet()
+                    .forEach(shard -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))
+                            .isEmpty());
         });
 
         shardMap.forEach((shard, items) -> assertThat(TestUtils.getShardTransactionHashes(shard, jdbcTemplate))

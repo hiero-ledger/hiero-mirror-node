@@ -27,7 +27,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 50
     env:
-      BLOCK_NODE_VERSION: v0.42.0
+      BLOCK_NODE_VERSION: v0.44.0
       BLOCK_STREAM_STREAM_MODE: RECORDS
       CONSENSUS_NODE_VERSION: v0.78.0-rc.9
       HELM_RELEASE_NAME: mirror-1
@@ -125,7 +125,7 @@ jobs:
 
       - name: Setup Gradle
         if: steps.changeset.outcome != 'skipped' && steps.changeset.outputs.changes != '[]'
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v4
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v4
 
       - name: Login to Docker Hub
         uses: step-security/docker-login-action@8c7b695d8738c5699a679ff5254baf0f19f20a94 # v4.6.0

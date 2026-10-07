@@ -1076,8 +1076,9 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 .entity()
                 .customize(e -> e.type(EntityType.TOKEN).key(key.toByteArray()))
                 .persist();
-        final var tokenBuilder = domainBuilder.token().customize(t -> t.tokenId(tokenEntity.getId())
-                .type(tokenType));
+        final var tokenBuilder = domainBuilder
+                .token()
+                .customize(t -> t.tokenId(tokenEntity.getId()).type(tokenType));
 
         switch (keyType) {
             case ADMIN_KEY:
