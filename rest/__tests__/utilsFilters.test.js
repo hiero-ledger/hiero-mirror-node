@@ -151,6 +151,11 @@ describe('utils buildComparatorFilter tests', () => {
       value: '1234567890.000000006',
     });
   });
+  test('Verify buildComparatorFilter does not throw for an object value from a nested key like timestamp[$ne]=0', () => {
+    const objectValue = {$ne: '0'};
+    const filter = utils.buildComparatorFilter(constants.filterKeys.TIMESTAMP, objectValue);
+    expect(filter).toStrictEqual({key: constants.filterKeys.TIMESTAMP, operator: undefined, value: objectValue});
+  });
 });
 
 const verifyBuildComparatorFilter = (key, val, expectedFilter) => {
