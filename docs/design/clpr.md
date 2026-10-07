@@ -477,8 +477,12 @@ create index if not exists clpr_message__channel_id_timestamp
 create index if not exists clpr_message__channel_id_message_id
     on clpr_message (channel_id, message_id);
 
+-- Partial index, same shape and rationale as clpr_channel_pending_commitment__created_timestamp:
+-- only DATA messages ever have a non-null connector_id, so Response and Control rows (the other
+-- two thirds of the table) never enter this index at all.
 create index if not exists clpr_message__connector_id
-    on clpr_message (connector_id, message_id);
+    on clpr_message (connector_id, message_id)
+    where connector_id is not null;
 
 create table if not exists clpr_message_lookup
 (
@@ -520,6 +524,10 @@ $$ language plpgsql;
 call partition_clpr_message();
 ```
 
+`partition_clpr_message()` only creates the initial batch of partitions. For ongoing partitions, add
+`call create_time_partition_for_table('clpr_message');` to `create_mirror_node_time_partitions()` in
+`R__time_partition_maintenance.sql`.
+
 #### `v2`
 
 ```sql
@@ -549,8 +557,12 @@ create index if not exists clpr_message__channel_id_timestamp
 create index if not exists clpr_message__channel_id_message_id
     on clpr_message (channel_id, message_id);
 
+-- Partial index, same shape and rationale as clpr_channel_pending_commitment__created_timestamp:
+-- only DATA messages ever have a non-null connector_id, so Response and Control rows (the other
+-- two thirds of the table) never enter this index at all.
 create index if not exists clpr_message__connector_id
-    on clpr_message (connector_id, message_id);
+    on clpr_message (connector_id, message_id)
+    where connector_id is not null;
 
 select create_distributed_table('clpr_message', 'channel_id', colocate_with => 'clpr_channel');
 
@@ -622,11 +634,11 @@ dropped above — finds the exact row within that partition.
 > is the only such table here, using `${shardCount}` since `channel_id` is an opaque, registrant-chosen 32-byte
 > value.
 >
-> **Open risk, not yet resolved**: colocating `clpr_connector`/`clpr_message` by `channel_id` means one
-> disproportionately active Channel's entire volume still concentrates on whichever single shard that Channel's
-> `channel_id` hashes to — this design accepts that risk for now, rather than distributing by a uniform hash column
-> with no colocation, which would eliminate the hotspot risk at the cost of making every query scatter-gather.
-> Revisit if real CLPR deployments show a small number of Channels dominating total volume.
+> **Open risk, not yet resolved**: each Channel represents a whole cross-ledger relationship, so there will
+> realistically be too few of them to spread evenly across 16 shards — a busy Channel's entire
+> `clpr_connector`/`clpr_message` volume concentrates on whichever one shard its `channel_id` hashes to. This
+> design accepts that concentration for now, rather than distributing by a uniform hash column with no colocation,
+> which would eliminate the hotspot at the cost of making every query scatter-gather.
 
 ## Importer Module Changes
 
@@ -930,22 +942,18 @@ Payload bytes (`message_data`) are returned opaque/hex-encoded per the [Non-Goal
 | ------------ | ------- | ------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `message.id` | integer | Filter/paginate by `message_id`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; positive integer. In `v2`, resolved to a `consensus_timestamp` bound via `clpr_message_lookup` for partition pruning (see [Message Queue](#4-message-queue-append-only)) |
 | `timestamp`  | string  | Filter by `consensus_timestamp`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (following this codebase's `maxTransactionsTimestampRangeNs`-style convention, e.g. 30 days)                    |
-| `type`       | string  | Filter by message type               | none    | One of `DATA`, `RESPONSE`, `CONTROL`; **requires** `message.id` or `timestamp` to also be supplied (see below)                                                                                                         |
 | `limit`      | integer | Maximum number of messages to return | `25`    | Must be between 1 and 100                                                                                                                                                                                              |
 | `order`      | string  | Sort order for results               | `desc`  | Must be either `asc` or `desc`                                                                                                                                                                                         |
 
-With no filters, `channelId` + `connectorId` already pin this query to `clpr_message__connector_id`, which — being
-a direct, selective point lookup — lets Postgres take the latest `limit` rows for that Connector without touching
-partitions it doesn't need, the same way `ORDER BY ... LIMIT` against any indexed column works. `type` breaks that:
-it's low-cardinality (3 values, no index of its own), so filtering by it without a bound could force scanning back
-through many unrelated rows — and many partitions — to accumulate `limit` matches, especially for the rarer
-`CONTROL` type. That's why `type` specifically requires `message.id` or `timestamp` alongside it, while a plain
-fetch or a `connectorId`-only fetch doesn't need either.
+No `type` parameter is offered here: this endpoint only ever returns `DATA` messages today, since Response and
+Control Messages both have `connector_id = null` (see above). With no filters, `channelId` + `connectorId` already
+pin this query to `clpr_message__connector_id`, which — being a direct, selective point lookup — lets Postgres take
+the latest `limit` rows for that Connector without touching partitions it doesn't need, the same way
+`ORDER BY ... LIMIT` against any indexed column works.
 
 **Examples:**
 
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages` — Get all messages handled by a Connector, newest first
-- `/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages?type=eq:DATA&timestamp=gte:1726874345.000000000&limit=10` — Get first 10 Data messages within a bounded time window
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages?timestamp=gte:1726874345.000000000&limit=10` — Get 10 messages within a bounded time window
 
 ### 4. Messages per Channel API
@@ -998,8 +1006,9 @@ With no filters, `channel_id` alone already lets Postgres take the latest `limit
 behavior any indexed column gets. `type` breaks that: it's low-cardinality (3 values, no index of its own), so
 filtering by it without a bound could force scanning back through many unrelated rows — and many partitions — to
 accumulate `limit` matches, especially for the rarer `CONTROL` type. That's why `type` specifically requires
-`message.id` or `timestamp` alongside it, the same rule as [Messages per Connector](#3-messages-per-connector-api);
-a plain fetch doesn't need either.
+`message.id` or `timestamp` alongside it; a plain fetch doesn't need either. [Messages per
+Connector](#3-messages-per-connector-api) has no `type` parameter at all, since it only ever returns `DATA`
+messages.
 
 **Examples:**
 
@@ -1191,9 +1200,13 @@ Feature: CLPR Channel and Connector Lifecycle
 
   Scenario: Channel lifecycle through the mirror node
     Given I register a CLPR channel commitment
-    And I complete the channel with a valid verifier and peer proof
+    And the mirror node processes the transaction
+    Then I query mirror node REST API for the transaction and it reports the register transaction
+    And I query mirror node REST API for pending channels and see the commitment listed
+    When I complete the channel with a valid verifier and peer proof
     And the mirror node processes the transactions
     Then I query mirror node REST API for the channel and it reports status "ACTIVE"
+    And I query mirror node REST API for pending channels and no longer see the commitment listed
     When I submit a bundle containing one data message
     And the mirror node processes the transactions
     Then I query mirror node REST API for the channel's messages and receive 2 entries (data + response)
@@ -1240,6 +1253,8 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
   `v2` — `v2` registers partitions via `create_time_partitions`; `v1` uses its own stored procedure, since no
   Citus helper is available there. `clpr_message_lookup`, which resolves partition pruning for it, is created in
   both profiles too, but is itself an ordinary, unpartitioned table.
+- Add `call create_time_partition_for_table('clpr_message');` to `create_mirror_node_time_partitions()` in
+  `R__time_partition_maintenance.sql`.
 
 ### 2. Performance Considerations
 
@@ -1352,7 +1367,8 @@ depend on the [Consensus-Node Assumptions](#consensus-node-assumptions) above.
    and `clpr_connector(_history)` — every other table in this list stays plain, undistributed in both profiles.
 2. **DB schema migration for `clpr_message` (+ `clpr_message_lookup`, both profiles).** Separate from (1) since
    it's a different table shape (append-only, no history pair, time-partitioned in both `v1` and `v2` — see
-   [Message Queue](#4-message-queue-append-only)) and the highest-volume table.
+   [Message Queue](#4-message-queue-append-only)) and the highest-volume table. Includes updating
+   `R__time_partition_maintenance.sql` to cover `clpr_message`.
 3. **Importer: Channel lifecycle transaction handlers and transformers.** `ClprRegisterChannel`,
    `ClprCompleteChannel`, `ClprCloseChannel` handlers plus the `BlockTransactionTransformer`s for verifier-derived
    Channel fields.
