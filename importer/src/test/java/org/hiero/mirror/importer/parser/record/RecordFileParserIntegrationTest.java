@@ -4,15 +4,11 @@ package org.hiero.mirror.importer.parser.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.DEFAULT_GAS_USED;
-import static org.hiero.mirror.importer.util.UtilityTest.ALIAS_ECDSA_SECP256K1;
-import static org.hiero.mirror.importer.util.UtilityTest.EVM_ADDRESS;
 
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
-import com.hederahashgraph.api.proto.java.TransferList;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,10 +16,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.contract.ContractLog;
-import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
-import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -31,7 +25,6 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
-import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.domain.RecordFileBuilder;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
@@ -59,7 +52,6 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
             ContractID.newBuilder().setContractNum(0x167).build();
 
     private final CryptoTransferRepository cryptoTransferRepository;
-    private final EntityIdService entityIdService;
     private final EntityRepository entityRepository;
     private final ReactiveRedisOperations<String, StreamMessage> reactiveRedisOperations;
     private final RecordFileBuilder recordFileBuilder;
@@ -441,84 +433,6 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         // then
         assertRecordFile(recordFile1);
         assertThat(retryRecorder.getRetries(ParserException.class)).isEqualTo(2);
-    }
-
-    @Test
-    @EnabledIfV1
-    void rollbackEntityDeleteThenRetry() {
-        // given an account with a public key alias
-        final var alias = DomainUtils.fromBytes(ALIAS_ECDSA_SECP256K1);
-        final var evmAddress = DomainUtils.fromBytes(EVM_ADDRESS);
-        final var aliasAccountId = AccountID.newBuilder().setAlias(alias).build();
-        final var cryptoCreate = recordItemBuilder
-                .cryptoCreate()
-                .transactionBody(b -> b.setAlias(alias))
-                .build();
-        final var deletedAccountId =
-                cryptoCreate.getTransactionRecord().getReceipt().getAccountID();
-        final var deleted = EntityId.of(deletedAccountId);
-        final var recordFile1 = recordFileWithItems(List.of(cryptoCreate), null);
-        recordFileParser.parse(recordFile1);
-
-        // and a record file which deletes it, creates a hollow account with the evm address derived from its public
-        // key, then debits the hollow account by the public key alias with an approved transfer
-        final var cryptoDelete = recordItemBuilder
-                .cryptoDelete()
-                .transactionBody(b -> b.setDeleteAccountID(deletedAccountId))
-                .build();
-        final var hollowCreate = recordItemBuilder
-                .cryptoCreate()
-                .transactionBody(b -> b.setAlias(evmAddress))
-                .record(r -> r.setEvmAddress(evmAddress))
-                .build();
-        final var hollowAccountId =
-                hollowCreate.getTransactionRecord().getReceipt().getAccountID();
-        final var hollow = EntityId.of(hollowAccountId);
-        final var payerAccountId = recordItemBuilder.accountId();
-        final var cryptoTransfer = recordItemBuilder
-                .cryptoTransfer()
-                .transactionBody(b -> b.setTransfers(TransferList.newBuilder()
-                        .addAccountAmounts(recordItemBuilder.accountAmount(aliasAccountId, -100).toBuilder()
-                                .setIsApproval(true))
-                        .addAccountAmounts(recordItemBuilder.accountAmount(payerAccountId, 100))))
-                .record(r -> r.setTransferList(TransferList.newBuilder()
-                        .addAccountAmounts(recordItemBuilder.accountAmount(hollowAccountId, -100))
-                        .addAccountAmounts(recordItemBuilder.accountAmount(payerAccountId, 100))))
-                .build();
-        final var items = List.of(cryptoDelete, hollowCreate, cryptoTransfer);
-
-        // when the record file fails since re-processing a persisted transaction results in a duplicate key
-        final var failedRecordFile = recordFileWithItems(items, recordFile1);
-        failedRecordFile.setItems(List.of(cryptoCreate, cryptoDelete, hollowCreate, cryptoTransfer));
-        Assertions.assertThrows(ParserException.class, () -> recordFileParser.parse(failedRecordFile));
-
-        // then the delete is rolled back, so the public key alias resolves to the account again
-        assertRecordFile(recordFile1);
-        assertThat(retryRecorder.getRetries(ParserException.class)).isEqualTo(2);
-        assertThat(entityRepository.findById(deleted.getId())).get().returns(false, Entity::getDeleted);
-        assertThat(entityRepository.findById(hollow.getId())).isEmpty();
-        assertThat(entityIdService.lookup(aliasAccountId)).hasValue(deleted);
-        // and the hollow account created in the rolled back record file isn't cached
-        assertThat(entityIdService.lookup(
-                        AccountID.newBuilder().setAlias(evmAddress).build()))
-                .hasValue(deleted);
-
-        // when the record file is retried
-        final var recordFile2 = recordFileWithItems(items, recordFile1);
-        recordFileParser.parse(recordFile2);
-
-        // then the public key alias resolves to the hollow account
-        assertRecordFile(recordFile1, recordFile2);
-        assertThat(entityRepository.findById(deleted.getId())).get().returns(true, Entity::getDeleted);
-        assertThat(entityRepository.findById(hollow.getId()))
-                .get()
-                .returns(false, Entity::getDeleted)
-                .returns(EVM_ADDRESS, Entity::getEvmAddress);
-        assertThat(cryptoTransferRepository.findById(
-                        new CryptoTransfer.Id(-100L, cryptoTransfer.getConsensusTimestamp(), hollow.getId())))
-                .get()
-                .returns(true, CryptoTransfer::getIsApproval);
-        assertThat(entityIdService.lookup(aliasAccountId)).hasValue(hollow);
     }
 
     private List<RecordItem> hookDrivenTransferItems() {

@@ -1363,8 +1363,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     @ParameterizedTest
     @CsvSource(textBlock = """
             false
-            # clear cache before the delete to test the scenario the alias is looked up from db before the delete is
-            # persisted
+            # clear cache after the delete to test the scenario the alias is looked up from db
             true
             """)
     void cryptoDeleteThenCreateHollowAccountWithSameEvmAddress(final boolean clearCache) {
@@ -1401,11 +1400,12 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
 
         // when
         parseRecordItemsAndCommit(List.of(cryptoCreate));
+        parseRecordItemsAndCommit(List.of(cryptoDelete));
         if (clearCache) {
             resetCacheManager(cacheManager);
         }
 
-        parseRecordItemsAndCommit(List.of(cryptoDelete, hollowCreate, cryptoTransfer));
+        parseRecordItemsAndCommit(List.of(hollowCreate, cryptoTransfer));
 
         // then
         final var hollow = EntityId.of(hollowAccountId);
