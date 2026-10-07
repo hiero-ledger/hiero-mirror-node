@@ -4,6 +4,10 @@ hiero:
   mirror:
     web3:
       api:
+        actions:
+          enabled: false
+          request:
+            timeout: 4s
         opcodes:
           request:
             timeout: 10s

@@ -37,6 +37,41 @@ class BlockInfoSingletonTest {
     }
 
     @Test
+    void getUsesBlockOverrideNumber() {
+        final var context = ContractCallContext.get();
+        context.setBlockSupplier(() -> recordFile);
+        context.setBlockOverrideNumber(42L);
+
+        assertThat(blockInfoSingleton.get())
+                .isEqualTo(BlockInfo.newBuilder()
+                        .blockHashes(Bytes.EMPTY)
+                        .consTimeOfLastHandledTxn(convertToTimestamp(recordFile.getConsensusEnd()))
+                        .firstConsTimeOfCurrentBlock(convertToTimestamp(recordFile.getConsensusStart()))
+                        .firstConsTimeOfLastBlock(convertToTimestamp(recordFile.getConsensusStart()))
+                        .lastBlockNumber(41L)
+                        .migrationRecordsStreamed(true)
+                        .build());
+    }
+
+    @Test
+    void getUsesBlockOverrideTime() {
+        final var context = ContractCallContext.get();
+        context.setBlockSupplier(() -> recordFile);
+        final var timeNanos = 1_710_858_432_000_000_000L;
+        context.setBlockOverrideTimeNanos(timeNanos);
+
+        assertThat(blockInfoSingleton.get())
+                .isEqualTo(BlockInfo.newBuilder()
+                        .blockHashes(Bytes.EMPTY)
+                        .consTimeOfLastHandledTxn(convertToTimestamp(timeNanos))
+                        .firstConsTimeOfCurrentBlock(convertToTimestamp(timeNanos))
+                        .firstConsTimeOfLastBlock(convertToTimestamp(timeNanos))
+                        .lastBlockNumber(recordFile.getIndex() - 1)
+                        .migrationRecordsStreamed(true)
+                        .build());
+    }
+
+    @Test
     void key() {
         assertThat(blockInfoSingleton.getStateId()).isEqualTo(BLOCKS_STATE_ID);
     }

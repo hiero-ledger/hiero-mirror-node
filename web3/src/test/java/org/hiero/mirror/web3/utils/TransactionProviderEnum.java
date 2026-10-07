@@ -33,8 +33,10 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hyperledger.besu.datatypes.Address;
+import org.jspecify.annotations.NullUnmarked;
 
 @Getter
+@NullUnmarked
 @RequiredArgsConstructor
 public enum TransactionProviderEnum {
     CONTRACT_CREATE(Instant.ofEpochSecond(1, 2000), CONTRACTCREATEINSTANCE, EthTransactionType.LEGACY.getTypeByte()),
