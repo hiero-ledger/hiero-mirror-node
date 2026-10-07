@@ -487,6 +487,10 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertThat(entityRepository.findById(deleted.getId())).get().returns(false, Entity::getDeleted);
         assertThat(entityRepository.findById(hollow.getId())).isEmpty();
         assertThat(entityIdService.lookup(aliasAccountId)).hasValue(deleted);
+        // and the hollow account created in the rolled back record file isn't cached
+        assertThat(entityIdService.lookup(
+                        AccountID.newBuilder().setAlias(evmAddress).build()))
+                .hasValue(deleted);
 
         // when the record file is retried
         final var recordFile2 = recordFileWithItems(items, recordFile1);

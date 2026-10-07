@@ -15,6 +15,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import jakarta.inject.Named;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -45,26 +46,47 @@ public class EntityIdServiceImpl implements EntityIdService, TransactionSynchron
     private final Cache cache;
     private final EntityRepository entityRepository;
 
-    /*
-     * The entities deleted in the current transaction. Delete isn't persisted until the end of the transaction so
-     * until then the database still returns the entity. Any mapping to these entities is ignored during the
-     * transaction and evicted once it completes.
+    /**
+     * Temporary cache populated when entities are created in the current transaction. It's visible to lookups within
+     * the transaction, but its entries are added to the cache only once the transaction commits.
      */
-    private final Set<EntityId> pendingDeletes = ConcurrentHashMap.newKeySet();
+    private final Map<ByteString, EntityId> inTransactionCache = new ConcurrentHashMap<>();
+
+    /**
+     * The entities deleted in the current transaction. The deletes are written to the db at the end of
+     * the transaction, and their cached mappings are evicted once it commits. Until then, any lookup result resolving to
+     * these entities, whether from the cache or the db, is ignored so entities deleted earlier in the transaction
+     * aren't returned.
+     */
+    private final Set<EntityId> inTransactionDeletes = ConcurrentHashMap.newKeySet();
 
     public EntityIdServiceImpl(@Qualifier(CACHE_ALIAS) CacheManager cacheManager, EntityRepository entityRepository) {
         this.cache = cacheManager.getCache(CACHE_NAME);
         this.entityRepository = entityRepository;
     }
 
+    /**
+     * Called once the current transaction completes.
+     * On status COMMITTED - adds the in-transaction cache entries to the cache.
+     * On status UNKNOWN - evicts the cache entries that match the keys of the in-transaction cache entries. That is
+     * because new mappings may or may not be persisted, so better be safe by removing those keys from the cache.
+     * On status !ROLLED_BACK - evicts each cache entry with value matching one from the inTransactionDeletes set.
+     * At the end both inTransactionCache and inTransactionDeletes are cleared.
+     */
     @Override
     public void afterCompletion(int status) {
         try {
+            if (status == STATUS_COMMITTED) {
+                inTransactionCache.forEach((key, entityId) -> cache.put(key, Optional.of(entityId)));
+            } else if (status == STATUS_UNKNOWN) {
+                inTransactionCache.keySet().forEach(cache::evict);
+            }
             if (status != STATUS_ROLLED_BACK) {
-                evict(pendingDeletes);
+                evictCacheEntries(inTransactionDeletes);
             }
         } finally {
-            pendingDeletes.clear();
+            inTransactionDeletes.clear();
+            inTransactionCache.clear();
         }
     }
 
@@ -135,8 +157,8 @@ public class EntityIdServiceImpl implements EntityIdService, TransactionSynchron
             return;
         }
 
-        if (Boolean.FALSE.equals(entity.getDeleted()) && !pendingDeletes.isEmpty()) {
-            pendingDeletes.remove(entity.toEntityId());
+        if (Boolean.FALSE.equals(entity.getDeleted()) && !inTransactionDeletes.isEmpty()) {
+            inTransactionDeletes.remove(entity.toEntityId());
         }
 
         final byte[] aliasBytes = entity.getAlias() != null ? entity.getAlias() : entity.getEvmAddress();
@@ -145,26 +167,29 @@ public class EntityIdServiceImpl implements EntityIdService, TransactionSynchron
         }
 
         final var alias = fromBytes(aliasBytes);
-        final var entityId = Optional.of(entity.toEntityId());
+        final var entityId = entity.toEntityId();
         final var type = entity.getType();
 
         switch (type) {
             case ACCOUNT -> {
-                cache.put(alias, entityId);
+                stageCacheEntry(alias, entityId);
                 // Accounts can have an alias and an EVM address so warm the cache with both
                 if (entity.getAlias() != null && entity.getEvmAddress() != null) {
-                    cache.put(fromBytes(entity.getEvmAddress()), entityId);
+                    stageCacheEntry(fromBytes(entity.getEvmAddress()), entityId);
                 }
             }
-            case CONTRACT -> cache.put(alias, entityId);
+            case CONTRACT -> stageCacheEntry(alias, entityId);
             default -> Utility.handleRecoverableError("Invalid Entity: {} entity can't have alias", type);
         }
     }
 
     private @NonNull Optional<EntityId> cacheLookup(ByteString key, Callable<Optional<EntityId>> loader) {
         try {
-            final var entityId = Objects.requireNonNullElse(cache.get(key, loader), Optional.<EntityId>empty());
-            return entityId.isPresent() && pendingDeletes.contains(entityId.get()) ? Optional.empty() : entityId;
+            final var created = inTransactionCache.get(key);
+            final var entityId = created != null
+                    ? Optional.of(created)
+                    : Objects.requireNonNullElse(cache.get(key, loader), Optional.<EntityId>empty());
+            return entityId.isPresent() && inTransactionDeletes.contains(entityId.get()) ? Optional.empty() : entityId;
         } catch (Cache.ValueRetrievalException e) {
             Utility.handleRecoverableError("Error looking up alias or EVM address {} from cache", key, e);
             return Optional.empty();
@@ -184,18 +209,13 @@ public class EntityIdServiceImpl implements EntityIdService, TransactionSynchron
         }
 
         final var entityId = entity.toEntityId();
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+        if (!registerSynchronization()) {
             // If not within a transaction evict right away
-            evict(Set.of(entityId));
+            evictCacheEntries(Set.of(entityId));
             return;
         }
 
-        if (!TransactionSynchronizationManager.getSynchronizations().contains(this)) {
-            // Calls afterCompletion() once the current transaction commits or rolls back
-            TransactionSynchronizationManager.registerSynchronization(this);
-        }
-
-        pendingDeletes.add(entityId);
+        inTransactionDeletes.add(entityId);
     }
 
     private <T extends GeneratedMessage> Optional<EntityId> doLookups(
@@ -209,7 +229,11 @@ public class EntityIdServiceImpl implements EntityIdService, TransactionSynchron
         return EMPTY;
     }
 
-    private void evict(final Set<EntityId> entityIds) {
+    /**
+     * Evicts every cache entry matching a value from the entityIds set.
+     * If the cache can't be searched by value, it's cleared as the only safe fallback.
+     */
+    private void evictCacheEntries(final Set<EntityId> entityIds) {
         if (entityIds.isEmpty()) {
             return;
         }
@@ -246,7 +270,8 @@ public class EntityIdServiceImpl implements EntityIdService, TransactionSynchron
                     HEX_FORMAT.formatHex(alias));
         }
 
-        // Check cache first in case the 20-byte evm address hasn't persisted to db
+        // Check the mappings created in the current transaction and the cache first in case the 20-byte evm address
+        // hasn't persisted to db
         return lookupEvmAddress(fromBytes(evmAddress), evmAddress, true);
     }
 
@@ -267,5 +292,35 @@ public class EntityIdServiceImpl implements EntityIdService, TransactionSynchron
         }
 
         return cacheLookup(key, () -> findByEvmAddress(evmAddress, throwRecoverableError));
+    }
+
+    /**
+     * Registers this service to be called back once the current transaction completes.
+     * @return false if there's no transaction to register with
+     */
+    private boolean registerSynchronization() {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return false;
+        }
+
+        if (!TransactionSynchronizationManager.getSynchronizations().contains(this)) {
+            // Calls afterCompletion() once the current transaction commits or rolls back
+            TransactionSynchronizationManager.registerSynchronization(this);
+        }
+
+        return true;
+    }
+
+    /**
+     * Stages a cache entry for an entity created in the current transaction, to be cached once the transaction
+     * commits. If no transaction to register with is found, caches it right away.
+     */
+    private void stageCacheEntry(final ByteString key, final EntityId entityId) {
+        if (!registerSynchronization()) {
+            cache.put(key, Optional.of(entityId));
+            return;
+        }
+
+        inTransactionCache.put(key, entityId);
     }
 }
