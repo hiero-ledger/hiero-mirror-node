@@ -210,6 +210,50 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
     }
 
     @Test
+    void staleLogIsFixedWhenContractResultIsAlreadyCorrect() {
+        // given
+        final var block = persistBlock(0);
+        final var unrelatedRootTimestamp = block.getConsensusStart() + 100;
+        final var scheduledTimestamp = block.getConsensusStart() + 200;
+
+        persistTransaction(unrelatedRootTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+        persistTransaction(scheduledTimestamp, TransactionType.CONTRACTCALL, 53, true, null);
+        persistScheduleExecution(scheduledTimestamp);
+
+        persistContractResult(unrelatedRootTimestamp, 0, 0);
+        persistContractResult(scheduledTimestamp, 53, 1);
+        persistContractLog(scheduledTimestamp, 0);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(scheduledTimestamp, 1);
+        assertContractLogIndex(scheduledTimestamp, 1);
+    }
+
+    @Test
+    void scheduledZeroGasContractCallGetsNullIndex() {
+        // given
+        final var block = persistBlock(0);
+        final var scheduledTimestamp = block.getConsensusStart() + 100;
+
+        persistTransaction(scheduledTimestamp, TransactionType.CONTRACTCALL, 53, true, null);
+        persistScheduleExecution(scheduledTimestamp);
+        persistContractResult(scheduledTimestamp, 53, -1, 0L);
+        persistContractLog(scheduledTimestamp, -1);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(scheduledTimestamp, null);
+        assertContractLogIndex(scheduledTimestamp, null);
+    }
+
+    @Test
     void scheduledContractCallLogsFollowFixedIndex() {
         // given
         final var block = persistBlock(0);
@@ -280,12 +324,16 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
     }
 
     private void persistContractResult(long consensusTimestamp, int nonce, Integer existingIndex) {
+        persistContractResult(consensusTimestamp, nonce, existingIndex, 100L);
+    }
+
+    private void persistContractResult(long consensusTimestamp, int nonce, Integer existingIndex, long gasUsed) {
         domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
                         .transactionIndex(existingIndex)
                         .transactionNonce(nonce)
-                        .gasUsed(100L))
+                        .gasUsed(gasUsed))
                 .persist();
     }
 

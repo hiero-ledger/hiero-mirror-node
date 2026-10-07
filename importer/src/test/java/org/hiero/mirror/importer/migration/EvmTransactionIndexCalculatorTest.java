@@ -181,17 +181,48 @@ class EvmTransactionIndexCalculatorTest {
     @Test
     void unchangedRowsAreNotReturned() {
         var rows = List.of(
-                new Row(100L, null, true, 1L, 100L, false, 0L),
-                new Row(101L, 100L, true, 1L, 0L, false, 0L),
-                new Row(200L, null, true, 2L, 200L, false, 0L), // stored 0, should be 1
-                new Row(300L, null, true, 3L, 0L, false, null));
+                stored(100L, null, true, 100L, 0L, 0L),
+                stored(101L, 100L, true, 0L, 0L),
+                stored(200L, null, true, 200L, 0L, 0L), // stored 0, should be 1
+                stored(300L, null, true, 0L, null, (Long) null));
 
         var updates = EvmTransactionIndexCalculator.compute(rows, HOOK_CONTRACT_ID);
 
         assertThat(updates).containsExactly(new Update(200L, 1L));
     }
 
-    // stored index that never matches a computed one, so every candidate row is returned
+    @Test
+    void staleLogIsUpdatedWhenContractResultIsAlreadyCorrect() {
+        var rows = List.of(
+                stored(100L, null, true, 100L, 0L, 0L),
+                stored(200L, null, true, 200L, 1L, 0L)); // result already 1, log still 0
+
+        var updates = EvmTransactionIndexCalculator.compute(rows, HOOK_CONTRACT_ID);
+
+        assertThat(updates).containsExactly(new Update(200L, 1L));
+    }
+
+    @Test
+    void logsWithMixedIndexesAreUpdated() {
+        var rows = List.of(stored(100L, null, true, 100L, 0L, 0L, 1L));
+
+        var updates = EvmTransactionIndexCalculator.compute(rows, HOOK_CONTRACT_ID);
+
+        assertThat(updates).containsExactly(new Update(100L, 0L));
+    }
+
+    @Test
+    void zeroGasRootLogsAreNulled() {
+        var unchanged = List.of(stored(100L, null, true, 0L, null, (Long) null));
+        var staleLog = List.of(stored(100L, null, true, 0L, null, 0L));
+
+        assertThat(EvmTransactionIndexCalculator.compute(unchanged, HOOK_CONTRACT_ID))
+                .isEmpty();
+        assertThat(EvmTransactionIndexCalculator.compute(staleLog, HOOK_CONTRACT_ID))
+                .containsExactly(new Update(100L, null));
+    }
+
+    // stored indexes that never match a computed one, so every candidate row is returned
     private static Row row(
             long consensusTimestamp,
             Long parentConsensusTimestamp,
@@ -199,6 +230,8 @@ class EvmTransactionIndexCalculatorTest {
             long contractId,
             long gasUsed,
             boolean syntheticLogOnly) {
+        final var logCount = syntheticLogOnly ? 1L : 0L;
+        final var logIndex = syntheticLogOnly ? -99L : null;
         return new Row(
                 consensusTimestamp,
                 parentConsensusTimestamp,
@@ -206,7 +239,35 @@ class EvmTransactionIndexCalculatorTest {
                 contractId,
                 gasUsed,
                 syntheticLogOnly,
-                -99L);
+                hasContractResult ? -99L : null,
+                logCount,
+                0L,
+                logIndex,
+                logIndex);
+    }
+
+    private static Row stored(
+            long consensusTimestamp,
+            Long parentConsensusTimestamp,
+            boolean hasContractResult,
+            long gasUsed,
+            Long contractResultIndex,
+            Long... logIndexes) {
+        final var nonNullLogIndexes = java.util.Arrays.stream(logIndexes)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return new Row(
+                consensusTimestamp,
+                parentConsensusTimestamp,
+                hasContractResult,
+                1L,
+                gasUsed,
+                false,
+                contractResultIndex,
+                logIndexes.length,
+                logIndexes.length - nonNullLogIndexes.size(),
+                nonNullLogIndexes.stream().min(Long::compare).orElse(null),
+                nonNullLogIndexes.stream().max(Long::compare).orElse(null));
     }
 
     private static void assertIndices(List<Row> rows, Map<Long, Long> expected) {

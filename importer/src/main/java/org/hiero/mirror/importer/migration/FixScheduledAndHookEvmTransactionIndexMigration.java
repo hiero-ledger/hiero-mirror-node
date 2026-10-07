@@ -91,25 +91,28 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
                 bool_or(has_contract_result) as has_contract_result,
                 coalesce(max(contract_id), 0) as contract_id,
                 coalesce(max(gas_used), 0) as gas_used,
-                bool_or(has_synthetic_log) and not bool_or(has_contract_result) as synthetic_log_only,
-                case when bool_or(has_contract_result) then max(contract_result_index)
-                     else max(contract_log_index) end as transaction_index
+                bool_or(is_synthetic_log) and not bool_or(has_contract_result) as synthetic_log_only,
+                max(contract_result_index) as contract_result_index,
+                count(*) filter (where is_log) as log_count,
+                count(*) filter (where is_log and contract_log_index is null) as null_log_index_count,
+                min(contract_log_index) as min_log_index,
+                max(contract_log_index) as max_log_index
             from (
                 select consensus_timestamp, parent_consensus_timestamp, false as has_contract_result,
                     null::bigint as contract_id, null::bigint as gas_used, null::int as contract_result_index,
-                    false as has_synthetic_log, null::int as contract_log_index
+                    false as is_log, false as is_synthetic_log, null::int as contract_log_index
                 from transaction
                 where consensus_timestamp between :consensusStart and :consensusEnd
                 union all
-                select consensus_timestamp, null::bigint, true, contract_id, gas_used, transaction_index, false,
+                select consensus_timestamp, null::bigint, true, contract_id, gas_used, transaction_index, false, false,
                     null::int
                 from contract_result
                 where consensus_timestamp between :consensusStart and :consensusEnd
                 union all
                 select distinct consensus_timestamp, null::bigint, false, null::bigint, null::bigint, null::int, true,
-                    transaction_index
+                    coalesce(synthetic, false), transaction_index
                 from contract_log
-                where synthetic = true and consensus_timestamp between :consensusStart and :consensusEnd
+                where consensus_timestamp between :consensusStart and :consensusEnd
             ) block_rows
             group by consensus_timestamp
             order by consensus_timestamp
@@ -153,7 +156,7 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
 
-    // Rpeatable migrations run in description order; this must sort after RecomputeEvmTransactionIndexMigration's
+    // Repeatable migrations run in description order; this must sort after RecomputeEvmTransactionIndexMigration's
     @Override
     public String getDescription() {
         return "Repair EVM transaction index for scheduled transactions and hook chains";

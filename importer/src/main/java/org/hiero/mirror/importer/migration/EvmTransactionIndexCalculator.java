@@ -40,7 +40,7 @@ final class EvmTransactionIndexCalculator {
                 indexByTimestamp.put(row.consensusTimestamp(), evmIndex);
             }
 
-            if (!Objects.equals(evmIndex, row.transactionIndex())) {
+            if (row.differsFrom(evmIndex)) {
                 updates.add(new Update(row.consensusTimestamp(), evmIndex));
             }
         }
@@ -82,7 +82,29 @@ final class EvmTransactionIndexCalculator {
             long contractId,
             long gasUsed,
             boolean syntheticLogOnly,
-            @Nullable Long transactionIndex) {}
+            @Nullable Long contractResultIndex,
+            long logCount,
+            long nullLogIndexCount,
+            @Nullable Long minLogIndex,
+            @Nullable Long maxLogIndex) {
+
+        boolean differsFrom(@Nullable Long evmIndex) {
+            final var resultDiffers = hasContractResult && !Objects.equals(contractResultIndex, evmIndex);
+            return resultDiffers || logsDifferFrom(evmIndex);
+        }
+
+        private boolean logsDifferFrom(@Nullable Long evmIndex) {
+            if (logCount == 0) {
+                return false;
+            }
+
+            if (evmIndex == null) {
+                return nullLogIndexCount != logCount;
+            }
+
+            return nullLogIndexCount != 0 || !evmIndex.equals(minLogIndex) || !evmIndex.equals(maxLogIndex);
+        }
+    }
 
     record Update(long consensusTimestamp, @Nullable Long transactionIndex) {}
 }
