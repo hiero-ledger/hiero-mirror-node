@@ -8,13 +8,6 @@ ordered, reliable messages with peer ledgers (Hiero or non-Hiero) without a brid
 The implementation will enable ingestion, storage, and querying of CLPR on-ledger state — Channels, Connectors,
 the message queue, and ledger/endpoint configuration.
 
-This is tracked by [issue #14356](https://github.com/hiero-ledger/hiero-mirror-node/issues/14356), targeted for
-milestone `0.165.0`. The issue asks for three things, each addressed by a section below:
-
-1. A design document (this document).
-2. Mirror-node-specific feedback on the HIP (see [Consensus-Node Assumptions](#consensus-node-assumptions)).
-3. A breakdown of follow-up implementation tasks (see [Proposed Follow-up Implementation Tasks](#proposed-follow-up-implementation-tasks)).
-
 ## Goals
 
 - Ingest all new CLPR transaction types and persist their resulting state to the database (Channels, Connectors,
@@ -22,26 +15,26 @@ milestone `0.165.0`. The issue asks for three things, each addressed by a sectio
 - Model Channel and Connector state with full history, consistent with how other long-lived, mutable Hiero
   entities (tokens, topics, schedules) are tracked in this codebase.
 - Model the CLPR message queue (Data/Response/Control payloads) as an append-only ledger suitable for audit and
-  reconciliation, per HIP-1535 §11 ("Impact on Mirror Node").
+  reconciliation.
 - Expose CLPR state through the mirror node's read APIs so application developers, Connector Operators, and
   auditors can inspect Channel/Connector health and message history without running their own node.
 - Capture the response-code and signal fields (`ClprChannelStatus`, `ClprMessageReplyStatus`, slash counts) needed
-  to reconstruct the protocol's economic and lifecycle behavior described in HIP-1535 §6-§9.
+  to reconstruct the protocol's economic and lifecycle behavior.
 
 ## Non-Goals
 
 - Verifying CLPR state proofs, bundle payloads, or trust anchor rotations — this is Hiero consensus-node and
   verifier-contract responsibility. The mirror node only records what the consensus node already decided.
-- Acting as a CLPR endpoint, relaying bundles, or participating in the sync protocol described in HIP-1535 §6.2.
+- Acting as a CLPR endpoint, relaying bundles, or participating in the sync protocol.
 - Indexing the Hiero-internal, non-cross-ledger mechanisms that never reach consensus state in a portable form:
   `ClprEndpointManifestConstruction` bookkeeping beyond the finalized manifest, and `ClprPeerEndpoints` (explicitly
   node-local, non-consensus state per its proto doc comment).
 - Decoding or interpreting `bundle_payload`, verifier proof bytes, or application `message_data`/`message_reply_data`
-  — these are opaque per HIP-1535 §5 and §7.5 ("Applications MUST treat all cross-ledger payloads ... as untrusted
-  input"); the mirror node stores them as opaque bytes only.
+  — these are opaque per HIP-1535 ("Applications MUST treat all cross-ledger payloads ... as untrusted input");
+  the mirror node stores them as opaque bytes only.
 - Rosetta, gRPC, GraphQL, or web3 support for CLPR — scoped to REST (`rest-java`) only for this iteration.
-- Message redaction (`ClprRedactMessage`). HIP-1535 §10.6 states this mechanism was removed from the specification
-  under Rejected Ideas; this design follows the HIP text and does not persist or expose it, despite the reference
+- Message redaction (`ClprRedactMessage`). HIP-1535 states this mechanism was removed from the specification under
+  Rejected Ideas; this design follows the HIP text and does not persist or expose it, despite the reference
   implementation's proto still defining it (see [Consensus-Node Assumptions](#consensus-node-assumptions)).
 
 ## Background
@@ -65,12 +58,6 @@ concepts from the HIP:
 - **Ledger Configuration** — a singleton per CLPR Service holding `ChainID`, protocol version, and throttle limits,
   admin-updatable via `ClprUpdateLedgerConfiguration`.
 
-Per HIP-1535 §11 ("Impact on Mirror Node"): _"Mirror nodes MUST index CLPR Service state changes (Channel
-creation/state transitions, Connector registration/balance/slashing events, and enqueued/dispatched messages) to
-support application-level auditing and reconciliation, the same way they index other native Hiero services today.
-No new consensus-level query type is required; CLPR state is ordinary Merkle state."_ This is the mandate this
-design implements.
-
 ## Architecture
 
 CLPR transactions flow through the mirror node's existing, single transaction-processing pipeline — there is no
@@ -80,39 +67,21 @@ separate ingestion path for CLPR:
    `clprSubmitBundle`, `clprRegisterConnector`, `clprDeregisterConnector`, `clprCompleteConnector`,
    `clprUpdateLedgerConfiguration`) gets a dedicated `TransactionHandler`, the same as any other transaction type
    (see [Importer Module Changes](#importer-module-changes)). These eight cases aren't the only source of CLPR
-   state changes, though — see point 7 below.
-2. **CLPR's verifier-derived fields are only ever available via consensus state, not via any record-stream
-   carrier — so this design assumes CLPR transactions are only ever delivered via block stream.** Checked against
-   the reference implementation: none of `transaction_receipt.proto`, `transaction_record.proto`, or the sidecar
-   proto define any CLPR-specific field. Values such as `ClprCompleteChannel`'s verifier-assigned
-   `trust_anchor`/`channel_context`, or `ClprSubmitBundle`'s dispatched message contents, exist only as
-   `state_changes.proto` `StateChange` entries (`clpr_channel_value`, `clpr_connector_value`,
-   `clpr_message_value`/`clpr_message_key`, `clpr_ledger_configuration_value`, `clpr_endpoint_manifest_value`) —
-   the block-stream representation of consensus state. This is a real implementation constraint: a
-   `TransactionHandler` cannot read these fields off the transaction body or a classic `TransactionRecord`. We
-   handle it with new `RecordItem` fields and dedicated `BlockTransactionTransformer` subclasses (see points 3-4
-   below). Since there is no legacy record-stream carrier for CLPR to begin with, this design builds no
-   CLPR-specific handling for a classic (non-block-stream-derived) record stream — a dedicated record-stream code
-   path would be dead code; if a future network somehow needs CLPR over a pure record stream, that would require
-   its own follow-up design once a concrete carrier for the verifier-derived fields is defined.
-3. **`RecordItem` — the object every `TransactionHandler` actually consumes — has no slot for this data either.**
-   `RecordItem` wraps a classic `TransactionRecord` plus a list of classic `TransactionSidecarRecord`s (see
-   `common/src/main/java/org/hiero/mirror/common/domain/transaction/RecordItem.java`), and neither proto has any
-   CLPR-specific field or oneof case — there is no sidecar case or `TransactionRecord` field to populate for this
-   data at all. So the existing `BlockTransactionTransformer` pattern (see
-   `importer/src/main/java/org/hiero/mirror/importer/downloader/block/transformer/`) can't be reused unmodified by
-   just populating the synthetic `TransactionRecord`; it needs a companion change.
-4. Since `RecordItem` is an importer-internal Java class, not a strict 1:1 mirror of the wire proto (it already
-   carries non-proto fields like `hookParent`), the fix is to **add new CLPR-specific fields to `RecordItem`**
-   (e.g. the parsed `clpr_channel_value`/`clpr_connector_value`/`clpr_message_value` state changes relevant to the
-   transaction). A `ClprXxxTransformer` per CLPR transaction type that needs verifier-derived enrichment reads the
-   relevant `StateChange`s from `StateChangeContext` and populates those new `RecordItem` fields at build time; the
-   corresponding `TransactionHandler` then reads them directly, the same way it reads `transactionBody` or
-   `transactionRecord` today. This is CLPR-specific handler awareness, not a fully source-agnostic mechanism.
-5. The importer persists to PostgreSQL following the existing current + history table pattern.
-6. `rest-java` (jOOQ-based) exposes read endpoints over the persisted state.
-7. **CLPR state changes are not confined to the eight `TransactionBody` cases above.** Three real exceptions exist
-   in `hiero-consensus-node` main, and they don't all need the same fix:
+   state changes, though — see point 5 below.
+2. **Verifier-derived fields (e.g. `ClprCompleteChannel`'s `trust_anchor`/`channel_context`, `ClprSubmitBundle`'s
+   dispatched messages) only exist as `state_changes.proto` `StateChange` entries** — not in
+   `transaction_receipt.proto`, `transaction_record.proto`, the sidecar proto, or `RecordItem`
+   (`common/src/main/java/org/hiero/mirror/common/domain/transaction/RecordItem.java`, which wraps those same
+   classic protos), so a `TransactionHandler` can't read them off the transaction body or `TransactionRecord`. The
+   fix: add new CLPR-specific fields directly to `RecordItem` (an importer-internal class, not a strict proto
+   mirror — it already carries non-proto fields like `hookParent`), populated by a `ClprXxxTransformer` per CLPR
+   transaction type that reads `StateChangeContext` at build time; the corresponding `TransactionHandler` then
+   reads those fields directly. Since CLPR has no legacy record-stream carrier to begin with, this design assumes
+   block-stream-only delivery and builds no separate record-stream path.
+3. The importer persists to PostgreSQL following the existing current + history table pattern.
+4. `rest-java` (jOOQ-based) exposes read endpoints over the persisted state.
+5. **CLPR state changes are not confined to the eight `TransactionBody` cases above.** Three real exceptions exist
+   in `hiero-consensus-node`, and they don't all need the same fix:
 
    - **`sendMessage`** is a system-contract call (`ClprSystemContract`, address `0x16e`/`0.0.366`) made inside a
      `ContractCall` or `EthereumTransaction`. `SendMessageCall.execute()` calls `ClprServiceApi.sendMessage(...)`
@@ -126,25 +95,9 @@ separate ingestion path for CLPR:
      existing `ContractCall`/`EthereumTransaction` handling also read them when present. No new tables — the
      writes land in `clpr_message`/`clpr_channel`/`clpr_connector`, which already exist; `sendMessage` is simply a
      second source feeding them, alongside `ClprSubmitBundle`.
-   - **The ledger configuration** singleton's first row is written either by `ClprServiceImpl#doGenesisSetup`
-     (true genesis, block 0) or by `V0770ClprSchema.migrate()`'s non-genesis branch (CLPR added to an
-     already-running network via upgrade) — depending on whether the network is brand new or being upgraded.
-   - **The endpoint manifest** singleton (this ledger's own manifest of its own endpoints — not
-     `ClprChannel.endpoint_manifest_version`, a different, per-channel cached copy of the _peer's_ manifest that
-     `ClprSubmitBundle` does legitimately write) is kept current by a reconciler `HandleWorkflow` runs every
-     round, independent of whether the round contained any transactions.
-
-   The latter two share a root cause and **this is a consensus-node gap, not a mirror-node architecture
-   problem**: both can arise with no transaction to anchor to at all, and `state_changes.proto`'s `StateChanges`
-   message carries only a `consensus_timestamp` and a list of changes — nothing distinguishes
-   "migration-triggered" from "per-round reconciler" state changes. `BlockStreamReaderImpl.shouldSkip()` already
-   discards exactly this shape of block item outside genesis today, because there is no transaction for a
-   `TransactionHandler` to attach to. (Genesis itself is already covered:
-   `BlockStreamReaderImpl.readInitialState()`/`InitialStateReader`/`BlockFile.initialState` can be extended to
-   also parse the CLPR singletons at block 0 — but that only covers a brand-new network starting with CLPR
-   already enabled, not any network that reaches CLPR by upgrade, which is every existing Hiero network today.)
-   Until this is resolved upstream, neither can be ingested outside of true genesis — see
-   [Consensus-Node Assumptions](#consensus-node-assumptions).
+   - **The ledger configuration and endpoint manifest singletons** can both be written with no transaction to
+     anchor to at all — a consensus-node gap, not a mirror-node problem; see
+     [Consensus-Node Assumptions](#consensus-node-assumptions).
 
 ```
 Consensus node (CLPR Service)
@@ -159,9 +112,9 @@ Consensus node (CLPR Service)
   → rest-java (read APIs)
 ```
 
-This diagram covers the eight transaction-anchored cases, plus `sendMessage` (point 7 above) once its
+This diagram covers the eight transaction-anchored cases, plus `sendMessage` (point 5 above) once its
 `StateChangeContext` extension lands. `clpr_endpoint_manifest_value` is deliberately absent: the per-round
-reconciler that produces it has no transaction to anchor to, so none of this pipeline reaches it today (point 7).
+reconciler that produces it has no transaction to anchor to, so none of this pipeline reaches it today (point 5).
 `clpr_endpoint_manifest`/`_history` stay in the schema design below regardless, since the finalized manifest still
 needs to be queryable once ingestion is unblocked upstream.
 
@@ -201,7 +154,7 @@ unlike Channels/Connectors/Messages).
 ## Database Schema Design
 
 **Channel**, **Connector**, and **ledger configuration** get current + history table pairs
-(their state mutates repeatedly over their lifetime and history has audit value per HIP-1535 §11). The
+(their state mutates repeatedly over their lifetime and history has audit value per HIP-1535). The
 **endpoint manifest** is a network-wide singleton that also mutates over time, so it gets the same treatment. The
 **message queue** is naturally append-only (each `(channel_id, message_id)` is written once and never mutated), so
 it is modeled as a single table, not a current/history pair.
@@ -712,7 +665,7 @@ mapping to their own table:
   the real `ClprChannel` state record itself (not just the pending-commitment table) — it persists there for the
   Channel's entire lifetime. `endpointManifest` is the cached _peer's_ manifest content — distinct from
   `endpointManifestVersion`, and distinct from this ledger's own `ClprEndpointManifest` singleton (see
-  [Architecture](#architecture) point 7). `peerThrottles`/`peerConfigTimestamp`/`lastConfigTimestamp` are all
+  [Architecture](#architecture) point 5). `peerThrottles`/`peerConfigTimestamp`/`lastConfigTimestamp` are all
   nullable: each is absent until the first config exchange with the peer actually happens.
 - **`ClprConnectorPendingCommitment`** (+ history): id `commitment`, `createdTimestamp`, `completedTimestamp`,
   `deleted`, `timestampRange` — the same shape as `ClprChannelPendingCommitment`. Inserted by
@@ -841,7 +794,7 @@ claim, so the Chain API paginates lexicographically by `chain.id` itself rather 
 GET /api/v1/clpr/chains
 ```
 
-There is no protocol-level chain registry (per HIP §4.2, _"A `ChainID` can be claimed by anyone"_), so this is a
+There is no protocol-level chain registry (per HIP-1535, _"A `ChainID` can be claimed by anyone"_), so this is a
 mirror-node-side aggregation over `clpr_channel.chain_id`, not a queryable protocol resource. HIP-1535 never
 defines a canonical way to enumerate all Channels for a given `chain_id` at the protocol level either — Channels
 are permissionless and keyed only by an opaque 32-byte ID chosen by the registrant, so the mirror node can index
@@ -1196,40 +1149,17 @@ written and reconciling the HIP text against the actual protobuf definitions in 
 (`hapi/hedera-protobuf-java-api/src/main/proto/`). None of these block this design; they're documented here as the
 assumptions it's building on.
 
-1. **Redaction proto cleanup.** `ClprRedactMessage = 123` is live in `basic_types.proto`, `transaction.proto` wires
-   `clprRedactMessage` into `TransactionBody` field 87, and `clpr_redact_message.proto`/`ClprRedactedMessage`/
-   `ClprMessageReplyStatus.REDACTED` are all fully specified in the state protos — despite HIP-1535 §10.6 listing
-   redaction under **Rejected Ideas** (ADR `2026-08-01-remove-message-redaction.md`) and stating fields `123`/`127`
-   were freed up after its removal. The consensus-node team has confirmed redaction should be removed from the
-   proto, since it isn't in use. This design already follows the HIP text and excludes redaction entirely
-   regardless (see [Non-Goals](#non-goals)). (`ClprEndpointPublication = 127` is unrelated to redaction despite
-   sharing a footnote in the HIP — it's a legitimate, separate, Hiero-internal transaction; see
-   [Architecture](#architecture).)
-2. **Bundle-submission authority.** `ClprSubmitBundleTransactionBody.endpoint_node_id`/`.endpoint_signature` are
-   `deprecated = true` with no equivalent note in the HIP's §10.3 text, which still describes `endpoint_node_id` as
-   required, node-signed authority for bundle submission. The consensus-node team has confirmed submitting a
-   bundle is fully permissionless — anyone can submit one. This design assumes there is no endpoint-authority
-   attribution for the mirror node to record; at most, the submitting account is available the same way it already
-   is for every transaction, via the generic `transaction.payer_account_id` — no CLPR-specific field needed.
-3. **Deprecated field cleanup.** `ClprSubmitBundleTransactionBody`'s deprecated fields (above) and
-   `ClprLedgerConfiguration.endpoints` (moved to the separate `ClprEndpointManifest`, described in HIP §4.3 but
-   without its deprecation notice referenced from the HIP text) are expected to be removed outright from the proto
-   rather than merely documented, per the consensus-node team's stated preference to clean these up while the
-   protocol isn't yet finalized.
+1. **Redaction proto cleanup.** We expect `ClprRedactMessage = 123`, `clpr_redact_message.proto`,
+   `ClprRedactedMessage`, and `ClprMessageReplyStatus.REDACTED` to be removed from the proto entirely, confirmed by
+   the consensus-node team since the mechanism isn't in use.
+2. **Bundle-submission authority.** We expect no endpoint-authority attribution to be recordable for
+   `ClprSubmitBundle` at all — submission is confirmed fully permissionless. This design persists only the generic
+   `transaction.payer_account_id`, the same field every other transaction type already gets.
+3. **Deprecated field cleanup.** We expect `ClprSubmitBundleTransactionBody.endpoint_node_id`/`.endpoint_signature`
+   and `ClprLedgerConfiguration.endpoints` to be removed from the proto outright, per the consensus-node team's
+   stated preference while the protocol isn't yet finalized.
 4. **Formal block-stream artifacts for the endpoint-manifest reconciliation and upgrade-time ledger-configuration
-   initialization.** Both currently arise with no transaction to anchor to at all — the endpoint-manifest
-   reconciler runs every round regardless of whether the round contains any transaction, and on a network that
-   adds CLPR via upgrade (every existing Hiero network today), the ledger configuration's initial row is created
-   the same way, at the upgrade's restart block.
-   `BlockStreamReaderImpl.shouldSkip()` already discards exactly this shape of block item outside genesis today,
-   because there is no transaction for a `TransactionHandler` to attach to. (Genesis itself is already covered:
-   `BlockStreamReaderImpl.readInitialState()`/`InitialStateReader`/`BlockFile.initialState` can be extended to
-   also parse the CLPR singletons at block 0 — but that only covers a brand-new network starting with CLPR
-   already enabled, not any network that reaches CLPR by upgrade. See [Architecture](#architecture), point 7.) The
-   consensus-node team agrees with the underlying principle — that mirror node needs a formal block-stream artifact
-   for state it's expected to track — without yet committing to the specific mechanism. This design assumes that
-   artifact will take the same shape `NODESTAKEUPDATE` already does for other periodic, non-user-triggered state:
-   a synthetic system transaction, flowing through the ordinary per-transaction pipeline.
+   initialization.** We expect each to be emitted as its own synthetic system transaction.
 
 ## Testing Strategy
 
@@ -1330,7 +1260,7 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
   behavior change.
 - Log rejected/unrecognized CLPR `TransactionBody` cases (e.g. a future protocol version's new Control Message
   variant) rather than silently dropping them, mirroring the HIP's own "MUST reject rather than skip" philosophy
-  for forward compatibility (§6.1).
+  for forward compatibility.
 
 ## Monitor
 
