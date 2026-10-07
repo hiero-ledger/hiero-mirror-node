@@ -4,8 +4,8 @@ package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.hiero.mirror.common.domain.DigestAlgorithm.SHA_256;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
@@ -294,7 +294,7 @@ final class BlockStreamVerifierTest {
         final var expectedPreviousHash = blockFile.getPreviousHash();
         final byte[] currentRootHash = blockFile.getRawHash();
         final var merkelPaths = List.of(MerklePath.getDefaultInstance());
-        final byte[] rootHash = TestUtils.generateRandomByteArray(SHA_256.getSize());
+        final byte[] rootHash = TestUtils.generateRandomByteArray(BLOCK_STREAM_HASH_SIZE);
         when(blockStateProofHasher.getRootHash(eq(blockFile.getIndex()), eq(currentRootHash), eq(merkelPaths)))
                 .thenReturn(rootHash);
 
@@ -478,6 +478,6 @@ final class BlockStreamVerifierTest {
     }
 
     private String sha256Hash() {
-        return DomainUtils.bytesToHex(TestUtils.generateRandomByteArray(SHA_256.getSize()));
+        return DomainUtils.bytesToHex(TestUtils.generateRandomByteArray(BLOCK_STREAM_HASH_SIZE));
     }
 }

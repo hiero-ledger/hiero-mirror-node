@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.reader.block;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.SHA_384_BLOCK_STREAMS;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.getSha256BlockStreams;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.EXPECTED_RECORD_FILES;
@@ -906,7 +907,7 @@ public final class BlockStreamReaderTest {
     }
 
     private BlockItem blockFooter() {
-        return blockFooter(32);
+        return blockFooter(BLOCK_STREAM_HASH_SIZE);
     }
 
     private BlockItem blockFooter(final int digestSize) {

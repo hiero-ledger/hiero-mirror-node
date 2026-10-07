@@ -7,6 +7,7 @@ import static org.hiero.mirror.importer.ImporterProperties.HederaNetwork.MAINNET
 import static org.hiero.mirror.importer.ImporterProperties.HederaNetwork.PREVIEWNET;
 import static org.hiero.mirror.importer.migration.BlockNumberMigration.MAINNET_BLOCK_CONSENSUS_END;
 import static org.hiero.mirror.importer.migration.BlockNumberMigration.MAINNET_BLOCK_NUMBER;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 import static org.mockito.Mockito.mock;
 
 import java.util.ArrayList;
@@ -120,8 +121,8 @@ final class BlockNumberMigrationTest extends ImporterIntegrationTest {
                 .recordFile()
                 .customize(r -> {
                     if (wrapped) {
-                        r.wrappedRecordBlockHash(domainBuilder.bytes(32))
-                                .previousWrappedRecordBlockHash(domainBuilder.bytes(32));
+                        r.wrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE))
+                                .previousWrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE));
                     } else {
                         r.version(BlockStreamReader.VERSION);
                     }

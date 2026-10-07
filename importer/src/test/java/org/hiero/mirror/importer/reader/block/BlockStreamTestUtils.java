@@ -21,6 +21,9 @@ import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 @UtilityClass
 public final class BlockStreamTestUtils {
 
+    // The size of block stream hashes, i.e., SHA-256
+    public static final int BLOCK_STREAM_HASH_SIZE = 32;
+
     public static final String SHA_384_BLOCK_STREAMS = "data/blockstreams-sha384";
 
     /**

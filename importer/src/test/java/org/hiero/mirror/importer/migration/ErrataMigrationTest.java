@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 import static org.mockito.Mockito.mock;
 
 import java.time.Instant;
@@ -183,8 +184,8 @@ public final class ErrataMigrationTest extends ImporterIntegrationTest {
                 .recordFile()
                 .customize(r -> {
                     if (wrapped) {
-                        r.wrappedRecordBlockHash(domainBuilder.bytes(32))
-                                .previousWrappedRecordBlockHash(domainBuilder.bytes(32));
+                        r.wrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE))
+                                .previousWrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE));
                     } else {
                         r.version(BlockStreamReader.VERSION);
                     }

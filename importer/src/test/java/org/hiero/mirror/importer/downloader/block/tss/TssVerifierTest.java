@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block.tss;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -88,7 +89,9 @@ final class TssVerifierTest {
 
         // when, then
         assertThatThrownBy(() -> tssVerifier.verify(
-                        0, TestUtils.generateRandomByteArray(32), TEST_ARTIFACT.signatureWithWraps()))
+                        0,
+                        TestUtils.generateRandomByteArray(BLOCK_STREAM_HASH_SIZE),
+                        TEST_ARTIFACT.signatureWithWraps()))
                 .isInstanceOf(SignatureVerificationException.class)
                 .hasMessage("TSS signature verification failed for block 0");
         verify(ledgerRepository).findTopByOrderByConsensusTimestampDesc();

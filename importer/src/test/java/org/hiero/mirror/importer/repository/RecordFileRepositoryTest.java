@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -27,7 +28,7 @@ final class RecordFileRepositoryTest extends ImporterIntegrationTest {
                 .recordFile()
                 .customize(rf -> {
                     if (hasPreviousWrappedRecordBlockHash) {
-                        rf.previousWrappedRecordBlockHash(domainBuilder.bytes(32));
+                        rf.previousWrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE));
                     }
                 })
                 .persist();

@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.from;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 import static org.mockito.Mockito.mock;
 
 import com.google.common.collect.Range;
@@ -139,7 +140,8 @@ final class HistoricalAccountInfoMigrationTest extends ImporterIntegrationTest {
         // given
         domainBuilder
                 .recordFile()
-                .customize(r -> r.index(blockNumber).wrappedRecordBlockHash(domainBuilder.bytes(32)))
+                .customize(
+                        r -> r.index(blockNumber).wrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE)))
                 .persist();
 
         // when / then

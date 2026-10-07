@@ -71,6 +71,8 @@ final class IncrementalStreamingHasherTest {
     }
 
     private static Stream<Arguments> provideEmptyTreeHashes() {
-        return Stream.of(Arguments.of(32, EMPTY_TREE_SHA_256_HASH), Arguments.of(48, EMPTY_TREE_SHA_384_HASH));
+        return Stream.of(
+                Arguments.of(SHA_256_SIZE, EMPTY_TREE_SHA_256_HASH),
+                Arguments.of(SHA_384_SIZE, EMPTY_TREE_SHA_384_HASH));
     }
 }
