@@ -2802,6 +2802,14 @@ components:
           format: int64
           minimum: 0
           type: [integer, "null"]
+        state_overrides:
+          description: >-
+            Per-address state overrides applied only for this call. Requires state overrides to be enabled.
+            `state` and `state_diff` on an entry are mutually exclusive.
+          items:
+            $ref: "#/components/schemas/StateOverride"
+          maxItems: 10
+          type: [array, "null"]
         to:
           description: The 20-byte hexadecimal EVM address the transaction is directed to.
           example: "0xd9d0c5c0ff85758bdf05a7636f8036d4d065f5b6"
@@ -2818,6 +2826,62 @@ components:
           type: [integer, "null"]
       required:
         - to
+    StateOverride:
+      type: object
+      required:
+        - address
+      properties:
+        address:
+          $ref: "#/components/schemas/EvmAddress"
+        balance:
+          description: Hex-encoded balance override in tinybars.
+          example: "0x1"
+          maxLength: 18
+          pattern: "^(0x)?[0-9a-fA-F]{1,16}$"
+          type: [string, "null"]
+        code:
+          description: Hex-encoded runtime bytecode override.
+          example: "0x6080604052"
+          pattern: "^(0x)?[0-9a-fA-F]*$"
+          type: [string, "null"]
+        nonce:
+          description: Hex-encoded nonce override.
+          example: "0x1"
+          maxLength: 18
+          pattern: "^(0x)?[0-9a-fA-F]{1,16}$"
+          type: [string, "null"]
+        state:
+          description: Full storage replacement. Mutually exclusive with state_diff.
+          items:
+            $ref: "#/components/schemas/StorageEntry"
+          maxItems: 100
+          type: [array, "null"]
+        state_diff:
+          description: Storage patch applied on top of existing storage. Mutually exclusive with state.
+          items:
+            $ref: "#/components/schemas/StorageEntry"
+          maxItems: 100
+          type: [array, "null"]
+    StorageEntry:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          description: 32-byte hex-encoded storage slot key.
+          example: "0x0000000000000000000000000000000000000000000000000000000000000001"
+          maxLength: 66
+          minLength: 64
+          pattern: "^(0x)?[0-9a-fA-F]{64}$"
+          type: string
+        value:
+          description: 32-byte hex-encoded storage slot value.
+          example: "0x0000000000000000000000000000000000000000000000000000000000000001"
+          maxLength: 66
+          minLength: 64
+          pattern: "^(0x)?[0-9a-fA-F]{64}$"
+          type: string
     ContractCallResponse:
       type: object
       properties:
