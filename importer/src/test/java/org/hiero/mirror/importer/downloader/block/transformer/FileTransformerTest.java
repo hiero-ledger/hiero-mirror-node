@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block.transformer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.List;
@@ -37,7 +38,7 @@ final class FileTransformerTest extends AbstractTransformerTest {
         final var blockTransaction =
                 blockTransactionBuilder.fileCreate(expectedRecordItem).build();
         final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
-        blockFile.setPreviousWrappedRecordBlockHash(recordItemBuilder.randomBytes(48));
+        blockFile.setPreviousWrappedRecordBlockHash(recordItemBuilder.randomBytes(BLOCK_STREAM_HASH_SIZE));
 
         // when
         final var recordFile = blockFileTransformer.transform(blockFile);
