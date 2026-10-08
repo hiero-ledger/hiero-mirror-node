@@ -181,6 +181,30 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
     }
 
     @Test
+    void scheduledSyntheticLogOnlyBlockIsAlreadyCorrect() {
+        // given - the old migration already gives synthetic-log-only rows their own index, so this block needs no
+        // repair
+        final var block = persistBlock(0);
+        final var rootTimestamp = block.getConsensusStart() + 100;
+        final var scheduledTransferTimestamp = block.getConsensusStart() + 200;
+
+        persistTransaction(rootTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+        persistTransaction(scheduledTransferTimestamp, TransactionType.CRYPTOTRANSFER, 54, true, null);
+        persistScheduleExecution(scheduledTransferTimestamp);
+
+        persistContractResult(rootTimestamp, 0, 0);
+        persistSyntheticContractLog(scheduledTransferTimestamp, 1);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(rootTimestamp, 0);
+        assertContractLogIndex(scheduledTransferTimestamp, 1);
+    }
+
+    @Test
     void multipleSyntheticLogsAtSameTimestamp() {
         // given
         final var block = persistBlock(0);
@@ -275,6 +299,51 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
         // then
         assertContractResultIndex(scheduledTimestamp, 1);
         assertContractLogIndex(scheduledTimestamp, 1);
+    }
+
+    @Test
+    void affectedBlocksAcrossIterationsAreFixedIndependently() {
+        // given - more affected blocks than one iteration reads, with an unaffected block and a row outside every
+        // block in between
+        final var blockCount = 25;
+        final var unaffectedBlockIndex = 12;
+        final var scheduledTimestamps = new long[blockCount];
+        long unaffectedTimestamp = 0;
+        long outsideBlockTimestamp = 0;
+
+        for (int i = 0; i < blockCount; i++) {
+            final var block = persistBlock(i);
+            final var rootTimestamp = block.getConsensusStart() + 100;
+            persistTransaction(rootTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+
+            if (i == unaffectedBlockIndex) {
+                unaffectedTimestamp = rootTimestamp;
+                persistContractResult(rootTimestamp, 0, 99);
+                outsideBlockTimestamp = block.getConsensusEnd() + 1000;
+                persistTransaction(outsideBlockTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+                persistContractResult(outsideBlockTimestamp, 0, 77);
+                continue;
+            }
+
+            scheduledTimestamps[i] = block.getConsensusStart() + 200;
+            persistTransaction(scheduledTimestamps[i], TransactionType.CONTRACTCALL, 53, true, null);
+            persistScheduleExecution(scheduledTimestamps[i]);
+            persistContractResult(rootTimestamp, 0, 0);
+            persistContractResult(scheduledTimestamps[i], 53, 0);
+        }
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        for (int i = 0; i < blockCount; i++) {
+            if (i != unaffectedBlockIndex) {
+                assertContractResultIndex(scheduledTimestamps[i], 1);
+            }
+        }
+        assertContractResultIndex(unaffectedTimestamp, 99);
+        assertContractResultIndex(outsideBlockTimestamp, 77);
     }
 
     private RecordFile persistBlock(long index) {

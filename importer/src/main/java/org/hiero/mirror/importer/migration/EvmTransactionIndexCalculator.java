@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.migration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -40,9 +39,7 @@ final class EvmTransactionIndexCalculator {
                 indexByTimestamp.put(row.consensusTimestamp(), evmIndex);
             }
 
-            if (row.differsFrom(evmIndex)) {
-                updates.add(new Update(row.consensusTimestamp(), evmIndex));
-            }
+            updates.add(new Update(row.consensusTimestamp(), evmIndex));
         }
 
         return updates;
@@ -81,30 +78,7 @@ final class EvmTransactionIndexCalculator {
             boolean hasContractResult,
             long contractId,
             long gasUsed,
-            boolean syntheticLogOnly,
-            @Nullable Long contractResultIndex,
-            long logCount,
-            long nullLogIndexCount,
-            @Nullable Long minLogIndex,
-            @Nullable Long maxLogIndex) {
-
-        boolean differsFrom(@Nullable Long evmIndex) {
-            final var resultDiffers = hasContractResult && !Objects.equals(contractResultIndex, evmIndex);
-            return resultDiffers || logsDifferFrom(evmIndex);
-        }
-
-        private boolean logsDifferFrom(@Nullable Long evmIndex) {
-            if (logCount == 0) {
-                return false;
-            }
-
-            if (evmIndex == null) {
-                return nullLogIndexCount != logCount;
-            }
-
-            return nullLogIndexCount != 0 || !evmIndex.equals(minLogIndex) || !evmIndex.equals(maxLogIndex);
-        }
-    }
+            boolean syntheticLogOnly) {}
 
     record Update(long consensusTimestamp, @Nullable Long transactionIndex) {}
 }

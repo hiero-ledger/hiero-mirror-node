@@ -6,6 +6,7 @@ import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.StringJoiner;
 import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.CommonProperties;
@@ -24,8 +25,6 @@ import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.SimplePropertySqlParameterSource;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -84,48 +83,48 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
             limit :limit
             """;
 
+    // %s is an OR of the batch's block ranges; one read per batch since each query fans out to every Citus shard
     private static final String SELECT_BLOCK_ROWS_SQL = """
-            select
-                consensus_timestamp,
-                max(parent_consensus_timestamp) as parent_consensus_timestamp,
-                bool_or(has_contract_result) as has_contract_result,
-                coalesce(max(contract_id), 0) as contract_id,
-                coalesce(max(gas_used), 0) as gas_used,
-                bool_or(is_synthetic_log) and not bool_or(has_contract_result) as synthetic_log_only,
-                max(contract_result_index) as contract_result_index,
-                count(*) filter (where is_log) as log_count,
-                count(*) filter (where is_log and contract_log_index is null) as null_log_index_count,
-                min(contract_log_index) as min_log_index,
-                max(contract_log_index) as max_log_index
-            from (
-                select consensus_timestamp, parent_consensus_timestamp, false as has_contract_result,
-                    null::bigint as contract_id, null::bigint as gas_used, null::int as contract_result_index,
-                    false as is_log, false as is_synthetic_log, null::int as contract_log_index
+            with t as (
+                select consensus_timestamp, parent_consensus_timestamp
                 from transaction
-                where consensus_timestamp between :consensusStart and :consensusEnd
-                union all
-                select consensus_timestamp, null::bigint, true, contract_id, gas_used, transaction_index, false, false,
-                    null::int
+                where consensus_timestamp between :minTimestamp and :maxTimestamp and (%1$s)
+            ), cr as (
+                select consensus_timestamp, contract_id, gas_used
                 from contract_result
-                where consensus_timestamp between :consensusStart and :consensusEnd
-                union all
-                select distinct consensus_timestamp, null::bigint, false, null::bigint, null::bigint, null::int, true,
-                    coalesce(synthetic, false), transaction_index
+                where consensus_timestamp between :minTimestamp and :maxTimestamp and (%1$s)
+            ), cl as (
+                select distinct consensus_timestamp
                 from contract_log
-                where consensus_timestamp between :consensusStart and :consensusEnd
-            ) block_rows
-            group by consensus_timestamp
-            order by consensus_timestamp
+                where synthetic = true and consensus_timestamp between :minTimestamp and :maxTimestamp and (%1$s)
+            )
+            select
+                t.consensus_timestamp,
+                t.parent_consensus_timestamp,
+                cr.consensus_timestamp is not null as has_contract_result,
+                coalesce(cr.contract_id, 0) as contract_id,
+                coalesce(cr.gas_used, 0) as gas_used,
+                cl.consensus_timestamp is not null and cr.consensus_timestamp is null as synthetic_log_only
+            from t
+            left join cr on cr.consensus_timestamp = t.consensus_timestamp
+            left join cl on cl.consensus_timestamp = t.consensus_timestamp
+            order by t.consensus_timestamp
             """;
 
     private static final String UPDATE_CONTRACT_RESULT_INDEX_SQL = """
-            update contract_result set transaction_index = :transactionIndex
-            where consensus_timestamp = :consensusTimestamp
+            update contract_result cr set transaction_index = v.transaction_index
+            from unnest(:consensusTimestamps::bigint[], :transactionIndexes::int[])
+                as v(consensus_timestamp, transaction_index)
+            where cr.consensus_timestamp = v.consensus_timestamp
+              and cr.consensus_timestamp between :minTimestamp and :maxTimestamp
             """;
 
     private static final String UPDATE_CONTRACT_LOG_INDEX_SQL = """
-            update contract_log set transaction_index = :transactionIndex
-            where consensus_timestamp = :consensusTimestamp
+            update contract_log cl set transaction_index = v.transaction_index
+            from unnest(:consensusTimestamps::bigint[], :transactionIndexes::int[])
+                as v(consensus_timestamp, transaction_index)
+            where cl.consensus_timestamp = v.consensus_timestamp
+              and cl.consensus_timestamp between :minTimestamp and :maxTimestamp
             """;
 
     private static final RowMapper<Block> BLOCK_ROW_MAPPER = new DataClassRowMapper<>(Block.class);
@@ -181,7 +180,7 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
         if (isEmpty) {
             final var found = getTransactionOperations().execute(status -> {
                 if (v2) {
-                    jdbcOperations.execute("set citus.max_intermediate_result_size = -1");
+                    jdbcOperations.execute("set local citus.max_intermediate_result_size = -1");
                 }
                 final var params = new MapSqlParameterSource("hookContractId", getHookContractId());
                 return getNamedParameterJdbcOperations().update(FIND_AFFECTED_BLOCKS_SQL, params);
@@ -216,21 +215,50 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
             return Optional.empty();
         }
 
+        final var minTimestamp = blocks.getLast().consensusStart();
+        final var maxTimestamp = blocks.getFirst().consensusEnd();
+        final var readParams = new MapSqlParameterSource()
+                .addValue("minTimestamp", minTimestamp)
+                .addValue("maxTimestamp", maxTimestamp);
+        final var blockRanges = new StringJoiner(" or ");
+        for (int i = 0; i < blocks.size(); i++) {
+            blockRanges.add("consensus_timestamp between :start%d and :end%d".formatted(i, i));
+            readParams
+                    .addValue("start" + i, blocks.get(i).consensusStart())
+                    .addValue("end" + i, blocks.get(i).consensusEnd());
+        }
+        final var rows = getNamedParameterJdbcOperations()
+                .query(SELECT_BLOCK_ROWS_SQL.formatted(blockRanges), readParams, ROW_MAPPER);
+
+        // Rows are ordered by timestamp and blocks don't overlap, so each block's rows are a contiguous slice
         final var updates = new ArrayList<EvmTransactionIndexCalculator.Update>();
-        for (final var block : blocks) {
-            final var blockParams = new MapSqlParameterSource()
-                    .addValue("consensusStart", block.consensusStart())
-                    .addValue("consensusEnd", block.consensusEnd());
-            final var rows = getNamedParameterJdbcOperations().query(SELECT_BLOCK_ROWS_SQL, blockParams, ROW_MAPPER);
-            updates.addAll(EvmTransactionIndexCalculator.compute(rows, getHookContractId()));
+        int from = 0;
+        for (final var block : blocks.reversed()) {
+            int to = from;
+            while (to < rows.size() && rows.get(to).consensusTimestamp() <= block.consensusEnd()) {
+                to++;
+            }
+            updates.addAll(EvmTransactionIndexCalculator.compute(rows.subList(from, to), getHookContractId()));
+            from = to;
         }
 
         if (!updates.isEmpty()) {
-            final var batch =
-                    updates.stream().map(SimplePropertySqlParameterSource::new).toArray(SqlParameterSource[]::new);
-            getNamedParameterJdbcOperations().batchUpdate(UPDATE_CONTRACT_RESULT_INDEX_SQL, batch);
-            getNamedParameterJdbcOperations().batchUpdate(UPDATE_CONTRACT_LOG_INDEX_SQL, batch);
-            log.info("Fixed {} evm_transaction_index values across {} blocks", updates.size(), blocks.size());
+            final var updateParams = new MapSqlParameterSource()
+                    .addValue(
+                            "consensusTimestamps",
+                            updates.stream()
+                                    .map(EvmTransactionIndexCalculator.Update::consensusTimestamp)
+                                    .toArray(Long[]::new))
+                    .addValue(
+                            "transactionIndexes",
+                            updates.stream()
+                                    .map(EvmTransactionIndexCalculator.Update::transactionIndex)
+                                    .toArray(Long[]::new))
+                    .addValue("minTimestamp", minTimestamp)
+                    .addValue("maxTimestamp", maxTimestamp);
+            getNamedParameterJdbcOperations().update(UPDATE_CONTRACT_RESULT_INDEX_SQL, updateParams);
+            getNamedParameterJdbcOperations().update(UPDATE_CONTRACT_LOG_INDEX_SQL, updateParams);
+            log.info("Recomputed {} evm_transaction_index values across {} blocks", updates.size(), blocks.size());
         }
 
         return Optional.of(blocks.getLast().consensusEnd());
