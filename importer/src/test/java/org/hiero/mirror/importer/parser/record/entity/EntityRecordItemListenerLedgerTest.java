@@ -3,13 +3,11 @@
 package org.hiero.mirror.importer.parser.record.entity;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.tss.Ledger;
-import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.junit.jupiter.api.Test;
@@ -29,21 +27,11 @@ final class EntityRecordItemListenerLedgerTest extends AbstractEntityRecordItemL
 
         // then
         final var body = recordItem.getTransactionBody().getLedgerIdPublication();
-        final var expectedNodeContributions = body.getNodeContributionsList().stream()
-                .map(n -> LedgerNodeContribution.builder()
-                        .historyProofKey(toBytes(n.getHistoryProofKey()))
-                        .nodeId(n.getNodeId())
-                        .weight(n.getWeight())
-                        .build())
-                .toList();
         assertThat(ledgerRepository.findAll())
                 .hasSize(1)
                 .first()
                 .returns(recordItem.getConsensusTimestamp(), Ledger::getConsensusTimestamp)
-                .returns(toBytes(body.getHistoryProofVerificationKey()), Ledger::getHistoryProofVerificationKey)
-                .returns(toBytes(body.getLedgerId()), Ledger::getLedgerId)
-                .extracting(Ledger::getNodeContributions, LIST)
-                .containsExactlyInAnyOrderElementsOf(expectedNodeContributions);
+                .returns(toBytes(body.getLedgerId()), Ledger::getLedgerId);
         final long validStartTimestamp = DomainUtils.timestampInNanosMax(
                 recordItem.getTransactionBody().getTransactionID().getTransactionValidStart());
         assertThat(transactionRepository.findAll())

@@ -156,7 +156,7 @@ final class BlockStreamVerifier {
         final var ledger = ledgerIdPublicationTransactionParser.parse(
                 transaction.getConsensusTimestamp(),
                 transaction.getTransactionBody().getLedgerIdPublication());
-        tssVerifier.setLedger(ledger, false);
+        tssVerifier.setLedger(ledger);
     }
 
     private void verifyBlockNumber(final BlockFile blockFile) {
