@@ -65,6 +65,7 @@ import org.hiero.mirror.rest.model.NftAllowancesResponse;
 import org.hiero.mirror.rest.model.NftTransactionHistory;
 import org.hiero.mirror.rest.model.Nfts;
 import org.hiero.mirror.rest.model.OpcodesResponse;
+import org.hiero.mirror.rest.model.PrestateResponse;
 import org.hiero.mirror.rest.model.Schedule;
 import org.hiero.mirror.rest.model.SchedulesResponse;
 import org.hiero.mirror.rest.model.StakingRewardsResponse;
@@ -332,6 +333,17 @@ public class MirrorNodeClient {
     public OpcodesResponse getContractResultsOpcodes(String transactionId) {
         log.debug("Verify contract result opcodes '{}' is returned by Mirror Node", transactionId);
         return callWeb3GetRestEndpoint("/contracts/results/{id}/opcodes", OpcodesResponse.class, transactionId);
+    }
+
+    public PrestateResponse getContractPrestate(
+            String transactionIdOrHash, boolean diff, boolean code, boolean storage) {
+        log.debug("Verify transaction prestate information for '{}' is returned by Mirror Node", transactionIdOrHash);
+        final var uri = "/contracts/results/{transactionIdOrHash}/prestate?diff={diff}&code={code}&storage={storage}";
+        return web3Client
+                .get()
+                .uri(normalizeUri(uri), transactionIdOrHash, diff, code, storage)
+                .retrieve()
+                .body(PrestateResponse.class);
     }
 
     public NetworkExchangeRateSetResponse getExchangeRates() {

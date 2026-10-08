@@ -23,6 +23,8 @@ import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ContractResult;
+import org.hiero.mirror.rest.model.PrestateAccountTrace;
+import org.hiero.mirror.rest.model.PrestateResponse;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
@@ -31,6 +33,7 @@ import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.ContractCallResponseWrapper;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpServerErrorException;
 import org.web3j.crypto.AuthorizationTuple;
 import org.web3j.utils.Numeric;
 
@@ -132,6 +135,23 @@ public class CodeDelegationFeature extends AbstractFeature {
         assertThat(restAuthorization.getS()).isEqualToIgnoringCase(toPaddedHex(authorization.getS()));
     }
 
+    @RetryAsserts
+    @Then("the mirror node web3 API should return the prestate for the EIP-7702 transaction")
+    public void verifyEip7702Prestate() {
+        var transactionId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        var contractResult = mirrorClient.getContractResultByTransactionId(transactionId);
+        assertThat(contractResult.getAuthorizationList()).isNotEmpty();
+        var transactionHash = contractResult.getHash();
+
+        try {
+            // diff, code, and storage populate every PrestateAccountTrace field the native image must serialize.
+            var response = mirrorClient.getContractPrestate(transactionHash, true, true, true);
+            verifyPrestateResponse(response);
+        } catch (HttpServerErrorException.NotImplemented notImplemented) {
+            assertThat(notImplemented.getResponseBodyAsString()).contains("Not Implemented");
+        }
+    }
+
     @When("I clear the code delegation on the account")
     public void clearAccountCodeDelegation() {
         networkTransactionResponse = accountClient.setAccountDelegationAddress(account, ZERO_DELEGATION_ADDRESS);
@@ -210,6 +230,42 @@ public class CodeDelegationFeature extends AbstractFeature {
                 .getContractResultsById(account.getAccountId().toString())
                 .getResults();
         assertThat(resultsByAccount).isNotEmpty().anySatisfy(this::verifyDelegatedCallResult);
+    }
+
+    private void verifyPrestateResponse(PrestateResponse response) {
+        assertThat(response).isNotNull();
+        assertThat(response.getPre()).isNotEmpty();
+
+        var authorizationNonce = authorization.getNonce().longValueExact();
+        var accountPreTrace = requireAccountTrace(response.getPre());
+        assertThat(accountPreTrace.getBalance()).startsWith(HEX_PREFIX);
+        assertThat(accountPreTrace.getNonce()).isEqualTo(authorizationNonce - 1);
+
+        var accountPostTrace = requireAccountTrace(response.getPost());
+        assertThat(accountPostTrace.getAddress()).isEqualToIgnoringCase(accountPreTrace.getAddress());
+        assertThat(accountPostTrace.getNonce()).isEqualTo(authorizationNonce + 1);
+
+        for (var trace : response.getPre()) {
+            if (!expectedDelegationAddress.equalsIgnoreCase(trace.getAddress())) {
+                continue;
+            }
+            assertThat(trace.getCode()).startsWith(HEX_PREFIX);
+            assertThat(trace.getStorage()).isNotNull();
+        }
+    }
+
+    private PrestateAccountTrace requireAccountTrace(List<PrestateAccountTrace> traces) {
+        var expectedAddresses = List.of(
+                evmAddress(account), toDelegationAddress(account.getAccountId().toEvmAddress()));
+        assertThat(traces).isNotEmpty();
+        for (var trace : traces) {
+            for (var expected : expectedAddresses) {
+                if (expected.equalsIgnoreCase(trace.getAddress())) {
+                    return trace;
+                }
+            }
+        }
+        throw new AssertionError("Prestate did not include the delegated account");
     }
 
     private void verifyDelegatedCallResult(ContractResult contractResult) {
