@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.test.e2e.acceptance.util;
 
+import java.util.ArrayList;
 import org.hiero.mirror.rest.model.ContractCallRequest;
 
 /**
@@ -23,6 +24,7 @@ public class ModelBuilder {
                 .estimate(DEFAULT_CONTRACT_CALL_ESTIMATE)
                 .gas(DEFAULT_CONTRACT_CALL_GAS)
                 .gasPrice(DEFAULT_CONTRACT_CALL_GAS_PRICE)
+                .stateOverrides(new ArrayList<>())
                 .value(DEFAULT_CONTRACT_CALL_VALUE);
     }
 
