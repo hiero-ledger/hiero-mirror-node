@@ -16,22 +16,20 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.hedera.cryptography.wraps.WRAPSVerificationKey;
 import java.io.IOException;
-import java.util.List;
+import java.util.HexFormat;
 import java.util.Optional;
 import lombok.SneakyThrows;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.tss.Ledger;
-import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
 import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -39,8 +37,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 final class TssVerifierTest {
 
     private static final TssTestArtifact TEST_ARTIFACT = loadTssTestArtifact();
-    private static final byte[] WRAPS_VERIFICATION_KEY = WRAPSVerificationKey.getDefaultKey();
 
+    private BlockProperties blockProperties;
     private TssVerifier tssVerifier;
 
     @Mock
@@ -48,7 +46,8 @@ final class TssVerifierTest {
 
     @BeforeEach
     void setup() {
-        tssVerifier = new TssVerifierImpl(ledgerRepository);
+        blockProperties = new BlockProperties(new ImporterProperties());
+        tssVerifier = new TssVerifierImpl(blockProperties, ledgerRepository);
     }
 
     @Test
@@ -97,37 +96,14 @@ final class TssVerifierTest {
         verify(ledgerRepository).findTopByOrderByConsensusTimestampDesc();
     }
 
-    @ParameterizedTest
-    @CsvSource(textBlock = """
-            false, 0
-            true, 1
-            """)
-    void verifyWithLedgerSet(final boolean fromConfig, final int expectedDbCalls) {
-        // given
-        tssVerifier.setLedger(TEST_ARTIFACT.toLedger(), fromConfig);
-
-        // when, then
-        assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
-                .doesNotThrowAnyException();
-        assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithSchnorr))
-                .doesNotThrowAnyException();
-        verify(ledgerRepository, times(expectedDbCalls)).findTopByOrderByConsensusTimestampDesc();
-    }
-
     @Test
     void verifyWithOnChainLedger() {
         // given
-        final var ledger = TEST_ARTIFACT.toLedger();
-        tssVerifier.setLedger(ledger, false);
-        final var clone = ledger.toBuilder()
-                .nodeContributions(ledger.getNodeContributions().subList(0, 1))
-                .build();
-        tssVerifier.setLedger(clone, true);
+        tssVerifier.setLedger(TEST_ARTIFACT.toLedger());
+        blockProperties.setLedgerId("00".repeat(64));
 
         // when, then
         assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
-                .doesNotThrowAnyException();
-        assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithSchnorr))
                 .doesNotThrowAnyException();
         verify(ledgerRepository, never()).findTopByOrderByConsensusTimestampDesc();
     }
@@ -135,17 +111,23 @@ final class TssVerifierTest {
     @Test
     void verifyWithLedgerFromDb() {
         // given
-        final var ledger = TEST_ARTIFACT.toLedger();
-        when(ledgerRepository.findTopByOrderByConsensusTimestampDesc()).thenReturn(Optional.of(ledger));
+        when(ledgerRepository.findTopByOrderByConsensusTimestampDesc())
+                .thenReturn(Optional.of(TEST_ARTIFACT.toLedger()));
+        blockProperties.setLedgerId("00".repeat(64));
 
         // when, then
-        final var clone = ledger.toBuilder()
-                .nodeContributions(ledger.getNodeContributions().subList(0, 1))
-                .build();
-        tssVerifier.setLedger(clone, true);
         assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
                 .doesNotThrowAnyException();
-        assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithSchnorr))
+        verify(ledgerRepository).findTopByOrderByConsensusTimestampDesc();
+    }
+
+    @Test
+    void verifyWithLedgerFromProperties() {
+        // given
+        blockProperties.setLedgerId(HexFormat.of().formatHex(TEST_ARTIFACT.ledgerId));
+
+        // when, then
+        assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
                 .doesNotThrowAnyException();
         verify(ledgerRepository).findTopByOrderByConsensusTimestampDesc();
     }
@@ -155,7 +137,7 @@ final class TssVerifierTest {
         // given. when, then
         assertThatThrownBy(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("Ledger id, history proof verification key and node contributions not found");
+                .hasMessage("Ledger id not found");
         verify(ledgerRepository).findTopByOrderByConsensusTimestampDesc();
     }
 
@@ -169,18 +151,9 @@ final class TssVerifierTest {
         return mapper.readValue(file, TssTestArtifact.class);
     }
 
-    private record TssTestArtifact(
-            byte[] ledgerId,
-            byte[] message,
-            List<LedgerNodeContribution> nodeContributions,
-            byte[] signatureWithWraps,
-            byte[] signatureWithSchnorr) {
+    private record TssTestArtifact(byte[] ledgerId, byte[] message, byte[] signatureWithWraps) {
         Ledger toLedger() {
-            return Ledger.builder()
-                    .historyProofVerificationKey(WRAPS_VERIFICATION_KEY)
-                    .ledgerId(ledgerId)
-                    .nodeContributions(nodeContributions)
-                    .build();
+            return Ledger.builder().ledgerId(ledgerId).build();
         }
     }
 

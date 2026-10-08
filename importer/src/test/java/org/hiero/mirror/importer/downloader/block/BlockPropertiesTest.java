@@ -37,6 +37,27 @@ final class BlockPropertiesTest {
     private static final ValidatorFactory VALIDATOR_FACTORY = Validation.buildDefaultValidatorFactory();
 
     @Test
+    void getLedgerIdWhenUnset() {
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        assertThat(blockProperties.getLedgerId()).isNull();
+    }
+
+    @Test
+    void getLedgerIdWhenEmpty() {
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setLedgerId("");
+        assertThat(blockProperties.getLedgerId()).isNull();
+    }
+
+    @Test
+    void getLedgerIdWhenSet() {
+        final var ledgerId = "ab".repeat(64);
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setLedgerId(ledgerId);
+        assertThat(blockProperties.getLedgerId()).isEqualTo(ledgerId);
+    }
+
+    @Test
     void initPropagatesMaxBlockSizeToStreamFileData() throws IOException {
         var blockProperties = new BlockProperties(new ImporterProperties());
         blockProperties.getStream().setMaxBlockSize(DataSize.ofBytes(100));
