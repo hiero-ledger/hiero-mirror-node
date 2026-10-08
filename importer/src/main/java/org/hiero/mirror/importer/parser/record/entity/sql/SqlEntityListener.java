@@ -625,8 +625,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     private Ledger mergeLedger(final Ledger previous, final Ledger current) {
         // always override, i.e., copy info from current to previous
         previous.setConsensusTimestamp(current.getConsensusTimestamp());
-        previous.setHistoryProofVerificationKey(current.getHistoryProofVerificationKey());
-        previous.setNodeContributions(current.getNodeContributions());
 
         return previous;
     }
