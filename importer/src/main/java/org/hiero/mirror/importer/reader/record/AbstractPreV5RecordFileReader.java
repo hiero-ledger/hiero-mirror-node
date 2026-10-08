@@ -35,7 +35,7 @@ public abstract class AbstractPreV5RecordFileReader implements RecordFileReader 
     protected static final byte PREV_HASH_MARKER = 1;
     protected static final byte RECORD_MARKER = 2;
 
-    private static final int MAX_RECORD_ITEMS = 10_000;
+    static final int MAX_RECORD_ITEMS = 10_000;
 
     private final int readerVersion;
 

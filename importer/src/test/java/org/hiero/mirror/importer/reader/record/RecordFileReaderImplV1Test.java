@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.reader.record;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.reader.record.AbstractPreV5RecordFileReader.MAX_RECORD_ITEMS;
 
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.Timestamp;
@@ -16,8 +17,6 @@ import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.junit.jupiter.api.Test;
 
 class RecordFileReaderImplV1Test extends AbstractRecordFileReaderTest {
-
-    private static final int MAX_RECORD_ITEMS = 10_000;
 
     @Override
     protected RecordFileReader getRecordFileReader() {
