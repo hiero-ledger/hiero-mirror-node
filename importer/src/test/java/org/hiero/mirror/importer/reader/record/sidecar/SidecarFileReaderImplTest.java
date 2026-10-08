@@ -9,9 +9,11 @@ import org.apache.commons.compress.compressors.CompressorException;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.transaction.SidecarFile;
 import org.hiero.mirror.common.exception.ProtobufException;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestRecordFiles;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +33,7 @@ class SidecarFileReaderImplTest {
     @BeforeEach
     void beforeEach() {
         domainBuilder = new DomainBuilder();
-        sidecarFileReader = new SidecarFileReaderImpl();
+        sidecarFileReader = new SidecarFileReaderImpl(new CommonDownloaderProperties(new ImporterProperties()));
     }
 
     @Test

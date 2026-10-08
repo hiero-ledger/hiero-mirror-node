@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.reader.balance;
 
-import static org.hiero.mirror.common.util.DomainUtils.MAX_SIZE_FILE;
 import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 
 import com.hedera.services.stream.proto.AllAccountBalances;
@@ -10,6 +9,7 @@ import com.hedera.services.stream.proto.SingleAccountBalances;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
@@ -17,13 +17,17 @@ import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 
 @CustomLog
 @Named
+@RequiredArgsConstructor
 public class ProtoBalanceFileReader implements BalanceFileReader {
 
     private static final String FILE_EXTENSION = "pb";
+
+    private final CommonDownloaderProperties commonDownloaderProperties;
 
     @Override
     public boolean supports(StreamFileData streamFileData) {
@@ -34,7 +38,8 @@ public class ProtoBalanceFileReader implements BalanceFileReader {
     @Override
     public AccountBalanceFile read(StreamFileData streamFileData) {
         final var bytes = streamFileData.getDecompressedBytes();
-        final var allAccountBalances = parseProtobuf(bytes, AllAccountBalances::parseFrom, MAX_SIZE_FILE);
+        final int maxSize = (int) commonDownloaderProperties.getMaxSize().toBytes();
+        final var allAccountBalances = parseProtobuf(bytes, AllAccountBalances::parseFrom, maxSize);
 
         if (!allAccountBalances.hasConsensusTimestamp()) {
             throw new InvalidStreamFileException("Missing required consensusTimestamp field");

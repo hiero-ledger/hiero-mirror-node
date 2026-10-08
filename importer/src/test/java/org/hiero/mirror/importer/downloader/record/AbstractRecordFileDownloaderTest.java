@@ -82,7 +82,7 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
                 new RecordFileReaderImplV1(),
                 new RecordFileReaderImplV2(),
                 new RecordFileReaderImplV5(),
-                new ProtoRecordFileReader());
+                new ProtoRecordFileReader(commonDownloaderProperties));
         sidecarProperties = new SidecarProperties();
         sidecarProperties.setEnabled(true);
         var streamFileProvider = new S3StreamFileProvider(blockProperties, commonDownloaderProperties, s3AsyncClient);
@@ -94,7 +94,7 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
                 meterRegistry,
                 dateRangeProcessor,
                 nodeSignatureVerifier,
-                new SidecarFileReaderImpl(),
+                new SidecarFileReaderImpl(commonDownloaderProperties),
                 sidecarProperties,
                 signatureFileReader,
                 streamFileNotifier,
