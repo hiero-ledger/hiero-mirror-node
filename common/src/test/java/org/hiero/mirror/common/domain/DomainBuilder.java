@@ -654,7 +654,7 @@ public class DomainBuilder {
     }
 
     public DomainWrapper<Ledger, Ledger.LedgerBuilder<?, ?>> ledger() {
-        final var builder = Ledger.builder().consensusTimestamp(timestamp()).ledgerId(bytes(32));
+        final var builder = Ledger.builder().consensusTimestamp(timestamp()).ledgerId(bytes(64));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

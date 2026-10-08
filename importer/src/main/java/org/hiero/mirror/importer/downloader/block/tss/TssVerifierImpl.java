@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.downloader.block.tss;
 
 import com.hedera.cryptography.tss.TSS;
 import jakarta.inject.Named;
-import java.util.HexFormat;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -70,7 +69,6 @@ final class TssVerifierImpl implements TssVerifier {
 
     private Optional<Ledger> getLedgerFromProperties() {
         return Optional.ofNullable(blockProperties.getLedgerId())
-                .map(id ->
-                        Ledger.builder().ledgerId(HexFormat.of().parseHex(id)).build());
+                .map(id -> Ledger.builder().ledgerId(id).build());
     }
 }

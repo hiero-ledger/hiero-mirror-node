@@ -14,7 +14,6 @@ import org.hiero.mirror.common.domain.Upsertable;
 @Entity
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
-@ToString(onlyExplicitlyIncluded = true)
 @Upsertable
 public class Ledger {
 
