@@ -136,6 +136,100 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
     }
 
     @Test
+    void scheduledCallEffectsInheritScheduledCallIndex() {
+        // given - the effects are parented to the ScheduleSign, not to the scheduled call
+        final var block = persistBlock(0);
+        final var rootTimestamp = block.getConsensusStart() + 100;
+        final var scheduleSignTimestamp = block.getConsensusStart() + 200;
+        final var scheduledCallTimestamp = scheduleSignTimestamp + 1;
+        final var firstEffectTimestamp = scheduleSignTimestamp + 2;
+        final var secondEffectTimestamp = scheduleSignTimestamp + 3;
+        final var laterRootTimestamp = block.getConsensusStart() + 300;
+
+        persistTransaction(rootTimestamp, TransactionType.ETHEREUMTRANSACTION, 0, false, null);
+        persistTransaction(scheduleSignTimestamp, TransactionType.SCHEDULESIGN, 0, false, null);
+        persistTransaction(scheduledCallTimestamp, TransactionType.CONTRACTCALL, 0, true, null);
+        persistTransaction(firstEffectTimestamp, TransactionType.CRYPTOTRANSFER, 1, false, scheduleSignTimestamp);
+        persistTransaction(secondEffectTimestamp, TransactionType.CONTRACTCALL, 2, false, scheduleSignTimestamp);
+        persistTransaction(laterRootTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+        persistScheduleExecution(scheduledCallTimestamp);
+
+        persistContractResult(rootTimestamp, 0, 0);
+        persistContractResult(scheduledCallTimestamp, 0, 1);
+        // simulates the live importer's output: each effect claimed its own index, shifting the later root
+        persistContractResult(firstEffectTimestamp, 1, 2);
+        persistContractResult(secondEffectTimestamp, 2, 3);
+        persistContractResult(laterRootTimestamp, 0, 4);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(rootTimestamp, 0);
+        assertContractResultIndex(scheduledCallTimestamp, 1);
+        assertContractResultIndex(firstEffectTimestamp, 1);
+        assertContractResultIndex(secondEffectTimestamp, 1);
+        assertContractResultIndex(laterRootTimestamp, 2);
+    }
+
+    @Test
+    void effectsOfFailedCallInheritNullIndex() {
+        // given - a call failing with no gas used still has precompile effects
+        final var block = persistBlock(0);
+        final var rootTimestamp = block.getConsensusStart() + 100;
+        final var failedCallTimestamp = block.getConsensusStart() + 200;
+        final var firstEffectTimestamp = failedCallTimestamp + 1;
+        final var secondEffectTimestamp = failedCallTimestamp + 2;
+
+        persistTransaction(rootTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+        persistTransaction(failedCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+        persistTransaction(firstEffectTimestamp, TransactionType.CRYPTOTRANSFER, 1, false, failedCallTimestamp);
+        persistTransaction(secondEffectTimestamp, TransactionType.TOKENMINT, 2, false, failedCallTimestamp);
+
+        persistContractResult(rootTimestamp, 0, 0);
+        persistContractResult(failedCallTimestamp, 0, null, 0L);
+        // simulates the old migration's actual output: the unrelated root's index, and -1 when nothing precedes
+        persistContractResult(firstEffectTimestamp, 1, 0);
+        persistContractResult(secondEffectTimestamp, 2, -1);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(rootTimestamp, 0);
+        assertContractResultIndex(failedCallTimestamp, null);
+        assertContractResultIndex(firstEffectTimestamp, null);
+        assertContractResultIndex(secondEffectTimestamp, null);
+    }
+
+    @Test
+    void effectsOfFailedCallAfterChildWithoutResultAreFound() {
+        // given - the first child has no contract result, so the effect is found by its nonce offset instead
+        final var block = persistBlock(0);
+        final var failedCallTimestamp = block.getConsensusStart() + 100;
+        final var accountCreateTimestamp = failedCallTimestamp + 1;
+        final var effectTimestamp = failedCallTimestamp + 2;
+
+        persistTransaction(failedCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+        persistTransaction(accountCreateTimestamp, TransactionType.CRYPTOCREATEACCOUNT, 1, false, failedCallTimestamp);
+        persistTransaction(effectTimestamp, TransactionType.CRYPTOTRANSFER, 2, false, failedCallTimestamp);
+
+        // a call whose record had no ContractFunctionResult is stored without gas used
+        persistContractResult(failedCallTimestamp, 0, null, null);
+        persistContractResult(effectTimestamp, 2, -1);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(failedCallTimestamp, null);
+        assertContractResultIndex(effectTimestamp, null);
+    }
+
+    @Test
     void unaffectedBlockIsNotTouched() {
         // given
         final var block = persistBlock(0);
@@ -396,7 +490,7 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
         persistContractResult(consensusTimestamp, nonce, existingIndex, 100L);
     }
 
-    private void persistContractResult(long consensusTimestamp, int nonce, Integer existingIndex, long gasUsed) {
+    private void persistContractResult(long consensusTimestamp, int nonce, Integer existingIndex, Long gasUsed) {
         domainBuilder
                 .contractResult()
                 .customize(cr -> cr.consensusTimestamp(consensusTimestamp)

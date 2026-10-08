@@ -35,7 +35,8 @@ final class EvmTransactionIndexCalculator {
                 evmIndex = null;
             }
 
-            if (evmIndex != null && row.hasContractResult()) {
+            // A null index is kept too, so the effects of a call that claimed none don't claim one either
+            if (row.hasContractResult()) {
                 indexByTimestamp.put(row.consensusTimestamp(), evmIndex);
             }
 
@@ -63,7 +64,8 @@ final class EvmTransactionIndexCalculator {
                     // unbroken chain requirement - a gap means no hook parent
                     break;
                 }
-                if (candidate.contractId() == hookContractId) {
+                // Effects of a scheduled call are parented to its trigger, so the call is found the same way as a hook
+                if (candidate.contractId() == hookContractId || candidate.scheduled()) {
                     return candidate.consensusTimestamp();
                 }
             }
@@ -78,7 +80,8 @@ final class EvmTransactionIndexCalculator {
             boolean hasContractResult,
             long contractId,
             long gasUsed,
-            boolean syntheticLogOnly) {}
+            boolean syntheticLogOnly,
+            boolean scheduled) {}
 
     record Update(long consensusTimestamp, @Nullable Long transactionIndex) {}
 }

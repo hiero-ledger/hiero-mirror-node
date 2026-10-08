@@ -53,7 +53,11 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
 
     private static final String FIND_AFFECTED_BLOCKS_SQL = """
             insert into fix_scheduled_hook_evm_index_targets_temp(consensus_start, consensus_end)
-            with affected as (
+            with no_index_parents as (
+                select consensus_timestamp
+                from contract_result
+                where transaction_nonce = 0 and coalesce(gas_used, 0) = 0
+            ), affected as (
                 select cr.consensus_timestamp
                 from contract_result cr
                 where cr.contract_id = :hookContractId
@@ -62,6 +66,14 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
                 from contract_result cr
                 where cr.consensus_timestamp in
                       (select s.executed_timestamp from schedule s where s.executed_timestamp is not null)
+                union
+                -- Effects of a call without an index, which follow it by timestamp and nonce
+                select cr.consensus_timestamp
+                from contract_result cr
+                where cr.transaction_nonce <> 0
+                  and (cr.consensus_timestamp - 1 in (select consensus_timestamp from no_index_parents)
+                    or cr.consensus_timestamp - cr.transaction_nonce in
+                       (select consensus_timestamp from no_index_parents))
             )
             select distinct rf.consensus_start, rf.consensus_end
             from affected a
@@ -86,7 +98,7 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
     // %s is an OR of the batch's block ranges; one read per batch since each query fans out to every Citus shard
     private static final String SELECT_BLOCK_ROWS_SQL = """
             with t as (
-                select consensus_timestamp, parent_consensus_timestamp
+                select consensus_timestamp, parent_consensus_timestamp, scheduled
                 from transaction
                 where consensus_timestamp between :minTimestamp and :maxTimestamp and (%1$s)
             ), cr as (
@@ -101,6 +113,7 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
             select
                 t.consensus_timestamp,
                 t.parent_consensus_timestamp,
+                t.scheduled,
                 cr.consensus_timestamp is not null as has_contract_result,
                 coalesce(cr.contract_id, 0) as contract_id,
                 coalesce(cr.gas_used, 0) as gas_used,
@@ -158,7 +171,7 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
     // Repeatable migrations run in description order; this must sort after RecomputeEvmTransactionIndexMigration's
     @Override
     public String getDescription() {
-        return "Repair EVM transaction index for scheduled transactions and hook chains";
+        return "Repair EVM transaction index for scheduled transactions, hook chains and effects of failed calls";
     }
 
     @Override
@@ -173,9 +186,15 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
             return false;
         }
 
-        final var jdbcOperations = getJdbcOperations();
-        jdbcOperations.execute(CREATE_TARGETS_TABLE);
+        getJdbcOperations().execute(CREATE_TARGETS_TABLE);
+        return true;
+    }
 
+    // Discovery scans contract_result, so it runs async; a non-empty targets table means a resumed run
+    @NonNull
+    @Override
+    protected Long getInitial() {
+        final var jdbcOperations = getJdbcOperations();
         final var isEmpty = Boolean.TRUE.equals(jdbcOperations.queryForObject(TARGETS_TABLE_IS_EMPTY, Boolean.class));
         if (isEmpty) {
             final var found = getTransactionOperations().execute(status -> {
@@ -185,20 +204,10 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
                 final var params = new MapSqlParameterSource("hookContractId", getHookContractId());
                 return getNamedParameterJdbcOperations().update(FIND_AFFECTED_BLOCKS_SQL, params);
             });
-            log.info("Found {} blocks affected by scheduled transactions or hook chains", found);
-            if (found == null || found == 0) {
-                jdbcOperations.execute(DROP_TARGETS_TABLE);
-                return false;
-            }
+            log.info("Found {} blocks with EVM transaction indexes to repair", found);
         }
 
-        return true;
-    }
-
-    @NonNull
-    @Override
-    protected Long getInitial() {
-        final var max = getJdbcOperations().queryForObject(SELECT_MAX_TARGET_CONSENSUS_END, Long.class);
+        final var max = jdbcOperations.queryForObject(SELECT_MAX_TARGET_CONSENSUS_END, Long.class);
         return max != null ? max + 1 : 0L;
     }
 
