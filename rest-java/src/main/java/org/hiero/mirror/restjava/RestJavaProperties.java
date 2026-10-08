@@ -4,7 +4,6 @@ package org.hiero.mirror.restjava;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,6 +14,8 @@ import java.util.stream.Stream;
 import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.validator.DataSizeMax;
+import org.hiero.mirror.common.validator.DataSizeMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.convert.DataSizeUnit;
 import org.springframework.util.unit.DataSize;
@@ -26,14 +27,11 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("hiero.mirror.rest-java")
 public class RestJavaProperties {
 
+    @DataSizeMax(Integer.MAX_VALUE)
+    @DataSizeMin(1L)
     @DataSizeUnit(DataUnit.KILOBYTES)
     @NotNull
     private DataSize maxRequestBodySize = DataSize.ofKilobytes(130);
-
-    @AssertTrue(message = "maxRequestBodySize must be positive")
-    private boolean isMaxRequestBodySizePositive() {
-        return !maxRequestBodySize.isNegative();
-    }
 
     @NotNull
     private HederaNetwork network = HederaNetwork.TESTNET;

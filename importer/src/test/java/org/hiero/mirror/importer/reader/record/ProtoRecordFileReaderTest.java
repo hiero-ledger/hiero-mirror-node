@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.reader.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.hiero.mirror.importer.TestUtils.gzip;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,11 +31,15 @@ import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.junit.jupiter.api.Test;
+import org.springframework.util.unit.DataSize;
 
 final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
 
@@ -42,9 +47,12 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
     private static final long FILE_TIMESTAMP = DomainUtils.convertToNanosMax(
             Instant.parse(Strings.CS.removeEnd(FILENAME, ".rcd.gz").replace("_", ":")));
 
+    private final CommonDownloaderProperties commonDownloaderProperties =
+            new CommonDownloaderProperties(new ImporterProperties());
+
     @Override
     protected RecordFileReader getRecordFileReader() {
-        return new ProtoRecordFileReader();
+        return new ProtoRecordFileReader(commonDownloaderProperties);
     }
 
     @Override
@@ -55,7 +63,7 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
     @Test
     void testEmptyRecordStreamItems() {
         var bytes = gzip(ProtoRecordStreamFile.of(RecordStreamFile.Builder::clearRecordStreamItems));
-        var reader = new ProtoRecordFileReader();
+        var reader = getRecordFileReader();
         var streamFileData = StreamFileData.from(FILENAME, bytes);
         final var recordFile = reader.read(streamFileData);
         assertThat(recordFile)
@@ -68,13 +76,22 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
     }
 
     @Test
+    void readMaxSize() {
+        final var bytes = gzip(ProtoRecordStreamFile.of(RecordStreamFile.Builder::clearRecordStreamItems));
+        final var reader = getRecordFileReader();
+        commonDownloaderProperties.setMaxSize(DataSize.ofBytes(2L));
+        final var streamFileData = StreamFileData.from(FILENAME, bytes);
+        assertThatThrownBy(() -> reader.read(streamFileData)).isInstanceOf(ProtobufException.class);
+    }
+
+    @Test
     void testInvalidHashAlgorithm() {
         var bytes = gzip(ProtoRecordStreamFile.of(b -> {
             b.getStartObjectRunningHashBuilder().setAlgorithm(HashAlgorithm.HASH_ALGORITHM_UNKNOWN);
             b.getEndObjectRunningHashBuilder().setAlgorithm(HashAlgorithm.HASH_ALGORITHM_UNKNOWN);
             return b;
         }));
-        var reader = new ProtoRecordFileReader();
+        var reader = getRecordFileReader();
         var streamFileData = StreamFileData.from(FILENAME, bytes);
         var exception = assertThrows(InvalidStreamFileException.class, () -> reader.read(streamFileData));
         var expected = String.format(
@@ -90,7 +107,7 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
             b.getStartObjectRunningHashBuilder().setAlgorithm(HashAlgorithm.HASH_ALGORITHM_UNKNOWN);
             return b;
         }));
-        var reader = new ProtoRecordFileReader();
+        var reader = getRecordFileReader();
         var streamFileData = StreamFileData.from(FILENAME, bytes);
         var recordFile = reader.read(streamFileData);
 
@@ -110,7 +127,7 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
             return b;
         }));
 
-        var recordFile = new ProtoRecordFileReader().read(StreamFileData.from(FILENAME, bytes));
+        var recordFile = getRecordFileReader().read(StreamFileData.from(FILENAME, bytes));
 
         assertThat(recordFile)
                 .returns(earliest, RecordFile::getConsensusStart)
@@ -136,7 +153,7 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
             return b;
         }));
 
-        var recordFile = new ProtoRecordFileReader().read(StreamFileData.from(FILENAME, bytes));
+        var recordFile = getRecordFileReader().read(StreamFileData.from(FILENAME, bytes));
 
         assertThat(recordFile)
                 .returns(earliest, RecordFile::getConsensusStart)
@@ -157,7 +174,7 @@ final class ProtoRecordFileReaderTest extends AbstractRecordFileReaderTest {
             return b;
         }));
 
-        var recordFile = new ProtoRecordFileReader().read(StreamFileData.from(FILENAME, bytes));
+        var recordFile = getRecordFileReader().read(StreamFileData.from(FILENAME, bytes));
 
         assertThat(recordFile)
                 .returns(earliest, RecordFile::getConsensusStart)
