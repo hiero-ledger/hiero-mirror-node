@@ -50,17 +50,20 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
 
     /**
      * Entity IDs created by successful child {@code CryptoCreateAccount} transactions of the given parent,
-     * including preceding hollow-account creates.
+     * including preceding hollow-account creates. Those children share the parent's {@code payer_account_id},
+     * which is the Citus distribution column of {@code transaction}.
      */
-    default List<Long> findSuccessfulCryptoCreateChildEntityIds(final long parentConsensusTimestamp) {
+    default List<Long> findSuccessfulCryptoCreateChildEntityIds(
+            final long parentConsensusTimestamp, final long payerAccountId) {
         return findSuccessfulCryptoCreateChildEntityIds(
-                parentConsensusTimestamp, parentConsensusTimestamp - PRECEDING_CRYPTO_CREATE_WINDOW_NS);
+                parentConsensusTimestamp, parentConsensusTimestamp - PRECEDING_CRYPTO_CREATE_WINDOW_NS, payerAccountId);
     }
 
     @Query(value = """
             select entity_id
             from transaction
-            where type = 11
+            where payer_account_id = :payerAccountId
+              and type = 11
               and result = 22
               and consensus_timestamp >= :consensusTimestampStart
               and consensus_timestamp <= :parentConsensusTimestamp
@@ -69,5 +72,6 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
             """, nativeQuery = true)
     List<Long> findSuccessfulCryptoCreateChildEntityIds(
             @Param("parentConsensusTimestamp") long parentConsensusTimestamp,
-            @Param("consensusTimestampStart") long consensusTimestampStart);
+            @Param("consensusTimestampStart") long consensusTimestampStart,
+            @Param("payerAccountId") long payerAccountId);
 }

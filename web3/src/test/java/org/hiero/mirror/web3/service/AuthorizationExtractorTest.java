@@ -230,6 +230,8 @@ final class AuthorizationExtractorTest extends Web3IntegrationTest {
         return new PrestateContext(
                 prestateProperties,
                 consensusTimestamp,
+                0L,
+                0L,
                 new PrestateRequest(new TransactionHashParameter(Bytes.repeat((byte) 1, 32)), true, false, false));
     }
 

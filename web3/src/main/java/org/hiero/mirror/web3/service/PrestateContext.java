@@ -33,6 +33,8 @@ final class PrestateContext {
     private final Map<Long, Long> postNonces = new HashMap<>();
 
     private final long consensusTimestamp;
+    private final long contractId;
+    private final long payerAccountId;
 
     private final PrestateRequest prestateRequest;
     private final Map<Long, Map<String, String>> preStorageByContract = new TreeMap<>();
@@ -87,7 +89,7 @@ final class PrestateContext {
         return postNonces.getOrDefault(accountId, 0L);
     }
 
-    // We have track only for the nonce values based on the transaction result related information in DB (e.g. ontract
+    // We have track only for the nonce values based on the transaction result related information in DB (e.g. contract
     // result, ethereum transaction, authorization lists). These values are used as a starting point and we deduct the
     // nonce backwards to the pre-transaction values based on the account actions during the transaction replay
     long preNonce(final long accountId) {

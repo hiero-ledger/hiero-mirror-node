@@ -100,6 +100,7 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
     @Test
     void findSuccessfulCryptoCreateChildEntityIdsReturnsSuccessfulChildren() {
         final var parentConsensusTimestamp = domainBuilder.timestamp();
+        final var payerAccountId = domainBuilder.entityId();
         final var hollowAccountId = domainBuilder.entityId();
         final var failedAccountId = domainBuilder.entityId();
         final var otherParentAccountId = domainBuilder.entityId();
@@ -111,6 +112,7 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
                         .parentConsensusTimestamp(parentConsensusTimestamp)
                         .entityId(hollowAccountId)
                         .nonce(1)
+                        .payerAccountId(payerAccountId)
                         .type(CRYPTOCREATEACCOUNT.getProtoId()))
                 .persist();
         domainBuilder
@@ -120,6 +122,7 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
                         .parentConsensusTimestamp(parentConsensusTimestamp)
                         .entityId(failedAccountId)
                         .nonce(2)
+                        .payerAccountId(payerAccountId)
                         .type(CRYPTOCREATEACCOUNT.getProtoId())
                         .result(ResponseCodeEnum.INVALID_SIGNATURE.getNumber()))
                 .persist();
@@ -130,6 +133,7 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
                         .parentConsensusTimestamp(parentConsensusTimestamp + 100L)
                         .entityId(otherParentAccountId)
                         .nonce(1)
+                        .payerAccountId(payerAccountId)
                         .type(CRYPTOCREATEACCOUNT.getProtoId()))
                 .persist();
         final var outsideWindowAccountId = domainBuilder.entityId();
@@ -141,10 +145,12 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
                         .parentConsensusTimestamp(parentConsensusTimestamp)
                         .entityId(outsideWindowAccountId)
                         .nonce(3)
+                        .payerAccountId(payerAccountId)
                         .type(CRYPTOCREATEACCOUNT.getProtoId()))
                 .persist();
 
-        assertThat(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(parentConsensusTimestamp))
+        assertThat(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(
+                        parentConsensusTimestamp, payerAccountId.getId()))
                 .containsExactly(hollowAccountId.getId());
     }
 }

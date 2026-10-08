@@ -266,6 +266,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(changedAccount)
@@ -275,6 +276,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(unchangedAccount)
@@ -308,6 +310,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(null)
@@ -318,6 +321,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(changedAccount)
@@ -356,7 +360,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                 signerNonceFunctionResult(senderId, 4L),
                 List.of());
         persistCallAction(
-                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+                consensusTimestamp,
+                senderId,
+                senderId,
+                EntityType.ACCOUNT,
+                contractId,
+                0L,
+                CallOperationType.OP_CALL,
+                0);
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
@@ -379,7 +390,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         persistAccountBalance(senderId, createdTimestamp, 100L);
         persistEthereumCall(hash, consensusTimestamp, senderId, senderId, contractId, 9L, new byte[0], List.of());
         persistCallAction(
-                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+                consensusTimestamp,
+                senderId,
+                senderId,
+                EntityType.ACCOUNT,
+                contractId,
+                0L,
+                CallOperationType.OP_CALL,
+                0);
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
@@ -414,7 +432,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                 signerNonceFunctionResult(senderId, 4L),
                 List.of());
         persistCallAction(
-                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+                consensusTimestamp,
+                senderId,
+                senderId,
+                EntityType.ACCOUNT,
+                contractId,
+                0L,
+                CallOperationType.OP_CALL,
+                0);
 
         final var response = prestateService.processPrestateCall(createRequest(hash, false, false, false));
 
@@ -448,7 +473,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                         .amount(0L))
                 .persist();
         persistCallAction(
-                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+                consensusTimestamp,
+                senderId,
+                senderId,
+                EntityType.ACCOUNT,
+                contractId,
+                0L,
+                CallOperationType.OP_CALL,
+                0);
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
@@ -471,6 +503,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         persistContractTransactionHash(hash, consensusTimestamp, payerId, callerId);
         persistCallAction(
                 consensusTimestamp,
+                payerId,
                 callerId,
                 EntityType.CONTRACT,
                 createdContractId,
@@ -510,6 +543,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                 .persist();
         persistCallAction(
                 consensusTimestamp,
+                payerId,
                 callerId,
                 EntityType.CONTRACT,
                 createdContractId,
@@ -558,6 +592,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                 .persist();
         persistCallAction(
                 consensusTimestamp,
+                payerId,
                 callerId,
                 EntityType.CONTRACT,
                 createdContractId,
@@ -597,7 +632,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         persistEthereumCall(
                 hash, consensusTimestamp, senderId, senderId, contractId, 9L, new byte[0], List.of(authorization));
         persistCallAction(
-                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+                consensusTimestamp,
+                senderId,
+                senderId,
+                EntityType.ACCOUNT,
+                contractId,
+                0L,
+                CallOperationType.OP_CALL,
+                0);
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
@@ -634,7 +676,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         persistEthereumCall(
                 hash, consensusTimestamp, senderId, senderId, contractId, 9L, new byte[0], List.of(authorization));
         persistCallAction(
-                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+                consensusTimestamp,
+                senderId,
+                senderId,
+                EntityType.ACCOUNT,
+                contractId,
+                0L,
+                CallOperationType.OP_CALL,
+                0);
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
@@ -675,7 +724,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                 signerNonceFunctionResult(senderId, 12L),
                 List.of(authorization));
         persistCallAction(
-                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+                consensusTimestamp,
+                senderId,
+                senderId,
+                EntityType.ACCOUNT,
+                contractId,
+                0L,
+                CallOperationType.OP_CALL,
+                0);
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
@@ -722,7 +778,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                 new byte[0],
                 List.of(firstAuthorization, secondAuthorization));
         persistCallAction(
-                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+                consensusTimestamp,
+                senderId,
+                senderId,
+                EntityType.ACCOUNT,
+                contractId,
+                0L,
+                CallOperationType.OP_CALL,
+                0);
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
@@ -783,7 +846,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                 new byte[0],
                 List.of(invalidAuthorization, unknownAuthorization, knownAuthorization));
         persistCallAction(
-                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+                consensusTimestamp,
+                senderId,
+                senderId,
+                EntityType.ACCOUNT,
+                contractId,
+                0L,
+                CallOperationType.OP_CALL,
+                0);
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
@@ -851,6 +921,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(accountId)
                         .callerType(EntityType.ACCOUNT)
                         .recipientContract(contractId)
@@ -918,11 +989,12 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
         persistBareEntity(hollowAccount, EntityType.ACCOUNT, 7L, hollowCreateTimestamp);
         persistTreasuryBalance(createdTimestamp);
-        persistSuccessfulCryptoCreateChild(hollowAccount, consensusTimestamp, hollowCreateTimestamp);
+        persistSuccessfulCryptoCreateChild(hollowAccount, payerId, consensusTimestamp, hollowCreateTimestamp);
         persistContractTransactionHash(hash, consensusTimestamp, payerId, contractId);
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(hollowAccount)
@@ -961,12 +1033,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                         .parentConsensusTimestamp(consensusTimestamp)
                         .entityId(failedAccount)
                         .nonce(1)
+                        .payerAccountId(payerId)
                         .type(CRYPTOCREATEACCOUNT.getProtoId())
                         .result(ResponseCodeEnum.INVALID_SIGNATURE.getNumber()))
                 .persist();
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(failedAccount)
@@ -1013,6 +1087,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(payerId)
                         .callerType(EntityType.ACCOUNT)
                         .recipientContract(contractId)
@@ -1118,6 +1193,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(caller1)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(recipientAccount1)
@@ -1128,6 +1204,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(caller2)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(recipientAccount2)
@@ -1172,7 +1249,14 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         persistEthereumCall(
                 hash, consensusTimestamp, senderId, senderId, contractId, 9L, new byte[0], List.of(authorization));
         persistCallAction(
-                consensusTimestamp, senderId, EntityType.ACCOUNT, contractId, 0L, CallOperationType.OP_CALL, 0);
+                consensusTimestamp,
+                senderId,
+                senderId,
+                EntityType.ACCOUNT,
+                contractId,
+                0L,
+                CallOperationType.OP_CALL,
+                0);
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
 
@@ -1199,6 +1283,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(accountId)
@@ -1227,9 +1312,9 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(payerId)
                         .callerType(EntityType.ACCOUNT)
-                        .payerAccountId(payerId)
                         .recipientAccount(null)
                         .recipientContract(contractId)
                         .value(0L))
@@ -1256,6 +1341,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerId)
                         .caller(payerId)
                         .callerType(EntityType.ACCOUNT)
                         .recipientAccount(null)
@@ -1311,13 +1397,17 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     }
 
     private void persistSuccessfulCryptoCreateChild(
-            final EntityId entityId, final long parentConsensusTimestamp, final long childConsensusTimestamp) {
+            final EntityId entityId,
+            final EntityId payerAccountId,
+            final long parentConsensusTimestamp,
+            final long childConsensusTimestamp) {
         domainBuilder
                 .transaction()
                 .customize(t -> t.consensusTimestamp(childConsensusTimestamp)
                         .parentConsensusTimestamp(parentConsensusTimestamp)
                         .entityId(entityId)
                         .nonce(1)
+                        .payerAccountId(payerAccountId)
                         .type(CRYPTOCREATEACCOUNT.getProtoId())
                         .result(ResponseCodeEnum.SUCCESS.getNumber()))
                 .persist();
@@ -1325,6 +1415,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
     private void persistCallAction(
             final long consensusTimestamp,
+            final EntityId payerAccountId,
             final EntityId caller,
             final EntityType callerType,
             final EntityId recipientContract,
@@ -1334,6 +1425,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .payerAccountId(payerAccountId)
                         .caller(caller)
                         .callerType(callerType)
                         .callOperationType(operationType.getNumber())
@@ -1461,6 +1553,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
             domainBuilder
                     .contractAction()
                     .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                            .payerAccountId(payerId)
                             .caller(accountId)
                             .callerType(EntityType.CONTRACT)
                             .recipientAccount(null)

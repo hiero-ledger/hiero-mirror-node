@@ -47,7 +47,8 @@ final class TouchedAccountCollector {
     }
 
     private void collectFromActions(final PrestateContext prestateContext, final long consensusTimestamp) {
-        final var actions = contractActionRepository.findByConsensusTimestampOrderByIndexAsc(consensusTimestamp);
+        final var actions = contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                consensusTimestamp, EntityId.of(prestateContext.getPayerAccountId()));
         final boolean diffMode = prestateContext.getPrestateRequest().diffMode();
 
         for (final var action : actions) {
@@ -159,10 +160,13 @@ final class TouchedAccountCollector {
 
     private void collectFromNonceSources(final PrestateContext prestateContext, final long consensusTimestamp) {
         markCreated(
-                prestateContext, transactionRepository.findSuccessfulCryptoCreateChildEntityIds(consensusTimestamp));
+                prestateContext,
+                transactionRepository.findSuccessfulCryptoCreateChildEntityIds(
+                        consensusTimestamp, prestateContext.getPayerAccountId()));
 
-        final var contractResult =
-                contractResultRepository.findById(consensusTimestamp).orElse(null);
+        final var contractResult = contractResultRepository
+                .findByConsensusTimestampAndContractId(consensusTimestamp, prestateContext.getContractId())
+                .orElse(null);
         if (contractResult == null) {
             return;
         }

@@ -53,6 +53,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 final class TouchedAccountCollectorTest {
 
     private static final long CONSENSUS_TIMESTAMP = 1_000_000L;
+    private static final long CONTRACT_ID = 4001L;
     private static final EntityId CALLER = EntityId.of(1001L);
     private static final EntityId RECIPIENT_ACCOUNT = EntityId.of(1002L);
     private static final EntityId RECIPIENT_CONTRACT = EntityId.of(1003L);
@@ -87,7 +88,8 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectAddsCallerAndRecipientsFromActions() {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(callAction(OP_CALL, 0, 0L, OUTPUT)));
 
         final var context = context(true, false);
@@ -102,7 +104,8 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectIgnoresEmptyActionParticipants() {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(ContractAction.builder()
                         .caller(EntityId.EMPTY)
                         .recipientAccount(null)
@@ -123,7 +126,8 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectStopsWhenAccountCapIsReached() {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(
                         callAction(OP_CALL, 0, 0L, OUTPUT),
                         ContractAction.builder()
@@ -143,7 +147,8 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectDoesNotApplyBalanceTransferWhenNotDiffMode() {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(callAction(OP_CALL, 0, 25L, OUTPUT)));
 
         final var context = context(false, false);
@@ -155,7 +160,8 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectAppliesBalanceTransferInDiffMode() {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(callAction(OP_CALL, 0, 25L, OUTPUT)));
 
         final var context = context(true, false);
@@ -170,7 +176,8 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectPrefersRecipientContractWhenRecipientAccountIsEmpty() {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(ContractAction.builder()
                         .caller(CALLER)
                         .recipientAccount(EntityId.EMPTY)
@@ -192,7 +199,8 @@ final class TouchedAccountCollectorTest {
             names = {"REVERT_REASON", "ERROR"})
     void collectSkipsBalanceTransferOnFailedResult(final ResultDataCase resultDataCase) {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(callAction(OP_CALL, 0, 25L, resultDataCase)));
 
         final var context = context(true, false);
@@ -207,7 +215,8 @@ final class TouchedAccountCollectorTest {
             names = {"OP_DELEGATECALL", "OP_STATICCALL"})
     void collectSkipsBalanceTransferOnNonValueCall(final CallOperationType operationType) {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(callAction(operationType, 0, 25L, OUTPUT)));
 
         final var context = context(true, false);
@@ -219,7 +228,8 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectSkipsBalanceTransferWhenValueIsZero() {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(callAction(OP_CALL, 0, 0L, OUTPUT)));
 
         final var context = context(true, false);
@@ -234,7 +244,8 @@ final class TouchedAccountCollectorTest {
             names = {"OP_CREATE", "OP_CREATE2"})
     void collectAppliesCreateNonceDeltaForNestedCreate(final CallOperationType operationType) {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(callAction(operationType, 1, 0L, OUTPUT)));
 
         final var context = context(false, false);
@@ -247,7 +258,8 @@ final class TouchedAccountCollectorTest {
     @ValueSource(ints = {0, -1})
     void collectDoesNotApplyCreateNonceDeltaForNonPositiveDepth(final int callDepth) {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(callAction(OP_CREATE, callDepth, 0L, OUTPUT)));
 
         final var context = context(false, false);
@@ -259,7 +271,8 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectDoesNotApplyCreateNonceDeltaForCall() {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(callAction(OP_CALL, 1, 0L, OUTPUT)));
 
         final var context = context(false, false);
@@ -271,7 +284,8 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectDoesNotApplyCreateNonceDeltaWhenCallerIsEmpty() {
         stubNoNonceSources();
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of(ContractAction.builder()
                         .caller(EntityId.EMPTY)
                         .callOperationType(OP_CREATE2.getNumber())
@@ -403,9 +417,10 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectMarksSuccessfulCryptoCreateChildrenAsCreated() {
         stubNoActions();
-        when(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(CONSENSUS_TIMESTAMP))
+        when(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(CONSENSUS_TIMESTAMP, PAYER.getId()))
                 .thenReturn(Arrays.asList(RECIPIENT_ACCOUNT.getId(), null, 0L));
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP)).thenReturn(Optional.empty());
+        when(contractResultRepository.findByConsensusTimestampAndContractId(CONSENSUS_TIMESTAMP, CONTRACT_ID))
+                .thenReturn(Optional.empty());
 
         final var context = context(false, false);
         collector.collect(context);
@@ -418,9 +433,10 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectDoesNothingWhenContractResultIsMissing() {
         stubNoActions();
-        when(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(CONSENSUS_TIMESTAMP))
+        when(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(CONSENSUS_TIMESTAMP, PAYER.getId()))
                 .thenReturn(List.of());
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP)).thenReturn(Optional.empty());
+        when(contractResultRepository.findByConsensusTimestampAndContractId(CONSENSUS_TIMESTAMP, CONTRACT_ID))
+                .thenReturn(Optional.empty());
 
         final var context = context(false, false);
         collector.collect(context);
@@ -433,9 +449,9 @@ final class TouchedAccountCollectorTest {
     @Test
     void collectAddsSenderAndCreatedContractIds() {
         stubNoActions();
-        when(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(CONSENSUS_TIMESTAMP))
+        when(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(CONSENSUS_TIMESTAMP, PAYER.getId()))
                 .thenReturn(List.of());
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP))
+        when(contractResultRepository.findByConsensusTimestampAndContractId(CONSENSUS_TIMESTAMP, CONTRACT_ID))
                 .thenReturn(Optional.of(contractResult(SENDER, PAYER, List.of(CREATED_CONTRACT.getId()), new byte[0])));
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(Optional.empty());
@@ -452,7 +468,7 @@ final class TouchedAccountCollectorTest {
     void collectAppliesFunctionResultContractNonces() {
         stubNoActions();
         stubNoCryptoCreates();
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP))
+        when(contractResultRepository.findByConsensusTimestampAndContractId(CONSENSUS_TIMESTAMP, CONTRACT_ID))
                 .thenReturn(Optional.of(contractResult(
                         SENDER, EntityId.EMPTY, List.of(), createdContractNonceFunctionResult(CREATED_CONTRACT, 7L))));
 
@@ -468,7 +484,7 @@ final class TouchedAccountCollectorTest {
     void collectIgnoresNullAndEmptyFunctionResult() {
         stubNoActions();
         stubNoCryptoCreates();
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP))
+        when(contractResultRepository.findByConsensusTimestampAndContractId(CONSENSUS_TIMESTAMP, CONTRACT_ID))
                 .thenReturn(Optional.of(contractResult(SENDER, EntityId.EMPTY, List.of(), null)))
                 .thenReturn(Optional.of(contractResult(SENDER, EntityId.EMPTY, List.of(), new byte[0])));
 
@@ -491,7 +507,7 @@ final class TouchedAccountCollectorTest {
                         .setNonce(3L))
                 .build()
                 .toByteArray();
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP))
+        when(contractResultRepository.findByConsensusTimestampAndContractId(CONSENSUS_TIMESTAMP, CONTRACT_ID))
                 .thenReturn(Optional.of(contractResult(SENDER, EntityId.EMPTY, List.of(), functionResult)));
 
         final var context = context(false, false);
@@ -505,7 +521,7 @@ final class TouchedAccountCollectorTest {
     void collectDoesNotApplyEthereumSenderWhenEthTxIsMissing() {
         stubNoActions();
         stubNoCryptoCreates();
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP))
+        when(contractResultRepository.findByConsensusTimestampAndContractId(CONSENSUS_TIMESTAMP, CONTRACT_ID))
                 .thenReturn(Optional.of(contractResult(SENDER, PAYER, List.of(), new byte[0])));
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(Optional.empty());
@@ -522,7 +538,7 @@ final class TouchedAccountCollectorTest {
         stubNoActions();
         stubNoCryptoCreates();
         final var ethereumTransaction = EthereumTransaction.builder().nonce(9L).build();
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP))
+        when(contractResultRepository.findByConsensusTimestampAndContractId(CONSENSUS_TIMESTAMP, CONTRACT_ID))
                 .thenReturn(Optional.of(contractResult(SENDER, PAYER, List.of(), new byte[0])));
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(Optional.of(ethereumTransaction));
@@ -541,7 +557,7 @@ final class TouchedAccountCollectorTest {
         stubNoCryptoCreates();
         final var ethereumTransaction =
                 EthereumTransaction.builder().nonce(null).build();
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP))
+        when(contractResultRepository.findByConsensusTimestampAndContractId(CONSENSUS_TIMESTAMP, CONTRACT_ID))
                 .thenReturn(Optional.of(contractResult(SENDER, PAYER, List.of(), new byte[0])));
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(Optional.of(ethereumTransaction));
@@ -559,7 +575,7 @@ final class TouchedAccountCollectorTest {
         stubNoActions();
         stubNoCryptoCreates();
         final var ethereumTransaction = EthereumTransaction.builder().nonce(4L).build();
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP))
+        when(contractResultRepository.findByConsensusTimestampAndContractId(CONSENSUS_TIMESTAMP, CONTRACT_ID))
                 .thenReturn(Optional.of(contractResult(EntityId.EMPTY, PAYER, List.of(), new byte[0])));
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(Optional.of(ethereumTransaction));
@@ -573,17 +589,19 @@ final class TouchedAccountCollectorTest {
     }
 
     private void stubNoActions() {
-        when(contractActionRepository.findByConsensusTimestampOrderByIndexAsc(CONSENSUS_TIMESTAMP))
+        when(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        CONSENSUS_TIMESTAMP, PAYER))
                 .thenReturn(List.of());
     }
 
     private void stubNoNonceSources() {
         stubNoCryptoCreates();
-        when(contractResultRepository.findById(CONSENSUS_TIMESTAMP)).thenReturn(Optional.empty());
+        when(contractResultRepository.findByConsensusTimestampAndContractId(CONSENSUS_TIMESTAMP, CONTRACT_ID))
+                .thenReturn(Optional.empty());
     }
 
     private void stubNoCryptoCreates() {
-        when(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(CONSENSUS_TIMESTAMP))
+        when(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(CONSENSUS_TIMESTAMP, PAYER.getId()))
                 .thenReturn(List.of());
     }
 
@@ -596,6 +614,8 @@ final class TouchedAccountCollectorTest {
         return new PrestateContext(
                 properties,
                 CONSENSUS_TIMESTAMP,
+                CONTRACT_ID,
+                PAYER.getId(),
                 new PrestateRequest(
                         new TransactionHashParameter(Bytes.repeat((byte) 1, 32)), diffMode, false, storage));
     }

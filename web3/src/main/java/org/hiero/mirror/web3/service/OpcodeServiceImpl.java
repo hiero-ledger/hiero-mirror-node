@@ -116,6 +116,7 @@ public class OpcodeServiceImpl implements OpcodeService {
 
     private ContractDebugParameters buildCallServiceParameters(
             @NonNull TransactionIdOrHashParameter transactionIdOrHash) {
+        final long payerAccountId;
         final Long consensusTimestamp;
         final Transaction transaction;
         final EthereumTransaction ethereumTransaction;
@@ -127,18 +128,18 @@ public class OpcodeServiceImpl implements OpcodeService {
 
                 transaction = null;
                 consensusTimestamp = contractTransactionHash.getConsensusTimestamp();
+                payerAccountId = contractTransactionHash.getPayerAccountId();
                 ethereumTransaction = ethereumTransactionRepository
-                        .findByConsensusTimestampAndPayerAccountId(
-                                consensusTimestamp, EntityId.of(contractTransactionHash.getPayerAccountId()))
+                        .findByConsensusTimestampAndPayerAccountId(consensusTimestamp, EntityId.of(payerAccountId))
                         .orElse(null);
             }
             case TransactionIdParameter transactionId -> {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());
-                final var payerAccountId = transactionId.payerAccountId();
+                final var requestPayerAccountId = transactionId.payerAccountId();
 
                 final var transactionList =
                         transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                                payerAccountId, validStartNs);
+                                requestPayerAccountId, validStartNs);
                 if (transactionList.isEmpty()) {
                     throw new EntityNotFoundException("Transaction not found: " + transactionId);
                 }
@@ -146,6 +147,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                 final var parentTransaction = transactionList.getFirst();
                 transaction = parentTransaction;
                 consensusTimestamp = parentTransaction.getConsensusTimestamp();
+                payerAccountId = requestPayerAccountId.getId();
                 ethereumTransaction = ethereumTransactionRepository
                         .findByConsensusTimestampAndPayerAccountId(
                                 consensusTimestamp, parentTransaction.getPayerAccountId())
@@ -153,7 +155,7 @@ public class OpcodeServiceImpl implements OpcodeService {
             }
         }
 
-        return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction);
+        return buildCallServiceParameters(consensusTimestamp, payerAccountId, transaction, ethereumTransaction);
     }
 
     private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result, long consensusTimestamp) {
@@ -190,7 +192,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     }
 
     private ContractDebugParameters buildCallServiceParameters(
-            Long consensusTimestamp, Transaction transaction, EthereumTransaction ethTransaction) {
+            Long consensusTimestamp, long payerAccountId, Transaction transaction, EthereumTransaction ethTransaction) {
         final var contractResult = contractResultRepository
                 .findById(consensusTimestamp)
                 .orElseThrow(() -> new EntityNotFoundException("Contract result not found: " + consensusTimestamp));
@@ -207,6 +209,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                 .callData(getCallDataBytes(ethTransaction, contractResult))
                 .ethereumData(getEthereumDataBytes(ethTransaction))
                 .consensusTimestamp(consensusTimestamp)
+                .payerAccountId(payerAccountId)
                 .gas(getGasLimit(ethTransaction, contractResult))
                 .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType, consensusTimestamp))
                 .sender(getSenderAddress(contractResult, consensusTimestamp))

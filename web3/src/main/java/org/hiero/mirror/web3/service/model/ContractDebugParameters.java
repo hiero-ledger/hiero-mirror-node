@@ -31,6 +31,9 @@ public class ContractDebugParameters implements CallServiceParameters {
     @Positive
     long consensusTimestamp;
 
+    @Positive
+    long payerAccountId;
+
     @PositiveOrZero
     long gas;
 

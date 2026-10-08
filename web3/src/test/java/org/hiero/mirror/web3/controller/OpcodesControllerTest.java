@@ -295,6 +295,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
 
         expectedCallServiceParameters.set(ContractDebugParameters.builder()
                 .consensusTimestamp(consensusTimestamp)
+                .payerAccountId(transaction.getPayerAccountId().getId())
                 .sender(senderAddress)
                 .receiver(contractAddress)
                 .gas(provider.hasEthTransaction() ? ethTransaction.getGasLimit() : contractResult.getGasLimit())

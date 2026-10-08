@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.PrestateAccountTrace;
 import org.hiero.mirror.rest.model.PrestateResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -83,8 +84,13 @@ final class PrestateServiceImpl implements PrestateService {
     public PrestateResponse processPrestateCall(final PrestateRequest prestateRequest) {
         return ContractCallContext.run(ctx -> {
             ctx.setApi(PRESTATE);
-            final var consensusTimestamp = resolveConsensusTimestamp(prestateRequest.transactionIdOrHashParameter());
-            final var prestateContext = new PrestateContext(prestateProperties, consensusTimestamp, prestateRequest);
+            final var resolved = resolveTransaction(prestateRequest.transactionIdOrHashParameter());
+            final var prestateContext = new PrestateContext(
+                    prestateProperties,
+                    resolved.consensusTimestamp(),
+                    resolved.contractId(),
+                    resolved.payerAccountId(),
+                    prestateRequest);
             touchedAccountCollector.collect(prestateContext);
             return loadAccountTraces(prestateContext);
         });
@@ -398,12 +404,13 @@ final class PrestateServiceImpl implements PrestateService {
         return HEX_PREFIX + bytesToHex(toEvmAddress(entity.toEntityId()));
     }
 
-    private long resolveConsensusTimestamp(final TransactionIdOrHashParameter transactionIdOrHash) {
+    private ResolvedTransaction resolveTransaction(final TransactionIdOrHashParameter transactionIdOrHash) {
         return switch (transactionIdOrHash) {
-            case TransactionHashParameter transactionHash ->
-                transactionExecutionService
-                        .resolveContractTransactionHash(transactionHash)
-                        .getConsensusTimestamp();
+            case TransactionHashParameter transactionHash -> {
+                final var lookup = transactionExecutionService.resolveContractTransactionHash(transactionHash);
+                yield new ResolvedTransaction(
+                        lookup.getConsensusTimestamp(), lookup.getEntityId(), lookup.getPayerAccountId());
+            }
             case TransactionIdParameter transactionId -> {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());
                 final var payerAccountId = transactionId.payerAccountId();
@@ -414,9 +421,14 @@ final class PrestateServiceImpl implements PrestateService {
                                 validStartNs,
                                 validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS)
                         .orElseThrow(() -> new EntityNotFoundException("Transaction not found."));
-
-                yield transaction.getConsensusTimestamp();
+                final var contractId = transaction.getEntityId();
+                yield new ResolvedTransaction(
+                        transaction.getConsensusTimestamp(),
+                        EntityId.isEmpty(contractId) ? 0L : contractId.getId(),
+                        payerAccountId.getId());
             }
         };
     }
+
+    private record ResolvedTransaction(long consensusTimestamp, long contractId, long payerAccountId) {}
 }

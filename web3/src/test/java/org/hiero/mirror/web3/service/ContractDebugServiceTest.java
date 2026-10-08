@@ -87,9 +87,10 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     void processOpcodeCallMapsRevertedActionsToCorrectDepths() {
         // Given – one unique revert message per action, 8 total
         final var timestamp = domainBuilder.timestamp();
+        final long payerAccountId = domainBuilder.id();
         final var revertedActions = buildRevertedActions(timestamp);
 
-        when(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(timestamp))
+        when(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(timestamp, payerAccountId))
                 .thenReturn(revertedActions);
 
         final var opcodeContext = new OpcodeContext(
@@ -101,6 +102,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .block(BlockType.LATEST)
                 .callData(new byte[0])
                 .consensusTimestamp(timestamp)
+                .payerAccountId(payerAccountId)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .receiver(Address.ZERO)
                 .sender(Address.ZERO)

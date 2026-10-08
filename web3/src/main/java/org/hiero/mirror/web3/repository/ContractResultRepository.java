@@ -12,6 +12,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ContractResultRepository extends CrudRepository<ContractResult, Long> {
 
+    Optional<ContractResult> findByConsensusTimestampAndContractId(long consensusTimestamp, long contractId);
+
     // Returns the latest consensus timestamp among the given candidates whose result consumed gas (non-null
     // gas_consumed), i.e. that actually executed. Used to prefer a genuine execution over a pre-execution failure
     // result sharing a transaction hash, picking the latest when several executed. Batched into one query so a hash
