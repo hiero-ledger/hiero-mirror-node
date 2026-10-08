@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 
 import lombok.RequiredArgsConstructor;
 import org.flywaydb.core.api.MigrationVersion;
@@ -98,7 +99,7 @@ final class BlockStreamResolverTest extends ImporterIntegrationTest {
     }
 
     private void persistRecordFile(final long index, final int version, final boolean wrapped) {
-        final byte[] wrappedRecordBlockHash = wrapped ? domainBuilder.bytes(48) : null;
+        final byte[] wrappedRecordBlockHash = wrapped ? domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE) : null;
         domainBuilder
                 .recordFile()
                 .customize(r -> r.index(index).version(version).wrappedRecordBlockHash(wrappedRecordBlockHash))

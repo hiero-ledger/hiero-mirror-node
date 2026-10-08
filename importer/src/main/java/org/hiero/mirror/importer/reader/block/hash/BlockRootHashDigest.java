@@ -2,14 +2,10 @@
 
 package org.hiero.mirror.importer.reader.block.hash;
 
-import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
-import static org.hiero.mirror.importer.reader.block.hash.IncrementalStreamingHasher.EMPTY_TREE_HASH;
-
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
-import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullUnmarked;
@@ -17,15 +13,14 @@ import org.jspecify.annotations.NullUnmarked;
 @NullUnmarked
 public final class BlockRootHashDigest {
 
-    private static final int HASH_LENGTH = DigestAlgorithm.SHA_384.getSize();
     // Slots 0-7 carry the block's subtree roots, slots 8-15 are reserved for future extension
     private static final int SLOT_COUNT = 16;
 
-    private final IncrementalStreamingHasher consensusHeaderHasher = new IncrementalStreamingHasher();
-    private final IncrementalStreamingHasher inputHasher = new IncrementalStreamingHasher();
-    private final IncrementalStreamingHasher outputHasher = new IncrementalStreamingHasher();
-    private final IncrementalStreamingHasher stateChangesHasher = new IncrementalStreamingHasher();
-    private final IncrementalStreamingHasher traceDataHasher = new IncrementalStreamingHasher();
+    private final List<BlockItem> consensusHeaders = new ArrayList<>();
+    private final List<BlockItem> inputs = new ArrayList<>();
+    private final List<BlockItem> outputs = new ArrayList<>();
+    private final List<BlockItem> stateChanges = new ArrayList<>();
+    private final List<BlockItem> traceDatum = new ArrayList<>();
 
     private Timestamp blockTimestamp;
     private boolean finalized;
@@ -38,11 +33,11 @@ public final class BlockRootHashDigest {
             throw new IllegalStateException("Can't add more block items once finalized");
         }
 
-        final var hasher =
+        final var blockItems =
                 switch (blockItem.getItemCase()) {
                     case BLOCK_HEADER -> {
                         blockTimestamp = blockItem.getBlockHeader().getBlockTimestamp();
-                        yield outputHasher;
+                        yield outputs;
                     }
                     case BLOCK_FOOTER -> {
                         final var blockFooter = blockItem.getBlockFooter();
@@ -51,16 +46,16 @@ public final class BlockRootHashDigest {
                         startOfBlockStateHash = DomainUtils.toBytes(blockFooter.getStartOfBlockStateRootHash());
                         yield null;
                     }
-                    case EVENT_HEADER, ROUND_HEADER -> consensusHeaderHasher;
-                    case RECORD_FILE, TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputHasher;
-                    case SIGNED_TRANSACTION -> inputHasher;
-                    case STATE_CHANGES -> stateChangesHasher;
-                    case TRACE_DATA -> traceDataHasher;
+                    case EVENT_HEADER, ROUND_HEADER -> consensusHeaders;
+                    case RECORD_FILE, TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputs;
+                    case SIGNED_TRANSACTION -> inputs;
+                    case STATE_CHANGES -> stateChanges;
+                    case TRACE_DATA -> traceDatum;
                     default -> null;
                 };
 
-        if (hasher != null) {
-            hasher.addLeaf(blockItem.toByteArray());
+        if (blockItems != null) {
+            blockItems.add(blockItem);
         }
     }
 
@@ -73,46 +68,46 @@ public final class BlockRootHashDigest {
                     "blockTimestamp / previousBlocksTreeHash / previousHash / startOfBlockStateHash are not set");
         }
 
+        final int digestSize = previousHash.length;
         final var slots = new ArrayList<byte[]>(SLOT_COUNT);
-        slots.add(validate(previousHash, 0));
-        slots.add(validate(previousBlocksTreeHash, 1));
-        slots.add(validate(startOfBlockStateHash, 2));
-        slots.add(consensusHeaderHasher.computeRootHash());
-        slots.add(inputHasher.computeRootHash());
-        slots.add(outputHasher.computeRootHash());
-        slots.add(stateChangesHasher.computeRootHash());
-        slots.add(traceDataHasher.computeRootHash());
-        appendReservedSlots(slots);
+        slots.add(previousHash);
+        slots.add(previousBlocksTreeHash);
+        slots.add(startOfBlockStateHash);
+        slots.add(computeBlockItemSubTreeRootHash(consensusHeaders, digestSize));
+        slots.add(computeBlockItemSubTreeRootHash(inputs, digestSize));
+        slots.add(computeBlockItemSubTreeRootHash(outputs, digestSize));
+        slots.add(computeBlockItemSubTreeRootHash(stateChanges, digestSize));
+        slots.add(computeBlockItemSubTreeRootHash(traceDatum, digestSize));
+        appendReservedSlots(digestSize, slots);
 
-        final byte[] streamedRootHash = streamedRootOf(slots);
-        final var digest = createSha384Digest();
+        final byte[] streamedRootHash = streamedRootOf(digestSize, slots);
+        final var digest = ShaMessageDigestFactory.createMessageDigest(digestSize);
         final byte[] timestampLeaf = HashUtils.hashLeaf(digest, blockTimestamp.toByteArray());
         final byte[] rootHash = HashUtils.hashInternalNode(digest, timestampLeaf, streamedRootHash);
         finalized = true;
         return rootHash;
     }
 
-    static byte[] streamedRootOf(final List<byte[]> slots) {
-        final var hasher = new IncrementalStreamingHasher();
+    static byte[] streamedRootOf(final int digestSize, final List<byte[]> slots) {
+        final var hasher = new IncrementalStreamingHasher(digestSize);
         for (final byte[] slot : slots) {
             hasher.addNodeByHash(slot);
         }
         return hasher.computeRootHash();
     }
 
-    private static void appendReservedSlots(final List<byte[]> slots) {
+    private void appendReservedSlots(final int digestSize, final List<byte[]> slots) {
+        final var emptyHash = IncrementalStreamingHasher.getEmptyTreeHash(digestSize);
         while (slots.size() < SLOT_COUNT) {
-            slots.add(EMPTY_TREE_HASH);
+            slots.add(emptyHash);
         }
     }
 
-    private static byte[] validate(final byte[] hash, final int slot) {
-        if (hash == null || hash.length != HASH_LENGTH) {
-            final int length = hash != null ? hash.length : 0;
-            throw new IllegalStateException(
-                    "Block root tree slot %d is %d bytes, expected %d".formatted(slot, length, HASH_LENGTH));
+    private byte[] computeBlockItemSubTreeRootHash(final List<BlockItem> blockItems, final int digestSize) {
+        final var hasher = new IncrementalStreamingHasher(digestSize);
+        for (int i = 0; i < blockItems.size(); i++) {
+            hasher.addLeaf(blockItems.get(i).toByteArray());
         }
-
-        return hash;
+        return hasher.computeRootHash();
     }
 }
