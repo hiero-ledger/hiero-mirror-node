@@ -26,6 +26,7 @@ import reactor.core.scheduler.Schedulers;
 @Named
 public class RestApiClient {
 
+    private static final int MAX_PAGES = 10;
     private static final String NETWORK = "/network/";
     private static final String NODES_PATH = "/network/nodes";
     private static final String PREFIX = "/api/v1";
@@ -68,7 +69,7 @@ public class RestApiClient {
             return Flux.defer(() -> retrieve(NetworkNodesResponse.class, next.getAndSet(null))
                             .doOnNext(r -> next.set(getNextNodesUri(r)))
                             .flatMapIterable(NetworkNodesResponse::getNodes))
-                    .repeat(() -> next.get() != null);
+                    .repeat(MAX_PAGES - 1, () -> next.get() != null);
         });
     }
 

@@ -157,6 +157,23 @@ class RestApiClientTest {
     }
 
     @Test
+    void getNodesMaxPages() {
+        final var networkNode = new NetworkNode();
+        final var response = new NetworkNodesResponse()
+                .links(new Links().next("/api/v1/network/nodes?limit=25&node.id=gt:1"))
+                .nodes(List.of(networkNode));
+        when(exchangeFunction.exchange(isA(ClientRequest.class))).thenAnswer(_ -> response(response));
+
+        StepVerifier.withVirtualTime(() -> restApiClient.getNodes())
+                .thenAwait(WAIT)
+                .expectNextCount(10L)
+                .expectComplete()
+                .verify(WAIT);
+
+        verify(exchangeFunction, times(10)).exchange(isA(ClientRequest.class));
+    }
+
+    @Test
     void getNodesNextWithPrefix() {
         final var networkNode1 = new NetworkNode().nodeId(1L);
         final var networkNode2 = new NetworkNode().nodeId(2L);
