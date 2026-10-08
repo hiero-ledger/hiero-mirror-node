@@ -27,6 +27,7 @@ extra.apply {
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.2.18.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.21.0")
+    set("postgresql.version", "42.7.14") // Temporary until next Spring Boot
     set("tomcat.version", "11.0.26") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
