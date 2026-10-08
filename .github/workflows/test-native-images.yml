@@ -86,7 +86,7 @@ jobs:
       matrix:
         stream-type:
           - RECORD
-          - BLOCK
+          # - BLOCK # leave it disabled until new wraps library compatible CN / BN release
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
