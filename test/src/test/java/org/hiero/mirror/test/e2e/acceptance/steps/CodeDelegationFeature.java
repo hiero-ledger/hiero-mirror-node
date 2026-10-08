@@ -150,8 +150,6 @@ public class CodeDelegationFeature extends AbstractFeature {
         } catch (HttpServerErrorException.NotImplemented notImplemented) {
             assertThat(notImplemented.getResponseBodyAsString()).contains("Not Implemented");
         }
-
-        assertThat(1).isEqualTo(0);
     }
 
     @When("I clear the code delegation on the account")
