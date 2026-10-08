@@ -206,6 +206,8 @@ runs:
         solo cluster-ref config setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
 
         cp .github/workflows/resources/mirror.yaml mirror.yaml
+        # Include delegation_address on account and contract-result responses.
+        yq -i '.rest.env.HIERO_MIRROR_REST_RESPONSE_ENABLEDELEGATIONADDRESS = "true"' mirror.yaml
 
         # HIP-1340: consensus rejects delegation addresses unless this network property is set before deploy.
         cat $(which solo | xargs dirname)/../lib/node_modules/@hiero-ledger/solo/resources/templates/application.properties \
