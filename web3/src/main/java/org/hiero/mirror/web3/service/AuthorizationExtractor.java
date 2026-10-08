@@ -115,7 +115,6 @@ final class AuthorizationExtractor {
             return null;
         }
 
-        log.info("I'm before extractAuthoritySignature");
         final var recovered = EthTxSigs.extractAuthoritySignature(codeDelegation);
         if (recovered.isEmpty()) {
             return null;
