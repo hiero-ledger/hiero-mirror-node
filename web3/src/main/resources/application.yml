@@ -20,7 +20,7 @@ hiero:
               "Access-Control-Allow-Origin": "*"
               "Cache-Control": "public, max-age=600"
         prestate:
-          enabled: true
+          enabled: false
           request:
             throttle: 10
           response:
