@@ -13,6 +13,7 @@ import jakarta.validation.ValidatorFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,7 +55,7 @@ final class BlockPropertiesTest {
         final var ledgerId = "ab".repeat(64);
         final var blockProperties = new BlockProperties(new ImporterProperties());
         blockProperties.setLedgerId(ledgerId);
-        assertThat(blockProperties.getLedgerId()).isEqualTo(ledgerId);
+        assertThat(blockProperties.getLedgerId()).isEqualTo(HexFormat.of().parseHex(ledgerId));
     }
 
     @Test

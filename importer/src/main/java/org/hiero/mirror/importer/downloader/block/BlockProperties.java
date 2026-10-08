@@ -10,6 +10,7 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import java.time.Duration;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -71,8 +72,10 @@ public final class BlockProperties {
                 : ImporterProperties.HederaNetwork.getBlockStreamBucketName(importerProperties.getNetwork());
     }
 
-    public @Nullable String getLedgerId() {
-        return StringUtils.isNotBlank(ledgerId) ? ledgerId : DEFAULT_LEDGER_IDS.get(importerProperties.getNetwork());
+    public byte @Nullable [] getLedgerId() {
+        final var value =
+                StringUtils.isNotBlank(ledgerId) ? ledgerId : DEFAULT_LEDGER_IDS.get(importerProperties.getNetwork());
+        return value != null ? HexFormat.of().parseHex(value) : null;
     }
 
     @AssertTrue(message = "Each node must contain both STATUS and SUBSCRIBE_STREAM capable endpoints")
