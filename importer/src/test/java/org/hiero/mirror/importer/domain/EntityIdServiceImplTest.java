@@ -15,6 +15,7 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.EntityRepository;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -488,25 +490,23 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         assertThat(entityIdService.lookup(contractId)).hasValue(recreated.toEntityId());
     }
 
-    @Test
-    void notifyDeletedThenUndeleted() {
+    @ParameterizedTest
+    @EnumSource(
+            value = EntityType.class,
+            names = {"FILE", "SCHEDULE", "TOKEN", "TOPIC"})
+    void notifyDeletedOtherType(final EntityType type) {
         // given
-        final var contract = domainBuilder
-                .entity()
-                .customize(c -> c.alias(null).type(CONTRACT))
-                .persist();
-        final var contractId = getProtoContractId(contract);
-        final var undeleted = contract.toEntityId().toEntity();
-        undeleted.setDeleted(false);
-        undeleted.setType(CONTRACT);
-        entityIdService.notify(contract);
-        entityIdService.notify(getDeleted(contract));
+        final var account = domainBuilder.entity().get();
+        final var alias = getProtoAccountId(account);
+        final var deleted = getDeleted(account);
+        deleted.setType(type);
+        entityIdService.notify(account);
 
         // when
-        entityIdService.notify(undeleted);
+        entityIdService.notify(deleted);
 
         // then
-        assertThat(entityIdService.lookup(contractId)).hasValue(contract.toEntityId());
+        assertThat(entityIdService.lookup(alias)).hasValue(account.toEntityId());
     }
 
     @Test
