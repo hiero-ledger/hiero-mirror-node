@@ -17,7 +17,6 @@ import jakarta.inject.Named;
 import java.util.HexFormat;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
 import lombok.CustomLog;
@@ -170,29 +169,20 @@ public class EntityIdServiceImpl implements EntityIdService {
             return;
         }
 
-        evictCacheEntries(Set.of(entity.toEntityId()));
+        evictCacheEntries(entity.toEntityId());
     }
 
     /**
-     * Evicts every cache entry matching a value from the entityIds set.
+     * Evicts every cache entry that resolves to the entity.
      * If the cache can't be searched by value, it's cleared as the only safe fallback.
      */
-    private void evictCacheEntries(final Set<EntityId> entityIds) {
-        if (entityIds.isEmpty()) {
-            return;
-        }
-
+    private void evictCacheEntries(final EntityId entityId) {
         if (!(cache.getNativeCache() instanceof com.github.benmanes.caffeine.cache.Cache<?, ?> nativeCache)) {
             cache.clear();
             return;
         }
 
-        nativeCache
-                .asMap()
-                .values()
-                .removeIf(value -> value instanceof Optional<?> entityId
-                        && entityId.isPresent()
-                        && entityIds.contains(entityId.get()));
+        nativeCache.asMap().values().removeIf(Optional.of(entityId)::equals);
     }
 
     private Optional<EntityId> findByEvmAddress(byte[] evmAddress) {
