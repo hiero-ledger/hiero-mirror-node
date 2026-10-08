@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -26,6 +27,7 @@ import org.hiero.mirror.web3.repository.EntityRepository;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+@CustomLog
 @Named
 @RequiredArgsConstructor
 @NullMarked
@@ -113,6 +115,7 @@ final class AuthorizationExtractor {
             return null;
         }
 
+        log.info("I'm before extractAuthoritySignature");
         final var recovered = EthTxSigs.extractAuthoritySignature(codeDelegation);
         if (recovered.isEmpty()) {
             return null;
