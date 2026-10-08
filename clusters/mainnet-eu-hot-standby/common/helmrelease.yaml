@@ -1,0 +1,91 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: mirror
+  namespace: common
+spec:
+  chart:
+    spec:
+      chart: hedera-mirror-common
+      sourceRef:
+        kind: HelmRepository
+        name: hedera-mirror-node
+      valuesFiles:
+        - values.yaml
+        - values-v2.yaml
+      version: '0.164.0'
+  driftDetection:
+    mode: enabled
+    ignore:
+      - paths: [""]
+        target:
+          kind: (MutatingWebhookConfiguration|SGConfig|ValidatingWebhookConfiguration)
+  install:
+    crds: CreateReplace
+  interval: 1m
+  timeout: 10m
+  upgrade:
+    cleanupOnFail: true
+  valuesFrom:
+    - kind: Secret
+      name: mirror
+  values:
+    loki:
+      loki:
+        structuredConfig:
+          ruler:
+            external_url: https://mirrornode.grafana.net
+      singleBinary:
+        resources:
+          limits:
+            memory: 1Gi
+    minio:
+      enabled: true
+    prometheus:
+      alertmanager:
+        enabled: false
+      defaultRules:
+        disabled:
+          KubeHpaMaxedOut: true
+      prometheus:
+        prometheusSpec:
+          externalLabels:
+            cluster: mainnet-eu-hot-standby
+            env_category: production
+          priorityClassName: high
+          # remoteWrite:
+          #   - basicAuth:
+          #       password:
+          #         key: password
+          #         name: grafana-cloud
+          #       username:
+          #         key: username
+          #         name: grafana-cloud
+          #     url: https://prometheus-blocks-prod-us-central1.grafana.net/api/prom/push
+          #     writeRelabelConfigs:
+          #       - action: keep
+          #         regex: .*(graphql|grpc|importer|monitor|postgres-exporter|rest|restjava|rosetta|traefik|web3);.+|kubelet;kubelet_volume_stats_(used|capacity)_bytes|.*;kube_pod_status_ready
+          #         separator: ;
+          #         sourceLabels: [job, __name__]
+          #       - action: drop
+          #         regex: (api_.+_bucket|executor.*|lettuce_.*_bucket|traefik_.+_bucket)
+          #         sourceLabels: [__name__]
+          replicaExternalLabelName: __replica__
+          resources:
+            limits:
+              memory: 6Gi
+          storageSpec:
+            volumeClaimTemplate:
+              spec:
+                resources:
+                  requests:
+                    storage: 250Gi
+    traefik:
+      service:
+        annotations:
+          cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mirrornode-mainnet-eu-hot-standby"} } }'
+    zfs:
+      autoGrow:
+        thresholdPercent: 99
+      init:
+        diskPrefix: mainnet-eu-hot-standby
