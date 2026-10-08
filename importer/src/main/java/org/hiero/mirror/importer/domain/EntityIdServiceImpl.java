@@ -14,12 +14,12 @@ import com.google.protobuf.GeneratedMessage;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import jakarta.inject.Named;
+import java.util.HexFormat;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
 import lombok.CustomLog;
-import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -36,6 +36,7 @@ import org.springframework.cache.CacheManager;
 public class EntityIdServiceImpl implements EntityIdService {
 
     private static final Optional<EntityId> EMPTY = Optional.of(EntityId.EMPTY);
+    private static final HexFormat HEX_FORMAT = HexFormat.of();
 
     private final Cache cache;
     private final EntityRepository entityRepository;
@@ -130,7 +131,12 @@ public class EntityIdServiceImpl implements EntityIdService {
 
     @Override
     public void notify(Entity entity) {
-        if (entity == null || (entity.getDeleted() != null && entity.getDeleted())) {
+        if (entity == null) {
+            return;
+        }
+
+        if (Boolean.TRUE.equals(entity.getDeleted())) {
+            delete(entity);
             return;
         }
 
@@ -157,6 +163,28 @@ public class EntityIdServiceImpl implements EntityIdService {
         }
     }
 
+    private void delete(final Entity entity) {
+        final var type = entity.getType();
+        if (type != null && type != EntityType.ACCOUNT && type != EntityType.CONTRACT) {
+            return;
+        }
+
+        evictCacheEntries(entity.toEntityId());
+    }
+
+    /**
+     * Evicts every cache entry that resolves to the entity.
+     * If the cache can't be searched by value, it's cleared as the only safe fallback.
+     */
+    private void evictCacheEntries(final EntityId entityId) {
+        if (!(cache.getNativeCache() instanceof com.github.benmanes.caffeine.cache.Cache<?, ?> nativeCache)) {
+            cache.clear();
+            return;
+        }
+
+        nativeCache.asMap().values().removeIf(Optional.of(entityId)::equals);
+    }
+
     private Optional<EntityId> findByEvmAddress(byte[] evmAddress) {
         return findByEvmAddress(evmAddress, true);
     }
@@ -166,7 +194,7 @@ public class EntityIdServiceImpl implements EntityIdService {
                 .or(() -> entityRepository.findByEvmAddress(evmAddress).map(EntityId::of));
 
         if (id.isEmpty() && throwRecoverableError) {
-            Utility.handleRecoverableError("Entity not found for EVM address {}", Hex.encodeHexString(evmAddress));
+            Utility.handleRecoverableError("Entity not found for EVM address {}", HEX_FORMAT.formatHex(evmAddress));
         }
 
         return id;
@@ -180,15 +208,15 @@ public class EntityIdServiceImpl implements EntityIdService {
     private Optional<EntityId> findByAliasEvmAddress(byte[] alias) {
         var evmAddress = aliasToEvmAddress(alias);
         if (evmAddress == null) {
-            Utility.handleRecoverableError("Unable to find entity for alias {}", Hex.encodeHexString(alias));
+            Utility.handleRecoverableError("Unable to find entity for alias {}", HEX_FORMAT.formatHex(alias));
             return Optional.empty();
         }
 
         if (log.isDebugEnabled()) {
             log.debug(
                     "Trying to find entity by evm address {} recovered from public key alias {}",
-                    Hex.encodeHexString(evmAddress),
-                    Hex.encodeHexString(alias));
+                    HEX_FORMAT.formatHex(evmAddress),
+                    HEX_FORMAT.formatHex(alias));
         }
 
         // Check cache first in case the 20-byte evm address hasn't persisted to db

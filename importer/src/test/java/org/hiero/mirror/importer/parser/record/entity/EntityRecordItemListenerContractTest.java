@@ -11,6 +11,7 @@ import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransaction;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransactions;
+import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_ALIAS;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -85,12 +86,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.util.Version;
 
 @RequiredArgsConstructor
 final class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListenerTest {
 
     private static final Version HAPI_VERSION_0_23_0 = new Version(0, 23, 0);
+    private final @Qualifier(CACHE_ALIAS) CacheManager cacheManager;
     private final ContractActionRepository contractActionRepository;
     private final ContractLogRepository contractLogRepository;
     private final ContractStateChangeRepository contractStateChangeRepository;
@@ -825,6 +829,74 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
                 .first()
                 .returns(contract.getId(), Contract::getId)
                 .returns(runtimeBytecode, Contract::getRuntimeBytecode);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            false, true
+            false, false
+            # clear cache after the delete to test the scenario the evm address is looked up from db
+            true, false
+            """)
+    void contractDeleteThenCreateWithSameEvmAddress(final boolean clearCache, final boolean singleRecordFile) {
+        // given
+        final var evmAddress = domainBuilder.evmAddress();
+        final var evmContractId =
+                ContractID.newBuilder().setEvmAddress(fromBytes(evmAddress)).build();
+        final var contractCreate = contractCreateRecordItem(evmAddress);
+        final var deletedContractId =
+                contractCreate.getTransactionRecord().getReceipt().getContractID();
+        final var contractDelete = recordItemBuilder
+                .contractDelete()
+                .transactionBody(b -> b.setContractID(evmContractId))
+                .receipt(r -> r.setContractID(deletedContractId))
+                .build();
+        final var callAfterDelete = failedContractCall(evmContractId, ResponseCodeEnum.CONTRACT_DELETED);
+        final var contractRecreate = contractCreateRecordItem(evmAddress);
+        final var callAfterRecreate = failedContractCall(evmContractId, ResponseCodeEnum.INSUFFICIENT_ACCOUNT_BALANCE);
+        final var recordItems = new ArrayList<>(List.of(contractCreate, contractDelete));
+
+        // when
+        if (!singleRecordFile) {
+            parseRecordItemsAndCommit(recordItems);
+            recordItems.clear();
+        }
+
+        if (clearCache) {
+            resetCacheManager(cacheManager);
+        }
+
+        recordItems.addAll(List.of(callAfterDelete, contractRecreate, callAfterRecreate));
+        parseRecordItemsAndCommit(recordItems);
+
+        // then
+        final var deleted = EntityId.of(deletedContractId);
+        final var recreated =
+                EntityId.of(contractRecreate.getTransactionRecord().getReceipt().getContractID());
+        assertAll(
+                () -> assertThat(recreated).isNotEqualTo(deleted),
+                () -> assertThat(entityRepository.findById(deleted.getId()))
+                        .get()
+                        .returns(true, Entity::getDeleted)
+                        .returns(evmAddress, Entity::getEvmAddress),
+                () -> assertThat(entityRepository.findById(recreated.getId()))
+                        .get()
+                        .returns(false, Entity::getDeleted)
+                        .returns(evmAddress, Entity::getEvmAddress),
+                () -> assertThat(entityRepository.findByEvmAddress(evmAddress)).hasValue(recreated.getId()),
+                () -> assertThat(getDbTransaction(
+                                        contractDelete.getTransactionRecord().getConsensusTimestamp())
+                                .getEntityId())
+                        .isEqualTo(deleted),
+                () -> assertThat(getDbTransaction(
+                                        callAfterDelete.getTransactionRecord().getConsensusTimestamp())
+                                .getEntityId())
+                        .as("The evm address doesn't resolve to the deleted contract")
+                        .isNull(),
+                () -> assertThat(getDbTransaction(
+                                        callAfterRecreate.getTransactionRecord().getConsensusTimestamp())
+                                .getEntityId())
+                        .isEqualTo(recreated));
     }
 
     @ParameterizedTest
@@ -1742,6 +1814,24 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
                 },
                 transactionBody,
                 status.getNumber());
+    }
+
+    private RecordItem contractCreateRecordItem(final byte[] evmAddress) {
+        return recordItemBuilder
+                .contractCreate()
+                .record(r -> r.getContractCreateResultBuilder().setEvmAddress(BytesValue.of(fromBytes(evmAddress))))
+                .build();
+    }
+
+    // A failed contract call has no contract id in its receipt, so it's resolved from the evm address in the body
+    private RecordItem failedContractCall(final ContractID contractId, final ResponseCodeEnum status) {
+        return recordItemBuilder
+                .contractCall(contractId)
+                .receipt(r -> r.clearContractID())
+                .record(r -> r.clearContractCallResult())
+                .sidecarRecords(List::clear)
+                .status(status)
+                .build();
     }
 
     private Transaction contractUpdateAllTransaction(boolean setMemoWrapperOrMemo) {

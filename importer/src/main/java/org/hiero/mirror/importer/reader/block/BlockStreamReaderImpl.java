@@ -24,7 +24,6 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionC
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
-import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
@@ -113,6 +112,18 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             readInitialState(context, recordFile);
         }
 
+        if (rootHash.length == DigestAlgorithm.SHA_256.getSize()) {
+            blockFile.setDigestAlgorithm(DigestAlgorithm.SHA_256);
+        } else if (rootHash.length == DigestAlgorithm.SHA_384.getSize()) {
+            blockFile.setDigestAlgorithm(DigestAlgorithm.SHA_384);
+        } else {
+            log.warn(
+                    "Unsupported root hash size {} in block {}, default to SHA-256",
+                    rootHash.length,
+                    blockFile.getName());
+            blockFile.setDigestAlgorithm(DigestAlgorithm.SHA_256);
+        }
+
         return blockFile;
     }
 
@@ -135,15 +146,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         final var blockFileBuilder = context.getBlockFile();
         final var blockHeader = blockItem.getBlockHeader();
-
-        if (blockHeader.getHashAlgorithm().equals(BlockHashAlgorithm.SHA2_384)) {
-            blockFileBuilder.digestAlgorithm(DigestAlgorithm.SHA_384);
-        } else {
-            throw new InvalidStreamFileException(String.format(
-                    "Unsupported hash algorithm %s in block header of block %s",
-                    blockHeader.getHashAlgorithm(), context.getFilename()));
-        }
-
         blockFileBuilder.blockHeader(blockHeader);
         blockFileBuilder.index(blockHeader.getNumber());
     }

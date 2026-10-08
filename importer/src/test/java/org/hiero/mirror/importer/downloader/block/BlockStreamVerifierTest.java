@@ -4,8 +4,8 @@ package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.hiero.mirror.common.domain.DigestAlgorithm.SHA_384;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
@@ -294,7 +294,7 @@ final class BlockStreamVerifierTest {
         final var expectedPreviousHash = blockFile.getPreviousHash();
         final byte[] currentRootHash = blockFile.getRawHash();
         final var merkelPaths = List.of(MerklePath.getDefaultInstance());
-        final byte[] rootHash = TestUtils.generateRandomByteArray(48);
+        final byte[] rootHash = TestUtils.generateRandomByteArray(BLOCK_STREAM_HASH_SIZE);
         when(blockStateProofHasher.getRootHash(eq(blockFile.getIndex()), eq(currentRootHash), eq(merkelPaths)))
                 .thenReturn(rootHash);
 
@@ -347,7 +347,7 @@ final class BlockStreamVerifierTest {
         final var previous = getRecordFile();
         when(recordFileRepository.findLatest()).thenReturn(Optional.of(previous));
         final var blockFile = getBlockFile(previous);
-        blockFile.setPreviousHash(sha384Hash());
+        blockFile.setPreviousHash(sha256Hash());
 
         // then
         assertThat(cutoverService.getLastRecordFile()).get().returns(previous.getIndex(), RecordFile::getIndex);
@@ -448,9 +448,9 @@ final class BlockStreamVerifierTest {
     private BlockFile getBlockFile(StreamFile<?> previous) {
         final long blockNumber =
                 previous != null ? previous.getIndex() + 1 : DomainUtils.convertToNanosMax(Instant.now());
-        final var previousHash = previous != null ? previous.getHash() : sha384Hash();
+        final var previousHash = previous != null ? previous.getHash() : sha256Hash();
         final long consensusStart = DomainUtils.convertToNanosMax(Instant.now());
-        final byte[] rawHash = Hex.decode(sha384Hash());
+        final byte[] rawHash = Hex.decode(sha256Hash());
         final var version = SemanticVersion.newBuilder().setMinor(72).build();
         return withBlockNumber(BlockFile.builder(), blockNumber)
                 .blockHeader(BlockHeader.newBuilder()
@@ -471,13 +471,13 @@ final class BlockStreamVerifierTest {
         long consensusStart = DomainUtils.convertToNanosMax(Instant.now());
         return RecordFile.builder()
                 .consensusStart(consensusStart)
-                .hash(sha384Hash())
+                .hash(sha256Hash())
                 .index(index)
                 .version(BlockStreamReader.VERSION)
                 .build();
     }
 
-    private String sha384Hash() {
-        return DomainUtils.bytesToHex(TestUtils.generateRandomByteArray(SHA_384.getSize()));
+    private String sha256Hash() {
+        return DomainUtils.bytesToHex(TestUtils.generateRandomByteArray(BLOCK_STREAM_HASH_SIZE));
     }
 }
