@@ -42,10 +42,13 @@ data:
     ENV_FILE="${ROOT_MOUNT_DIR}/etc/environment"
 
     # Auto-grow configuration
+    #  - DISK_AUTOGROW_HEADROOM_GB: keep the disk/pool this many GB ahead of the declared
+    #    PVC size, so the declared size never claims the pool's last few GB of raw capacity
     #  - DISK_AUTOGROW_INTERVAL_SECONDS: how often to check (0 = disable loop)
     #  - DISK_AUTOGROW_MAX_STEP_GB: maximum GB to grow in a single operation (also caps PVC increase)
     #  - DISK_AUTOGROW_PERCENT: percentage of current PVC size to grow (we use the smaller of percent vs max step)
     #  - DISK_AUTOGROW_THRESHOLD_PERCENT: dataset usage % to trigger grow
+    DISK_AUTOGROW_HEADROOM_GB="${DISK_AUTOGROW_HEADROOM_GB:-20}"
     DISK_AUTOGROW_INTERVAL_SECONDS="${DISK_AUTOGROW_INTERVAL_SECONDS:-120}"
     DISK_AUTOGROW_MAX_STEP_GB="${DISK_AUTOGROW_MAX_STEP_GB:-50}"
     DISK_AUTOGROW_PERCENT="${DISK_AUTOGROW_PERCENT:-10}"
@@ -105,6 +108,23 @@ data:
       gcloud compute disks describe "${DISK_NAME}" --zone "${ZONE}" --format="value(sizeGb)" 2>/dev/null || true
     }
 
+    # Echoes the zpool's current total size, in the same unit gcloud disk sizes
+    # use everywhere else in this script (nominally "GB", but gcloud's --size
+    # flag and sizeGb field are actually GiB - see growDiskToSizeGb). Must stay
+    # in this unit so it can be compared/added directly against getDiskSizeGb()
+    # and fed straight into gcloud compute disks resize --size=.
+    function getPoolSizeGb() {
+      local sizeBytes
+      sizeBytes="$(chroot "${ROOT_MOUNT_DIR}" /bin/bash -c "zpool list -Hpo size \"${POOL}\"" 2>/dev/null || true)"
+
+      if ! [[ "${sizeBytes}" =~ ^[0-9]+$ ]]; then
+        echo ""
+        return 0
+      fi
+
+      echo $(( sizeBytes / 1073741824 ))
+    }
+
     function growDiskToSizeGb() {
       local targetGb="${1:-}"
       targetGb="${targetGb%GB}"
@@ -127,18 +147,25 @@ data:
       fi
 
       if (( currentGb >= targetGb )); then
-        log "Disk ${DISK_NAME} already >= target (${currentGb}GB >= ${targetGb}GB); skipping disk resize"
+        log "Disk ${DISK_NAME} already has enough room for target (${currentGb}GB >= ${targetGb}GB); skipping disk resize, just expanding the pool into existing capacity"
+      else
+        log "Resizing disk ${DISK_NAME} in ${ZONE}: ${currentGb}GB -> ${targetGb}GB"
+        if ! gcloud compute disks resize "${DISK_NAME}" --size="${targetGb}" --zone="${ZONE}" --quiet; then
+          log "Failed to resize disk ${DISK_NAME}"
+          return 1
+        fi
+      fi
+
+      # During bootstrap this runs before ensureDiskAttached/setupZFSPool, so the
+      # disk may not be attached to this node yet and there's no local pool to
+      # scan. Only require the scan to succeed once the device is actually here.
+      if ! chroot "${ROOT_MOUNT_DIR}" /bin/bash -c "test -b /dev/sdb" &>/dev/null; then
+        log "/dev/sdb not attached to this node yet; skipping pool expand for now"
         return 0
       fi
 
-      log "Resizing disk ${DISK_NAME} in ${ZONE}: ${currentGb}GB -> ${targetGb}GB"
-      if ! gcloud compute disks resize "${DISK_NAME}" --size="${targetGb}" --zone="${ZONE}" --quiet; then
-        log "Failed to resize disk ${DISK_NAME}"
-        return 1
-      fi
-
       if ! forceSizeScanWithRetry; then
-        log "Disk resize succeeded but pool did not expand; refusing to continue"
+        log "Pool did not expand into available disk capacity; refusing to continue"
         return 1
       fi
 
@@ -601,6 +628,39 @@ data:
       '
     }
 
+    # Resolves the SGShardedCluster name + citus group for an SGCluster, validating its labels.
+    # Echoes: "<shardedClusterName>\t<citusGroupInt>", empty on failure.
+    function resolveShardContext() {
+      local sgCluster="$1"
+      local clusterNamespace="$2"
+
+      local sgClusterJson shardCtx shardedClusterName citusGroupInt
+      sgClusterJson="$(kubectl get sgcluster "${sgCluster}" -n "${clusterNamespace}" -o json 2>/dev/null || true)"
+      if [[ -z "${sgClusterJson}" ]]; then
+        log "ERROR: unable to find sgcluster ${clusterNamespace}/${sgCluster}"
+        echo -e "\t"
+        return 0
+      fi
+
+      shardCtx="$(getShardContextFromSgClusterJson "${sgClusterJson}")"
+      IFS=$'\t' read -r shardedClusterName citusGroupInt <<<"${shardCtx}"
+
+      if [[ -z "${shardedClusterName}" ]]; then
+        log "ERROR: sgcluster ${clusterNamespace}/${sgCluster} has no ${SHARDED_CLUSTER_LABEL_KEY} label"
+        echo -e "\t"
+        return 0
+      fi
+
+      if ! [[ "${citusGroupInt:-}" =~ ^[0-9]+$ ]]; then
+        log "ERROR: sgcluster ${clusterNamespace}/${sgCluster} has invalid or missing citus group (${citusGroupInt:-})"
+        echo -e "\t"
+        return 0
+      fi
+
+      echo -e "${shardedClusterName}\t${citusGroupInt}"
+      return 0
+    }
+
     # Configures SGCluster with new PVC size
     function patchShardedClusterVolumeSize() {
       local sgCluster="$1"
@@ -612,23 +672,11 @@ data:
         return 0
       fi
 
-      local sgClusterJson shardCtx shardedClusterName citusGroupInt
-      sgClusterJson="$(kubectl get sgcluster "${sgCluster}" -n "${clusterNamespace}" -o json 2>/dev/null || true)"
-      if [[ -z "${sgClusterJson}" ]]; then
-        log "Unable to find sgcluster ${clusterNamespace}/${sgCluster}, skipping"
-        return 0
-      fi
-
-      shardCtx="$(getShardContextFromSgClusterJson "${sgClusterJson}")"
+      local shardCtx shardedClusterName citusGroupInt
+      shardCtx="$(resolveShardContext "${sgCluster}" "${clusterNamespace}")"
       IFS=$'\t' read -r shardedClusterName citusGroupInt <<<"${shardCtx}"
 
       if [[ -z "${shardedClusterName}" ]]; then
-        log "sgcluster ${clusterNamespace}/${sgCluster} has no ${SHARDED_CLUSTER_LABEL_KEY} label, skipping"
-        return 0
-      fi
-
-      if ! [[ "${citusGroupInt:-}" =~ ^[0-9]+$ ]]; then
-        log "sgcluster ${clusterNamespace}/${sgCluster} has invalid or missing citus group (${citusGroupInt:-}), skipping"
         return 0
       fi
 
@@ -670,17 +718,6 @@ data:
         sleep "${sleepSeconds}"
         sleepSeconds=$(( sleepSeconds < maxSleepSeconds ? sleepSeconds + 1 : maxSleepSeconds ))
       done
-    }
-
-    # Converts a GB value to GiB (floor).
-    # Echoes GiB value
-    function gbToGiFloor() {
-      local gb="$1"
-      if ! [[ "${gb}" =~ ^[0-9]+$ ]] || (( gb <= 0 )); then
-        echo ""
-        return 0
-      fi
-      echo $(( (gb * 1000000000) / 1073741824 ))
     }
 
     # Iterate ZFS datasets on this node and resize them if necessary
@@ -761,14 +798,57 @@ data:
           continue
         fi
 
-        local currentDiskSizeGb
-        currentDiskSizeGb="$(getDiskSizeGb)"
-        if ! [[ "${currentDiskSizeGb}" =~ ^[0-9]+$ ]] || (( currentDiskSizeGb <= 0 )); then
-          log "Unable to read current disk size for ${DISK_NAME}; skipping"
+        local sgClusterName
+        sgClusterName="$(echo "${pvcJson}" | jq -r '.metadata.labels["stackgres.io/cluster-name"] // ""' 2>/dev/null || true)"
+        if [[ -z "${sgClusterName}" ]]; then
+          log "ERROR: PVC ${pvcNamespace}/${pvcName} has no stackgres.io/cluster-name label; cannot grow, skipping"
           continue
         fi
 
-        local growByPctGi=$(( (currentDiskSizeGb * DISK_AUTOGROW_PERCENT + 99) / 100 ))
+        local shardCtx shardedClusterName citusGroupInt
+        shardCtx="$(resolveShardContext "${sgClusterName}" "${pvcNamespace}")"
+        IFS=$'\t' read -r shardedClusterName citusGroupInt <<<"${shardCtx}"
+        if [[ -z "${shardedClusterName}" ]]; then
+          log "ERROR: unable to resolve sgshardedcluster for sgcluster ${pvcNamespace}/${sgClusterName}; cannot grow, skipping"
+          continue
+        fi
+
+        local shardedClusterJson currentCtx currentIntGi currentStr
+        shardedClusterJson="$(kubectl get sgshardedcluster "${shardedClusterName}" -n "${pvcNamespace}" -o json 2>/dev/null || true)"
+        if [[ -z "${shardedClusterJson}" ]]; then
+          log "ERROR: unable to fetch sgshardedcluster ${pvcNamespace}/${shardedClusterName}; cannot grow, skipping"
+          continue
+        fi
+
+        currentCtx="$(getCurrentClusterSizeForGroup "${shardedClusterJson}" "${citusGroupInt}")"
+        IFS=$'\t' read -r currentIntGi currentStr <<<"${currentCtx}"
+        if ! [[ "${currentIntGi:-}" =~ ^[0-9]+$ ]]; then
+          log "ERROR: current declared size '${currentStr}' for sgshardedcluster ${pvcNamespace}/${shardedClusterName} group ${citusGroupInt} is not a valid Gi value; cannot grow, skipping"
+          continue
+        fi
+
+        local currentPoolSizeGb
+        currentPoolSizeGb="$(getPoolSizeGb)"
+        if ! [[ "${currentPoolSizeGb}" =~ ^[0-9]+$ ]] || (( currentPoolSizeGb <= 0 )); then
+          log "Unable to read current pool size for ${POOL}; skipping"
+          continue
+        fi
+
+        # getPoolSizeGb() is already in the same (GiB) unit as Gi, so no conversion needed here.
+        local poolSizeGi="${currentPoolSizeGb}"
+
+        # The declared size is expected to trail the pool by DISK_AUTOGROW_HEADROOM_GB
+        # (see newSizeGb/targetGi below), so only treat it as "behind" if it has fallen
+        # further behind than that, meaning a previous patch never landed.
+        local expectedGi=$(( poolSizeGi > DISK_AUTOGROW_HEADROOM_GB ? poolSizeGi - DISK_AUTOGROW_HEADROOM_GB : poolSizeGi ))
+        if (( currentIntGi < expectedGi )); then
+          log "ERROR: declared size (${currentIntGi}Gi) is behind the expected size (${expectedGi}Gi = pool ${poolSizeGi}Gi - ${DISK_AUTOGROW_HEADROOM_GB}Gi headroom) for sgshardedcluster ${pvcNamespace}/${shardedClusterName} group ${citusGroupInt}; a previous grow was not reflected. Retrying that patch instead of growing further."
+          patchShardedClusterVolumeSize "${sgClusterName}" "${pvcNamespace}" "${expectedGi}" || \
+            log "Failed to catch up sgshardedcluster ${pvcNamespace}/${sgClusterName} to ${expectedGi}Gi"
+          continue
+        fi
+
+        local growByPctGi=$(( (currentPoolSizeGb * DISK_AUTOGROW_PERCENT + 99) / 100 ))
         local incrementGi="${growByPctGi}"
 
         if (( incrementGi > DISK_AUTOGROW_MAX_STEP_GB )); then
@@ -780,24 +860,19 @@ data:
           continue
         fi
 
-        local newSizeGb=$(( currentDiskSizeGb + incrementGi ))
-        log "Autogrow: ${currentDiskSizeGb}GB -> ${newSizeGb}GB (+${incrementGi}Gi)"
+        local newSizeGb=$(( currentPoolSizeGb + incrementGi ))
+        log "Autogrow: pool ${currentPoolSizeGb}GB -> ${newSizeGb}GB (+${incrementGi}Gi)"
 
         if growDiskToSizeGb "${newSizeGb}"; then
-        local sgClusterName
-          sgClusterName="$(echo "${pvcJson}" | jq -r '.metadata.labels["stackgres.io/cluster-name"] // ""' 2>/dev/null || true)"
-        if [[ -z "${sgClusterName}" ]]; then
-            log "PVC ${pvcNamespace}/${pvcName} has no stackgres.io/cluster-name label; skipping sgshardedcluster patch"
-          continue
-        fi
-
-          local targetGi
-          targetGi="$(gbToGiFloor "${newSizeGb}")"
+          # newSizeGb is already in the same (GiB) unit as Gi; keep the declared size
+          # DISK_AUTOGROW_HEADROOM_GB behind it so the PVC never claims the pool's
+          # entire raw capacity.
+          local targetGi=$(( newSizeGb > DISK_AUTOGROW_HEADROOM_GB ? newSizeGb - DISK_AUTOGROW_HEADROOM_GB : newSizeGb ))
           if [[ -z "${targetGi}" || "${targetGi}" -le 0 ]]; then
-            log "Unable to convert newSizeGb=${newSizeGb} to Gi; skipping sgshardedcluster patch"
+            log "Invalid newSizeGb=${newSizeGb}; skipping sgshardedcluster patch"
           else
             patchShardedClusterVolumeSize "${sgClusterName}" "${pvcNamespace}" "${targetGi}" || \
-          log "Failed to patch sgshardedcluster for sgcluster ${pvcNamespace}/${sgClusterName}"
+              log "Failed to patch sgshardedcluster for sgcluster ${pvcNamespace}/${sgClusterName}"
           fi
         else
           log "Local disk resize failed; skipping sgshardedcluster patch"
