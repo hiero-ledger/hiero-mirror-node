@@ -21,6 +21,7 @@ import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.lang.Contract;
 
 /**
  * Common encapsulation for a Hedera entity identifier.
@@ -174,6 +175,7 @@ public final class EntityId implements Comparable<EntityId> {
         return CACHE.get(id, k -> new EntityId(id));
     }
 
+    @Contract("null -> true")
     public static boolean isEmpty(EntityId entityId) {
         return entityId == null || EMPTY.equals(entityId);
     }

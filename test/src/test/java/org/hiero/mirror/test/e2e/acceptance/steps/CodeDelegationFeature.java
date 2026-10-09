@@ -19,10 +19,14 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import java.math.BigInteger;
+import java.util.HashMap;
 import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
+import org.hiero.mirror.rest.model.PrestateAccountTrace;
+import org.hiero.mirror.rest.model.PrestateResponse;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
@@ -31,6 +35,7 @@ import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.ContractCallResponseWrapper;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpServerErrorException;
 import org.web3j.crypto.AuthorizationTuple;
 import org.web3j.utils.Numeric;
 
@@ -132,6 +137,22 @@ public class CodeDelegationFeature extends AbstractFeature {
         assertThat(restAuthorization.getS()).isEqualToIgnoringCase(toPaddedHex(authorization.getS()));
     }
 
+    @RetryAsserts
+    @Then("the mirror node web3 API should return the prestate for the EIP-7702 transaction")
+    public void verifyEip7702Prestate() {
+        var transactionId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        var contractResult = mirrorClient.getContractResultByTransactionId(transactionId);
+        assertThat(contractResult.getAuthorizationList()).isNotEmpty();
+        var transactionHash = contractResult.getHash();
+
+        try {
+            final var fullResponse = mirrorClient.getContractPrestate(transactionHash, false, true, true);
+            verifyDelegatedContractTraces(fullResponse, contractResult);
+        } catch (HttpServerErrorException.NotImplemented notImplemented) {
+            assertThat(notImplemented.getResponseBodyAsString()).contains("Not Implemented");
+        }
+    }
+
     @When("I clear the code delegation on the account")
     public void clearAccountCodeDelegation() {
         networkTransactionResponse = accountClient.setAccountDelegationAddress(account, ZERO_DELEGATION_ADDRESS);
@@ -212,6 +233,55 @@ public class CodeDelegationFeature extends AbstractFeature {
         assertThat(resultsByAccount).isNotEmpty().anySatisfy(this::verifyDelegatedCallResult);
     }
 
+    private void verifyDelegatedContractTraces(final PrestateResponse response, final ContractResult contractResult) {
+        assertThat(response).isNotNull();
+        assertThat(response.getPre()).isNotEmpty();
+        assertThat(response.getPost()).isNullOrEmpty();
+
+        final var contractResultNonce = contractResult.getNonce();
+        final var contractId = delegatedContract.contractId().toString();
+        final var contractInfo = mirrorClient.getContractInfo(contractId);
+        final var runtimeBytecode = contractInfo.getRuntimeBytecode();
+
+        for (final var trace : response.getPre()) {
+            if (isDelegatedContract(trace, contractInfo)) {
+                assertThat(trace.getCode()).isEqualToIgnoringCase(runtimeBytecode);
+                assertThat(trace.getNonce()).isEqualTo(contractResultNonce);
+                verifyContractStorage(trace, contractId, "lt:" + contractResult.getTimestamp());
+            }
+        }
+    }
+
+    private boolean isDelegatedContract(final PrestateAccountTrace trace, final ContractResponse contractInfo) {
+        return expectedDelegationAddress.equalsIgnoreCase(trace.getAddress())
+                || (contractInfo.getEvmAddress() != null
+                        && contractInfo.getEvmAddress().equalsIgnoreCase(trace.getAddress()));
+    }
+
+    private void verifyContractStorage(
+            final PrestateAccountTrace trace, final String contractId, final String stateTimestamp) {
+        final var storage = trace.getStorage();
+        if (storage == null || storage.isEmpty()) {
+            return;
+        }
+
+        final var restStorage = new HashMap<BigInteger, BigInteger>();
+        final var states = mirrorClient
+                .getContractStatesById(contractId, 100, stateTimestamp)
+                .getState();
+        if (states != null) {
+            for (final var state : states) {
+                restStorage.put(toWord(state.getSlot()), toWord(state.getValue()));
+            }
+        }
+
+        // A slot cleared to zero has no value in the REST state, so a missing slot is treated as zero.
+        assertThat(storage)
+                .allSatisfy((slot, value) -> assertThat(restStorage.getOrDefault(toWord(slot), BigInteger.ZERO))
+                        .as("storage slot %s at %s", slot, stateTimestamp)
+                        .isEqualTo(toWord(value)));
+    }
+
     private void verifyDelegatedCallResult(ContractResult contractResult) {
         assertThat(contractResult.getContractId())
                 .isEqualTo(account.getAccountId().toString());
@@ -242,6 +312,10 @@ public class CodeDelegationFeature extends AbstractFeature {
 
     private static String quantityOrZero(String hex) {
         return hex == null || hex.equals(HEX_PREFIX) ? HEX_PREFIX + "0" : hex;
+    }
+
+    private static BigInteger toWord(final String hex) {
+        return Numeric.toBigInt(quantityOrZero(hex));
     }
 
     private static String toPaddedHex(BigInteger value) {
