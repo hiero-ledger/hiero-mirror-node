@@ -434,8 +434,9 @@ Colocation only solves _which shard_ a query hits, though — it says nothing ab
 shard_. `clpr_message` is time-partitioned by `consensus_timestamp` (for the reasons in
 [Performance Considerations](#2-performance-considerations)), and a query filtered only by `channel_id`/`message_id`
 still can't be pruned to one partition without a timestamp bound. So `clpr_message` needs both: colocation (shard
-pruning) _and_ a lookup table (partition pruning) — they're independent mechanisms solving two different
-dimensions, not alternatives to each other.
+pruning) _and_ a timestamp bound (partition pruning) — they're independent mechanisms solving two different
+dimensions, not alternatives to each other. The REST layer supplies the latter by requiring `timestamp` alongside
+any `message.id` filter (see [REST API Implementation](#rest-api-implementation)).
 
 **`clpr_message` is time-partitioned by `consensus_timestamp` in both `v1` and `v2`.** Message volume grows with
 total network lifetime, not with sharding, so a `v1` (non-Citus) deployment accumulates the same unbounded growth
@@ -445,8 +446,7 @@ has a Citus helper; `v1` does not) and `v2`'s additional `create_distributed_tab
 
 Postgres requires a partitioned table's primary key (if any) to include the partition column. Rather than include
 `consensus_timestamp` in `clpr_message`'s primary key, this design drops the primary key entirely in both profiles
-— the replacement indexes and the lookup table that replace the dropped PK's lookup role are explained after the
-SQL.
+— the replacement indexes that cover the dropped PK's lookup role are explained after the SQL.
 
 #### `v1`
 
@@ -483,19 +483,6 @@ create index if not exists clpr_message__channel_id_message_id
 create index if not exists clpr_message__connector_id
     on clpr_message (connector_id, message_id)
     where connector_id is not null;
-
-create table if not exists clpr_message_lookup
-(
-    channel_id         bytea      not null,
-    partition          text       not null,
-    message_id_range   int8range  not null,
-    timestamp_range    int8range  not null,
-
-    primary key (channel_id, partition)
-);
-
-create index if not exists clpr_message_lookup__message_id_range
-    on clpr_message_lookup using gist (channel_id, message_id_range);
 
 -- v1 has no Citus create_time_partitions helper, so partitions are created manually.
 create or replace procedure partition_clpr_message() as
@@ -572,28 +559,7 @@ select create_time_partitions(table_name := 'public.clpr_message',
                               partition_interval := ${partitionTimeInterval},
                               start_from := <clpr-enablement-date>::timestamptz,
                               end_at := CURRENT_TIMESTAMP + ${partitionTimeInterval});
-
-create table if not exists clpr_message_lookup
-(
-    channel_id         bytea      not null,
-    partition          text       not null,
-    message_id_range   int8range  not null,
-    timestamp_range    int8range  not null,
-
-    primary key (channel_id, partition)
-);
-
-create index if not exists clpr_message_lookup__message_id_range
-    on clpr_message_lookup using gist (channel_id, message_id_range);
-
-select create_distributed_table('clpr_message_lookup', 'channel_id', colocate_with => 'clpr_channel');
 ```
-
-`clpr_message_lookup` resolves `(channel_id, message_id)` to a timestamp range for partition pruning, in both
-profiles. It's keyed by the stable `(channel_id, partition)` pair, not by `message_id_range` itself, so extending a
-partition's range as more messages arrive is a cheap in-place `UPDATE` on a fixed key, not a delete+reinsert churn
-every time the range grows. In `v2` it's additionally colocated with `clpr_channel` by `channel_id`, same as
-`clpr_message` itself, so this resolution step is also shard-local, not just the final query.
 
 **`connector_id` is not directly available for every message type.** Per `clpr_message.proto`: `ClprMessage`
 (Data) carries `connector_id` directly. `ClprControlMessage` has no connector association at all — `connector_id`
@@ -614,15 +580,14 @@ exactly this reason, so — like `Messages per Channel` and `Connectors per Chan
 filter by `channel_id` directly). `Channels per Chain` and the Chain API remain scatter-gather, since `chain_id`
 isn't the distribution column and (unlike a Connector) a `chain_id` claim doesn't map to any single Channel. Being
 shard-local doesn't make a query partition-local for free, though — colocation and time-partitioning are
-independent — so within whichever shard a `message.id`-filtered query lands on, it still needs
-`clpr_message_lookup` to resolve a `consensus_timestamp` bound before it can prune to the right time partition.
-Once that bound is resolved, `clpr_message__channel_id_message_id` — the `v2` replacement for the primary key
-dropped above — finds the exact row within that partition.
+independent dimensions (see above). Once the REST layer's required `timestamp` bound prunes to the right partition,
+`clpr_message__channel_id_message_id` — the `v2` replacement for the primary key dropped above — finds the exact
+row within it.
 
 > **Distribution strategy.** `channel_id` and `connector_id` are protocol-level 32-byte values with no numeric
 > entity id. Since `channel_id` is the root of the natural parent-child relationship (Connectors and Messages both
 > belong to exactly one Channel), `clpr_channel`/`clpr_channel_history` are hash-distributed by `channel_id`, and
-> `clpr_connector(_history)`/`clpr_message`/`clpr_message_lookup` are hash-distributed by `channel_id` too,
+> `clpr_connector(_history)`/`clpr_message` are hash-distributed by `channel_id` too,
 > `colocate_with => 'clpr_channel'`, so per-channel queries stay shard-local in `v2`. `clpr_message` is additionally
 > time-partitioned by `consensus_timestamp` in both profiles (see above) — distribution (shard dimension, `v2`
 > only) and partitioning (time dimension, both profiles) are orthogonal and both apply to it.
@@ -774,8 +739,7 @@ New `JpaRepository`-based repositories for `ClprChannelPendingCommitment`, `Clpr
 `ClprMessage`, keyed by their respective (possibly composite) ids. Given the seven REST APIs now scoped in
 [REST API Implementation](#rest-api-implementation), `ClprChannelRepository` needs a `chain.id`-filtered lookup and
 a distinct-`chain_id`-with-count aggregation for the Chain API (a `group by`, not a simple CRUD method);
-`ClprMessageRepository` needs lookups by both `channel_id` and `connector_id`, plus the `v2` `clpr_message_lookup`
-resolution step described in [Message Queue](#4-message-queue-append-only).
+`ClprMessageRepository` needs lookups by both `channel_id` and `connector_id`.
 
 ## REST API Implementation
 
@@ -795,9 +759,8 @@ Ledger configuration and endpoint manifest read endpoints are explicitly **not**
 registrant at commit time, with no meaningful ascending/descending order, so the Channels and Connectors list APIs
 below paginate by `created_timestamp` (with the id as tiebreaker), not by the id itself. `message_id`, by contrast,
 is a per-channel monotonically increasing, immutable sequence number (`next_message_id` in the schema), so the
-Messages APIs safely paginate by `message.id` directly — though in `v2`, since `clpr_message` is time-partitioned
-(see [Message Queue](#4-message-queue-append-only)), that requires first resolving `message.id` to a
-`consensus_timestamp` bound via `clpr_message_lookup`, not a plain index lookup. `chain_id` is a free-form string
+Messages APIs paginate by `message.id`, requiring `timestamp` alongside it (see their Query Parameters below and
+[Message Queue](#4-message-queue-append-only) for why). `chain_id` is a free-form string
 claim, so the Chain API paginates lexicographically by `chain.id` itself rather than by time.
 
 ### 1. Chain API
@@ -929,7 +892,7 @@ Response format:
     }
   ],
   "links": {
-    "next": "/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages?message.id=lt:5&limit=1"
+    "next": "/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages?message.id=lt:5&timestamp=lt:1726874345.123456789&limit=1"
   }
 }
 ```
@@ -938,12 +901,12 @@ Payload bytes (`message_data`) are returned opaque/hex-encoded per the [Non-Goal
 
 #### Query Parameters
 
-| Parameter    | Type    | Description                          | Default | Validation                                                                                                                                                                                                             |
-| ------------ | ------- | ------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `message.id` | integer | Filter/paginate by `message_id`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; positive integer. In `v2`, resolved to a `consensus_timestamp` bound via `clpr_message_lookup` for partition pruning (see [Message Queue](#4-message-queue-append-only)) |
-| `timestamp`  | string  | Filter by `consensus_timestamp`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (following this codebase's `maxTransactionsTimestampRangeNs`-style convention, e.g. 30 days)                    |
-| `limit`      | integer | Maximum number of messages to return | `25`    | Must be between 1 and 100                                                                                                                                                                                              |
-| `order`      | string  | Sort order for results               | `desc`  | Must be either `asc` or `desc`                                                                                                                                                                                         |
+| Parameter    | Type    | Description                          | Default | Validation                                                                                                                                                                                                                                  |
+| ------------ | ------- | ------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `message.id` | integer | Filter/paginate by `message_id`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; positive integer; **requires** `timestamp` to also be supplied, so the query always prunes directly to the right `clpr_message` partition (see [Message Queue](#4-message-queue-append-only)) |
+| `timestamp`  | string  | Filter by `consensus_timestamp`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (following this codebase's `maxTransactionsTimestampRangeNs`-style convention, e.g. 30 days)                                         |
+| `limit`      | integer | Maximum number of messages to return | `25`    | Must be between 1 and 100                                                                                                                                                                                                                   |
+| `order`      | string  | Sort order for results               | `desc`  | Must be either `asc` or `desc`                                                                                                                                                                                                              |
 
 No `type` parameter is offered here: this endpoint only ever returns `DATA` messages today, since Response and
 Control Messages both have `connector_id = null` (see above). With no filters, `channelId` + `connectorId` already
@@ -955,6 +918,7 @@ the latest `limit` rows for that Connector without touching partitions it doesn'
 
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages` — Get all messages handled by a Connector, newest first
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages?timestamp=gte:1726874345.000000000&limit=10` — Get 10 messages within a bounded time window
+- `/api/v1/clpr/channels/0x1a2b3c.../connectors/0x4d5e6f.../messages?message.id=lt:50&timestamp=lt:1726874345.000000000&limit=10` — Get 10 messages before a given id and time
 
 ### 4. Messages per Channel API
 
@@ -981,7 +945,7 @@ Response format:
     }
   ],
   "links": {
-    "next": "/api/v1/clpr/channels/0x1a2b3c.../messages?message.id=lt:5&limit=1"
+    "next": "/api/v1/clpr/channels/0x1a2b3c.../messages?message.id=lt:5&timestamp=lt:1726874345.123456789&limit=1"
   }
 }
 ```
@@ -993,28 +957,28 @@ Payload bytes (`message_data`) are returned opaque/hex-encoded per the [Non-Goal
 
 #### Query Parameters
 
-| Parameter    | Type    | Description                          | Default | Validation                                                                                                                                                                                                             |
-| ------------ | ------- | ------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `message.id` | integer | Filter/paginate by `message_id`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; positive integer. In `v2`, resolved to a `consensus_timestamp` bound via `clpr_message_lookup` for partition pruning (see [Message Queue](#4-message-queue-append-only)) |
-| `timestamp`  | string  | Filter by `consensus_timestamp`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (following this codebase's `maxTransactionsTimestampRangeNs`-style convention, e.g. 30 days)                    |
-| `type`       | string  | Filter by message type               | none    | One of `DATA`, `RESPONSE`, `CONTROL`; **requires** `message.id` or `timestamp` to also be supplied (see below)                                                                                                         |
-| `limit`      | integer | Maximum number of messages to return | `25`    | Must be between 1 and 100                                                                                                                                                                                              |
-| `order`      | string  | Sort order for results               | `desc`  | Must be either `asc` or `desc`                                                                                                                                                                                         |
+| Parameter    | Type    | Description                          | Default | Validation                                                                                                                                                                                                                                  |
+| ------------ | ------- | ------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `message.id` | integer | Filter/paginate by `message_id`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; positive integer; **requires** `timestamp` to also be supplied, so the query always prunes directly to the right `clpr_message` partition (see [Message Queue](#4-message-queue-append-only)) |
+| `timestamp`  | string  | Filter by `consensus_timestamp`      | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (following this codebase's `maxTransactionsTimestampRangeNs`-style convention, e.g. 30 days)                                         |
+| `type`       | string  | Filter by message type               | none    | One of `DATA`, `RESPONSE`, `CONTROL`; **requires** `timestamp` to also be supplied (see below)                                                                                                                                              |
+| `limit`      | integer | Maximum number of messages to return | `25`    | Must be between 1 and 100                                                                                                                                                                                                                   |
+| `order`      | string  | Sort order for results               | `desc`  | Must be either `asc` or `desc`                                                                                                                                                                                                              |
 
 With no filters, `channel_id` alone already lets Postgres take the latest `limit` rows for this Channel directly off
 `clpr_message__channel_id_timestamp`, without touching partitions it doesn't need — the same `ORDER BY ... LIMIT`
 behavior any indexed column gets. `type` breaks that: it's low-cardinality (3 values, no index of its own), so
 filtering by it without a bound could force scanning back through many unrelated rows — and many partitions — to
 accumulate `limit` matches, especially for the rarer `CONTROL` type. That's why `type` specifically requires
-`message.id` or `timestamp` alongside it; a plain fetch doesn't need either. [Messages per
-Connector](#3-messages-per-connector-api) has no `type` parameter at all, since it only ever returns `DATA`
-messages.
+`timestamp` alongside it (any `message.id` filter already requires one too); a plain fetch doesn't need either.
+[Messages per Connector](#3-messages-per-connector-api) has no `type` parameter at all, since it only ever returns
+`DATA` messages.
 
 **Examples:**
 
 - `/api/v1/clpr/channels/0x1a2b3c.../messages` — Get all messages on a Channel, newest first
-- `/api/v1/clpr/channels/0x1a2b3c.../messages?type=eq:DATA&message.id=lt:50&limit=10` — Get first 10 Data messages before a given id
-- `/api/v1/clpr/channels/0x1a2b3c.../messages?message.id=lt:5&limit=5` — Get 5 messages with id less than 5
+- `/api/v1/clpr/channels/0x1a2b3c.../messages?type=eq:DATA&timestamp=lt:1726874345.000000000&limit=10` — Get first 10 Data messages before a given time
+- `/api/v1/clpr/channels/0x1a2b3c.../messages?message.id=lt:5&timestamp=lt:1726874345.000000000&limit=5` — Get 5 messages with id less than 5
 
 ### 5. Pending Channels API
 
@@ -1187,8 +1151,7 @@ assumptions it's building on.
 - Full Connector lifecycle: `registerConnector` → `completeConnector` → message dispatch affecting
   `in_flight_message_count`/`slash_count` → `deregisterConnector`.
 - Database migration tests for the new tables, including the `v2` Citus distribution calls and `clpr_message`'s
-  time-partitioning (manual in `v1`, Citus-managed in `v2`) plus `clpr_message_lookup` in both profiles (see
-  [Database Schema Design](#database-schema-design)).
+  time-partitioning (manual in `v1`, Citus-managed in `v2`; see [Database Schema Design](#database-schema-design)).
 
 ### 3. Acceptance Tests
 
@@ -1251,8 +1214,7 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
   tables in both profiles. `clpr_message` is `partition by range (consensus_timestamp)` and time-partitioned in
   both `v1` and
   `v2` — `v2` registers partitions via `create_time_partitions`; `v1` uses its own stored procedure, since no
-  Citus helper is available there. `clpr_message_lookup`, which resolves partition pruning for it, is created in
-  both profiles too, but is itself an ordinary, unpartitioned table.
+  Citus helper is available there.
 - Add `call create_time_partition_for_table('clpr_message');` to `create_mirror_node_time_partitions()` in
   `R__time_partition_maintenance.sql`.
 
@@ -1338,8 +1300,8 @@ needs new code.
 ### 2. Scalability Requirements
 
 - `clpr_message` must support efficient pagination by `(channel_id, message_id)` for Channels that accumulate a
-  large message history — in `v2`, via time-partitioning plus `clpr_message_lookup`, not an unbounded partition
-  scan (see [Message Queue](#4-message-queue-append-only)).
+  large message history — via time-partitioning plus the REST layer's required `timestamp` bound, not an unbounded
+  partition scan (see [Message Queue](#4-message-queue-append-only)).
 - Per the Citus (`v2`) distribution strategy in [Database Schema Design](#database-schema-design), queries filtered
   by `channel_id` — `Connectors per Channel`, `Messages per Channel`, and `Messages per Connector` (which requires
   `channelId` in its path for this reason) — are shard-local. `Channels per Chain` and the `Chain` API filter by
@@ -1365,8 +1327,8 @@ depend on the [Consensus-Node Assumptions](#consensus-node-assumptions) above.
    `clpr_endpoint_manifest(_history)`, and `clpr_endpoint_manifest_endpoint`, including the `v2` Citus
    `create_distributed_table` calls from [Database Schema Design](#database-schema-design) for `clpr_channel(_history)`
    and `clpr_connector(_history)` — every other table in this list stays plain, undistributed in both profiles.
-2. **DB schema migration for `clpr_message` (+ `clpr_message_lookup`, both profiles).** Separate from (1) since
-   it's a different table shape (append-only, no history pair, time-partitioned in both `v1` and `v2` — see
+2. **DB schema migration for `clpr_message` (both profiles).** Separate from (1) since it's a different table shape
+   (append-only, no history pair, time-partitioned in both `v1` and `v2` — see
    [Message Queue](#4-message-queue-append-only)) and the highest-volume table. Includes updating
    `R__time_partition_maintenance.sql` to cover `clpr_message`.
 3. **Importer: Channel lifecycle transaction handlers and transformers.** `ClprRegisterChannel`,
@@ -1375,8 +1337,7 @@ depend on the [Consensus-Node Assumptions](#consensus-node-assumptions) above.
 4. **Importer: Connector lifecycle transaction handlers.** `ClprRegisterConnector`, `ClprCompleteConnector`,
    `ClprDeregisterConnector` handlers.
 5. **Importer: bundle/message ingestion.** `ClprSubmitBundleTransactionHandler` plus `ClprSubmitBundleTransformer`
-   that expands a bundle's verifier-dispatched messages into `clpr_message` rows, maintaining `clpr_message_lookup`
-   ranges alongside them in `v2`; depends on (2) and (3).
+   that expands a bundle's verifier-dispatched messages into `clpr_message` rows; depends on (2) and (3).
 6. **Importer: ledger configuration and endpoint manifest ingestion.** `ClprUpdateLedgerConfigurationTransactionHandler`
    plus handling for the endpoint manifest singleton.
 7. **REST API: the seven read endpoints scoped in [REST API Implementation](#rest-api-implementation)** — Chain,
