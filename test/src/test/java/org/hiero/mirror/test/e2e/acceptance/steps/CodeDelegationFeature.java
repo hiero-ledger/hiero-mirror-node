@@ -19,9 +19,11 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import java.math.BigInteger;
+import java.util.HashMap;
 import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.rest.model.PrestateAccountTrace;
 import org.hiero.mirror.rest.model.PrestateResponse;
@@ -144,9 +146,8 @@ public class CodeDelegationFeature extends AbstractFeature {
         var transactionHash = contractResult.getHash();
 
         try {
-            // diff, code, and storage populate every PrestateAccountTrace field the native image must serialize.
-            var response = mirrorClient.getContractPrestate(transactionHash, true, true, true);
-            verifyPrestateResponse(response);
+            final var fullResponse = mirrorClient.getContractPrestate(transactionHash, false, true, true);
+            verifyDelegatedContractTraces(fullResponse, contractResult.getTimestamp());
         } catch (HttpServerErrorException.NotImplemented notImplemented) {
             assertThat(notImplemented.getResponseBodyAsString()).contains("Not Implemented");
         }
@@ -232,40 +233,81 @@ public class CodeDelegationFeature extends AbstractFeature {
         assertThat(resultsByAccount).isNotEmpty().anySatisfy(this::verifyDelegatedCallResult);
     }
 
-    private void verifyPrestateResponse(PrestateResponse response) {
+    private void verifyPrestateResponse(final PrestateResponse response, final ContractResult contractResult) {
         assertThat(response).isNotNull();
         assertThat(response.getPre()).isNotEmpty();
 
-        var authorizationNonce = authorization.getNonce().longValueExact();
-        var accountPreTrace = requireAccountTrace(response.getPre());
-        assertThat(accountPreTrace.getBalance()).startsWith(HEX_PREFIX);
-        assertThat(accountPreTrace.getNonce()).isEqualTo(authorizationNonce - 1);
+        final var contractResultNonce = contractResult.getNonce();
+        assertThat(contractResultNonce).isNotNull();
 
-        var accountPostTrace = requireAccountTrace(response.getPost());
-        assertThat(accountPostTrace.getAddress()).isEqualToIgnoringCase(accountPreTrace.getAddress());
-        assertThat(accountPostTrace.getNonce()).isEqualTo(authorizationNonce + 1);
-
-        for (var trace : response.getPre()) {
-            if (!expectedDelegationAddress.equalsIgnoreCase(trace.getAddress())) {
-                continue;
+        for (final var trace : response.getPre()) {
+            if (isAccountTrace(trace)) {
+                assertThat(trace.getBalance()).startsWith(HEX_PREFIX);
+                assertThat(trace.getNonce()).isLessThan(contractResultNonce);
             }
-            assertThat(trace.getCode()).startsWith(HEX_PREFIX);
-            assertThat(trace.getStorage()).isNotNull();
+        }
+
+        final var accountPostTrace = requireAccountTrace(response.getPost());
+        assertThat(accountPostTrace.getNonce()).isEqualTo(contractResultNonce);
+    }
+
+    private void verifyDelegatedContractTraces(final PrestateResponse response, final String consensusTimestamp) {
+        assertThat(response).isNotNull();
+        assertThat(response.getPre()).isNotEmpty();
+        assertThat(response.getPost()).isNullOrEmpty();
+
+        final var contractId = delegatedContract.contractId().toString();
+        final var contractInfo = mirrorClient.getContractInfo(contractId);
+        final var runtimeBytecode = contractInfo.getRuntimeBytecode();
+
+        for (final var trace : response.getPre()) {
+            if (isDelegatedContract(trace, contractInfo)) {
+                assertThat(trace.getCode()).isEqualToIgnoringCase(runtimeBytecode);
+                verifyContractStorage(trace, contractId, "lt:" + consensusTimestamp);
+            }
         }
     }
 
+    private boolean isDelegatedContract(final PrestateAccountTrace trace, final ContractResponse contractInfo) {
+        return expectedDelegationAddress.equalsIgnoreCase(trace.getAddress())
+                || (contractInfo.getEvmAddress() != null
+                        && contractInfo.getEvmAddress().equalsIgnoreCase(trace.getAddress()));
+    }
+
+    private void verifyContractStorage(
+            final PrestateAccountTrace trace, final String contractId, final String stateTimestamp) {
+        final var storage = trace.getStorage();
+        if (storage == null || storage.isEmpty()) {
+            return;
+        }
+
+        final var restStorage = new HashMap<BigInteger, BigInteger>();
+        for (final var state : mirrorClient
+                .getContractStatesById(contractId, 100, stateTimestamp)
+                .getState()) {
+            restStorage.put(toWord(state.getSlot()), toWord(state.getValue()));
+        }
+
+        // A slot cleared to zero has no value in the REST state, so a missing slot is treated as zero.
+        assertThat(storage)
+                .allSatisfy((slot, value) -> assertThat(restStorage.getOrDefault(toWord(slot), BigInteger.ZERO))
+                        .as("storage slot %s at %s", slot, stateTimestamp)
+                        .isEqualTo(toWord(value)));
+    }
+
     private PrestateAccountTrace requireAccountTrace(List<PrestateAccountTrace> traces) {
-        var expectedAddresses = List.of(
-                evmAddress(account), toDelegationAddress(account.getAccountId().toEvmAddress()));
         assertThat(traces).isNotEmpty();
         for (var trace : traces) {
-            for (var expected : expectedAddresses) {
-                if (expected.equalsIgnoreCase(trace.getAddress())) {
-                    return trace;
-                }
+            if (isAccountTrace(trace)) {
+                return trace;
             }
         }
         throw new AssertionError("Prestate did not include the delegated account");
+    }
+
+    private boolean isAccountTrace(final PrestateAccountTrace trace) {
+        return evmAddress(account).equalsIgnoreCase(trace.getAddress())
+                || toDelegationAddress(account.getAccountId().toEvmAddress()).equalsIgnoreCase(trace.getAddress());
     }
 
     private void verifyDelegatedCallResult(ContractResult contractResult) {
@@ -298,6 +340,10 @@ public class CodeDelegationFeature extends AbstractFeature {
 
     private static String quantityOrZero(String hex) {
         return hex == null || hex.equals(HEX_PREFIX) ? HEX_PREFIX + "0" : hex;
+    }
+
+    private static BigInteger toWord(final String hex) {
+        return Numeric.toBigInt(quantityOrZero(hex));
     }
 
     private static String toPaddedHex(BigInteger value) {

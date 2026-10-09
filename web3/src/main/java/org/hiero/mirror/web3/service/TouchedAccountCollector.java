@@ -104,7 +104,7 @@ final class TouchedAccountCollector {
 
     private static void addBalanceTransfer(
             final PrestateContext prestateContext, final @Nullable EntityId accountId, final long value) {
-        if (accountId == null || EntityId.isEmpty(accountId)) {
+        if (EntityId.isEmpty(accountId)) {
             return;
         }
         prestateContext.addBalanceTransfer(accountId.getId(), value);

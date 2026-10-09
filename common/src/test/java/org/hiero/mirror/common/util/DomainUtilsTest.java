@@ -99,6 +99,23 @@ final class DomainUtilsTest {
                 Arguments.of(new byte[] {0, 1, 2, 0}, new byte[] {1, 2, 0}));
     }
 
+    private static Stream<Arguments> hexQuantities() {
+        return Stream.of(
+                arguments(null, "0x0"),
+                arguments(new byte[0], "0x0"),
+                arguments(new byte[] {0x00}, "0x00"),
+                arguments(new byte[] {0x00, 0x00}, "0x0000"),
+                arguments(new byte[] {0x00, 0x01}, "0x0001"),
+                arguments(new byte[] {0x00, (byte) 0xa5}, "0x00a5"),
+                arguments(new byte[] {0x01}, "0x1"),
+                arguments(new byte[] {0x0a}, "0xa"),
+                arguments(new byte[] {0x10}, "0x10"),
+                arguments(new byte[] {(byte) 0x80}, "0x80"),
+                arguments(new byte[] {(byte) 0xff}, "0xff"),
+                arguments(new byte[] {0x01, 0x27}, "0x127"),
+                arguments(new byte[] {0x04, (byte) 0xa5}, "0x4a5"));
+    }
+
     @Test
     void getPublicKeyWhenNull() {
         assertThat(DomainUtils.getPublicKey(null)).isNull();
@@ -601,6 +618,43 @@ final class DomainUtilsTest {
         assertThat(DomainUtils.bytesToHex(new byte[] {00})).isEqualTo("00");
         assertThat(DomainUtils.bytesToHex(new byte[0])).isEmpty();
         assertThat(DomainUtils.bytesToHex(null)).isNull();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(textBlock = """
+            0x, ''
+            0, ''
+            '', ''
+            0x0, ''
+            0x00, 00
+            0x1, 01
+            1, 01
+            0xa, 0a
+            0xA, 0a
+            A, 0a
+            0x127, 0127
+            127, 0127
+            0x00ab, 00ab
+            00AB, 00ab
+            0x01, 01
+            0x0001, 0001
+            """)
+    void fromHexQuantity(final String hex, final String expectedHex) {
+        assertThat(DomainUtils.fromHexQuantity(hex)).isEqualTo(HexFormat.of().parseHex(expectedHex));
+    }
+
+    @Test
+    void fromHexQuantityInvalid() {
+        assertThatThrownBy(() -> DomainUtils.fromHexQuantity("0xzz")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @ParameterizedTest(name = "{1}")
+    @MethodSource("hexQuantities")
+    void toHexQuantity(final byte[] bytes, final String expected) {
+        assertThat(DomainUtils.toHexQuantity(bytes)).isEqualTo(expected);
+        if (bytes != null) {
+            assertThat(DomainUtils.fromHexQuantity(expected)).isEqualTo(bytes);
+        }
     }
 
     @Test

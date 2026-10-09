@@ -17,4 +17,10 @@ public class Constants {
      * Sized as 35 minutes to comfortably cover the network's max transaction valid duration (3 minutes) plus buffer.
      */
     public static final long MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 35 * 60 * NANOS_PER_SECOND;
+
+    /**
+     * How long after {@code valid_start_ns} a scheduled transaction may reach consensus. Matches the REST API's
+     * {@code maxScheduledTransactionConsensusTimestampRange} of 89285 minutes.
+     */
+    public static final long MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS = 89_285 * 60 * NANOS_PER_SECOND;
 }

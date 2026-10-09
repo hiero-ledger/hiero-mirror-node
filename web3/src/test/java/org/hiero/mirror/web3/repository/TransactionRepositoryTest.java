@@ -5,10 +5,19 @@ package org.hiero.mirror.web3.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCALL;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CRYPTOCREATEACCOUNT;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.CRYPTOTRANSFER;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.SCHEDULECREATE;
+import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
+import static org.hiero.mirror.web3.utils.Constants.MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
+import static org.hiero.mirror.web3.utils.Constants.MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
@@ -67,8 +76,7 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         // When
-        final var result = transactionRepository.findByTransactionId(
-                senderEntityId.getId(), validStartNs, validStartNs, parentConsensusTimestamp + 10);
+        final var result = findByTransactionId(senderEntityId.getId(), validStartNs, parentConsensusTimestamp + 10);
 
         // Then
         assertThat(result).contains(parentTransaction);
@@ -92,8 +100,163 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         // When / Then
-        assertThat(transactionRepository.findByTransactionId(
-                        senderEntityId.getId(), validStartNs, validStartNs, consensusTimestamp + 10))
+        assertThat(findByTransactionId(senderEntityId.getId(), validStartNs, consensusTimestamp + 10))
+                .isEmpty();
+    }
+
+    @Test
+    void findByTransactionIdReturnsScheduledExecutionAfterNormalWindow() {
+        final var payerAccountId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var validStartNs = domainBuilder.timestamp();
+        final var consensusTimestamp = validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS + NANOS_PER_SECOND;
+        final var scheduledTransaction =
+                contractTransaction(payerAccountId, contractId, validStartNs, consensusTimestamp, 0, true, null);
+
+        assertThat(findByTransactionId(
+                        payerAccountId.getId(),
+                        validStartNs,
+                        validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS))
+                .contains(scheduledTransaction);
+    }
+
+    @Test
+    void findByTransactionIdEmptyWhenScheduledExecutionIsPastScheduledWindow() {
+        final var payerAccountId = domainBuilder.entityId();
+        final var validStartNs = domainBuilder.timestamp();
+        contractTransaction(
+                payerAccountId,
+                domainBuilder.entityId(),
+                validStartNs,
+                validStartNs + MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS + NANOS_PER_SECOND,
+                0,
+                true,
+                null);
+
+        assertThat(findByTransactionId(
+                        payerAccountId.getId(),
+                        validStartNs,
+                        validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS))
+                .isEmpty();
+    }
+
+    @Test
+    void findByTransactionIdReturnsScheduledExecutionOverScheduleCreate() {
+        final var payerAccountId = domainBuilder.entityId();
+        final var validStartNs = domainBuilder.timestamp();
+        final var scheduleCreateTimestamp = validStartNs + 1_000L;
+
+        domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(scheduleCreateTimestamp)
+                        .nonce(0)
+                        .payerAccountId(payerAccountId)
+                        .scheduled(false)
+                        .type(SCHEDULECREATE.getProtoId())
+                        .validStartNs(validStartNs))
+                .persist();
+        final var scheduledTransaction = contractTransaction(
+                payerAccountId, domainBuilder.entityId(), validStartNs, scheduleCreateTimestamp + 1L, 0, true, null);
+
+        assertThat(findByTransactionId(payerAccountId.getId(), validStartNs, scheduleCreateTimestamp + 10))
+                .contains(scheduledTransaction);
+    }
+
+    @Test
+    void findByTransactionIdIgnoresScheduledExecutionWithNonZeroNonce() {
+        final var payerAccountId = domainBuilder.entityId();
+        final var validStartNs = domainBuilder.timestamp();
+        final var consensusTimestamp = validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS + NANOS_PER_SECOND;
+        contractTransaction(payerAccountId, domainBuilder.entityId(), validStartNs, consensusTimestamp, 1, true, null);
+
+        assertThat(findByTransactionId(
+                        payerAccountId.getId(),
+                        validStartNs,
+                        validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS))
+                .isEmpty();
+    }
+
+    @Test
+    void findByTransactionIdIgnoresDuplicateTransaction() {
+        final var payerAccountId = domainBuilder.entityId();
+        final var contractId = domainBuilder.entityId();
+        final var validStartNs = domainBuilder.timestamp();
+        final var consensusTimestamp = validStartNs + 1_000L;
+
+        final var original = domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(consensusTimestamp)
+                        .entityId(contractId)
+                        .nonce(0)
+                        .payerAccountId(payerAccountId)
+                        .result(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.getNumber())
+                        .type(CONTRACTCALL.getProtoId())
+                        .validStartNs(validStartNs))
+                .persist();
+        domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(consensusTimestamp + 1L)
+                        .entityId(contractId)
+                        .nonce(0)
+                        .payerAccountId(payerAccountId)
+                        .result(ResponseCodeEnum.DUPLICATE_TRANSACTION.getNumber())
+                        .type(CONTRACTCALL.getProtoId())
+                        .validStartNs(validStartNs))
+                .persist();
+
+        assertThat(findByTransactionId(payerAccountId.getId(), validStartNs, consensusTimestamp + 10))
+                .contains(original);
+    }
+
+    @Test
+    void findByTransactionIdIgnoresHookDispatch() {
+        final var payerAccountId = domainBuilder.entityId();
+        final var validStartNs = domainBuilder.timestamp();
+        final var parentConsensusTimestamp = validStartNs + 1_000L;
+        final var hookConsensusTimestamp = parentConsensusTimestamp + 1L;
+
+        domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(parentConsensusTimestamp)
+                        .entityId(payerAccountId)
+                        .nonce(0)
+                        .parentConsensusTimestamp(null)
+                        .payerAccountId(payerAccountId)
+                        .type(CRYPTOTRANSFER.getProtoId())
+                        .validStartNs(validStartNs))
+                .persist();
+        contractTransaction(
+                payerAccountId,
+                hookContractEntityId(),
+                validStartNs,
+                hookConsensusTimestamp,
+                1,
+                false,
+                parentConsensusTimestamp);
+
+        assertThat(findByTransactionId(payerAccountId.getId(), validStartNs, parentConsensusTimestamp + 10))
+                .isEmpty();
+    }
+
+    @Test
+    void findByTransactionIdIgnoresInnerContractCall() {
+        final var payerAccountId = domainBuilder.entityId();
+        final var validStartNs = domainBuilder.timestamp();
+        final var consensusTimestamp = validStartNs + 1_000L;
+        contractTransaction(
+                payerAccountId,
+                domainBuilder.entityId(),
+                validStartNs,
+                consensusTimestamp,
+                1,
+                false,
+                consensusTimestamp - 1L);
+
+        assertThat(findByTransactionId(payerAccountId.getId(), validStartNs, consensusTimestamp + 10))
                 .isEmpty();
     }
 
@@ -152,5 +315,43 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
         assertThat(transactionRepository.findSuccessfulCryptoCreateChildEntityIds(
                         parentConsensusTimestamp, payerAccountId.getId()))
                 .containsExactly(hollowAccountId.getId());
+    }
+
+    private Optional<Transaction> findByTransactionId(
+            final long payerAccountId, final long validStartNs, final long consensusTimestampEnd) {
+        return transactionRepository.findByTransactionId(
+                payerAccountId,
+                validStartNs,
+                validStartNs,
+                consensusTimestampEnd,
+                validStartNs + MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS);
+    }
+
+    private Transaction contractTransaction(
+            final EntityId payerAccountId,
+            final EntityId contractId,
+            final long validStartNs,
+            final long consensusTimestamp,
+            final int nonce,
+            final boolean scheduled,
+            final Long parentConsensusTimestamp) {
+        return domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(consensusTimestamp)
+                        .entityId(contractId)
+                        .nonce(nonce)
+                        .parentConsensusTimestamp(parentConsensusTimestamp)
+                        .payerAccountId(payerAccountId)
+                        .result(ResponseCodeEnum.SUCCESS.getNumber())
+                        .scheduled(scheduled)
+                        .type(CONTRACTCALL.getProtoId())
+                        .validStartNs(validStartNs))
+                .persist();
+    }
+
+    private static EntityId hookContractEntityId() {
+        final var commonProperties = CommonProperties.getInstance();
+        return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), RecordItem.HOOK_CONTRACT_NUM);
     }
 }

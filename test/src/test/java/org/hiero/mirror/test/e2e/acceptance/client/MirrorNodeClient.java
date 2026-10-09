@@ -315,6 +315,16 @@ public class MirrorNodeClient {
                 "/contracts/{contractId}/state?limit={limit}", ContractStateResponse.class, contractId, limit);
     }
 
+    public ContractStateResponse getContractStatesById(String contractId, int limit, String timestamp) {
+        log.debug("Verify contract states '{}' at timestamp '{}' are returned by Mirror Node", contractId, timestamp);
+        return callRestEndpoint(
+                "/contracts/{contractId}/state?limit={limit}&timestamp={timestamp}",
+                ContractStateResponse.class,
+                contractId,
+                limit,
+                timestamp);
+    }
+
     public ContractActionsResponse getContractResultActionsByTransactionId(String transactionId) {
         log.debug("Verify contract result '{}' is returned by Mirror Node", transactionId);
         return callRestEndpoint("/contracts/results/{id}/actions", ContractActionsResponse.class, transactionId);

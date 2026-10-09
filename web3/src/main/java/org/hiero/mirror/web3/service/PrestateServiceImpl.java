@@ -11,6 +11,7 @@ import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.ApiEndpointName.PRESTATE;
 import static org.hiero.mirror.web3.utils.ByteUtils.ZERO_WORD;
+import static org.hiero.mirror.web3.utils.Constants.MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 import static org.hiero.mirror.web3.utils.Constants.MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
@@ -419,7 +420,8 @@ final class PrestateServiceImpl implements PrestateService {
                                 payerAccountId.getId(),
                                 validStartNs,
                                 validStartNs,
-                                validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS)
+                                validStartNs + MAX_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS,
+                                validStartNs + MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS)
                         .orElseThrow(() -> new EntityNotFoundException("Transaction not found."));
                 final var contractId = transaction.getEntityId();
                 yield new ResolvedTransaction(

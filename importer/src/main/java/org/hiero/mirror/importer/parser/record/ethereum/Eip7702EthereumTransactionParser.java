@@ -2,16 +2,17 @@
 
 package org.hiero.mirror.importer.parser.record.ethereum;
 
+import static org.hiero.mirror.common.util.DomainUtils.fromHexQuantity;
+import static org.hiero.mirror.common.util.DomainUtils.toHexQuantity;
+
 import com.esaulpaugh.headlong.rlp.RLPDecoder;
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.rlp.RLPItem;
 import com.esaulpaugh.headlong.util.Integers;
 import jakarta.inject.Named;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
-import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
@@ -187,27 +188,5 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
             throw new InvalidEthereumBytesException(
                     TRANSACTION_TYPE_NAME, "Authorization nonce is not a canonical integer");
         }
-    }
-
-    /**
-     * Canonical integer 0 is {@code "0x0"} and encodes as an empty RLP string. A payload that starts with {@code 0x00}
-     * keeps those bytes, so an empty chain id and a chain id of {@code 0x00} do not collapse.
-     */
-    private String toHexQuantity(final byte[] data) {
-        if (ArrayUtils.isEmpty(data)) {
-            return HEX_PREFIX + "0";
-        }
-        if (data[0] == 0) {
-            return toHex(data);
-        }
-        return HEX_PREFIX + new BigInteger(1, data).toString(16);
-    }
-
-    private byte[] fromHexQuantity(final String hex) {
-        final var stripped = stripHexPrefix(hex);
-        if (stripped.isEmpty() || stripped.equals("0")) {
-            return ArrayUtils.EMPTY_BYTE_ARRAY;
-        }
-        return HexFormat.of().parseHex(stripped.length() % 2 != 0 ? "0" + stripped : stripped);
     }
 }

@@ -18,28 +18,32 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
             EntityId payerAccountId, long validStartNs);
 
     /**
-     * Returns the parent contract-related transaction for a transaction ID.
-     * Uses {@code nonce = 0} so preceding hollow-account {@code CryptoCreateAccount} children are excluded.
+     * Returns the top-level {@code ContractCall}, {@code ContractCreate} or {@code EthereumTransaction} for a transaction
+     * ID, including a scheduled {@code ContractCall} or {@code ContractCreate} executed under its {@code ScheduleCreate}'s
+     * transaction ID. Duplicate transactions and child records are excluded.
      */
     @Query(value = """
             select *
             from transaction
             where payer_account_id = :payerAccountId
               and valid_start_ns = :validStartNs
-              and consensus_timestamp >= :consensusTimestampStart
-              and consensus_timestamp <= :consensusTimestampEnd
               and nonce = 0
               and type in (7, 8, 50)
-            order by
-              (result = 22) desc,
-              consensus_timestamp desc
+              and result <> 11
+              and consensus_timestamp >= :consensusTimestampStart
+              and (
+                    consensus_timestamp <= :consensusTimestampEnd
+                    or (scheduled and consensus_timestamp <= :scheduledConsensusTimestampEnd)
+                  )
+            order by consensus_timestamp
             limit 1
             """, nativeQuery = true)
     Optional<Transaction> findByTransactionId(
             @Param("payerAccountId") long payerAccountId,
             @Param("validStartNs") long validStartNs,
             @Param("consensusTimestampStart") long consensusTimestampStart,
-            @Param("consensusTimestampEnd") long consensusTimestampEnd);
+            @Param("consensusTimestampEnd") long consensusTimestampEnd,
+            @Param("scheduledConsensusTimestampEnd") long scheduledConsensusTimestampEnd);
 
     /**
      * Preceding hollow {@code CryptoCreateAccount} children use {@code parent - 1}, {@code parent - 2}, …
