@@ -37,8 +37,9 @@ public class RestApiClient {
     public RestApiClient(MonitorProperties monitorProperties, WebClient.Builder webClientBuilder) {
         final var rest = monitorProperties.getMirrorNode().getRest();
         final var restJava = monitorProperties.getMirrorNode().getRestJava();
+        final var network = restJava != null ? restJava : rest;
         final var restUrl = rest.getBaseUrl();
-        final var restJavaUrl = restJava != null ? restJava.getBaseUrl() : rest.getBaseUrl();
+        final var restJavaUrl = network.getBaseUrl();
         webClientRest = webClientBuilder
                 .baseUrl(restUrl)
                 .defaultHeaders(h -> h.setAccept(List.of(MediaType.APPLICATION_JSON)))
@@ -48,6 +49,15 @@ public class RestApiClient {
                 : webClientRest.mutate().baseUrl(restJavaUrl).build();
         log.info("Connecting to mirror node REST API {}", restUrl);
         log.info("Connecting to mirror node REST Java API {}", restJavaUrl);
+
+        // The address book decides which consensus nodes receive the operator signed transactions
+        final boolean retrieveAddressBook = monitorProperties.getNodes().isEmpty()
+                && monitorProperties.getNodeValidation().isRetrieveAddressBook();
+        if (retrieveAddressBook && !network.isSecure()) {
+            log.warn(
+                    "Retrieving the address book from {} without TLS. Enable TLS for the mirror node REST API or configure nodes explicitly",
+                    restJavaUrl);
+        }
     }
 
     public <T> Mono<T> retrieve(Class<T> responseClass, String uri, Object... parameters) {
