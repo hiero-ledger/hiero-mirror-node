@@ -147,7 +147,7 @@ public class CodeDelegationFeature extends AbstractFeature {
 
         try {
             final var fullResponse = mirrorClient.getContractPrestate(transactionHash, false, true, true);
-            verifyDelegatedContractTraces(fullResponse, contractResult.getTimestamp());
+            verifyDelegatedContractTraces(fullResponse, contractResult);
         } catch (HttpServerErrorException.NotImplemented notImplemented) {
             assertThat(notImplemented.getResponseBodyAsString()).contains("Not Implemented");
         }
@@ -233,29 +233,12 @@ public class CodeDelegationFeature extends AbstractFeature {
         assertThat(resultsByAccount).isNotEmpty().anySatisfy(this::verifyDelegatedCallResult);
     }
 
-    private void verifyPrestateResponse(final PrestateResponse response, final ContractResult contractResult) {
-        assertThat(response).isNotNull();
-        assertThat(response.getPre()).isNotEmpty();
-
-        final var contractResultNonce = contractResult.getNonce();
-        assertThat(contractResultNonce).isNotNull();
-
-        for (final var trace : response.getPre()) {
-            if (isAccountTrace(trace)) {
-                assertThat(trace.getBalance()).startsWith(HEX_PREFIX);
-                assertThat(trace.getNonce()).isLessThan(contractResultNonce);
-            }
-        }
-
-        final var accountPostTrace = requireAccountTrace(response.getPost());
-        assertThat(accountPostTrace.getNonce()).isEqualTo(contractResultNonce);
-    }
-
-    private void verifyDelegatedContractTraces(final PrestateResponse response, final String consensusTimestamp) {
+    private void verifyDelegatedContractTraces(final PrestateResponse response, final ContractResult contractResult) {
         assertThat(response).isNotNull();
         assertThat(response.getPre()).isNotEmpty();
         assertThat(response.getPost()).isNullOrEmpty();
 
+        final var contractResultNonce = contractResult.getNonce();
         final var contractId = delegatedContract.contractId().toString();
         final var contractInfo = mirrorClient.getContractInfo(contractId);
         final var runtimeBytecode = contractInfo.getRuntimeBytecode();
@@ -263,7 +246,8 @@ public class CodeDelegationFeature extends AbstractFeature {
         for (final var trace : response.getPre()) {
             if (isDelegatedContract(trace, contractInfo)) {
                 assertThat(trace.getCode()).isEqualToIgnoringCase(runtimeBytecode);
-                verifyContractStorage(trace, contractId, "lt:" + consensusTimestamp);
+                assertThat(trace.getNonce()).isEqualTo(contractResultNonce);
+                verifyContractStorage(trace, contractId, "lt:" + contractResult.getTimestamp());
             }
         }
     }
@@ -282,10 +266,13 @@ public class CodeDelegationFeature extends AbstractFeature {
         }
 
         final var restStorage = new HashMap<BigInteger, BigInteger>();
-        for (final var state : mirrorClient
+        final var states = mirrorClient
                 .getContractStatesById(contractId, 100, stateTimestamp)
-                .getState()) {
-            restStorage.put(toWord(state.getSlot()), toWord(state.getValue()));
+                .getState();
+        if (states != null) {
+            for (final var state : states) {
+                restStorage.put(toWord(state.getSlot()), toWord(state.getValue()));
+            }
         }
 
         // A slot cleared to zero has no value in the REST state, so a missing slot is treated as zero.
@@ -293,21 +280,6 @@ public class CodeDelegationFeature extends AbstractFeature {
                 .allSatisfy((slot, value) -> assertThat(restStorage.getOrDefault(toWord(slot), BigInteger.ZERO))
                         .as("storage slot %s at %s", slot, stateTimestamp)
                         .isEqualTo(toWord(value)));
-    }
-
-    private PrestateAccountTrace requireAccountTrace(List<PrestateAccountTrace> traces) {
-        assertThat(traces).isNotEmpty();
-        for (var trace : traces) {
-            if (isAccountTrace(trace)) {
-                return trace;
-            }
-        }
-        throw new AssertionError("Prestate did not include the delegated account");
-    }
-
-    private boolean isAccountTrace(final PrestateAccountTrace trace) {
-        return evmAddress(account).equalsIgnoreCase(trace.getAddress())
-                || toDelegationAddress(account.getAccountId().toEvmAddress()).equalsIgnoreCase(trace.getAddress());
     }
 
     private void verifyDelegatedCallResult(ContractResult contractResult) {
