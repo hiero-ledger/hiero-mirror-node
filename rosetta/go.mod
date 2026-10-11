@@ -21,7 +21,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.12.1
-	github.com/thanhpk/randstr v1.0.6
+	github.com/thanhpk/randstr v1.0.7
 	github.com/weaveworks/common v0.0.0-20230728070032-dd9e68f319d5
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v2 v2.4.0
