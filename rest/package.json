@@ -23,8 +23,8 @@
     "@bufbuild/protobuf": "2.16.0",
     "@godaddy/terminus": "4.12.1",
     "@opentelemetry/api": "1.9.1",
-    "@opentelemetry/exporter-prometheus": "0.222.0",
-    "@opentelemetry/sdk-metrics": "2.11.0",
+    "@opentelemetry/exporter-prometheus": "0.223.0",
+    "@opentelemetry/sdk-metrics": "2.12.0",
     "asn1js": "3.0.10",
     "basic-auth": "3.0.0",
     "compression": "1.8.2",
@@ -62,9 +62,9 @@
     "jest-junit": "17.0.0",
     "nodemon": "3.1.14",
     "pg-format": "1.0.4",
-    "pgsql-parser": "18.2.8",
+    "pgsql-parser": "18.2.10",
     "sinon": "22.1.0",
-    "supertest": "7.3.0",
+    "supertest": "7.3.1",
     "tar": "7.5.22"
   },
   "peerDependencies": {
