@@ -19,13 +19,16 @@ import reactor.core.scheduler.Schedulers;
 @Configuration(proxyBeanMethods = false)
 class GrpcConfiguration {
 
+    // An active subscription queues its subscribe task, its timeout timer and its next page delay on the scheduler.
+    // Tasks aren't balanced by queue length across threads, so each thread's queue must fit all subscriptions.
+    private static final int TASKS_PER_SUBSCRIPTION = 3;
+
     @Bean(destroyMethod = "dispose")
     @Qualifier("addressBook")
     Scheduler addressBookScheduler(AddressBookProperties addressBookProperties) {
-        return Schedulers.newBoundedElastic(
-                addressBookProperties.getSchedulerSize(),
-                addressBookProperties.getSchedulerQueueSize(),
-                "address-book");
+        final int requiredQueueSize = addressBookProperties.getMaxConcurrent() * TASKS_PER_SUBSCRIPTION;
+        final int queueSize = Math.max(addressBookProperties.getSchedulerQueueSize(), requiredQueueSize);
+        return Schedulers.newBoundedElastic(addressBookProperties.getSchedulerSize(), queueSize, "address-book");
     }
 
     @Bean

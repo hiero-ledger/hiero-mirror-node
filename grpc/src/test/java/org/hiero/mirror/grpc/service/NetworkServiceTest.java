@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.grpc.service.NetworkServiceImpl.INVALID_FILE_ID;
 
-import io.grpc.Context;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Duration;
 import java.util.List;
@@ -21,7 +20,6 @@ import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.exception.SubscriptionLimitException;
 import org.hiero.mirror.grpc.exception.SubscriptionTimeoutException;
-import org.hiero.mirror.grpc.interceptor.RemoteAddressInterceptor;
 import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
 import org.hiero.mirror.grpc.repository.NodeStakeRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -43,7 +41,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     private final NetworkService networkService;
     private final NodeStakeRepository nodeStakeRepository;
 
-    private int maxConcurrentPerClient;
+    private int maxConcurrent;
     private int maxLimit;
     private Duration pageDelay;
     private int pageSize;
@@ -51,7 +49,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
     @BeforeEach
     void setup() {
-        maxConcurrentPerClient = addressBookProperties.getMaxConcurrentPerClient();
+        maxConcurrent = addressBookProperties.getMaxConcurrent();
         maxLimit = addressBookProperties.getMaxLimit();
         pageDelay = addressBookProperties.getPageDelay();
         pageSize = addressBookProperties.getPageSize();
@@ -60,7 +58,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
     @AfterEach
     void cleanup() {
-        addressBookProperties.setMaxConcurrentPerClient(maxConcurrentPerClient);
+        addressBookProperties.setMaxConcurrent(maxConcurrent);
         addressBookProperties.setMaxLimit(maxLimit);
         addressBookProperties.setPageDelay(pageDelay);
         addressBookProperties.setPageSize(pageSize);
@@ -171,8 +169,8 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     }
 
     @Test
-    void concurrentSubscriptionsLimitedPerConnection() {
-        addressBookProperties.setMaxConcurrentPerClient(1);
+    void concurrentSubscriptionsLimited() {
+        addressBookProperties.setMaxConcurrent(1);
         addressBookProperties.setPageDelay(Duration.ofSeconds(30L));
         addressBookProperties.setPageSize(1);
         var addressBook = addressBook();
@@ -182,22 +180,19 @@ class NetworkServiceTest extends GrpcIntegrationTest {
                 .fileId(addressBook.getFileId())
                 .limit(2)
                 .build();
-        Context.current()
-                .withValue(RemoteAddressInterceptor.REMOTE_ADDRESS, "203.0.113.9")
-                .run(() -> {
-                    var first = networkService.getNodes(filter);
-                    var second = networkService.getNodes(filter);
-                    StepVerifier.create(first)
-                            .expectNextCount(1)
-                            .then(() -> StepVerifier.create(second)
-                                    .expectError(SubscriptionLimitException.class)
-                                    .verify(Duration.ofSeconds(5L)))
-                            .thenCancel()
-                            .verify(Duration.ofSeconds(10L));
 
-                    var third = networkService.getNodes(filter);
-                    StepVerifier.create(third).expectNextCount(1).thenCancel().verify(Duration.ofSeconds(10L));
-                });
+        var first = networkService.getNodes(filter);
+        var second = networkService.getNodes(filter);
+        StepVerifier.create(first)
+                .expectNextCount(1)
+                .then(() -> StepVerifier.create(second)
+                        .expectError(SubscriptionLimitException.class)
+                        .verify(Duration.ofSeconds(5L)))
+                .thenCancel()
+                .verify(Duration.ofSeconds(10L));
+
+        var third = networkService.getNodes(filter);
+        StepVerifier.create(third).expectNextCount(1).thenCancel().verify(Duration.ofSeconds(10L));
     }
 
     @Test

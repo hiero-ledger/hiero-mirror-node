@@ -5,7 +5,6 @@ package org.hiero.mirror.grpc.service;
 import jakarta.inject.Named;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -22,7 +21,6 @@ import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.exception.SubscriptionLimitException;
 import org.hiero.mirror.grpc.exception.SubscriptionTimeoutException;
-import org.hiero.mirror.grpc.interceptor.RemoteAddressInterceptor;
 import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
 import org.hiero.mirror.grpc.repository.AddressBookRepository;
 import org.hiero.mirror.grpc.repository.NodeStakeRepository;
@@ -42,11 +40,10 @@ public class NetworkServiceImpl implements NetworkService {
 
     static final String INVALID_FILE_ID = "Not a valid address book file";
     static final String TOO_MANY_SUBSCRIPTIONS = "Too many concurrent address book subscriptions";
-    private static final String ANONYMOUS_CLIENT = "anonymous";
     private static final long NODE_STAKE_EMPTY_TABLE_TIMESTAMP = 0L;
     private static final String STREAM_TIMEOUT = "Address book subscription timed out";
 
-    private final ConcurrentHashMap<String, Integer> activeSubscriptions = new ConcurrentHashMap<>();
+    private final AtomicInteger activeSubscriptions = new AtomicInteger();
     private final AddressBookProperties addressBookProperties;
     private final AddressBookRepository addressBookRepository;
     private final AddressBookEntryRepository addressBookEntryRepository;
@@ -71,49 +68,38 @@ public class NetworkServiceImpl implements NetworkService {
             throw new IllegalArgumentException(INVALID_FILE_ID);
         }
 
-        final var clientKey = clientKey();
         final var limit = effectiveLimit(filter.getLimit());
 
         return Flux.defer(() -> {
-                    acquire(clientKey);
-                    return Mono.fromCallable(() -> loadContext(fileId))
-                            .flatMapMany(context -> Flux.defer(() -> page(context))
-                                    .repeatWhen(RepeatSpec.create(c -> !context.isComplete(), limit)
-                                            .jitter(0.5)
-                                            .withFixedDelay(addressBookProperties.getPageDelay())
-                                            .withScheduler(scheduler))
-                                    .take(limit)
-                                    .doOnNext(context::onNext)
-                                    .doOnSubscribe(s -> log.info("Querying for address book: {}", filter))
-                                    .doOnComplete(() ->
-                                            log.info("Retrieved {} nodes from the address book", context.getCount())))
-                            .doFinally(signal -> release(clientKey));
-                })
-                .takeUntilOther(Mono.delay(addressBookProperties.getTimeout(), scheduler)
-                        .then(Mono.error(new SubscriptionTimeoutException(STREAM_TIMEOUT))))
-                .subscribeOn(scheduler);
-    }
-
-    private void acquire(String clientKey) {
-        final var limit = addressBookProperties.getMaxConcurrentPerClient();
-        final var admitted = new AtomicBoolean();
-        activeSubscriptions.compute(clientKey, (key, active) -> {
-            if (active != null && active >= limit) {
-                return active;
-            }
-            return active == null ? 0 : active + 1;
+            acquire();
+            return Mono.fromCallable(() -> loadContext(fileId))
+                    .flatMapMany(context -> Flux.defer(() -> page(context))
+                            .repeatWhen(RepeatSpec.create(c -> !context.isComplete(), limit)
+                                    .jitter(0.5)
+                                    .withFixedDelay(addressBookProperties.getPageDelay())
+                                    .withScheduler(scheduler))
+                            .take(limit)
+                            .doOnNext(context::onNext)
+                            .doOnSubscribe(s -> log.info("Querying for address book: {}", filter))
+                            .doOnComplete(
+                                    () -> log.info("Retrieved {} nodes from the address book", context.getCount())))
+                    .takeUntilOther(Mono.delay(addressBookProperties.getTimeout(), scheduler)
+                            .then(Mono.error(new SubscriptionTimeoutException(STREAM_TIMEOUT))))
+                    .subscribeOn(scheduler)
+                    // Outside subscribeOn so the slot is released when the scheduler rejects the subscription
+                    .doFinally(signal -> release());
         });
-        if (!admitted.get()) {
-            throw new SubscriptionLimitException(TOO_MANY_SUBSCRIPTIONS);
-        }
     }
 
-    private String clientKey() {
-        final var remoteAddress = RemoteAddressInterceptor.REMOTE_ADDRESS.get();
-        if (remoteAddress == null) {
-            return ANONYMOUS_CLIENT;
-        }
-        return remoteAddress;
+    private void acquire() {
+        final int limit = addressBookProperties.getMaxConcurrent();
+        int active;
+        do {
+            active = activeSubscriptions.get();
+            if (active >= limit) {
+                throw new SubscriptionLimitException(TOO_MANY_SUBSCRIPTIONS);
+            }
+        } while (!activeSubscriptions.compareAndSet(active, active + 1));
     }
 
     private int effectiveLimit(int requested) {
@@ -166,13 +152,8 @@ public class NetworkServiceImpl implements NetworkService {
         });
     }
 
-    private void release(String clientKey) {
-        activeSubscriptions.compute(clientKey, (key, active) -> {
-            if (active == null || active <= 0) {
-                return null;
-            }
-            return active;
-        });
+    private void release() {
+        activeSubscriptions.decrementAndGet();
     }
 
     @Value

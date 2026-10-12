@@ -23,9 +23,9 @@ public class AddressBookProperties {
     @Min(0)
     private long cacheSize = 50L;
 
-    @Max(16)
+    @Max(10_000)
     @Min(1)
-    private int maxConcurrentPerClient = 2;
+    private int maxConcurrent = 120;
 
     @Max(10_000)
     @Min(1)
