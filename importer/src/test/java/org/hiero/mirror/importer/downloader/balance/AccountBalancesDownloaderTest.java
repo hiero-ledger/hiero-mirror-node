@@ -122,7 +122,7 @@ final class AccountBalancesDownloaderTest extends AbstractDownloaderTest<Account
         // for the mixed scenario, both .csv and .pb.gz files exist for the same timestamp; however, all .csv and
         // .csv_sig files are intentionally made empty so if two account balance files are processed, they must be
         // the .pb.gz files
-        ProtoBalanceFileReader protoBalanceFileReader = new ProtoBalanceFileReader();
+        final var protoBalanceFileReader = new ProtoBalanceFileReader(commonDownloaderProperties);
         var streamFileProvider = new S3StreamFileProvider(blockProperties, commonDownloaderProperties, s3AsyncClient);
         downloader = new AccountBalancesDownloader(
                 accountBalanceFileRepository,

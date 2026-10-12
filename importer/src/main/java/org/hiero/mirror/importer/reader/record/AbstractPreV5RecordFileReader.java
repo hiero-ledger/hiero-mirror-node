@@ -21,6 +21,7 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.ImporterException;
+import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.exception.StreamFileReaderException;
 import org.hiero.mirror.importer.reader.ValidatedDataInputStream;
 import org.jspecify.annotations.NullMarked;
@@ -33,6 +34,8 @@ public abstract class AbstractPreV5RecordFileReader implements RecordFileReader 
     protected static final DigestAlgorithm DIGEST_ALGORITHM = DigestAlgorithm.SHA_384;
     protected static final byte PREV_HASH_MARKER = 1;
     protected static final byte RECORD_MARKER = 2;
+
+    static final int MAX_RECORD_ITEMS = 10_000;
 
     private final int readerVersion;
 
@@ -103,6 +106,11 @@ public abstract class AbstractPreV5RecordFileReader implements RecordFileReader 
         RecordItem lastRecordItem = null;
 
         while (vdis.available() != 0) {
+            if (count >= MAX_RECORD_ITEMS) {
+                throw new InvalidStreamFileException("Record file %s contains more than %d records"
+                        .formatted(recordFile.getName(), MAX_RECORD_ITEMS));
+            }
+
             vdis.readByte(RECORD_MARKER, "record marker");
             byte[] transactionBytes = vdis.readLengthAndBytes(1, MAX_TRANSACTION_LENGTH, false, "transaction bytes");
             byte[] recordBytes = vdis.readLengthAndBytes(1, MAX_TRANSACTION_LENGTH, false, "record bytes");
