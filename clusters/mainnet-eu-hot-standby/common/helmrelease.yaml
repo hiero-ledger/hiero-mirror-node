@@ -53,23 +53,23 @@ spec:
             cluster: mainnet-eu-hot-standby
             env_category: production
           priorityClassName: high
-          # remoteWrite:
-          #   - basicAuth:
-          #       password:
-          #         key: password
-          #         name: grafana-cloud
-          #       username:
-          #         key: username
-          #         name: grafana-cloud
-          #     url: https://prometheus-blocks-prod-us-central1.grafana.net/api/prom/push
-          #     writeRelabelConfigs:
-          #       - action: keep
-          #         regex: .*(graphql|grpc|importer|monitor|postgres-exporter|rest|restjava|rosetta|traefik|web3);.+|kubelet;kubelet_volume_stats_(used|capacity)_bytes|.*;kube_pod_status_ready
-          #         separator: ;
-          #         sourceLabels: [job, __name__]
-          #       - action: drop
-          #         regex: (api_.+_bucket|executor.*|lettuce_.*_bucket|traefik_.+_bucket)
-          #         sourceLabels: [__name__]
+          remoteWrite:
+            - basicAuth:
+                password:
+                  key: password
+                  name: grafana-cloud
+                username:
+                  key: username
+                  name: grafana-cloud
+              url: https://prometheus-blocks-prod-us-central1.grafana.net/api/prom/push
+              writeRelabelConfigs:
+                - action: keep
+                  regex: .*(graphql|grpc|importer|monitor|postgres-exporter|rest|restjava|rosetta|traefik|web3);.+|kubelet;kubelet_volume_stats_(used|capacity)_bytes|.*;kube_pod_status_ready
+                  separator: ;
+                  sourceLabels: [job, __name__]
+                - action: drop
+                  regex: (api_.+_bucket|executor.*|lettuce_.*_bucket|traefik_.+_bucket)
+                  sourceLabels: [__name__]
           replicaExternalLabelName: __replica__
           resources:
             limits:
@@ -88,4 +88,4 @@ spec:
       autoGrow:
         thresholdPercent: 99
       init:
-        diskPrefix: mainnet-eu-hot-standby
+        diskPrefix: hot-standby-mainnet-eu
