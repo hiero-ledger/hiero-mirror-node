@@ -112,6 +112,8 @@ func (c *cryptoCreateTransactionConstructor) Parse(_ context.Context, transactio
 		metadata["proxy_account_id"] = cryptoCreateTransaction.GetProxyAccountID().String()
 	}
 
+	applyAccountCreateSemantics(metadata, cryptoCreateTransaction)
+
 	return types.OperationSlice{operation}, []types.AccountId{payer}, nil
 }
 

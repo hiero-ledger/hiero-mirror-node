@@ -25,6 +25,7 @@ import (
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -172,6 +173,28 @@ func networkIdentifier() *rTypes.NetworkIdentifier {
 			Network: "SomeSubNetwork",
 		},
 	}
+}
+
+func accountCreateWithAliasHex(t *testing.T) string {
+	t.Helper()
+
+	tx, err := hiero.NewAccountCreateTransaction().
+		SetTransactionID(hiero.TransactionIDGenerate(hiero.AccountID{Account: 100})).
+		SetKeyWithoutAlias(privateKey.PublicKey()).
+		SetInitialBalance(hiero.HbarFromTinybar(1)).
+		SetAlias("0000000000000000000000000000000000000001").
+		SetNodeAccountIDs([]hiero.AccountID{{Account: 3}}).
+		Freeze()
+	require.NoError(t, err)
+	return transactionHex(t, tx)
+}
+
+func transactionHex(t *testing.T, tx hiero.TransactionInterface) string {
+	t.Helper()
+
+	data, err := hiero.TransactionToBytes(tx)
+	require.NoError(t, err)
+	return tools.SafeAddHexPrefix(hex.EncodeToString(data))
 }
 
 func getConstructionHashRequest(signedTx string) *rTypes.ConstructionHashRequest {
@@ -861,6 +884,15 @@ func TestConstructionParseThrowsWhenConstructorParseFails(t *testing.T) {
 	assert.Nil(t, res)
 	assert.NotNil(t, e)
 	mockConstructor.AssertExpectations(t)
+}
+
+func TestConstructionParseAccountCreateWithAlias(t *testing.T) {
+	service, _ := NewConstructionAPIService(nil, offlineBaseService, defaultConfig, construction.NewTransactionConstructor())
+	res, e := service.ConstructionParse(defaultContext, getConstructionParseRequest(accountCreateWithAliasHex(t), false))
+
+	require.Nil(t, e)
+	require.Len(t, res.Operations, 1)
+	assert.Equal(t, "0x0000000000000000000000000000000000000001", res.Operations[0].Metadata["alias"])
 }
 
 func TestConstructionParseThrowsWhenDecodeStringFails(t *testing.T) {

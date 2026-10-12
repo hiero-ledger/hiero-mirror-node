@@ -7,10 +7,15 @@ import (
 	"time"
 
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/tools"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/test/domain"
+	sdkpb "github.com/hiero-ledger/hiero-sdk-go/v2/proto/sdk"
+	"github.com/hiero-ledger/hiero-sdk-go/v2/proto/services"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -164,6 +169,7 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 		name           string
 		getTransaction func() hiero.TransactionInterface
 		expectError    bool
+		metadata       map[string]any
 	}{
 		{
 			name:           "Success",
@@ -175,6 +181,38 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 				return hiero.NewTransferTransaction()
 			},
 			expectError: true,
+		},
+		{
+			name:           "Alias",
+			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetAlias(aliasEvmAddress) }),
+			metadata:       map[string]any{metadataAlias: tools.SafeAddHexPrefix(aliasEvmAddress)},
+		},
+		{
+			name:           "StakedAccountID",
+			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetStakedAccountID(proxyAccountId) }),
+			metadata:       map[string]any{metadataStakedAccountID: proxyAccountId.String()},
+		},
+		{
+			name:           "StakedNodeID",
+			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetStakedNodeID(1) }),
+			metadata:       map[string]any{metadataStakedNodeID: int64(1)},
+		},
+		{
+			name:           "StakedNodeIDZero",
+			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetStakedNodeID(0) }),
+			metadata:       map[string]any{metadataStakedNodeID: int64(0)},
+		},
+		{
+			name:           "DeclineReward",
+			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetDeclineStakingReward(true) }),
+			metadata:       map[string]any{metadataDeclineReward: true},
+		},
+		{
+			name: "ReceiverSignatureRequired",
+			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) {
+				tx.SetReceiverSignatureRequired(true)
+			}),
+			metadata: map[string]any{metadataReceiverSigRequired: true},
 		},
 		{
 			name: "KeyNotSet",
@@ -234,9 +272,61 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 			} else {
 				assert.Nil(t, err)
 				assert.ElementsMatch(t, []types.AccountId{accountIdA}, signers)
+				for key, value := range tt.metadata {
+					expectedOperations[0].Metadata[key] = value
+				}
 				assert.ElementsMatch(t, expectedOperations, operations)
 			}
 		})
+	}
+}
+
+func (suite *cryptoCreateTransactionConstructorSuite) TestParseStakedNodeIDZeroFromBytes() {
+	tx := accountCreateFromBytes(suite.T(), func(body *services.CryptoCreateTransactionBody) {
+		body.StakedId = &services.CryptoCreateTransactionBody_StakedNodeId{StakedNodeId: 0}
+	})
+
+	operations, signers, err := newCryptoCreateTransactionConstructor().Parse(defaultContext, tx)
+
+	assert.Nil(suite.T(), err)
+	assert.ElementsMatch(suite.T(), []types.AccountId{accountIdA}, signers)
+	require.Len(suite.T(), operations, 1)
+	assert.Equal(suite.T(), int64(0), operations[0].Metadata[metadataStakedNodeID])
+}
+
+func (suite *cryptoCreateTransactionConstructorSuite) TestParseRoundTripWithoutHiddenFields() {
+	tx, err := hiero.NewAccountCreateTransaction().
+		SetInitialBalance(hiero.HbarFromTinybar(initialBalance)).
+		SetKeyWithoutAlias(newAccountPublicKey).
+		SetTransactionID(hiero.TransactionIDGenerate(sdkAccountIdA)).
+		SetNodeAccountIDs([]hiero.AccountID{{Account: 3}}).
+		Freeze()
+	suite.Require().NoError(err)
+
+	raw, err := hiero.TransactionToBytes(tx)
+	suite.Require().NoError(err)
+
+	parsed, err := hiero.TransactionFromBytes(raw)
+	suite.Require().NoError(err)
+
+	operations, signers, rErr := newCryptoCreateTransactionConstructor().Parse(defaultContext, parsed)
+
+	assert.Nil(suite.T(), rErr)
+	assert.ElementsMatch(suite.T(), []types.AccountId{accountIdA}, signers)
+	require.Len(suite.T(), operations, 1)
+
+	accountCreate := parsed.(hiero.AccountCreateTransaction)
+	assert.Equal(suite.T(), newAccountPublicKey.String(), operations[0].Metadata["key"])
+	assert.Equal(suite.T(), accountCreate.GetAccountMemo(), operations[0].Metadata["memo"])
+	assert.Equal(suite.T(), int64(accountCreate.GetAutoRenewPeriod().Seconds()), operations[0].Metadata["auto_renew_period"])
+	for _, key := range []string{
+		metadataAlias,
+		metadataStakedAccountID,
+		metadataStakedNodeID,
+		metadataDeclineReward,
+		metadataReceiverSigRequired,
+	} {
+		assert.NotContains(suite.T(), operations[0].Metadata, key)
 	}
 }
 
@@ -335,6 +425,65 @@ func assertCryptoCreateTransaction(
 	assert.Equal(t, operation.Metadata["max_automatic_token_associations"], tx.GetMaxAutomaticTokenAssociations())
 	assert.Equal(t, operation.Metadata["memo"], tx.GetAccountMemo())
 	assert.Equal(t, operation.Metadata["proxy_account_id"], tx.GetProxyAccountID().String())
+}
+
+const aliasEvmAddress = "0000000000000000000000000000000000000001"
+
+func accountCreateWith(update func(*hiero.AccountCreateTransaction)) func() hiero.TransactionInterface {
+	return func() hiero.TransactionInterface {
+		tx := hiero.NewAccountCreateTransaction().
+			SetAccountMemo(memo).
+			SetAutoRenewPeriod(time.Second * time.Duration(autoRenewPeriod)).
+			SetInitialBalance(hiero.HbarFromTinybar(initialBalance)).
+			SetKeyWithoutAlias(newAccountPublicKey).
+			SetMaxAutomaticTokenAssociations(maxAutomaticTokenAssociations).
+			SetProxyAccountID(proxyAccountId).
+			SetTransactionID(hiero.TransactionIDGenerate(sdkAccountIdA))
+		update(tx)
+		return *tx
+	}
+}
+
+func accountCreateFromBytes(
+	t *testing.T,
+	mutate func(*services.CryptoCreateTransactionBody),
+) hiero.TransactionInterface {
+	t.Helper()
+
+	frozen, err := hiero.NewAccountCreateTransaction().
+		SetInitialBalance(hiero.HbarFromTinybar(initialBalance)).
+		SetKeyWithoutAlias(newAccountPublicKey).
+		SetTransactionID(hiero.TransactionIDGenerate(sdkAccountIdA)).
+		SetNodeAccountIDs([]hiero.AccountID{{Account: 3}}).
+		Freeze()
+	require.NoError(t, err)
+
+	raw, err := hiero.TransactionToBytes(frozen)
+	require.NoError(t, err)
+
+	list := sdkpb.TransactionList{}
+	require.NoError(t, proto.Unmarshal(raw, &list))
+	require.NotEmpty(t, list.TransactionList)
+
+	signed := &services.SignedTransaction{}
+	require.NoError(t, proto.Unmarshal(list.TransactionList[0].GetSignedTransactionBytes(), signed))
+	body := &services.TransactionBody{}
+	require.NoError(t, proto.Unmarshal(signed.GetBodyBytes(), body))
+	require.NotNil(t, body.GetCryptoCreateAccount())
+	mutate(body.GetCryptoCreateAccount())
+
+	updated, err := proto.Marshal(body)
+	require.NoError(t, err)
+	signed.BodyBytes = updated
+	signedBytes, err := proto.Marshal(signed)
+	require.NoError(t, err)
+	list.TransactionList[0].SignedTransactionBytes = signedBytes
+
+	raw, err = proto.Marshal(&list)
+	require.NoError(t, err)
+	tx, err := hiero.TransactionFromBytes(raw)
+	require.NoError(t, err)
+	return tx
 }
 
 func getCryptoCreateOperations() types.OperationSlice {
