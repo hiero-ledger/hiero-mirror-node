@@ -34,7 +34,13 @@ val mockitoAgent = configurations.register("mockitoAgent")
 dependencies {
     annotationProcessor(platform(project(":")))
     // Versions for errorprone don't seem to work when only specified in root build.gradle.kts
-    errorprone("com.google.errorprone:error_prone_core:2.42.0")
+    errorprone("com.google.errorprone:error_prone_core:2.42.0") {
+        constraints {
+            add("testAnnotationProcessor", "com.google.guava:guava") {
+                version { require("33.7.2-jre") } // Temporary until errorprone updated
+            }
+        }
+    }
     errorprone("com.uber.nullaway:nullaway:0.12.10")
     implementation(platform(project(":")))
     mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
