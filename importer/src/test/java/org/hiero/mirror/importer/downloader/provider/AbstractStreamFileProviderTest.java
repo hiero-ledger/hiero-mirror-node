@@ -42,6 +42,7 @@ import org.hiero.mirror.importer.reader.signature.ProtoSignatureFileReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.util.unit.DataSize;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
@@ -100,7 +101,7 @@ abstract class AbstractStreamFileProviderTest {
 
         // Increase data2 1 byte beyond the max size
         long maxSize = data.getBytes().length;
-        properties.setMaxSize(maxSize);
+        properties.setMaxSize(DataSize.ofBytes(maxSize));
         replaceContents(data, Arrays.append(data.getBytes(), (byte) 1));
 
         StepVerifier.withVirtualTime(() -> streamFileProvider.get(data.getStreamFilename()))
@@ -123,7 +124,7 @@ abstract class AbstractStreamFileProviderTest {
 
         // Increase data2 1 byte beyond the max size
         long maxSize = data.getBytes().length;
-        properties.setMaxSize(maxSize);
+        properties.setMaxSize(DataSize.ofBytes(maxSize));
         replaceContents(data, Arrays.append(data.getBytes(), (byte) 1));
 
         StepVerifier.withVirtualTime(() -> streamFileProvider.get(data.getStreamFilename()))
@@ -339,7 +340,7 @@ abstract class AbstractStreamFileProviderTest {
 
         // Increase data2 1 byte beyond the max size
         long maxSize = data2.getBytes().length;
-        properties.setMaxSize(maxSize);
+        properties.setMaxSize(DataSize.ofBytes(maxSize));
         replaceContents(data2, Arrays.append(data2.getBytes(), (byte) 1));
 
         StepVerifier.withVirtualTime(() -> streamFileProvider.list(node, StreamFilename.EPOCH))
