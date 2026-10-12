@@ -32,10 +32,9 @@ final class RuntimeHintsConfigurationTest {
                 .accepts(hints);
         assertThat(RuntimeHintsPredicates.reflection().onType(ContractCallResponse.class))
                 .accepts(hints);
-        assertThat(RuntimeHintsPredicates.reflection()
-                        .onMethodInvocation(BlockOverride.class, "hasExclusiveNumberAndTime"))
+        assertThat(RuntimeHintsPredicates.reflection().onType(BlockOverride.class))
                 .accepts(hints);
-        assertThat(RuntimeHintsPredicates.reflection().onMethodInvocation(StateOverride.class, "hasValidStorage"))
+        assertThat(RuntimeHintsPredicates.reflection().onType(StateOverride.class))
                 .accepts(hints);
     }
 
