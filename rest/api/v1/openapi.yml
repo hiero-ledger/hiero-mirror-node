@@ -2420,6 +2420,11 @@ components:
           description: The hex encoded chain_id of the wrapped ethereum transaction
           type: [string, "null"]
           example: "0x127"
+        child:
+          description: >-
+            Whether the transaction is a child of another transaction (e.g. an internal transaction spawned during
+            EVM execution, or an inner transaction of an atomic batch).
+          type: boolean
         contract_id:
           $ref: "#/components/schemas/EntityId"
         created_contract_ids:
@@ -2618,6 +2623,11 @@ components:
           allOf:
             - $ref: "#/components/schemas/Bloom"
             - description: The hex encoded bloom filter of the contract log
+        child:
+          description: >-
+            Whether the transaction that emitted this log is a child of another transaction (e.g. an internal
+            transaction spawned during EVM execution, or an inner transaction of an atomic batch).
+          type: boolean
         contract_id:
           $ref: "#/components/schemas/EntityId"
         data:

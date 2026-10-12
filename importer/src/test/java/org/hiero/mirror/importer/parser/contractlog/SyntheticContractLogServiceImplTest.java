@@ -204,6 +204,38 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
         assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
+        assertThat(contractLogCaptor.getValue().isChild()).isEqualTo(parentRecordItem.isChild());
+    }
+
+    @Test
+    @DisplayName("Should set child from the contract related parent's own child status, not the current record item")
+    void createUsesContractRelatedParentChildStatus() {
+        var grandparentRecordItem = recordItemBuilder
+                .contractCall()
+                .recordItem(r -> r.hapiVersion(OLD_HAPI_VERSION))
+                .build();
+
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(grandparentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (grandparentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(grandparentRecordItem).hapiVersion(OLD_HAPI_VERSION))
+                .build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem).hapiVersion(OLD_HAPI_VERSION))
+                .build();
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
+        assertThat(parentRecordItem.isChild()).isTrue();
+        assertThat(contractLogCaptor.getValue().isChild()).isTrue();
     }
 
     @Test
@@ -255,6 +287,8 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
         assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
+        assertThat(recordItem.isChild()).isFalse();
+        assertThat(contractLogCaptor.getValue().isChild()).isFalse();
     }
 
     @Test
@@ -278,6 +312,8 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
         assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
+        assertThat(recordItem.isChild()).isTrue();
+        assertThat(contractLogCaptor.getValue().isChild()).isTrue();
     }
 
     @Test
