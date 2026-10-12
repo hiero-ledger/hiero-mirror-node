@@ -219,8 +219,9 @@ final class DomainUtilsTest {
         var timeNanos = DomainUtils.convertToNanos(seconds, nanos);
         var fromTimeStamp = Instant.ofEpochSecond(0, timeNanos);
 
-        assertAll(() -> assertThat(seconds).isEqualTo(fromTimeStamp.getEpochSecond()), () -> assertThat(nanos)
-                .isEqualTo(fromTimeStamp.getNano()));
+        assertAll(
+                () -> assertThat(seconds).isEqualTo(fromTimeStamp.getEpochSecond()),
+                () -> assertThat(nanos).isEqualTo(fromTimeStamp.getNano()));
     }
 
     @ParameterizedTest(name = "with seconds {0} and nanos {1}")

@@ -185,15 +185,18 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
         List<NodeAddress> nodes = new ArrayList<>();
         responseIterator.forEachRemaining(nodes::add);
 
-        assertThat(nodes).hasSize(1).first().satisfies(n -> assertThat(n)
-                .isNotNull()
-                .returns("", NodeAddress::getDescription)
-                .returns(ByteString.EMPTY, NodeAddress::getMemo)
-                .returns(addressBookEntry.getNodeAccountId(), t -> EntityId.of(n.getNodeAccountId()))
-                .returns(ByteString.EMPTY, NodeAddress::getNodeCertHash)
-                .returns(addressBookEntry.getNodeId(), NodeAddress::getNodeId)
-                .returns("", NodeAddress::getRSAPubKey)
-                .returns(0L, NodeAddress::getStake));
+        assertThat(nodes)
+                .hasSize(1)
+                .first()
+                .satisfies(n -> assertThat(n)
+                        .isNotNull()
+                        .returns("", NodeAddress::getDescription)
+                        .returns(ByteString.EMPTY, NodeAddress::getMemo)
+                        .returns(addressBookEntry.getNodeAccountId(), t -> EntityId.of(n.getNodeAccountId()))
+                        .returns(ByteString.EMPTY, NodeAddress::getNodeCertHash)
+                        .returns(addressBookEntry.getNodeId(), NodeAddress::getNodeId)
+                        .returns("", NodeAddress::getRSAPubKey)
+                        .returns(0L, NodeAddress::getStake));
     }
 
     private AddressBook addressBook() {

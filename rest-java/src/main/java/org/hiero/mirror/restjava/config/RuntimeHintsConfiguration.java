@@ -88,12 +88,13 @@ final class RuntimeHintsConfiguration {
         private void registerOpenApiModels(RuntimeHints hints) {
             final var scanner = new ClassPathScanningCandidateComponentProvider(false);
             scanner.addIncludeFilter(new AssignableTypeFilter(Object.class));
-            scanner.findCandidateComponents(Error.class.getPackageName()).forEach(b -> hints.reflection()
-                    .registerType(
-                            TypeReference.of(Objects.requireNonNull(b.getBeanClassName())),
-                            MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
-                            MemberCategory.ACCESS_DECLARED_FIELDS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS));
+            scanner.findCandidateComponents(Error.class.getPackageName())
+                    .forEach(b -> hints.reflection()
+                            .registerType(
+                                    TypeReference.of(Objects.requireNonNull(b.getBeanClassName())),
+                                    MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
+                                    MemberCategory.ACCESS_DECLARED_FIELDS,
+                                    MemberCategory.INVOKE_PUBLIC_METHODS));
         }
 
         /**

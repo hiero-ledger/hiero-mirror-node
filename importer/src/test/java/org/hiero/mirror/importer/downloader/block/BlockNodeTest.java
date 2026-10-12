@@ -500,9 +500,12 @@ final class BlockNodeTest extends BlockNodeTestBase {
         node.streamBlocks(0, null, accumulate(streamed), TIMEOUT);
 
         // then
-        assertThat(streamed).hasSize(1).first().satisfies(block -> assertBlockStream(block, 0), block -> assertThat(
-                        block.size())
-                .isPositive());
+        assertThat(streamed)
+                .hasSize(1)
+                .first()
+                .satisfies(
+                        block -> assertBlockStream(block, 0),
+                        block -> assertThat(block.size()).isPositive());
     }
 
     @Test
@@ -655,8 +658,9 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
     private void assertRecordItem(BlockStream blockStream, long number) {
         assertBlockStream(
-                blockStream, number, blockItems -> assertThat(blockItems.get(1).getItemCase())
-                        .isEqualTo(BlockItem.ItemCase.RECORD_FILE));
+                blockStream,
+                number,
+                blockItems -> assertThat(blockItems.get(1).getItemCase()).isEqualTo(BlockItem.ItemCase.RECORD_FILE));
     }
 
     private BlockNodeProperties blockNodeProperties(String host, int port, int priority) {

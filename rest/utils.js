@@ -242,7 +242,9 @@ const paramValidityChecks = (param, opAndVal, filterValidator = filterValidityCh
   let val = null;
   let op = null;
 
-  if (opAndVal === undefined) {
+  // A non-string value, e.g. an object produced by the qs query string parser (see middleware/requestHandler.js) from a
+  // nested key like account.balance[$ne]=0, is never valid and must not reach the string operations below.
+  if (typeof opAndVal !== 'string') {
     return ret;
   }
 
@@ -807,7 +809,6 @@ const getPaginationLink = (req, isEnd, lastValueMap, order) => {
     return null;
   }
 
-  const urlPrefix = config.response.includeHostInLink ? `${req.protocol}://${req.hostname}:${config.port}` : '';
   const nextParamQueries = getNextParamQueries(order, req.query, lastValueMap);
   if (nextParamQueries === null) {
     return null;
@@ -815,7 +816,7 @@ const getPaginationLink = (req, isEnd, lastValueMap, order) => {
 
   // remove the '/' at the end of req.path
   const path = req.path.endsWith('/') ? req.path.slice(0, -1) : req.path;
-  return urlPrefix + req.baseUrl + path + nextParamQueries;
+  return req.baseUrl + path + nextParamQueries;
 };
 
 /**
@@ -1260,6 +1261,17 @@ const buildFilters = (query) => {
 };
 
 const buildComparatorFilter = (name, filter) => {
+  // An object produced by the qs query string parser (see middleware/requestHandler.js) from a nested key like
+  // timestamp[$ne]=0, is never valid and must not reach the string operations below. Return a comparator with
+  // no operator so validation rejects it with a 400.
+  if (typeof filter !== 'string') {
+    return {
+      key: name,
+      operator: undefined,
+      value: filter,
+    };
+  }
+
   const splitVal = filter.split(':');
   const value = splitVal.pop();
   const operator = splitVal.pop() ?? 'eq';
@@ -1857,6 +1869,7 @@ export {
   parseTimestampParam,
   parseTimestampQueryParam,
   parseTokenBalances,
+  paramValidityChecks,
   randomString,
   resultSuccess,
   toHexString,

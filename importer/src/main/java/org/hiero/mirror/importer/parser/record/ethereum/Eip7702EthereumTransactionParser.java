@@ -11,7 +11,6 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
@@ -57,7 +56,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                             "RLP list size was %d but expected %d", rlpItems.size(), EIP7702_TYPE_RLP_ITEM_COUNT));
         }
 
-        final var authorizationList = parseAuthorizationList(rlpItems.get(9));
+        final var authorizationList = decodeAuthorizationList(rlpItems.get(9));
 
         final var ethereumTransaction = EthereumTransaction.builder()
                 .chainId(rlpItems.get(0).data())
@@ -68,7 +67,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                 .toAddress(rlpItems.get(5).data())
                 .value(rlpItems.get(6).asBigInt().toByteArray())
                 .callData(rlpItems.get(7).data())
-                .accessList(parseAccessList(rlpItems.get(8), TRANSACTION_TYPE_NAME))
+                .accessList(decodeAccessList(rlpItems.get(8), TRANSACTION_TYPE_NAME))
                 .authorizationList(authorizationList)
                 .recoveryId((int) rlpItems.get(10).asByte())
                 .signatureR(rlpItems.get(11).data())
@@ -78,7 +77,7 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
         return ethereumTransaction.build();
     }
 
-    private List<Authorization> parseAuthorizationList(RLPItem authorizationListItem) {
+    private List<Authorization> decodeAuthorizationList(RLPItem authorizationListItem) {
         if (!authorizationListItem.isList()) {
             throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Authorization list is not a list");
         }
@@ -92,46 +91,39 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                             authorizationTuples.size(), MAX_AUTHORIZATION_LIST_SIZE));
         }
 
-        var authorizations = new ArrayList<Authorization>();
-
+        final var authorizations = new ArrayList<Authorization>(authorizationTuples.size());
         for (var tupleItem : authorizationTuples) {
-            if (!tupleItem.isList()) {
-                throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Authorization tuple is not a list");
-            }
-
-            var tuple = tupleItem.asRLPList().elements();
-            if (tuple.size() != AUTHORIZATION_TUPLE_SIZE) {
-                throw new InvalidEthereumBytesException(
-                        TRANSACTION_TYPE_NAME,
-                        String.format(
-                                "Authorization tuple size was %d but expected %d",
-                                tuple.size(), AUTHORIZATION_TUPLE_SIZE));
-            }
-
-            final var hexFormat = HexFormat.of();
-            final var chainId = tuple.get(0).data();
-            final var authorization = Authorization.builder()
-                    .chainId(
-                            ArrayUtils.isEmpty(chainId)
-                                    ? HEX_PREFIX + "0"
-                                    : HEX_PREFIX + new BigInteger(1, chainId).toString(16))
-                    .address(HEX_PREFIX + hexFormat.formatHex(tuple.get(1).data()))
-                    .nonce(tuple.get(2).asLong())
-                    .yParity(tuple.get(3).asByte() == 0 ? HEX_PREFIX + "0" : HEX_PREFIX + "1")
-                    .r(HEX_PREFIX + hexFormat.formatHex(tuple.get(4).data()))
-                    .s(HEX_PREFIX + hexFormat.formatHex(tuple.get(5).data()))
-                    .build();
-
-            authorizations.add(authorization);
+            authorizations.add(decodeAuthorization(tupleItem));
         }
 
         return authorizations;
     }
 
+    private Authorization decodeAuthorization(RLPItem tupleItem) {
+        if (!tupleItem.isList()) {
+            throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Authorization tuple is not a list");
+        }
+
+        var tuple = tupleItem.asRLPList().elements();
+        if (tuple.size() != AUTHORIZATION_TUPLE_SIZE) {
+            throw new InvalidEthereumBytesException(
+                    TRANSACTION_TYPE_NAME,
+                    String.format(
+                            "Authorization tuple size was %d but expected %d", tuple.size(), AUTHORIZATION_TUPLE_SIZE));
+        }
+
+        return Authorization.builder()
+                .chainId(toHexQuantity(tuple.get(0).data()))
+                .address(toHex(tuple.get(1).data()))
+                .nonce(authorizationNonce(tuple.get(2)))
+                .yParity(toHexQuantity(tuple.get(3).data()))
+                .r(toHex(tuple.get(4).data()))
+                .s(toHex(tuple.get(5).data()))
+                .build();
+    }
+
     @Override
     protected byte[] encode(EthereumTransaction ethereumTransaction) {
-        var authorizationList = encodeAuthorizationList(ethereumTransaction.getAuthorizationList());
-
         return RLPEncoder.sequence(
                 EIP7702_TYPE_BYTES,
                 List.of(
@@ -144,39 +136,78 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                         getValue(ethereumTransaction),
                         ethereumTransaction.getCallData(),
                         encodeAccessList(ethereumTransaction.getAccessList()),
-                        authorizationList,
+                        encodeAuthorizationList(ethereumTransaction.getAuthorizationList()),
                         Integers.toBytes(ethereumTransaction.getRecoveryId()),
                         ethereumTransaction.getSignatureR(),
                         ethereumTransaction.getSignatureS()));
     }
 
-    private List<List<byte[]>> encodeAuthorizationList(List<Authorization> authorizations) {
+    private List<List<byte[]>> encodeAuthorizationList(final List<Authorization> authorizations) {
         if (authorizations == null || authorizations.isEmpty()) {
             return List.of();
         }
 
-        var encodedList = new ArrayList<List<byte[]>>();
+        var encodedList = new ArrayList<List<byte[]>>(authorizations.size());
         for (var auth : authorizations) {
-            encodedList.add(List.of(
-                    decodeHex(auth.getChainId()),
-                    decodeHex(auth.getAddress()),
-                    Integers.toBytes(auth.getNonce()),
-                    Integers.toBytes(Integer.parseInt(auth.getYParity().substring(2), 16)),
-                    decodeHex(auth.getR()),
-                    decodeHex(auth.getS())));
+            encodedList.add(encodeAuthorization(auth));
         }
         return encodedList;
     }
 
-    private byte[] decodeHex(String hex) {
-        try {
-            var stripped = hex.startsWith(HEX_PREFIX) ? hex.substring(2) : hex;
-            if (stripped.length() % 2 != 0) {
-                stripped = "0" + stripped;
-            }
-            return Hex.decodeHex(stripped);
-        } catch (Exception e) {
+    private List<byte[]> encodeAuthorization(final Authorization authorization) {
+        return List.of(
+                fromHexQuantity(authorization.getChainId()),
+                fromHex(authorization.getAddress()),
+                Integers.toBytes(authorization.getNonce()),
+                fromHexQuantity(authorization.getYParity()),
+                fromHex(authorization.getR()),
+                fromHex(authorization.getS()));
+    }
+
+    private String toHex(final byte[] data) {
+        return HEX_PREFIX + HexFormat.of().formatHex(data);
+    }
+
+    private byte[] fromHex(final String hex) {
+        var stripped = stripHexPrefix(hex);
+        if (stripped.length() % 2 != 0) {
             throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Invalid hex string: " + hex);
         }
+        return HexFormat.of().parseHex(stripped);
+    }
+
+    private static String stripHexPrefix(final String hex) {
+        return hex.startsWith(HEX_PREFIX) ? hex.substring(HEX_PREFIX.length()) : hex;
+    }
+
+    private long authorizationNonce(final RLPItem nonce) {
+        try {
+            return nonce.asLong();
+        } catch (IllegalArgumentException e) {
+            throw new InvalidEthereumBytesException(
+                    TRANSACTION_TYPE_NAME, "Authorization nonce is not a canonical integer");
+        }
+    }
+
+    /**
+     * Canonical integer 0 is {@code "0x0"} and encodes as an empty RLP string. A payload that starts with {@code 0x00}
+     * keeps those bytes, so an empty chain id and a chain id of {@code 0x00} do not collapse.
+     */
+    private String toHexQuantity(final byte[] data) {
+        if (ArrayUtils.isEmpty(data)) {
+            return HEX_PREFIX + "0";
+        }
+        if (data[0] == 0) {
+            return toHex(data);
+        }
+        return HEX_PREFIX + new BigInteger(1, data).toString(16);
+    }
+
+    private byte[] fromHexQuantity(final String hex) {
+        final var stripped = stripHexPrefix(hex);
+        if (stripped.isEmpty() || stripped.equals("0")) {
+            return ArrayUtils.EMPTY_BYTE_ARRAY;
+        }
+        return HexFormat.of().parseHex(stripped.length() % 2 != 0 ? "0" + stripped : stripped);
     }
 }

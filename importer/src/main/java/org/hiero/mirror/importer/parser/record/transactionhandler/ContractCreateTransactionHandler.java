@@ -246,8 +246,11 @@ class ContractCreateTransactionHandler extends AbstractEntityCrudTransactionHand
             return;
         }
 
-        if (contract.getInitcode() == null && parentRecordItem.getEthereumTransaction() != null) {
-            contract.setInitcode(parentRecordItem.getEthereumTransaction().getCallData());
+        // Sidecar initcode is empty when the creation bytecode is already in the RLP calldata.
+        if (ArrayUtils.isEmpty(contract.getInitcode())
+                && ethereumTransaction != null
+                && ArrayUtils.isNotEmpty(ethereumTransaction.getCallData())) {
+            contract.setInitcode(ethereumTransaction.getCallData());
         }
     }
 }

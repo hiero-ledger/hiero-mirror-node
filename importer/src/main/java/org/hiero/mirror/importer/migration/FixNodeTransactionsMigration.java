@@ -119,10 +119,13 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
 
     private Node recordItemToNode(RecordItem recordItem) {
         var type = TransactionType.of(recordItem.getTransactionType());
-        var handler = nodeTransactionHandlerMap.computeIfAbsent(type, t -> nodeTransactionHandlers.stream()
-                .filter(h -> h.getType().equals(type))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No handler found for transaction type: " + t)));
+        var handler = nodeTransactionHandlerMap.computeIfAbsent(
+                type,
+                t -> nodeTransactionHandlers.stream()
+                        .filter(h -> h.getType().equals(type))
+                        .findFirst()
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("No handler found for transaction type: " + t)));
 
         return handler.parseNode(recordItem);
     }

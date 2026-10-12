@@ -180,10 +180,18 @@ public class DomainUtils {
         return convertToNanosMax(instant.getEpochSecond(), instant.getNano());
     }
 
+    public static MessageDigest createSha256Digest() {
+        try {
+            return MessageDigest.getInstance(DigestAlgorithm.SHA_256.getName());
+        } catch (final NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm not found", e);
+        }
+    }
+
     public static MessageDigest createSha384Digest() {
         try {
             return MessageDigest.getInstance(DigestAlgorithm.SHA_384.getName());
-        } catch (NoSuchAlgorithmException e) {
+        } catch (final NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-384 algorithm not found", e);
         }
     }

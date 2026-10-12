@@ -48,6 +48,7 @@ test:
       memory: 4096Mi
 web3:
   env:
+    HIERO_MIRROR_WEB3_ENABLE_STATE_OVERRIDES: "true"
     HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
   image:
     repository: mirrornode/hedera-mirror-web3

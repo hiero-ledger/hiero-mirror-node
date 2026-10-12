@@ -67,9 +67,10 @@ public final class BlockProperties {
 
     @AssertTrue(message = "Each node must contain both STATUS and SUBSCRIBE_STREAM capable endpoints")
     private boolean hasValidEndpoints() {
-        return nodes.stream().allMatch(n -> n.getEndpoints().stream()
-                .flatMap(e -> e.getApis().stream())
-                .collect(Collectors.toSet())
-                .containsAll(FULL_BLOCK_NODE_APIS));
+        return nodes.stream()
+                .allMatch(n -> n.getEndpoints().stream()
+                        .flatMap(e -> e.getApis().stream())
+                        .collect(Collectors.toSet())
+                        .containsAll(FULL_BLOCK_NODE_APIS));
     }
 }

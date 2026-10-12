@@ -54,12 +54,14 @@ class ContractStateMigrationTest extends ImporterIntegrationTest {
     @Test
     void migrate() {
         // given
-        var builder = domainBuilder.contractStateChange().customize(c -> c.consensusTimestamp(1L)
-                .migration(true)
-                .contractId(1000)
-                .slot(new byte[] {1})
-                .valueRead("a".getBytes())
-                .valueWritten(null));
+        var builder = domainBuilder
+                .contractStateChange()
+                .customize(c -> c.consensusTimestamp(1L)
+                        .migration(true)
+                        .contractId(1000)
+                        .slot(new byte[] {1})
+                        .valueRead("a".getBytes())
+                        .valueWritten(null));
 
         builder.persist();
         var contractStateChange2 = builder.customize(

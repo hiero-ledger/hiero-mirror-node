@@ -661,8 +661,9 @@ class RecordItemTest {
                 .build();
 
         // verify parent is picked up for a valid previous
-        assertThat(recordItem).returns(parentRecordItem, RecordItem::getParent).satisfies(c -> assertThat(c.getParent())
-                .isNotNull());
+        assertThat(recordItem)
+                .returns(parentRecordItem, RecordItem::getParent)
+                .satisfies(c -> assertThat(c.getParent()).isNotNull());
     }
 
     @Test
@@ -753,9 +754,10 @@ class RecordItemTest {
         recordItem.addEntityId(EntityId.of(2));
 
         assertThat(recordItem.getTransactionType()).isEqualTo(TransactionBody.DataCase.DATA_NOT_SET.getNumber());
-        assertThat(recordItem.getEntityTransactions().values()).isNotEmpty().allSatisfy(entityTransaction -> assertThat(
-                        entityTransaction.getType())
-                .isEqualTo(TransactionBody.DataCase.DATA_NOT_SET.getNumber()));
+        assertThat(recordItem.getEntityTransactions().values())
+                .isNotEmpty()
+                .allSatisfy(entityTransaction -> assertThat(entityTransaction.getType())
+                        .isEqualTo(TransactionBody.DataCase.DATA_NOT_SET.getNumber()));
     }
 
     private static RecordItem recordItemWithUnknownType(int fieldNumber) {

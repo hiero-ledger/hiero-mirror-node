@@ -537,7 +537,12 @@ class ContractController extends BaseController {
       conditions.push(`${ContractResult.getFullName(ContractResult.TRANSACTION_NONCE)} = 0`);
     }
 
-    const includeSynthetic = config.query.syntheticContractResults && contractResultFromInValues.length === 0;
+    // Special case: don't include synthetic contract results created from synthetic contract logs when the query is for
+    // a specific contract, a workaround for #14365
+    const includeSynthetic =
+      config.query.syntheticContractResults &&
+      (contractId == null || config.query.syntheticContractIdResults) &&
+      contractResultFromInValues.length === 0;
 
     return {
       conditions,

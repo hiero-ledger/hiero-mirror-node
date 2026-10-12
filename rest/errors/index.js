@@ -7,6 +7,7 @@ import InvalidClauseError from './invalidClauseError';
 import InvalidConfigError from './invalidConfigError';
 import NotFoundError from './notFoundError';
 import RestError from './restError';
+import TooManyRequestsError from './tooManyRequestsError';
 
 export {
   DbError,
@@ -16,4 +17,5 @@ export {
   InvalidConfigError,
   NotFoundError,
   RestError,
+  TooManyRequestsError,
 };

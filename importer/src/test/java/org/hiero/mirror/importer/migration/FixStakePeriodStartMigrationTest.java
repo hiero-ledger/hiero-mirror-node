@@ -78,10 +78,12 @@ class FixStakePeriodStartMigrationTest extends AbstractStakingMigrationTest {
         // given
         long createdTimestamp = domainBuilder.timestamp();
         long updateTimestamp1 = createdTimestamp + Duration.ofDays(5).toNanos();
-        var entityHistoryWrapper = domainBuilder.entityHistory().customize(e -> e.createdTimestamp(createdTimestamp)
-                .stakedNodeId(-1L)
-                .stakePeriodStart(-1L)
-                .timestampRange(Range.closedOpen(createdTimestamp, updateTimestamp1)));
+        var entityHistoryWrapper = domainBuilder
+                .entityHistory()
+                .customize(e -> e.createdTimestamp(createdTimestamp)
+                        .stakedNodeId(-1L)
+                        .stakePeriodStart(-1L)
+                        .timestampRange(Range.closedOpen(createdTimestamp, updateTimestamp1)));
         var entityHistory1 = entityHistoryWrapper.get();
         persistEntityHistory(entityHistory1);
         long rewardTimestamp1 = updateTimestamp1 + Duration.ofDays(2).toNanos();

@@ -190,37 +190,41 @@ class OpcodesControllerTest {
     }
 
     static Stream<Arguments> transactionsWithDifferentSenderAddresses() {
-        return Arrays.stream(TransactionProviderEnum.values()).flatMap(providerEnum -> entityAddressCombinations(
-                        providerEnum.getPayerAccountId())
-                .map(pair -> Arguments.of(Named.of(
-                        "%s(payerAccountId=%s, evmAddress=%s, alias=%s)"
-                                .formatted(
-                                        providerEnum.name(),
-                                        pair.getLeft() != null ? pair.getLeft().toString() : null,
-                                        pair.getMiddle() != null ? Bytes.of(pair.getMiddle()) : null,
-                                        pair.getRight() != null ? Bytes.of(pair.getRight()) : null),
-                        providerEnum.customize(p -> {
-                            p.setPayerAccountId(pair.getLeft());
-                            p.setPayerEvmAddress(pair.getMiddle());
-                            p.setPayerAlias(pair.getRight());
-                        })))));
+        return Arrays.stream(TransactionProviderEnum.values())
+                .flatMap(providerEnum -> entityAddressCombinations(providerEnum.getPayerAccountId())
+                        .map(pair -> Arguments.of(Named.of(
+                                "%s(payerAccountId=%s, evmAddress=%s, alias=%s)"
+                                        .formatted(
+                                                providerEnum.name(),
+                                                pair.getLeft() != null
+                                                        ? pair.getLeft().toString()
+                                                        : null,
+                                                pair.getMiddle() != null ? Bytes.of(pair.getMiddle()) : null,
+                                                pair.getRight() != null ? Bytes.of(pair.getRight()) : null),
+                                providerEnum.customize(p -> {
+                                    p.setPayerAccountId(pair.getLeft());
+                                    p.setPayerEvmAddress(pair.getMiddle());
+                                    p.setPayerAlias(pair.getRight());
+                                })))));
     }
 
     static Stream<Arguments> transactionsWithDifferentReceiverAddresses() {
-        return Arrays.stream(TransactionProviderEnum.values()).flatMap(providerEnum -> entityAddressCombinations(
-                        providerEnum.getContractId())
-                .map(pair -> Arguments.of(Named.of(
-                        "%s(contractId=%s, evmAddress=%s, alias=%s)"
-                                .formatted(
-                                        providerEnum.name(),
-                                        pair.getLeft() != null ? pair.getLeft().toString() : null,
-                                        pair.getMiddle() != null ? Bytes.of(pair.getMiddle()) : null,
-                                        pair.getRight() != null ? Bytes.of(pair.getRight()) : null),
-                        providerEnum.customize(p -> {
-                            p.setContractId(pair.getLeft());
-                            p.setContractEvmAddress(pair.getMiddle());
-                            p.setContractAlias(pair.getRight());
-                        })))));
+        return Arrays.stream(TransactionProviderEnum.values())
+                .flatMap(providerEnum -> entityAddressCombinations(providerEnum.getContractId())
+                        .map(pair -> Arguments.of(Named.of(
+                                "%s(contractId=%s, evmAddress=%s, alias=%s)"
+                                        .formatted(
+                                                providerEnum.name(),
+                                                pair.getLeft() != null
+                                                        ? pair.getLeft().toString()
+                                                        : null,
+                                                pair.getMiddle() != null ? Bytes.of(pair.getMiddle()) : null,
+                                                pair.getRight() != null ? Bytes.of(pair.getRight()) : null),
+                                providerEnum.customize(p -> {
+                                    p.setContractId(pair.getLeft());
+                                    p.setContractEvmAddress(pair.getMiddle());
+                                    p.setContractAlias(pair.getRight());
+                                })))));
     }
 
     static Stream<Triple<EntityId, byte[], byte[]>> entityAddressCombinations(EntityId entityId) {

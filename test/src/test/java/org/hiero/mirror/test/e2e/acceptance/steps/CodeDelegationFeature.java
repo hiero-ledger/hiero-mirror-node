@@ -98,10 +98,11 @@ public class CodeDelegationFeature extends AbstractFeature {
         networkTransactionResponse = result.networkTransactionResponse();
         assertThat(networkTransactionResponse.getTransactionId()).isNotNull();
         assertThat(networkTransactionResponse.getReceipt()).isNotNull();
-        assertThat(result.contractFunctionResult()).isNotNull().satisfies(functionResult -> assertThat(
-                        functionResult.asBytes())
-                .as("EIP-7702 call returned no output; the authorization was likely ignored")
-                .hasSizeGreaterThanOrEqualTo(32));
+        assertThat(result.contractFunctionResult())
+                .isNotNull()
+                .satisfies(functionResult -> assertThat(functionResult.asBytes())
+                        .as("EIP-7702 call returned no output; the authorization was likely ignored")
+                        .hasSizeGreaterThanOrEqualTo(32));
         assertThat(result.contractFunctionResult().getUint256(0)).isEqualTo(BigInteger.valueOf(4));
     }
 

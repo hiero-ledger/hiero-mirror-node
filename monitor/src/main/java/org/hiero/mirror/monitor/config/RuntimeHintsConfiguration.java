@@ -65,8 +65,10 @@ final class RuntimeHintsConfiguration {
         private void registerProtobufs(RuntimeHints hints) {
             final var scanner = new ClassPathScanningCandidateComponentProvider(false);
             scanner.addIncludeFilter(new AssignableTypeFilter(GeneratedMessageLite.class));
-            scanner.findCandidateComponents(Transaction.class.getPackageName()).forEach(b -> hints.reflection()
-                    .registerType(TypeReference.of(b.getBeanClassName()), MemberCategory.ACCESS_DECLARED_FIELDS));
+            scanner.findCandidateComponents(Transaction.class.getPackageName())
+                    .forEach(b -> hints.reflection()
+                            .registerType(
+                                    TypeReference.of(b.getBeanClassName()), MemberCategory.ACCESS_DECLARED_FIELDS));
         }
 
         /**
