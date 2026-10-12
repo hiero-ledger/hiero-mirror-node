@@ -19,8 +19,8 @@ plugins {
 extra.apply {
     set("besuVersion", "26.2.0")
     set("blockNodeVersion", "0.44.2")
-    set("consensusNodeVersion", "0.79.0-alpha.2")
-    set("hederaCryptographyVersion", "3.19.0")
+    set("consensusNodeVersion", "0.78.0-rc.9")
+    set("hederaCryptographyVersion", "3.15.0")
     set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
     set("jooq.version", "3.21.9") // Must match buildSrc/build.gradle.kts
@@ -63,7 +63,7 @@ dependencies {
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
-        api("io.cucumber:cucumber-bom:8.0.4")
+        api("io.cucumber:cucumber-bom:7.34.9")
         api("io.fabric8:kubernetes-client-bom:8.0.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.16.0")
