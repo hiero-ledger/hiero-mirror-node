@@ -2969,13 +2969,13 @@ components:
         access_list:
           description: Optional EIP-2930 access list. Omitted or null if not provided.
           type: [array, "null"]
-          maxItems: 1000
+          maxItems: 7000
           items:
             $ref: "#/components/schemas/AccessList"
         authorization_list:
           description: Optional EIP-7702 authorization list. Omitted or null if not provided.
           type: [array, "null"]
-          maxItems: 1000
+          maxItems: 1500
           items:
             $ref: "#/components/schemas/AuthorizationList"
       required:

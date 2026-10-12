@@ -301,15 +301,25 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .sender(Address.ZERO)
                 .value(0L)
                 .build();
+        final var skippedParams = ContractExecutionParameters.builder()
+                .block(BlockType.LATEST)
+                .callData(new byte[0])
+                .callType(ETH_CALL)
+                .gas(TRANSACTION_GAS_LIMIT / 4)
+                .receiver(Address.ZERO)
+                .sender(Address.ZERO)
+                .value(0L)
+                .build();
         final var invalidOverride = new BlockOverride();
         invalidOverride.setNumber("0xzz");
 
         assertThatThrownBy(() -> contractDebugService.processTraceCall(List.of(
                         new TraceRequest(executionParameters(), false, DEFAULT_TIMEOUT, null),
-                        new TraceRequest(failedParams, false, DEFAULT_TIMEOUT, invalidOverride))))
+                        new TraceRequest(failedParams, false, DEFAULT_TIMEOUT, invalidOverride),
+                        new TraceRequest(skippedParams, false, DEFAULT_TIMEOUT, null))))
                 .isInstanceOf(InvalidParametersException.class)
                 .hasMessageContaining("Invalid block_override");
-        verify(throttleManager).restore(failedParams.getGas());
+        verify(throttleManager).restore(failedParams.getGas() + skippedParams.getGas());
         verify(throttleManager, never()).restore(TRANSACTION_GAS_LIMIT);
     }
 

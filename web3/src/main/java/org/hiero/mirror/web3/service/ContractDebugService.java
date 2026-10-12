@@ -80,7 +80,8 @@ public class ContractDebugService extends ContractCallService {
             final var actionContext = ActionContext.builder().build();
             ctx.setActionContext(actionContext);
 
-            for (final var traceRequest : traceRequests) {
+            for (int i = 0; i < traceRequests.size(); i++) {
+                final var traceRequest = traceRequests.get(i);
                 actionContext.setOnlyTopCall(traceRequest.isOnlyTopCall());
                 actionContext.beginCall();
                 final var params = traceRequest.getContractExecutionParameters();
@@ -96,7 +97,7 @@ public class ContractDebugService extends ContractCallService {
                     }
                     throw e;
                 } catch (final IllegalArgumentException | InvalidParametersException e) {
-                    throttleManager.restore(params.getGas());
+                    throttleManager.restore(remainingGas(traceRequests, i));
                     throw e;
                 }
                 if (actionContext.isTimedOut()) {
@@ -105,6 +106,14 @@ public class ContractDebugService extends ContractCallService {
             }
             return actionResponse(ctx);
         });
+    }
+
+    private static long remainingGas(final List<TraceRequest> traceRequests, final int fromIndex) {
+        var gas = 0L;
+        for (int i = fromIndex; i < traceRequests.size(); i++) {
+            gas += traceRequests.get(i).getContractExecutionParameters().getGas();
+        }
+        return gas;
     }
 
     private List<ActionResponse> actionResponse(final ContractCallContext ctx) {
