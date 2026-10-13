@@ -8,19 +8,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.google.common.collect.Range;
 import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.tss.Ledger;
-import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.junit.jupiter.api.Test;
 
 final class LedgerIdPublishTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new LedgerIdPublicationTransactionHandler(entityListener, new LedgerIdPublicationTransactionParser());
+        return new LedgerIdPublicationTransactionHandler(entityListener);
     }
 
     @Override
@@ -47,7 +47,7 @@ final class LedgerIdPublishTransactionHandlerTest extends AbstractTransactionHan
         var body = recordItem.getTransactionBody().getLedgerIdPublication();
         verify(entityListener)
                 .onLedger(assertArg(ledger -> assertThat(ledger)
-                        .returns(recordItem.getConsensusTimestamp(), Ledger::getConsensusTimestamp)
+                        .returns(Range.atLeast(recordItem.getConsensusTimestamp()), Ledger::getTimestampRange)
                         .returns(toBytes(body.getLedgerId()), Ledger::getLedgerId)));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));

@@ -20,6 +20,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
@@ -47,7 +48,6 @@ import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverProperties;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverServiceImpl;
-import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.exception.HashMismatchException;
@@ -76,9 +76,6 @@ final class BlockStreamVerifierTest {
     private ConsensusNodeService consensusNodeService;
 
     @Mock
-    private LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser;
-
-    @Mock
     private NodeSignatureVerifier nodeSignatureVerifier;
 
     @Mock
@@ -102,7 +99,6 @@ final class BlockStreamVerifierTest {
                 blockStateProofHasher,
                 consensusNodeService,
                 cutoverService,
-                ledgerIdPublicationTransactionParser,
                 new SimpleMeterRegistry(),
                 nodeSignatureVerifier,
                 cutoverService,
@@ -122,8 +118,11 @@ final class BlockStreamVerifierTest {
     void verifyGenesisBlockWithLedgerIdPublication() {
         // given
         when(recordFileRepository.findLatest()).thenReturn(Optional.empty());
-        long consensusTimestamp = DomainUtils.convertToNanosMax(Instant.now());
-        var ledgerIdPublicationTransactionBody = LedgerIdPublicationTransactionBody.getDefaultInstance();
+        final long consensusTimestamp = DomainUtils.convertToNanosMax(Instant.now());
+        final byte[] ledgerId = TestUtils.generateRandomByteArray(64);
+        var ledgerIdPublicationTransactionBody = LedgerIdPublicationTransactionBody.newBuilder()
+                .setLedgerId(fromBytes(ledgerId))
+                .build();
         var ledgerIdPublicationTransaction = BlockTransaction.builder()
                 .transactionBody(TransactionBody.newBuilder()
                         .setLedgerIdPublication(ledgerIdPublicationTransactionBody)
@@ -136,9 +135,6 @@ final class BlockStreamVerifierTest {
         var blockFile = withBlockNumber(getBlockFile(null).toBuilder(), 0L)
                 .lastLedgerIdPublicationTransaction(ledgerIdPublicationTransaction)
                 .build();
-        var ledger = new Ledger();
-        when(ledgerIdPublicationTransactionParser.parse(consensusTimestamp, ledgerIdPublicationTransactionBody))
-                .thenReturn(ledger);
 
         // when
         verifier.verify(blockFile);
@@ -147,8 +143,10 @@ final class BlockStreamVerifierTest {
         verify(blockFileTransformer).transform(blockFile);
         verifyNoInteractions(blockStateProofHasher);
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile)));
-        verify(ledgerIdPublicationTransactionParser).parse(consensusTimestamp, ledgerIdPublicationTransactionBody);
-        verify(tssVerifier).setLedger(ledger);
+        verify(tssVerifier)
+                .setLedger(assertArg(l -> assertThat(l)
+                        .returns(ledgerId, Ledger::getLedgerId)
+                        .returns(Range.atLeast(consensusTimestamp), Ledger::getTimestampRange)));
         verify(tssVerifier).verify(eq(0L), any(), any());
         verify(recordFileRepository).findLatest();
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile.getIndex(), RecordFile::getIndex);
@@ -230,7 +228,6 @@ final class BlockStreamVerifierTest {
         verify(blockFileTransformer).transform(blockFile2);
         verifyNoInteractions(blockStateProofHasher);
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile2)));
-        verifyNoInteractions(ledgerIdPublicationTransactionParser);
         verify(recordFileRepository).findLatest();
         verify(tssVerifier).verify(eq(blockFile2.getIndex()), any(), any());
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile2.getIndex(), RecordFile::getIndex);
@@ -269,7 +266,6 @@ final class BlockStreamVerifierTest {
         verify(blockFileTransformer).transform(blockFile2);
         verifyNoInteractions(blockStateProofHasher);
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile2)));
-        verifyNoInteractions(ledgerIdPublicationTransactionParser);
         verify(recordFileRepository).findLatest();
         verify(tssVerifier).verify(eq(blockFile2.getIndex()), any(), any());
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile2.getIndex(), RecordFile::getIndex);
@@ -335,7 +331,6 @@ final class BlockStreamVerifierTest {
         verifyNoInteractions(blockStateProofHasher);
         verify(cutoverService).getLastRecordFile();
         verify(cutoverService, never()).verified(any(RecordFile.class));
-        verifyNoInteractions(ledgerIdPublicationTransactionParser);
         verifyNoInteractions(tssVerifier);
         verify(recordFileRepository).findLatest();
         assertThat(cutoverService.getLastRecordFile()).isEmpty();
@@ -361,7 +356,6 @@ final class BlockStreamVerifierTest {
         verifyNoInteractions(blockStateProofHasher);
         verify(cutoverService, times(2)).getLastRecordFile();
         verify(cutoverService, never()).verified(any(RecordFile.class));
-        verifyNoInteractions(ledgerIdPublicationTransactionParser);
         verifyNoInteractions(tssVerifier);
         verify(recordFileRepository).findLatest();
         assertThat(cutoverService.getLastRecordFile()).get().returns(previous.getIndex(), RecordFile::getIndex);
@@ -382,7 +376,6 @@ final class BlockStreamVerifierTest {
         verifyNoInteractions(blockStateProofHasher);
         verify(cutoverService).getLastRecordFile();
         verify(cutoverService, never()).verified(any(RecordFile.class));
-        verifyNoInteractions(ledgerIdPublicationTransactionParser);
         verifyNoInteractions(tssVerifier);
         verify(recordFileRepository).findLatest();
     }
@@ -402,7 +395,6 @@ final class BlockStreamVerifierTest {
         verifyNoInteractions(blockStateProofHasher);
         verify(cutoverService).getLastRecordFile();
         verify(cutoverService, never()).verified(any(RecordFile.class));
-        verifyNoInteractions(ledgerIdPublicationTransactionParser);
         verifyNoInteractions(tssVerifier);
         verify(recordFileRepository).findLatest();
     }

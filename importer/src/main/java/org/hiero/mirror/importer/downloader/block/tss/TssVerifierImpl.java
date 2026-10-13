@@ -57,7 +57,7 @@ final class TssVerifierImpl implements TssVerifier {
         return Objects.requireNonNull(ledger.get())
                 .or(() -> {
                     final var resolved = Optional.ofNullable(ledgerOnChain)
-                            .or(ledgerRepository::findTopByOrderByConsensusTimestampDesc)
+                            .or(ledgerRepository::findLatest)
                             .or(this::getLedgerFromProperties)
                             .or(() -> Optional.of(EMPTY));
                     ledger.set(resolved);
