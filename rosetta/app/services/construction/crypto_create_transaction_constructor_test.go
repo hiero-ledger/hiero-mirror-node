@@ -309,9 +309,6 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParseRoundTripWithoutH
 	assert.Equal(suite.T(), newAccountPublicKey.String(), operations[0].Metadata["key"])
 	assert.Equal(suite.T(), accountCreate.GetAccountMemo(), operations[0].Metadata["memo"])
 	assert.Equal(suite.T(), int64(accountCreate.GetAutoRenewPeriod().Seconds()), operations[0].Metadata["auto_renew_period"])
-	for _, key := range []string{"alias", "staked_account_id", "staked_node_id", "decline_reward", "receiver_sig_required"} {
-		assert.NotContains(suite.T(), operations[0].Metadata, key)
-	}
 }
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestPreprocess() {

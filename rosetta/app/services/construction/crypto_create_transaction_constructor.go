@@ -178,7 +178,7 @@ func validateSupportedAccountCreateFields(tx hiero.AccountCreateTransaction) *rT
 	// A frozen transaction has signed body bytes, so every populated protobuf field can be checked
 	// against the allowlist. An unfrozen transaction has no body yet; only the public SDK getters
 	// can be checked, and they do not expose fields such as shard, realm, or delegation address.
-	if tx.Transaction != nil && tx.IsFrozen() {
+	if tx.IsFrozen() {
 		return validateFrozenAccountCreateFields(tx)
 	}
 
