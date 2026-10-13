@@ -1,6 +1,11 @@
 {
   "description": "Contract-scoped results include a non-wildcard synthetic NFT transfer but exclude a wildcard (-1) one",
   "setup": {
+    "config": {
+      "query": {
+        "syntheticContractIdResults": true
+      }
+    },
     "contracts": [
       {
         "created_timestamp": "187654000123000",

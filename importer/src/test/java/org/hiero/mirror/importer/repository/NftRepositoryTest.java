@@ -77,9 +77,11 @@ class NftRepositoryTest extends ImporterIntegrationTest {
                 .containsExactlyInAnyOrder(tokenAccountOldTreasury, tokenAccountNewTreasury);
 
         var expectedNftList = Stream.concat(
-                        Stream.of(nft1, nft2, nft3).map(Nft::toBuilder).map(n -> n.accountId(newTreasury)
-                                .timestampRange(Range.atLeast(updateTimestamp))
-                                .build()),
+                        Stream.of(nft1, nft2, nft3)
+                                .map(Nft::toBuilder)
+                                .map(n -> n.accountId(newTreasury)
+                                        .timestampRange(Range.atLeast(updateTimestamp))
+                                        .build()),
                         Stream.of(nft4, nft5, nft6))
                 .toList();
         // The only change to the history rows is closing the timestamp range

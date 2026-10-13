@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.monitor.subscribe.rest;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -13,16 +14,25 @@ import java.time.Duration;
 import java.util.List;
 import org.hiero.mirror.monitor.MirrorNodeProperties;
 import org.hiero.mirror.monitor.MirrorNodeProperties.RestProperties;
+import org.hiero.mirror.monitor.MirrorNodeProperties.RestProperties.TlsMode;
 import org.hiero.mirror.monitor.MonitorProperties;
+import org.hiero.mirror.monitor.NodeProperties;
 import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.rest.model.NetworkNode;
 import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.web.reactive.function.client.ClientRequest;
@@ -32,6 +42,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+@ExtendWith(OutputCaptureExtension.class)
 @MockitoSettings(strictness = Strictness.STRICT_STUBS)
 class RestApiClientTest {
 
@@ -52,6 +63,48 @@ class RestApiClientTest {
 
         WebClient.Builder builder = WebClient.builder().exchangeFunction(exchangeFunction);
         restApiClient = new RestApiClient(monitorProperties, builder);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            80, AUTO, true, false, true
+            8443, AUTO, true, false, true
+            443, DISABLED, true, false, true
+            443, AUTO, true, false, false
+            8443, ENABLED, true, false, false
+            80, AUTO, false, false, false
+            80, AUTO, true, true, false
+            """)
+    void cleartextAddressBookWarning(
+            int port, TlsMode tls, boolean retrieveAddressBook, boolean nodes, boolean warn, CapturedOutput output) {
+        final var rest = monitorProperties.getMirrorNode().getRest();
+        rest.setPort(port);
+        rest.setTls(tls);
+        monitorProperties.getNodeValidation().setRetrieveAddressBook(retrieveAddressBook);
+        if (nodes) {
+            monitorProperties.getNodes().add(new NodeProperties("0.0.3", "127.0.0.1"));
+        }
+
+        new RestApiClient(monitorProperties, WebClient.builder().exchangeFunction(exchangeFunction));
+
+        final var message = "Retrieving the address book from " + rest.getBaseUrl() + " without TLS";
+        if (warn) {
+            assertThat(output).asString().contains(message);
+        } else {
+            assertThat(output).asString().doesNotContain(message);
+        }
+    }
+
+    @Test
+    void cleartextAddressBookWarningRestJava(CapturedOutput output) {
+        final var restJavaProperties = new RestProperties();
+        restJavaProperties.setHost("rest-java");
+        restJavaProperties.setPort(80);
+        monitorProperties.getMirrorNode().setRestJava(restJavaProperties);
+
+        new RestApiClient(monitorProperties, WebClient.builder().exchangeFunction(exchangeFunction));
+
+        assertThat(output).asString().contains("Retrieving the address book from http://rest-java:80/api/v1");
     }
 
     @Test
@@ -89,6 +142,123 @@ class RestApiClientTest {
                 .verify(WAIT);
 
         verify(exchangeFunction).exchange(isA(ClientRequest.class));
+    }
+
+    @Test
+    void getNodesEmptyBody() {
+        when(exchangeFunction.exchange(isA(ClientRequest.class)))
+                .thenAnswer(_ -> Mono.just(ClientResponse.create(HttpStatus.OK)
+                        .header("Content-Type", "application/json")
+                        .build()));
+
+        StepVerifier.withVirtualTime(() -> restApiClient.getNodes())
+                .thenAwait(WAIT)
+                .expectComplete()
+                .verify(WAIT);
+
+        verify(exchangeFunction).exchange(isA(ClientRequest.class));
+    }
+
+    @Test
+    void getNodesEmptyPageWithNext() {
+        final var response = new NetworkNodesResponse()
+                .links(new Links().next("/api/v1/network/nodes?limit=25&node.id=gt:1"))
+                .nodes(List.of());
+        when(exchangeFunction.exchange(isA(ClientRequest.class))).thenAnswer(_ -> response(response));
+
+        StepVerifier.withVirtualTime(() -> restApiClient.getNodes())
+                .thenAwait(WAIT)
+                .expectComplete()
+                .verify(WAIT);
+
+        verify(exchangeFunction).exchange(isA(ClientRequest.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "http://169.254.169.254/latest/meta-data/",
+                "http://example.com/api/v1/network/nodes?limit=25",
+                "https://example.com:8080/network/nodes",
+                "//example.com/api/v1/network/nodes",
+                "/api/v1/network/supply",
+                "/api/v1/network/nodes/../supply",
+                "/api/v1/network/nodes?limit={limit}",
+                "\\\\example.com\\network\\nodes",
+                "network/nodes"
+            })
+    void getNodesInvalidNext(String next) {
+        final var networkNode = new NetworkNode();
+        final var response =
+                new NetworkNodesResponse().links(new Links().next(next)).nodes(List.of(networkNode));
+        final var request = ArgumentCaptor.forClass(ClientRequest.class);
+        when(exchangeFunction.exchange(request.capture())).thenAnswer(_ -> response(response));
+
+        StepVerifier.withVirtualTime(() -> restApiClient.getNodes())
+                .thenAwait(WAIT)
+                .expectNext(networkNode)
+                .expectComplete()
+                .verify(WAIT);
+
+        assertThat(request.getAllValues())
+                .extracting(r -> r.url().toString())
+                .containsExactly("https://127.0.0.1:443/api/v1/network/nodes?limit=25");
+    }
+
+    @Test
+    void getNodesMaxPages() {
+        final var networkNode = new NetworkNode();
+        final var response = new NetworkNodesResponse()
+                .links(new Links().next("/api/v1/network/nodes?limit=25&node.id=gt:1"))
+                .nodes(List.of(networkNode));
+        when(exchangeFunction.exchange(isA(ClientRequest.class))).thenAnswer(_ -> response(response));
+
+        StepVerifier.withVirtualTime(() -> restApiClient.getNodes())
+                .thenAwait(WAIT)
+                .expectNextCount(10L)
+                .expectComplete()
+                .verify(WAIT);
+
+        verify(exchangeFunction, times(10)).exchange(isA(ClientRequest.class));
+    }
+
+    @Test
+    void getNodesNextWithPrefix() {
+        final var networkNode1 = new NetworkNode().nodeId(1L);
+        final var networkNode2 = new NetworkNode().nodeId(2L);
+        final var response1 = new NetworkNodesResponse()
+                .links(new Links().next("/api/v1/network/nodes?limit=25&node.id=gt:1"))
+                .nodes(List.of(networkNode1));
+        final var response2 = new NetworkNodesResponse().links(new Links()).nodes(List.of(networkNode2));
+        final var request = ArgumentCaptor.forClass(ClientRequest.class);
+        when(exchangeFunction.exchange(request.capture()))
+                .thenReturn(response(response1))
+                .thenReturn(response(response2));
+
+        StepVerifier.withVirtualTime(() -> restApiClient.getNodes())
+                .thenAwait(WAIT)
+                .expectNext(networkNode1, networkNode2)
+                .expectComplete()
+                .verify(WAIT);
+
+        assertThat(request.getAllValues())
+                .extracting(r -> r.url().toString())
+                .containsExactly(
+                        "https://127.0.0.1:443/api/v1/network/nodes?limit=25",
+                        "https://127.0.0.1:443/api/v1/network/nodes?limit=25&node.id=gt:1");
+    }
+
+    @Test
+    void getNodesResubscribe() {
+        final var networkNode = new NetworkNode();
+        final var response = new NetworkNodesResponse().links(new Links()).nodes(List.of(networkNode));
+        when(exchangeFunction.exchange(isA(ClientRequest.class))).thenAnswer(_ -> response(response));
+        final var nodes = restApiClient.getNodes();
+
+        StepVerifier.create(nodes).expectNext(networkNode).expectComplete().verify(WAIT);
+        StepVerifier.create(nodes).expectNext(networkNode).expectComplete().verify(WAIT);
+
+        verify(exchangeFunction, times(2)).exchange(isA(ClientRequest.class));
     }
 
     @Test

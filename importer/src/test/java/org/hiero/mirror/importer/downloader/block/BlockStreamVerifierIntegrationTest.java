@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatCode;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileSignature;
@@ -95,7 +96,7 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                         r.hash(recordFile.getPreviousHash()).index(recordFile.getIndex() - 1);
                         if (hasPreviousWrappedRecordBlockHash) {
                             r.wrappedRecordBlockHash(recordFile.getPreviousWrappedRecordBlockHash())
-                                    .previousWrappedRecordBlockHash(domainBuilder.bytes(48));
+                                    .previousWrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE));
                         }
                     })
                     .persist();
@@ -143,7 +144,7 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                 .recordFile()
                 .customize(r -> r.hash(recordFile.getPreviousHash())
                         .index(recordFile.getIndex() - 1)
-                        .wrappedRecordBlockHash(domainBuilder.bytes(48)))
+                        .wrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE)))
                 .persist();
 
         // when, then
@@ -161,7 +162,7 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                 .recordFile()
                 .customize(r -> r.hash(recordFile.getPreviousHash())
                         .index(recordFile.getIndex() - 1)
-                        .wrappedRecordBlockHash(domainBuilder.bytes(48)))
+                        .wrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE)))
                 .persist();
 
         // when, then
@@ -291,8 +292,8 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
                         .name("2025-06-01T00_00_10.207594022Z.rcd")
                         .previousHash(
                                 "da6ee1fdd0aedd8dd61275daf05441bfb1a4bbc39c65621eb18f0ab9e7aa02a9039f29f21f658a9cea62e18877740c00")
-                        .previousWrappedRecordBlockHash(TestUtils.generateRandomByteArray(48))
-                        .wrappedRecordBlockHash(TestUtils.generateRandomByteArray(48))
+                        .previousWrappedRecordBlockHash(TestUtils.generateRandomByteArray(BLOCK_STREAM_HASH_SIZE))
+                        .wrappedRecordBlockHash(TestUtils.generateRandomByteArray(BLOCK_STREAM_HASH_SIZE))
                         .version(6)
                         .build())
                 .build();

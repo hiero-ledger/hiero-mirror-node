@@ -1632,9 +1632,10 @@ final class NetworkControllerTest extends ControllerTest {
             // then
             assertThat(actual).isNotNull();
             assertThat(actual.getNodes()).isNotNull().hasSize(2);
-            assertThat(actual.getNodes()).allSatisfy(node -> assertThat(node.getNodeId())
-                    .isGreaterThanOrEqualTo(minNodeId)
-                    .isLessThanOrEqualTo(maxNodeId));
+            assertThat(actual.getNodes())
+                    .allSatisfy(node -> assertThat(node.getNodeId())
+                            .isGreaterThanOrEqualTo(minNodeId)
+                            .isLessThanOrEqualTo(maxNodeId));
         }
 
         @Test

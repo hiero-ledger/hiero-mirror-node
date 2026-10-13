@@ -597,10 +597,11 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
         assertContractStateChanges(recordItem);
         assertThat(contractRepository.count()).isZero();
         assertThat(entityRepository.count()).isZero();
-        assertThat(contractActionRepository.findAll()).allSatisfy(a -> assertThat(a)
-                .returns(null, ContractAction::getRecipientAccount)
-                .returns(null, ContractAction::getRecipientContract)
-                .returns(null, ContractAction::getRecipientAddress));
+        assertThat(contractActionRepository.findAll())
+                .allSatisfy(a -> assertThat(a)
+                        .returns(null, ContractAction::getRecipientAccount)
+                        .returns(null, ContractAction::getRecipientContract)
+                        .returns(null, ContractAction::getRecipientAddress));
     }
 
     @Test
@@ -912,8 +913,9 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
                         .returns(a.getGasUsed(), e -> e.getGasUsed())
                         .returns(a.getCallerType(), this::getExpectedCallerType)
                         .returns(a.getPayerAccountId(), e -> recordItem.getPayerAccountId())
-                        .returns(a.getResultDataType(), e -> e.getResultDataCase()
-                                .getNumber())
+                        .returns(
+                                a.getResultDataType(),
+                                e -> e.getResultDataCase().getNumber())
                         .returns(a.getValue(), e -> e.getValue())
                         .satisfiesAnyOf(
                                 e -> assertThat(a.getRecipientContract()).isNotNull(),

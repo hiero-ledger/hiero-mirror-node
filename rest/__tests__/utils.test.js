@@ -502,6 +502,18 @@ describe('Utils isPositiveLong', () => {
   });
 });
 
+describe('Utils paramValidityChecks', () => {
+  test('Verify valid for a normal string value', () => {
+    expect(utils.paramValidityChecks(constants.filterKeys.ACCOUNT_BALANCE, 'gt:45')).toBeTrue();
+  });
+  test('Verify invalid for undefined value', () => {
+    expect(utils.paramValidityChecks(constants.filterKeys.ACCOUNT_BALANCE, undefined)).toBeFalse();
+  });
+  test('Verify invalid without throwing for an object value from a nested key like account.balance[$ne]=0', () => {
+    expect(utils.paramValidityChecks(constants.filterKeys.ACCOUNT_BALANCE, {$ne: '0'})).toBeFalse();
+  });
+});
+
 describe('Utils isValidEthHash', () => {
   test('Verify invalid for empty input', () => {
     expect(utils.isValidEthHash()).toBeFalse();

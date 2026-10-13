@@ -336,7 +336,7 @@ describe('extractContractResultsByIdQuery', () => {
   const defaultContractId = 1;
   const defaultExpected = {
     conditions: [primaryContractFilter, 'cr.transaction_nonce = 0'],
-    includeSynthetic: true,
+    includeSynthetic: false,
     params: [defaultContractId],
     order: constants.orderFilterValues.DESC,
     limit: defaultLimit,
@@ -489,6 +489,28 @@ describe('extractContractResultsByIdQuery', () => {
       const result = await contracts.extractContractResultsByIdQuery([], undefined);
       expect(result.includeSynthetic).toBe(false);
     } finally {
+      config.query.syntheticContractResults = true;
+    }
+  });
+
+  test('contract endpoint - syntheticContractIdResults flag enabled → includeSynthetic true', async () => {
+    config.query.syntheticContractIdResults = true;
+    try {
+      const result = await contracts.extractContractResultsByIdQuery([], defaultContractId);
+      expect(result.includeSynthetic).toBe(true);
+    } finally {
+      config.query.syntheticContractIdResults = false;
+    }
+  });
+
+  test('contract endpoint - syntheticContractResults flag disabled → includeSynthetic false', async () => {
+    config.query.syntheticContractIdResults = true;
+    config.query.syntheticContractResults = false;
+    try {
+      const result = await contracts.extractContractResultsByIdQuery([], defaultContractId);
+      expect(result.includeSynthetic).toBe(false);
+    } finally {
+      config.query.syntheticContractIdResults = false;
       config.query.syntheticContractResults = true;
     }
   });

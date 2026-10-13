@@ -172,29 +172,33 @@ public final class SystemFileLoader {
         final var attempt = new AtomicInteger(0);
 
         try {
-            return getRetryTemplate().execute(() -> fileDataRepository
-                    .getFileAtTimestamp(fileId, nanoSeconds.get())
-                    .filter(fileData -> ArrayUtils.isNotEmpty(fileData.getFileData()))
-                    .map(fileData -> {
-                        try {
-                            var bytes = Bytes.wrap(fileData.getFileData());
-                            var codec = systemFile.codec;
-                            if (codec != null) {
-                                codec.parse(bytes.toReadableSequentialData());
-                            }
-                            return File.newBuilder().contents(bytes).fileId(key).build();
-                        } catch (ParseException e) {
-                            log.warn(
-                                    "Attempt {} failed to load file {} at {}, falling back to previous file: {}",
-                                    attempt.incrementAndGet(),
-                                    fileId,
-                                    nanoSeconds.get(),
-                                    e.getMessage());
-                            nanoSeconds.set(fileData.getConsensusTimestamp() - 1);
-                            throw new InvalidFileException(e);
-                        }
-                    })
-                    .orElse(systemFile.genesisFile()));
+            return getRetryTemplate()
+                    .execute(() -> fileDataRepository
+                            .getFileAtTimestamp(fileId, nanoSeconds.get())
+                            .filter(fileData -> ArrayUtils.isNotEmpty(fileData.getFileData()))
+                            .map(fileData -> {
+                                try {
+                                    var bytes = Bytes.wrap(fileData.getFileData());
+                                    var codec = systemFile.codec;
+                                    if (codec != null) {
+                                        codec.parse(bytes.toReadableSequentialData());
+                                    }
+                                    return File.newBuilder()
+                                            .contents(bytes)
+                                            .fileId(key)
+                                            .build();
+                                } catch (ParseException e) {
+                                    log.warn(
+                                            "Attempt {} failed to load file {} at {}, falling back to previous file: {}",
+                                            attempt.incrementAndGet(),
+                                            fileId,
+                                            nanoSeconds.get(),
+                                            e.getMessage());
+                                    nanoSeconds.set(fileData.getConsensusTimestamp() - 1);
+                                    throw new InvalidFileException(e);
+                                }
+                            })
+                            .orElse(systemFile.genesisFile()));
         } catch (RetryException e) {
             return systemFile.genesisFile();
         }

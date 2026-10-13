@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -525,6 +526,49 @@ func TestConstructionMetadataOnline(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestConstructionMetadataDeduplicatesAliases(t *testing.T) {
+	// given
+	accountId := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(100))
+	mockAccountRepo := &mocks.MockAccountRepository{}
+	mockAccountRepo.
+		On("GetAccountId", defaultContext, mock.MatchedBy(func(accountId types.AccountId) bool {
+			return accountId.String() == aliasStr
+		})).
+		Return(accountId, mocks.NilError).
+		Once()
+	mockTransactionConstructor := &mocks.MockTransactionConstructor{}
+	mockTransactionConstructor.
+		On("GetDefaultMaxTransactionFee", types.OperationTypeCryptoTransfer).
+		Return(types.HbarAmount{Value: 100}, mocks.NilError)
+	randomNodeAccountId := hiero.AccountID{Account: uint64(rand.Intn(100) + 1)}
+	nodes := map[string]hiero.AccountID{"10.0.0.1:50211": randomNodeAccountId}
+	mirrorConfig := &config.Mirror{Rosetta: config.Config{
+		Network: defaultNetwork,
+		Nodes:   nodes,
+	}}
+	request := &rTypes.ConstructionMetadataRequest{
+		NetworkIdentifier: networkIdentifier(),
+		Options: map[string]any{
+			optionKeyAccountAliases: aliasStr + "," + ed25519AliasPrefix + strings.ToUpper(publicKeyStr),
+			optionKeyOperationType:  types.OperationTypeCryptoTransfer,
+		},
+	}
+
+	// when
+	service, _ := NewConstructionAPIService(
+		mockAccountRepo,
+		onlineBaseService,
+		mirrorConfig,
+		mockTransactionConstructor,
+	)
+	res, err := service.ConstructionMetadata(defaultContext, request)
+
+	// then
+	mockAccountRepo.AssertExpectations(t)
+	assert.Nil(t, err)
+	assert.Equal(t, fmt.Sprintf("%s:%s", aliasStr, accountId), res.Metadata[metadataKeyAccountMap])
+}
+
 func TestConstructionMetadataOffline(t *testing.T) {
 	// given
 	mockTransactionConstructor := &mocks.MockTransactionConstructor{}
@@ -627,6 +671,26 @@ func TestConstructionMetadataFailsWhenInvalidOptions(t *testing.T) {
 				NetworkIdentifier: networkIdentifier(),
 				Options: map[string]any{
 					optionKeyAccountAliases: 1,
+					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
+				},
+			},
+		},
+		{
+			name: "too many account aliases",
+			request: &rTypes.ConstructionMetadataRequest{
+				NetworkIdentifier: networkIdentifier(),
+				Options: map[string]any{
+					optionKeyAccountAliases: strings.Repeat(aliasStr+",", maxAccountAliases) + aliasStr,
+					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
+				},
+			},
+		},
+		{
+			name: "account aliases exceed max length",
+			request: &rTypes.ConstructionMetadataRequest{
+				NetworkIdentifier: networkIdentifier(),
+				Options: map[string]any{
+					optionKeyAccountAliases: strings.Repeat("a", maxAccountAliasesLength+1),
 					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
 				},
 			},
@@ -984,6 +1048,18 @@ func TestConstructionPayloadsAliasError(t *testing.T) {
 		{
 			name:     "invalid account id",
 			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: fmt.Sprintf("%s:abc", aliasStr)}),
+		},
+		{
+			name:     "account map entry missing separator",
+			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: aliasStr}),
+		},
+		{
+			name:     "matching prefix without separator",
+			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: aliasStr + ",other:0.0.100"}),
+		},
+		{
+			name:     "account map entry with extra separator",
+			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: fmt.Sprintf("%s:%s:0.0.100", aliasStr, aliasStr)}),
 		},
 	}
 

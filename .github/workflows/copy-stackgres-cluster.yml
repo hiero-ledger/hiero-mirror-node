@@ -177,7 +177,7 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -269,7 +269,7 @@ jobs:
           version: v2.3.0
 
       - name: Setup Flux CLI
-        uses: fluxcd/flux2/action@dd233c4fadef306a62b7893204f8e3817fecc2b2 # v2.9.5
+        uses: fluxcd/flux2/action@b9c17924adb533d3617ec7de97a7b0f4acc07b39 # v2.9.6
         with:
           version: v2.3.0
 
@@ -307,7 +307,7 @@ jobs:
 
       - name: Upload k6 test report
         if: ${{ inputs.run_k6_test == true && inputs.collect_k6_report == true }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: k6-test-report
           path: /tmp/mirrornode-k6-test-report/

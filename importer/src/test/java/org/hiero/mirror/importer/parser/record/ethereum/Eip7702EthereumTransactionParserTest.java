@@ -30,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
@@ -118,6 +119,59 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     void encodePreservesHashWithShortAuthorizationFields(String addressHex, String rHex, String sHex) {
         assertEncodeProducesOriginalHash(
                 encodeEip7702Transaction(List.of(), authorizationList(addressHex, rHex, sHex)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("chainIdEncodings")
+    void encodePreservesEmptyAndZeroChainId(byte[] transactionChainId, byte[] authorizationChainId) {
+        final var authorizationList = List.of(List.of(
+                authorizationChainId,
+                HexFormat.of().parseHex(TO_ADDRESS_HEX),
+                Integers.toBytes(AUTH_NONCE),
+                Integers.toBytes(0),
+                HexFormat.of().parseHex(SIGNATURE_R_HEX),
+                HexFormat.of().parseHex(SIGNATURE_S_HEX)));
+        final var original =
+                encodeEip7702Transaction(transactionChainId, List.of(), authorizationList, Hex.decode(CALL_DATA_HEX));
+        assertEncodeProducesOriginalHash(original);
+        assertGetHashWithOffloadedCallData(
+                original,
+                encodeEip7702Transaction(transactionChainId, List.of(), authorizationList, new byte[0]),
+                CALL_DATA_HEX);
+
+        final var decoded = ethereumTransactionParser.decode(original);
+        assertThat(decoded.getChainId()).isEqualTo(transactionChainId);
+        assertThat(decoded.getAuthorizationList().getFirst().getChainId())
+                .isEqualTo(authorizationChainId.length == 0 ? "0x0" : "0x00");
+    }
+
+    @ParameterizedTest
+    @MethodSource("authorizationEncodingEdges")
+    void getHashWithOffloadedCallDataPreservesAuthorizationEncoding(
+            byte[] chainId, byte[] nonce, byte[] yParity, byte[] r, byte[] s) {
+        final var authorizationList =
+                List.of(List.of(chainId, HexFormat.of().parseHex(TO_ADDRESS_HEX), nonce, yParity, r, s));
+        final var original = encodeEip7702Transaction(DEFAULT_ACCESS_LIST, authorizationList);
+        assertEncodeProducesOriginalHash(original);
+        assertGetHashWithOffloadedCallData(
+                original, encodeEip7702Transaction(DEFAULT_ACCESS_LIST, authorizationList, new byte[0]), CALL_DATA_HEX);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"address", "r", "s"})
+    void encodeRejectsOddLengthAuthorizationByteString(String field) {
+        final var decoded = ethereumTransactionParser.decode(EIP7702_RAW_TX);
+        final var authorization = decoded.getAuthorizationList().getFirst();
+        switch (field) {
+            case "address" -> authorization.setAddress("0x1");
+            case "r" -> authorization.setR("0x1");
+            case "s" -> authorization.setS("0x1");
+            default -> throw new IllegalArgumentException(field);
+        }
+
+        assertThatThrownBy(() -> ((AbstractEthereumTransactionParser) ethereumTransactionParser).encode(decoded))
+                .isInstanceOf(InvalidEthereumBytesException.class)
+                .hasMessage("Unable to decode EIP7702 ethereum transaction bytes, Invalid hex string: 0x1");
     }
 
     @ParameterizedTest
@@ -340,6 +394,37 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         assertThat(authorization).returns("0x00cd", Authorization::getS);
     }
 
+    @ParameterizedTest
+    @MethodSource("nonCanonicalAuthorizationNonces")
+    void decodeAuthorizationNonceRejectsNonCanonicalInteger(byte[] nonce) {
+        final var authorizationList = List.of(List.of(
+                HexFormat.of().parseHex(AUTH_CHAIN_ID_HEX_RAW),
+                HexFormat.of().parseHex(TO_ADDRESS_HEX),
+                nonce,
+                Integers.toBytes(0),
+                HexFormat.of().parseHex(SIGNATURE_R_HEX),
+                HexFormat.of().parseHex(SIGNATURE_S_HEX)));
+
+        assertThatThrownBy(
+                        () -> ethereumTransactionParser.decode(encodeEip7702Transaction(List.of(), authorizationList)))
+                .isInstanceOf(InvalidEthereumBytesException.class)
+                .hasMessage(
+                        "Unable to decode EIP7702 ethereum transaction bytes, Authorization nonce is not a canonical integer");
+    }
+
+    @Test
+    void encodePreservesCanonicalZeroAuthorizationNonce() {
+        final var authorizationList = List.of(List.of(
+                HexFormat.of().parseHex(AUTH_CHAIN_ID_HEX_RAW),
+                HexFormat.of().parseHex(TO_ADDRESS_HEX),
+                new byte[0],
+                Integers.toBytes(0),
+                HexFormat.of().parseHex(SIGNATURE_R_HEX),
+                HexFormat.of().parseHex(SIGNATURE_S_HEX)));
+
+        assertEncodeProducesOriginalHash(encodeEip7702Transaction(List.of(), authorizationList));
+    }
+
     @Test
     void decodeAuthorizationListEmptyChainId() {
         final var authorizationList = List.of(List.of(
@@ -405,6 +490,44 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         }
     }
 
+    private static Stream<Arguments> authorizationEncodingEdges() {
+        final var signatureR = HexFormat.of().parseHex(SIGNATURE_R_HEX);
+        final var signatureS = HexFormat.of().parseHex(SIGNATURE_S_HEX);
+        final var canonicalChainId = HexFormat.of().parseHex(AUTH_CHAIN_ID_HEX_RAW);
+        final var canonicalNonce = Integers.toBytes(AUTH_NONCE);
+        final var canonicalYParity = Integers.toBytes(0);
+        return Stream.of(
+                Arguments.of(new byte[0], canonicalNonce, canonicalYParity, signatureR, signatureS),
+                Arguments.of(new byte[] {0x00}, canonicalNonce, canonicalYParity, signatureR, signatureS),
+                Arguments.of(new byte[] {0x00, 0x01}, canonicalNonce, canonicalYParity, signatureR, signatureS),
+                Arguments.of(canonicalChainId, canonicalNonce, Integers.toBytes(2), signatureR, signatureS),
+                Arguments.of(canonicalChainId, canonicalNonce, new byte[] {(byte) 0x80}, signatureR, signatureS),
+                Arguments.of(canonicalChainId, canonicalNonce, new byte[] {0x00}, signatureR, signatureS),
+                Arguments.of(
+                        new byte[0],
+                        canonicalNonce,
+                        new byte[] {(byte) 0x80},
+                        HexFormat.of().parseHex("00ab"),
+                        HexFormat.of().parseHex("cd")));
+    }
+
+    private static Stream<Arguments> nonCanonicalAuthorizationNonces() {
+        return Stream.of(
+                Arguments.of(new byte[] {0x00}),
+                Arguments.of(new byte[] {0x00, 0x02}),
+                Arguments.of(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9}));
+    }
+
+    private static Stream<Arguments> chainIdEncodings() {
+        final var empty = new byte[0];
+        final var zero = new byte[] {0x00};
+        return Stream.of(
+                Arguments.of(empty, empty),
+                Arguments.of(empty, zero),
+                Arguments.of(zero, empty),
+                Arguments.of(zero, zero));
+    }
+
     private static Stream<Arguments> shortAuthorizationFields() {
         return Stream.of(
                 Arguments.of("01", SIGNATURE_R_HEX, SIGNATURE_S_HEX),
@@ -429,10 +552,15 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     }
 
     private static byte[] encodeEip7702Transaction(Object accessList, List<?> authorizationList, byte[] callData) {
+        return encodeEip7702Transaction(Hex.decode(CHAIN_ID_HEX), accessList, authorizationList, callData);
+    }
+
+    private static byte[] encodeEip7702Transaction(
+            byte[] chainId, Object accessList, List<?> authorizationList, byte[] callData) {
         return RLPEncoder.sequence(
                 Integers.toBytes(4),
                 List.of(
-                        Hex.decode(CHAIN_ID_HEX),
+                        chainId,
                         Integers.toBytes(NONCE),
                         Hex.decode(FEE_HEX),
                         Hex.decode(FEE_HEX),

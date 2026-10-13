@@ -87,7 +87,7 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
                 .timeout(downloaderProperties.getTimeout())
                 .doOnNext(l -> log.debug("Returned {} s3 objects", l.contents().size()))
                 .flatMapIterable(ListObjectsV2Response::contents)
-                .filter(r -> r.size() <= downloaderProperties.getMaxSize())
+                .filter(r -> r.size() <= downloaderProperties.getMaxSize().toBytes())
                 .map(this::toStreamFilename)
                 .filter(s -> s != EPOCH && s.getFileType() == SIGNATURE)
                 .flatMapSequential(this::get)
@@ -104,7 +104,9 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
                 ? downloaderProperties.getBucketName()
                 : blockProperties.getBucketName();
         final var s3Key = streamFilename.getBucketFilePath();
-        final long maxSize = streamFilename.getFileType() == SIGNATURE ? 2 * 1024 : downloaderProperties.getMaxSize();
+        final long maxSize = streamFilename.getFileType() == SIGNATURE
+                ? 2 * 1024
+                : downloaderProperties.getMaxSize().toBytes();
         final var request = GetObjectRequest.builder()
                 .bucket(bucketName)
                 .key(s3Key)
@@ -132,7 +134,7 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
         var contentLength = StringUtils.substringAfterLast(response.contentRange(), '/');
         long size = isNumeric(contentLength) ? Long.parseLong(contentLength) : response.contentLength();
 
-        if (size > downloaderProperties.getMaxSize()) {
+        if (size > downloaderProperties.getMaxSize().toBytes()) {
             throw new InvalidDatasetException("Stream file " + streamFilename + " size " + size + " exceeds limit");
         }
 

@@ -386,12 +386,14 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     @Test
     void onContractStateMigrateTrue() {
         // given
-        var builder = domainBuilder.contractStateChange().customize(c -> c.contractId(1000)
-                .consensusTimestamp(1L)
-                .migration(true)
-                .slot(new byte[] {1})
-                .valueRead("a".getBytes())
-                .valueWritten(null));
+        var builder = domainBuilder
+                .contractStateChange()
+                .customize(c -> c.contractId(1000)
+                        .consensusTimestamp(1L)
+                        .migration(true)
+                        .slot(new byte[] {1})
+                        .valueRead("a".getBytes())
+                        .valueWritten(null));
 
         var contractStateChange1Create = builder.get();
         var contractStateChange1Update = builder.customize(

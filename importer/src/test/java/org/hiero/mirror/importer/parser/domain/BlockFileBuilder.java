@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.parser.domain;
 
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
+
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hederahashgraph.api.proto.java.SemanticVersion;
 import jakarta.inject.Named;
@@ -30,7 +32,7 @@ public class BlockFileBuilder {
         var firstConsensusTimestamp = blockTransactions.isEmpty()
                 ? domainBuilder.protoTimestamp()
                 : blockTransactions.getFirst().getTransactionResult().getConsensusTimestamp();
-        byte[] previousHash = domainBuilder.bytes(48);
+        byte[] previousHash = domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE);
         long consensusStart = DomainUtils.timestampInNanosMax(firstConsensusTimestamp);
         long consensusEnd = blockTransactions.isEmpty()
                 ? consensusStart
@@ -48,8 +50,8 @@ public class BlockFileBuilder {
                 .consensusEnd(consensusEnd)
                 .consensusStart(consensusStart)
                 .count((long) blockTransactions.size())
-                .digestAlgorithm(DigestAlgorithm.SHA_384)
-                .hash(DomainUtils.bytesToHex(domainBuilder.bytes(48)))
+                .digestAlgorithm(DigestAlgorithm.SHA_256)
+                .hash(DomainUtils.bytesToHex(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE)))
                 .index(blockNumber)
                 .items(blockTransactions)
                 .loadStart(System.currentTimeMillis())

@@ -27,7 +27,7 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         domainBuilder.recordFile().persist();
 
-        assertThat(recordFileRepository.findEarliest()).get().isEqualTo(genesisRecordFile);
+        assertThat(recordFileRepository.findEarliest()).contains(genesisRecordFile);
     }
 
     @Test
@@ -35,7 +35,7 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
         domainBuilder.recordFile().persist();
         var latest = domainBuilder.recordFile().persist();
 
-        assertThat(recordFileRepository.findLatest()).get().isEqualTo(latest);
+        assertThat(recordFileRepository.findLatest()).contains(latest);
     }
 
     @Test
@@ -77,8 +77,6 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
         final var recordFile =
                 domainBuilder.recordFile().customize(r -> r.hash(HASH)).persist();
 
-        final var result = recordFileRepository.findByHash(value);
-        assertThat(result.isPresent()).isTrue();
-        assertThat(result).contains(recordFile);
+        assertThat(recordFileRepository.findByHash(value)).contains(recordFile);
     }
 }

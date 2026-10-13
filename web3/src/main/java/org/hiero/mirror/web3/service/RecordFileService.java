@@ -15,6 +15,12 @@ public interface RecordFileService {
     Optional<RecordFile> findByBlockType(BlockType block);
 
     /**
+     * @param index the block number
+     * @return the record file for the given block number
+     */
+    Optional<RecordFile> findByIndex(long index);
+
+    /**
      * @param timestamp the consensus timestamp of a transaction
      * @return the record file containing the transaction with the given timestamp
      */
