@@ -23,7 +23,10 @@ import {isTestEnv} from './utils';
 
 import {
   authHandler,
+  clusterId,
+  clusterIdHandler,
   handleError,
+  initClusterId,
   limitConcurrency,
   openApiValidator,
   requestLogger,
@@ -59,6 +62,7 @@ app.disable('x-powered-by');
 app.set('trust proxy', true);
 app.set('port', port);
 app.set('query parser', requestQueryParser);
+app.useExt(clusterIdHandler);
 
 serveSwaggerDocs(app);
 if (openApiValidatorEnabled || isTestEnv()) {
@@ -72,7 +76,7 @@ app.use(
   })
 );
 app.use(express.json());
-app.use(cors());
+app.use(cors({exposedHeaders: constants.clusterIdHeader}));
 
 if (config.response.compression) {
   logger.info('Response compression is enabled');
@@ -156,6 +160,8 @@ app.useExt(handleError);
 process.on('unhandledRejection', handleRejection);
 process.on('uncaughtException', handleUncaughtException);
 
+await initClusterId();
+
 if (!isTestEnv()) {
   const server = app.listen(port, '0.0.0.0', (err) => {
     if (err) {
@@ -169,6 +175,9 @@ if (!isTestEnv()) {
 
   // Health check endpoints
   createTerminus(server, {
+    headers: {
+      [constants.clusterIdHeader]: clusterId,
+    },
     healthChecks: {
       '/health/readiness': health.readinessCheck,
       '/health/liveness': health.livenessCheck,

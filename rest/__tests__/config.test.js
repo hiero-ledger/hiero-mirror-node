@@ -184,6 +184,17 @@ describe('Load environment configuration:', () => {
     await expect(loadConfig()).rejects.toThrowErrorMatchingSnapshot();
   });
 
+  test('Cluster id is not stored in config', async () => {
+    const first = await import('../middleware/clusterIdHandler.js');
+    jest.resetModules();
+    process.env = {CONFIG_PATH: tempDir};
+    const second = await import('../middleware/clusterIdHandler.js');
+    const restConfig = (await import('../config.js')).default;
+
+    expect(first.clusterId).not.toBe(second.clusterId);
+    expect(restConfig.clusterId).toBeUndefined();
+  });
+
   test('Hexadecimal environment variable', async () => {
     const expected = '0x129';
     process.env['HIERO_MIRROR_REST_CHAINID'] = expected;

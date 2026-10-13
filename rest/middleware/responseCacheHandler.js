@@ -7,6 +7,7 @@ import {Cache} from '../cache';
 import {CachedApiResponse} from '../model';
 import config from '../config';
 import {
+  clusterIdHeader,
   contentTypeHeader,
   httpStatusCodes,
   requestStartTime,
@@ -14,6 +15,7 @@ import {
   responseCacheKeyLabel,
   responseHeadersLabel,
 } from '../constants';
+import {clusterId} from './clusterIdHandler.js';
 
 const CACHE_CONTROL_HEADER = 'cache-control';
 const CACHE_CONTROL_REGEX = /^.*max-age=(\d+)/;
@@ -72,7 +74,10 @@ const responseCacheCheckHandler = async (req, res) => {
     body = useCompressed ? cachedResponse.getBody() : cachedResponse.getUncompressedBody();
   }
 
+  // Replace any id stored by an older process with this process's id.
+  delete headers[clusterIdHeader];
   res.set(headers);
+  res.set(clusterIdHeader, clusterId);
   res.status(statusCode);
   if (body !== undefined) {
     res.send(body);
@@ -107,6 +112,7 @@ const responseCacheUpdateHandler = async (req, res) => {
 
       // Delete headers that will be re-computed when response later served by cache hit
       delete headers[CACHE_CONTROL_HEADER];
+      delete headers[clusterIdHeader];
       delete headers[CONTENT_ENCODING_HEADER];
       delete headers[CONTENT_LENGTH_HEADER];
       delete headers[VARY_HEADER];

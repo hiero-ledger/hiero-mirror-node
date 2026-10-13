@@ -6,8 +6,9 @@ import config from '../../config';
 import integrationContainerOps from '../integrationContainerOps';
 import {slowStepTimeoutMillis} from '../integrationUtils';
 import {cacheKeyGenerator, getCache, responseCacheCheckHandler, responseCacheUpdateHandler} from '../../middleware';
+import {clusterId} from '../../middleware/clusterIdHandler.js';
 import {CachedApiResponse} from '../../model';
-import {httpStatusCodes, responseBodyLabel, responseCacheKeyLabel} from '../../constants';
+import {clusterIdHeader, httpStatusCodes, responseBodyLabel, responseCacheKeyLabel} from '../../constants';
 import {JSONStringify} from '../../utils';
 
 let compressEnabled;
@@ -106,6 +107,7 @@ describe('Response cache middleware', () => {
         await responseCacheCheckHandler(mockRequest, mockResponse, null);
         expect(mockResponse.send).toHaveBeenCalledWith(cachedBody);
         expect(mockResponse.set).toHaveBeenNthCalledWith(1, cachedHeaders);
+        expect(mockResponse.set).toHaveBeenNthCalledWith(2, clusterIdHeader, clusterId);
         expect(mockResponse.status).toHaveBeenCalledWith(httpStatusCodes.OK.code);
       });
 
@@ -119,6 +121,7 @@ describe('Response cache middleware', () => {
         await responseCacheCheckHandler(mockRequest, mockResponse, null);
         expect(mockResponse.end).toHaveBeenCalled();
         expect(mockResponse.set).toHaveBeenNthCalledWith(1, cachedHeaders);
+        expect(mockResponse.set).toHaveBeenNthCalledWith(2, clusterIdHeader, clusterId);
         expect(mockResponse.status).toHaveBeenCalledWith(httpStatusCodes.OK.code);
       });
     });
@@ -152,6 +155,25 @@ describe('Response cache middleware', () => {
         await responseCacheUpdateHandler(mockRequest, mockResponse, null);
         const cachedResponse = await getCache().getSingleWithTtl(cacheKey);
         expect(cachedResponse).toBeUndefined();
+      });
+
+      test('Do not cache cluster id', async () => {
+        const cacheKey = cacheKeyGenerator(mockRequest);
+        mockResponse.locals[responseCacheKeyLabel] = cacheKey;
+        mockResponse.locals[responseBodyLabel] = JSONStringify({a: 'b'});
+        mockResponse.statusCode = httpStatusCodes.OK.code;
+        mockResponse.headers = {
+          'cache-control': `public, max-age=${cacheControlMaxAge}`,
+          'content-type': 'application/json; charset=utf-8',
+          [clusterIdHeader]: '42',
+        };
+        mockResponse.getHeader = (name) => mockResponse.headers[name];
+        mockResponse.getHeaders.mockImplementation(() => ({...mockResponse.headers}));
+
+        await responseCacheUpdateHandler(mockRequest, mockResponse, null);
+        const cachedResponse = await getCache().getSingleWithTtl(cacheKey);
+        expect(cachedResponse.value.headers).not.toHaveProperty(clusterIdHeader);
+        expect(cachedResponse.value.headers['content-type']).toBe('application/json; charset=utf-8');
       });
 
       test('Do not cache zero max-age', async () => {
