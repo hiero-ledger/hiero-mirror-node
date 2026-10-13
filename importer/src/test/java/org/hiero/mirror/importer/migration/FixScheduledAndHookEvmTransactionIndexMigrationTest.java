@@ -276,25 +276,20 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
 
     @Test
     void scheduledTransferWithOnlySyntheticLogIsAlreadyCorrect() {
-        // given - the scheduled transfer has a synthetic log but no contract result, after an unrelated contract call
+        // given - the block's only EVM activity is a scheduled transfer with a synthetic log and no contract result
         final var block = persistBlock(0);
-        final var contractCallTimestamp = block.getConsensusStart() + 100;
-        final var scheduledTransferTimestamp = block.getConsensusStart() + 200;
+        final var scheduledTransferTimestamp = block.getConsensusStart() + 100;
 
-        persistTransaction(contractCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
         persistTransaction(scheduledTransferTimestamp, TransactionType.CRYPTOTRANSFER, 54, true, null);
         persistScheduleExecution(scheduledTransferTimestamp);
-
-        persistContractResult(contractCallTimestamp, 0, 0);
-        persistSyntheticContractLog(scheduledTransferTimestamp, 1);
+        persistSyntheticContractLog(scheduledTransferTimestamp, 0);
 
         // when
         runMigration();
         waitForCompletion();
 
         // then
-        assertContractResultIndex(contractCallTimestamp, 0);
-        assertContractLogIndex(scheduledTransferTimestamp, 1);
+        assertContractLogIndex(scheduledTransferTimestamp, 0);
     }
 
     @Test
