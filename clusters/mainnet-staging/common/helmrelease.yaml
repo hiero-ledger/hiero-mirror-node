@@ -165,6 +165,7 @@ spec:
         annotations:
           cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mainnet-staging"} } }'
     zfs:
+      autoGrow:
+        thresholdPercent: 99
       init:
         diskPrefix: mainnet-staging
-
