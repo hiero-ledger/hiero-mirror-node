@@ -65,7 +65,9 @@ tasks.bootBuildImage {
             "--enable-compression",
             "-H:NativeLinkerOption=-s",
             "-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider",
+            "-H:+SharedArenaSupport", // For Netty used via AWS SDK
             "-H:+StripDebugInfo",
+            "-H:+UnlockExperimentalVMOptions",
             "-O3",
             "-J-Xmx10g", // Try to prevent CI runner's OOM crashes.
         )
