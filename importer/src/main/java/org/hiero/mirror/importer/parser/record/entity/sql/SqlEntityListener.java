@@ -4,13 +4,13 @@ package org.hiero.mirror.importer.parser.record.entity.sql;
 
 import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.contract.Contract;
@@ -239,7 +239,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @Override
     public void onLedger(final Ledger ledger) throws ImporterException {
-        context.merge(ByteBuffer.wrap(ledger.getLedgerId()), ledger, this::mergeLedger);
+        context.merge(Bytes.wrap(ledger.getLedgerId()), ledger, this::mergeLedger);
     }
 
     @Override
@@ -623,10 +623,8 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     }
 
     private Ledger mergeLedger(final Ledger previous, final Ledger current) {
-        // always override, i.e., copy info from current to previous
-        previous.setConsensusTimestamp(current.getConsensusTimestamp());
-
-        return previous;
+        previous.setTimestampUpper(current.getTimestampLower());
+        return current;
     }
 
     private Nft mergeNft(Nft cachedNft, Nft newNft) {

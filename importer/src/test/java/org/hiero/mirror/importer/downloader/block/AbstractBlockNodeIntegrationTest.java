@@ -42,7 +42,6 @@ import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerProperties;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerSupplier;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
-import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -121,7 +120,6 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
                 mock(BlockStateProofHasher.class),
                 mock(ConsensusNodeService.class),
                 cutoverService,
-                mock(LedgerIdPublicationTransactionParser.class),
                 meterRegistry,
                 mock(NodeSignatureVerifier.class),
                 streamFileNotifier,

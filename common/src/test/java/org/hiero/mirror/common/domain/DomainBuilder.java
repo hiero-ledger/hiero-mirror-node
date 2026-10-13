@@ -137,6 +137,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.domain.tss.Ledger;
+import org.hiero.mirror.common.domain.tss.LedgerHistory;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -654,7 +655,15 @@ public class DomainBuilder {
     }
 
     public DomainWrapper<Ledger, Ledger.LedgerBuilder<?, ?>> ledger() {
-        final var builder = Ledger.builder().consensusTimestamp(timestamp()).ledgerId(bytes(64));
+        final var builder = Ledger.builder().ledgerId(bytes(64)).timestampRange(Range.atLeast(timestamp()));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<LedgerHistory, LedgerHistory.LedgerHistoryBuilder<?, ?>> ledgerHistory() {
+        final long lowerTimestamp = timestamp();
+        final var builder = LedgerHistory.builder()
+                .ledgerId(bytes(64))
+                .timestampRange(Range.closedOpen(lowerTimestamp, lowerTimestamp + 1));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

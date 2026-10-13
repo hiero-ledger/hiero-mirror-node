@@ -802,7 +802,7 @@ public final class RecordItemBuilder {
     }
 
     public Builder<LedgerIdPublicationTransactionBody.Builder> ledgerIdPublication() {
-        final var builder = LedgerIdPublicationTransactionBody.newBuilder().setLedgerId(bytes(32));
+        final var builder = LedgerIdPublicationTransactionBody.newBuilder().setLedgerId(bytes(64));
         return new Builder<>(TransactionType.LEDGERIDPUBLICATION, builder);
     }
 

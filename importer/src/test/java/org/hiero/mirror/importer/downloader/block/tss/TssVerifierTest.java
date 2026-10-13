@@ -53,7 +53,7 @@ final class TssVerifierTest {
     @Test
     void concurrentGetLedgerCallsOnLedgerSetOnce() throws Exception {
         // given
-        when(ledgerRepository.findTopByOrderByConsensusTimestampDesc()).thenAnswer(invocation -> {
+        when(ledgerRepository.findLatest()).thenAnswer(invocation -> {
             Thread.sleep(50); // widen the race window
             return Optional.of(TEST_ARTIFACT.toLedger());
         });
@@ -77,14 +77,13 @@ final class TssVerifierTest {
         pool.shutdown();
 
         // then
-        verify(ledgerRepository, times(1)).findTopByOrderByConsensusTimestampDesc();
+        verify(ledgerRepository, times(1)).findLatest();
     }
 
     @Test
     void verifyWhenThrow() {
         // given
-        when(ledgerRepository.findTopByOrderByConsensusTimestampDesc())
-                .thenReturn(Optional.of(TEST_ARTIFACT.toLedger()));
+        when(ledgerRepository.findLatest()).thenReturn(Optional.of(TEST_ARTIFACT.toLedger()));
 
         // when, then
         assertThatThrownBy(() -> tssVerifier.verify(
@@ -93,7 +92,7 @@ final class TssVerifierTest {
                         TEST_ARTIFACT.signatureWithWraps()))
                 .isInstanceOf(SignatureVerificationException.class)
                 .hasMessage("TSS signature verification failed for block 0");
-        verify(ledgerRepository).findTopByOrderByConsensusTimestampDesc();
+        verify(ledgerRepository).findLatest();
     }
 
     @Test
@@ -105,20 +104,19 @@ final class TssVerifierTest {
         // when, then
         assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
                 .doesNotThrowAnyException();
-        verify(ledgerRepository, never()).findTopByOrderByConsensusTimestampDesc();
+        verify(ledgerRepository, never()).findLatest();
     }
 
     @Test
     void verifyWithLedgerFromDb() {
         // given
-        when(ledgerRepository.findTopByOrderByConsensusTimestampDesc())
-                .thenReturn(Optional.of(TEST_ARTIFACT.toLedger()));
+        when(ledgerRepository.findLatest()).thenReturn(Optional.of(TEST_ARTIFACT.toLedger()));
         blockProperties.setLedgerId("00".repeat(64));
 
         // when, then
         assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
                 .doesNotThrowAnyException();
-        verify(ledgerRepository).findTopByOrderByConsensusTimestampDesc();
+        verify(ledgerRepository).findLatest();
     }
 
     @Test
@@ -129,7 +127,7 @@ final class TssVerifierTest {
         // when, then
         assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
                 .doesNotThrowAnyException();
-        verify(ledgerRepository).findTopByOrderByConsensusTimestampDesc();
+        verify(ledgerRepository).findLatest();
     }
 
     @Test
@@ -138,7 +136,7 @@ final class TssVerifierTest {
         assertThatThrownBy(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Ledger id not found");
-        verify(ledgerRepository).findTopByOrderByConsensusTimestampDesc();
+        verify(ledgerRepository).findLatest();
     }
 
     @SneakyThrows

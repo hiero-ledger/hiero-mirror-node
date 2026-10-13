@@ -3,23 +3,14 @@
 package org.hiero.mirror.common.domain.tss;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.hiero.mirror.common.domain.Upsertable;
 
 @Data
 @Entity
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
-@Upsertable
-public class Ledger {
-
-    private long consensusTimestamp;
-
-    @Id
-    @ToString.Include
-    private byte[] ledgerId;
+public class Ledger extends AbstractLedger {
+    // Only the parent class should contain fields so that they're shared with both the history and non-history tables.
 }
