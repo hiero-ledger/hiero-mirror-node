@@ -435,7 +435,14 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hiero.mirror.grpc.listener.maxPageSize`                   | 5000             | The maximum number of messages the listener can return in a single call to the database                   |
 | `hiero.mirror.grpc.listener.prefetch`                      | 48               | The prefetch queue size for shared listeners                                                              |
 | `hiero.mirror.grpc.listener.type`                          | REDIS            | The type of listener to use for incoming messages. Accepts either POLL, REDIS or SHARED_POLL              |
+| `hiero.mirror.grpc.netty.keepAliveTime`                    | 5m               | Interval between server keep-alive pings. 1000 days or more disables keep-alive.                          |
+| `hiero.mirror.grpc.netty.keepAliveTimeout`                 | 20s              | Time to wait for a keep-alive response before closing the connection.                                     |
 | `hiero.mirror.grpc.netty.maxConcurrentCallsPerConnection`  | 5                | The maximum number of concurrent calls permitted for each incoming connection                             |
+| `hiero.mirror.grpc.netty.maxConnectionAge`                 | 1000d            | Maximum connection age before graceful termination. 1000 days or more disables the limit.                 |
+| `hiero.mirror.grpc.netty.maxConnectionAgeGrace`            | 30s              | Time in-flight calls have to finish after the maximum connection age is reached.                          |
+| `hiero.mirror.grpc.netty.maxConnectionIdle`                | 10m              | How long a connection with no outstanding calls may stay idle. 1000 days or more disables the limit.      |
+| `hiero.mirror.grpc.netty.permitKeepAliveTime`              | 90s              | Minimum interval between client keep-alive pings. More frequent pings close the connection.               |
+| `hiero.mirror.grpc.netty.permitKeepAliveWithoutCalls`      | false            | Whether clients may send keep-alive pings when the connection has no outstanding calls.                   |
 | `hiero.mirror.grpc.port`                                   | 5600             | The GRPC API port                                                                                         |
 | `hiero.mirror.grpc.retriever.enabled`                      | true             | Whether to retrieve historical massages or not                                                            |
 | `hiero.mirror.grpc.retriever.maxPageSize`                  | 1000             | The maximum number of messages the retriever can return in a single call to the database                  |
