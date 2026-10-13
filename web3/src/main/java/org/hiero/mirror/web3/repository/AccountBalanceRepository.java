@@ -67,10 +67,10 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
                         limit 1
                     ), balance_snapshot as (
                         select ab.balance, ab.consensus_timestamp
-                        from account_balance as ab, balance_timestamp as bt
+                        from account_balance as ab
                         where account_id = ?1 and
-                            ab.consensus_timestamp > bt.consensus_timestamp - 2678400000000000 and
-                            ab.consensus_timestamp <= bt.consensus_timestamp
+                            ab.consensus_timestamp > (select consensus_timestamp from balance_timestamp) - 2678400000000000 and
+                            ab.consensus_timestamp <= (select consensus_timestamp from balance_timestamp)
                         order by ab.consensus_timestamp desc
                         limit 1
                     ), change as (
