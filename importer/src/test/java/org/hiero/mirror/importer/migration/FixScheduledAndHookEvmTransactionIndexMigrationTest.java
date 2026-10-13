@@ -275,18 +275,17 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
     }
 
     @Test
-    void scheduledSyntheticLogOnlyBlockIsAlreadyCorrect() {
-        // given - the old migration already gives synthetic-log-only rows their own index, so this block needs no
-        // repair
+    void scheduledTransferWithOnlySyntheticLogIsAlreadyCorrect() {
+        // given - the scheduled transfer has a synthetic log but no contract result, after an unrelated contract call
         final var block = persistBlock(0);
-        final var rootTimestamp = block.getConsensusStart() + 100;
+        final var contractCallTimestamp = block.getConsensusStart() + 100;
         final var scheduledTransferTimestamp = block.getConsensusStart() + 200;
 
-        persistTransaction(rootTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+        persistTransaction(contractCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
         persistTransaction(scheduledTransferTimestamp, TransactionType.CRYPTOTRANSFER, 54, true, null);
         persistScheduleExecution(scheduledTransferTimestamp);
 
-        persistContractResult(rootTimestamp, 0, 0);
+        persistContractResult(contractCallTimestamp, 0, 0);
         persistSyntheticContractLog(scheduledTransferTimestamp, 1);
 
         // when
@@ -294,7 +293,7 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
         waitForCompletion();
 
         // then
-        assertContractResultIndex(rootTimestamp, 0);
+        assertContractResultIndex(contractCallTimestamp, 0);
         assertContractLogIndex(scheduledTransferTimestamp, 1);
     }
 
