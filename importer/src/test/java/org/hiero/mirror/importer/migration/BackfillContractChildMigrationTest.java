@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.transaction.RecordItem.HOOK_CONTRACT_NUM;
 
 import java.time.Duration;
 import lombok.Getter;
@@ -41,6 +42,8 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         final var batchInner = transaction(0, batch.getConsensusTimestamp(), false);
         final var scheduledExecution = transaction(0, null, true);
         final var recurringScheduledExecution = transaction(1, null, true);
+        final var hookTrigger = transaction(0, null, false);
+        final var hookExecution = transaction(1, hookTrigger.getConsensusTimestamp(), false);
 
         final var topLevelResult = contractResult(topLevel.getConsensusTimestamp());
         final var topLevelLog = contractLog(topLevel.getConsensusTimestamp(), 0);
@@ -56,6 +59,16 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         final var scheduledResult = contractResult(scheduledExecution.getConsensusTimestamp());
         final var recurringScheduledResult = contractResult(recurringScheduledExecution.getConsensusTimestamp());
         final var recurringScheduledLog = contractLog(recurringScheduledExecution.getConsensusTimestamp(), 0);
+        final var hookResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.child(false)
+                        .consensusTimestamp(hookExecution.getConsensusTimestamp())
+                        .contractId(domainBuilder.entityNum(HOOK_CONTRACT_NUM).getId()))
+                .persist();
+        final var hookLogs = new ContractLog[] {
+            contractLog(hookExecution.getConsensusTimestamp(), 0),
+            syntheticContractLog(hookExecution.getConsensusTimestamp(), 1)
+        };
         final var orphanResult = contractResult(domainBuilder.timestamp());
         final var orphanLog = contractLog(orphanResult.getConsensusTimestamp(), 0);
         final var alreadyChild = transaction(1, topLevel.getConsensusTimestamp(), false);
@@ -81,9 +94,33 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         assertChild(scheduledResult, false);
         assertChild(recurringScheduledResult, false);
         assertChild(recurringScheduledLog, false);
+        assertChild(hookResult, true);
+        for (final var log : hookLogs) {
+            assertChild(log, true);
+        }
         assertChild(orphanResult, false);
         assertChild(orphanLog, false);
         assertChild(alreadyChildResult, true);
+    }
+
+    @Test
+    void backfillsWhenContractResultsNotPersisted() {
+        // given
+        final var transaction = domainBuilder.transaction().persist();
+        final var contractResult = contractResult(transaction.getConsensusTimestamp());
+        entityProperties.getPersist().setContractResults(false);
+
+        try {
+            // when
+            runMigration();
+            waitForCompletion();
+        } finally {
+            entityProperties.getPersist().setContractResults(true);
+        }
+
+        // then
+        assertChild(contractResult, true);
+        assertThat(tableExists("backfill_contract_child_progress_temp")).isFalse();
     }
 
     @Test
@@ -151,7 +188,8 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
     @Test
     void dropsProgressTable() {
         // given
-        domainBuilder.transaction().persist();
+        final var transaction = domainBuilder.transaction().persist();
+        contractResult(transaction.getConsensusTimestamp());
 
         // when
         runMigration();
@@ -218,22 +256,16 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
     }
 
     @Test
-    void skipsWhenContractResultsNotPersisted() {
+    void skipsWhenNoContractResultsOrLogs() {
         // given
-        final var transaction = domainBuilder.transaction().persist();
-        final var contractResult = contractResult(transaction.getConsensusTimestamp());
-        entityProperties.getPersist().setContractResults(false);
+        domainBuilder.transaction().persist();
 
-        try {
-            // when
-            runMigration();
-            waitForCompletion();
-        } finally {
-            entityProperties.getPersist().setContractResults(true);
-        }
+        // when
+        runMigration();
+        waitForCompletion();
 
         // then
-        assertChild(contractResult, false);
+        assertThat(contractResultRepository.findAll()).isEmpty();
         assertThat(tableExists("backfill_contract_child_progress_temp")).isFalse();
     }
 

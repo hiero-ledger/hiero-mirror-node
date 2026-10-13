@@ -585,6 +585,8 @@ final class SyntheticContractLogServiceImplTest {
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
         assertThat(contractLogCaptor.getValue().getTransactionHash())
                 .isEqualTo(parentContractCallRecordItem.getTransactionHash());
+        assertThat(contractLogCaptor.getValue().getConsensusTimestamp()).isEqualTo(parentContractCallTimestamp);
+        assertThat(contractLogCaptor.getValue().isChild()).isTrue();
     }
 
     @Test

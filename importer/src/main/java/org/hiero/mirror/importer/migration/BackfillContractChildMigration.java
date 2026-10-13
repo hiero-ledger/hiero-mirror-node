@@ -11,7 +11,6 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
-import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.convert.DurationStyle;
@@ -75,15 +74,24 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
             drop table if exists backfill_contract_child_progress_temp;
             """;
 
-    private static final String SELECT_MAX_CONSENSUS_TIMESTAMP = "select max(consensus_timestamp) from transaction";
+    private static final String SELECT_MAX_CONSENSUS_TIMESTAMP = """
+            select greatest(
+              (select max(consensus_timestamp) from contract_result),
+              (select max(consensus_timestamp) from contract_log)
+            )
+            """;
 
-    private static final String SELECT_MIN_CONSENSUS_TIMESTAMP = "select min(consensus_timestamp) from transaction";
+    private static final String SELECT_MIN_CONSENSUS_TIMESTAMP = """
+            select least(
+              (select min(consensus_timestamp) from contract_result),
+              (select min(consensus_timestamp) from contract_log)
+            )
+            """;
 
     private static final String SELECT_PROGRESS_UPPER_BOUND =
             "select upper_bound from backfill_contract_child_progress_temp limit 1";
 
     private final long batchInterval;
-    private final EntityProperties entityProperties;
     private long initialUpperBound = -1L;
     private long lowerBound = Long.MAX_VALUE;
 
@@ -93,15 +101,13 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
     private final boolean v2;
 
     BackfillContractChildMigration(
-            DBProperties dbProperties,
-            EntityProperties entityProperties,
-            Environment environment,
-            ImporterProperties importerProperties,
-            @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider) {
+            final DBProperties dbProperties,
+            final Environment environment,
+            final ImporterProperties importerProperties,
+            final @Owner ObjectProvider<JdbcOperations> jdbcOperationsProvider) {
         super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
-        this.entityProperties = entityProperties;
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
-        batchInterval = DurationStyle.SIMPLE
+        this.batchInterval = DurationStyle.SIMPLE
                 .parse(
                         migrationProperties
                                 .getParams()
@@ -128,7 +134,7 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
 
     @NonNull
     @Override
-    protected Optional<Long> migratePartial(Long consensusEnd) {
+    protected Optional<Long> migratePartial(final Long consensusEnd) {
         if (consensusEnd < lowerBound) {
             log.info("Completed contract child column backfill");
             getJdbcOperations().execute(DROP_PROGRESS_TABLE);
@@ -159,14 +165,10 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
 
     @Override
     protected boolean performSynchronousSteps() {
-        if (!entityProperties.getPersist().isContractResults()) {
-            return false;
-        }
-
         final var jdbcOperations = getJdbcOperations();
         final var maxConsensusTimestamp = jdbcOperations.queryForObject(SELECT_MAX_CONSENSUS_TIMESTAMP, Long.class);
         if (maxConsensusTimestamp == null) {
-            log.info("No transactions to process, skipping migration");
+            log.info("No contract results or logs to process, skipping migration");
             return false;
         }
 

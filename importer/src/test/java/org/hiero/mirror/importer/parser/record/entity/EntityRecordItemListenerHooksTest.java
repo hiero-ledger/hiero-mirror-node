@@ -22,6 +22,8 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
+import org.hiero.mirror.common.domain.contract.ContractLog;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
@@ -29,6 +31,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.ContractStateChangeRepository;
 import org.hiero.mirror.importer.repository.ContractStateRepository;
 import org.hiero.mirror.importer.repository.HookStorageChangeRepository;
@@ -39,6 +42,7 @@ import org.junit.jupiter.api.Test;
 @RequiredArgsConstructor
 final class EntityRecordItemListenerHooksTest extends AbstractEntityRecordItemListenerTest {
 
+    private final ContractLogRepository contractLogRepository;
     private final ContractStateChangeRepository contractStateChangeRepository;
     private final ContractStateRepository contractStateRepository;
     private final HookStorageChangeRepository hookStorageChangeRepository;
@@ -237,6 +241,8 @@ final class EntityRecordItemListenerHooksTest extends AbstractEntityRecordItemLi
                         "type",
                         "validStartNs")
                 .containsExactlyInAnyOrderElementsOf(expectedTransactions);
+        assertThat(contractResultRepository.findAll()).hasSize(3).allMatch(ContractResult::isChild);
+        assertThat(contractLogRepository.findAll()).hasSize(6).allMatch(ContractLog::isChild);
     }
 
     @Test
