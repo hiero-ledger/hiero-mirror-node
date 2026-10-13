@@ -1,0 +1,343 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package com.hedera.node.app.fees;
+
+import static java.math.BigInteger.valueOf;
+import static java.util.Objects.requireNonNull;
+
+import com.hedera.hapi.node.base.AccountID;
+import com.hedera.hapi.node.base.FileID;
+import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hedera.hapi.node.transaction.ExchangeRate;
+import com.hedera.hapi.node.transaction.ExchangeRateSet;
+import com.hedera.node.app.fees.schemas.V0490FeeSchema;
+import com.hedera.node.app.spi.fees.ExchangeRateInfo;
+import com.hedera.node.app.spi.workflows.HandleException;
+import com.hedera.node.app.util.FileUtilities;
+import com.hedera.node.config.ConfigProvider;
+import com.hedera.node.config.data.AccountsConfig;
+import com.hedera.node.config.data.FilesConfig;
+import com.hedera.node.config.data.HederaConfig;
+import com.hedera.node.config.data.RatesConfig;
+import com.hedera.pbj.runtime.ParseException;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
+import com.swirlds.state.State;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+import java.math.BigInteger;
+import java.time.Instant;
+import java.util.function.ToLongFunction;
+import java.util.stream.LongStream;
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.hiero.mirror.web3.common.ContractCallContext;
+
+/**
+ * Mirror node override of the consensus node {@code ExchangeRateManager}.
+ *
+ * <p>The consensus node keeps the active rates in memory and refreshes them whenever a FileUpdate to the exchange
+ * rate file is handled. The mirror node never handles such updates and reuses a single transaction executor across
+ * requests, so an in-memory copy would be frozen at the rates read when the executor was created. Within a contract
+ * call, the active rates are now resolved from the exchange rate file in the mirror node state at the request's
+ * timestamp, which keeps fee calculations consistent with the gas price conversion that already reads the same file.
+ * The in-memory rates are only used outside a contract call or if the file can't be parsed.
+ */
+@Singleton
+public final class ExchangeRateManager {
+    private static final Logger log = LogManager.getLogger(ExchangeRateManager.class);
+
+    private static final BigInteger ONE_HUNDRED = BigInteger.valueOf(100);
+    private static final BigInteger LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE);
+
+    private final ConfigProvider configProvider;
+
+    private volatile @Nullable State state;
+    private volatile ExchangeRateInfo currentExchangeRateInfo;
+    private volatile ExchangeRateSet midnightRates;
+    private volatile @Nullable ParsedRates lastParsedRates;
+
+    @Inject
+    public ExchangeRateManager(@NonNull final ConfigProvider configProvider) {
+        this.configProvider = requireNonNull(configProvider, "configProvider must not be null");
+    }
+
+    public void init(
+            @NonNull final State state, @NonNull final Bytes bytes, @NonNull final ExchangeRateSet midnightRateSet) {
+        requireNonNull(state);
+        requireNonNull(bytes);
+        requireNonNull(midnightRateSet);
+        // Re-use the same code path to set the active rates as does the SystemFileUpdateFacility
+        // IMPORTANT - if we first initialized the midnight rates, we couldn't reuse this code path
+        // because it overwrites the midnight rates with the current rates
+        systemUpdate(bytes);
+        midnightRates = midnightRateSet;
+        this.state = state;
+        log.info(
+                "Initializing exchange rates with midnight rates {} and active rates {}",
+                midnightRates,
+                currentExchangeRateInfo.exchangeRates());
+    }
+
+    /**
+     * Updates the exchange rate information.
+     *
+     * @param bytes The protobuf encoded {@link ExchangeRateSet}.
+     * @param payerId The payer of the transaction that triggered this update.
+     */
+    public void update(@NonNull final Bytes bytes, @NonNull AccountID payerId) {
+        requireNonNull(payerId, "payerId must not be null");
+        internalUpdate(bytes, payerId);
+    }
+
+    public void systemUpdate(@NonNull final Bytes bytes) {
+        internalUpdate(bytes, null);
+    }
+
+    private void internalUpdate(@NonNull final Bytes bytes, @Nullable AccountID payerId) {
+        requireNonNull(bytes, "bytes must not be null");
+
+        // Parse the exchange rate file. If we cannot parse it, we just continue with whatever our previous rate was.
+        final ExchangeRateSet proposedRates;
+        try {
+            proposedRates = ExchangeRateSet.PROTOBUF.parseStrict(bytes.toReadableSequentialData());
+        } catch (final ParseException e) {
+            throw new HandleException(ResponseCodeEnum.INVALID_EXCHANGE_RATE_FILE);
+        }
+
+        // Validate mandatory fields
+        if (!hasMandatoryFields(proposedRates)) {
+            throw new HandleException(ResponseCodeEnum.INVALID_EXCHANGE_RATE_FILE);
+        }
+
+        // Reject degenerate rates: a non-positive hbarEquiv/centEquiv would make fee conversion divide by
+        // zero (see getAFromB) or yield a nonsensical price, so such a rate must never become the live rate.
+        if (hasDegenerateRates(proposedRates)) {
+            throw new HandleException(ResponseCodeEnum.INVALID_EXCHANGE_RATE_FILE);
+        }
+
+        // Check bounds
+        final var ratesConfig = configProvider.getConfiguration().getConfigData(RatesConfig.class);
+        final var accountsConfig = configProvider.getConfiguration().getConfigData(AccountsConfig.class);
+        final var isSuperUser = isSuperUser(payerId, accountsConfig);
+
+        if (!isSuperUser) {
+            final var limitPercent = ratesConfig.intradayChangeLimitPercent();
+            if (!isNormalIntradayChange(midnightRates, proposedRates, limitPercent)) {
+                throw new HandleException(ResponseCodeEnum.EXCHANGE_RATE_CHANGE_LIMIT_EXCEEDED);
+            }
+        }
+
+        // Update the current ExchangeRateInfo and eventually the midnightRates
+        this.currentExchangeRateInfo = new ExchangeRateInfoImpl(proposedRates);
+        if (isAdminUser(payerId, accountsConfig)) {
+            midnightRates = proposedRates;
+        }
+    }
+
+    private boolean isSuperUser(@NonNull final AccountID accountID, AccountsConfig accountsConfig) {
+        if (accountID == null) return true;
+        if (!accountID.hasAccountNum()) return false;
+        long num = accountID.accountNumOrThrow();
+        return num == accountsConfig.treasury() || num == accountsConfig.systemAdmin();
+    }
+
+    private boolean isAdminUser(@NonNull final AccountID accountID, AccountsConfig accountsConfig) {
+        if (accountID == null) return true;
+        if (!accountID.hasAccountNum()) return false;
+        long num = accountID.accountNumOrThrow();
+        return num == accountsConfig.systemAdmin();
+    }
+
+    /**
+     * Updates the midnight rates to the current exchange rates, both internally and in the given state.
+     *
+     * @param state the {@link State} to update the midnight rates in
+     */
+    public void updateMidnightRates(@NonNull final State state) {
+        midnightRates = currentExchangeRateInfo().exchangeRates();
+        final var singleton = state.getWritableStates(FeeService.NAME)
+                .<ExchangeRateSet>getSingleton(V0490FeeSchema.MIDNIGHT_RATES_STATE_ID);
+        singleton.put(midnightRates);
+        log.info("Updated midnight rates to {}", midnightRates);
+    }
+
+    /**
+     * Gets the current {@link ExchangeRateSet}.
+     *
+     * @return The current {@link ExchangeRateSet}.
+     */
+    @NonNull
+    public ExchangeRateSet exchangeRates() {
+        return currentExchangeRateInfo().exchangeRates();
+    }
+
+    /**
+     * Gets the {@link ExchangeRate} that should be used as of the given consensus time.
+     *
+     * @param consensusTime The consensus time. If after the expiration time of the current rate, the next rate will
+     * be returned. Otherwise, the current rate will be returned.
+     * @return The {@link ExchangeRate} that should be used as of the given consensus time.
+     */
+    @NonNull
+    public ExchangeRate activeRate(@NonNull final Instant consensusTime) {
+        return currentExchangeRateInfo().activeRate(consensusTime);
+    }
+
+    /**
+     * Get the {@link ExchangeRateInfo} that is based on the given state.
+     *
+     * @param state The {@link State} to use.
+     * @return The {@link ExchangeRateInfo}.
+     */
+    @NonNull
+    public ExchangeRateInfo exchangeRateInfo(@NonNull final State state) {
+        final var bytes = FileUtilities.getFileContent(state, fileId(FilesConfig::exchangeRates));
+        final ExchangeRateSet exchangeRates;
+        try {
+            exchangeRates = ExchangeRateSet.PROTOBUF.parseStrict(bytes.toReadableSequentialData());
+        } catch (ParseException e) {
+            // This should never happen
+            throw new IllegalStateException(e);
+        }
+        return new ExchangeRateInfoImpl(exchangeRates);
+    }
+
+    /**
+     * Converts tinybars to tiny cents using the exchange rate at a given time.
+     *
+     * @param amount The amount in tiny cents.
+     * @param consensusTime The consensus time to use for the exchange rate.
+     * @return The amount in tinybars.
+     */
+    public long getTinybarsFromTinycents(final long amount, @NonNull final Instant consensusTime) {
+        final var rate = activeRate(consensusTime);
+        return getAFromB(amount, rate.hbarEquiv(), rate.centEquiv());
+    }
+
+    /**
+     * Reads the contents of a system file from the mirror node state at the current contract call's timestamp.
+     *
+     * @param fileNum the function selecting the file number from the {@link FilesConfig}
+     * @return the file contents, or null if not called within a contract call or before {@link #init}
+     */
+    @Nullable
+    Bytes stateFileContents(@NonNull final ToLongFunction<FilesConfig> fileNum) {
+        final var currentState = state;
+        if (currentState == null || !ContractCallContext.isInitialized()) {
+            return null;
+        }
+        return FileUtilities.getFileContent(currentState, fileId(fileNum));
+    }
+
+    private ExchangeRateInfo currentExchangeRateInfo() {
+        final var bytes = stateFileContents(FilesConfig::exchangeRates);
+        if (bytes == null) {
+            return currentExchangeRateInfo;
+        }
+
+        var parsed = lastParsedRates;
+        if (parsed == null || !parsed.matches(bytes)) {
+            parsed = new ParsedRates(bytes, parse(bytes));
+            lastParsedRates = parsed;
+        }
+
+        final var exchangeRateInfo = parsed.exchangeRateInfo();
+        return exchangeRateInfo != null ? exchangeRateInfo : currentExchangeRateInfo;
+    }
+
+    @Nullable
+    private static ExchangeRateInfo parse(@NonNull final Bytes bytes) {
+        try {
+            final var exchangeRates = ExchangeRateSet.PROTOBUF.parseStrict(bytes.toReadableSequentialData());
+            if (!hasMandatoryFields(exchangeRates) || hasDegenerateRates(exchangeRates)) {
+                log.warn("Invalid exchange rate file {}, using in-memory rates", exchangeRates);
+                return null;
+            }
+            return new ExchangeRateInfoImpl(exchangeRates);
+        } catch (final ParseException e) {
+            log.warn("Unable to parse exchange rate file, using in-memory rates: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private FileID fileId(@NonNull final ToLongFunction<FilesConfig> fileNum) {
+        final var configuration = configProvider.getConfiguration();
+        final var hederaConfig = configuration.getConfigData(HederaConfig.class);
+        return FileID.newBuilder()
+                .shardNum(hederaConfig.shard())
+                .realmNum(hederaConfig.realm())
+                .fileNum(fileNum.applyAsLong(configuration.getConfigData(FilesConfig.class)))
+                .build();
+    }
+
+    private static boolean hasMandatoryFields(@NonNull final ExchangeRateSet rates) {
+        return rates.hasCurrentRate() && rates.currentRateOrThrow().hasExpirationTime() && rates.hasNextRate();
+    }
+
+    private static boolean hasDegenerateRates(@NonNull final ExchangeRateSet rates) {
+        final var current = rates.currentRateOrThrow();
+        final var next = rates.nextRateOrThrow();
+        return current.hbarEquiv() <= 0 || current.centEquiv() <= 0 || next.hbarEquiv() <= 0 || next.centEquiv() <= 0;
+    }
+
+    private static boolean isNormalIntradayChange(
+            @NonNull final ExchangeRateSet midnightRates,
+            @NonNull final ExchangeRateSet proposedRates,
+            final int limitPercent) {
+        return canonicalTest(
+                        limitPercent,
+                        midnightRates.currentRate().centEquiv(),
+                        midnightRates.currentRate().hbarEquiv(),
+                        proposedRates.currentRate().centEquiv(),
+                        proposedRates.currentRate().hbarEquiv())
+                && canonicalTest(
+                        limitPercent,
+                        midnightRates.nextRate().centEquiv(),
+                        midnightRates.nextRate().hbarEquiv(),
+                        proposedRates.nextRate().centEquiv(),
+                        proposedRates.nextRate().hbarEquiv());
+    }
+
+    private static boolean canonicalTest(
+            final long bound, final long oldC, final long oldH, final long newC, final long newH) {
+        final var b100 = valueOf(bound).add(ONE_HUNDRED);
+
+        final var oC = valueOf(oldC);
+        final var oH = valueOf(oldH);
+        final var nC = valueOf(newC);
+        final var nH = valueOf(newH);
+
+        return LongStream.of(bound, oldC, oldH, newC, newH).allMatch(i -> i > 0)
+                && oC.multiply(nH)
+                                .multiply(b100)
+                                .subtract(nC.multiply(oH).multiply(ONE_HUNDRED))
+                                .signum()
+                        >= 0
+                && oH.multiply(nC)
+                                .multiply(b100)
+                                .subtract(nH.multiply(oC).multiply(ONE_HUNDRED))
+                                .signum()
+                        >= 0;
+    }
+
+    private static long getAFromB(final long bAmount, final int aEquiv, final int bEquiv) {
+        // A degenerate exchange rate would either divide by zero (non-positive divisor) or make the result
+        // free/negative (non-positive multiplier); saturate to Long.MAX_VALUE instead so a malformed rate
+        // yields an unpayable fee and cannot halt fee conversion network-wide.
+        if (aEquiv <= 0 || bEquiv <= 0) {
+            return Long.MAX_VALUE;
+        }
+        final var result =
+                BigInteger.valueOf(bAmount).multiply(BigInteger.valueOf(aEquiv)).divide(BigInteger.valueOf(bEquiv));
+        // longValueExact() throws when the result exceeds the long range; saturate to the maximum instead.
+        return result.compareTo(LONG_MAX) >= 0 ? Long.MAX_VALUE : result.longValue();
+    }
+
+    private record ParsedRates(Bytes bytes, @Nullable ExchangeRateInfo exchangeRateInfo) {
+        private boolean matches(final Bytes other) {
+            return bytes == other || bytes.equals(other);
+        }
+    }
+}
