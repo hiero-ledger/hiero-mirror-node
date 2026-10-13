@@ -890,9 +890,8 @@ func TestConstructionParseAccountCreateWithAlias(t *testing.T) {
 	service, _ := NewConstructionAPIService(nil, offlineBaseService, defaultConfig, construction.NewTransactionConstructor())
 	res, e := service.ConstructionParse(defaultContext, getConstructionParseRequest(accountCreateWithAliasHex(t), false))
 
-	require.Nil(t, e)
-	require.Len(t, res.Operations, 1)
-	assert.Equal(t, "0x0000000000000000000000000000000000000001", res.Operations[0].Metadata["alias"])
+	assert.Nil(t, res)
+	assert.Equal(t, errors.ErrInvalidTransaction, e)
 }
 
 func TestConstructionParseThrowsWhenDecodeStringFails(t *testing.T) {

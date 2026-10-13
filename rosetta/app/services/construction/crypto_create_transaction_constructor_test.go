@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
-	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/tools"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/test/domain"
 	sdkpb "github.com/hiero-ledger/hiero-sdk-go/v2/proto/sdk"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/proto/services"
@@ -169,7 +169,6 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 		name           string
 		getTransaction func() hiero.TransactionInterface
 		expectError    bool
-		metadata       map[string]any
 	}{
 		{
 			name:           "Success",
@@ -185,34 +184,29 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 		{
 			name:           "Alias",
 			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetAlias(aliasEvmAddress) }),
-			metadata:       map[string]any{metadataAlias: tools.SafeAddHexPrefix(aliasEvmAddress)},
+			expectError:    true,
 		},
 		{
 			name:           "StakedAccountID",
 			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetStakedAccountID(proxyAccountId) }),
-			metadata:       map[string]any{metadataStakedAccountID: proxyAccountId.String()},
+			expectError:    true,
 		},
 		{
 			name:           "StakedNodeID",
 			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetStakedNodeID(1) }),
-			metadata:       map[string]any{metadataStakedNodeID: int64(1)},
-		},
-		{
-			name:           "StakedNodeIDZero",
-			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetStakedNodeID(0) }),
-			metadata:       map[string]any{metadataStakedNodeID: int64(0)},
+			expectError:    true,
 		},
 		{
 			name:           "DeclineReward",
 			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetDeclineStakingReward(true) }),
-			metadata:       map[string]any{metadataDeclineReward: true},
+			expectError:    true,
 		},
 		{
 			name: "ReceiverSignatureRequired",
 			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) {
 				tx.SetReceiverSignatureRequired(true)
 			}),
-			metadata: map[string]any{metadataReceiverSigRequired: true},
+			expectError: true,
 		},
 		{
 			name: "KeyNotSet",
@@ -272,9 +266,6 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 			} else {
 				assert.Nil(t, err)
 				assert.ElementsMatch(t, []types.AccountId{accountIdA}, signers)
-				for key, value := range tt.metadata {
-					expectedOperations[0].Metadata[key] = value
-				}
 				assert.ElementsMatch(t, expectedOperations, operations)
 			}
 		})
@@ -288,10 +279,9 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParseStakedNodeIDZeroF
 
 	operations, signers, err := newCryptoCreateTransactionConstructor().Parse(defaultContext, tx)
 
-	assert.Nil(suite.T(), err)
-	assert.ElementsMatch(suite.T(), []types.AccountId{accountIdA}, signers)
-	require.Len(suite.T(), operations, 1)
-	assert.Equal(suite.T(), int64(0), operations[0].Metadata[metadataStakedNodeID])
+	assert.Equal(suite.T(), errors.ErrInvalidTransaction, err)
+	assert.Nil(suite.T(), operations)
+	assert.Nil(suite.T(), signers)
 }
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestParseRoundTripWithoutHiddenFields() {
@@ -319,13 +309,7 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParseRoundTripWithoutH
 	assert.Equal(suite.T(), newAccountPublicKey.String(), operations[0].Metadata["key"])
 	assert.Equal(suite.T(), accountCreate.GetAccountMemo(), operations[0].Metadata["memo"])
 	assert.Equal(suite.T(), int64(accountCreate.GetAutoRenewPeriod().Seconds()), operations[0].Metadata["auto_renew_period"])
-	for _, key := range []string{
-		metadataAlias,
-		metadataStakedAccountID,
-		metadataStakedNodeID,
-		metadataDeclineReward,
-		metadataReceiverSigRequired,
-	} {
+	for _, key := range []string{"alias", "staked_account_id", "staked_node_id", "decline_reward", "receiver_sig_required"} {
 		assert.NotContains(suite.T(), operations[0].Metadata, key)
 	}
 }
