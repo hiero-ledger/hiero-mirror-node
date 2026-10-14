@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
 import org.hibernate.validator.constraints.time.DurationMin;
+import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -20,6 +21,8 @@ public class Web3Properties {
 
     @NotNull
     private Map<ApiEndpointName, @Valid ApiProperties> api = new HashMap<>();
+
+    private static final ApiProperties API_PROPERTIES = new ApiProperties();
 
     private boolean enableStateOverrides = false;
 
@@ -38,17 +41,15 @@ public class Web3Properties {
             var properties = api.get(endpoint);
             if (properties != null
                     && properties.getRequest() != null
-                    && properties.getRequest().getTimeout() != null) {
-                return properties.getRequest().getTimeout();
+                    && properties.getResponse().getTimeout() != null) {
+                return properties.getResponse().getTimeout();
             }
         }
         return requestTimeout;
     }
 
-    public enum ApiEndpointName {
-        ACTIONS,
-        CALL,
-        OPCODES
+    public @NonNull ApiProperties getApi(@NonNull ApiEndpointName name) {
+        return api.getOrDefault(name, API_PROPERTIES);
     }
 
     /**

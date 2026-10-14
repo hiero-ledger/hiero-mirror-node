@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.controller;
 
-import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.ACTIONS;
+import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
@@ -100,7 +100,7 @@ class ContractController {
                     resolveTimeout(request.getTimeout()),
                     request.getBlockOverride()));
         }
-        throttleManager.throttleTraceRequest(requests.size(), totalGas);
+
         return contractDebugService.processTraceCall(traceRequests);
     }
 

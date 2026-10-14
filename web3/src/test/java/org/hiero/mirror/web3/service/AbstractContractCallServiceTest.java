@@ -809,6 +809,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .block(functionProvider.block())
                 .callData(Hex.decode(hexWithoutPrefix))
                 .consensusTimestamp(domainBuilder.timestamp())
+                .payerAccountId(1L)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .receiver(functionProvider.contractAddress())
                 .sender(functionProvider.sender())

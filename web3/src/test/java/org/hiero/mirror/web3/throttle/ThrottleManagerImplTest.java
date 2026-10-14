@@ -48,7 +48,6 @@ final class ThrottleManagerImplTest {
         throttleProperties.setGasPerSecond(GAS_PER_SECOND);
         throttleProperties.setRequest(List.of(requestProperties));
         throttleProperties.setRequestsPerSecond(2);
-        throttleProperties.setOpcodeRequestsPerSecond(1);
 
         throttleManager = createThrottleManager();
     }
@@ -68,75 +67,6 @@ final class ThrottleManagerImplTest {
         assertThatThrownBy(() -> throttleManager.throttle(request))
                 .isInstanceOf(ThrottleException.class)
                 .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
-    }
-
-    @Test
-    void opcodeRequestNotThrottled() {
-        throttleManager.throttleOpcodeRequest();
-    }
-
-    @Test
-    void throttleOpcodeRequestRateLimit() {
-        var request = request();
-        request.setGas(21_000L);
-        throttleManager.throttleOpcodeRequest();
-        assertThatThrownBy(() -> throttleManager.throttleOpcodeRequest())
-                .isInstanceOf(ThrottleException.class)
-                .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
-    }
-
-    @Test
-    void traceRequestNotThrottled() {
-        var request = request();
-        throttleManager.throttleTraceRequest(1, request.getGas());
-    }
-
-    @Test
-    void throttleTraceRequestRateLimit() {
-        throttleProperties.setTraceRequestsPerSecond(1);
-        throttleManager = createThrottleManager();
-        var request = request();
-        request.setGas(21_000L);
-
-        throttleManager.throttleTraceRequest(1, request.getGas());
-        assertThatThrownBy(
-                        () -> throttleManager.throttleTraceRequest(1, request().getGas()))
-                .isInstanceOf(ThrottleException.class)
-                .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
-    }
-
-    @Test
-    void throttleTraceRequestBatchRateLimit() {
-        throttleProperties.setTraceRequestsPerSecond(1);
-        throttleManager = createThrottleManager();
-        assertThatThrownBy(() -> throttleManager.throttleTraceRequest(2, 21_000L))
-                .isInstanceOf(ThrottleException.class)
-                .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
-    }
-
-    @Test
-    void throttleTraceRequestGasLimit() {
-        var request = request();
-        throttleManager.throttleTraceRequest(1, request.getGas());
-        assertThatThrownBy(
-                        () -> throttleManager.throttleTraceRequest(1, request().getGas()))
-                .isInstanceOf(ThrottleException.class)
-                .hasMessageContaining(GAS_PER_SECOND_LIMIT_EXCEEDED);
-    }
-
-    @Test
-    void throttleTraceRequestBatchGasLimit() {
-        assertThatThrownBy(() -> throttleManager.throttleTraceRequest(2, GAS_PER_SECOND * 2))
-                .isInstanceOf(ThrottleException.class)
-                .hasMessageContaining(GAS_PER_SECOND_LIMIT_EXCEEDED);
-    }
-
-    @Test
-    void restoreAfterTraceRequest() {
-        var request = request();
-        throttleManager.throttleTraceRequest(1, request.getGas());
-        throttleManager.restore(request.getGas());
-        throttleManager.throttleTraceRequest(1, request.getGas());
     }
 
     @Test
@@ -355,9 +285,6 @@ final class ThrottleManagerImplTest {
     private ThrottleManager createThrottleManager() {
         var gasLimitBucket = createBucket(throttleProperties.getGasPerSecond());
         var rateLimitBucket = createBucket(throttleProperties.getRequestsPerSecond());
-        var opcodeRateLimitBucket = createBucket(throttleProperties.getOpcodeRequestsPerSecond());
-        var traceRateLimitBucket = createBucket(throttleProperties.getTraceRequestsPerSecond());
-        return new ThrottleManagerImpl(
-                gasLimitBucket, rateLimitBucket, opcodeRateLimitBucket, traceRateLimitBucket, throttleProperties);
+        return new ThrottleManagerImpl(gasLimitBucket, rateLimitBucket, throttleProperties);
     }
 }

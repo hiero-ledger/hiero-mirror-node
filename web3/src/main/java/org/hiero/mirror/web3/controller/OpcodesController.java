@@ -2,13 +2,15 @@
 
 package org.hiero.mirror.web3.controller;
 
+import static org.hiero.mirror.web3.ApiEndpointName.OPCODES;
+
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.OpcodesResponse;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.service.OpcodeService;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
-import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.utils.GzipEncoding;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -26,11 +28,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/contracts/results")
 class OpcodesController {
 
-    static final String MISSING_GZIP_HEADER_MESSAGE = GzipEncoding.MISSING_GZIP_HEADER_MESSAGE;
-
     private final OpcodeService opcodeService;
-    private final ThrottleManager throttleManager;
-    private final OpcodesProperties properties;
+    private final Web3Properties web3Properties;
 
     /**
      * <p>
@@ -56,14 +55,12 @@ class OpcodesController {
             @RequestParam(required = false, defaultValue = "false") boolean memory,
             @RequestParam(required = false, defaultValue = "false") boolean storage,
             @RequestHeader(value = HttpHeaders.ACCEPT_ENCODING) String acceptEncoding) {
-        if (properties.isEnabled()) {
-            GzipEncoding.require(acceptEncoding);
-            throttleManager.throttleOpcodeRequest();
-
-            final var request = new OpcodeRequest(transactionIdOrHash, stack, memory, storage);
-            return opcodeService.processOpcodeCall(request);
+        if (!web3Properties.getApi(OPCODES).isEnabled()) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }
 
-        throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        GzipEncoding.require(acceptEncoding);
+        final var request = new OpcodeRequest(transactionIdOrHash, stack, memory, storage);
+        return opcodeService.processOpcodeCall(request);
     }
 }

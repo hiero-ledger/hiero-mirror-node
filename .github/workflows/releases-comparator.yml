@@ -26,7 +26,7 @@ jobs:
       base_version: ${{ steps.check.outputs.base_version }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -65,7 +65,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -86,6 +86,7 @@ jobs:
           CONSENSUS_NODE_REPO: https://github.com/hiero-ledger/hiero-consensus-node.git
           TAG_ONE: ${{ needs.check-version.outputs.pr_version }}
           TAG_TWO: ${{ needs.check-version.outputs.base_version }}
+        if: false # Temporarily disable until CN has a public tag for consensusNodeVersion
         run: |
           set -euo pipefail
 
