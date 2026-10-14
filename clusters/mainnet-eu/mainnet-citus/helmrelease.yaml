@@ -78,6 +78,7 @@ spec:
     rest:
       env:
         HIERO_MIRROR_REST_CHAINID: "0x127"
+        HIERO_MIRROR_REST_CLUSTERID: "b9b8f2f"
       ingress:
         enabled: true
       monitor:
