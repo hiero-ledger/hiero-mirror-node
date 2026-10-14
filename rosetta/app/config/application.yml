@@ -22,6 +22,7 @@ hiero:
         username: mirror_rosetta
       feature:
         subNetworkIdentifier: false
+        validateAccountCreateFields: true
       http:
         idleTimeout: 10000000000
         readHeaderTimeout: 3000000000
