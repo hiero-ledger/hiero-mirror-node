@@ -73,6 +73,7 @@ spec:
     rest:
       env:
         HIERO_MIRROR_REST_CHAINID: "0x127"
+        HIERO_MIRROR_REST_CLUSTERID: "a722379"
       monitor:
         config:
           contract:
