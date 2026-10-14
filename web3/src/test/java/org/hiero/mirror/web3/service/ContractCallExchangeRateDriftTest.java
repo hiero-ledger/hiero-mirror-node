@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.web3.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.FILECREATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
@@ -13,6 +13,7 @@ import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import jakarta.annotation.Resource;
+import java.time.Instant;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,12 @@ final class ContractCallExchangeRateDriftTest extends AbstractContractCallServic
 
     @Resource(name = CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE)
     private CacheManager exchangeRatesCacheManager;
+
+    @Resource
+    private ExchangeRateUpdater exchangeRateUpdater;
+
+    @Resource
+    private TransactionExecutorFactory transactionExecutorFactory;
 
     @Test
     @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
@@ -52,10 +59,10 @@ final class ContractCallExchangeRateDriftTest extends AbstractContractCallServic
         final var receiver = getAliasAddressFromEntity(accountEntityWithEvmAddressPersist());
 
         // When
-        persistExchangeRate(HBAR_EQUIV, BASE_CENT_EQUIV, 1L);
+        persistAndUpdateExchangeRate(HBAR_EQUIV, BASE_CENT_EQUIV, 1L);
         final long baseline =
                 gasUsedAfterExecution(getContractExecutionParameters(HEX_PREFIX, receiver, sender, 1L, ETH_CALL));
-        persistExchangeRate(HBAR_EQUIV, DRIFTED_CENT_EQUIV, 2L);
+        persistAndUpdateExchangeRate(HBAR_EQUIV, DRIFTED_CENT_EQUIV, 2L);
         final long afterDrift =
                 gasUsedAfterExecution(getContractExecutionParameters(HEX_PREFIX, receiver, sender, 1L, ETH_CALL));
 
@@ -63,9 +70,34 @@ final class ContractCallExchangeRateDriftTest extends AbstractContractCallServic
         assertThat(afterDrift).isEqualTo(baseline);
     }
 
+    @Test
+    void executorsKeepStaleRatesUntilRefreshed() {
+        // Given an executor created while the base rates are in the database
+        final var sender = getAliasAddressFromEntity(accountEntityWithEvmAddressAndSufficientBalancePersist());
+        final var receiver = getAliasAddressFromEntity(accountEntityWithEvmAddressPersist());
+        persistAndUpdateExchangeRate(HBAR_EQUIV, BASE_CENT_EQUIV, 1L);
+        gasUsedAfterExecution(getContractExecutionParameters(HEX_PREFIX, receiver, sender, 1L, ETH_CALL));
+        final var exchangeRateManagers = transactionExecutorFactory.getExchangeRateManagers();
+        assertThat(exchangeRateManagers).isNotEmpty();
+
+        // When the importer persists drifted rates
+        persistExchangeRate(HBAR_EQUIV, DRIFTED_CENT_EQUIV, 2L);
+
+        // Then the in-memory rates stay stale until the next refresh
+        assertThat(exchangeRateManagers)
+                .allSatisfy(
+                        m -> assertThat(m.exchangeRates().currentRateOrThrow().centEquiv())
+                                .isEqualTo(BASE_CENT_EQUIV));
+        updateExchangeRate();
+        assertThat(exchangeRateManagers)
+                .allSatisfy(
+                        m -> assertThat(m.exchangeRates().currentRateOrThrow().centEquiv())
+                                .isEqualTo(DRIFTED_CENT_EQUIV));
+    }
+
     private long hollowCreationGas(
             final Address sender, final int hbarEquiv, final int centEquiv, final long timestamp) {
-        persistExchangeRate(hbarEquiv, centEquiv, timestamp);
+        persistAndUpdateExchangeRate(hbarEquiv, centEquiv, timestamp);
         final var hollowAlias = Address.wrap(Bytes.wrap(domainBuilder.evmAddress()));
         return gasUsedAfterExecution(getContractExecutionParameters(HEX_PREFIX, hollowAlias, sender, 1L, ETH_CALL));
     }
@@ -89,5 +121,14 @@ final class ContractCallExchangeRateDriftTest extends AbstractContractCallServic
                         .consensusTimestamp(timestamp))
                 .persist();
         resetCacheManager(exchangeRatesCacheManager);
+    }
+
+    private void persistAndUpdateExchangeRate(final int hbarEquiv, final int centEquiv, final long timestamp) {
+        persistExchangeRate(hbarEquiv, centEquiv, timestamp);
+        updateExchangeRate();
+    }
+
+    private void updateExchangeRate() {
+        exchangeRateUpdater.refresh(Instant.now());
     }
 }

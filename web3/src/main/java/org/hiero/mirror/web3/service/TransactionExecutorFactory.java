@@ -3,12 +3,16 @@
 package org.hiero.mirror.web3.service;
 
 import com.hedera.hapi.node.base.SemanticVersion;
+import com.hedera.node.app.fees.ExchangeRateManager;
+import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.entityid.EntityIdFactory;
 import com.hedera.node.app.workflows.standalone.TransactionExecutor;
 import com.hedera.node.app.workflows.standalone.TransactionExecutors;
-import com.hedera.node.app.workflows.standalone.TransactionExecutors.Properties;
+import com.hedera.node.app.workflows.standalone.TransactionExecutors.TracerBinding;
+import com.hedera.node.config.data.BlockStreamConfig;
 import jakarta.inject.Named;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,11 +29,11 @@ import org.springframework.scheduling.annotation.Async;
 @RequiredArgsConstructor
 public class TransactionExecutorFactory {
 
+    private final EntityIdFactory entityIdFactory;
+    private final EvmProperties evmProperties;
     private final BlockHashOperation mirrorBlockHashOperation;
     private final MirrorNodeState mirrorNodeState;
-    private final EvmProperties evmProperties;
-    private final Map<SemanticVersion, TransactionExecutor> transactionExecutors = new ConcurrentHashMap<>();
-    private final EntityIdFactory entityIdFactory;
+    private final Map<SemanticVersion, Executor> transactionExecutors = new ConcurrentHashMap<>();
 
     @Async
     @EventListener(ApplicationReadyEvent.class)
@@ -45,19 +49,67 @@ public class TransactionExecutorFactory {
     // Reuse TransactionExecutor across requests for the same EVM version
     public TransactionExecutor get() {
         var version = evmProperties.getSemanticEvmVersion();
-        return transactionExecutors.computeIfAbsent(version, this::create);
+        return transactionExecutors.computeIfAbsent(version, this::create).transactionExecutor();
     }
 
-    private synchronized TransactionExecutor create(SemanticVersion evmVersion) {
+    /**
+     * Returns the exchange rate managers of the transaction executors created so far. Each executor keeps its own
+     * in-memory copy of the rates, and {@link ExchangeRateUpdater} refreshes them every hour.
+     */
+    List<ExchangeRateManager> getExchangeRateManagers() {
+        return transactionExecutors.values().stream()
+                .map(Executor::exchangeRateManager)
+                .toList();
+    }
+
+    // Mirrors TransactionExecutors.newExecutor() but keeps a reference to the component's ExchangeRateManager
+    private synchronized Executor create(SemanticVersion evmVersion) {
         var appProperties = new HashMap<>(evmProperties.getTransactionProperties());
         appProperties.put("contracts.evm.version", "v" + evmVersion.major() + "." + evmVersion.minor());
 
-        var executorConfig = Properties.newBuilder()
-                .appProperties(appProperties)
-                .customOps(Set.of(mirrorBlockHashOperation))
-                .state(mirrorNodeState)
-                .build();
+        final var component = TransactionExecutors.TRANSACTION_EXECUTORS.newExecutorComponent(
+                mirrorNodeState,
+                appProperties,
+                ScopedTracerBinding.INSTANCE,
+                Set.of(mirrorBlockHashOperation),
+                entityIdFactory);
+        component.stateNetworkInfo().initFrom(mirrorNodeState);
+        final var streamMode = component
+                .configProvider()
+                .getConfiguration()
+                .getConfigData(BlockStreamConfig.class)
+                .streamMode();
+        component.initializer().initialize(mirrorNodeState, streamMode);
 
-        return TransactionExecutors.TRANSACTION_EXECUTORS.newExecutor(executorConfig, entityIdFactory);
+        final var exchangeRateManager = component.exchangeRateManager();
+        final TransactionExecutor transactionExecutor = (transactionBody, consensusNow, tracers) -> {
+            final var dispatch =
+                    component.standaloneDispatchFactory().newDispatch(mirrorNodeState, transactionBody, consensusNow);
+            ScopedTracerBinding.INSTANCE.runWhere(
+                    List.of(tracers), () -> component.dispatchProcessor().processDispatch(dispatch));
+            return dispatch.stack()
+                    .buildHandleOutput(consensusNow, exchangeRateManager.exchangeRates())
+                    .singleTransactionRecords();
+        };
+
+        return new Executor(transactionExecutor, exchangeRateManager);
+    }
+
+    private record Executor(TransactionExecutor transactionExecutor, ExchangeRateManager exchangeRateManager) {}
+
+    private enum ScopedTracerBinding implements TracerBinding {
+        INSTANCE;
+
+        private static final ScopedValue<List<ActionSidecarContentTracer>> TRACERS = ScopedValue.newInstance();
+
+        @Override
+        public void runWhere(final List<ActionSidecarContentTracer> tracers, final Runnable runnable) {
+            ScopedValue.where(TRACERS, tracers).run(runnable);
+        }
+
+        @Override
+        public List<ActionSidecarContentTracer> get() {
+            return TRACERS.orElse(List.of());
+        }
     }
 }

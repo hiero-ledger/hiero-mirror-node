@@ -5,9 +5,11 @@ package org.hiero.mirror.web3;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
+import org.hibernate.validator.constraints.time.DurationMin;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -23,6 +25,14 @@ public class Web3Properties {
     private static final ApiProperties API_PROPERTIES = new ApiProperties();
 
     private boolean enableStateOverrides = false;
+
+    @NotNull
+    @DurationMin()
+    private Duration exchangeRateRefreshOffset = Duration.ofMinutes(2L);
+
+    @NotNull
+    @DurationMin(seconds = 1L)
+    private Duration exchangeRateRefreshPeriod = Duration.ofHours(1L);
 
     @Positive
     private int maxPayloadLogSize = 300;
