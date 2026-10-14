@@ -15,8 +15,6 @@ import com.google.common.collect.Range;
 import com.google.protobuf.UnknownFieldSet;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Duration;
-import com.hederahashgraph.api.proto.java.Key;
-import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenAssociation;
@@ -24,7 +22,6 @@ import com.hederahashgraph.api.proto.java.TokenUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -33,33 +30,22 @@ import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.importer.parser.record.entity.ParserContext;
-import org.hiero.mirror.importer.repository.TokenRepository;
-import org.hiero.mirror.importer.repository.TokenRepository.Treasury;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
 import org.springframework.data.util.Version;
 
 class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     private static final long DEFAULT_AUTO_RENEW_ACCOUNT_NUM = 2;
 
-    private final ParserContext parserContext = new ParserContext();
-
-    @Mock
-    private TokenRepository tokenRepository;
-
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new TokenUpdateTransactionHandler(
-                entityIdService, entityListener, entityProperties, parserContext, tokenRepository);
+        return new TokenUpdateTransactionHandler(entityIdService, entityListener, entityProperties);
     }
 
     @Override
@@ -270,136 +256,43 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
     }
 
     @ParameterizedTest
-    @MethodSource("treasuryKeys")
-    void updateTreasuryStatuses(String freezeKeyType, String kycKeyType) {
-        boolean freezeKey = freezeKeyType.equals("VALID");
-        boolean kycKey = kycKeyType.equals("VALID");
-        var original = Token.builder()
-                .treasuryAccountId(domainBuilder.entityId())
-                .freezeKey(keyBytes(freezeKeyType))
-                .kycKey(keyBytes(kycKeyType))
-                .build();
+    @CsvSource(textBlock = """
+            true, true
+            true, false
+            false, true
+            false, false
+            """)
+    void updateTreasuryStatuses(boolean freezeKey, boolean kycKey) {
+        // The statuses are set regardless of the token's keys, readers show NOT_APPLICABLE for a token without the key
         var item = recordItemBuilder
                 .tokenUpdate()
-                .transactionBody(b -> b.clearFreezeKey().clearKycKey())
+                .transactionBody(b -> {
+                    if (!freezeKey) {
+                        b.clearFreezeKey();
+                    }
+                    if (!kycKey) {
+                        b.clearKycKey();
+                    }
+                })
                 .build();
         var body = item.getTransactionBody().getTokenUpdate();
         var tokenId = EntityId.of(body.getToken());
-        when(tokenRepository.findTreasuryByTokenId(tokenId.getId()))
-                .thenReturn(
-                        new Treasury(original.getTreasuryAccountId(), original.getFreezeKey(), original.getKycKey()));
-
-        transactionHandler.updateTransaction(
-                domainBuilder.transaction().customize(t -> t.entityId(tokenId)).get(), item);
-
-        if (!freezeKey && !kycKey) {
-            verify(entityListener, never()).onTokenAccount(any());
-        } else {
-            verify(entityListener)
-                    .onTokenAccount(assertArg(t -> assertThat(t)
-                            .returns(tokenId.getId(), TokenAccount::getTokenId)
-                            .returns(EntityId.of(body.getTreasury()).getId(), TokenAccount::getAccountId)
-                            .returns(true, TokenAccount::getAssociated)
-                            .returns(item.getConsensusTimestamp(), TokenAccount::getTimestampLower)
-                            .returns(freezeKey ? TokenFreezeStatusEnum.UNFROZEN : null, TokenAccount::getFreezeStatus)
-                            .returns(kycKey ? TokenKycStatusEnum.GRANTED : null, TokenAccount::getKycStatus)
-                            .returns(null, TokenAccount::getCreatedTimestamp)
-                            .returns(null, TokenAccount::getAutomaticAssociation)
-                            .returns(0L, TokenAccount::getBalance)
-                            .returns(null, TokenAccount::getBalanceTimestamp)));
-        }
-    }
-
-    private static Stream<Arguments> treasuryKeys() {
-        return Stream.of("NULL", "EMPTY", "REMOVED", "VALID")
-                .flatMap(
-                        freeze -> Stream.of("NULL", "EMPTY", "REMOVED", "VALID").map(kyc -> Arguments.of(freeze, kyc)));
-    }
-
-    private static byte[] keyBytes(String type) {
-        return switch (type) {
-            case "NULL" -> null;
-            case "EMPTY" -> new byte[0];
-            case "REMOVED" ->
-                Key.newBuilder()
-                        .setKeyList(KeyList.getDefaultInstance())
-                        .build()
-                        .toByteArray();
-            default -> DEFAULT_KEY.toByteArray();
-        };
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void updateTreasuryUsesPendingToken(boolean createdInBatch) {
-        var item = recordItemBuilder.tokenUpdate().build();
-        var body = item.getTransactionBody().getTokenUpdate();
-        var tokenId = EntityId.of(body.getToken());
-        // A pending removal must override the persisted key, while omitted fields still inherit persisted values.
-        var pending = Token.builder()
-                .treasuryAccountId(domainBuilder.entityId())
-                .createdTimestamp(createdInBatch ? 1L : null)
-                .freezeKey(Key.newBuilder()
-                        .setKeyList(KeyList.getDefaultInstance())
-                        .build()
-                        .toByteArray())
-                .build();
-        parserContext.add(pending, tokenId.getId());
-        if (!createdInBatch) {
-            when(tokenRepository.findTreasuryByTokenId(tokenId.getId()))
-                    .thenReturn(new Treasury(
-                            EntityId.of(body.getTreasury()), DEFAULT_KEY.toByteArray(), DEFAULT_KEY.toByteArray()));
-        }
-
-        transactionHandler.updateTransaction(
-                domainBuilder.transaction().customize(t -> t.entityId(tokenId)).get(), item);
-
-        if (createdInBatch) {
-            verify(entityListener, never()).onTokenAccount(any());
-        } else {
-            verify(entityListener)
-                    .onTokenAccount(assertArg(t -> assertThat(t)
-                            .returns(null, TokenAccount::getFreezeStatus)
-                            .returns(TokenKycStatusEnum.GRANTED, TokenAccount::getKycStatus)));
-        }
-        // Current update keys must not be used, and resolving the original must not mutate queued snapshots.
-        assertThat(pending.getKycKey()).isNull();
-        if (createdInBatch) {
-            verifyNoInteractions(tokenRepository);
-        }
-    }
-
-    @Test
-    void updateTreasuryAfterPendingSupplyChange() {
-        var item = recordItemBuilder.tokenUpdate().build();
-        var tokenId = EntityId.of(item.getTransactionBody().getTokenUpdate().getToken());
-        parserContext.add(Token.builder().totalSupply(100L).build(), tokenId.getId());
-        when(tokenRepository.findTreasuryByTokenId(tokenId.getId()))
-                .thenReturn(
-                        new Treasury(domainBuilder.entityId(), DEFAULT_KEY.toByteArray(), DEFAULT_KEY.toByteArray()));
 
         transactionHandler.updateTransaction(
                 domainBuilder.transaction().customize(t -> t.entityId(tokenId)).get(), item);
 
         verify(entityListener)
                 .onTokenAccount(assertArg(t -> assertThat(t)
+                        .returns(tokenId.getId(), TokenAccount::getTokenId)
+                        .returns(EntityId.of(body.getTreasury()).getId(), TokenAccount::getAccountId)
+                        .returns(true, TokenAccount::getAssociated)
+                        .returns(item.getConsensusTimestamp(), TokenAccount::getTimestampLower)
                         .returns(TokenFreezeStatusEnum.UNFROZEN, TokenAccount::getFreezeStatus)
-                        .returns(TokenKycStatusEnum.GRANTED, TokenAccount::getKycStatus)));
-    }
-
-    @Test
-    void updateUnchangedTreasury() {
-        var item = recordItemBuilder.tokenUpdate().build();
-        var body = item.getTransactionBody().getTokenUpdate();
-        var tokenId = EntityId.of(body.getToken());
-        when(tokenRepository.findTreasuryByTokenId(tokenId.getId()))
-                .thenReturn(new Treasury(
-                        EntityId.of(body.getTreasury()), DEFAULT_KEY.toByteArray(), DEFAULT_KEY.toByteArray()));
-
-        transactionHandler.updateTransaction(
-                domainBuilder.transaction().customize(t -> t.entityId(tokenId)).get(), item);
-
-        verify(entityListener, never()).onTokenAccount(any());
+                        .returns(TokenKycStatusEnum.GRANTED, TokenAccount::getKycStatus)
+                        .returns(null, TokenAccount::getCreatedTimestamp)
+                        .returns(null, TokenAccount::getAutomaticAssociation)
+                        .returns(0L, TokenAccount::getBalance)
+                        .returns(null, TokenAccount::getBalanceTimestamp)));
     }
 
     @Test
@@ -413,7 +306,6 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         transactionHandler.updateTransaction(
                 domainBuilder.transaction().customize(t -> t.entityId(tokenId)).get(), item);
 
-        verifyNoInteractions(tokenRepository);
         verify(entityListener, never()).onTokenAccount(any());
     }
 
@@ -440,7 +332,6 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
                         .returns(true, TokenAccount::getAutomaticAssociation)
                         .returns(item.getConsensusTimestamp(), TokenAccount::getCreatedTimestamp)));
         verify(entityListener, never()).onToken(any());
-        verifyNoInteractions(tokenRepository);
     }
 
     @ParameterizedTest
@@ -475,7 +366,7 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         } else {
             verify(entityListener, never()).onTokenAccount(any());
         }
-        verifyNoInteractions(tokenRepository, entityIdService);
+        verifyNoInteractions(entityIdService);
     }
 
     @ParameterizedTest
@@ -512,9 +403,6 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         if (aliasTreasury) {
             when(entityIdService.lookup(bodyTreasury)).thenReturn(Optional.of(treasury));
         }
-        when(tokenRepository.findTreasuryByTokenId(tokenId.getId()))
-                .thenReturn(
-                        new Treasury(domainBuilder.entityId(), DEFAULT_KEY.toByteArray(), DEFAULT_KEY.toByteArray()));
 
         transactionHandler.updateTransaction(
                 domainBuilder.transaction().customize(t -> t.entityId(tokenId)).get(), item);
@@ -552,9 +440,6 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         final var tokenId =
                 EntityId.of(recordItem.getTransactionBody().getTokenUpdate().getToken());
         when(entityIdService.lookup(aliasAccount)).thenReturn(Optional.of(treasury));
-        when(tokenRepository.findTreasuryByTokenId(tokenId.getId()))
-                .thenReturn(
-                        new Treasury(domainBuilder.entityId(), DEFAULT_KEY.toByteArray(), DEFAULT_KEY.toByteArray()));
 
         // When
         transactionHandler.updateTransaction(
@@ -590,7 +475,6 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         // Then
         verify(entityListener).onToken(assertArg(t -> assertThat(t).returns(null, Token::getTreasuryAccountId)));
         verify(entityListener, never()).onTokenAccount(any());
-        verifyNoInteractions(tokenRepository);
         assertThat(recordItem.getEntityTransactions()).doesNotContainKey(EntityId.EMPTY.getId());
     }
 

@@ -26,7 +26,6 @@ import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.repository.TokenAccountRepository;
-import org.hiero.mirror.importer.repository.TokenRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -38,11 +37,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 class TokenTreasuryChangeTest extends AbstractEntityRecordItemListenerTest {
 
     private final TokenAccountRepository tokenAccountRepository;
-    private final TokenRepository tokenRepository;
 
     @ParameterizedTest
-    @MethodSource("keyRemovals")
-    void treasuryChangeWithRemovedKeys(boolean removeFreeze, boolean removeKyc, String timing) {
+    @ValueSource(strings = {"sameTransaction", "sameBatch", "separate"})
+    void treasuryChangeRegardlessOfKeys(String timing) {
         var oldTreasury = domainBuilder.entityId();
         var newTreasury = domainBuilder.entityId();
         var token = domainBuilder
@@ -64,13 +62,7 @@ class TokenTreasuryChangeTest extends AbstractEntityRecordItemListenerTest {
         var removal = recordItemBuilder
                 .tokenUpdate()
                 .transactionBody(b -> {
-                    b.clear().setToken(tokenId);
-                    if (removeFreeze) {
-                        b.setFreezeKey(removedKey);
-                    }
-                    if (removeKyc) {
-                        b.setKycKey(removedKey);
-                    }
+                    b.clear().setToken(tokenId).setFreezeKey(removedKey).setKycKey(removedKey);
                     if (timing.equals("sameTransaction")) {
                         b.setTreasury(newTreasury.toAccountID());
                     }
@@ -92,30 +84,14 @@ class TokenTreasuryChangeTest extends AbstractEntityRecordItemListenerTest {
             }
         }
 
-        // Treasury titles use the pre-update keys. Earlier removals suppress status changes; simultaneous removals do
-        // not.
-        var unfreeze = !removeFreeze || timing.equals("sameTransaction");
-        var grantKyc = !removeKyc || timing.equals("sameTransaction");
+        // The statuses don't depend on the token's keys, readers show NOT_APPLICABLE for a token without the key
         assertThat(tokenAccountRepository.findById(relationship.getId()))
                 .get()
-                .returns(
-                        unfreeze ? TokenFreezeStatusEnum.UNFROZEN : TokenFreezeStatusEnum.FROZEN,
-                        TokenAccount::getFreezeStatus)
-                .returns(grantKyc ? TokenKycStatusEnum.GRANTED : TokenKycStatusEnum.REVOKED, TokenAccount::getKycStatus)
-                .returns(unfreeze || grantKyc ? promotion.getConsensusTimestamp() : 1L, TokenAccount::getTimestampLower)
+                .returns(TokenFreezeStatusEnum.UNFROZEN, TokenAccount::getFreezeStatus)
+                .returns(TokenKycStatusEnum.GRANTED, TokenAccount::getKycStatus)
+                .returns(promotion.getConsensusTimestamp(), TokenAccount::getTimestampLower)
                 .returns(relationship.getCreatedTimestamp(), TokenAccount::getCreatedTimestamp)
                 .returns(0L, TokenAccount::getBalance);
-        var persisted = tokenRepository.findById(token.getTokenId()).orElseThrow();
-        assertThat(persisted.getFreezeKey()).isEqualTo(removeFreeze ? removedKey.toByteArray() : token.getFreezeKey());
-        assertThat(persisted.getKycKey()).isEqualTo(removeKyc ? removedKey.toByteArray() : token.getKycKey());
-    }
-
-    private static Stream<Arguments> keyRemovals() {
-        return Stream.of("sameTransaction", "sameBatch", "separate")
-                .flatMap(timing -> Stream.of(
-                        Arguments.of(true, true, timing),
-                        Arguments.of(true, false, timing),
-                        Arguments.of(false, true, timing)));
     }
 
     @Test
@@ -302,11 +278,6 @@ class TokenTreasuryChangeTest extends AbstractEntityRecordItemListenerTest {
                     .build());
         }
 
-        // Exercise a partial token snapshot preceding the treasury change, including when creation was already flushed.
-        records.add(recordItemBuilder
-                .tokenUpdate()
-                .transactionBody(b -> b.clear().setToken(token).setName("Updated name"))
-                .build());
         var update = recordItemBuilder
                 .tokenUpdate()
                 .transactionBody(b -> b.clear().setToken(token).setTreasury(newTreasury.toAccountID()))

@@ -4,11 +4,8 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_49_0;
 
-import com.hederahashgraph.api.proto.java.Key;
-import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
-import java.util.Arrays;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -24,9 +21,6 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
-import org.hiero.mirror.importer.parser.record.entity.ParserContext;
-import org.hiero.mirror.importer.repository.TokenRepository;
-import org.hiero.mirror.importer.repository.TokenRepository.Treasury;
 import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.Nullable;
 
@@ -34,23 +28,12 @@ import org.jspecify.annotations.Nullable;
 @Named
 final class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionHandler {
 
-    private static final byte[] EMPTY_KEY_LIST =
-            Key.newBuilder().setKeyList(KeyList.getDefaultInstance()).build().toByteArray();
-
     private final EntityProperties entityProperties;
-    private final ParserContext parserContext;
-    private final TokenRepository tokenRepository;
 
     TokenUpdateTransactionHandler(
-            EntityIdService entityIdService,
-            EntityListener entityListener,
-            EntityProperties entityProperties,
-            ParserContext parserContext,
-            TokenRepository tokenRepository) {
+            EntityIdService entityIdService, EntityListener entityListener, EntityProperties entityProperties) {
         super(entityIdService, entityListener, TransactionType.TOKENUPDATE);
         this.entityProperties = entityProperties;
-        this.parserContext = parserContext;
-        this.tokenRepository = tokenRepository;
     }
 
     @Override
@@ -99,8 +82,7 @@ final class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionH
     /**
      * Owns every automatic association of the token update, including when the CRUD guard skips the token update.
      * FAIL_INVALID errata can contain committed associations, but their bodies must not be used to infer treasury
-     * changes. AbstractTransactionHandler calls this before updateEntity, so the parser context still holds the token
-     * prior to this update when the treasury relationship is created.
+     * changes.
      */
     @Override
     protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
@@ -152,57 +134,17 @@ final class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionH
             return null;
         }
 
-        final long tokenId = transaction.getEntityId().getId();
-        final var original = getOriginalToken(tokenId);
-        final boolean hasFreezeKey = original != null && isKeyPresent(original.freezeKey());
-        final boolean hasKycKey = original != null && isKeyPresent(original.kycKey());
-        if (original == null || treasury.equals(original.treasuryAccountId()) || (!hasFreezeKey && !hasKycKey)) {
-            return null;
-        }
-
+        // Consensus nodes unfreeze the new treasury if the token has a freeze key, and grant it KYC if the token has a
+        // KYC key. Both statuses are set regardless of the keys, since readers show NOT_APPLICABLE for a token without
+        // the key, and a token can't get a freeze key or a KYC key after its creation.
         final var relationship = new TokenAccount();
         relationship.setAccountId(treasury.getId());
-        relationship.setTokenId(tokenId);
         relationship.setAssociated(true);
+        relationship.setFreezeStatus(TokenFreezeStatusEnum.UNFROZEN);
+        relationship.setKycStatus(TokenKycStatusEnum.GRANTED);
         relationship.setTimestampLower(recordItem.getConsensusTimestamp());
-        if (hasFreezeKey) {
-            relationship.setFreezeStatus(TokenFreezeStatusEnum.UNFROZEN);
-        }
-        if (hasKycKey) {
-            relationship.setKycStatus(TokenKycStatusEnum.GRANTED);
-        }
+        relationship.setTokenId(transaction.getEntityId().getId());
         return relationship;
-    }
-
-    private @Nullable Treasury getOriginalToken(long tokenId) {
-        final var pending = parserContext.get(Token.class, tokenId);
-        if (pending != null && pending.getCreatedTimestamp() != null) {
-            // A token created in this batch already has a complete snapshot, including intentionally absent keys.
-            return new Treasury(pending.getTreasuryAccountId(), pending.getFreezeKey(), pending.getKycKey());
-        }
-
-        final var persisted = tokenRepository.findTreasuryByTokenId(tokenId);
-        if (pending == null) {
-            return persisted;
-        }
-        if (persisted == null) {
-            return new Treasury(pending.getTreasuryAccountId(), pending.getFreezeKey(), pending.getKycKey());
-        }
-
-        // Pending token objects can contain only a supply change or partial metadata update. Overlay the fields
-        // needed here without modifying either the database entity or the snapshots queued for persistence.
-        return new Treasury(
-                !EntityId.isEmpty(pending.getTreasuryAccountId())
-                        ? pending.getTreasuryAccountId()
-                        : persisted.treasuryAccountId(),
-                pending.getFreezeKey() != null ? pending.getFreezeKey() : persisted.freezeKey(),
-                pending.getKycKey() != null ? pending.getKycKey() : persisted.kycKey());
-    }
-
-    private static boolean isKeyPresent(byte @Nullable [] key) {
-        // HIP-540 removes a key by setting it to an empty key list. Consensus clears the key from state, but mirror
-        // stores the empty key list bytes as is, so it's treated as an absent key.
-        return key != null && key.length > 0 && !Arrays.equals(key, EMPTY_KEY_LIST);
     }
 
     /**

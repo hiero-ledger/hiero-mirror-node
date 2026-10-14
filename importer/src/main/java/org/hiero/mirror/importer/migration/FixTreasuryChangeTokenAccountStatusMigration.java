@@ -2,15 +2,11 @@
 
 package org.hiero.mirror.importer.migration;
 
-import com.hederahashgraph.api.proto.java.Key;
-import com.hederahashgraph.api.proto.java.KeyList;
 import jakarta.inject.Named;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.apache.commons.lang3.ArrayUtils;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
@@ -26,8 +22,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.transaction.support.TransactionOperations;
 
 /**
- * Consensus nodes implicitly unfreeze and grant KYC to the new treasury when a token update changes the treasury, based
- * on the token's freeze and KYC keys prior to the update. For each such treasury change, the snapshot of the new
+ * Set new treasury relationships to unfrozen and KYC granted without inspecting token keys. Readers give the token's
+ * NOT_APPLICABLE statuses precedence over these relationship statuses. For each treasury change, the snapshot of the new
  * treasury's token account at the treasury change is split so the snapshot prior to the treasury change is preserved in
  * history. The freeze and KYC statuses are then fixed independently, in every snapshot from the treasury change until
  * the first subsequent snapshot that explicitly sets that status or resets the association.
@@ -36,10 +32,6 @@ import org.springframework.transaction.support.TransactionOperations;
 final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJavaMigration {
 
     private static final String CURRENT_TABLE = "token_account";
-
-    // HIP-540 removes a key by setting it to an empty key list, which consensus clears but mirror stores as is
-    private static final byte[] EMPTY_KEY_LIST =
-            Key.newBuilder().setKeyList(KeyList.getDefaultInstance()).build().toByteArray();
 
     private static final int GRANTED = TokenKycStatusEnum.GRANTED.ordinal();
 
@@ -107,23 +99,21 @@ final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJav
 
     private static final String SELECT_TREASURY_CHANGES = """
             with token_version as (
-              select token_id, treasury_account_id, freeze_key, kyc_key, lower(timestamp_range) as timestamp
+              select token_id, treasury_account_id, lower(timestamp_range) as timestamp
               from token
               union all
-              select token_id, treasury_account_id, freeze_key, kyc_key, lower(timestamp_range) as timestamp
+              select token_id, treasury_account_id, lower(timestamp_range) as timestamp
               from token_history
             ), change as (
               select
                 token_id,
                 treasury_account_id,
                 timestamp,
-                lag(treasury_account_id) over w as previous_treasury_account_id,
-                lag(freeze_key) over w as previous_freeze_key,
-                lag(kyc_key) over w as previous_kyc_key
+                lag(treasury_account_id) over w as previous_treasury_account_id
               from token_version
               window w as (partition by token_id order by timestamp)
             )
-            select token_id, treasury_account_id, timestamp, previous_freeze_key, previous_kyc_key
+            select token_id, treasury_account_id, timestamp
             from change
             where previous_treasury_account_id is not null
               and previous_treasury_account_id <> treasury_account_id
@@ -190,11 +180,7 @@ final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJav
         final var treasuryChanges = jdbcOperations.query(
                 SELECT_TREASURY_CHANGES,
                 (rs, rowNum) -> new TreasuryChange(
-                        rs.getLong("treasury_account_id"),
-                        rs.getLong("token_id"),
-                        rs.getLong("timestamp"),
-                        isKeyPresent(rs.getBytes("previous_freeze_key")),
-                        isKeyPresent(rs.getBytes("previous_kyc_key"))));
+                        rs.getLong("treasury_account_id"), rs.getLong("token_id"), rs.getLong("timestamp")));
 
         long count = 0;
         for (final var treasuryChange : treasuryChanges) {
@@ -211,10 +197,6 @@ final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJav
 
     private boolean fixTreasuryChange(
             final NamedParameterJdbcOperations jdbcOperations, final TreasuryChange treasuryChange) {
-        if (!treasuryChange.unfreeze() && !treasuryChange.grantKyc()) {
-            return false;
-        }
-
         final var params = new MapSqlParameterSource()
                 .addValue("accountId", treasuryChange.accountId())
                 .addValue("timestamp", treasuryChange.timestamp())
@@ -241,8 +223,8 @@ final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJav
         }
 
         final var atChange = snapshots.get(index);
-        final boolean unfreeze = treasuryChange.unfreeze() && !Objects.equals(atChange.freezeStatus(), UNFROZEN);
-        final boolean grantKyc = treasuryChange.grantKyc() && !Objects.equals(atChange.kycStatus(), GRANTED);
+        final boolean unfreeze = !Objects.equals(atChange.freezeStatus(), UNFROZEN);
+        final boolean grantKyc = !Objects.equals(atChange.kycStatus(), GRANTED);
         if (!unfreeze && !grantKyc) {
             return false;
         }
@@ -314,10 +296,6 @@ final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJav
                         || type == TransactionType.TOKENUNFREEZE.getProtoId());
     }
 
-    private static boolean isKeyPresent(byte @Nullable [] key) {
-        return !ArrayUtils.isEmpty(key) && !Arrays.equals(key, EMPTY_KEY_LIST);
-    }
-
     private static boolean isKycType(@Nullable Integer type) {
         return type != null
                 && (type == TransactionType.TOKENGRANTKYC.getProtoId()
@@ -345,5 +323,5 @@ final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJav
             @Nullable Integer kycStatus,
             long timestampLower) {}
 
-    private record TreasuryChange(long accountId, long tokenId, long timestamp, boolean unfreeze, boolean grantKyc) {}
+    private record TreasuryChange(long accountId, long tokenId, long timestamp) {}
 }

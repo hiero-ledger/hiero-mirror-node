@@ -13,8 +13,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
-import com.hederahashgraph.api.proto.java.Key;
-import com.hederahashgraph.api.proto.java.KeyList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -42,8 +40,6 @@ import org.springframework.transaction.support.TransactionOperations;
 class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrationTest {
 
     private static final long CHANGE_TIMESTAMP = 10L;
-    private static final byte[] EMPTY_KEY_LIST =
-            Key.newBuilder().setKeyList(KeyList.getDefaultInstance()).build().toByteArray();
 
     private final Environment environment;
     private final ImporterProperties importerProperties;
@@ -63,38 +59,33 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
     @Test
     void migrate() {
         // given
-        // treasury changed when the token had freeze and kyc keys
-        final var tokenId = treasuryChange(domainBuilder.key(), domainBuilder.key(), true);
+        final var tokenId = treasuryChange(true);
         final var newTreasury = tokenAccount(tokenId, 5L, TokenFreezeStatusEnum.FROZEN, TokenKycStatusEnum.REVOKED);
         final var otherAccount =
                 tokenAccount(tokenId, 5L, TokenFreezeStatusEnum.FROZEN, TokenKycStatusEnum.REVOKED, 9999L);
 
         // automatically associated new treasury
-        final var autoAssociatedTokenId = treasuryChange(domainBuilder.key(), domainBuilder.key(), true);
+        final var autoAssociatedTokenId = treasuryChange(true);
         final var autoAssociated = tokenAccount(autoAssociatedTokenId, CHANGE_TIMESTAMP, null, null);
 
         // explicitly frozen and kyc revoked after the treasury change
-        final var laterChangeTokenId = treasuryChange(domainBuilder.key(), domainBuilder.key(), true);
+        final var laterChangeTokenId = treasuryChange(true);
         final var laterChange = tokenAccount(
                 laterChangeTokenId, CHANGE_TIMESTAMP + 5, TokenFreezeStatusEnum.FROZEN, TokenKycStatusEnum.REVOKED);
 
-        // only kyc key prior to the treasury change, freeze key added by the treasury change
-        final var kycOnlyTokenId = treasuryChange(EMPTY_KEY_LIST, domainBuilder.key(), true);
-        final var kycOnly =
-                tokenAccount(kycOnlyTokenId, 5L, TokenFreezeStatusEnum.NOT_APPLICABLE, TokenKycStatusEnum.REVOKED);
-
-        // no keys prior to the treasury change
-        final var noKeysTokenId = treasuryChange(null, null, true);
-        final var noKeys = tokenAccount(
-                noKeysTokenId, 5L, TokenFreezeStatusEnum.NOT_APPLICABLE, TokenKycStatusEnum.NOT_APPLICABLE);
+        // statuses not applicable. The statuses are fixed regardless of the token's keys, since readers show
+        // NOT_APPLICABLE for a token without the key
+        final var notApplicableTokenId = treasuryChange(true);
+        final var notApplicable = tokenAccount(
+                notApplicableTokenId, 5L, TokenFreezeStatusEnum.NOT_APPLICABLE, TokenKycStatusEnum.NOT_APPLICABLE);
 
         // new treasury already unfrozen and kyc granted
-        final var alreadyFixedTokenId = treasuryChange(domainBuilder.key(), domainBuilder.key(), true);
+        final var alreadyFixedTokenId = treasuryChange(true);
         final var alreadyFixed =
                 tokenAccount(alreadyFixedTokenId, 5L, TokenFreezeStatusEnum.UNFROZEN, TokenKycStatusEnum.GRANTED);
 
         // token updated without changing the treasury
-        final var noChangeTokenId = treasuryChange(domainBuilder.key(), domainBuilder.key(), false);
+        final var noChangeTokenId = treasuryChange(false);
         final var noChange =
                 tokenAccount(noChangeTokenId, 5L, TokenFreezeStatusEnum.FROZEN, TokenKycStatusEnum.REVOKED);
 
@@ -103,7 +94,7 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
 
         // then
         // the snapshots prior to the treasury change are preserved in history
-        final var expectedHistory = List.of(toHistory(newTreasury), toHistory(kycOnly));
+        final var expectedHistory = List.of(toHistory(newTreasury), toHistory(notApplicable));
 
         newTreasury.setFreezeStatus(TokenFreezeStatusEnum.UNFROZEN);
         newTreasury.setKycStatus(TokenKycStatusEnum.GRANTED);
@@ -111,18 +102,12 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
         // automatically associated at the treasury change, so there is no prior snapshot
         autoAssociated.setFreezeStatus(TokenFreezeStatusEnum.UNFROZEN);
         autoAssociated.setKycStatus(TokenKycStatusEnum.GRANTED);
-        kycOnly.setKycStatus(TokenKycStatusEnum.GRANTED);
-        kycOnly.setTimestampRange(Range.atLeast(CHANGE_TIMESTAMP));
+        notApplicable.setFreezeStatus(TokenFreezeStatusEnum.UNFROZEN);
+        notApplicable.setKycStatus(TokenKycStatusEnum.GRANTED);
+        notApplicable.setTimestampRange(Range.atLeast(CHANGE_TIMESTAMP));
         assertThat(tokenAccountRepository.findAll())
                 .containsExactlyInAnyOrder(
-                        newTreasury,
-                        otherAccount,
-                        autoAssociated,
-                        laterChange,
-                        kycOnly,
-                        noKeys,
-                        alreadyFixed,
-                        noChange);
+                        newTreasury, otherAccount, autoAssociated, laterChange, notApplicable, alreadyFixed, noChange);
         assertThat(findHistory(TokenAccountHistory.class)).containsExactlyInAnyOrderElementsOf(expectedHistory);
     }
 
@@ -130,7 +115,7 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
     void migrateWithHistory() {
         // given
         // frozen and kyc revoked prior to the treasury change, with the association in history
-        final var tokenId = treasuryChange(domainBuilder.key(), domainBuilder.key(), true);
+        final var tokenId = treasuryChange(true);
         final var associated = tokenAccount(tokenId, 2L, TokenFreezeStatusEnum.UNFROZEN, TokenKycStatusEnum.GRANTED);
         final var associatedHistory = toHistory(associated);
         associatedHistory.setTimestampRange(Range.closedOpen(2L, 5L));
@@ -157,7 +142,7 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
     @SuppressWarnings("unchecked")
     void migrateRollback() {
         // given
-        final var tokenId = treasuryChange(domainBuilder.key(), domainBuilder.key(), true);
+        final var tokenId = treasuryChange(true);
         final var newTreasury = tokenAccount(tokenId, 5L, TokenFreezeStatusEnum.FROZEN, TokenKycStatusEnum.REVOKED);
 
         // fails after the split and the freeze status update
@@ -194,7 +179,7 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
     @Test
     void migrateDissociated() {
         // given
-        final var tokenId = treasuryChange(domainBuilder.key(), domainBuilder.key(), true);
+        final var tokenId = treasuryChange(true);
         final var dissociated = domainBuilder
                 .tokenAccount()
                 .customize(t -> t.accountId(treasury(tokenId))
@@ -296,7 +281,7 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
             TokenKycStatusEnum expectedKycStatus) {
         // given
         // associated at 5, treasury changed at 10, and a subsequent change at 15
-        final var tokenId = treasuryChange(domainBuilder.key(), domainBuilder.key(), true);
+        final var tokenId = treasuryChange(true);
         final long accountId = treasury(tokenId);
         final long subsequentTimestamp = CHANGE_TIMESTAMP + 5;
         final var associatedHistory = domainBuilder
@@ -386,10 +371,6 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
                 .persist();
     }
 
-    /**
-     * Persists a token with a history version prior to CHANGE_TIMESTAMP that has the given keys, and a current version
-     * starting at CHANGE_TIMESTAMP with the keys replaced, and the treasury changed if requested.
-     */
     private void tokenVersion(long tokenId, EntityId treasury, Range<Long> timestampRange) {
         domainBuilder
                 .tokenHistory()
@@ -398,23 +379,23 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
                 .persist();
     }
 
-    private long treasuryChange(byte[] previousFreezeKey, byte[] previousKycKey, boolean changeTreasury) {
+    /**
+     * Persists a token with a history version prior to CHANGE_TIMESTAMP, and a current version starting at
+     * CHANGE_TIMESTAMP with the treasury changed if requested.
+     */
+    private long treasuryChange(boolean changeTreasury) {
         final var tokenId = domainBuilder.id();
         final var newTreasury = EntityId.of(treasury(tokenId));
         final var previousTreasury = changeTreasury ? domainBuilder.entityId() : newTreasury;
         domainBuilder
                 .tokenHistory()
-                .customize(t -> t.freezeKey(previousFreezeKey)
-                        .kycKey(previousKycKey)
-                        .timestampRange(Range.closedOpen(1L, CHANGE_TIMESTAMP))
+                .customize(t -> t.timestampRange(Range.closedOpen(1L, CHANGE_TIMESTAMP))
                         .tokenId(tokenId)
                         .treasuryAccountId(previousTreasury))
                 .persist();
         domainBuilder
                 .token()
-                .customize(t -> t.freezeKey(domainBuilder.key())
-                        .kycKey(domainBuilder.key())
-                        .timestampRange(Range.atLeast(CHANGE_TIMESTAMP))
+                .customize(t -> t.timestampRange(Range.atLeast(CHANGE_TIMESTAMP))
                         .tokenId(tokenId)
                         .treasuryAccountId(newTreasury))
                 .persist();
