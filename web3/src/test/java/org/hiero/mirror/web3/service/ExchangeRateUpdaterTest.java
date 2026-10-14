@@ -3,14 +3,11 @@
 package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,15 +23,11 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
-import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.state.SystemFileLoader;
 import org.hiero.mirror.web3.state.Utils;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,7 +44,6 @@ class ExchangeRateUpdaterTest {
     private final EvmProperties evmProperties = new EvmProperties();
     private final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
     private final FileID exchangeRateFileId = Utils.toFileID(systemEntity.exchangeRateFile());
-    private final Web3Properties web3Properties = new Web3Properties();
 
     @Mock
     private SystemFileLoader systemFileLoader;
@@ -65,43 +57,7 @@ class ExchangeRateUpdaterTest {
     @BeforeEach
     void setup() {
         exchangeRateManager = newExchangeRateManager(rates(100_000, HOUR_10));
-        exchangeRateUpdater =
-                new ExchangeRateUpdater(systemEntity, systemFileLoader, transactionExecutorFactory, web3Properties);
-    }
-
-    @AfterEach
-    void teardown() {
-        exchangeRateUpdater.stop();
-    }
-
-    @Test
-    void firstRunIsTwoMinutesAfterTheHour() {
-        assertThat(exchangeRateUpdater.delayUntilNextRun(HOUR_10)).isEqualTo(Duration.ofMinutes(2));
-        assertThat(exchangeRateUpdater.delayUntilNextRun(HOUR_10.plusSeconds(30)))
-                .isEqualTo(Duration.ofMinutes(2).minusSeconds(30));
-        assertThat(exchangeRateUpdater.delayUntilNextRun(HOUR_10.plus(Duration.ofMinutes(2))))
-                .isEqualTo(Duration.ZERO);
-    }
-
-    @Test
-    void runAfterTheOffsetWaitsForTheNextHour() {
-        assertThat(exchangeRateUpdater.delayUntilNextRun(
-                        HOUR_10.plus(Duration.ofMinutes(2)).plusMillis(1)))
-                .isEqualTo(Duration.ofHours(1).minusMillis(1));
-        assertThat(exchangeRateUpdater.delayUntilNextRun(HOUR_10.plus(Duration.ofMinutes(30))))
-                .isEqualTo(Duration.ofMinutes(32));
-        assertThat(exchangeRateUpdater.delayUntilNextRun(HOUR_11.minusMillis(1)))
-                .isEqualTo(Duration.ofMinutes(2).plusMillis(1));
-    }
-
-    @Test
-    void firstRunUsesConfiguredOffsetAndPeriod() {
-        web3Properties.setExchangeRateRefreshOffset(Duration.ofMinutes(10));
-        web3Properties.setExchangeRateRefreshPeriod(Duration.ofMinutes(30));
-
-        assertThat(exchangeRateUpdater.delayUntilNextRun(HOUR_10)).isEqualTo(Duration.ofMinutes(10));
-        assertThat(exchangeRateUpdater.delayUntilNextRun(HOUR_10.plus(Duration.ofMinutes(15))))
-                .isEqualTo(Duration.ofMinutes(25));
+        exchangeRateUpdater = new ExchangeRateUpdater(systemEntity, systemFileLoader, transactionExecutorFactory);
     }
 
     @Test
@@ -168,7 +124,6 @@ class ExchangeRateUpdaterTest {
     @Test
     void missingFileLeavesRatesUnchanged() {
         final var initialRates = exchangeRateManager.exchangeRates();
-        when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
         when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(null);
 
         exchangeRateUpdater.refresh(HOUR_10);
@@ -183,7 +138,6 @@ class ExchangeRateUpdaterTest {
                 .fileId(exchangeRateFileId)
                 .contents(Bytes.wrap(new byte[] {1}))
                 .build();
-        when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
         when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(garbage);
 
         exchangeRateUpdater.refresh(HOUR_10);
@@ -192,53 +146,46 @@ class ExchangeRateUpdaterTest {
     }
 
     @Test
-    void scheduledRunsNeverOverlap() {
-        final var newRates = rates(120_000, HOUR_11);
-        final var runs = new AtomicInteger();
-        final var active = new AtomicInteger();
-        final var maxActive = new AtomicInteger();
-        final var threads = ConcurrentHashMap.<String>newKeySet();
-        when(transactionExecutorFactory.getExchangeRateManagers()).thenAnswer(invocation -> {
-            maxActive.accumulateAndGet(active.incrementAndGet(), Math::max);
-            threads.add(Thread.currentThread().getName());
-            // Each run outlasts the period, so the next one is already due when it finishes
-            Thread.sleep(20);
-            active.decrementAndGet();
-            runs.incrementAndGet();
-            return List.of(exchangeRateManager);
-        });
-        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(file(newRates));
+    void scheduledRefreshSkipsDatabaseWhileCurrentRateIsActive() {
+        final var activeRates = rates(120_000, Instant.now().plus(Duration.ofHours(1)));
+        when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
+        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(file(activeRates));
 
-        exchangeRateUpdater.start(Duration.ZERO, Duration.ofMillis(1));
+        exchangeRateUpdater.refresh(Instant.now());
+        exchangeRateUpdater.refresh();
 
-        await().atMost(Duration.ofSeconds(5)).until(() -> runs.get() >= 5);
-        assertThat(maxActive).hasValue(1);
-        assertThat(threads).containsExactly("exchange-rate-updater");
-        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(newRates);
+        verify(systemFileLoader).load(eq(exchangeRateFileId), anyLong());
+        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(activeRates);
     }
 
     @Test
-    void scheduledRunsContinueAfterFailure() {
-        final var newRates = rates(120_000, HOUR_11);
+    void scheduledRefreshLoadsAgainAfterExpiration() {
+        final var expiredRates = rates(120_000, Instant.now().minus(Duration.ofMinutes(1)));
+        final var renewedRates = rates(130_000, Instant.now().plus(Duration.ofHours(1)));
         when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
+        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong()))
+                .thenReturn(file(expiredRates))
+                .thenReturn(file(renewedRates));
+
+        exchangeRateUpdater.refresh();
+        exchangeRateUpdater.refresh();
+
+        verify(systemFileLoader, times(2)).load(eq(exchangeRateFileId), anyLong());
+        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(renewedRates);
+    }
+
+    @Test
+    void scheduledRefreshContinuesAfterFailure() {
+        final var newRates = rates(120_000, Instant.now().minus(Duration.ofMinutes(1)));
         when(systemFileLoader.load(eq(exchangeRateFileId), anyLong()))
                 .thenThrow(new IllegalStateException("database unavailable"))
                 .thenReturn(file(newRates));
+        when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
 
-        exchangeRateUpdater.start(Duration.ZERO, Duration.ofMillis(10));
+        exchangeRateUpdater.refresh();
+        exchangeRateUpdater.refresh();
 
-        await().atMost(Duration.ofSeconds(5))
-                .untilAsserted(
-                        () -> assertThat(exchangeRateManager.exchangeRates()).isEqualTo(newRates));
-    }
-
-    @Test
-    void startOnlySchedulesOnce() {
-        exchangeRateUpdater.start(Duration.ZERO, Duration.ofHours(1));
-        verify(systemFileLoader, timeout(5_000)).load(eq(exchangeRateFileId), anyLong());
-
-        exchangeRateUpdater.start(Duration.ZERO, Duration.ofMillis(1));
-        verify(systemFileLoader, after(200).times(1)).load(eq(exchangeRateFileId), anyLong());
+        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(newRates);
     }
 
     private ExchangeRateManager newExchangeRateManager(final ExchangeRateSet initialRates) {

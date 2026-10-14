@@ -54,7 +54,7 @@ public class TransactionExecutorFactory {
 
     /**
      * Returns the exchange rate managers of the transaction executors created so far. Each executor keeps its own
-     * in-memory copy of the rates, and {@link ExchangeRateUpdater} refreshes them every hour.
+     * in-memory copy of the rates, and {@link ExchangeRateUpdater} reloads them after the current rate expires.
      */
     List<ExchangeRateManager> getExchangeRateManagers() {
         return transactionExecutors.values().stream()

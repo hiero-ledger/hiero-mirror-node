@@ -27,12 +27,8 @@ public class Web3Properties {
     private boolean enableStateOverrides = false;
 
     @NotNull
-    @DurationMin()
-    private Duration exchangeRateRefreshOffset = Duration.ofMinutes(2L);
-
-    @NotNull
     @DurationMin(seconds = 1L)
-    private Duration exchangeRateRefreshPeriod = Duration.ofHours(1L);
+    private Duration exchangeRateRefreshInterval = Duration.ofSeconds(5L);
 
     @Positive
     private int maxPayloadLogSize = 300;

@@ -8,8 +8,11 @@ import java.nio.file.Path;
 import org.hiero.mirror.common.CommonConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.util.FileSystemUtils;
 
 @EnableAsync
@@ -32,4 +35,14 @@ public class Web3Application {
             System.err.printf("Could not delete tmp directory %s: %s%n", tmpDir, ex.getMessage());
         }
     }
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnProperty(
+            prefix = "spring.task.scheduling",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    @EnableScheduling
+    // This toggle exists only to disable scheduling for test execution and shouldn't be modified by operators
+    static class SchedulingConfiguration {}
 }

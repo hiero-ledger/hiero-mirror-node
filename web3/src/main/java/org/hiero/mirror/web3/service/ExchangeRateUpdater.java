@@ -8,150 +8,125 @@ import com.hedera.node.app.fees.ExchangeRateManager;
 import com.hedera.node.app.spi.workflows.HandleException;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
-import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.state.SystemFileLoader;
 import org.hiero.mirror.web3.state.Utils;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
 
 /**
  * Reloads the exchange rate file into every transaction executor's in-memory {@link ExchangeRateManager}. The consensus
  * node refreshes those rates when it handles a FileUpdate of the exchange rate file, which never happens in the mirror
  * node, so without this the rates would stay at the values read when each executor was created.
  *
- * <p>A single thread runs the reload every {@link Web3Properties#getExchangeRateRefreshPeriod()}, starting
- * {@link Web3Properties#getExchangeRateRefreshOffset()} after the current or next hour, and runs never overlap, so the
- * cached state needs no locking. The file is read through {@link SystemFileLoader}, which rounds this file to the hour,
- * so the offset leaves room for the importer to persist the file for the hour that just started.
+ * <p>The check runs every {@code hiero.mirror.web3.exchangeRateRefreshPeriod}. Only the current rate's expiration is
+ * remembered. While that expiration is still in the future the database is left alone. Once it has passed, the file is
+ * loaded through {@link SystemFileLoader} and applied to each manager whose rates differ.
  */
 @CustomLog
 @Named
 @NullMarked
-public final class ExchangeRateUpdater {
+final class ExchangeRateUpdater {
 
-    private @Nullable Bytes cachedContents;
-    private @Nullable ExchangeRateSet cachedRates;
+    private final AtomicLong expirationTime = new AtomicLong();
     private final FileID exchangeRateFileId;
-    private final ScheduledExecutorService scheduler;
-    private final AtomicBoolean started = new AtomicBoolean();
     private final SystemFileLoader systemFileLoader;
     private final TransactionExecutorFactory transactionExecutorFactory;
-    private final Web3Properties web3Properties;
 
     public ExchangeRateUpdater(
             final SystemEntity systemEntity,
             final SystemFileLoader systemFileLoader,
-            final TransactionExecutorFactory transactionExecutorFactory,
-            final Web3Properties web3Properties) {
+            final TransactionExecutorFactory transactionExecutorFactory) {
         this.exchangeRateFileId = Utils.toFileID(systemEntity.exchangeRateFile());
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(
-                Thread.ofPlatform().name("exchange-rate-updater").daemon().factory());
         this.systemFileLoader = systemFileLoader;
         this.transactionExecutorFactory = transactionExecutorFactory;
-        this.web3Properties = web3Properties;
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void start() {
-        start(delayUntilNextRun(Instant.now()), web3Properties.getExchangeRateRefreshPeriod());
-    }
-
-    void start(final Duration delay, final Duration period) {
-        if (!started.compareAndSet(false, true)) {
-            return;
-        }
-
-        scheduler.scheduleAtFixedRate(this::run, delay.toMillis(), period.toMillis(), TimeUnit.MILLISECONDS);
-    }
-
-    @PreDestroy
-    public void stop() {
-        scheduler.shutdownNow();
-    }
-
-    /** Delay from {@code now} until the refresh offset past the current hour, or one period after that if passed. */
-    Duration delayUntilNextRun(final Instant now) {
-        final var hour = now.truncatedTo(ChronoUnit.HOURS);
-        var next = hour.plus(web3Properties.getExchangeRateRefreshOffset());
-        if (next.isBefore(now)) {
-            next = next.plus(web3Properties.getExchangeRateRefreshPeriod());
-        }
-        return Duration.between(now, next);
-    }
-
-    /** Not thread safe. Outside the scheduler thread, only call it when no scheduled run can overlap, as in tests. */
-    void refresh(final Instant now) {
-        load(now);
-        var updated = 0;
-        for (final var exchangeRateManager : transactionExecutorFactory.getExchangeRateManagers()) {
-            if (apply(exchangeRateManager)) {
-                ++updated;
+    @Scheduled(fixedDelayString = "${hiero.mirror.web3.exchangeRateRefreshInterval:PT05S}", initialDelay = 10)
+    public synchronized void refresh() {
+        try {
+            final var now = Instant.now();
+            if (expirationTime.get() < now.getEpochSecond()) {
+                refresh(now);
             }
-        }
-        if (updated > 0) {
-            log.info("Updated {} exchange rate managers to {}", updated, cachedRates);
-        }
-    }
-
-    private boolean apply(final ExchangeRateManager exchangeRateManager) {
-        if (cachedContents == null || cachedRates == null) {
-            return false;
-        }
-
-        try {
-            if (cachedRates.equals(exchangeRateManager.exchangeRates())) {
-                return false;
-            }
-
-            exchangeRateManager.systemUpdate(cachedContents);
-            return true;
-        } catch (final HandleException e) {
-            log.warn("Ignoring invalid exchange rates {}: {}", cachedRates, e.getStatus());
-            cachedContents = null;
-            cachedRates = null;
-            return false;
-        }
-    }
-
-    private void load(final Instant now) {
-        final var file = systemFileLoader.load(
-                exchangeRateFileId, DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano()));
-        if (file == null) {
-            return;
-        }
-
-        final var contents = file.contents();
-        if (cachedContents != null && contents.equals(cachedContents)) {
-            return;
-        }
-
-        try {
-            cachedRates = ExchangeRateSet.PROTOBUF.parse(contents);
-            cachedContents = contents;
-        } catch (final ParseException e) {
-            log.warn("Unable to parse exchange rates: {}", e.getMessage());
-        }
-    }
-
-    private void run() {
-        try {
-            refresh(Instant.now());
         } catch (final Exception e) {
             log.warn("Unable to refresh exchange rates: {}", e.getMessage());
         }
+    }
+
+    /** Applies the exchange rate file at {@code now}. The scheduled check calls this once the current rate has expired. */
+    synchronized void refresh(final Instant now) {
+        final var loaded = load(now);
+        if (loaded == null) {
+            return;
+        }
+
+        final var exchangeRates = loaded.rates();
+        if (!exchangeRates.hasCurrentRate()
+                || !exchangeRates.currentRateOrThrow().hasExpirationTime()) {
+            log.warn("Ignoring exchange rates without an expiration time: {}", exchangeRates);
+            return;
+        }
+
+        var updated = 0;
+        for (final var exchangeRateManager : transactionExecutorFactory.getExchangeRateManagers()) {
+            final var result = apply(exchangeRateManager, loaded.contents(), exchangeRates);
+            if (result == UpdateResult.UPDATED) {
+                ++updated;
+            }
+        }
+
+        expirationTime.set(
+                exchangeRates.currentRateOrThrow().expirationTimeOrThrow().seconds());
+        if (updated > 0) {
+            log.info(
+                    "Updated {} exchange rate managers from overall {}.",
+                    updated,
+                    transactionExecutorFactory.getExchangeRateManagers().size());
+        }
+    }
+
+    private UpdateResult apply(
+            final ExchangeRateManager exchangeRateManager, final Bytes contents, final ExchangeRateSet exchangeRates) {
+        try {
+            if (exchangeRates.equals(exchangeRateManager.exchangeRates())) {
+                return UpdateResult.UNCHANGED;
+            }
+
+            exchangeRateManager.systemUpdate(contents);
+            return UpdateResult.UPDATED;
+        } catch (final HandleException e) {
+            log.warn("Ignoring invalid exchange rates: {}", e.getStatus());
+            return UpdateResult.FAILED;
+        }
+    }
+
+    private @Nullable LoadedExchangeRates load(final Instant now) {
+        final var file = systemFileLoader.load(
+                exchangeRateFileId, DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano()));
+        if (file == null) {
+            return null;
+        }
+
+        try {
+            return new LoadedExchangeRates(file.contents(), ExchangeRateSet.PROTOBUF.parse(file.contents()));
+        } catch (final ParseException e) {
+            log.warn("Unable to parse exchange rates: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private record LoadedExchangeRates(Bytes contents, ExchangeRateSet rates) {}
+
+    private enum UpdateResult {
+        FAILED,
+        UNCHANGED,
+        UPDATED
     }
 }
