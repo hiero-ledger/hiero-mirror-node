@@ -97,22 +97,22 @@ type cryptoCreateTransactionConstructorSuite struct {
 }
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestNewTransactionConstructor() {
-	h := newCryptoCreateTransactionConstructor()
+	h := newCryptoCreateTransactionConstructor(true)
 	assert.NotNil(suite.T(), h)
 }
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestGetDefaultMaxTransactionFee() {
-	h := newCryptoCreateTransactionConstructor()
+	h := newCryptoCreateTransactionConstructor(true)
 	assert.Equal(suite.T(), types.HbarAmount{Value: 5_00000000}, h.GetDefaultMaxTransactionFee())
 }
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestGetOperationType() {
-	h := newCryptoCreateTransactionConstructor()
+	h := newCryptoCreateTransactionConstructor(true)
 	assert.Equal(suite.T(), types.OperationTypeCryptoCreateAccount, h.GetOperationType())
 }
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestGetSdkTransactionType() {
-	h := newCryptoCreateTransactionConstructor()
+	h := newCryptoCreateTransactionConstructor(true)
 	assert.Equal(suite.T(), "AccountCreateTransaction", h.GetSdkTransactionType())
 }
 
@@ -130,7 +130,7 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestConstruct() {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			// given
 			operations := getCryptoCreateOperations()
-			h := newCryptoCreateTransactionConstructor()
+			h := newCryptoCreateTransactionConstructor(true)
 
 			if tt.updateOperations != nil {
 				operations = tt.updateOperations(operations)
@@ -166,9 +166,10 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 	}
 
 	var tests = []struct {
-		name           string
-		getTransaction func() hiero.TransactionInterface
-		expectError    bool
+		name                string
+		getTransaction      func() hiero.TransactionInterface
+		expectError         bool
+		skipFieldValidation bool
 	}{
 		{
 			name:           "Success",
@@ -185,6 +186,11 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 			name:           "Alias",
 			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetAlias(aliasEvmAddress) }),
 			expectError:    true,
+		},
+		{
+			name:                "AliasIgnoredWhenValidationDisabled",
+			getTransaction:      accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetAlias(aliasEvmAddress) }),
+			skipFieldValidation: true,
 		},
 		{
 			name:           "StakedAccountID",
@@ -252,7 +258,7 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 			// given
 			expectedOperations := getCryptoCreateOperations()
 
-			h := newCryptoCreateTransactionConstructor()
+			h := newCryptoCreateTransactionConstructor(!tt.skipFieldValidation)
 			tx := tt.getTransaction()
 
 			// when
@@ -277,7 +283,7 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParseStakedNodeIDZeroF
 		body.StakedId = &services.CryptoCreateTransactionBody_StakedNodeId{StakedNodeId: 0}
 	})
 
-	operations, signers, err := newCryptoCreateTransactionConstructor().Parse(defaultContext, tx)
+	operations, signers, err := newCryptoCreateTransactionConstructor(true).Parse(defaultContext, tx)
 
 	assert.Equal(suite.T(), errors.ErrInvalidTransaction, err)
 	assert.Nil(suite.T(), operations)
@@ -299,7 +305,7 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParseRoundTripWithoutH
 	parsed, err := hiero.TransactionFromBytes(raw)
 	suite.Require().NoError(err)
 
-	operations, signers, rErr := newCryptoCreateTransactionConstructor().Parse(defaultContext, parsed)
+	operations, signers, rErr := newCryptoCreateTransactionConstructor(true).Parse(defaultContext, parsed)
 
 	assert.Nil(suite.T(), rErr)
 	assert.ElementsMatch(suite.T(), []types.AccountId{accountIdA}, signers)
@@ -369,7 +375,7 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestPreprocess() {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			// given
 			operations := getCryptoCreateOperations()
-			h := newCryptoCreateTransactionConstructor()
+			h := newCryptoCreateTransactionConstructor(true)
 
 			if tt.updateOperations != nil {
 				operations = tt.updateOperations(operations)

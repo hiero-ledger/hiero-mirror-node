@@ -36,8 +36,12 @@ const (
 )
 
 var (
-	corruptedTransaction    = "0x6767"
-	defaultConfig           = &config.Mirror{Rosetta: config.Config{Network: defaultNetwork, Nodes: defaultNodes}}
+	corruptedTransaction = "0x6767"
+	defaultConfig        = &config.Mirror{Rosetta: config.Config{
+		Feature: config.Feature{ValidateAccountCreateFields: true},
+		Network: defaultNetwork,
+		Nodes:   defaultNodes,
+	}}
 	defaultCryptoAccountId1 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123352))
 	defaultCryptoAccountId2 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123518))
 	defaultCryptoAccountId3 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123532))
@@ -48,6 +52,7 @@ var (
 		"10.0.0.4:50211": hiero.AccountID{Account: 6},
 	}
 	singleNodeConfig = &config.Mirror{Rosetta: config.Config{
+		Feature: config.Feature{ValidateAccountCreateFields: true},
 		Network: defaultNetwork,
 		Nodes: config.NodeMap{
 			"10.0.0.1:50211": hiero.AccountID{Account: 3},
@@ -855,7 +860,7 @@ func TestConstructionParse(t *testing.T) {
 				Metadata:                 tt.metadata,
 			}
 
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor())
+			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor(true))
 
 			// when:
 			actual, e := service.ConstructionParse(defaultContext, tt.request)
@@ -887,7 +892,14 @@ func TestConstructionParseThrowsWhenConstructorParseFails(t *testing.T) {
 }
 
 func TestConstructionParseAccountCreateWithAlias(t *testing.T) {
-	service, _ := NewConstructionAPIService(nil, offlineBaseService, defaultConfig, construction.NewTransactionConstructor())
+	mirrorConfig := *defaultConfig
+	mirrorConfig.Rosetta.Feature.ValidateAccountCreateFields = true
+	service, _ := NewConstructionAPIService(
+		nil,
+		offlineBaseService,
+		&mirrorConfig,
+		construction.NewTransactionConstructor(mirrorConfig.Rosetta.Feature.ValidateAccountCreateFields),
+	)
 	res, e := service.ConstructionParse(defaultContext, getConstructionParseRequest(accountCreateWithAliasHex(t), false))
 
 	assert.Nil(t, res)
@@ -1261,7 +1273,7 @@ func TestConstructionPayloadsInvalidRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			request := getPayloadsRequest(operations, tt.customize)
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor())
+			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor(true))
 
 			// when
 			response, err := service.ConstructionPayloads(defaultContext, request)

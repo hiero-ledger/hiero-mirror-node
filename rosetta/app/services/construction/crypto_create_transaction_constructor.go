@@ -29,6 +29,7 @@ type cryptoCreate struct {
 
 type cryptoCreateTransactionConstructor struct {
 	commonTransactionConstructor
+	validateAccountCreateFields bool
 }
 
 func (c *cryptoCreateTransactionConstructor) Construct(
@@ -115,8 +116,10 @@ func (c *cryptoCreateTransactionConstructor) Parse(_ context.Context, transactio
 		metadata["proxy_account_id"] = cryptoCreateTransaction.GetProxyAccountID().String()
 	}
 
-	if rErr := validateSupportedAccountCreateFields(cryptoCreateTransaction); rErr != nil {
-		return nil, nil, rErr
+	if c.validateAccountCreateFields {
+		if rErr := validateSupportedAccountCreateFields(cryptoCreateTransaction); rErr != nil {
+			return nil, nil, rErr
+		}
 	}
 
 	return types.OperationSlice{operation}, []types.AccountId{payer}, nil
@@ -253,11 +256,12 @@ func unsupportedAccountCreateSDKField(tx hiero.AccountCreateTransaction) string 
 	return ""
 }
 
-func newCryptoCreateTransactionConstructor() transactionConstructorWithType {
+func newCryptoCreateTransactionConstructor(validateAccountCreateFields bool) transactionConstructorWithType {
 	return &cryptoCreateTransactionConstructor{
 		commonTransactionConstructor: newCommonTransactionConstructor(
 			hiero.NewAccountCreateTransaction(),
 			types.OperationTypeCryptoCreateAccount,
 		),
+		validateAccountCreateFields: validateAccountCreateFields,
 	}
 }
