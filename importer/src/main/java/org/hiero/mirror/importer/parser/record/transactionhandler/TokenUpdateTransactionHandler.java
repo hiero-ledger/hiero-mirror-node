@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_49_0;
 
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
 import lombok.CustomLog;
@@ -129,7 +130,8 @@ final class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionH
             return null;
         }
 
-        final var treasury = resolveTreasury(recordItem);
+        final var treasury =
+                EntityId.of(recordItem.getTransactionBody().getTokenUpdate().getTreasury());
         if (EntityId.isEmpty(treasury)) {
             return null;
         }
@@ -145,16 +147,6 @@ final class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionH
         relationship.setTimestampLower(recordItem.getConsensusTimestamp());
         relationship.setTokenId(transaction.getEntityId().getId());
         return relationship;
-    }
-
-    /**
-     * Resolves the treasury in the transaction body, which may be an alias. Returns EntityId.EMPTY if the treasury is
-     * not set, is the 0.0.0 account a synthetic token update can have, or is an alias that can't be resolved. Alias
-     * lookups are cached by EntityIdService, so resolving it for both the treasury relationship and the token is cheap.
-     */
-    private EntityId resolveTreasury(RecordItem recordItem) {
-        final var treasury = recordItem.getTransactionBody().getTokenUpdate().getTreasury();
-        return treasury.hasAlias() ? entityIdService.lookup(treasury).orElse(EntityId.EMPTY) : EntityId.of(treasury);
     }
 
     private void updateToken(Entity entity, RecordItem recordItem) {
@@ -209,8 +201,8 @@ final class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionH
         }
 
         // A synthetic token update can have a 0.0.0 treasury account populated by consensus nodes
-        final var treasury = resolveTreasury(recordItem);
-        if (!EntityId.isEmpty(treasury)) {
+        if (transactionBody.hasTreasury() && !AccountID.getDefaultInstance().equals(transactionBody.getTreasury())) {
+            var treasury = EntityId.of(transactionBody.getTreasury());
             token.setTreasuryAccountId(treasury);
             recordItem.addEntityId(treasury);
         }

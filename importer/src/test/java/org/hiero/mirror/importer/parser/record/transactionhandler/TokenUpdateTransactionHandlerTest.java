@@ -8,7 +8,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
@@ -35,7 +34,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.util.Version;
 
@@ -341,12 +339,9 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
     void failedUpdateAutomaticAssociations(ResponseCodeEnum status) {
         var tokenId = domainBuilder.entityId();
         var treasury = domainBuilder.entityId();
-        var alias = AccountID.newBuilder()
-                .setAlias(DomainUtils.fromBytes(domainBuilder.key()))
-                .build();
         var item = recordItemBuilder
                 .tokenUpdate()
-                .transactionBody(b -> b.clear().setToken(tokenId.toTokenID()).setTreasury(alias))
+                .transactionBody(b -> b.clear().setToken(tokenId.toTokenID()).setTreasury(treasury.toAccountID()))
                 .receipt(r -> r.setStatus(status))
                 .record(r -> r.addAutomaticTokenAssociations(TokenAssociation.newBuilder()
                         .setAccountId(treasury.toAccountID())
@@ -366,21 +361,15 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         } else {
             verify(entityListener, never()).onTokenAccount(any());
         }
-        verifyNoInteractions(entityIdService);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void automaticTreasuryAssociationWithDifferentProto(boolean aliasTreasury) {
+    @Test
+    void automaticTreasuryAssociationWithDifferentProto() {
         var tokenId = domainBuilder.entityId();
         var treasury = domainBuilder.entityId();
         var otherAccount = domainBuilder.entityId();
         var otherToken = domainBuilder.entityId();
-        var bodyTreasury = aliasTreasury
-                ? AccountID.newBuilder()
-                        .setAlias(DomainUtils.fromBytes(domainBuilder.key()))
-                        .build()
-                : treasury.toAccountID();
+        var bodyTreasury = treasury.toAccountID();
         // Unknown fields change protobuf equality without changing the account identity.
         var recordTreasury = treasury.toAccountID().toBuilder()
                 .setUnknownFields(UnknownFieldSet.newBuilder()
@@ -400,10 +389,6 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
                                 .setAccountId(otherAccount.toAccountID())
                                 .setTokenId(otherToken.toTokenID())))
                 .build();
-        if (aliasTreasury) {
-            when(entityIdService.lookup(bodyTreasury)).thenReturn(Optional.of(treasury));
-        }
-
         transactionHandler.updateTransaction(
                 domainBuilder.transaction().customize(t -> t.entityId(tokenId)).get(), item);
 
@@ -425,57 +410,6 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
                 .returns(null, TokenAccount::getFreezeStatus)
                 .returns(null, TokenAccount::getKycStatus);
         verify(entityListener).onToken(assertArg(t -> assertThat(t).returns(treasury, Token::getTreasuryAccountId)));
-    }
-
-    @Test
-    void updateTreasuryAlias() {
-        // Given
-        final var alias = DomainUtils.fromBytes(domainBuilder.key());
-        final var aliasAccount = AccountID.newBuilder().setAlias(alias).build();
-        final var treasury = domainBuilder.entityId();
-        final var recordItem = recordItemBuilder
-                .tokenUpdate()
-                .transactionBody(b -> b.clearAutoRenewAccount().setTreasury(aliasAccount))
-                .build();
-        final var tokenId =
-                EntityId.of(recordItem.getTransactionBody().getTokenUpdate().getToken());
-        when(entityIdService.lookup(aliasAccount)).thenReturn(Optional.of(treasury));
-
-        // When
-        transactionHandler.updateTransaction(
-                domainBuilder.transaction().customize(t -> t.entityId(tokenId)).get(), recordItem);
-
-        // Then
-        verify(entityListener).onToken(assertArg(t -> assertThat(t).returns(treasury, Token::getTreasuryAccountId)));
-        verify(entityListener)
-                .onTokenAccount(assertArg(t -> assertThat(t)
-                        .returns(treasury.getId(), TokenAccount::getAccountId)
-                        .returns(TokenFreezeStatusEnum.UNFROZEN, TokenAccount::getFreezeStatus)
-                        .returns(TokenKycStatusEnum.GRANTED, TokenAccount::getKycStatus)));
-        assertThat(recordItem.getEntityTransactions()).containsKey(treasury.getId());
-    }
-
-    @Test
-    void updateTreasuryAliasNotFound() {
-        // Given
-        final var alias = DomainUtils.fromBytes(domainBuilder.key());
-        final var aliasAccount = AccountID.newBuilder().setAlias(alias).build();
-        final var recordItem = recordItemBuilder
-                .tokenUpdate()
-                .transactionBody(b -> b.clearAutoRenewAccount().setTreasury(aliasAccount))
-                .build();
-        final var tokenId =
-                EntityId.of(recordItem.getTransactionBody().getTokenUpdate().getToken());
-        when(entityIdService.lookup(aliasAccount)).thenReturn(Optional.empty());
-
-        // When
-        transactionHandler.updateTransaction(
-                domainBuilder.transaction().customize(t -> t.entityId(tokenId)).get(), recordItem);
-
-        // Then
-        verify(entityListener).onToken(assertArg(t -> assertThat(t).returns(null, Token::getTreasuryAccountId)));
-        verify(entityListener, never()).onTokenAccount(any());
-        assertThat(recordItem.getEntityTransactions()).doesNotContainKey(EntityId.EMPTY.getId());
     }
 
     @SuppressWarnings("java:S6103")
