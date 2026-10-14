@@ -26,7 +26,6 @@ import {
   clusterId,
   clusterIdHandler,
   handleError,
-  initClusterId,
   limitConcurrency,
   openApiValidator,
   requestLogger,
@@ -159,8 +158,6 @@ app.useExt(handleError);
 
 process.on('unhandledRejection', handleRejection);
 process.on('uncaughtException', handleUncaughtException);
-
-await initClusterId();
 
 if (!isTestEnv()) {
   const server = app.listen(port, '0.0.0.0', (err) => {

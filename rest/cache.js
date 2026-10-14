@@ -82,16 +82,6 @@ export class Cache {
     return undefined;
   }
 
-  // No expiry. Callers use this for a value that must stay until Redis itself loses the key.
-  async setIfAbsent(key, value) {
-    if (!this.ready) {
-      return undefined;
-    }
-
-    await this.redis.set(key, String(value), 'NX');
-    return this.redis.get(key);
-  }
-
   async setSingle(key, expiry, value) {
     if (!this.ready) {
       return undefined;

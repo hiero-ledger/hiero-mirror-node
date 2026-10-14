@@ -71,6 +71,7 @@ describe('Load YAML configuration:', () => {
   test('./config/application.yml', async () => {
     const config = await loadConfig();
     expect(config.common.shard).not.toBeNull();
+    expect(config.rest.clusterId).toBe('9ef9396');
     expect(config.rest.metrics.enabled).toBe(true);
     expect(config.rest.log.level).toBe('info');
   });
@@ -184,15 +185,10 @@ describe('Load environment configuration:', () => {
     await expect(loadConfig()).rejects.toThrowErrorMatchingSnapshot();
   });
 
-  test('Cluster id is not stored in config', async () => {
-    const first = await import('../middleware/clusterIdHandler.js');
-    jest.resetModules();
-    process.env = {CONFIG_PATH: tempDir};
-    const second = await import('../middleware/clusterIdHandler.js');
-    const restConfig = (await import('../config.js')).default;
-
-    expect(first.clusterId).not.toBe(second.clusterId);
-    expect(restConfig.clusterId).toBeUndefined();
+  test('Cluster id', async () => {
+    process.env['HIERO_MIRROR_REST_CLUSTERID'] = 'abc1234';
+    const config = await loadConfig();
+    expect(config.rest.clusterId).toBe('abc1234');
   });
 
   test('Hexadecimal environment variable', async () => {

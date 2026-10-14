@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export {authHandler} from './authHandler.js';
-export {clusterId, clusterIdHandler, initClusterId} from './clusterIdHandler.js';
+export {clusterId, clusterIdHandler} from './clusterIdHandler.js';
 export {default as limitConcurrency} from './concurrencyLimiter';
 export {handleError} from './httpErrorHandler';
 export {openApiValidator, serveSwaggerDocs} from './openapiHandler';
