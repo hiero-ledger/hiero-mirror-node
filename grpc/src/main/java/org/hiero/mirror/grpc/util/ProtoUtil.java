@@ -42,7 +42,10 @@ public final class ProtoUtil {
     }
 
     public static StatusRuntimeException toStatusRuntimeException(Throwable t) {
-        if (Exceptions.isOverflow(t)) {
+        if (t instanceof StatusRuntimeException statusRuntimeException) {
+            log.warn("Client error {}: {}", t.getClass().getSimpleName(), t.getMessage());
+            return statusRuntimeException;
+        } else if (Exceptions.isOverflow(t)) {
             return clientError(t, Status.DEADLINE_EXCEEDED, OVERFLOW_ERROR);
         } else if (t instanceof ConstraintViolationException
                 || t instanceof IllegalArgumentException

@@ -43,6 +43,10 @@ class ProtoUtilTest {
         var entityId = EntityId.of(1L);
         var message = "boom";
 
+        assertException(
+                Status.INVALID_ARGUMENT.withDescription(message).asRuntimeException(),
+                Status.INVALID_ARGUMENT,
+                message);
         assertException(Exceptions.failWithOverflow(message), Status.DEADLINE_EXCEEDED, OVERFLOW_ERROR);
         assertException(new ConstraintViolationException(message, null), Status.INVALID_ARGUMENT, message);
         assertException(new IllegalArgumentException(message), Status.INVALID_ARGUMENT, message);

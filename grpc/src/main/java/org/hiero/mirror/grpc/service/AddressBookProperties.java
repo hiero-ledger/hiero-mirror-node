@@ -22,6 +22,9 @@ public class AddressBookProperties {
     @Min(0)
     private long cacheSize = 50L;
 
+    @Min(1)
+    private int maxLimit = 1000;
+
     @DurationMin(minutes = 1L)
     @NotNull
     private Duration nodeStakeCacheExpiry = Duration.ofHours(24);
