@@ -419,11 +419,14 @@ traefik:
             labelSelector:
               matchLabels:
                 app.kubernetes.io/name: traefik
+  dashboard:
+    enabled: true
+    password: ""  # Default to a randomly generated password
+    username: admin
   deployment:
     kind: DaemonSet
   enabled: true
-  globalArguments:
-    - --api.insecure=true
+  globalArguments: []
   logs:
     access:
       enabled: true
