@@ -15,6 +15,18 @@ class ContractResultRepositoryTest extends Web3IntegrationTest {
     private final ContractResultRepository contractResultRepository;
 
     @Test
+    void findByConsensusTimestampAndContractIdReturnsMatchingRow() {
+        final var contractResult = domainBuilder.contractResult().persist();
+
+        assertThat(contractResultRepository.findByConsensusTimestampAndContractId(
+                        contractResult.getConsensusTimestamp(), contractResult.getContractId()))
+                .contains(contractResult);
+        assertThat(contractResultRepository.findByConsensusTimestampAndContractId(
+                        contractResult.getConsensusTimestamp(), contractResult.getContractId() + 1))
+                .isEmpty();
+    }
+
+    @Test
     void findByConsensusTimestampSuccessful() {
         var contractResult = domainBuilder.contractResult().persist();
         assertThat(contractResultRepository.findById(contractResult.getConsensusTimestamp()))

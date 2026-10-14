@@ -18,6 +18,7 @@ import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
 import org.hiero.mirror.web3.viewmodel.SimulateResponse;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hyperledger.besu.evm.MainnetEVMs;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -64,6 +65,7 @@ final class RuntimeHintsConfiguration {
                     GenericErrorResponse.ErrorMessage.class.getName(),
                     SimulateRequest.class.getName(),
                     SimulateResponse.class.getName(),
+                    StateOverride.class.getName(),
                     TransactionIdOrHashParameter.class.getName());
 
             registerResourcePatterns(

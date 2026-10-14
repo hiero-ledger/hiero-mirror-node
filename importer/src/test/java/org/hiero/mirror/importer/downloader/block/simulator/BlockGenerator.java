@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block.simulator;
 
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 
 import com.hedera.hapi.block.stream.input.protoc.EventHeader;
 import com.hedera.hapi.block.stream.input.protoc.RoundHeader;
@@ -27,7 +28,7 @@ import org.hiero.mirror.importer.util.Utility;
 
 public final class BlockGenerator {
 
-    private static final byte[] ALL_ZERO_HASH = new byte[48];
+    private static final byte[] ALL_ZERO_HASH = new byte[BLOCK_STREAM_HASH_SIZE];
 
     private final Duration interval;
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
@@ -44,7 +45,7 @@ public final class BlockGenerator {
         if (blockNumber == 0) {
             previousBlockRootHash = ALL_ZERO_HASH;
         } else {
-            previousBlockRootHash = recordItemBuilder.randomBytes(48);
+            previousBlockRootHash = recordItemBuilder.randomBytes(BLOCK_STREAM_HASH_SIZE);
         }
 
         recordItemBuilder.setNow(startTime);

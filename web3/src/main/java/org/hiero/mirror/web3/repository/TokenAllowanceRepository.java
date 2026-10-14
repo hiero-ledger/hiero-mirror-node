@@ -17,7 +17,10 @@ import org.springframework.data.repository.CrudRepository;
 public interface TokenAllowanceRepository extends CrudRepository<TokenAllowance, AbstractTokenAllowance.Id> {
 
     @Override
-    @Cacheable(cacheNames = CACHE_NAME_TOKEN_ALLOWANCE, cacheManager = CACHE_MANAGER_TOKEN, unless = "#result == null")
+    @Cacheable(
+            cacheNames = CACHE_NAME_TOKEN_ALLOWANCE,
+            cacheManager = CACHE_MANAGER_TOKEN,
+            unless = "@spelHelper.isNullOrEmpty(#result)")
     Optional<TokenAllowance> findById(Id id);
 
     /**

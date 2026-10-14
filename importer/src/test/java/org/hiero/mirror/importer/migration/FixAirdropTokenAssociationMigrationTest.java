@@ -337,8 +337,10 @@ class FixAirdropTokenAssociationMigrationTest extends ImporterIntegrationTest {
 
     private DomainWrapper<TokenBalance, TokenBalanceBuilder> tokenBalanceBuilder(
             long accountId, long balance, long timestamp, long tokenId) {
-        return domainBuilder.tokenBalance().customize(tb -> tb.balance(balance)
-                .id(new Id(timestamp, EntityId.of(accountId), EntityId.of(tokenId))));
+        return domainBuilder
+                .tokenBalance()
+                .customize(
+                        tb -> tb.balance(balance).id(new Id(timestamp, EntityId.of(accountId), EntityId.of(tokenId))));
     }
 
     static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {

@@ -499,9 +499,13 @@ func (c *constructionAPIService) getSdkPayerAccountId(payerAccountId types.Accou
 			continue
 		}
 
+		_, accountId, found := strings.Cut(aliasMap, ":")
+		if !found {
+			return zero, errors.ErrInvalidAccount
+		}
+
 		var err error
-		mapping := strings.Split(aliasMap, ":")
-		if payer, err = hiero.AccountIDFromString(mapping[1]); err != nil {
+		if payer, err = hiero.AccountIDFromString(accountId); err != nil {
 			return zero, errors.ErrInvalidAccount
 		}
 		break

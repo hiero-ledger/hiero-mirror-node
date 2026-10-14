@@ -3,9 +3,12 @@
 package org.hiero.mirror.web3.repository;
 
 import java.util.List;
+import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.Transaction;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -13,4 +16,66 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
 
     List<Transaction> findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
             EntityId payerAccountId, long validStartNs);
+
+    /**
+     * Returns the top-level {@code ContractCall}, {@code ContractCreate} or {@code EthereumTransaction} for a transaction
+     * ID, including a scheduled {@code ContractCall} or {@code ContractCreate} executed under its {@code ScheduleCreate}'s
+     * transaction ID. Duplicate transactions and child records are excluded.
+     */
+    @Query(value = """
+            select *
+            from transaction
+            where payer_account_id = :payerAccountId
+              and valid_start_ns = :validStartNs
+              and nonce = 0
+              and type in (7, 8, 50)
+              and result <> 11
+              and consensus_timestamp >= :consensusTimestampStart
+              and (
+                    consensus_timestamp <= :consensusTimestampEnd
+                    or (scheduled and consensus_timestamp <= :scheduledConsensusTimestampEnd)
+                  )
+            order by consensus_timestamp
+            limit 1
+            """, nativeQuery = true)
+    Optional<Transaction> findByTransactionId(
+            @Param("payerAccountId") long payerAccountId,
+            @Param("validStartNs") long validStartNs,
+            @Param("consensusTimestampStart") long consensusTimestampStart,
+            @Param("consensusTimestampEnd") long consensusTimestampEnd,
+            @Param("scheduledConsensusTimestampEnd") long scheduledConsensusTimestampEnd);
+
+    /**
+     * Preceding hollow {@code CryptoCreateAccount} children use {@code parent - 1}, {@code parent - 2}, …
+     * Bounded so Postgres can use {@code transaction__type_consensus_timestamp} instead of scanning
+     * {@code parent_consensus_timestamp} (unindexed). Network default {@code maxPrecedingRecords} is 3.
+     */
+    long PRECEDING_CRYPTO_CREATE_WINDOW_NS = 10_000L;
+
+    /**
+     * Entity IDs created by successful child {@code CryptoCreateAccount} transactions of the given parent,
+     * including preceding hollow-account creates. Those children share the parent's {@code payer_account_id},
+     * which is the Citus distribution column of {@code transaction}.
+     */
+    default List<Long> findSuccessfulCryptoCreateChildEntityIds(
+            final long parentConsensusTimestamp, final long payerAccountId) {
+        return findSuccessfulCryptoCreateChildEntityIds(
+                parentConsensusTimestamp, parentConsensusTimestamp - PRECEDING_CRYPTO_CREATE_WINDOW_NS, payerAccountId);
+    }
+
+    @Query(value = """
+            select entity_id
+            from transaction
+            where payer_account_id = :payerAccountId
+              and type = 11
+              and result = 22
+              and consensus_timestamp >= :consensusTimestampStart
+              and consensus_timestamp <= :parentConsensusTimestamp
+              and parent_consensus_timestamp = :parentConsensusTimestamp
+              and entity_id is not null
+            """, nativeQuery = true)
+    List<Long> findSuccessfulCryptoCreateChildEntityIds(
+            @Param("parentConsensusTimestamp") long parentConsensusTimestamp,
+            @Param("consensusTimestampStart") long consensusTimestampStart,
+            @Param("payerAccountId") long payerAccountId);
 }

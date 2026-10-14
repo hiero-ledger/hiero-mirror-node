@@ -5,7 +5,7 @@ hiero:
     web3:
       api:
         simulate:
-          request:
+          response:
             # The 4s default is too short for a cold test JVM's first call
             timeout: 60s
       cache:

@@ -20,11 +20,13 @@ import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.List;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
@@ -47,6 +49,7 @@ public class DomainUtils {
 
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
     public static final ByteString EMPTY_BYTE_STRING = ByteString.EMPTY;
+    public static final String HEX_PREFIX = "0x";
     public static final int EVM_ADDRESS_LENGTH = 20;
     public static final long NANOS_PER_SECOND = 1_000_000_000L;
     public static final char NULL_CHARACTER = (char) 0;
@@ -180,10 +183,18 @@ public class DomainUtils {
         return convertToNanosMax(instant.getEpochSecond(), instant.getNano());
     }
 
+    public static MessageDigest createSha256Digest() {
+        try {
+            return MessageDigest.getInstance(DigestAlgorithm.SHA_256.getName());
+        } catch (final NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm not found", e);
+        }
+    }
+
     public static MessageDigest createSha384Digest() {
         try {
             return MessageDigest.getInstance(DigestAlgorithm.SHA_384.getName());
-        } catch (NoSuchAlgorithmException e) {
+        } catch (final NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-384 algorithm not found", e);
         }
     }
@@ -471,6 +482,36 @@ public class DomainUtils {
 
     public static byte[] toEvmAddress(long num) {
         return Bytes.concat(MIRROR_PREFIX, Longs.toByteArray(num));
+    }
+
+    /**
+     * Canonical integer 0 is {@code "0x0"} and encodes as an empty RLP string. A payload that starts with {@code 0x00}
+     * keeps those bytes, so an empty chain id and a chain id of {@code 0x00} do not collapse.
+     */
+    public static String toHexQuantity(final byte[] data) {
+        if (ArrayUtils.isEmpty(data)) {
+            return HEX_PREFIX + "0";
+        }
+        if (data[0] == 0) {
+            return toHex(data);
+        }
+        return HEX_PREFIX + new BigInteger(1, data).toString(16);
+    }
+
+    private static String toHex(final byte[] data) {
+        return HEX_PREFIX + HexFormat.of().formatHex(data);
+    }
+
+    public static byte[] fromHexQuantity(final String hex) {
+        final var stripped = stripHexPrefix(hex);
+        if (stripped.isEmpty() || stripped.equals("0")) {
+            return ArrayUtils.EMPTY_BYTE_ARRAY;
+        }
+        return HexFormat.of().parseHex(stripped.length() % 2 != 0 ? "0" + stripped : stripped);
+    }
+
+    private static String stripHexPrefix(final String hex) {
+        return hex.startsWith(HEX_PREFIX) ? hex.substring(HEX_PREFIX.length()) : hex;
     }
 
     public static boolean isLongZeroAddress(byte[] evmAddress) {

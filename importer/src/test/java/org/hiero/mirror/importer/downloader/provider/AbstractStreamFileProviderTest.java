@@ -4,7 +4,8 @@ package org.hiero.mirror.importer.downloader.provider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.domain.StreamFilename.SIDECAR_FOLDER;
-import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_BLOCK_FILES;
+import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_SHA_256_BLOCK_FILES;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.getSha256BlockStreams;
 
 import com.google.common.collect.Streams;
 import java.nio.file.Files;
@@ -41,6 +42,7 @@ import org.hiero.mirror.importer.reader.signature.ProtoSignatureFileReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.util.unit.DataSize;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
@@ -99,7 +101,7 @@ abstract class AbstractStreamFileProviderTest {
 
         // Increase data2 1 byte beyond the max size
         long maxSize = data.getBytes().length;
-        properties.setMaxSize(maxSize);
+        properties.setMaxSize(DataSize.ofBytes(maxSize));
         replaceContents(data, Arrays.append(data.getBytes(), (byte) 1));
 
         StepVerifier.withVirtualTime(() -> streamFileProvider.get(data.getStreamFilename()))
@@ -122,7 +124,7 @@ abstract class AbstractStreamFileProviderTest {
 
         // Increase data2 1 byte beyond the max size
         long maxSize = data.getBytes().length;
-        properties.setMaxSize(maxSize);
+        properties.setMaxSize(DataSize.ofBytes(maxSize));
         replaceContents(data, Arrays.append(data.getBytes(), (byte) 1));
 
         StepVerifier.withVirtualTime(() -> streamFileProvider.get(data.getStreamFilename()))
@@ -150,7 +152,7 @@ abstract class AbstractStreamFileProviderTest {
     void getBlockFile() {
         // given
         createBlockStreamFileCopier().copy();
-        final var expected = streamFileData(TEST_BLOCK_FILES.getFirst().getIndex());
+        final var expected = streamFileData(TEST_SHA_256_BLOCK_FILES.getFirst().getIndex());
 
         // when, then
         StepVerifier.withVirtualTime(() -> streamFileProvider.get(expected.getStreamFilename()))
@@ -338,7 +340,7 @@ abstract class AbstractStreamFileProviderTest {
 
         // Increase data2 1 byte beyond the max size
         long maxSize = data2.getBytes().length;
-        properties.setMaxSize(maxSize);
+        properties.setMaxSize(DataSize.ofBytes(maxSize));
         replaceContents(data2, Arrays.append(data2.getBytes(), (byte) 1));
 
         StepVerifier.withVirtualTime(() -> streamFileProvider.list(node, StreamFilename.EPOCH))
@@ -503,7 +505,8 @@ abstract class AbstractStreamFileProviderTest {
     private FileCopier createBlockStreamFileCopier() {
         targetRootPath = blockStreamTargetRootPath;
         final var toPath = importerProperties.getNetwork() + "/block";
-        final var fileCopier = createFileCopier(Path.of("data", "blockstreams"), toPath);
+        final var fileCopier = FileCopier.create(getSha256BlockStreams(), dataPath)
+                .to(targetRootPath, properties.getPathPrefix(), toPath);
         fileCopier.setIgnoreNonZeroRealmShard(true);
         return fileCopier;
     }

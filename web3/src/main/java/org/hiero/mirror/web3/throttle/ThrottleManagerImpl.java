@@ -3,9 +3,7 @@
 package org.hiero.mirror.web3.throttle;
 
 import static org.hiero.mirror.web3.config.ThrottleConfiguration.GAS_LIMIT_BUCKET;
-import static org.hiero.mirror.web3.config.ThrottleConfiguration.OPCODE_RATE_LIMIT_BUCKET;
 import static org.hiero.mirror.web3.config.ThrottleConfiguration.RATE_LIMIT_BUCKET;
-import static org.hiero.mirror.web3.config.ThrottleConfiguration.SIMULATE_RATE_LIMIT_BUCKET;
 
 import io.github.bucket4j.Bucket;
 import jakarta.inject.Named;
@@ -29,12 +27,6 @@ final class ThrottleManagerImpl implements ThrottleManager {
     @Qualifier(RATE_LIMIT_BUCKET)
     private final Bucket rateLimitBucket;
 
-    @Qualifier(OPCODE_RATE_LIMIT_BUCKET)
-    private final Bucket opcodeRateLimitBucket;
-
-    @Qualifier(SIMULATE_RATE_LIMIT_BUCKET)
-    private final Bucket simulateRateLimitBucket;
-
     private final ThrottleProperties throttleProperties;
 
     @Override
@@ -53,26 +45,17 @@ final class ThrottleManagerImpl implements ThrottleManager {
     }
 
     @Override
-    public void throttleOpcodeRequest() {
-        if (!opcodeRateLimitBucket.tryConsume(1)) {
-            throw new ThrottleException(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
+    public void restore(long gas) {
+        long tokens = throttleProperties.scaleGas(gas);
+        if (tokens > 0) {
+            gasLimitBucket.addTokens(tokens);
         }
     }
 
     @Override
     public void throttleSimulateRequest(long totalGas) {
-        if (!simulateRateLimitBucket.tryConsume(1)) {
-            throw new ThrottleException(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
-        } else if (!gasLimitBucket.tryConsume(throttleProperties.scaleGas(totalGas))) {
+        if (!gasLimitBucket.tryConsume(throttleProperties.scaleGas(totalGas))) {
             throw new ThrottleException(GAS_PER_SECOND_LIMIT_EXCEEDED);
-        }
-    }
-
-    @Override
-    public void restore(long gas) {
-        long tokens = throttleProperties.scaleGas(gas);
-        if (tokens > 0) {
-            gasLimitBucket.addTokens(tokens);
         }
     }
 

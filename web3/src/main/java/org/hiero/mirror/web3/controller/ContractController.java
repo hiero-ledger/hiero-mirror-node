@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.controller;
 
-import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.SIMULATE;
+import static org.hiero.mirror.web3.ApiEndpointName.SIMULATE;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
@@ -112,7 +112,7 @@ class ContractController {
     @PostMapping(value = "/simulate")
     SimulateResponse simulate(@RequestBody @Valid SimulateRequest request) {
         // Ordered before throttling: tokens consumed for a rejected request are never restored.
-        if (!web3Properties.isApiEnabled(SIMULATE)) {
+        if (!web3Properties.getApi(SIMULATE).isEnabled()) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }
         if (hasStateOverrides(request) && !web3Properties.isEnableStateOverrides()) {

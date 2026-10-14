@@ -23,6 +23,12 @@ paths:
                 $ref: "#/components/schemas/AccountsResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
+        429:
+          description: Too many concurrent account.balance requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       tags:
         - accounts
   /api/v1/accounts/{idOrAliasOrEvmAddress}:
@@ -804,6 +810,71 @@ paths:
                 $ref: "#/components/schemas/Error"
         429:
           description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - contracts
+  /api/v1/contracts/results/{transactionIdOrHash}/prestate:
+    get:
+      summary: Get the account traces for a historical transaction on the network with the given transaction ID or hash
+      description: |
+        Inspects contract result related data for a transaction and returns a response containing detailed information
+        for the accounts needed for the transaction execution with some basic fields about them.
+
+        The `Accept-Encoding` request header must include `gzip`. Responses can be large (especially with `code` or
+        `storage`), and compression is required to keep the payload size bounded.
+
+        When `diff=true`, each `post` entry always includes `address` and only the fields that changed relative to the
+        matching `pre` entry. Unchanged storage keys are omitted; slots cleared during the transaction are reported as
+        a 32-byte zero word.
+      operationId: getContractPrestate
+      parameters:
+        - $ref: "#/components/parameters/transactionIdOrEthHashPathParam"
+        - $ref: "#/components/parameters/diff"
+        - $ref: "#/components/parameters/code"
+        - $ref: "#/components/parameters/storage"
+        - $ref: "#/components/parameters/acceptEncodingGzip"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrestateResponse"
+        400:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        404:
+          description: Transaction or record file not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        406:
+          description: Accept-Encoding must include gzip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        429:
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        500:
+          description: Generic error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        501:
+          description: Not implemented error
           content:
             application/json:
               schema:
@@ -1931,10 +2002,53 @@ components:
             format: binary
         storage:
           description: The storage slots (keys and values in hex) of the current contract which is read from and written to
-          type: [object, "null"]
+          type: object
           additionalProperties:
             type: string
             format: binary
+          default: {}
+    PrestateResponse:
+      type: object
+      properties:
+        pre:
+          description: The accounts/contracts which state is touched during transaction execution
+          type: array
+          items:
+            $ref: "#/components/schemas/PrestateAccountTrace"
+        post:
+          description: |
+            Account traces after execution, present only in diff mode. Each entry always includes `address` and only
+            the fields that changed relative to the matching pre entry. Unchanged storage keys are omitted; cleared
+            slots are a 32-byte zero word.
+          type: array
+          items:
+            $ref: "#/components/schemas/PrestateAccountTrace"
+    PrestateAccountTrace:
+      type: object
+      properties:
+        address:
+          description: the address of the account
+          type: string
+          format: binary
+        balance:
+          description: The account balance as a hex-encoded quantity in weibars
+          type: string
+          format: binary
+        code:
+          description: the bytecode of the account
+          type: string
+          format: binary
+        nonce:
+          description: the nonce of the account
+          type: integer
+          format: int64
+        storage:
+          description: The storage slots (keys and values in hex) of the contract which is read from and written to
+          type: object
+          additionalProperties:
+            type: string
+            format: binary
+          default: {}
     RegisteredNodesResponse:
       type: object
       required:
@@ -2853,6 +2967,12 @@ components:
           format: int64
           minimum: 0
           type: [integer, "null"]
+        state_overrides:
+          description: Per-address state overrides applied only for this call. Requires state overrides to be enabled.
+          items:
+            $ref: "#/components/schemas/StateOverride"
+          maxItems: 10
+          type: [array, "null"]
         to:
           description: The 20-byte hexadecimal EVM address the transaction is directed to.
           example: "0xd9d0c5c0ff85758bdf05a7636f8036d4d065f5b6"
@@ -2869,6 +2989,67 @@ components:
           type: [integer, "null"]
       required:
         - to
+    StateOverride:
+      type: object
+      required:
+        - address
+      properties:
+        address:
+          $ref: "#/components/schemas/EvmAddress"
+        balance:
+          description: Balance override in tinybars, as a non-negative integer or a hex-encoded string.
+          example: 1208925819
+          maxLength: 18
+          minimum: 0
+          pattern: "^(0x)?[0-9a-fA-F]{1,16}$"
+          type: [integer, string, "null"]
+        code:
+          description: Hex-encoded runtime bytecode override.
+          example: "0x6080604052"
+          format: binary
+          pattern: "^(0x)?[0-9a-fA-F]*$"
+          type: [string, "null"]
+        nonce:
+          description: Hex-encoded nonce override.
+          example: "0x1"
+          format: binary
+          maxLength: 18
+          pattern: "^(0x)?[0-9a-fA-F]{1,16}$"
+          type: [string, "null"]
+        state:
+          description: Full storage replacement. Mutually exclusive with state_diff.
+          items:
+            $ref: "#/components/schemas/StorageEntry"
+          maxItems: 100
+          type: [array, "null"]
+        state_diff:
+          description: Storage patch applied on top of existing storage. Mutually exclusive with state.
+          items:
+            $ref: "#/components/schemas/StorageEntry"
+          maxItems: 100
+          type: [array, "null"]
+    StorageEntry:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          description: 32-byte hex-encoded storage slot key.
+          example: "0x0000000000000000000000000000000000000000000000000000000000000001"
+          format: binary
+          maxLength: 66
+          minLength: 64
+          pattern: "^(0x)?[0-9a-fA-F]{64}$"
+          type: string
+        value:
+          description: 32-byte hex-encoded storage slot value.
+          example: "0x0000000000000000000000000000000000000000000000000000000000000001"
+          format: binary
+          maxLength: 66
+          minLength: 64
+          pattern: "^(0x)?[0-9a-fA-F]{64}$"
+          type: string
     ContractCallResponse:
       type: object
       properties:
@@ -2878,70 +3059,6 @@ components:
           format: binary
           pattern: "^0x[0-9a-fA-F]+$"
           type: string
-    StateOverride:
-      description: Per-address state override for `POST /api/v1/contracts/call` and `POST /api/v1/contracts/simulate`. All fields are optional except `address`. `state` and `state_diff` are mutually exclusive.
-      type: object
-      properties:
-        address:
-          description: The 20-byte hexadecimal EVM address of the account to override.
-          example: "0x00000000000000000000000000000000000004e4"
-          format: binary
-          maxLength: 42
-          minLength: 40
-          pattern: "^(0x)?[A-Fa-f0-9]{40}$"
-          type: string
-        balance:
-          description: Balance override in tinybars, as a non-negative integer or a hexadecimal string.
-          example: 1208925819
-          maxLength: 18
-          minimum: 0
-          type: [integer, string, "null"]
-        code:
-          description: Hexadecimal runtime bytecode override.
-          example: "0x602a60005260206000f3"
-          format: binary
-          type: [string, "null"]
-        nonce:
-          description: Hexadecimal Ethereum nonce override.
-          example: "0x1"
-          format: binary
-          maxLength: 18
-          type: [string, "null"]
-        state:
-          description: Full storage replacement. All existing storage for this address is discarded; only these slots exist. Mutually exclusive with `state_diff`.
-          items:
-            $ref: "#/components/schemas/StorageEntry"
-          maxItems: 100
-          type: [array, "null"]
-        state_diff:
-          description: Storage patch. Only the listed slots are overridden; all other slots fall through to the underlying state. Mutually exclusive with `state`.
-          items:
-            $ref: "#/components/schemas/StorageEntry"
-          maxItems: 100
-          type: [array, "null"]
-      required:
-        - address
-    StorageEntry:
-      description: A single storage slot key-value pair used within a StateOverride.
-      type: object
-      properties:
-        key:
-          description: 32-byte hexadecimal storage slot identifier.
-          example: "0x0000000000000000000000000000000000000000000000000000000000000002"
-          format: binary
-          maxLength: 66
-          minLength: 64
-          type: string
-        value:
-          description: 32-byte hexadecimal storage slot value.
-          example: "0x000000000000000000000000000000000000000000000000000000000000270f"
-          format: binary
-          maxLength: 66
-          minLength: 64
-          type: string
-      required:
-        - key
-        - value
     SimulateCall:
       type: object
       properties:
@@ -4355,6 +4472,15 @@ components:
       type: string
       enum:
         - ATOMICBATCH
+        - CLPRCLOSECHANNEL
+        - CLPRCOMPLETECHANNEL
+        - CLPRCOMPLETECONNECTOR
+        - CLPRDEREGISTERCONNECTOR
+        - CLPRREDACTMESSAGE
+        - CLPRREGISTERCHANNEL
+        - CLPRREGISTERCONNECTOR
+        - CLPRSUBMITBUNDLE
+        - CLPRUPDATELEDGERCONFIGURATION
         - CONSENSUSCREATETOPIC
         - CONSENSUSDELETETOPIC
         - CONSENSUSSUBMITMESSAGE
@@ -4873,6 +4999,14 @@ components:
               messages:
                 - message: Require at least 1/3 signature files to prove consensus, got 1 out of 4 for file 2019-10-11T13_33_25.526889Z.rcd_sig
   parameters:
+    acceptEncodingGzip:
+      name: Accept-Encoding
+      in: header
+      required: true
+      description: gzip is required because the response can be large
+      schema:
+        type: string
+        example: gzip
     accountIdOrAliasOrEvmAddressPathParam:
       name: idOrAliasOrEvmAddress
       in: path
@@ -4952,7 +5086,7 @@ components:
           value: lte:700
       schema:
         type: string
-        pattern: ^((gte?|lte?|eq|ne)\:)?\d{1,10}$
+        pattern: ^((gte?|lte?|eq|ne)\:)?\d{1,19}$
     accountIdQueryParam:
       name: account.id
       in: query
@@ -5023,6 +5157,14 @@ components:
       schema:
         type: boolean
         default: true
+    code:
+      name: code
+      description: If provided and set to true, bytecode information will be included in the response
+      in: query
+      example: true
+      schema:
+        type: boolean
+        default: false
     contractIdQueryParam:
       name: contract.id
       description: The ID of the smart contract
@@ -5089,6 +5231,14 @@ components:
       schema:
         pattern: ^(\d{1,10}\.){0,2}(\d{1,10}|(0x)?[A-Fa-f0-9]{40})$
         type: string
+    diff:
+      name: diff
+      description: If provided and set to true, include account trace information with changes from transaction execution
+      in: query
+      example: true
+      schema:
+        type: boolean
+        default: false
     hashOrNumberPathParam:
       name: hashOrNumber
       in: path

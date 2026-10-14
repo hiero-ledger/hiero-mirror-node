@@ -127,13 +127,15 @@ public final class LocalStreamFileProvider extends AbstractStreamFileProvider {
 
     private void checkSize(File file) {
         long size = file.length();
-        if (size > downloaderProperties.getMaxSize()) {
+        if (size > downloaderProperties.getMaxSize().toBytes()) {
             throw new InvalidDatasetException("Stream file " + file + " size " + size + " exceeds limit");
         }
     }
 
     private boolean matches(String lastFilename, File file) {
-        if (!file.isFile() || !file.canRead() || file.length() > downloaderProperties.getMaxSize()) {
+        if (!file.isFile()
+                || !file.canRead()
+                || file.length() > downloaderProperties.getMaxSize().toBytes()) {
             return false;
         }
 

@@ -58,13 +58,17 @@ import java.math.BigInteger;
 import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.StateOverride;
+import org.hiero.mirror.rest.model.StorageEntry;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
+import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
+import org.springframework.web.client.HttpClientErrorException;
 
 @RequiredArgsConstructor
 public class CallFeature extends AbstractFeature {
@@ -236,6 +240,36 @@ public class CallFeature extends AbstractFeature {
         var response = callContract(data, ercContractAddress);
 
         assertThat(response.getResultAsText()).isEqualTo(tokenNameEnum.getSymbol() + "_name");
+    }
+
+    @RetryAsserts
+    @Then("I call function with IERC721Metadata token {string} name and state override")
+    public void ierc721MetadataTokenNameWithStateOverride(String tokenName) {
+        var tokenNameEnum = TokenClient.TokenNameEnum.valueOf(tokenName);
+        var tokenId = tokenClient.getToken(tokenNameEnum).tokenId();
+        var data = encodeData(ERC, IERC721_TOKEN_NAME_SELECTOR, asAddress(tokenId));
+        var stateOverride = new StateOverride()
+                .address("0x00000000000000000000000000000000000004e2")
+                .balance("0x1")
+                .state(List.of())
+                .addStateDiffItem(new StorageEntry()
+                        .key("0x0000000000000000000000000000000000000000000000000000000000000001")
+                        .value("0x0000000000000000000000000000000000000000000000000000000000000001"));
+        var request = ModelBuilder.contractCallRequest()
+                .block("LATEST")
+                .data(data)
+                .from(contractClient.getClientAddress())
+                .to(ercContractAddress)
+                .addStateOverridesItem(stateOverride);
+
+        try {
+            var response = callContract(request);
+            assertThat(response.getResultAsText()).isEqualTo(tokenNameEnum.getSymbol() + "_name");
+        } catch (HttpClientErrorException.BadRequest badRequest) {
+            // This check is needed to validate that state_override entry is successfully deserialized in a native build
+            // image
+            assertThat(badRequest.getResponseBodyAsString()).contains("State overrides are not supported");
+        }
     }
 
     // ETHCALL-018

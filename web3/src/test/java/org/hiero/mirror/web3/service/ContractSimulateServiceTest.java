@@ -4,7 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.SIMULATE;
+import static org.hiero.mirror.web3.ApiEndpointName.SIMULATE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doCallRealMethod;
@@ -384,15 +384,15 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         final var call = getSlot0Call(contract);
         call.setGas(2_000_000L);
         final var request = requestWithSingleEntry(call);
-        final var requestProperties = web3Properties.getApi().get(SIMULATE).getRequest();
-        final var timeout = requestProperties.getTimeout();
-        requestProperties.setTimeout(Duration.ZERO);
+        final var responseProperties = web3Properties.getApi().get(SIMULATE).getResponse();
+        final var timeout = responseProperties.getTimeout();
+        responseProperties.setTimeout(Duration.ZERO);
 
         try {
             assertThatThrownBy(() -> contractSimulateService.simulate(request))
                     .isInstanceOf(QueryTimeoutException.class);
         } finally {
-            requestProperties.setTimeout(timeout);
+            responseProperties.setTimeout(timeout);
         }
 
         verify(throttleManager).restore(2_000_000L);

@@ -6,7 +6,7 @@ import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_ST
 import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.BYTECODE_STATE_ID;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
-import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.SIMULATE;
+import static org.hiero.mirror.web3.ApiEndpointName.SIMULATE;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_SIMULATE;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
@@ -192,7 +192,8 @@ public class ContractSimulateService extends ContractCallService {
 
     private void failIfTimedOut(final ContractCallContext context) {
         final long elapsed = System.currentTimeMillis() - context.getStartTime();
-        if (elapsed >= web3Properties.getRequestTimeout(SIMULATE).toMillis()) {
+        if (elapsed
+                >= web3Properties.getApi(SIMULATE).getResponse().getTimeout().toMillis()) {
             throw new QueryTimeoutException("Transaction timed out after %s ms".formatted(elapsed));
         }
     }
