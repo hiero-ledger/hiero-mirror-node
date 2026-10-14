@@ -71,6 +71,8 @@ spec:
         HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_TPS: "0.25"
         HIERO_MIRROR_MONITOR_SUBSCRIBE_GRPC_HCS_TOPICID: "0.0.1926"
     rest:
+      env:
+        HIERO_MIRROR_REST_CLUSTERID: "0c72d2a"
       monitor:
         config:
           contract:
