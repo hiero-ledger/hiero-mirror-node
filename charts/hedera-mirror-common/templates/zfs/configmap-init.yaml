@@ -544,12 +544,15 @@ data:
         )"
       fi
 
-      # Accept whole-number Gi or Ti and normalize to Gi.
-      if [[ "${currentStr}" =~ ^([0-9]+)(Gi|Ti)$ ]]; then
-        local currentGi="${BASH_REMATCH[1]}"
-        if [[ "${BASH_REMATCH[2]}" == "Ti" ]]; then
-          currentGi=$(( currentGi * 1024 ))
-        fi
+      # Accept whole-number Gi, or Ti (optionally fractional, e.g. 11.5Ti), and normalize to whole Gi.
+      if [[ "${currentStr}" =~ ^([0-9]+)Gi$ ]]; then
+        echo -e "${BASH_REMATCH[1]}\t${currentStr}"
+        return 0
+      fi
+
+      if [[ "${currentStr}" =~ ^([0-9]+(\.[0-9]+)?)Ti$ ]]; then
+        local currentGi
+        currentGi="$(awk -v n="${BASH_REMATCH[1]}" 'BEGIN { printf "%d", n * 1024 }')"
         echo -e "${currentGi}\t${currentStr}"
         return 0
       fi
