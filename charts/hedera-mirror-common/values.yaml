@@ -471,7 +471,7 @@ zfs:
     growPercent: 10
     headroomGb: 20
     intervalSeconds: 120
-    maxStepGb: 500
+    maxStepGb: 200
     thresholdPercent: 90
   coordinator:
     initialDiskSize: 300GB
