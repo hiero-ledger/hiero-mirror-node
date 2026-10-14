@@ -544,18 +544,17 @@ data:
         )"
       fi
 
-      if [[ "${currentStr}" != *Gi ]]; then
-        echo -e "\t${currentStr}"
+      # Accept whole-number Gi or Ti and normalize to Gi.
+      if [[ "${currentStr}" =~ ^([0-9]+)(Gi|Ti)$ ]]; then
+        local currentGi="${BASH_REMATCH[1]}"
+        if [[ "${BASH_REMATCH[2]}" == "Ti" ]]; then
+          currentGi=$(( currentGi * 1024 ))
+        fi
+        echo -e "${currentGi}\t${currentStr}"
         return 0
       fi
 
-      local currentGi="${currentStr%Gi}"
-      if ! [[ "${currentGi}" =~ ^[0-9]+$ ]]; then
-        echo -e "\t${currentStr}"
-        return 0
-      fi
-
-      echo -e "${currentGi}\t${currentStr}"
+      echo -e "\t${currentStr}"
       return 0
     }
 
@@ -698,7 +697,7 @@ data:
         IFS=$'\t' read -r currentIntGi currentStr <<<"${currentCtx}"
 
         if ! [[ "${currentIntGi:-}" =~ ^[0-9]+$ ]]; then
-          log "Current size '${currentStr}' is not a valid Gi value; skipping patch"
+          log "Current size '${currentStr}' is not a valid Gi or Ti value; skipping patch"
           return 0
         fi
 
@@ -823,7 +822,7 @@ data:
         currentCtx="$(getCurrentClusterSizeForGroup "${shardedClusterJson}" "${citusGroupInt}")"
         IFS=$'\t' read -r currentIntGi currentStr <<<"${currentCtx}"
         if ! [[ "${currentIntGi:-}" =~ ^[0-9]+$ ]]; then
-          log "ERROR: current declared size '${currentStr}' for sgshardedcluster ${pvcNamespace}/${shardedClusterName} group ${citusGroupInt} is not a valid Gi value; cannot grow, skipping"
+          log "ERROR: current declared size '${currentStr}' for sgshardedcluster ${pvcNamespace}/${shardedClusterName} group ${citusGroupInt} is not a valid Gi or Ti value; cannot grow, skipping"
           continue
         fi
 
