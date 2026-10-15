@@ -119,6 +119,53 @@ is_contract_create() {
   ' <<<"$1" >/dev/null
 }
 
+# Fetch top-level caller from actions if available
+resolve_action_sender() {
+  local hash="$1"
+  curl -sS --retry 3 --retry-all-errors "${BASE_URL}/api/v1/contracts/results/${hash}/actions?limit=1" \
+    | jq -r '.actions[0].from // empty' || true
+}
+
+# Reconstruct pre-refund gas (intrinsic gas + top-level action gas_used) for contract calls.
+get_pre_refund_gas() {
+  local result_json="$1"
+  is_contract_create "${result_json}" && return 1
+
+  local hash action_gas
+  hash="$(jq -r '.hash // empty' <<<"${result_json}")"
+  [[ -n "${hash}" ]] || return 1
+
+  action_gas="$(curl -sS --retry 3 --retry-all-errors "${BASE_URL}/api/v1/contracts/results/${hash}/actions?limit=1" \
+    | jq -r '.actions[0].gas_used // empty' || true)"
+  [[ -n "${action_gas}" && "${action_gas}" =~ ^[0-9]+$ ]] || return 1
+
+  jq -r --argjson ag "${action_gas}" '
+    ((.function_parameters // "") | sub("^0[xX]"; "")) as $h
+    | 21000 + ([range(0; ($h | length); 2) | if $h[.:.+2] == "00" then 4 else 16 end] | add // 0) + $ag
+  ' <<<"${result_json}"
+}
+
+# True when an earlier transaction in the same block created a contract.
+has_intra_block_dependency() {
+  local result_json="$1"
+  local tx_index block_number ts
+  tx_index="$(jq -r '.transaction_index // 0' <<<"${result_json}")"
+  if ((tx_index <= 0)); then
+    return 1
+  fi
+  block_number="$(jq -r '.block_number // empty' <<<"${result_json}")"
+  ts="$(jq -r '.timestamp // empty' <<<"${result_json}")"
+  [[ -n "${block_number}" && -n "${ts}" ]] || return 1
+
+  curl -sS --retry 3 --retry-all-errors \
+    "${BASE_URL}/api/v1/contracts/results?block.number=${block_number}&limit=100" \
+    | jq -e --arg ts "${ts}" '
+        any(.results[]?; .timestamp < $ts and (
+          (.to == null or .to == "" or .to == "0x") or ((.created_contract_ids // []) | length > 0)
+        ))
+      ' >/dev/null 2>&1
+}
+
 fetch_contract_bytecode() {
   local contract_id="$1"
   curl -sS -f "${BASE_URL}/api/v1/contracts/${contract_id}" | jq -r '.bytecode // empty'
@@ -236,7 +283,7 @@ check_result() {
     return 0
   fi
 
-  local attempt estimated body http_code
+  local attempt estimated body http_code pre_refund_gas=""
   for attempt in 1 2; do
     post_contracts_call "${request}"
 
@@ -266,18 +313,37 @@ check_result() {
 
     estimated="$(hex_to_dec "${result_hex}")"
 
-    if within_tolerance "${estimated}" "${consumed}"; then
+    if within_tolerance "${estimated}" "${consumed}" || {
+      [[ -n "${pre_refund_gas}" ]] || pre_refund_gas="$(get_pre_refund_gas "${result_json}" || true)"
+      [[ -n "${pre_refund_gas}" ]] \
+        && ((pre_refund_gas > consumed)) \
+        && within_tolerance "${estimated}" "${pre_refund_gas}"
+    }; then
+      checked=$((checked + 1))
       passed=$((passed + 1))
       return 0
     fi
 
-    local block_number consensus_timestamp
-    block_number="$(jq -r '.block_number // empty' <<<"${result_json}")"
-    consensus_timestamp="$(jq -r '.consensus_timestamp // empty' <<<"${result_json}")"
-    if ((attempt == 1)) && [[ -n "${block_number}" ]] && is_near_round_hour "${consensus_timestamp}"; then
-      log "Out of tolerance for hash=${hash} at block ${block_number}-1; retrying with block=${block_number}"
-      request="$(jq -c --arg b "${block_number}" '.block = $b' <<<"${request}")"
-      continue
+    if ((attempt == 1)); then
+      local block_number consensus_timestamp action_from retried=false
+      block_number="$(jq -r '.block_number // empty' <<<"${result_json}")"
+      consensus_timestamp="$(jq -r '.consensus_timestamp // empty' <<<"${result_json}")"
+      if [[ -n "${block_number}" ]] && is_near_round_hour "${consensus_timestamp}"; then
+        log "Out of tolerance for hash=${hash} at block ${block_number}-1; retrying with block=${block_number}"
+        request="$(jq -c --arg b "${block_number}" '.block = $b' <<<"${request}")"
+        retried=true
+      fi
+      if ! is_contract_create "${result_json}"; then
+        action_from="$(resolve_action_sender "${hash}")"
+        if [[ -n "${action_from}" ]] && ! hex_equal "${action_from}" "$(jq -r '.from // empty' <<<"${request}")"; then
+          log "Out of tolerance for hash=${hash}; retrying with action sender from=${action_from}"
+          request="$(jq -c --arg f "${action_from}" '.from = $f' <<<"${request}")"
+          retried=true
+        fi
+      fi
+      if [[ "${retried}" == true ]]; then
+        continue
+      fi
     fi
     break
   done
@@ -285,7 +351,8 @@ check_result() {
   local replay_request
   replay_request="$(jq -c '.estimate = false' <<<"${request}")"
   post_contracts_call "${replay_request}"
-  if ! is_reproducible_replay "${result_json}" "${http_code}" "${body}"; then
+  if ! is_reproducible_replay "${result_json}" "${http_code}" "${body}" \
+    || has_intra_block_dependency "${result_json}"; then
     nonReproducible=$((nonReproducible + 1))
     return 0
   fi

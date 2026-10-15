@@ -338,11 +338,55 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
         final var serviceParameters = getContractExecutionParameters(HEX_PREFIX, receiverAddress, senderAddress, 7L);
+        final var estimateGasParameters =
+                getContractExecutionParameters(HEX_PREFIX, receiverAddress, senderAddress, 7L, ETH_ESTIMATE_GAS);
+
+        // When
+        final var executionResult =
+                assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(serviceParameters));
+        final var estimatedGasUsed = assertDoesNotThrow(
+                        () -> contractExecutionService.processCallWithGas(estimateGasParameters))
+                .gasUsed();
 
         // Then
-        assertDoesNotThrow(() -> contractExecutionService.processCall(serviceParameters));
         assertGasLimit(serviceParameters);
         assertGasUsedIsPositive(gasUsedBeforeExecution, ETH_CALL);
+        assertThat(isWithinExpectedGasRange(estimatedGasUsed, executionResult.gasUsed()))
+                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimatedGasUsed, executionResult.gasUsed())
+                .isTrue();
+    }
+
+    @Test
+    void transferFundsWithIntrinsicGasLimit() {
+        // Given
+        final var sender = accountEntityWithEvmAddressAndSufficientBalancePersist();
+        final var receiver = accountEntityWithEvmAddressPersist();
+        final var senderAddress = toAddress(sender.toEntityId());
+        final var receiverAddress = getAliasAddressFromEntity(receiver);
+        final var intrinsicGasLimit = 21_000L;
+
+        final var serviceParameters = contractExecutionParametersBuilder(
+                        BlockType.LATEST, HEX_PREFIX, senderAddress, receiverAddress, ETH_CALL, 7L)
+                .gas(intrinsicGasLimit)
+                .build();
+        final var estimateGasParameters = contractExecutionParametersBuilder(
+                        BlockType.LATEST, HEX_PREFIX, senderAddress, receiverAddress, ETH_ESTIMATE_GAS, 7L)
+                .gas(intrinsicGasLimit)
+                .build();
+
+        // When
+        final var executionResult =
+                assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(serviceParameters));
+        final var estimatedGasUsed = assertDoesNotThrow(
+                        () -> contractExecutionService.processCallWithGas(estimateGasParameters))
+                .gasUsed();
+
+        // Then
+        assertGasLimit(serviceParameters);
+        assertThat(executionResult.gasUsed()).isEqualTo(intrinsicGasLimit);
+        assertThat(isWithinExpectedGasRange(estimatedGasUsed, executionResult.gasUsed()))
+                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimatedGasUsed, executionResult.gasUsed())
+                .isTrue();
     }
 
     @Test

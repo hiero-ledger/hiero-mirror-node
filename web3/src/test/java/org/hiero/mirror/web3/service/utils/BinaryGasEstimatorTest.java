@@ -3,6 +3,8 @@
 package org.hiero.mirror.web3.service.utils;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @RequiredArgsConstructor
 class BinaryGasEstimatorTest extends Web3IntegrationTest {
@@ -114,6 +117,22 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
 
         assertThat(estimated).isEqualTo(floorCap);
         assertThat((double) estimated).isLessThanOrEqualTo(scriptUpperBound);
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {21_000L, 150_000L, 1_000_000L, 15_000_000L})
+    void searchWhenInitialGasUsedEqualsMaxGasLimit(final long initialGasUsed) {
+        final long maxGasLimit = initialGasUsed;
+        final long estimated = binaryGasEstimator.search(
+                (_, b) -> iterations.addAndGet(b),
+                _ -> createTxnResult(initialGasUsed, true),
+                initialGasUsed,
+                maxGasLimit);
+
+        assertThat(isWithinExpectedGasRange(estimated, initialGasUsed))
+                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimated, initialGasUsed)
+                .isTrue();
+        assertThat(iterations.get()).isZero();
     }
 
     private EvmTransactionResult createTxnResult(final long gasUsed, final boolean isSuccessful) {

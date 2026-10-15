@@ -114,11 +114,6 @@ public class ContractExecutionService extends ContractCallService {
         final var processingResult = callContract(params, context);
         final var gasUsedByInitialCall = processingResult.gasUsed();
 
-        // sanity check ensuring gasUsed is always lower than the inputted one
-        if (gasUsedByInitialCall >= params.getGas()) {
-            return Bytes.ofUnsignedLong(gasUsedByInitialCall);
-        }
-
         final var status = ResponseCodeEnum.SUCCESS.toString();
         final var estimatedGas = binaryGasEstimator.search(
                 (totalGas, iterations) -> updateMetrics(params, totalGas, iterations, status),
