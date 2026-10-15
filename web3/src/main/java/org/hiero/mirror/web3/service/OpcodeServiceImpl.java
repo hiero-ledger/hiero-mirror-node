@@ -5,20 +5,16 @@ package org.hiero.mirror.web3.service;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
-import static org.hiero.mirror.web3.Web3Properties.ApiEndpointName.OPCODES;
+import static org.hiero.mirror.web3.ApiEndpointName.OPCODES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
@@ -41,10 +37,8 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TraceMemoryBudget;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
-import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
-import org.hiero.mirror.web3.repository.projections.ContractTransactionHashLookup;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
@@ -67,7 +61,7 @@ public class OpcodeServiceImpl implements OpcodeService {
 
     private final RecordFileService recordFileService;
     private final ContractDebugService contractDebugService;
-    private final ContractTransactionHashRepository contractTransactionHashRepository;
+    private final TransactionExecutionService transactionExecutionService;
     private final EthereumTransactionRepository ethereumTransactionRepository;
     private final TransactionRepository transactionRepository;
     private final ContractResultRepository contractResultRepository;
@@ -122,28 +116,30 @@ public class OpcodeServiceImpl implements OpcodeService {
 
     private ContractDebugParameters buildCallServiceParameters(
             @NonNull TransactionIdOrHashParameter transactionIdOrHash) {
+        final long payerAccountId;
         final Long consensusTimestamp;
         final Transaction transaction;
         final EthereumTransaction ethereumTransaction;
 
         switch (transactionIdOrHash) {
             case TransactionHashParameter transactionHash -> {
-                final var contractTransactionHash = resolveContractTransactionHash(transactionHash);
+                final var contractTransactionHash =
+                        transactionExecutionService.resolveContractTransactionHash(transactionHash);
 
                 transaction = null;
                 consensusTimestamp = contractTransactionHash.getConsensusTimestamp();
+                payerAccountId = contractTransactionHash.getPayerAccountId();
                 ethereumTransaction = ethereumTransactionRepository
-                        .findByConsensusTimestampAndPayerAccountId(
-                                consensusTimestamp, EntityId.of(contractTransactionHash.getPayerAccountId()))
+                        .findByConsensusTimestampAndPayerAccountId(consensusTimestamp, EntityId.of(payerAccountId))
                         .orElse(null);
             }
             case TransactionIdParameter transactionId -> {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());
-                final var payerAccountId = transactionId.payerAccountId();
+                final var requestPayerAccountId = transactionId.payerAccountId();
 
                 final var transactionList =
                         transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
-                                payerAccountId, validStartNs);
+                                requestPayerAccountId, validStartNs);
                 if (transactionList.isEmpty()) {
                     throw new EntityNotFoundException("Transaction not found: " + transactionId);
                 }
@@ -151,6 +147,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                 final var parentTransaction = transactionList.getFirst();
                 transaction = parentTransaction;
                 consensusTimestamp = parentTransaction.getConsensusTimestamp();
+                payerAccountId = requestPayerAccountId.getId();
                 ethereumTransaction = ethereumTransactionRepository
                         .findByConsensusTimestampAndPayerAccountId(
                                 consensusTimestamp, parentTransaction.getPayerAccountId())
@@ -158,38 +155,7 @@ public class OpcodeServiceImpl implements OpcodeService {
             }
         }
 
-        return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction);
-    }
-
-    /**
-     * Selects the result that best represents a hash shared by multiple results. A successful result always wins (the
-     * query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result sharing
-     * the hash by checking which candidates consumed gas (a non-null gas_consumed), falling back to the latest by
-     * consensus timestamp (the query order).
-     */
-    private ContractTransactionHashLookup resolveContractTransactionHash(TransactionHashParameter transactionHash) {
-        final var candidates = contractTransactionHashRepository.findAllByHash(
-                transactionHash.hash().toArray());
-        if (candidates.isEmpty()) {
-            throw new EntityNotFoundException("Contract transaction hash not found: " + transactionHash);
-        }
-
-        final var first = candidates.getFirst();
-        if (candidates.size() == 1 || Objects.equals(first.getTransactionResult(), ResponseCodeEnum.SUCCESS_VALUE)) {
-            return first;
-        }
-
-        final var candidatesByTimestamp = HashMap.<Long, ContractTransactionHashLookup>newHashMap(candidates.size());
-        final var contractIds = HashSet.<Long>newHashSet(candidates.size());
-        for (final var candidate : candidates) {
-            candidatesByTimestamp.putIfAbsent(candidate.getConsensusTimestamp(), candidate);
-            contractIds.add(candidate.getEntityId());
-        }
-
-        return contractResultRepository
-                .findLatestExecutedTimestamp(candidatesByTimestamp.keySet(), contractIds)
-                .map(candidatesByTimestamp::get)
-                .orElse(first);
+        return buildCallServiceParameters(consensusTimestamp, payerAccountId, transaction, ethereumTransaction);
     }
 
     private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result, long consensusTimestamp) {
@@ -226,7 +192,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     }
 
     private ContractDebugParameters buildCallServiceParameters(
-            Long consensusTimestamp, Transaction transaction, EthereumTransaction ethTransaction) {
+            Long consensusTimestamp, long payerAccountId, Transaction transaction, EthereumTransaction ethTransaction) {
         final var contractResult = contractResultRepository
                 .findById(consensusTimestamp)
                 .orElseThrow(() -> new EntityNotFoundException("Contract result not found: " + consensusTimestamp));
@@ -243,6 +209,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                 .callData(getCallDataBytes(ethTransaction, contractResult))
                 .ethereumData(getEthereumDataBytes(ethTransaction))
                 .consensusTimestamp(consensusTimestamp)
+                .payerAccountId(payerAccountId)
                 .gas(getGasLimit(ethTransaction, contractResult))
                 .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType, consensusTimestamp))
                 .sender(getSenderAddress(contractResult, consensusTimestamp))
