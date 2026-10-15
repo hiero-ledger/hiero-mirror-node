@@ -20,6 +20,7 @@ hiero:
         token:
           maxSize: 100000
       chainId: "0x128"
+      clusterId: "9ef9396"
       db:
         host: 127.0.0.1
         name: mirror_node

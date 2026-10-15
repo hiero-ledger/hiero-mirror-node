@@ -92,6 +92,7 @@ const keyTypes = {
   PROTOBUF: 'ProtobufEncoded',
 };
 
+const clusterIdHeader = 'x-cluster-id';
 const contentTypeHeader = 'content-type';
 const requestIdLabel = 'requestId';
 const requestPathLabel = 'requestPath';
@@ -200,6 +201,7 @@ export {
   SYNTHETIC_NFT_SERIAL_TOPIC3,
   apiPrefix,
   characterEncoding,
+  clusterIdHeader,
   contentTypeHeader,
   cryptoTransferType,
   entityTypes,
