@@ -416,10 +416,15 @@ value, it is recommended to only populate overridden properties in the custom `a
 | ---------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
 | `hiero.mirror.grpc.addressbook.cacheExpiry`                | 2s               | The amount of time to cache address book entries                                                          |
 | `hiero.mirror.grpc.addressbook.cacheSize`                  | 50               | The maximum number of address book pages to cache                                                         |
+| `hiero.mirror.grpc.addressbook.maxConcurrent`              | 120              | The maximum number of concurrent address book subscriptions. Further subscriptions are rejected           |
+| `hiero.mirror.grpc.addressbook.maxLimit`                   | 1000             | The maximum entries returned per subscription. Non-positive and larger limits are clamped to this value   |
 | `hiero.mirror.grpc.addressbook.pageDelay`                  | 250ms            | The amount of time to sleep between paging for address book entries                                       |
 | `hiero.mirror.grpc.addressbook.pageSize`                   | 10               | The maximum number of address book entries to return in a single page                                     |
 | `hiero.mirror.grpc.addressbook.nodeStakeCacheExpiry`       | 24h              | The amount of time to cache node stake assignments                                                        |
 | `hiero.mirror.grpc.addressbook.nodeStakeCacheSize`         | 5                | The maximum number of versions of node stake assignments to cache                                         |
+| `hiero.mirror.grpc.addressbook.schedulerQueueSize`         | 32               | The maximum number of tasks that can be queued for the address book scheduler                             |
+| `hiero.mirror.grpc.addressbook.schedulerSize`              | 4                | The maximum number of threads used by the address book scheduler                                          |
+| `hiero.mirror.grpc.addressbook.timeout`                    | 4s               | How long an address book subscription may run before returning an error                                   |
 | `hiero.mirror.grpc.checkTopicExists`                       | true             | Whether to throw an error when the topic doesn't exist                                                    |
 | `hiero.mirror.grpc.db.host`                                | 127.0.0.1        | The IP or hostname used to connect to the database                                                        |
 | `hiero.mirror.grpc.db.name`                                | mirror_node      | The name of the database                                                                                  |
@@ -676,30 +681,31 @@ latter configuration overwriting (technically recursively merged into) the curre
 
 The following table lists the available properties along with their default values.
 
-| Name                                              | Default             | Description                                                                                         |
-| ------------------------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------- |
-| `hiero.mirror.rosetta.cache.entity.maxSize`       | 524288              | The max number of entities to cache                                                                 |
-| `hiero.mirror.rosetta.db.host`                    | 127.0.0.1           | The IP or hostname used to connect to the database                                                  |
-| `hiero.mirror.rosetta.db.name`                    | mirror_node         | The name of the database                                                                            |
-| `hiero.mirror.rosetta.db.password`                | mirror_rosetta_pass | The database password the processor uses to connect                                                 |
-| `hiero.mirror.rosetta.db.pool.maxIdleConnections` | 20                  | The maximum number of idle database connections                                                     |
-| `hiero.mirror.rosetta.db.pool.maxLifetime`        | 30                  | The maximum lifetime of a database connection in minutes                                            |
-| `hiero.mirror.rosetta.db.pool.maxOpenConnections` | 100                 | The maximum number of open database connections                                                     |
-| `hiero.mirror.rosetta.db.port`                    | 5432                | The port used to connect to the database                                                            |
-| `hiero.mirror.rosetta.db.statementTimeout`        | 20                  | The number of seconds to wait before timing out a query statement                                   |
-| `hiero.mirror.rosetta.db.username`                | mirror_rosetta      | The username the processor uses to connect to the database                                          |
-| `hiero.mirror.rosetta.http.idleTimeout`           | 10000000000         | The maximum amount of time in nanoseconds to wait for the next request when keep-alives are enabled |
-| `hiero.mirror.rosetta.http.readHeaderTimeout`     | 3000000000          | The maximum amount of time in nanoseconds to read request headers                                   |
-| `hiero.mirror.rosetta.http.readTimeout`           | 5000000000          | The maximum duration in nanoseconds for reading the entire request, including the body              |
-| `hiero.mirror.rosetta.http.writeTimeout`          | 10000000000         | The maximum duration in nanoseconds before timing out writes of the response                        |
-| `hiero.mirror.rosetta.log.level`                  | info                | The log level                                                                                       |
-| `hiero.mirror.rosetta.network`                    | DEMO                | Which network to use. Can be either `DEMO`, `MAINNET`, `PREVIEWNET`, `TESTNET` or `OTHER`.          |
-| `hiero.mirror.rosetta.nodeRefreshInterval`        | 24h                 | The fixed period between scheduled network address book updates. Can accept values like `10m`, `2h` |
-| `hiero.mirror.rosetta.nodeVersion`                | 0                   | The default canonical version of the node runtime                                                   |
-| `hiero.mirror.rosetta.nodes`                      | {}                  | A map of main nodes with its service endpoint as the key and the node account id as its value       |
-| `hiero.mirror.rosetta.online`                     | true                | The default online mode of the Rosetta interface                                                    |
-| `hiero.mirror.rosetta.port`                       | 5700                | The REST API port                                                                                   |
-| `hiero.mirror.rosetta.shutdownTimeout`            | 10s                 | The time to wait for the server to shutdown gracefully                                              |
+| Name                                                       | Default             | Description                                                                                         |
+| ---------------------------------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------- |
+| `hiero.mirror.rosetta.cache.entity.maxSize`                | 524288              | The max number of entities to cache                                                                 |
+| `hiero.mirror.rosetta.db.host`                             | 127.0.0.1           | The IP or hostname used to connect to the database                                                  |
+| `hiero.mirror.rosetta.db.name`                             | mirror_node         | The name of the database                                                                            |
+| `hiero.mirror.rosetta.db.password`                         | mirror_rosetta_pass | The database password the processor uses to connect                                                 |
+| `hiero.mirror.rosetta.db.pool.maxIdleConnections`          | 20                  | The maximum number of idle database connections                                                     |
+| `hiero.mirror.rosetta.db.pool.maxLifetime`                 | 30                  | The maximum lifetime of a database connection in minutes                                            |
+| `hiero.mirror.rosetta.db.pool.maxOpenConnections`          | 100                 | The maximum number of open database connections                                                     |
+| `hiero.mirror.rosetta.db.port`                             | 5432                | The port used to connect to the database                                                            |
+| `hiero.mirror.rosetta.db.statementTimeout`                 | 20                  | The number of seconds to wait before timing out a query statement                                   |
+| `hiero.mirror.rosetta.db.username`                         | mirror_rosetta      | The username the processor uses to connect to the database                                          |
+| `hiero.mirror.rosetta.feature.validateAccountCreateFields` | true                | Feature flag to reject CryptoCreate fields this API does not return                                 |
+| `hiero.mirror.rosetta.http.idleTimeout`                    | 10000000000         | The maximum amount of time in nanoseconds to wait for the next request when keep-alives are enabled |
+| `hiero.mirror.rosetta.http.readHeaderTimeout`              | 3000000000          | The maximum amount of time in nanoseconds to read request headers                                   |
+| `hiero.mirror.rosetta.http.readTimeout`                    | 5000000000          | The maximum duration in nanoseconds for reading the entire request, including the body              |
+| `hiero.mirror.rosetta.http.writeTimeout`                   | 10000000000         | The maximum duration in nanoseconds before timing out writes of the response                        |
+| `hiero.mirror.rosetta.log.level`                           | info                | The log level                                                                                       |
+| `hiero.mirror.rosetta.network`                             | DEMO                | Which network to use. Can be either `DEMO`, `MAINNET`, `PREVIEWNET`, `TESTNET` or `OTHER`.          |
+| `hiero.mirror.rosetta.nodeRefreshInterval`                 | 24h                 | The fixed period between scheduled network address book updates. Can accept values like `10m`, `2h` |
+| `hiero.mirror.rosetta.nodeVersion`                         | 0                   | The default canonical version of the node runtime                                                   |
+| `hiero.mirror.rosetta.nodes`                               | {}                  | A map of main nodes with its service endpoint as the key and the node account id as its value       |
+| `hiero.mirror.rosetta.online`                              | true                | The default online mode of the Rosetta interface                                                    |
+| `hiero.mirror.rosetta.port`                                | 5700                | The REST API port                                                                                   |
+| `hiero.mirror.rosetta.shutdownTimeout`                     | 10s                 | The time to wait for the server to shutdown gracefully                                              |
 
 ## Web3 API
 
@@ -752,6 +758,7 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hiero.mirror.web3.evm.trace.contract`                       | []                                                  | A set with contract addresses to filter. By default it is empty to indicate it will trace all contract addresses.                                                                                                                                     |
 | `hiero.mirror.web3.evm.trace.status`                         | []                                                  | A set with frame statuses to filter. By default it is empty to indicate it will trace all frames regardless of status.                                                                                                                                |
 | `hiero.mirror.web3.evm.validatePayerBalance`                 | false                                               | Feature flag to enable payer balance validation for contract calls. When enabled, validates that the sender has sufficient balance when gasPrice or value is greater than zero.                                                                       |
+| `hiero.mirror.web3.exchangeRateRefreshInterval`              | 5s                                                  | How often to check for a new exchange rate file once the current rate has expired. While that expiration is still in the future the check does not read the database.                                                                                 |
 | `hiero.mirror.web3.maxPayloadLogSize`                        | 300                                                 | The maximum number of characters to use to log the request payload.                                                                                                                                                                                   |
 | `hiero.mirror.web3.opcode.tracer.enabled`                    | true                                                | Whether the `/contracts/results/{transactionIdOrHash}/opcodes` endpoint is enabled                                                                                                                                                                    |
 | `hiero.mirror.web3.opcode.tracer.maxConcurrentTraceBytes`    | 1000000000                                          | Shared byte budget, in bytes, across all in-flight opcode traces. Each trace reserves the actual heap its captured memory/stack/storage retains (not a worst-case estimate), truncating early once exhausted, and releases the reservation when done. |

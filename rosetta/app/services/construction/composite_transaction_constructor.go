@@ -104,13 +104,13 @@ func (c *compositeTransactionConstructor) validate(operations types.OperationSli
 	return h, nil
 }
 
-func NewTransactionConstructor() TransactionConstructor {
+func NewTransactionConstructor(validateAccountCreateFields bool) TransactionConstructor {
 	c := &compositeTransactionConstructor{
 		constructorsByOperationType:   make(map[string]transactionConstructorWithType),
 		constructorsByTransactionType: make(map[string]transactionConstructorWithType),
 	}
 
-	c.addConstructor(newCryptoCreateTransactionConstructor())
+	c.addConstructor(newCryptoCreateTransactionConstructor(validateAccountCreateFields))
 	c.addConstructor(newCryptoTransferTransactionConstructor())
 
 	return c
