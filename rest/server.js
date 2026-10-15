@@ -23,8 +23,6 @@ import {isTestEnv} from './utils';
 
 import {
   authHandler,
-  clusterId,
-  clusterIdHandler,
   handleError,
   limitConcurrency,
   openApiValidator,
@@ -61,7 +59,6 @@ app.disable('x-powered-by');
 app.set('trust proxy', true);
 app.set('port', port);
 app.set('query parser', requestQueryParser);
-app.useExt(clusterIdHandler);
 
 serveSwaggerDocs(app);
 if (openApiValidatorEnabled || isTestEnv()) {
@@ -173,7 +170,7 @@ if (!isTestEnv()) {
   // Health check endpoints
   createTerminus(server, {
     headers: {
-      [constants.clusterIdHeader]: clusterId,
+      [constants.clusterIdHeader]: config.clusterId,
     },
     healthChecks: {
       '/health/readiness': health.readinessCheck,
