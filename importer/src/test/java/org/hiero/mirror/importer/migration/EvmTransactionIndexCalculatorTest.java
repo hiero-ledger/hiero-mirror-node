@@ -223,6 +223,55 @@ class EvmTransactionIndexCalculatorTest {
         assertIndices(rows, Map.of(101L, 0L, 102L, 0L, 301L, 1L, 302L, 1L));
     }
 
+    @Test
+    void findChildrenOfContractParents() {
+        var rows = List.of(
+                new Row(100L, null, true, 1L, 100L, false, false), // root
+                new Row(101L, 100L, true, 1L, 0L, false, false), // child of a contract result
+                new Row(200L, null, false, 0L, 0L, false, false), // atomic batch, no contract result
+                new Row(201L, 200L, true, 2L, 100L, false, false), // inner call is its own EVM transaction
+                new Row(202L, 201L, true, 359L, 100L, false, false)); // effect of the inner call
+
+        assertChildren(rows, 101L, 202L);
+    }
+
+    @Test
+    void findChildrenOfHookChains() {
+        var rows = List.of(
+                new Row(100L, null, false, 0L, 0L, false, false), // plain CryptoTransfer parent
+                new Row(101L, 100L, true, HOOK_CONTRACT_ID, 50L, false, false), // hook execution is a root
+                new Row(102L, 100L, true, 999L, 30L, false, false), // dispatched by the hook
+                new Row(103L, 100L, false, 0L, 0L, false, false), // breaks the chain
+                new Row(104L, 100L, true, 999L, 30L, false, false)); // after the break, a root again
+
+        assertChildren(rows, 102L);
+    }
+
+    @Test
+    void findChildrenOfScheduledCall() {
+        var rows = List.of(
+                new Row(100L, null, false, 0L, 0L, false, false), // ScheduleSign
+                new Row(101L, null, true, 1L, 227547L, false, true), // scheduled call is a root
+                new Row(102L, 100L, true, 359L, 15284L, false, false), // effects are parented to the ScheduleSign
+                new Row(103L, 100L, true, 359L, 2607L, false, false));
+
+        assertChildren(rows, 102L, 103L);
+    }
+
+    @Test
+    void findChildrenIgnoresSyntheticLogOnlyRows() {
+        var rows = List.of(
+                new Row(100L, null, true, 1L, 100L, false, false),
+                new Row(101L, 100L, false, 0L, 0L, true, false)); // synthetic log only, no contract result
+
+        assertChildren(rows);
+    }
+
+    private static void assertChildren(List<Row> rows, Long... expected) {
+        assertThat(EvmTransactionIndexCalculator.findChildren(rows, HOOK_CONTRACT_ID))
+                .containsExactly(expected);
+    }
+
     private static void assertIndices(List<Row> rows, Map<Long, Long> expected) {
         var results = EvmTransactionIndexCalculator.compute(rows, HOOK_CONTRACT_ID);
         var actual = new java.util.HashMap<Long, Long>();

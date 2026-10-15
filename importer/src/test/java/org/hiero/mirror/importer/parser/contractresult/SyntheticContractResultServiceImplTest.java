@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenType;
 import org.hiero.mirror.common.CommonProperties;
@@ -68,22 +67,16 @@ class SyntheticContractResultServiceImplTest {
     void createValid() {
         syntheticContractResultService.create(new TransferContractResult(recordItem, entityTokenId, senderId));
         verify(entityListener, times(1)).onContractResult(contractResultCaptor.capture());
-        assertThat(recordItem.isChild()).isFalse();
         assertThat(contractResultCaptor.getValue().isChild()).isFalse();
     }
 
     @Test
-    @DisplayName("Should set child true when the underlying transaction has a parent_consensus_timestamp")
+    @DisplayName("Should set child true when the underlying transaction shares another EVM transaction")
     void createValidChild() {
-        recordItem = recordItemBuilder
-                .tokenMint(TokenType.FUNGIBLE_COMMON)
-                .record(r -> r.setParentConsensusTimestamp(
-                        Timestamp.newBuilder().setSeconds(2444532).build()))
-                .build();
+        recordItem.setEvmChild(true);
 
         syntheticContractResultService.create(new TransferContractResult(recordItem, entityTokenId, senderId));
         verify(entityListener, times(1)).onContractResult(contractResultCaptor.capture());
-        assertThat(recordItem.isChild()).isTrue();
         assertThat(contractResultCaptor.getValue().isChild()).isTrue();
     }
 

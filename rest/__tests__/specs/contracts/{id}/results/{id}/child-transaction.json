@@ -1,5 +1,5 @@
 {
-  "description": "Contract-scoped single result by timestamp for a child transaction (has a parent_consensus_timestamp) returns child true",
+  "description": "Contract-scoped single result by timestamp for a child transaction (executed as part of another EVM execution) returns child true",
   "setup": {
     "entities": [
       {

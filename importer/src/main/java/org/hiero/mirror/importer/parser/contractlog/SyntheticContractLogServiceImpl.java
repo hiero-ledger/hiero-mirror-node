@@ -54,7 +54,7 @@ final class SyntheticContractLogServiceImpl implements SyntheticContractLogServi
             logIndex = contractRelatedParentRecordItem.getAndIncrementLogIndex();
             transactionIndex = contractRelatedParentRecordItem.getEvmTransactionIndex();
             transactionHash = contractRelatedParentRecordItem.getTransactionHash();
-            child = contractRelatedParentRecordItem.isChild();
+            child = contractRelatedParentRecordItem.isEvmChild();
 
             final var parentTransactionRecord = contractRelatedParentRecordItem.getTransactionRecord();
             contractId = EntityId.tryOf(
@@ -65,7 +65,7 @@ final class SyntheticContractLogServiceImpl implements SyntheticContractLogServi
             logIndex = recordItem.getAndIncrementLogIndex();
             transactionIndex = recordItem.claimEvmTransactionIndex();
             transactionHash = recordItem.getTransactionHash();
-            child = recordItem.isChild();
+            child = recordItem.isEvmChild();
             contractId = log.getEntityId();
             rootContractId = log.getEntityId();
         }

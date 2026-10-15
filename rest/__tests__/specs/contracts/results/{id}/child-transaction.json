@@ -1,5 +1,5 @@
 {
-  "description": "Contract result for a child transaction (has a parent_consensus_timestamp) returns child true on the result and its logs, by both hash and transaction id",
+  "description": "Contract result for a child transaction (executed as part of another EVM execution) returns child true on the result and its logs, by both hash and transaction id",
   "setup": {
     "entities": [
       {
