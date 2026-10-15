@@ -2,14 +2,14 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
-import java.io.Serializable;
 import java.util.List;
+import org.hiero.mirror.common.domain.ListHolder;
 
 /**
  * Single-valued JDBC column type for {@code transaction.itemized_transfer} (JSONB). A bare {@code List} is treated by Spring Data JDBC
  * as a separate aggregate table.
  */
-public record ItemizedTransferListHolder(List<ItemizedTransfer> items) implements Serializable {
+public record ItemizedTransferListHolder(List<ItemizedTransfer> items) implements ListHolder<ItemizedTransfer> {
 
     public static ItemizedTransferListHolder of(List<ItemizedTransfer> list) {
         if (list == null) {

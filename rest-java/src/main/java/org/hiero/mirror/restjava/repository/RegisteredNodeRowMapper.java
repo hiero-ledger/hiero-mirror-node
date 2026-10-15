@@ -29,7 +29,7 @@ import org.springframework.jdbc.core.RowMapper;
 public final class RegisteredNodeRowMapper implements RowMapper<RegisteredNode> {
 
     /**
-     * Matches the shape written by {@code JsonbWritingConverters} / domain serialization (snake_case keys), without
+     * Matches the shape written by {@code JsonbJdbcConverters} / domain serialization (snake_case keys), without
      * depending on {@code ObjectToStringSerializer}'s static block.
      */
     private static final ObjectMapper SERVICE_ENDPOINT_JSON = new ObjectMapper()

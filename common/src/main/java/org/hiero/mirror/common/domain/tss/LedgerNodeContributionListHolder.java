@@ -2,14 +2,15 @@
 
 package org.hiero.mirror.common.domain.tss;
 
-import java.io.Serializable;
 import java.util.List;
+import org.hiero.mirror.common.domain.ListHolder;
 
 /**
  * Single-valued JDBC column type for {@code ledger.node_contributions} (JSONB). A bare {@code List} is treated by Spring Data JDBC
  * as a separate aggregate table.
  */
-public record LedgerNodeContributionListHolder(List<LedgerNodeContribution> items) implements Serializable {
+public record LedgerNodeContributionListHolder(List<LedgerNodeContribution> items)
+        implements ListHolder<LedgerNodeContribution> {
 
     public static LedgerNodeContributionListHolder of(List<LedgerNodeContribution> list) {
         if (list == null) {

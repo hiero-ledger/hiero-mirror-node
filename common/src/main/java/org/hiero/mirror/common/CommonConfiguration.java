@@ -11,21 +11,13 @@ import org.hiero.mirror.common.config.CommonRuntimeHints;
 import org.hiero.mirror.common.config.NullIdQueryMappingConfiguration;
 import org.hiero.mirror.common.converter.BooleanJdbcConverters;
 import org.hiero.mirror.common.converter.ByteArrayArrayJdbcConverters;
-import org.hiero.mirror.common.converter.DigestAlgorithmJdbcConverters;
 import org.hiero.mirror.common.converter.EntityIdToLongConverter;
-import org.hiero.mirror.common.converter.JsonbReadingConverters;
-import org.hiero.mirror.common.converter.JsonbWritingConverters;
-import org.hiero.mirror.common.converter.LongArrayJdbcConverters;
+import org.hiero.mirror.common.converter.JsonbJdbcConverters;
 import org.hiero.mirror.common.converter.LongToEntityIdConverter;
 import org.hiero.mirror.common.converter.NativeEnumJdbcConverter;
+import org.hiero.mirror.common.converter.OrdinalEnumJdbcConverters;
 import org.hiero.mirror.common.converter.PGobjectToRangeReadingConverter;
-import org.hiero.mirror.common.converter.PostgresAirdropStateJdbcConverters;
-import org.hiero.mirror.common.converter.PostgresEntityTypeJdbcConverters;
-import org.hiero.mirror.common.converter.PostgresErrataTypeJdbcConverters;
-import org.hiero.mirror.common.converter.PostgresHookJdbcConverters;
-import org.hiero.mirror.common.converter.PostgresTokenJdbcConverters;
 import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
-import org.hiero.mirror.common.converter.ReconciliationStatusJdbcConverters;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.repository.AssignedIdDataAccessStrategy;
 import org.hiero.mirror.common.repository.MergingJdbcRepository;
@@ -221,71 +213,15 @@ public final class CommonConfiguration extends AbstractJdbcConfiguration {
     protected List<?> userConverters() {
         return List.of(
                 new BooleanJdbcConverters.IntegerToBoolean(),
+                new ByteArrayArrayJdbcConverters.ByteArrayArrayToMaxCustomFeesHolder(),
                 new ByteArrayArrayJdbcConverters.MaxCustomFeesHolderToJdbcValue(),
-                new ByteArrayArrayJdbcConverters.SqlArrayToMaxCustomFeesHolder(),
-                new ByteArrayArrayJdbcConverters.PGobjectToByteArrayArray(),
                 new EntityIdToLongConverter(),
+                new JsonbJdbcConverters.JsonbToObject(),
+                new JsonbJdbcConverters.ObjectToJsonb(),
                 new LongToEntityIdConverter(),
-                new DigestAlgorithmJdbcConverters.DigestAlgorithmToJdbcValue(),
-                new DigestAlgorithmJdbcConverters.IntegerToDigestAlgorithm(),
-                new ReconciliationStatusJdbcConverters.ReconciliationStatusToJdbcValue(),
-                new ReconciliationStatusJdbcConverters.IntegerToReconciliationStatus(),
-                new LongArrayJdbcConverters.SqlArrayToLongList(),
-                new LongArrayJdbcConverters.SqlArrayToLongArray(),
-                new PostgresAirdropStateJdbcConverters.TokenAirdropStateEnumToJdbcValue(),
-                new PostgresAirdropStateJdbcConverters.StringToTokenAirdropStateEnum(),
-                new PostgresEntityTypeJdbcConverters.EntityTypeToJdbcValue(),
-                new PostgresEntityTypeJdbcConverters.StringToEntityType(),
-                new PostgresErrataTypeJdbcConverters.ErrataTypeToJdbcValue(),
-                new PostgresErrataTypeJdbcConverters.StringToErrataType(),
-                new PostgresHookJdbcConverters.HookExtensionPointToJdbcValue(),
-                new PostgresHookJdbcConverters.StringToHookExtensionPoint(),
-                new PostgresHookJdbcConverters.HookTypeToJdbcValue(),
-                new PostgresHookJdbcConverters.StringToHookType(),
-                new PostgresTokenJdbcConverters.TokenFreezeStatusEnumToJdbcValue(),
-                new PostgresTokenJdbcConverters.TokenFreezeStatusEnumToInteger(),
-                new PostgresTokenJdbcConverters.IntegerToTokenFreezeStatusEnum(),
-                new PostgresTokenJdbcConverters.TokenKycStatusEnumToJdbcValue(),
-                new PostgresTokenJdbcConverters.TokenKycStatusEnumToInteger(),
-                new PostgresTokenJdbcConverters.IntegerToTokenKycStatusEnum(),
-                new PostgresTokenJdbcConverters.TokenPauseStatusEnumToJdbcValue(),
-                new PostgresTokenJdbcConverters.StringToTokenPauseStatusEnum(),
-                new PostgresTokenJdbcConverters.TokenSupplyTypeEnumToJdbcValue(),
-                new PostgresTokenJdbcConverters.StringToTokenSupplyTypeEnum(),
-                new PostgresTokenJdbcConverters.TokenTypeEnumToJdbcValue(),
-                new PostgresTokenJdbcConverters.StringToTokenTypeEnum(),
-                new RangeToPGobjectWritingConverter(),
+                new OrdinalEnumJdbcConverters.EnumToInteger(),
+                new OrdinalEnumJdbcConverters.IntegerToEnum(),
                 new PGobjectToRangeReadingConverter(),
-                new JsonbWritingConverters.FixedFeesHolderToJsonb(),
-                new JsonbWritingConverters.FractionalFeesHolderToJsonb(),
-                new JsonbWritingConverters.RoyaltyFeesHolderToJsonb(),
-                new JsonbReadingConverters.PgobjectToFixedFeesHolder(),
-                new JsonbReadingConverters.StringToFixedFeesHolder(),
-                new JsonbReadingConverters.PgobjectToFractionalFeesHolder(),
-                new JsonbReadingConverters.StringToFractionalFeesHolder(),
-                new JsonbReadingConverters.PgobjectToRoyaltyFeesHolder(),
-                new JsonbReadingConverters.StringToRoyaltyFeesHolder(),
-                new JsonbWritingConverters.ServiceEndpointsHolderToJsonb(),
-                new JsonbReadingConverters.PgobjectToRegisteredServiceEndpointList(),
-                new JsonbReadingConverters.PgobjectToServiceEndpointsHolder(),
-                new JsonbReadingConverters.StringToRegisteredServiceEndpointList(),
-                new JsonbWritingConverters.AccessListHolderToJsonb(),
-                new JsonbWritingConverters.AuthorizationListHolderToJsonb(),
-                new JsonbWritingConverters.ItemizedTransferListHolderToJsonb(),
-                new JsonbWritingConverters.NftTransferListHolderToJsonb(),
-                new JsonbWritingConverters.LedgerNodeContributionListHolderToJsonb(),
-                new JsonbReadingConverters.PgobjectToAccessListHolder(),
-                new JsonbReadingConverters.StringToAccessListHolder(),
-                new JsonbReadingConverters.PgobjectToAuthorizationListHolder(),
-                new JsonbReadingConverters.StringToAuthorizationListHolder(),
-                new JsonbReadingConverters.PgobjectToItemizedTransferListHolder(),
-                new JsonbReadingConverters.StringToItemizedTransferListHolder(),
-                new JsonbReadingConverters.PgobjectToNftTransferListHolder(),
-                new JsonbReadingConverters.StringToNftTransferListHolder(),
-                new JsonbReadingConverters.PgobjectToLedgerNodeContributionListHolder(),
-                new JsonbReadingConverters.StringToLedgerNodeContributionListHolder(),
-                new JsonbWritingConverters.ServiceEndpointSingle(),
-                new JsonbReadingConverters.PgobjectToServiceEndpoint(),
-                new JsonbReadingConverters.StringToServiceEndpoint());
+                new RangeToPGobjectWritingConverter());
     }
 }
