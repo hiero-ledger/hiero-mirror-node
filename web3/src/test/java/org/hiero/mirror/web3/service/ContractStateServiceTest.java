@@ -353,7 +353,7 @@ final class ContractStateServiceTest extends Web3IntegrationTest {
         final var result1 = contractStateService.findStorage(contractId, slot1);
         final var result2 = contractStateService.findStorage(contractId, slot2);
 
-        Thread.sleep(6000);
+        Thread.sleep(3000);
 
         final var result1Again = contractStateService.findStorage(contractId, slot1);
         final var result2Again = contractStateService.findStorage(contractId, slot2);

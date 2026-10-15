@@ -24,6 +24,8 @@ import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
+import org.hiero.mirror.grpc.exception.SubscriptionLimitException;
+import org.hiero.mirror.grpc.exception.SubscriptionTimeoutException;
 import org.hiero.mirror.grpc.repository.AddressBookRepository;
 import org.hiero.mirror.grpc.repository.NetworkNodeRepository;
 import org.hiero.mirror.grpc.repository.NodeStakeRepository;
@@ -31,7 +33,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
-import reactor.core.scheduler.Schedulers;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 import reactor.util.repeat.RepeatSpec;
 
 @CustomLog
@@ -41,14 +44,21 @@ import reactor.util.repeat.RepeatSpec;
 public class NetworkServiceImpl implements NetworkService {
 
     static final String INVALID_FILE_ID = "Not a valid address book file";
+    static final String TOO_MANY_SUBSCRIPTIONS = "Too many concurrent address book subscriptions";
     private static final long NODE_STAKE_EMPTY_TABLE_TIMESTAMP = 0L;
     private static final TypeReference<java.util.List<ServiceEndpointRow>> SERVICE_ENDPOINTS_TYPE =
             new TypeReference<>() {};
+    private static final String STREAM_TIMEOUT = "Address book subscription timed out";
 
+    private final AtomicInteger activeSubscriptions = new AtomicInteger();
     private final AddressBookProperties addressBookProperties;
     private final AddressBookRepository addressBookRepository;
     private final NetworkNodeRepository networkNodeRepository;
     private final NodeStakeRepository nodeStakeRepository;
+
+    @Qualifier("addressBook")
+    private final Scheduler scheduler;
+
     private final SystemEntity systemEntity;
     private final ObjectMapper objectMapper;
 
@@ -61,27 +71,62 @@ public class NetworkServiceImpl implements NetworkService {
 
     @Override
     public Flux<AddressBookEntry> getNodes(AddressBookFilter filter) {
-        var fileId = filter.getFileId();
+        final var fileId = filter.getFileId();
         if (!getValidFileIds().contains(fileId)) {
             throw new IllegalArgumentException(INVALID_FILE_ID);
         }
 
-        long addressBookTimestamp = addressBookRepository
+        final var limit = effectiveLimit(filter.getLimit());
+
+        return Flux.defer(() -> {
+            acquire();
+            return Mono.fromCallable(() -> loadContext(fileId))
+                    .flatMapMany(context -> Flux.defer(() -> page(context))
+                            .repeatWhen(RepeatSpec.create(c -> !context.isComplete(), limit)
+                                    .jitter(0.5)
+                                    .withFixedDelay(addressBookProperties.getPageDelay())
+                                    .withScheduler(scheduler))
+                            .take(limit)
+                            .doOnNext(context::onNext)
+                            .doOnSubscribe(s -> log.info("Querying for address book: {}", filter))
+                            .doOnComplete(
+                                    () -> log.info("Retrieved {} nodes from the address book", context.getCount())))
+                    .takeUntilOther(Mono.delay(addressBookProperties.getTimeout(), scheduler)
+                            .then(Mono.error(new SubscriptionTimeoutException(STREAM_TIMEOUT))))
+                    .subscribeOn(scheduler)
+                    // Outside subscribeOn so the slot is released when the scheduler rejects the subscription
+                    .doFinally(signal -> release());
+        });
+    }
+
+    private void acquire() {
+        final int limit = addressBookProperties.getMaxConcurrent();
+        int active;
+        do {
+            active = activeSubscriptions.get();
+            if (active >= limit) {
+                throw new SubscriptionLimitException(TOO_MANY_SUBSCRIPTIONS);
+            }
+        } while (!activeSubscriptions.compareAndSet(active, active + 1));
+    }
+
+    private int effectiveLimit(int requested) {
+        final var maxLimit = addressBookProperties.getMaxLimit();
+        if (requested <= 0) {
+            return maxLimit;
+        }
+
+        return Math.min(requested, maxLimit);
+    }
+
+    private AddressBookContext loadContext(EntityId fileId) {
+        final long addressBookTimestamp = addressBookRepository
                 .findLatestTimestamp(fileId.getId())
                 .orElseThrow(() -> new EntityNotFoundException(fileId));
-        long nodeStakeTimestamp = nodeStakeRepository.findLatestTimestamp().orElse(NODE_STAKE_EMPTY_TABLE_TIMESTAMP);
-        var nodeStakeMap = nodeStakeRepository.findAllStakeByConsensusTimestamp(nodeStakeTimestamp);
-        var context = new AddressBookContext(addressBookTimestamp, nodeStakeMap);
-
-        return Flux.defer(() -> page(context))
-                .repeatWhen(RepeatSpec.create(c -> !context.isComplete(), Long.MAX_VALUE)
-                        .jitter(0.5)
-                        .withFixedDelay(addressBookProperties.getPageDelay())
-                        .withScheduler(Schedulers.boundedElastic()))
-                .take(filter.getLimit() > 0 ? filter.getLimit() : Long.MAX_VALUE)
-                .doOnNext(context::onNext)
-                .doOnSubscribe(s -> log.info("Querying for address book: {}", filter))
-                .doOnComplete(() -> log.info("Retrieved {} nodes from the address book", context.getCount()));
+        final long nodeStakeTimestamp =
+                nodeStakeRepository.findLatestTimestamp().orElse(NODE_STAKE_EMPTY_TABLE_TIMESTAMP);
+        final var nodeStakeMap = nodeStakeRepository.findAllStakeByConsensusTimestamp(nodeStakeTimestamp);
+        return new AddressBookContext(addressBookTimestamp, nodeStakeMap);
     }
 
     private Flux<AddressBookEntry> page(AddressBookContext context) {
@@ -159,6 +204,10 @@ public class NetworkServiceImpl implements NetworkService {
             log.warn("Unable to parse serviceEndpoints JSON: {}", json, e);
             return java.util.Set.of();
         }
+    }
+
+    private void release() {
+        activeSubscriptions.decrementAndGet();
     }
 
     // Public so that it can be registered for reflection in RuntimeHintsConfiguration

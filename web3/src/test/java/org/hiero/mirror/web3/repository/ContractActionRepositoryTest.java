@@ -20,31 +20,76 @@ class ContractActionRepositoryTest extends Web3IntegrationTest {
     @Test
     void findFailedSystemActionsByConsensusTimestampReturnsOnlyRevertedSystemActionsOrderedByIndex() {
         final var timestamp = domainBuilder.timestamp();
+        final var payerAccountId = domainBuilder.entityId();
         final var otherActions = List.of(
                 domainBuilder
                         .contractAction()
-                        .customize(action -> action.id(new ContractAction.Id(timestamp, (int) domainBuilder.number())))
+                        .customize(action -> action.id(new ContractAction.Id(timestamp, (int) domainBuilder.number()))
+                                .payerAccountId(payerAccountId))
                         .persist(),
                 domainBuilder
                         .contractAction()
-                        .customize(action -> action.id(new ContractAction.Id(timestamp, (int) domainBuilder.number())))
+                        .customize(action -> action.id(new ContractAction.Id(timestamp, (int) domainBuilder.number()))
+                                .payerAccountId(payerAccountId))
                         .persist());
         final var successSystemAction = domainBuilder
                 .contractAction()
                 .customize(action -> action.callType(SYSTEM.getNumber())
                         .id(new ContractAction.Id(timestamp, (int) domainBuilder.number()))
+                        .payerAccountId(payerAccountId)
                         .resultDataType(OUTPUT.getNumber()))
                 .persist();
         final var failedSystemAction = domainBuilder
                 .contractAction()
                 .customize(action -> action.callType(SYSTEM.getNumber())
                         .id(new ContractAction.Id(timestamp, (int) domainBuilder.number()))
+                        .payerAccountId(payerAccountId)
+                        .resultDataType(REVERT_REASON.getNumber()))
+                .persist();
+        domainBuilder
+                .contractAction()
+                .customize(action -> action.callType(SYSTEM.getNumber())
+                        .id(new ContractAction.Id(timestamp, (int) domainBuilder.number()))
                         .resultDataType(REVERT_REASON.getNumber()))
                 .persist();
 
-        assertThat(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(timestamp))
+        assertThat(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(
+                        timestamp, payerAccountId.getId()))
                 .containsExactly(failedSystemAction)
                 .doesNotContain(successSystemAction)
                 .doesNotContainAnyElementsOf(otherActions);
+    }
+
+    @Test
+    void findByConsensusTimestampAndPayerAccountIdOrderByIndexAscReturnsActionsSortedByIndex() {
+        final var timestamp = domainBuilder.timestamp();
+        final var payerAccountId = domainBuilder.entityId();
+        // Persist out of order on purpose so the ordering must come from the query.
+        final var action2 = domainBuilder
+                .contractAction()
+                .customize(a -> a.id(new ContractAction.Id(timestamp, 2)).payerAccountId(payerAccountId))
+                .persist();
+        final var action0 = domainBuilder
+                .contractAction()
+                .customize(a -> a.id(new ContractAction.Id(timestamp, 0)).payerAccountId(payerAccountId))
+                .persist();
+        final var action1 = domainBuilder
+                .contractAction()
+                .customize(a -> a.id(new ContractAction.Id(timestamp, 1)).payerAccountId(payerAccountId))
+                .persist();
+        // Unrelated action at a different timestamp must be excluded.
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.id(new ContractAction.Id(timestamp + 1, 0)).payerAccountId(payerAccountId))
+                .persist();
+        // Same timestamp, different payer, must be excluded.
+        domainBuilder
+                .contractAction()
+                .customize(a -> a.id(new ContractAction.Id(timestamp, 3)))
+                .persist();
+
+        assertThat(contractActionRepository.findByConsensusTimestampAndPayerAccountIdOrderByIndexAsc(
+                        timestamp, payerAccountId))
+                .containsExactly(action0, action1, action2);
     }
 }

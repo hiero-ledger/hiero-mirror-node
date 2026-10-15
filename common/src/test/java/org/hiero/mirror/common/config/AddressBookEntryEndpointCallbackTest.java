@@ -30,8 +30,9 @@ class AddressBookEntryEndpointCallbackTest {
 
         final var result = callback.onAfterConvert(addressBook);
 
-        assertThat(result.getEntries()).allSatisfy(entry -> assertThat(entry.getServiceEndpoints())
-                .allSatisfy(endpoint -> assertThat(endpoint.getNodeId()).isEqualTo(entry.getNodeId())));
+        assertThat(result.getEntries())
+                .allSatisfy(entry -> assertThat(entry.getServiceEndpoints())
+                        .allSatisfy(endpoint -> assertThat(endpoint.getNodeId()).isEqualTo(entry.getNodeId())));
         assertThat(entry0.getServiceEndpoints()).hasSize(2);
         assertThat(entry1.getServiceEndpoints()).hasSize(3);
     }

@@ -50,8 +50,8 @@ afterEach(() => {
 
 const assertCustomConfig = (actual, customConfig) => {
   // fields custom doesn't override
-  expect(actual.rest.response.includeHostInLink).toBe(false);
   expect(actual.rest.log.level).toBe('info');
+  expect(actual.rest.metrics.enabled).toBe(true);
 
   // fields overridden by custom
   expect(Number(actual.common.realm)).toBe(customConfig.hedera.mirror.common.realm);
@@ -71,7 +71,8 @@ describe('Load YAML configuration:', () => {
   test('./config/application.yml', async () => {
     const config = await loadConfig();
     expect(config.common.shard).not.toBeNull();
-    expect(config.rest.response.includeHostInLink).toBe(false);
+    expect(config.rest.clusterId).toBe('9ef9396');
+    expect(config.rest.metrics.enabled).toBe(true);
     expect(config.rest.log.level).toBe('info');
   });
 
@@ -126,9 +127,9 @@ describe('Load environment configuration:', () => {
   });
 
   test('Boolean', async () => {
-    process.env['HIERO_MIRROR_REST_RESPONSE_INCLUDEHOSTINLINK'] = 'true';
+    process.env['HIERO_MIRROR_REST_METRICS_ENABLED'] = 'false';
     const config = await loadConfig();
-    expect(config.rest.response.includeHostInLink).toBe(true);
+    expect(config.rest.metrics.enabled).toBe(false);
   });
 
   test('Camel case', async () => {
@@ -184,6 +185,12 @@ describe('Load environment configuration:', () => {
     await expect(loadConfig()).rejects.toThrowErrorMatchingSnapshot();
   });
 
+  test('Cluster id', async () => {
+    process.env['HIERO_MIRROR_REST_CLUSTERID'] = 'abc1234';
+    const config = await loadConfig();
+    expect(config.rest.clusterId).toBe('abc1234');
+  });
+
   test('Hexadecimal environment variable', async () => {
     const expected = '0x129';
     process.env['HIERO_MIRROR_REST_CHAINID'] = expected;
@@ -216,6 +223,7 @@ describe('Override query config', () => {
     };
     const expected = {
       bindTimestampRange: true,
+      maxAccountBalanceConcurrency: 5,
       maxFileAttempts: 12,
       maxRecordFileCloseInterval: '8s',
       maxRecordFileCloseIntervalNs: 8000000000n,
@@ -252,6 +260,73 @@ describe('Override query config', () => {
   `('$name', async ({queryConfig}) => {
     await expect(loadCustomConfig(customConfig(queryConfig))).rejects.toThrowErrorMatchingSnapshot();
   });
+
+  test.each([-1, 1.5, 'abc'])('invalid maxAccountBalanceConcurrency %p', async (maxAccountBalanceConcurrency) => {
+    await expect(loadCustomConfig(customConfig({maxAccountBalanceConcurrency}))).rejects.toThrow(
+      'query.maxAccountBalanceConcurrency must be a non-negative integer'
+    );
+  });
+
+  test('maxAccountBalanceConcurrency of 0 is allowed', async () => {
+    const config = await loadCustomConfig(customConfig({maxAccountBalanceConcurrency: 0}));
+    expect(config.rest.query.maxAccountBalanceConcurrency).toBe(0);
+  });
+
+  const poolAndQueryConfig = (maxConnections, maxAccountBalanceConcurrency) => ({
+    hiero: {
+      mirror: {
+        rest: {
+          db: {pool: {maxConnections}},
+          query: {maxAccountBalanceConcurrency},
+        },
+      },
+    },
+  });
+
+  test.each`
+    maxConnections | maxAccountBalanceConcurrency | maxAllowed
+    ${5}           | ${5}                         | ${4}
+    ${5}           | ${6}                         | ${4}
+    ${2}           | ${2}                         | ${1}
+    ${1}           | ${2}                         | ${1}
+  `(
+    'maxAccountBalanceConcurrency $maxAccountBalanceConcurrency too high for pool size $maxConnections',
+    async ({maxConnections, maxAccountBalanceConcurrency, maxAllowed}) => {
+      await expect(loadCustomConfig(poolAndQueryConfig(maxConnections, maxAccountBalanceConcurrency))).rejects.toThrow(
+        `query.maxAccountBalanceConcurrency (${maxAccountBalanceConcurrency}) must be at most ${maxAllowed} ` +
+          `with db.pool.maxConnections (${maxConnections}), or 0 to disable the limit`
+      );
+    }
+  );
+
+  test.each`
+    maxConnections | expected
+    ${10}          | ${5}
+    ${5}           | ${2}
+    ${3}           | ${1}
+    ${2}           | ${1}
+    ${1}           | ${1}
+  `(
+    'maxAccountBalanceConcurrency defaults to $expected with pool size $maxConnections',
+    async ({maxConnections, expected}) => {
+      const config = await loadCustomConfig(poolAndQueryConfig(maxConnections, null));
+      expect(config.rest.query.maxAccountBalanceConcurrency).toBe(expected);
+    }
+  );
+
+  test.each`
+    maxConnections | maxAccountBalanceConcurrency
+    ${5}           | ${4}
+    ${2}           | ${1}
+    ${1}           | ${1}
+    ${1}           | ${0}
+  `(
+    'maxAccountBalanceConcurrency $maxAccountBalanceConcurrency allowed with pool size $maxConnections',
+    async ({maxConnections, maxAccountBalanceConcurrency}) => {
+      const config = await loadCustomConfig(poolAndQueryConfig(maxConnections, maxAccountBalanceConcurrency));
+      expect(config.rest.query.maxAccountBalanceConcurrency).toBe(maxAccountBalanceConcurrency);
+    }
+  );
 });
 
 describe('Override db pool config', () => {

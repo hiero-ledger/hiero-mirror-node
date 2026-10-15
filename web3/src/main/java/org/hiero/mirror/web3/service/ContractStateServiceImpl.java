@@ -86,10 +86,12 @@ final class ContractStateServiceImpl implements ContractStateService {
      * one query instead of each opening a connection.
      */
     private Optional<byte[]> findStorageSingle(final EntityId contractId, final byte[] key, final SlotKey cacheKey) {
-        return toOptional(contractStateCache.get(cacheKey, () -> contractStateRepository
-                .findStorage(contractId.getId(), key)
-                .map(ContractSlotValue::getValue)
-                .orElse(EMPTY_VALUE)));
+        return toOptional(contractStateCache.get(
+                cacheKey,
+                () -> contractStateRepository
+                        .findStorage(contractId.getId(), key)
+                        .map(ContractSlotValue::getValue)
+                        .orElse(EMPTY_VALUE)));
     }
 
     /**

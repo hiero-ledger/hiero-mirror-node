@@ -20,6 +20,7 @@ hiero:
         token:
           maxSize: 100000
       chainId: "0x128"
+      clusterId: "9ef9396"
       db:
         host: 127.0.0.1
         name: mirror_node
@@ -59,6 +60,7 @@ hiero:
       port: 5551
       query:
         bindTimestampRange: false
+        maxAccountBalanceConcurrency: null # Defaults to half of db.pool.maxConnections
         maxFileAttempts: 12
         maxRecordFileCloseInterval: 10s
         maxRepeatedQueryParameters: 100
@@ -128,7 +130,6 @@ hiero:
             /api/v1/transactions/:transactionIdOrHash:
               { "cache-control": "public, max-age=600" }
           timeout: 630000
-        includeHostInLink: false
         keepAliveTimeout: 620000
         limit:
           default: 25

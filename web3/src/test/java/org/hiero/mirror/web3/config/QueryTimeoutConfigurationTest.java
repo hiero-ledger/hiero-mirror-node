@@ -12,9 +12,9 @@ import java.sql.SQLException;
 import java.time.Duration;
 import javax.sql.DataSource;
 import lombok.SneakyThrows;
+import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.ApiProperties;
 import org.hiero.mirror.web3.Web3Properties;
-import org.hiero.mirror.web3.Web3Properties.ApiEndpointName;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,7 +49,7 @@ class QueryTimeoutConfigurationTest {
 
     @Test
     void noTimeoutOutsideContractCallContext() throws SQLException {
-        web3Properties.setRequestTimeout(Duration.ZERO);
+        web3Properties.getApi().put(ApiEndpointName.CALL, apiProperties(Duration.ZERO));
         wrap().getConnection().prepareStatement("select 1");
         verify(connection).prepareStatement("select 1");
     }
@@ -58,6 +58,7 @@ class QueryTimeoutConfigurationTest {
     void noTimeoutBeforeDeadline() throws SQLException {
         var wrapped = wrap();
         ContractCallContext.run(context -> {
+            context.setApi(ApiEndpointName.CALL);
             prepareStatement(wrapped);
             return null;
         });
@@ -66,9 +67,10 @@ class QueryTimeoutConfigurationTest {
 
     @Test
     void timesOutPastDeadline() {
-        web3Properties.setRequestTimeout(Duration.ZERO);
+        web3Properties.getApi().put(ApiEndpointName.CALL, apiProperties(Duration.ZERO));
         var wrapped = wrap();
         ContractCallContext.run(context -> {
+            context.setApi(ApiEndpointName.CALL);
             assertThatThrownBy(() -> prepareStatement(wrapped))
                     .isInstanceOf(QueryTimeoutException.class)
                     .hasMessageContaining("Transaction timed out after");
@@ -77,9 +79,9 @@ class QueryTimeoutConfigurationTest {
     }
 
     @Test
-    void endpointTimeoutOverridesGlobalTimeout() throws SQLException {
-        // given — the global timeout has already elapsed, but the opcodes endpoint allows more time
-        web3Properties.setRequestTimeout(Duration.ZERO);
+    void endpointTimeoutIsUsed() throws SQLException {
+        // given — the call endpoint timeout has already elapsed, but the opcodes endpoint allows more time
+        web3Properties.getApi().put(ApiEndpointName.CALL, apiProperties(Duration.ZERO));
         web3Properties.getApi().put(ApiEndpointName.OPCODES, apiProperties(Duration.ofSeconds(10L)));
         final var wrapped = wrap();
 
@@ -97,11 +99,11 @@ class QueryTimeoutConfigurationTest {
     @Test
     void endpointTimeoutAppliesOnlyToItsEndpoint() {
         // given
-        web3Properties.setRequestTimeout(Duration.ZERO);
+        web3Properties.getApi().put(ApiEndpointName.CALL, apiProperties(Duration.ZERO));
         web3Properties.getApi().put(ApiEndpointName.OPCODES, apiProperties(Duration.ofSeconds(10L)));
         final var wrapped = wrap();
 
-        // when, then — a different endpoint on the same DataSource still uses the global timeout
+        // when, then — a different endpoint on the same DataSource uses its own timeout
         ContractCallContext.run(context -> {
             context.setApi(ApiEndpointName.OPCODES);
             prepareStatement(wrapped);
@@ -116,7 +118,7 @@ class QueryTimeoutConfigurationTest {
 
     private static ApiProperties apiProperties(final Duration timeout) {
         final var apiProperties = new ApiProperties();
-        apiProperties.getRequest().setTimeout(timeout);
+        apiProperties.getResponse().setTimeout(timeout);
         return apiProperties;
     }
 

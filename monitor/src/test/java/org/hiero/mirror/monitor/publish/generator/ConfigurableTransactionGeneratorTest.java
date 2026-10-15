@@ -60,10 +60,12 @@ final class ConfigurableTransactionGeneratorTest {
     void nonTruncatedMemo() {
         properties.setMaxMemoLength(100);
         List<PublishRequest> publishRequests = generator.get().next();
-        assertThat(publishRequests).isNotEmpty().allSatisfy(publishRequest -> assertThat(
-                        publishRequest.getTransaction().getTransactionMemo())
-                .containsPattern(Pattern.compile("\\d+ Monitor test on \\w+"))
-                .hasSizeGreaterThan(MEMO_SIZE));
+        assertThat(publishRequests)
+                .isNotEmpty()
+                .allSatisfy(publishRequest -> assertThat(
+                                publishRequest.getTransaction().getTransactionMemo())
+                        .containsPattern(Pattern.compile("\\d+ Monitor test on \\w+"))
+                        .hasSizeGreaterThan(MEMO_SIZE));
     }
 
     @Test
@@ -204,17 +206,20 @@ final class ConfigurableTransactionGeneratorTest {
     }
 
     private void assertRequests(List<PublishRequest> publishRequests, int size) {
-        assertThat(publishRequests).hasSize(size).allSatisfy(publishRequest -> assertThat(publishRequest)
-                .isNotNull()
-                .hasFieldOrPropertyWithValue("receipt", true)
-                .hasFieldOrPropertyWithValue("sendRecord", true)
-                .hasFieldOrPropertyWithValue("transaction.topicId", TopicId.fromString(TOPIC_ID))
-                .extracting(PublishRequest::getTransaction)
-                .satisfies(
-                        t -> assertThat(t.getTransactionMemo())
-                                .containsPattern(Pattern.compile("\\d+ Monitor test on \\w+"))
-                                .hasSize(MEMO_SIZE),
-                        t -> assertThat(t.getMaxTransactionFee()).isEqualTo(Hbar.fromTinybars(MAX_TRANSACTION_FEE))));
+        assertThat(publishRequests)
+                .hasSize(size)
+                .allSatisfy(publishRequest -> assertThat(publishRequest)
+                        .isNotNull()
+                        .hasFieldOrPropertyWithValue("receipt", true)
+                        .hasFieldOrPropertyWithValue("sendRecord", true)
+                        .hasFieldOrPropertyWithValue("transaction.topicId", TopicId.fromString(TOPIC_ID))
+                        .extracting(PublishRequest::getTransaction)
+                        .satisfies(
+                                t -> assertThat(t.getTransactionMemo())
+                                        .containsPattern(Pattern.compile("\\d+ Monitor test on \\w+"))
+                                        .hasSize(MEMO_SIZE),
+                                t -> assertThat(t.getMaxTransactionFee())
+                                        .isEqualTo(Hbar.fromTinybars(MAX_TRANSACTION_FEE))));
     }
 
     @ParameterizedTest

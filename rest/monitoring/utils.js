@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {has, isEmpty} from 'lodash-es';
+import {setTimeout as sleep} from 'node:timers/promises';
 import parseDuration from 'parse-duration';
 import prettyMilliseconds from 'pretty-ms';
 import querystring from 'querystring';
@@ -36,7 +37,9 @@ const getUrl = (server, path, query = undefined) => {
 };
 
 /**
- * Gets the backoff in millis from the retry after, the x-retry-in response header, and the configured min backoff
+ * Gets the backoff in millis from the retry-after / x-retry-in response headers, clamped to
+ * [config.retry.minBackoff, config.retry.maxBackoff]. The headers come from the monitored (untrusted)
+ * server, so the upper bound is mandatory.
  *
  * @param {string|number} retryAfter value of the retry-after header, in unit of seconds
  * @param {string} xRetryIn value of the x-retry-in header, in string format of "55ms"
@@ -45,15 +48,16 @@ const getBackoff = (retryAfter, xRetryIn) => {
   const backoffSeconds = Number.parseInt(retryAfter);
   let backoffMillis = Number.isNaN(backoffSeconds) ? 0 : backoffSeconds * 1000;
   if (backoffMillis === 0) {
-    backoffMillis = parseDuration(xRetryIn || '0ms');
+    backoffMillis = parseDuration(xRetryIn || '0ms') || 0;
     backoffMillis = Math.ceil(backoffMillis);
   }
 
-  return Math.max(config.retry.minBackoff, backoffMillis);
+  return Math.min(config.retry.maxBackoff, Math.max(config.retry.minBackoff, backoffMillis));
 };
 
 /**
- * Fetch the url with opts and retry with the retry max and minMillisToWait from config file.
+ * Fetch the url with opts and retry up to config.retry.maxAttempts times. If opts.signal is provided it bounds
+ * the whole operation, including the sleeps between attempts.
  *
  * @param url
  * @param opts
@@ -61,9 +65,16 @@ const getBackoff = (retryAfter, xRetryIn) => {
  * @returns {Promise<Response>}
  */
 const fetchWithRetry = async (url, opts = {}, retryPredicate) => {
+  const {signal} = opts;
+  const totalAttempts = config.retry.maxAttempts + 1;
   let message;
 
-  for (let attempt = 1; attempt <= config.retry.maxAttempts + 1; attempt++) {
+  for (let attempt = 1; attempt <= totalAttempts; attempt++) {
+    if (signal?.aborted) {
+      message = `${signal?.reason?.message ?? 'aborted'} (last error: ${message})`;
+      break;
+    }
+
     let headers;
     let statusCode = 500;
     message = '';
@@ -85,9 +96,18 @@ const fetchWithRetry = async (url, opts = {}, retryPredicate) => {
       message = error.message;
     }
 
+    if (attempt === totalAttempts) {
+      break; // don't sleep after the final attempt
+    }
+
     const backoffMillis = getBackoff(headers?.get('retry-after'), headers?.get('x-retry-in'));
     logger.warn(`Attempt #${attempt} failed with ${message}, retry in ${backoffMillis} ms: ${url}`);
-    await new Promise((resolve) => setTimeout(resolve, backoffMillis));
+    try {
+      await sleep(backoffMillis, undefined, {signal});
+    } catch {
+      message = `${signal?.reason?.message ?? 'aborted'} during backoff (last error: ${message})`;
+      break;
+    }
   }
 
   throw new Error(`Retries exhausted with ${message}`);
@@ -104,22 +124,17 @@ const noRetry = () => false;
  * @return {Object} JSON object representing api response or error
  */
 const fetchAPIResponse = async (url, key = undefined, retryPredicate = noRetry, body = undefined) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(
-    () => {
-      controller.abort();
-    },
-    config.timeout * 1000 // in ms
-  );
+  // Single deadline covering all fetch attempts and the backoff sleeps between them
+  const signal = AbortSignal.timeout(config.timeout * 1000);
 
   try {
-    let opts = {signal: controller.signal};
+    let opts = {signal};
     if (body !== undefined) {
       opts = {
         method: 'POST',
         body: body,
         headers: {'Content-type': 'application/json; charset=UTF-8'},
-        signal: controller.signal,
+        signal,
       };
     }
     const json = await fetchWithRetry(url, opts, retryPredicate);
@@ -127,8 +142,6 @@ const fetchAPIResponse = async (url, key = undefined, retryPredicate = noRetry, 
     return key ? json[key] : json;
   } catch (error) {
     return error;
-  } finally {
-    clearTimeout(timeout);
   }
 };
 

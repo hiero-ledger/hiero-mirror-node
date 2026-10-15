@@ -18,22 +18,16 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "26.2.0")
-    set("blockNodeVersion", "0.42.0")
-    set("consensusNodeVersion", "0.78.0-rc.9")
-    set("grpc-java.version", "1.83.1") // Temporary until next Spring Boot
+    set("blockNodeVersion", "0.44.2")
+    set("consensusNodeVersion", "0.78.1-rc.1")
     set("hederaCryptographyVersion", "3.15.0")
-    set("httpclient5.version", "5.6.2") // Temporary until next Spring Boot
-    set("httpcore5.version", "5.4.3") // Temporary until next Spring Boot
     set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
-    set("jooq.version", "3.21.7") // Must match buildSrc/build.gradle.kts
-    set("logback.version", "1.5.36") // Temporary until next Spring Boot
+    set("jooq.version", "3.21.9") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.2.18.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.21.0")
-    set("protobufVersion", "4.34.1")
-    set("springGrpcVersion", "1.0.3")
-    set("postgresql.version", "42.7.13") // Temporary until next Spring Boot
+    set("postgresql.version", "42.7.14") // Temporary until next Spring Boot
     set("tomcat.version", "11.0.26") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
@@ -47,18 +41,15 @@ dependencies {
         val consensusNodeVersion = rootProject.extra["consensusNodeVersion"] as String
         val hederaCryptographyVersion = rootProject.extra["hederaCryptographyVersion"] as String
         val mapStructVersion = rootProject.extra["mapStructVersion"] as String
-        val protobufVersion = rootProject.extra["protobufVersion"] as String
-        val springGrpcVersion = rootProject.extra["springGrpcVersion"] as String
         val tuweniVersion = rootProject.extra["tuweniVersion"] as String
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-19")
+        api("com.github.luben:zstd-jni:1.5.7-22")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.7.1-jre")
-        api("com.google.protobuf:protobuf-java:$protobufVersion")
+        api("com.google.guava:guava:33.7.2-jre")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
@@ -67,13 +58,13 @@ dependencies {
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.78.0-beta.1")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.2")
+        api("com.hedera.hashgraph:sdk:2.78.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
         api("io.cucumber:cucumber-bom:7.34.9")
-        api("io.fabric8:kubernetes-client-bom:7.9.0")
+        api("io.fabric8:kubernetes-client-bom:8.0.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.16.0")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
@@ -95,10 +86,9 @@ dependencies {
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
-        api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
-        api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:6.0.0")
-        api("software.amazon.awssdk:bom:2.55.4")
+        api("org.xerial.snappy:snappy-java:1.1.10.11") // Temporary until next Besu
+        api("software.amazon.awssdk:bom:2.55.12")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

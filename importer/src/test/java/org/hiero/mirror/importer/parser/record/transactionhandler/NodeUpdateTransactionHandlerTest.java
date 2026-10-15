@@ -66,15 +66,16 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
         assertThat(transaction.getTransactionRecordBytes()).containsExactly(transactionRecordBytes);
 
         var adminKey = nodeUpdate.getAdminKey().toByteArray();
-        verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(nodeUpdate.getNodeId(), Node::getNodeId)
-                .returns(accountId, Node::getAccountId)
-                .returns(adminKey, Node::getAdminKey)
-                .returns(null, Node::getCreatedTimestamp)
-                .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
-                .returns(false, Node::isDeleted)
-                .returns(new ServiceEndpoint("node1.hedera.com", "", 80), Node::getGrpcProxyEndpoint)));
+        verify(entityListener, times(1))
+                .onNode(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(nodeUpdate.getNodeId(), Node::getNodeId)
+                        .returns(accountId, Node::getAccountId)
+                        .returns(adminKey, Node::getAdminKey)
+                        .returns(null, Node::getCreatedTimestamp)
+                        .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
+                        .returns(false, Node::isDeleted)
+                        .returns(new ServiceEndpoint("node1.hedera.com", "", 80), Node::getGrpcProxyEndpoint)));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -103,16 +104,17 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
 
         final var adminKey = nodeUpdate.getAdminKey().toByteArray();
 
-        verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(nodeUpdate.getNodeId(), Node::getNodeId)
-                .returns(accountId, Node::getAccountId)
-                .returns(adminKey, Node::getAdminKey)
-                .returns(null, Node::getCreatedTimestamp)
-                .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
-                .returns(false, Node::isDeleted)
-                .returns(new ServiceEndpoint("node1.hedera.com", "", 80), Node::getGrpcProxyEndpoint)
-                .returns(expectedAssociatedRegisteredNodes, Node::getAssociatedRegisteredNodes)));
+        verify(entityListener, times(1))
+                .onNode(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(nodeUpdate.getNodeId(), Node::getNodeId)
+                        .returns(accountId, Node::getAccountId)
+                        .returns(adminKey, Node::getAdminKey)
+                        .returns(null, Node::getCreatedTimestamp)
+                        .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
+                        .returns(false, Node::isDeleted)
+                        .returns(new ServiceEndpoint("node1.hedera.com", "", 80), Node::getGrpcProxyEndpoint)
+                        .returns(expectedAssociatedRegisteredNodes, Node::getAssociatedRegisteredNodes)));
     }
 
     private static Stream<Arguments> provideAssociatedRegisteredNodeListCases() {
@@ -169,15 +171,16 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
 
         // then
         var adminKey = nodeUpdate.getAdminKey().toByteArray();
-        verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(nodeUpdate.getNodeId(), Node::getNodeId)
-                .returns(accountId, Node::getAccountId)
-                .returns(adminKey, Node::getAdminKey)
-                .returns(nodeUpdate.getDeclineReward().getValue(), Node::getDeclineReward)
-                .returns(recordItem.getConsensusTimestamp(), Node::getCreatedTimestamp)
-                .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
-                .returns(false, Node::isDeleted)));
+        verify(entityListener, times(1))
+                .onNode(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(nodeUpdate.getNodeId(), Node::getNodeId)
+                        .returns(accountId, Node::getAccountId)
+                        .returns(adminKey, Node::getAdminKey)
+                        .returns(nodeUpdate.getDeclineReward().getValue(), Node::getDeclineReward)
+                        .returns(recordItem.getConsensusTimestamp(), Node::getCreatedTimestamp)
+                        .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
+                        .returns(false, Node::isDeleted)));
     }
 
     @Test
@@ -201,15 +204,16 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
         assertThat(transaction.getTransactionBytes()).containsExactly(transactionBytes);
         assertThat(transaction.getTransactionRecordBytes()).containsExactly(transactionRecordBytes);
 
-        verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(recordItem.getTransactionBody().getNodeUpdate().getNodeId(), Node::getNodeId)
-                .returns(null, Node::getAccountId)
-                .returns(null, Node::getAdminKey)
-                .returns(null, Node::getDeclineReward)
-                .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
-                .returns(false, Node::isDeleted)
-                .returns(null, Node::getGrpcProxyEndpoint)));
+        verify(entityListener, times(1))
+                .onNode(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(recordItem.getTransactionBody().getNodeUpdate().getNodeId(), Node::getNodeId)
+                        .returns(null, Node::getAccountId)
+                        .returns(null, Node::getAdminKey)
+                        .returns(null, Node::getDeclineReward)
+                        .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
+                        .returns(false, Node::isDeleted)
+                        .returns(null, Node::getGrpcProxyEndpoint)));
     }
 
     @Test
@@ -226,12 +230,13 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .extracting(Node::getGrpcProxyEndpoint)
-                .extracting(ServiceEndpoint::domainName)
-                .asString()
-                .startsWith("hedera.com")
-                .doesNotContain(String.valueOf(DomainUtils.NULL_CHARACTER))));
+        verify(entityListener, times(1))
+                .onNode(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .extracting(Node::getGrpcProxyEndpoint)
+                        .extracting(ServiceEndpoint::domainName)
+                        .asString()
+                        .startsWith("hedera.com")
+                        .doesNotContain(String.valueOf(DomainUtils.NULL_CHARACTER))));
     }
 }

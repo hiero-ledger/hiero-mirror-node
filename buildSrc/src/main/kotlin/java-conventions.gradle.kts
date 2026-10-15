@@ -23,6 +23,12 @@ configurations.all {
     exclude(group = "org.apache.logging.log4j", module = "log4j-slf4j2-impl")
     exclude(group = "org.jetbrains", module = "annotations")
     exclude(group = "org.slf4j", module = "slf4j-nop")
+    resolutionStrategy.eachDependency {
+        if (requested.group == "com.google.guava" && requested.name == "guava") {
+            useVersion("33.7.2-jre")
+            because("SNYK-JAVA-COMGOOGLEGUAVA-20825054. Temporary until errorprone updated")
+        }
+    }
 }
 
 repositories { maven { url = uri("https://hyperledger.jfrog.io/artifactory/besu-maven/") } }

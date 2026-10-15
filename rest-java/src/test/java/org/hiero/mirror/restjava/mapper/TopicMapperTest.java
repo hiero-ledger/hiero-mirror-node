@@ -51,8 +51,9 @@ final class TopicMapperTest {
                 .returns(customFeeMapper.map(customFee), Topic::getCustomFees)
                 .returns(true, Topic::getDeleted)
                 .returns(entity.getMemo(), Topic::getMemo)
-                .returns(commonMapper.mapTimestamp(entity.getTimestampLower()), t -> t.getTimestamp()
-                        .getFrom())
+                .returns(
+                        commonMapper.mapTimestamp(entity.getTimestampLower()),
+                        t -> t.getTimestamp().getFrom())
                 .returns(null, t -> t.getTimestamp().getTo())
                 .returns(entity.toEntityId().toString(), Topic::getTopicId);
     }

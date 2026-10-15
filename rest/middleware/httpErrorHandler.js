@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {httpStatusCodes, requestStartTime, StatusCode} from '../constants';
 import {HttpError} from 'http-errors';
-import {DbError, InvalidArgumentError, NotFoundError} from '../errors';
+
+import config from '../config';
+import {clusterIdHeader, httpStatusCodes, requestStartTime, StatusCode} from '../constants';
+import {DbError, InvalidArgumentError, NotFoundError, TooManyRequestsError} from '../errors';
 import RestError from '../errors/restError';
 
 const CONTROL_CHARACTERS = /[\p{Cc}]/gu;
@@ -23,6 +25,8 @@ const handleError = async (err, req, res, next) => {
     statusCode = httpStatusCodes.NOT_FOUND;
   } else if (err instanceof InvalidArgumentError || err instanceof RangeError) {
     statusCode = httpStatusCodes.BAD_REQUEST;
+  } else if (err instanceof TooManyRequestsError) {
+    statusCode = httpStatusCodes.TOO_MANY_REQUESTS;
   } else if (err instanceof DbError) {
     statusCode = httpStatusCodes.SERVICE_UNAVAILABLE;
   } else if (err instanceof HttpError) {
@@ -49,6 +53,7 @@ const handleError = async (err, req, res, next) => {
     );
   }
 
+  res.set(clusterIdHeader, config.clusterId);
   res.status(statusCode.code).json(errorMessageFormat(errorMessage));
 };
 

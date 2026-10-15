@@ -20,6 +20,7 @@ import org.hiero.mirror.web3.repository.ContractTransactionHashLookupRowMapper;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hyperledger.besu.evm.MainnetEVMs;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -71,6 +72,7 @@ final class RuntimeHintsConfiguration {
                     ContractCallResponse.class.getName(),
                     GenericErrorResponse.class.getName(),
                     GenericErrorResponse.ErrorMessage.class.getName(),
+                    StateOverride.class.getName(),
                     TransactionIdOrHashParameter.class.getName());
 
             registerResourcePatterns(

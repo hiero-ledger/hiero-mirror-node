@@ -46,10 +46,11 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                         a -> a.freezeStatus(freezeStatus).kycStatus(kycStatus).tokenId(token.getTokenId()))
                 .persist();
 
-        assertThat(repository.findById(tokenAccount.getId())).hasValueSatisfying(account -> assertThat(account)
-                .returns(expectedFreezeStatus, TokenAccount::getFreezeStatus)
-                .returns(expectedKycStatus, TokenAccount::getKycStatus)
-                .returns(tokenAccount.getBalance(), TokenAccount::getBalance));
+        assertThat(repository.findById(tokenAccount.getId()))
+                .hasValueSatisfying(account -> assertThat(account)
+                        .returns(expectedFreezeStatus, TokenAccount::getFreezeStatus)
+                        .returns(expectedKycStatus, TokenAccount::getKycStatus)
+                        .returns(tokenAccount.getBalance(), TokenAccount::getBalance));
     }
 
     @CsvSource(textBlock = """
@@ -63,10 +64,11 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                 .customize(a -> a.freezeStatus(freezeStatus).kycStatus(kycStatus))
                 .persist();
 
-        assertThat(repository.findById(tokenAccount.getId())).hasValueSatisfying(account -> assertThat(account)
-                .returns(freezeStatus, TokenAccount::getFreezeStatus)
-                .returns(kycStatus, TokenAccount::getKycStatus)
-                .returns(tokenAccount.getBalance(), TokenAccount::getBalance));
+        assertThat(repository.findById(tokenAccount.getId()))
+                .hasValueSatisfying(account -> assertThat(account)
+                        .returns(freezeStatus, TokenAccount::getFreezeStatus)
+                        .returns(kycStatus, TokenAccount::getKycStatus)
+                        .returns(tokenAccount.getBalance(), TokenAccount::getBalance));
     }
 
     @Test

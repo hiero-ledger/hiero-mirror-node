@@ -4,8 +4,8 @@ package org.hiero.mirror.web3.config;
 
 import javax.sql.DataSource;
 import org.hiero.mirror.common.config.StatementInterceptingDataSource;
+import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.Web3Properties;
-import org.hiero.mirror.web3.Web3Properties.ApiEndpointName;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.QueryTimeoutException;
 
 /**
- * Enforces {@link Web3Properties#getRequestTimeout(ApiEndpointName)} on every SQL statement issued during a contract call. Replaces
+ * Enforces the per-API response timeout ({@link Web3Properties#getApi(ApiEndpointName)}) on every SQL statement issued during a contract call. Replaces
  * the Hibernate StatementInspector used before the Spring Data JDBC migration: the DataSource is wrapped so each
  * statement preparation checks the elapsed request time and aborts with a {@link QueryTimeoutException} once the
  * deadline has passed. Statements issued outside a {@link ContractCallContext} are unaffected.
@@ -60,8 +60,11 @@ class QueryTimeoutConfiguration {
             }
 
             final var context = ContractCallContext.get();
-            final long timeout =
-                    getWeb3Properties().getRequestTimeout(context.getApi()).toMillis();
+            final long timeout = getWeb3Properties()
+                    .getApi(context.getApi())
+                    .getResponse()
+                    .getTimeout()
+                    .toMillis();
             final long elapsed = System.currentTimeMillis() - context.getStartTime();
             if (elapsed >= timeout) {
                 throw new QueryTimeoutException("Transaction timed out after %s ms".formatted(elapsed));

@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.controller;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
@@ -118,6 +119,7 @@ final class ContractControllerTest {
         web3Properties.setEnableStateOverrides(true);
         when(evmProperties.getMaxGasLimit()).thenReturn(15_000_000L);
         throttleManager.throttle(any(ContractCallRequest.class));
+        web3Properties.getApi(CALL).setEnabled(true);
     }
 
     @SneakyThrows

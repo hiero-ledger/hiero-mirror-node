@@ -369,14 +369,15 @@ class TokenReadableKVStateTest {
         setupToken(Optional.empty());
         when(commonEntityAccessor.get(TOKEN_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
 
-        assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID)).satisfies(token -> assertThat(token)
-                .returns(Utils.parseKey(entity.getKey()), Token::adminKey)
-                .returns(Utils.parseKey(databaseToken.getKycKey()), Token::kycKey)
-                .returns(Utils.parseKey(databaseToken.getPauseKey()), Token::pauseKey)
-                .returns(Utils.parseKey(databaseToken.getFreezeKey()), Token::freezeKey)
-                .returns(Utils.parseKey(databaseToken.getWipeKey()), Token::wipeKey)
-                .returns(Utils.parseKey(databaseToken.getSupplyKey()), Token::supplyKey)
-                .returns(Utils.parseKey(databaseToken.getFeeScheduleKey()), Token::feeScheduleKey));
+        assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
+                .satisfies(token -> assertThat(token)
+                        .returns(Utils.parseKey(entity.getKey()), Token::adminKey)
+                        .returns(Utils.parseKey(databaseToken.getKycKey()), Token::kycKey)
+                        .returns(Utils.parseKey(databaseToken.getPauseKey()), Token::pauseKey)
+                        .returns(Utils.parseKey(databaseToken.getFreezeKey()), Token::freezeKey)
+                        .returns(Utils.parseKey(databaseToken.getWipeKey()), Token::wipeKey)
+                        .returns(Utils.parseKey(databaseToken.getSupplyKey()), Token::supplyKey)
+                        .returns(Utils.parseKey(databaseToken.getFeeScheduleKey()), Token::feeScheduleKey));
     }
 
     @Test
@@ -385,14 +386,15 @@ class TokenReadableKVStateTest {
         setupToken(timestamp);
         when(commonEntityAccessor.get(TOKEN_ID, timestamp)).thenReturn(Optional.ofNullable(entity));
 
-        assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID)).satisfies(token -> assertThat(token)
-                .returns(Utils.parseKey(entity.getKey()), Token::adminKey)
-                .returns(Utils.parseKey(databaseToken.getKycKey()), Token::kycKey)
-                .returns(Utils.parseKey(databaseToken.getPauseKey()), Token::pauseKey)
-                .returns(Utils.parseKey(databaseToken.getFreezeKey()), Token::freezeKey)
-                .returns(Utils.parseKey(databaseToken.getWipeKey()), Token::wipeKey)
-                .returns(Utils.parseKey(databaseToken.getSupplyKey()), Token::supplyKey)
-                .returns(Utils.parseKey(databaseToken.getFeeScheduleKey()), Token::feeScheduleKey));
+        assertThat(tokenReadableKVState.readFromDataSource(TOKEN_ID))
+                .satisfies(token -> assertThat(token)
+                        .returns(Utils.parseKey(entity.getKey()), Token::adminKey)
+                        .returns(Utils.parseKey(databaseToken.getKycKey()), Token::kycKey)
+                        .returns(Utils.parseKey(databaseToken.getPauseKey()), Token::pauseKey)
+                        .returns(Utils.parseKey(databaseToken.getFreezeKey()), Token::freezeKey)
+                        .returns(Utils.parseKey(databaseToken.getWipeKey()), Token::wipeKey)
+                        .returns(Utils.parseKey(databaseToken.getSupplyKey()), Token::supplyKey)
+                        .returns(Utils.parseKey(databaseToken.getFeeScheduleKey()), Token::feeScheduleKey));
     }
 
     @Test
@@ -762,9 +764,11 @@ class TokenReadableKVStateTest {
         final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
         // Must not throw; the absent collector falls back to the numeric id from the fee itself (0.0.<num>),
         final var results = token.customFeesSupplier().get();
-        Assertions.assertThat(results).hasSize(1).first().satisfies(fee -> Assertions.assertThat(
-                        fee.feeCollectorAccountId())
-                .isEqualTo(collectorAccountId));
+        Assertions.assertThat(results)
+                .hasSize(1)
+                .first()
+                .satisfies(fee ->
+                        Assertions.assertThat(fee.feeCollectorAccountId()).isEqualTo(collectorAccountId));
     }
 
     @Test
@@ -784,9 +788,11 @@ class TokenReadableKVStateTest {
 
         final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
         final var results = token.customFeesSupplier().get();
-        Assertions.assertThat(results).hasSize(1).first().satisfies(fee -> Assertions.assertThat(
-                        fee.feeCollectorAccountId())
-                .isEqualTo(AccountID.DEFAULT));
+        Assertions.assertThat(results)
+                .hasSize(1)
+                .first()
+                .satisfies(fee ->
+                        Assertions.assertThat(fee.feeCollectorAccountId()).isEqualTo(AccountID.DEFAULT));
     }
 
     @Test

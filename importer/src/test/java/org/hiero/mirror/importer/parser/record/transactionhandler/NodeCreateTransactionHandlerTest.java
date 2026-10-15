@@ -58,18 +58,19 @@ class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         assertThat(transaction.getTransactionBytes()).containsExactly(transactionBytes);
         assertThat(transaction.getTransactionRecordBytes()).containsExactly(transactionRecordBytes);
 
-        verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(accountId, Node::getAccountId)
-                .returns(recordItem.getConsensusTimestamp(), Node::getCreatedTimestamp)
-                .returns(recordItem.getTransactionRecord().getReceipt().getNodeId(), Node::getNodeId)
-                .returns(nodeCreate.getAdminKey().toByteArray(), Node::getAdminKey)
-                .returns(nodeCreate.getDeclineReward(), Node::getDeclineReward)
-                .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
-                .returns(
-                        new ServiceEndpoint(endpoint.getDomainName(), "", endpoint.getPort()),
-                        Node::getGrpcProxyEndpoint)
-                .returns(false, Node::isDeleted)));
+        verify(entityListener, times(1))
+                .onNode(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(accountId, Node::getAccountId)
+                        .returns(recordItem.getConsensusTimestamp(), Node::getCreatedTimestamp)
+                        .returns(recordItem.getTransactionRecord().getReceipt().getNodeId(), Node::getNodeId)
+                        .returns(nodeCreate.getAdminKey().toByteArray(), Node::getAdminKey)
+                        .returns(nodeCreate.getDeclineReward(), Node::getDeclineReward)
+                        .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
+                        .returns(
+                                new ServiceEndpoint(endpoint.getDomainName(), "", endpoint.getPort()),
+                                Node::getGrpcProxyEndpoint)
+                        .returns(false, Node::isDeleted)));
     }
 
     @Test
@@ -88,9 +89,10 @@ class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(new ServiceEndpoint("", "1.2.3.4", endpoint.getPort()), Node::getGrpcProxyEndpoint)));
+        verify(entityListener, times(1))
+                .onNode(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(new ServiceEndpoint("", "1.2.3.4", endpoint.getPort()), Node::getGrpcProxyEndpoint)));
     }
 
     @Test
@@ -109,9 +111,10 @@ class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(new ServiceEndpoint("", "", endpoint.getPort()), Node::getGrpcProxyEndpoint)));
+        verify(entityListener, times(1))
+                .onNode(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(new ServiceEndpoint("", "", endpoint.getPort()), Node::getGrpcProxyEndpoint)));
     }
 
     @Test
@@ -128,13 +131,14 @@ class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .extracting(Node::getGrpcProxyEndpoint)
-                .extracting(ServiceEndpoint::domainName)
-                .asString()
-                .startsWith("hedera.com")
-                .doesNotContain(String.valueOf(DomainUtils.NULL_CHARACTER))));
+        verify(entityListener, times(1))
+                .onNode(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .extracting(Node::getGrpcProxyEndpoint)
+                        .extracting(ServiceEndpoint::domainName)
+                        .asString()
+                        .startsWith("hedera.com")
+                        .doesNotContain(String.valueOf(DomainUtils.NULL_CHARACTER))));
     }
 
     @Test
@@ -150,9 +154,10 @@ class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(null, Node::getAdminKey)
-                .returns(null, Node::getGrpcProxyEndpoint)));
+        verify(entityListener, times(1))
+                .onNode(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(null, Node::getAdminKey)
+                        .returns(null, Node::getGrpcProxyEndpoint)));
     }
 }

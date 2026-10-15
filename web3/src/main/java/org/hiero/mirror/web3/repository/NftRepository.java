@@ -142,8 +142,12 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
                         and deleted is not true
                 )
                 ) as n
-            join entity e on e.id = n.token_id
-            where (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
+            where exists (
+                select 1
+                from entity e
+                where e.id = :tokenId
+                    and (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
+            )
             """)
     Optional<Long> nftBalanceByAccountIdTokenIdAndTimestamp(long accountId, long tokenId, long blockTimestamp);
 

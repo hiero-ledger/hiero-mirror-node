@@ -3,11 +3,14 @@
 package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.repository.AccountBalanceRepository.AccountBalanceAmount;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -196,6 +199,46 @@ class AccountBalanceRepositoryTest extends Web3IntegrationTest {
                         accountId, timestampBetweenSecondAndThirdTheTransfers, treasuryAccountId))
                 .get()
                 .isEqualTo(TRANSFER_AMOUNT + initialBalance);
+    }
+
+    @Test
+    void findHistoricalAccountBalancesUpToTimestampMatchesSingleAccountQuery() {
+        var treasuryAccount = systemEntity.treasuryAccount();
+        var treasuryBalance = domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new AccountBalance.Id(domainBuilder.timestamp(), treasuryAccount)))
+                .persist();
+        long consensusTimestamp = treasuryBalance.getId().getConsensusTimestamp();
+
+        var first = domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new AccountBalance.Id(consensusTimestamp, domainBuilder.entityId()))
+                        .balance(100L))
+                .persist();
+        var second = domainBuilder
+                .accountBalance()
+                .customize(ab -> ab.id(new AccountBalance.Id(consensusTimestamp, domainBuilder.entityId()))
+                        .balance(250L))
+                .persist();
+        persistCryptoTransfer(consensusTimestamp + 1, first);
+        persistCryptoTransfer(consensusTimestamp + 1, second);
+
+        long firstId = first.getId().getAccountId().getId();
+        long secondId = second.getId().getAccountId().getId();
+        long queryTimestamp = consensusTimestamp + 10L;
+        long treasuryAccountId = treasuryAccount.getId();
+
+        long expectedFirst = accountBalanceRepository
+                .findHistoricalAccountBalanceUpToTimestamp(firstId, queryTimestamp, treasuryAccountId)
+                .orElseThrow();
+        long expectedSecond = accountBalanceRepository
+                .findHistoricalAccountBalanceUpToTimestamp(secondId, queryTimestamp, treasuryAccountId)
+                .orElseThrow();
+
+        assertThat(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(
+                        List.of(firstId, secondId, 999_999L), queryTimestamp, treasuryAccountId))
+                .extracting(AccountBalanceAmount::accountId, AccountBalanceAmount::balance)
+                .containsExactlyInAnyOrder(tuple(firstId, expectedFirst), tuple(secondId, expectedSecond));
     }
 
     private void persistCryptoTransfersBefore(int count, long baseTimestamp, AccountBalance accountBalance1) {
