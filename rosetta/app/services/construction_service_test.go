@@ -25,6 +25,7 @@ import (
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -35,8 +36,12 @@ const (
 )
 
 var (
-	corruptedTransaction    = "0x6767"
-	defaultConfig           = &config.Mirror{Rosetta: config.Config{Network: defaultNetwork, Nodes: defaultNodes}}
+	corruptedTransaction = "0x6767"
+	defaultConfig        = &config.Mirror{Rosetta: config.Config{
+		Feature: config.Feature{ValidateAccountCreateFields: true},
+		Network: defaultNetwork,
+		Nodes:   defaultNodes,
+	}}
 	defaultCryptoAccountId1 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123352))
 	defaultCryptoAccountId2 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123518))
 	defaultCryptoAccountId3 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123532))
@@ -47,6 +52,7 @@ var (
 		"10.0.0.4:50211": hiero.AccountID{Account: 6},
 	}
 	singleNodeConfig = &config.Mirror{Rosetta: config.Config{
+		Feature: config.Feature{ValidateAccountCreateFields: true},
 		Network: defaultNetwork,
 		Nodes: config.NodeMap{
 			"10.0.0.1:50211": hiero.AccountID{Account: 3},
@@ -172,6 +178,28 @@ func networkIdentifier() *rTypes.NetworkIdentifier {
 			Network: "SomeSubNetwork",
 		},
 	}
+}
+
+func accountCreateWithAliasHex(t *testing.T) string {
+	t.Helper()
+
+	tx, err := hiero.NewAccountCreateTransaction().
+		SetTransactionID(hiero.TransactionIDGenerate(hiero.AccountID{Account: 100})).
+		SetKeyWithoutAlias(privateKey.PublicKey()).
+		SetInitialBalance(hiero.HbarFromTinybar(1)).
+		SetAlias("0000000000000000000000000000000000000001").
+		SetNodeAccountIDs([]hiero.AccountID{{Account: 3}}).
+		Freeze()
+	require.NoError(t, err)
+	return transactionHex(t, tx)
+}
+
+func transactionHex(t *testing.T, tx hiero.TransactionInterface) string {
+	t.Helper()
+
+	data, err := hiero.TransactionToBytes(tx)
+	require.NoError(t, err)
+	return tools.SafeAddHexPrefix(hex.EncodeToString(data))
 }
 
 func getConstructionHashRequest(signedTx string) *rTypes.ConstructionHashRequest {
@@ -832,7 +860,7 @@ func TestConstructionParse(t *testing.T) {
 				Metadata:                 tt.metadata,
 			}
 
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor())
+			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor(true))
 
 			// when:
 			actual, e := service.ConstructionParse(defaultContext, tt.request)
@@ -861,6 +889,21 @@ func TestConstructionParseThrowsWhenConstructorParseFails(t *testing.T) {
 	assert.Nil(t, res)
 	assert.NotNil(t, e)
 	mockConstructor.AssertExpectations(t)
+}
+
+func TestConstructionParseAccountCreateWithAlias(t *testing.T) {
+	mirrorConfig := *defaultConfig
+	mirrorConfig.Rosetta.Feature.ValidateAccountCreateFields = true
+	service, _ := NewConstructionAPIService(
+		nil,
+		offlineBaseService,
+		&mirrorConfig,
+		construction.NewTransactionConstructor(mirrorConfig.Rosetta.Feature.ValidateAccountCreateFields),
+	)
+	res, e := service.ConstructionParse(defaultContext, getConstructionParseRequest(accountCreateWithAliasHex(t), false))
+
+	assert.Nil(t, res)
+	assert.Equal(t, errors.ErrInvalidTransaction, e)
 }
 
 func TestConstructionParseThrowsWhenDecodeStringFails(t *testing.T) {
@@ -1230,7 +1273,7 @@ func TestConstructionPayloadsInvalidRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			request := getPayloadsRequest(operations, tt.customize)
-			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor())
+			service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor(true))
 
 			// when
 			response, err := service.ConstructionPayloads(defaultContext, request)

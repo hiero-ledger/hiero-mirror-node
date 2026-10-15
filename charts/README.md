@@ -204,6 +204,14 @@ kubectl port-forward service/${RELEASE}-grafana 8080:80 &
 open "http://localhost:8080"
 ```
 
+To view the Traefik dashboard:
+
+```shell
+kubectl get secret ${RELEASE}-hedera-mirror-common-traefik-dashboard --template '{{ printf "%s / %s\n" (.data.username | base64decode) (.data.password | base64decode) }}'
+kubectl port-forward daemonset/${RELEASE}-traefik 8080:8080 &
+open "http://localhost:8080/dashboard/"
+```
+
 To view the Stackgres UI:
 
 ```shell

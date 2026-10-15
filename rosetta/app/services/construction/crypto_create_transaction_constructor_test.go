@@ -7,10 +7,15 @@ import (
 	"time"
 
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/test/domain"
+	sdkpb "github.com/hiero-ledger/hiero-sdk-go/v2/proto/sdk"
+	"github.com/hiero-ledger/hiero-sdk-go/v2/proto/services"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -92,22 +97,22 @@ type cryptoCreateTransactionConstructorSuite struct {
 }
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestNewTransactionConstructor() {
-	h := newCryptoCreateTransactionConstructor()
+	h := newCryptoCreateTransactionConstructor(true)
 	assert.NotNil(suite.T(), h)
 }
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestGetDefaultMaxTransactionFee() {
-	h := newCryptoCreateTransactionConstructor()
+	h := newCryptoCreateTransactionConstructor(true)
 	assert.Equal(suite.T(), types.HbarAmount{Value: 5_00000000}, h.GetDefaultMaxTransactionFee())
 }
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestGetOperationType() {
-	h := newCryptoCreateTransactionConstructor()
+	h := newCryptoCreateTransactionConstructor(true)
 	assert.Equal(suite.T(), types.OperationTypeCryptoCreateAccount, h.GetOperationType())
 }
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestGetSdkTransactionType() {
-	h := newCryptoCreateTransactionConstructor()
+	h := newCryptoCreateTransactionConstructor(true)
 	assert.Equal(suite.T(), "AccountCreateTransaction", h.GetSdkTransactionType())
 }
 
@@ -125,7 +130,7 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestConstruct() {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			// given
 			operations := getCryptoCreateOperations()
-			h := newCryptoCreateTransactionConstructor()
+			h := newCryptoCreateTransactionConstructor(true)
 
 			if tt.updateOperations != nil {
 				operations = tt.updateOperations(operations)
@@ -161,9 +166,10 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 	}
 
 	var tests = []struct {
-		name           string
-		getTransaction func() hiero.TransactionInterface
-		expectError    bool
+		name                string
+		getTransaction      func() hiero.TransactionInterface
+		expectError         bool
+		skipFieldValidation bool
 	}{
 		{
 			name:           "Success",
@@ -174,6 +180,38 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 			getTransaction: func() hiero.TransactionInterface {
 				return hiero.NewTransferTransaction()
 			},
+			expectError: true,
+		},
+		{
+			name:           "Alias",
+			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetAlias(aliasEvmAddress) }),
+			expectError:    true,
+		},
+		{
+			name:                "AliasIgnoredWhenValidationDisabled",
+			getTransaction:      accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetAlias(aliasEvmAddress) }),
+			skipFieldValidation: true,
+		},
+		{
+			name:           "StakedAccountID",
+			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetStakedAccountID(proxyAccountId) }),
+			expectError:    true,
+		},
+		{
+			name:           "StakedNodeID",
+			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetStakedNodeID(1) }),
+			expectError:    true,
+		},
+		{
+			name:           "DeclineReward",
+			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) { tx.SetDeclineStakingReward(true) }),
+			expectError:    true,
+		},
+		{
+			name: "ReceiverSignatureRequired",
+			getTransaction: accountCreateWith(func(tx *hiero.AccountCreateTransaction) {
+				tx.SetReceiverSignatureRequired(true)
+			}),
 			expectError: true,
 		},
 		{
@@ -220,7 +258,7 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 			// given
 			expectedOperations := getCryptoCreateOperations()
 
-			h := newCryptoCreateTransactionConstructor()
+			h := newCryptoCreateTransactionConstructor(!tt.skipFieldValidation)
 			tx := tt.getTransaction()
 
 			// when
@@ -238,6 +276,45 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestParse() {
 			}
 		})
 	}
+}
+
+func (suite *cryptoCreateTransactionConstructorSuite) TestParseStakedNodeIDZeroFromBytes() {
+	tx := accountCreateFromBytes(suite.T(), func(body *services.CryptoCreateTransactionBody) {
+		body.StakedId = &services.CryptoCreateTransactionBody_StakedNodeId{StakedNodeId: 0}
+	})
+
+	operations, signers, err := newCryptoCreateTransactionConstructor(true).Parse(defaultContext, tx)
+
+	assert.Equal(suite.T(), errors.ErrInvalidTransaction, err)
+	assert.Nil(suite.T(), operations)
+	assert.Nil(suite.T(), signers)
+}
+
+func (suite *cryptoCreateTransactionConstructorSuite) TestParseRoundTripWithoutHiddenFields() {
+	tx, err := hiero.NewAccountCreateTransaction().
+		SetInitialBalance(hiero.HbarFromTinybar(initialBalance)).
+		SetKeyWithoutAlias(newAccountPublicKey).
+		SetTransactionID(hiero.TransactionIDGenerate(sdkAccountIdA)).
+		SetNodeAccountIDs([]hiero.AccountID{{Account: 3}}).
+		Freeze()
+	suite.Require().NoError(err)
+
+	raw, err := hiero.TransactionToBytes(tx)
+	suite.Require().NoError(err)
+
+	parsed, err := hiero.TransactionFromBytes(raw)
+	suite.Require().NoError(err)
+
+	operations, signers, rErr := newCryptoCreateTransactionConstructor(true).Parse(defaultContext, parsed)
+
+	assert.Nil(suite.T(), rErr)
+	assert.ElementsMatch(suite.T(), []types.AccountId{accountIdA}, signers)
+	require.Len(suite.T(), operations, 1)
+
+	accountCreate := parsed.(hiero.AccountCreateTransaction)
+	assert.Equal(suite.T(), newAccountPublicKey.String(), operations[0].Metadata["key"])
+	assert.Equal(suite.T(), accountCreate.GetAccountMemo(), operations[0].Metadata["memo"])
+	assert.Equal(suite.T(), int64(accountCreate.GetAutoRenewPeriod().Seconds()), operations[0].Metadata["auto_renew_period"])
 }
 
 func (suite *cryptoCreateTransactionConstructorSuite) TestPreprocess() {
@@ -298,7 +375,7 @@ func (suite *cryptoCreateTransactionConstructorSuite) TestPreprocess() {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			// given
 			operations := getCryptoCreateOperations()
-			h := newCryptoCreateTransactionConstructor()
+			h := newCryptoCreateTransactionConstructor(true)
 
 			if tt.updateOperations != nil {
 				operations = tt.updateOperations(operations)
@@ -335,6 +412,65 @@ func assertCryptoCreateTransaction(
 	assert.Equal(t, operation.Metadata["max_automatic_token_associations"], tx.GetMaxAutomaticTokenAssociations())
 	assert.Equal(t, operation.Metadata["memo"], tx.GetAccountMemo())
 	assert.Equal(t, operation.Metadata["proxy_account_id"], tx.GetProxyAccountID().String())
+}
+
+const aliasEvmAddress = "0000000000000000000000000000000000000001"
+
+func accountCreateWith(update func(*hiero.AccountCreateTransaction)) func() hiero.TransactionInterface {
+	return func() hiero.TransactionInterface {
+		tx := hiero.NewAccountCreateTransaction().
+			SetAccountMemo(memo).
+			SetAutoRenewPeriod(time.Second * time.Duration(autoRenewPeriod)).
+			SetInitialBalance(hiero.HbarFromTinybar(initialBalance)).
+			SetKeyWithoutAlias(newAccountPublicKey).
+			SetMaxAutomaticTokenAssociations(maxAutomaticTokenAssociations).
+			SetProxyAccountID(proxyAccountId).
+			SetTransactionID(hiero.TransactionIDGenerate(sdkAccountIdA))
+		update(tx)
+		return *tx
+	}
+}
+
+func accountCreateFromBytes(
+	t *testing.T,
+	mutate func(*services.CryptoCreateTransactionBody),
+) hiero.TransactionInterface {
+	t.Helper()
+
+	frozen, err := hiero.NewAccountCreateTransaction().
+		SetInitialBalance(hiero.HbarFromTinybar(initialBalance)).
+		SetKeyWithoutAlias(newAccountPublicKey).
+		SetTransactionID(hiero.TransactionIDGenerate(sdkAccountIdA)).
+		SetNodeAccountIDs([]hiero.AccountID{{Account: 3}}).
+		Freeze()
+	require.NoError(t, err)
+
+	raw, err := hiero.TransactionToBytes(frozen)
+	require.NoError(t, err)
+
+	list := sdkpb.TransactionList{}
+	require.NoError(t, proto.Unmarshal(raw, &list))
+	require.NotEmpty(t, list.TransactionList)
+
+	signed := &services.SignedTransaction{}
+	require.NoError(t, proto.Unmarshal(list.TransactionList[0].GetSignedTransactionBytes(), signed))
+	body := &services.TransactionBody{}
+	require.NoError(t, proto.Unmarshal(signed.GetBodyBytes(), body))
+	require.NotNil(t, body.GetCryptoCreateAccount())
+	mutate(body.GetCryptoCreateAccount())
+
+	updated, err := proto.Marshal(body)
+	require.NoError(t, err)
+	signed.BodyBytes = updated
+	signedBytes, err := proto.Marshal(signed)
+	require.NoError(t, err)
+	list.TransactionList[0].SignedTransactionBytes = signedBytes
+
+	raw, err = proto.Marshal(&list)
+	require.NoError(t, err)
+	tx, err := hiero.TransactionFromBytes(raw)
+	require.NoError(t, err)
+	return tx
 }
 
 func getCryptoCreateOperations() types.OperationSlice {

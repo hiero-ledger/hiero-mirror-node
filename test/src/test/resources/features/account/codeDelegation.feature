@@ -17,5 +17,6 @@ Feature: HIP-1340 EOA Code Delegation
     When I execute pureMultiply on the authority using an EIP-7702 ethereum transaction
     Then the mirror node REST API should return status 200 for the EIP-7702 ethereum transaction
     And the mirror node REST API should return the authorization list for the EIP-7702 transaction
+    And the mirror node web3 API should return the prestate for the EIP-7702 transaction
     And the mirror node REST API should return the delegation address for the account
     And the mirror node REST API should return the contract result for the delegated account

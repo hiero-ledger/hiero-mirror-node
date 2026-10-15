@@ -49,7 +49,7 @@ func (suite *compositeTransactionConstructorSuite) SetupTest() {
 }
 
 func (suite *compositeTransactionConstructorSuite) TestNewTransactionConstructor() {
-	h := NewTransactionConstructor()
+	h := NewTransactionConstructor(true)
 	assert.NotNil(suite.T(), h)
 }
 

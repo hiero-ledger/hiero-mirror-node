@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.grpc.service;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
@@ -22,8 +23,13 @@ public class AddressBookProperties {
     @Min(0)
     private long cacheSize = 50L;
 
+    @Max(10_000)
     @Min(1)
-    private int maxLimit = 1000;
+    private int maxConcurrent = 120;
+
+    @Max(10_000)
+    @Min(1)
+    private int maxLimit = 1_000;
 
     @DurationMin(minutes = 1L)
     @NotNull
@@ -38,4 +44,16 @@ public class AddressBookProperties {
 
     @Min(1)
     private int pageSize = 10;
+
+    @Max(10_000)
+    @Min(1)
+    private int schedulerQueueSize = 32;
+
+    @Max(64)
+    @Min(1)
+    private int schedulerSize = 4;
+
+    @DurationMin(millis = 50L)
+    @NotNull
+    private Duration timeout = Duration.ofSeconds(4L);
 }
