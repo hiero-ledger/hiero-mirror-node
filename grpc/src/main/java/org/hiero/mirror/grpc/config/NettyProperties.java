@@ -26,7 +26,7 @@ public class NettyProperties {
 
     @DurationMin(seconds = 1)
     @NotNull
-    private Duration maxConnectionAge = Duration.ofDays(1000);
+    private Duration maxConnectionAge = Duration.ofDays(500);
 
     @DurationMin(seconds = 0)
     @NotNull
