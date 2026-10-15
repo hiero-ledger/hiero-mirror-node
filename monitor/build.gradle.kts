@@ -23,6 +23,11 @@ dependencies {
     implementation("io.grpc:grpc-netty")
     implementation("io.grpc:grpc-stub")
     implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation("io.vertx:vertx-auth-common:5.2.1") // Temporary until next Fabric8 version
+    implementation("io.vertx:vertx-core:5.2.1") // Temporary until next Fabric8 version
+    implementation("io.vertx:vertx-uri-template:5.2.1") // Temporary until next Fabric8 version
+    implementation("io.vertx:vertx-web-client:5.2.1") // Temporary until next Fabric8 version
+    implementation("io.vertx:vertx-web-common:5.2.1") // Temporary until next Fabric8 version
     implementation("jakarta.inject:jakarta.inject-api")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.apache.commons:commons-math3")
