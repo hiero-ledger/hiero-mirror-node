@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.repository.AccountBalanceRepository.AccountBalanceAmount;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -236,7 +237,7 @@ class AccountBalanceRepositoryTest extends Web3IntegrationTest {
 
         assertThat(accountBalanceRepository.findHistoricalAccountBalancesUpToTimestamp(
                         List.of(firstId, secondId, 999_999L), queryTimestamp, treasuryAccountId))
-                .extracting(row -> ((Number) row[0]).longValue(), row -> ((Number) row[1]).longValue())
+                .extracting(AccountBalanceAmount::accountId, AccountBalanceAmount::balance)
                 .containsExactlyInAnyOrder(tuple(firstId, expectedFirst), tuple(secondId, expectedSecond));
     }
 

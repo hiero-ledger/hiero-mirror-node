@@ -2,14 +2,13 @@
 
 package org.hiero.mirror.common.domain.hook;
 
-import jakarta.persistence.IdClass;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@jakarta.persistence.Entity
-@IdClass(AbstractHook.Id.class)
+@Table
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 public class HookHistory extends AbstractHook {

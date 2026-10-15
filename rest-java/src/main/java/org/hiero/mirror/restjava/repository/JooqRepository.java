@@ -21,6 +21,11 @@ interface JooqRepository {
         return operator.getFunction().apply(field, value);
     }
 
+    /** Exposes composite bound handling for repositories that use {@link Bound} with jOOQ. */
+    default Condition conditionFromBound(Bound bound) {
+        return getCondition(bound);
+    }
+
     private Condition getCondition(RangeParameter<Long> param, Field<Long> field) {
         if (param == null || param.isEmpty()) {
             return noCondition();

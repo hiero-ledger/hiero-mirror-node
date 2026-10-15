@@ -3,13 +3,13 @@
 package org.hiero.mirror.importer.repository;
 
 import org.hiero.mirror.common.domain.transaction.SidecarFile;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Modifying;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface SidecarFileRepository extends CrudRepository<SidecarFile, SidecarFile.Id>, RetentionRepository {
 
     @Modifying
-    @Query("delete from SidecarFile where consensusEnd <= ?1")
+    @Query("delete from sidecar_file where consensus_end <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

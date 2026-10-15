@@ -10,8 +10,8 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest;
 import org.hiero.mirror.restjava.parameter.EntityIdNumParameter;
 import org.hiero.mirror.restjava.service.Bound;

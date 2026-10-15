@@ -3,25 +3,26 @@
 package org.hiero.mirror.importer.migration;
 
 import jakarta.inject.Named;
+import javax.sql.DataSource;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.addressbook.AddressBookService;
-import org.hiero.mirror.importer.repository.AddressBookServiceEndpointRepository;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @Named
 public class MissingAddressBooksMigration extends RepeatableMigration {
 
     private final ObjectProvider<AddressBookService> addressBookServiceProvider;
-    private final ObjectProvider<AddressBookServiceEndpointRepository> addressBookServiceEndpointRepositoryProvider;
+    private final ObjectProvider<DataSource> dataSourceProvider;
 
     public MissingAddressBooksMigration(
             ObjectProvider<AddressBookService> addressBookServiceProvider,
-            ObjectProvider<AddressBookServiceEndpointRepository> addressBookServiceEndpointRepositoryProvider,
+            ObjectProvider<DataSource> dataSourceProvider,
             ImporterProperties importerProperties) {
         super(importerProperties.getMigration());
         this.addressBookServiceProvider = addressBookServiceProvider;
-        this.addressBookServiceEndpointRepositoryProvider = addressBookServiceEndpointRepositoryProvider;
+        this.dataSourceProvider = dataSourceProvider;
     }
 
     @Override
@@ -39,8 +40,12 @@ public class MissingAddressBooksMigration extends RepeatableMigration {
         // skip when no address books with service endpoint exist. Allow normal flow migration to do initial population
         long serviceEndpointCount = 0;
         try {
-            serviceEndpointCount =
-                    addressBookServiceEndpointRepositoryProvider.getObject().count();
+            // Queried via the DataSource directly since this runs inside flyway, where resolving a Spring Data JDBC
+            // repository would deadlock on the database initialization ordering
+            final var jdbcTemplate = new JdbcTemplate(dataSourceProvider.getObject());
+            final var count =
+                    jdbcTemplate.queryForObject("select count(*) from address_book_service_endpoint", Long.class);
+            serviceEndpointCount = count != null ? count : 0;
         } catch (Exception ex) {
             // catch ERROR: relation "address_book_service_endpoint" does not exist
             // this will occur in migration version before v1.37.1 where service endpoints were not supported by proto
