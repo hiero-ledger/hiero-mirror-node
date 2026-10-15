@@ -22,6 +22,7 @@ import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.TraceRequest;
+import org.hiero.mirror.web3.throttle.EndpointThrottle;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.utils.GzipEncoding;
 import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
@@ -47,6 +48,7 @@ class ContractController {
 
     private final ContractExecutionService contractExecutionService;
     private final ContractDebugService contractDebugService;
+    private final EndpointThrottle endpointThrottle;
     private final EvmProperties evmProperties;
     private final TracerProperties tracerProperties;
     private final Web3Properties web3Properties;
@@ -85,15 +87,14 @@ class ContractController {
             throw new InvalidParametersException("At least one action trace request is required");
         }
 
+        endpointThrottle.throttle(ACTIONS, requests.size());
         final var traceRequests = new ArrayList<TraceRequest>(requests.size());
-        var totalGas = 0L;
         for (final var request : requests) {
             validateActionsRequest(request);
             validateContractMaxGasLimit(request);
             if (!request.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
             }
-            totalGas += request.getGas();
             traceRequests.add(new TraceRequest(
                     constructServiceParameters(request),
                     request.isOnlyTopCall(),

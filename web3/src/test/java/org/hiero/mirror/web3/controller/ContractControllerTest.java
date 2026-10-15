@@ -58,6 +58,7 @@ import org.hiero.mirror.web3.exception.TraceTimeoutException;
 import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.TraceRequest;
+import org.hiero.mirror.web3.throttle.EndpointThrottle;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.GzipEncoding;
@@ -131,6 +132,9 @@ final class ContractControllerTest {
 
     @MockitoBean
     private ContractDebugService contractDebugService;
+
+    @MockitoBean
+    private EndpointThrottle endpointThrottle;
 
     @MockitoBean
     private ThrottleManager throttleManager;
@@ -277,6 +281,7 @@ final class ContractControllerTest {
         verify(contractDebugService)
                 .processTraceCall(argThat(
                         (List<TraceRequest> requests) -> isSingleTrace(requests, false, Duration.ofSeconds(4))));
+        verify(endpointThrottle).throttle(ACTIONS, 1L);
     }
 
     @Test
@@ -296,6 +301,19 @@ final class ContractControllerTest {
                 .andExpect(content().string(convert(List.of(TRACE_RESPONSE, secondResponse))));
 
         verify(contractDebugService).processTraceCall(argThat((List<TraceRequest> requests) -> requests.size() == 2));
+        verify(endpointThrottle).throttle(ACTIONS, 2L);
+    }
+
+    @Test
+    void actionsCallExceedingRateLimit() throws Exception {
+        enableActionsApi();
+        final var request = request();
+        request.setValue(0);
+        doThrow(new ThrottleException("")).when(endpointThrottle).throttle(ACTIONS, 1L);
+
+        contractActionsCall(request).andExpect(status().isTooManyRequests());
+
+        verify(contractDebugService, never()).processTraceCall(any());
     }
 
     @Test
@@ -303,6 +321,7 @@ final class ContractControllerTest {
         enableActionsApi();
         contractActionsCall(List.of()).andExpect(status().isBadRequest());
         verify(contractDebugService, never()).processTraceCall(any());
+        verify(endpointThrottle, never()).throttle(any(), anyLong());
     }
 
     @Test
