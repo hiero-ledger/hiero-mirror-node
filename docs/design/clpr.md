@@ -107,7 +107,7 @@ Consensus node (CLPR Service)
     CLPR-specific fields on RecordItem — there is no existing TransactionRecord/sidecar slot for this data)
   → importer TransactionHandlers (read the new RecordItem fields) + EntityListener
   → PostgreSQL (clpr_channel_pending_commitment/_history, clpr_channel/_history,
-    clpr_connector_pending_commitment/_history, clpr_connector/_history, clpr_ledger_configuration/_history,
+    clpr_connector_pending_commitment/_history, clpr_connector/_history, clpr_ledger_configuration,
     clpr_message)
   → rest-java (read APIs)
 ```
@@ -115,7 +115,7 @@ Consensus node (CLPR Service)
 This diagram covers the eight transaction-anchored cases, plus `sendMessage` (point 5 above) once its
 `StateChangeContext` extension lands. `clpr_endpoint_manifest_value` is deliberately absent: the per-round
 reconciler that produces it has no transaction to anchor to, so none of this pipeline reaches it today (point 5).
-`clpr_endpoint_manifest`/`_history` stay in the schema design below regardless, since the finalized manifest still
+`clpr_endpoint_manifest` stays in the schema design below regardless, since the finalized manifest still
 needs to be queryable once ingestion is unblocked upstream.
 
 `ClprEndpointPublicationTransactionBody` (field 91) and the `ClprEndpointManifestConstruction` singleton are a
@@ -133,7 +133,7 @@ is also undocumented in the HIP text itself, but for a different reason (it's Hi
 
 | #   | `HederaFunctionality`           | `TransactionBody` / `Query` field    | What mirror node must persist                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | --- | ------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 117 | `ClprUpdateLedgerConfiguration` | `clprUpdateLedgerConfiguration` (tx) | Update the `clpr_ledger_configuration` singleton row (throttles, timestamp); close out prior history row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 117 | `ClprUpdateLedgerConfiguration` | `clprUpdateLedgerConfiguration` (tx) | Insert a new `clpr_ledger_configuration` row keyed by this transaction's own `consensus_timestamp` (throttles, protocol_version, chain_id, etc.).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | 118 | `ClprRegisterChannel`           | `clprRegisterChannel` (tx)           | Insert a row into `clpr_channel_pending_commitment` keyed by `ownership_commitment`; no `channel_id` is known yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | 119 | `ClprCompleteChannel`           | `clprCompleteChannel` (tx)           | Insert the new `clpr_channel` row in `ACTIVE` status, recording `channel_id`, `ownership_commitment` (carried forward, not cleared), `verifier_contract`, `verifier_fingerprint`, initial `trust_anchor`/`trust_anchor_id`, `channel_context`, and initial `endpoint_manifest_version` — populated via the corresponding `ClprCompleteChannelTransformer` from the `clpr_channel_value` state change, since these fields are verifier-derived. Per `ClprCompleteChannelHandler`, the real consensus state leaves `clpr_channel_pending_commitment`'s entry untouched indefinitely (see row 120). The mirror node still sets `completed_timestamp` on that row itself — a self-contained recomputation of `ownership_commitment` from this transaction's own fields, not reliant on consensus state — purely so the Pending Channels API can exclude it. The same row also picks up `public_key`/`signature`/`signature_scheme`/`config_proof_bytes`/`endpoint_manifest_proof_bytes` directly off this transaction's body, since none of the five exist on real `ClprChannel` state (see [Database Schema Design](#database-schema-design)). |
 | 120 | `ClprCloseChannel`              | `clprCloseChannel` (tx)              | If no Channel exists yet for the supplied `ownership_commitment` (still pending/abandoned), mark the `clpr_channel_pending_commitment` row `deleted=true`. If a Channel exists, transition its status toward `CLOSING`/`DRAINED`/`CLOSED` — per `ClprCloseChannelHandler`, this path does **not** touch `clpr_channel_pending_commitment` in real consensus state (see row 119); the mirror node already closed out that row itself at completion time via `completed_timestamp`, so there's nothing left to reconcile here.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -151,11 +151,12 @@ unlike Channels/Connectors/Messages).
 
 ## Database Schema Design
 
-**Channel**, **Connector**, and **ledger configuration** get current + history table pairs
-(their state mutates repeatedly over their lifetime and history has audit value per HIP-1535). The
-**endpoint manifest** is a network-wide singleton that also mutates over time, so it gets the same treatment. The
-**message queue** is naturally append-only (each `(channel_id, message_id)` is written once and never mutated), so
-it is modeled as a single table, not a current/history pair.
+**Channel** and **Connector** get current + history table pairs (their state mutates repeatedly over their
+lifetime and history has audit value per HIP-1535). **Ledger configuration** and the **endpoint manifest** are
+each a single, append-only table keyed by `consensus_timestamp`: every update is a complete, self-sufficient
+value, so the latest row is simply the one with the highest `consensus_timestamp`, with no separate history pair
+needed. The **message queue** is likewise append-only (each `(channel_id, message_id)` is written once and never
+mutated), so it too is modeled as a single table, not a current/history pair.
 
 Column order within each table groups fixed 8-byte columns (`bigint`) first, then enums/booleans, then
 variable-length columns (`bytea`/`varchar`/`int8range`) last, to avoid PostgreSQL padding waste from unfavorable
@@ -349,7 +350,7 @@ create table if not exists clpr_connector
 );
 
 create index if not exists clpr_connector__channel_id_created_timestamp
-    on clpr_connector (channel_id, created_timestamp);What
+    on clpr_connector (channel_id, created_timestamp);
 
 create table if not exists clpr_connector_history
 (
@@ -371,13 +372,13 @@ Connector ever registered — is low enough not to bottleneck a single coordinat
 `timestamp`-ordered pagination — the primary key alone orders by `connector_id` within a `channel_id`, not by
 `created_timestamp`.
 
-### 3. Ledger Configuration and Endpoint Manifest (Singletons)
+### 3. Ledger Configuration and Endpoint Manifest
 
 ```sql
 -- add_clpr_configuration_support.sql
 create table if not exists clpr_ledger_configuration
 (
-    id                          bigint      not null default 1,  -- singleton row id
+    consensus_timestamp         bigint      not null,
     max_gas_per_message         bigint,
     max_local_endpoints         bigint,
     max_message_payload_bytes   bigint,
@@ -390,40 +391,22 @@ create table if not exists clpr_ledger_configuration
     initial_trust_anchor        bytea,
     initial_trust_anchor_id     bytea,
     service_address             bytea,
-    timestamp_range             int8range   not null,
 
-    primary key (id)
+    primary key (consensus_timestamp)
 );
-
-create table if not exists clpr_ledger_configuration_history
-(
-    like clpr_ledger_configuration including defaults
-);
-
-create index if not exists clpr_ledger_configuration_history__timestamp_range
-    on clpr_ledger_configuration_history using gist (timestamp_range);
 
 create table if not exists clpr_endpoint_manifest
 (
-    id                bigint      not null default 1, -- singleton row id
-    version           bigint      not null,
-    endpoints         jsonb,
-    service_address   bytea,
-    timestamp_range   int8range   not null,
+    consensus_timestamp   bigint      not null,
+    version               bigint      not null,
+    endpoints             jsonb,
+    service_address       bytea,
 
-    primary key (id)
+    primary key (consensus_timestamp)
 );
-
-create table if not exists clpr_endpoint_manifest_history
-(
-    like clpr_endpoint_manifest including defaults
-);
-
-create index if not exists clpr_endpoint_manifest_history__timestamp_range
-    on clpr_endpoint_manifest_history using gist (timestamp_range);
 ```
 
-These four stay as plain, ordinary Postgres tables in `v2` — no `create_distributed_table` or `create_reference_table`
+These two stay as plain, ordinary Postgres tables in `v2` — no `create_distributed_table` or `create_reference_table`
 call at all: nothing joins against them from a distributed table, and none is even exposed via REST in this
 iteration (see [REST API Implementation](#rest-api-implementation)), so reference-table replication would add
 write-side coordination overhead across every worker node for no actual benefit. This also means `v1` and `v2`'s
@@ -607,8 +590,8 @@ row within it.
 > `colocate_with => 'clpr_channel'`, so per-channel queries stay shard-local in `v2`. `clpr_message` is additionally
 > time-partitioned by `consensus_timestamp` in both profiles (see above) — distribution (shard dimension, `v2`
 > only) and partitioning (time dimension, both profiles) are orthogonal and both apply to it.
-> `clpr_channel_pending_commitment`/`clpr_connector_pending_commitment` and
-> `clpr_ledger_configuration(_history)`/`clpr_endpoint_manifest(_history)` all
+> `clpr_channel_pending_commitment`/`clpr_connector_pending_commitment`, `clpr_ledger_configuration`, and
+> `clpr_endpoint_manifest` all
 > stay plain, undistributed tables (see above): none is joined against from a distributed table, and each has a
 > write pattern too low-volume to need sharding. Tables that aren't colocated with another table need an explicit
 > `shard_count`, since otherwise they each start a new colocation group at Citus's configured default — `clpr_channel`
@@ -681,8 +664,10 @@ mapping to their own table:
   transaction body — a mirror-node-only soft-delete, since real consensus state removes the Connector from its map
   entirely (`ClprDeregisterConnectorHandler`'s `connectorStore.remove(key)`) and never persists `stake_recipient`
   anywhere on `ClprConnector` state.
-- **`ClprLedgerConfiguration`** (+ history) and **`ClprEndpointManifest`** (+ history): singleton rows, fields as
-  in the [schema](#database-schema-design) above.
+- **`ClprLedgerConfiguration`**: a plain, non-history `@Entity` keyed by `consensusTimestamp`, fields as in the
+  [schema](#database-schema-design) above.
+- **`ClprEndpointManifest`**: a plain, non-history `@Entity` keyed by `consensusTimestamp`, fields as in the
+  [schema](#database-schema-design) above.
 - **`ClprMessage`**: a plain, non-history `@Entity` with composite id `(channelId, messageId)`, since the schema
   is append-only.
 
@@ -1180,12 +1165,12 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
 
 - New Flyway migrations under `importer/src/main/resources/db/migration/{v1,v2}` for
   `clpr_channel_pending_commitment(_history)`, `clpr_channel(_history)`, `clpr_connector_pending_commitment(_history)`,
-  `clpr_connector(_history)`, `clpr_ledger_configuration(_history)`, `clpr_endpoint_manifest(_history)`,
+  `clpr_connector(_history)`, `clpr_ledger_configuration`, `clpr_endpoint_manifest`,
   and `clpr_message`, following the append-only migration convention (never edit a merged migration).
 - The `v2` (Citus) migrations include the `create_distributed_table` calls specified in
   [Database Schema Design](#database-schema-design) for every table except `clpr_channel_pending_commitment(_history)`,
-  `clpr_connector_pending_commitment(_history)`, `clpr_ledger_configuration(_history)`,
-  and `clpr_endpoint_manifest(_history)`, which all stay plain, undistributed
+  `clpr_connector_pending_commitment(_history)`, `clpr_ledger_configuration`,
+  and `clpr_endpoint_manifest`, which all stay plain, undistributed
   tables in both profiles. `clpr_message` is `partition by range (consensus_timestamp)` and time-partitioned in
   both `v1` and
   `v2` — `v2` registers partitions via `create_time_partitions`; `v1` uses its own stored procedure, since no
@@ -1297,13 +1282,14 @@ depend on the [Consensus-Node Assumptions](#consensus-node-assumptions) above.
 
 1. **DB schema migration for CLPR tables.** Flyway migrations (`v1` and `v2`) for
    `clpr_channel_pending_commitment(_history)`, `clpr_channel(_history)`,
-   `clpr_connector_pending_commitment(_history)`, `clpr_connector(_history)`, `clpr_ledger_configuration(_history)`,
-   `clpr_endpoint_manifest(_history)`, and `clpr_message`, including the `v2` Citus
+   `clpr_connector_pending_commitment(_history)`, `clpr_connector(_history)`, `clpr_ledger_configuration`,
+   `clpr_endpoint_manifest`, and `clpr_message`, including the `v2` Citus
    `create_distributed_table` calls from [Database Schema Design](#database-schema-design) for
    `clpr_channel(_history)`, `clpr_connector(_history)`, and `clpr_message` — every other table in this list stays
-   plain, undistributed in both profiles. `clpr_message` is a different shape from the rest (append-only, no history
-   pair, time-partitioned by `consensus_timestamp` in both profiles — see
-   [Message Queue](#4-message-queue-append-only)) and the highest-volume table; includes updating
+   plain, undistributed in both profiles. `clpr_message`, `clpr_ledger_configuration`, and `clpr_endpoint_manifest`
+   are all append-only, no-history-pair tables, unlike the rest; `clpr_message` additionally differs by being
+   time-partitioned by `consensus_timestamp` in both profiles (see
+   [Message Queue](#4-message-queue-append-only)) and is the highest-volume table; includes updating
    `R__time_partition_maintenance.sql` to cover it.
 2. **Importer: Channel lifecycle transaction handlers and transformers.** `ClprRegisterChannel`,
    `ClprCompleteChannel`, `ClprCloseChannel` handlers plus the `BlockTransactionTransformer`s for verifier-derived
