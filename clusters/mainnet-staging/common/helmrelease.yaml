@@ -13,7 +13,7 @@ spec:
       valuesFiles:
         - values.yaml
         - values-v2.yaml
-      version: '0.164.0-rc1'
+      version: '0.165.0-alpha2'
   dependsOn:
     - name: testkube
       namespace: testkube
@@ -165,7 +165,5 @@ spec:
         annotations:
           cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mainnet-staging"} } }'
     zfs:
-      autoGrow:
-        thresholdPercent: 99
       init:
         diskPrefix: mainnet-staging
