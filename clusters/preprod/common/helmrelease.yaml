@@ -13,7 +13,7 @@ spec:
       valuesFiles:
         - values.yaml
         - values-v2.yaml
-      version: '0.164.0-rc1'
+      version: '0.165.0-alpha2'
   dependsOn:
     - name: testkube
       namespace: testkube
@@ -84,29 +84,6 @@ spec:
         target:
           namespace: performance
     traefik:
-      extraObjects:
-        - |
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: traefik-dashboard-auth
-          type: kubernetes.io/basic-auth
-          data:
-            username: {{ "admin" | b64enc }}
-            password: {{ dig "data" "password" (randAlphaNum 40 | b64enc) (lookup "v1" "Secret" .Release.Namespace "traefik-dashboard-auth") }}
-        - apiVersion: traefik.io/v1alpha1
-          kind: Middleware
-          metadata:
-            name: traefik-dashboard-auth
-          spec:
-            basicAuth:
-              secret: traefik-dashboard-auth
-      globalArguments: []
-      ingressRoute:
-        dashboard:
-          enabled: true
-          middlewares:
-            - name: traefik-dashboard-auth
       service:
         annotations:
           cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mirrornode-preprod-new"} } }'
