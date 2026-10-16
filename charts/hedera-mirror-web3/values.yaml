@@ -64,6 +64,9 @@ gateway:
         - path:
             type: RegularExpression
             value: '/api/v1/contracts/results/((0x)?[A-Fa-f0-9]{64}|\d+\.\d+\.\d+-\d+-\d+)/prestate'
+        - path:
+            type: Exact
+            value: /api/v1/contracts/simulate
   target:
     group: ""
     kind: Service
@@ -125,6 +128,7 @@ ingress:
       paths:
         # the rest of /api/v1/contracts will still be handled by the REST API logic, except for this one address
         - '/api/v1/contracts/call'
+        - '/api/v1/contracts/simulate'
         - '/api/v1/contracts/results/((0x)?[A-Fa-f0-9]{64}|\d+\.\d+\.\d+-\d+-\d+)/opcodes'
         - '/api/v1/contracts/results/((0x)?[A-Fa-f0-9]{64}|\d+\.\d+\.\d+-\d+-\d+)/prestate'
   tls:
