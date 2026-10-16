@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public enum ApiEndpointName {
+    ACTIONS("/api/v1/contracts/call/actions"),
     CALL("/api/v1/contracts/call"),
     OPCODES("/api/v1/contracts/results/{transactionIdOrHash}/opcodes"),
     PRESTATE("/api/v1/contracts/results/{transactionIdOrHash}/prestate");

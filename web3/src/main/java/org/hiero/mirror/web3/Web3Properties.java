@@ -33,7 +33,41 @@ public class Web3Properties {
     @Positive
     private int maxPayloadLogSize = 300;
 
+    @DurationMin(seconds = 1L)
+    private Duration requestTimeout = Duration.ofSeconds(4L);
+
+    /**
+     * Returns the request timeout for the given API endpoint, falling back to {@link #requestTimeout} when the endpoint
+     * has no configured override.
+     */
+    public Duration getRequestTimeout(ApiEndpointName endpoint) {
+        if (endpoint != null) {
+            var properties = api.get(endpoint);
+            if (properties != null
+                    && properties.getRequest() != null
+                    && properties.getResponse().getTimeout() != null) {
+                return properties.getResponse().getTimeout();
+            }
+        }
+        return requestTimeout;
+    }
+
     public @NonNull ApiProperties getApi(@NonNull ApiEndpointName name) {
         return api.getOrDefault(name, API_PROPERTIES);
+    }
+
+    /**
+     * Whether the API identified by {@code endpoint} is enabled. Missing configuration is treated as enabled except for
+     * {@link ApiEndpointName#ACTIONS}, which is disabled until explicitly turned on.
+     */
+    public boolean isApiEnabled(final ApiEndpointName endpoint) {
+        if (endpoint == null) {
+            return true;
+        }
+        final var properties = api.get(endpoint);
+        if (properties == null) {
+            return endpoint != ApiEndpointName.ACTIONS;
+        }
+        return properties.isEnabled();
     }
 }

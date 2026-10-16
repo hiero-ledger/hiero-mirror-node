@@ -100,7 +100,7 @@ public class BytecodeUtils {
         return indexOfReturn(data, codeCopy + CODECOPY.length() + 1) >= 0;
     }
 
-    public static boolean isValidInitBytecode(final String data) {
+    public static boolean isValidInitBytecode(final @Nullable String data) {
         return shouldSkipBytecodeCheck() || BytecodeUtils.isInitBytecode(data);
     }
 

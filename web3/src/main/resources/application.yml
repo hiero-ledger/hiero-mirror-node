@@ -4,6 +4,12 @@ hiero:
   mirror:
     web3:
       api:
+        actions:
+          enabled: false
+          request:
+            throttle: 100
+          response:
+            timeout: 4s
         call:
           enabled: true
           response:

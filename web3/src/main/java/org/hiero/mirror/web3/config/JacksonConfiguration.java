@@ -16,7 +16,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class JacksonConfiguration {
 
-    // Configure JSON parsing limits to reject malicious input
+    // Configure JSON parsing limits to reject malicious input. Write nesting must cover recursive
+    // ActionResponse.calls: two JSON levels per EVM depth (0..1023) plus the response envelope.
     @Bean
     @SuppressWarnings("removal")
     Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer(EvmProperties properties) {
@@ -34,8 +35,11 @@ class JacksonConfiguration {
                     .maxStringLength(maxSize)
                     .maxTokenCount(100)
                     .build();
-            var streamWriteConstraints =
-                    StreamWriteConstraints.builder().maxNestingDepth(100).build();
+            var streamWriteConstraints = StreamWriteConstraints.builder()
+                    // Might cause issue for simulation a transaction on api/v1/contracts/call/actions with 1024 nested
+                    // frames, however reaching this limit is practically unlikely to happen
+                    .maxNestingDepth(100)
+                    .build();
             var factory = new MappingJsonFactory();
             factory.setStreamReadConstraints(streamReadConstraints);
             factory.setStreamWriteConstraints(streamWriteConstraints);

@@ -11,6 +11,7 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.service.OpcodeService;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
+import org.hiero.mirror.web3.utils.GzipEncoding;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -58,7 +59,7 @@ class OpcodesController {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }
 
-        GzipEncoding.validate(acceptEncoding);
+        GzipEncoding.require(acceptEncoding);
         final var request = new OpcodeRequest(transactionIdOrHash, stack, memory, storage);
         return opcodeService.processOpcodeCall(request);
     }

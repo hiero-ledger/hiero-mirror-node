@@ -10,6 +10,7 @@ import lombok.experimental.UtilityClass;
 public class Constants {
     public static final String BALANCE_OPERATION_NAME = "BALANCE";
     public static final String CALL_URI = "/api/v1/contracts/call";
+    public static final String ACTIONS_CALL_URI = "/api/v1/contracts/call/actions";
     public static final String OPCODES_URI = "/api/v1/contracts/results/{transactionIdOrHash}/opcodes";
 
     /**

@@ -18,7 +18,11 @@ import org.junit.jupiter.api.Test;
 final class OpcodeContextTest {
 
     private static OpcodeRequest request() {
-        return new OpcodeRequest(new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), false, false, false);
+        return request(false, false, false);
+    }
+
+    private static OpcodeRequest request(final boolean stack, final boolean memory, final boolean storage) {
+        return new OpcodeRequest(new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), stack, memory, storage);
     }
 
     private static OpcodesProperties propertiesWithMaxOpcodes(final int maxOpcodes) {
@@ -47,6 +51,16 @@ final class OpcodeContextTest {
         assertThat(context.getProperties().getMaxMemoryWords()).isEqualTo(defaults.getMaxMemoryWords());
         assertThat(context.getProperties().getMaxStack()).isEqualTo(defaults.getMaxStack());
         assertThat(context.getProperties().getMaxStorage()).isEqualTo(defaults.getMaxStorage());
+    }
+
+    @Test
+    void constructorReadsCaptureFlagsFromRequest() {
+        final var request = request(true, false, true);
+        final var context = new OpcodeContext(request, 0, new OpcodesProperties());
+
+        assertThat(context.isStack()).isEqualTo(request.isStack());
+        assertThat(context.isMemory()).isEqualTo(request.isMemory());
+        assertThat(context.isStorage()).isEqualTo(request.isStorage());
     }
 
     @Test
