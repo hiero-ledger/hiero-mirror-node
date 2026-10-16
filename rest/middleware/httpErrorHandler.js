@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {httpStatusCodes, requestStartTime, StatusCode} from '../constants';
 import {HttpError} from 'http-errors';
+
+import config from '../config';
+import {clusterIdHeader, httpStatusCodes, requestStartTime, StatusCode} from '../constants';
 import {DbError, InvalidArgumentError, NotFoundError, TooManyRequestsError} from '../errors';
 import RestError from '../errors/restError';
 
@@ -51,6 +53,7 @@ const handleError = async (err, req, res, next) => {
     );
   }
 
+  res.set(clusterIdHeader, config.clusterId);
   res.status(statusCode.code).json(errorMessageFormat(errorMessage));
 };
 

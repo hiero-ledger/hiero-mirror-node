@@ -71,6 +71,7 @@ describe('Load YAML configuration:', () => {
   test('./config/application.yml', async () => {
     const config = await loadConfig();
     expect(config.common.shard).not.toBeNull();
+    expect(config.rest.clusterId).toBe('9ef9396');
     expect(config.rest.metrics.enabled).toBe(true);
     expect(config.rest.log.level).toBe('info');
   });
@@ -182,6 +183,12 @@ describe('Load environment configuration:', () => {
   test('Max Timestamp Range null', async () => {
     process.env['HIERO_MIRROR_REST_QUERY_MAXTIMESTAMPRANGE'] = null;
     await expect(loadConfig()).rejects.toThrowErrorMatchingSnapshot();
+  });
+
+  test('Cluster id', async () => {
+    process.env['HIERO_MIRROR_REST_CLUSTERID'] = 'abc1234';
+    const config = await loadConfig();
+    expect(config.rest.clusterId).toBe('abc1234');
   });
 
   test('Hexadecimal environment variable', async () => {
