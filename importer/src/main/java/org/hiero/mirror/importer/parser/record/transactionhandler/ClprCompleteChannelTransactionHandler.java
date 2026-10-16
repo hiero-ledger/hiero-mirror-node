@@ -54,6 +54,11 @@ class ClprCompleteChannelTransactionHandler extends AbstractClprChannelTransacti
                 .chainId(clprChannelValue.getChainId())
                 .verifierContractId(verifierContractId)
                 .verifierFingerprint(DomainUtils.toBytes(clprChannelValue.getVerifierFingerprint()))
+                .publicKey(publicKey)
+                .signature(DomainUtils.toBytes(transactionBody.getSignature()))
+                .signatureScheme(ClprEnums.toSignatureScheme(transactionBody.getSignatureScheme()))
+                .configProofBytes(DomainUtils.toBytes(transactionBody.getConfigProofBytes()))
+                .endpointManifestProofBytes(DomainUtils.toBytes(transactionBody.getEndpointManifestProofBytes()))
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprChannel(clprChannel);
@@ -65,11 +70,6 @@ class ClprCompleteChannelTransactionHandler extends AbstractClprChannelTransacti
         var commitment = ClprChannelPendingCommitment.builder()
                 .ownershipCommitment(ownershipCommitment)
                 .completedTimestamp(consensusTimestamp)
-                .publicKey(publicKey)
-                .signature(DomainUtils.toBytes(transactionBody.getSignature()))
-                .signatureScheme(ClprEnums.toSignatureScheme(transactionBody.getSignatureScheme()))
-                .configProofBytes(DomainUtils.toBytes(transactionBody.getConfigProofBytes()))
-                .endpointManifestProofBytes(DomainUtils.toBytes(transactionBody.getEndpointManifestProofBytes()))
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprChannelPendingCommitment(commitment);

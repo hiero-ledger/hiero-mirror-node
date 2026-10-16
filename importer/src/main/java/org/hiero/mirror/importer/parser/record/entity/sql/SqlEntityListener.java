@@ -527,6 +527,21 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         if (current.getVerifierFingerprint() == null) {
             current.setVerifierFingerprint(previous.getVerifierFingerprint());
         }
+        if (current.getConfigProofBytes() == null) {
+            current.setConfigProofBytes(previous.getConfigProofBytes());
+        }
+        if (current.getEndpointManifestProofBytes() == null) {
+            current.setEndpointManifestProofBytes(previous.getEndpointManifestProofBytes());
+        }
+        if (current.getPublicKey() == null) {
+            current.setPublicKey(previous.getPublicKey());
+        }
+        if (current.getSignature() == null) {
+            current.setSignature(previous.getSignature());
+        }
+        if (current.getSignatureScheme() == null) {
+            current.setSignatureScheme(previous.getSignatureScheme());
+        }
         if (current.getStatus() == null) {
             current.setStatus(previous.getStatus());
         }
@@ -602,21 +617,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         if (current.getCreatedTimestamp() == null) {
             current.setCreatedTimestamp(previous.getCreatedTimestamp());
         }
-        if (current.getConfigProofBytes() == null) {
-            current.setConfigProofBytes(previous.getConfigProofBytes());
-        }
-        if (current.getEndpointManifestProofBytes() == null) {
-            current.setEndpointManifestProofBytes(previous.getEndpointManifestProofBytes());
-        }
-        if (current.getPublicKey() == null) {
-            current.setPublicKey(previous.getPublicKey());
-        }
-        if (current.getSignature() == null) {
-            current.setSignature(previous.getSignature());
-        }
-        if (current.getSignatureScheme() == null) {
-            current.setSignatureScheme(previous.getSignatureScheme());
-        }
         if (current.getCompletedTimestamp() == null) {
             current.setCompletedTimestamp(previous.getCompletedTimestamp());
         }
@@ -649,6 +649,18 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         if (current.getLockedStake() == null) {
             current.setLockedStake(previous.getLockedStake());
         }
+        if (current.getPublicKey() == null) {
+            current.setPublicKey(previous.getPublicKey());
+        }
+        if (current.getSalt() == null) {
+            current.setSalt(previous.getSalt());
+        }
+        if (current.getSignature() == null) {
+            current.setSignature(previous.getSignature());
+        }
+        if (current.getSignatureScheme() == null) {
+            current.setSignatureScheme(previous.getSignatureScheme());
+        }
         if (current.getInFlightMessageCount() == null) {
             current.setInFlightMessageCount(previous.getInFlightMessageCount());
         }
@@ -678,18 +690,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
         if (current.getCreatedTimestamp() == null) {
             current.setCreatedTimestamp(previous.getCreatedTimestamp());
-        }
-        if (current.getPublicKey() == null) {
-            current.setPublicKey(previous.getPublicKey());
-        }
-        if (current.getSalt() == null) {
-            current.setSalt(previous.getSalt());
-        }
-        if (current.getSignature() == null) {
-            current.setSignature(previous.getSignature());
-        }
-        if (current.getSignatureScheme() == null) {
-            current.setSignatureScheme(previous.getSignatureScheme());
         }
         if (current.getCompletedTimestamp() == null) {
             current.setCompletedTimestamp(previous.getCompletedTimestamp());

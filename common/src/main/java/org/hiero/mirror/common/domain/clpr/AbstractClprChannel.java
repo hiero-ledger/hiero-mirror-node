@@ -27,7 +27,9 @@ import org.hiero.mirror.common.domain.entity.EntityId;
  * On-ledger state for a single CLPR Channel, written once {@code channel_id} is known (see
  * {@link ClprChannelPendingCommitment} for the commit-only phase). Fields set only at {@code ClprCompleteChannel}
  * are marked {@code updatable = false}; {@code skipPartialUpdate = true} since later handlers never set
- * {@code createdTimestamp} themselves.
+ * {@code createdTimestamp} themselves. {@code publicKey}/{@code signature}/{@code signatureScheme}/
+ * {@code configProofBytes}/{@code endpointManifestProofBytes} are the one-time commit-reveal completion proof,
+ * not real {@code ClprChannel} state.
  */
 @Data
 @MappedSuperclass
@@ -49,11 +51,19 @@ public abstract class AbstractClprChannel implements History {
     private byte[] channelId;
 
     @Column(updatable = false)
+    @ToString.Exclude
+    private byte[] configProofBytes;
+
+    @Column(updatable = false)
     private Long createdTimestamp;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @JdbcTypeCode(SqlTypes.JSON)
     private List<ClprEndpoint> endpointManifest;
+
+    @Column(updatable = false)
+    @ToString.Exclude
+    private byte[] endpointManifestProofBytes;
 
     private Long endpointManifestVersion;
 
@@ -81,6 +91,10 @@ public abstract class AbstractClprChannel implements History {
 
     private Long peerMaxSyncBytes;
 
+    @Column(updatable = false)
+    @ToString.Exclude
+    private byte[] publicKey;
+
     private Long receivedMessageId;
 
     @ToString.Exclude
@@ -88,6 +102,15 @@ public abstract class AbstractClprChannel implements History {
 
     @ToString.Exclude
     private byte[] sentRunningHash;
+
+    @Column(updatable = false)
+    @ToString.Exclude
+    private byte[] signature;
+
+    @Column(updatable = false)
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    private ClprSignatureScheme signatureScheme;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)

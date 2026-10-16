@@ -45,6 +45,10 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
                 .adminKey(transactionBody.getAdminKey().toByteArray())
                 .lockedStake(transactionBody.getLockedStake())
                 .createdTimestamp(consensusTimestamp)
+                .publicKey(publicKey)
+                .salt(DomainUtils.toBytes(transactionBody.getSalt()))
+                .signature(DomainUtils.toBytes(transactionBody.getSignature()))
+                .signatureScheme(ClprEnums.toSignatureScheme(transactionBody.getSignatureScheme()))
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprConnector(connector);
@@ -55,10 +59,6 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
         var commitment = ClprConnectorPendingCommitment.builder()
                 .commitment(SignatureUtils.keccak256(connectorId, publicKey))
                 .completedTimestamp(consensusTimestamp)
-                .publicKey(publicKey)
-                .salt(DomainUtils.toBytes(transactionBody.getSalt()))
-                .signature(DomainUtils.toBytes(transactionBody.getSignature()))
-                .signatureScheme(ClprEnums.toSignatureScheme(transactionBody.getSignatureScheme()))
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprConnectorPendingCommitment(commitment);

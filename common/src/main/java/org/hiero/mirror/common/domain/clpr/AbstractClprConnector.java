@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.MappedSuperclass;
 import java.io.Serial;
@@ -15,6 +17,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -23,7 +27,9 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 /**
  * On-ledger state for a single CLPR Connector, keyed by {@code (channelId, connectorId)}. Fields set only at
  * {@code ClprCompleteConnector} are marked {@code updatable = false}. {@code skipPartialUpdate = true} since
- * {@code ClprDeregisterConnector} never sets {@code createdTimestamp} itself.
+ * {@code ClprDeregisterConnector} never sets {@code createdTimestamp} itself. {@code publicKey}/{@code salt}/
+ * {@code signature}/{@code signatureScheme} are the one-time commit-reveal completion proof, not real
+ * {@code ClprConnector} state.
  */
 @Data
 @MappedSuperclass
@@ -56,6 +62,23 @@ public abstract class AbstractClprConnector implements History {
 
     @Column(updatable = false)
     private Long lockedStake;
+
+    @Column(updatable = false)
+    @ToString.Exclude
+    private byte[] publicKey;
+
+    @Column(updatable = false)
+    @ToString.Exclude
+    private byte[] salt;
+
+    @Column(updatable = false)
+    @ToString.Exclude
+    private byte[] signature;
+
+    @Column(updatable = false)
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    private ClprSignatureScheme signatureScheme;
 
     private Long slashCount;
 

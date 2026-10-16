@@ -7,6 +7,7 @@ import static org.hiero.mirror.common.domain.RecordItemBuilder.DEFAULT_GAS_USED;
 
 import com.hederahashgraph.api.proto.java.ClprChannel;
 import com.hederahashgraph.api.proto.java.ClprChannelStatus;
+import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Timestamp;
@@ -518,7 +519,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
     void clprUpdateLedgerConfiguration() {
         // given -- protocol_version/chain_id differ between the submitted body and the state change to confirm the
         // persisted row comes from the state change, not the submitted body
-        var realConfiguration = com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.newBuilder()
+        var realConfiguration = ClprLedgerConfiguration.newBuilder()
                 .setProtocolVersion(1)
                 .setChainId("hedera:mainnet")
                 .setServiceAddress(DomainUtils.fromBytes(domainBuilder.bytes(20)))

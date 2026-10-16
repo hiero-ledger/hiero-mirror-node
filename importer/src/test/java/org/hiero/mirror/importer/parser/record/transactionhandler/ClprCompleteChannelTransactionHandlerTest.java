@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.ClprCompleteChannelTransactionBody;
-import com.hederahashgraph.api.proto.java.ClprSignatureScheme;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -16,6 +15,7 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -39,7 +39,7 @@ class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandl
                         .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                         .setPublicKey(DomainUtils.fromBytes(domainBuilder.bytes(64)))
                         .setSignature(DomainUtils.fromBytes(domainBuilder.bytes(64)))
-                        .setSignatureScheme(ClprSignatureScheme.ED25519)
+                        .setSignatureScheme(com.hederahashgraph.api.proto.java.ClprSignatureScheme.ED25519)
                         .setVerifierContract(domainBuilder.entityNum(3000L).toContractID())
                         .setConfigProofBytes(DomainUtils.fromBytes(domainBuilder.bytes(16)))
                         .setEndpointManifestProofBytes(DomainUtils.fromBytes(domainBuilder.bytes(16))));
@@ -93,6 +93,13 @@ class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandl
                 .returns(1L, ClprChannel::getNextMessageId)
                 .returns(0L, ClprChannel::getAckedMessageId)
                 .returns(0L, ClprChannel::getReceivedMessageId)
+                .returns(DomainUtils.toBytes(body.getPublicKey()), ClprChannel::getPublicKey)
+                .returns(DomainUtils.toBytes(body.getSignature()), ClprChannel::getSignature)
+                .returns(ClprSignatureScheme.ED25519, ClprChannel::getSignatureScheme)
+                .returns(DomainUtils.toBytes(body.getConfigProofBytes()), ClprChannel::getConfigProofBytes)
+                .returns(
+                        DomainUtils.toBytes(body.getEndpointManifestProofBytes()),
+                        ClprChannel::getEndpointManifestProofBytes)
                 .returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
 
         verify(entityListener).onClprChannelPendingCommitment(commitmentCaptor.capture());
@@ -100,14 +107,7 @@ class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandl
                 SignatureUtils.keccak256(DomainUtils.toBytes(channelId), DomainUtils.toBytes(body.getPublicKey()));
         assertThat(commitmentCaptor.getValue())
                 .returns(expectedCommitment, ClprChannelPendingCommitment::getOwnershipCommitment)
-                .returns(consensusTimestamp, ClprChannelPendingCommitment::getCompletedTimestamp)
-                .returns(DomainUtils.toBytes(body.getPublicKey()), ClprChannelPendingCommitment::getPublicKey)
-                .returns(
-                        DomainUtils.toBytes(body.getConfigProofBytes()),
-                        ClprChannelPendingCommitment::getConfigProofBytes)
-                .returns(
-                        DomainUtils.toBytes(body.getEndpointManifestProofBytes()),
-                        ClprChannelPendingCommitment::getEndpointManifestProofBytes);
+                .returns(consensusTimestamp, ClprChannelPendingCommitment::getCompletedTimestamp);
 
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(

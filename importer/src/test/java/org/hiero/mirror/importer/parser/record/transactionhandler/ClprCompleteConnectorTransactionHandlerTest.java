@@ -7,11 +7,11 @@ import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.ClprCompleteConnectorTransactionBody;
-import com.hederahashgraph.api.proto.java.ClprSignatureScheme;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -34,7 +34,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                         .setConnectorId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                         .setPublicKey(DomainUtils.fromBytes(domainBuilder.bytes(64)))
                         .setSignature(DomainUtils.fromBytes(domainBuilder.bytes(64)))
-                        .setSignatureScheme(ClprSignatureScheme.ECDSA_SECP256K1)
+                        .setSignatureScheme(com.hederahashgraph.api.proto.java.ClprSignatureScheme.ECDSA_SECP256K1)
                         .setSalt(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                         .setConnectorContract(domainBuilder.entityNum(2000L).toContractID())
                         .setAdminKey(Key.newBuilder().setEd25519(DomainUtils.fromBytes(domainBuilder.key())))
@@ -73,6 +73,10 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 .returns(body.getAdminKey().toByteArray(), ClprConnector::getAdminKey)
                 .returns(body.getLockedStake(), ClprConnector::getLockedStake)
                 .returns(consensusTimestamp, ClprConnector::getCreatedTimestamp)
+                .returns(DomainUtils.toBytes(body.getPublicKey()), ClprConnector::getPublicKey)
+                .returns(DomainUtils.toBytes(body.getSalt()), ClprConnector::getSalt)
+                .returns(DomainUtils.toBytes(body.getSignature()), ClprConnector::getSignature)
+                .returns(ClprSignatureScheme.ECDSA_SECP256K1, ClprConnector::getSignatureScheme)
                 .returns(timestampRange, ClprConnector::getTimestampRange);
 
         verify(entityListener).onClprConnectorPendingCommitment(commitmentCaptor.capture());
@@ -81,12 +85,6 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
         assertThat(commitmentCaptor.getValue())
                 .returns(expectedCommitment, ClprConnectorPendingCommitment::getCommitment)
                 .returns(consensusTimestamp, ClprConnectorPendingCommitment::getCompletedTimestamp)
-                .returns(DomainUtils.toBytes(body.getPublicKey()), ClprConnectorPendingCommitment::getPublicKey)
-                .returns(DomainUtils.toBytes(body.getSalt()), ClprConnectorPendingCommitment::getSalt)
-                .returns(DomainUtils.toBytes(body.getSignature()), ClprConnectorPendingCommitment::getSignature)
-                .returns(
-                        org.hiero.mirror.common.domain.clpr.ClprSignatureScheme.ECDSA_SECP256K1,
-                        ClprConnectorPendingCommitment::getSignatureScheme)
                 .returns(timestampRange, ClprConnectorPendingCommitment::getTimestampRange);
 
         assertThat(recordItem.getEntityTransactions())

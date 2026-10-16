@@ -12,16 +12,11 @@ create type clpr_message_reply_status as enum
 
 create table if not exists clpr_channel_pending_commitment
 (
-    completed_timestamp            bigint,
-    created_timestamp              bigint                  not null,
-    timestamp_range                int8range               not null,
-    signature_scheme               clpr_signature_scheme,
-    config_proof_bytes             bytea,
-    endpoint_manifest_proof_bytes  bytea,
-    ownership_commitment           bytea                   not null,
-    public_key                     bytea,
-    signature                      bytea,
-    deleted                        boolean                 not null default false,
+    completed_timestamp   bigint,
+    created_timestamp     bigint     not null,
+    timestamp_range       int8range  not null,
+    ownership_commitment  bytea      not null,
+    deleted               boolean    not null default false,
 
     primary key (ownership_commitment)
 );
@@ -58,13 +53,18 @@ create table if not exists clpr_channel
     verifier_contract_id            bigint,
     timestamp_range                 int8range             not null,
     status                          clpr_channel_status   not null default 'ACTIVE',
+    signature_scheme                clpr_signature_scheme,
     channel_context                 bytea,
     channel_id                      bytea                 not null,
     chain_id                        varchar               not null,
+    config_proof_bytes              bytea,
     endpoint_manifest               jsonb,
+    endpoint_manifest_proof_bytes   bytea,
     ownership_commitment            bytea                 not null,
+    public_key                      bytea,
     received_running_hash           bytea,
     sent_running_hash               bytea,
+    signature                       bytea,
     trust_anchor                    bytea,
     trust_anchor_id                 bytea,
     verifier_fingerprint            bytea,
@@ -87,15 +87,11 @@ create index if not exists clpr_channel_history__timestamp_range
 
 create table if not exists clpr_connector_pending_commitment
 (
-    completed_timestamp bigint,
-    created_timestamp   bigint                 not null,
-    timestamp_range     int8range              not null,
-    signature_scheme    clpr_signature_scheme,
-    commitment          bytea                  not null,
-    public_key          bytea,
-    salt                bytea,
-    signature           bytea,
-    deleted             boolean                not null default false,
+    completed_timestamp  bigint,
+    created_timestamp    bigint     not null,
+    timestamp_range      int8range  not null,
+    commitment           bytea      not null,
+    deleted              boolean    not null default false,
 
     primary key (commitment)
 );
@@ -122,9 +118,13 @@ create table if not exists clpr_connector
     slash_count              bigint      not null default 0,
     stake_recipient_id       bigint,
     timestamp_range          int8range   not null,
+    signature_scheme         clpr_signature_scheme,
     admin_key                bytea,
     channel_id               bytea       not null,
     connector_id             bytea       not null,
+    public_key               bytea,
+    salt                     bytea,
+    signature                bytea,
     deleted                  boolean,
 
     primary key (channel_id, connector_id)

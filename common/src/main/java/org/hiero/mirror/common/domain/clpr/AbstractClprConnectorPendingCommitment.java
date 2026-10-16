@@ -3,16 +3,11 @@
 package org.hiero.mirror.common.domain.clpr;
 
 import com.google.common.collect.Range;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
 
@@ -37,19 +32,6 @@ public abstract class AbstractClprConnectorPendingCommitment implements History 
     private Long createdTimestamp;
 
     private Boolean deleted;
-
-    @ToString.Exclude
-    private byte[] publicKey;
-
-    @ToString.Exclude
-    private byte[] salt;
-
-    @ToString.Exclude
-    private byte[] signature;
-
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    private ClprSignatureScheme signatureScheme;
 
     private Range<Long> timestampRange;
 }

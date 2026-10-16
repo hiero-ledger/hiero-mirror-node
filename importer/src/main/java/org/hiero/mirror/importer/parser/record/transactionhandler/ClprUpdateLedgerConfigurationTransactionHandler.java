@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -39,7 +40,7 @@ class ClprUpdateLedgerConfigurationTransactionHandler extends AbstractTransactio
 
         long consensusTimestamp = recordItem.getConsensusTimestamp();
 
-        var builder = org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration.builder()
+        var builder = ClprLedgerConfiguration.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .protocolVersion(configuration.getProtocolVersion())
                 .chainId(configuration.getChainId())
