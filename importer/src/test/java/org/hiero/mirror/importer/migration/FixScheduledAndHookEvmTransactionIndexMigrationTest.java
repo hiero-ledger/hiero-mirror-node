@@ -14,6 +14,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.convert.DurationStyle;
 
 @DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
@@ -22,6 +23,9 @@ import org.junit.jupiter.api.Test;
 final class FixScheduledAndHookEvmTransactionIndexMigrationTest
         extends AbstractAsyncJavaMigrationTest<FixScheduledAndHookEvmTransactionIndexMigration> {
 
+    private static final long BATCH_INTERVAL = DurationStyle.SIMPLE
+            .parse(FixScheduledAndHookEvmTransactionIndexMigration.DEFAULT_BATCH_INTERVAL)
+            .toNanos();
     private static final long INTERVAL = Duration.ofHours(3).toNanos();
 
     @Getter
@@ -202,6 +206,88 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
         assertContractResultIndex(failedCallTimestamp, null);
         assertContractResultIndex(firstEffectTimestamp, null);
         assertContractResultIndex(secondEffectTimestamp, null);
+    }
+
+    @Test
+    void dropsTargetsTable() {
+        // given
+        persistBlock(0);
+        ownerJdbcTemplate.execute("""
+                create table if not exists fix_scheduled_hook_evm_index_targets_temp(
+                    consensus_start bigint not null,
+                    consensus_end bigint not null primary key
+                )
+                """);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertThat(tableExists("fix_scheduled_hook_evm_index_targets_temp")).isFalse();
+        assertThat(tableExists("fix_scheduled_hook_evm_index_progress_temp")).isFalse();
+    }
+
+    @Test
+    void effectsOfFailedCallsInSlicesSeparatedByGapAreFound() {
+        // given - the gap between the blocks spans slices without record files
+        final var olderBlock = persistBlockAt(domainBuilder.timestamp(), 0);
+        final var newerBlock = persistBlockAt(olderBlock.getConsensusStart() + 3 * BATCH_INTERVAL, 1);
+        final var olderEffect = persistFailedCallWithEffect(olderBlock.getConsensusStart() + 100);
+        final var newerEffect = persistFailedCallWithEffect(newerBlock.getConsensusStart() + 100);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(olderEffect, null);
+        assertContractResultIndex(newerEffect, null);
+    }
+
+    @Test
+    void blockAcrossSliceBoundaryIsProcessedWhole() {
+        // given - the newer slice's lower bound falls inside the older block, after its failed call
+        final var olderBlock = persistBlockAt(domainBuilder.timestamp(), 0);
+        final var effectTimestamp = persistFailedCallWithEffect(olderBlock.getConsensusStart() + 100);
+        final var newerBlockEnd =
+                olderBlock.getConsensusStart() + Duration.ofSeconds(1).toNanos() + BATCH_INTERVAL;
+        persistBlockAt(newerBlockEnd - Duration.ofSeconds(2).toNanos(), 1);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(effectTimestamp, null);
+    }
+
+    @Test
+    void resumesFromCheckpoint() {
+        // given - an earlier run was interrupted after processing the newest block
+        final var olderBlock = persistBlockAt(domainBuilder.timestamp(), 0);
+        final var newerBlock = persistBlockAt(olderBlock.getConsensusStart() + 3 * BATCH_INTERVAL, 1);
+        final var newestBlock = persistBlockAt(newerBlock.getConsensusStart() + 3 * BATCH_INTERVAL, 2);
+        final var olderEffect = persistFailedCallWithEffect(olderBlock.getConsensusStart() + 100);
+        final var newerEffect = persistFailedCallWithEffect(newerBlock.getConsensusStart() + 100);
+        final var newestEffect = persistFailedCallWithEffect(newestBlock.getConsensusStart() + 100);
+
+        migration.performSynchronousSteps();
+        migration
+                .getJdbcOperations()
+                .update(
+                        "insert into fix_scheduled_hook_evm_index_progress_temp values (?)",
+                        newestBlock.getConsensusStart() - 1);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then - the checkpoint is honored, so the newest block isn't processed again
+        assertContractResultIndex(olderEffect, null);
+        assertContractResultIndex(newerEffect, null);
+        assertContractResultIndex(newestEffect, -1);
+        assertThat(tableExists("fix_scheduled_hook_evm_index_progress_temp")).isFalse();
     }
 
     @Test
@@ -432,6 +518,25 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
         }
         assertContractResultIndex(unaffectedTimestamp, 99);
         assertContractResultIndex(outsideBlockTimestamp, 77);
+    }
+
+    private RecordFile persistBlockAt(long consensusStart, long index) {
+        return domainBuilder
+                .recordFile()
+                .customize(r -> r.index(index)
+                        .consensusStart(consensusStart)
+                        .consensusEnd(consensusStart + Duration.ofSeconds(2).toNanos()))
+                .persist();
+    }
+
+    // A call failing with no gas used and one precompile effect left at -1 by the old migration; returns the effect
+    private long persistFailedCallWithEffect(long failedCallTimestamp) {
+        final var effectTimestamp = failedCallTimestamp + 1;
+        persistTransaction(failedCallTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+        persistTransaction(effectTimestamp, TransactionType.CRYPTOTRANSFER, 1, false, failedCallTimestamp);
+        persistContractResult(failedCallTimestamp, 0, null, 0L);
+        persistContractResult(effectTimestamp, 1, -1);
+        return effectTimestamp;
     }
 
     private RecordFile persistBlock(long index) {
