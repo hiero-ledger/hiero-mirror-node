@@ -520,6 +520,34 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
         assertContractResultIndex(outsideBlockTimestamp, 77);
     }
 
+    @Test
+    void moreAffectedBlocksInSliceThanOneReadTakesAreFixed() {
+        // given - all blocks fall in one slice
+        final var blockCount = 45;
+        final var firstBlockStart = domainBuilder.timestamp();
+        final var scheduledTimestamps = new long[blockCount];
+        for (int i = 0; i < blockCount; i++) {
+            final var block =
+                    persistBlockAt(firstBlockStart + i * Duration.ofMinutes(1).toNanos(), i);
+            final var rootTimestamp = block.getConsensusStart() + 100;
+            scheduledTimestamps[i] = block.getConsensusStart() + 200;
+            persistTransaction(rootTimestamp, TransactionType.CONTRACTCALL, 0, false, null);
+            persistTransaction(scheduledTimestamps[i], TransactionType.CONTRACTCALL, 53, true, null);
+            persistScheduleExecution(scheduledTimestamps[i]);
+            persistContractResult(rootTimestamp, 0, 0);
+            persistContractResult(scheduledTimestamps[i], 53, 0);
+        }
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        for (final var scheduledTimestamp : scheduledTimestamps) {
+            assertContractResultIndex(scheduledTimestamp, 1);
+        }
+    }
+
     private RecordFile persistBlockAt(long consensusStart, long index) {
         return domainBuilder
                 .recordFile()

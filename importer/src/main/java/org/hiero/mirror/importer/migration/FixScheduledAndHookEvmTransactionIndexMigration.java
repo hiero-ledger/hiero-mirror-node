@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.migration;
 import jakarta.inject.Named;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.StringJoiner;
@@ -37,6 +38,7 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
     static final String DEFAULT_BATCH_INTERVAL = "1d";
 
     private static final String BATCH_INTERVAL_PROPERTIES_KEY = "batchInterval";
+    private static final int BLOCKS_PER_ITERATION = 20;
 
     private static final String DROP_TARGETS_TABLE = """
             drop table if exists fix_scheduled_hook_evm_index_targets_temp;
@@ -266,10 +268,31 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
         getNamedParameterJdbcOperations()
                 .update(CHECKPOINT_SQL, new MapSqlParameterSource("upperBound", nextUpperBound));
 
-        if (blocks.isEmpty()) {
-            return Optional.of(nextUpperBound);
+        for (int i = 0; i < blocks.size(); i += BLOCKS_PER_ITERATION) {
+            repair(blocks.subList(i, Math.min(i + BLOCKS_PER_ITERATION, blocks.size())));
         }
 
+        return Optional.of(nextUpperBound);
+    }
+
+    private RecordFileSlice getNextSlice(long sliceUpperBound) {
+        while (sliceUpperBound >= lowerBound) {
+            final var sliceLowerBound = sliceUpperBound - batchInterval;
+            final var sliceParams = new MapSqlParameterSource()
+                    .addValue("consensusEndUpperBound", sliceUpperBound)
+                    .addValue("consensusEndLowerBound", sliceLowerBound);
+            final var slice = queryForObjectOrNull(SELECT_RECORD_FILES_RANGE, sliceParams, SLICE_ROW_MAPPER);
+            if (slice != null && slice.minConsensusTimestamp() != null && slice.maxConsensusTimestamp() != null) {
+                return slice;
+            }
+
+            sliceUpperBound = sliceLowerBound;
+        }
+
+        return null;
+    }
+
+    private void repair(List<Block> blocks) {
         final var minTimestamp = blocks.getLast().consensusStart();
         final var maxTimestamp = blocks.getFirst().consensusEnd();
         final var readParams = new MapSqlParameterSource()
@@ -315,25 +338,6 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
             getNamedParameterJdbcOperations().update(UPDATE_CONTRACT_LOG_INDEX_SQL, updateParams);
             log.info("Recomputed {} evm_transaction_index values across {} blocks", updates.size(), blocks.size());
         }
-
-        return Optional.of(nextUpperBound);
-    }
-
-    private RecordFileSlice getNextSlice(long sliceUpperBound) {
-        while (sliceUpperBound >= lowerBound) {
-            final var sliceLowerBound = sliceUpperBound - batchInterval;
-            final var sliceParams = new MapSqlParameterSource()
-                    .addValue("consensusEndUpperBound", sliceUpperBound)
-                    .addValue("consensusEndLowerBound", sliceLowerBound);
-            final var slice = queryForObjectOrNull(SELECT_RECORD_FILES_RANGE, sliceParams, SLICE_ROW_MAPPER);
-            if (slice != null && slice.minConsensusTimestamp() != null && slice.maxConsensusTimestamp() != null) {
-                return slice;
-            }
-
-            sliceUpperBound = sliceLowerBound;
-        }
-
-        return null;
     }
 
     private TransactionOperations transactionOperations() {
