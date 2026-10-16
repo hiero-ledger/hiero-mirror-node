@@ -24,6 +24,7 @@ import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
+import org.hiero.mirror.grpc.service.AddressBookProperties;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.junit.jupiter.api.Test;
 import org.springframework.grpc.client.ImportGrpcClients;
@@ -34,6 +35,7 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
 
     private static final long CONSENSUS_TIMESTAMP = 1L;
 
+    private final AddressBookProperties addressBookProperties;
     private final NetworkServiceGrpc.NetworkServiceBlockingStub blockingService;
 
     @Test
@@ -80,6 +82,52 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .hasMessageContaining("limit: must be greater than or equal to 0")
                 .extracting(t -> ((StatusRuntimeException) t).getStatus().getCode())
                 .isEqualTo(Status.Code.INVALID_ARGUMENT);
+    }
+
+    @Test
+    void getNodesZeroLimitUsesMax() {
+        final int originalMaxLimit = addressBookProperties.getMaxLimit();
+        addressBookProperties.setMaxLimit(1);
+        try {
+            final var addressBook = addressBook();
+            final var addressBookEntry1 = addressBookEntry();
+            addressBookEntry();
+            final var query = AddressBookQuery.newBuilder()
+                    .setFileId(addressBook.getFileId().toFileID())
+                    .setLimit(0)
+                    .build();
+
+            final var responseIterator = blockingService.getNodes(query);
+            List<NodeAddress> nodes = new ArrayList<>();
+            responseIterator.forEachRemaining(nodes::add);
+
+            assertThat(nodes).hasSize(1).satisfies(n -> assertEntry(addressBookEntry1, n.get(0)));
+        } finally {
+            addressBookProperties.setMaxLimit(originalMaxLimit);
+        }
+    }
+
+    @Test
+    void getNodesLimitClampedToMax() {
+        final int originalMaxLimit = addressBookProperties.getMaxLimit();
+        addressBookProperties.setMaxLimit(1);
+        try {
+            final var addressBook = addressBook();
+            final var addressBookEntry1 = addressBookEntry();
+            addressBookEntry();
+            final var query = AddressBookQuery.newBuilder()
+                    .setFileId(addressBook.getFileId().toFileID())
+                    .setLimit(50)
+                    .build();
+
+            final var responseIterator = blockingService.getNodes(query);
+            List<NodeAddress> nodes = new ArrayList<>();
+            responseIterator.forEachRemaining(nodes::add);
+
+            assertThat(nodes).hasSize(1).satisfies(n -> assertEntry(addressBookEntry1, n.get(0)));
+        } finally {
+            addressBookProperties.setMaxLimit(originalMaxLimit);
+        }
     }
 
     @Test
