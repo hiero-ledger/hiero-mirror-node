@@ -98,6 +98,11 @@ public class RecordItem implements StreamItem {
     @Setter
     private Integer evmTransactionIndex;
 
+    // Whether this item shares the EVM transaction of another item instead of being its own EVM transaction
+    @NonFinal
+    @Setter
+    private boolean evmChild;
+
     @NonFinal
     @Setter
     private Predicate<EntityId> contractTransactionPredicate;

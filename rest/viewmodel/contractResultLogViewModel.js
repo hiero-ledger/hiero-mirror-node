@@ -18,6 +18,7 @@ class ContractResultLogViewModel {
     Object.assign(this, {
       address: contractLog.evmAddress ? toHexString(contractLog.evmAddress, true) : contractId.toEvmAddress(),
       bloom: toHexString(contractLog.bloom, true),
+      child: !!contractLog.child,
       contract_id: contractId.toString(),
       data: toHexString(contractLog.data, true, 64),
       index: contractLog.index,

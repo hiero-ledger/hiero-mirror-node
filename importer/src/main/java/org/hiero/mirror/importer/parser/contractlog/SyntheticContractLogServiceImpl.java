@@ -47,12 +47,14 @@ final class SyntheticContractLogServiceImpl implements SyntheticContractLogServi
         EntityId contractId;
         EntityId rootContractId;
         byte[] transactionHash;
+        boolean child;
 
         if (contractRelatedParentRecordItem != null) {
             consensusTimestamp = contractRelatedParentRecordItem.getConsensusTimestamp();
             logIndex = contractRelatedParentRecordItem.getAndIncrementLogIndex();
             transactionIndex = contractRelatedParentRecordItem.getEvmTransactionIndex();
             transactionHash = contractRelatedParentRecordItem.getTransactionHash();
+            child = contractRelatedParentRecordItem.isEvmChild();
 
             final var parentTransactionRecord = contractRelatedParentRecordItem.getTransactionRecord();
             contractId = EntityId.tryOf(
@@ -63,12 +65,14 @@ final class SyntheticContractLogServiceImpl implements SyntheticContractLogServi
             logIndex = recordItem.getAndIncrementLogIndex();
             transactionIndex = recordItem.claimEvmTransactionIndex();
             transactionHash = recordItem.getTransactionHash();
+            child = recordItem.isEvmChild();
             contractId = log.getEntityId();
             rootContractId = log.getEntityId();
         }
 
         final var contractLog = new ContractLog();
         contractLog.setBloom(isContract(recordItem) ? CONTRACT_LOG_MARKER : EMPTY);
+        contractLog.setChild(child);
         contractLog.setConsensusTimestamp(consensusTimestamp);
         contractLog.setContractId(contractId);
         contractLog.setData(log.getData() != null ? log.getData() : EMPTY);
