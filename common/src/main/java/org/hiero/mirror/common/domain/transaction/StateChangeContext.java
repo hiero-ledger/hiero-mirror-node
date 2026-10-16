@@ -14,6 +14,7 @@ import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
 import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
 import com.hederahashgraph.api.proto.java.ClprMessageKey;
 import com.hederahashgraph.api.proto.java.ClprMessageValue;
@@ -52,6 +53,9 @@ public final class StateChangeContext {
     private final Map<ContractSlotKey, BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractSlotId, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
     private final Map<ByteString, ClprChannel> clprChannels = new HashMap<>();
+
+    @Nullable
+    private ClprEndpointManifest clprEndpointManifest;
 
     @Nullable
     private ClprLedgerConfiguration clprLedgerConfiguration;
@@ -111,6 +115,10 @@ public final class StateChangeContext {
                 } else if (stateChange.hasSingletonUpdate()) {
                     var singletonUpdate = stateChange.getSingletonUpdate();
                     switch (stateChange.getStateId()) {
+                        // TODO: no transaction type carries this state change yet (consensus-node gap, see
+                        // docs/design/clpr.md Consensus-Node Assumption #4); wire a transformer/handler once one does.
+                        case StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE ->
+                            processClprEndpointManifestStateChange(singletonUpdate);
                         case StateIdentifier.STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE ->
                             processClprLedgerConfigurationStateChange(singletonUpdate);
                         default -> {
@@ -137,6 +145,10 @@ public final class StateChangeContext {
 
     public Optional<ClprChannel> getClprChannel(ByteString channelId) {
         return Optional.ofNullable(clprChannels.get(channelId));
+    }
+
+    public Optional<ClprEndpointManifest> getClprEndpointManifest() {
+        return Optional.ofNullable(clprEndpointManifest);
     }
 
     public Optional<ClprLedgerConfiguration> getClprLedgerConfiguration() {
@@ -282,6 +294,14 @@ public final class StateChangeContext {
 
         var channelId = mapUpdate.getKey().getProtoBytesKey().getValue();
         clprChannels.put(channelId, mapUpdate.getValue().getClprChannelValue());
+    }
+
+    private void processClprEndpointManifestStateChange(SingletonUpdateChange singletonUpdate) {
+        if (!singletonUpdate.hasClprEndpointManifestValue()) {
+            return;
+        }
+
+        clprEndpointManifest = singletonUpdate.getClprEndpointManifestValue();
     }
 
     private void processClprLedgerConfigurationStateChange(SingletonUpdateChange singletonUpdate) {

@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.transaction;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_FILES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
@@ -38,6 +39,7 @@ import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.NewStateChange;
+import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.platform.state.legacy.NodeId;
@@ -47,6 +49,7 @@ import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ClprChannel;
 import com.hederahashgraph.api.proto.java.ClprControlMessage;
+import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
 import com.hederahashgraph.api.proto.java.ClprMessage;
 import com.hederahashgraph.api.proto.java.ClprMessageKey;
 import com.hederahashgraph.api.proto.java.ClprMessagePayload;
@@ -174,6 +177,26 @@ final class StateChangeContextTest {
         assertThat(context.getClprChannel(channelId1)).get().returns(channelId1, ClprChannel::getChannelId);
         assertThat(context.getClprChannel(channelId2)).get().returns(channelId2, ClprChannel::getChannelId);
         assertThat(context.getClprChannel(bytes(32))).isEmpty();
+    }
+
+    @Test
+    void clprEndpointManifest() {
+        // given: StateChangeContext parsing is ready, but no transaction type carries this state change yet
+        // (see docs/design/clpr.md Consensus-Node Assumption #4) -- constructed directly here since no
+        // transaction fixture exists to source it from.
+        var manifest = ClprEndpointManifest.newBuilder().setVersion(5).build();
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE)
+                        .setSingletonUpdate(SingletonUpdateChange.newBuilder().setClprEndpointManifestValue(manifest)))
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getClprEndpointManifest()).contains(manifest);
+        assertThat(EMPTY_CONTEXT.getClprEndpointManifest()).isEmpty();
     }
 
     @Test
