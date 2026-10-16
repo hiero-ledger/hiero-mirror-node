@@ -102,21 +102,18 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
     }
 
     @Test
-    void searchCapDoesNotExceedScriptUpperBound() {
-        // 1.20 * gasUsed is not an integer, so ceil() is strictly above the script bound.
-        final long gasUsed = 34187L;
-        final long high = 15_000_000L;
-        final double scriptUpperBound = gasUsed * 1.20;
-        final long ceilCap = (long) Math.ceil(scriptUpperBound);
-        final long floorCap = (long) Math.floor(scriptUpperBound);
-        assertThat(ceilCap).isGreaterThan((long) scriptUpperBound);
+    void searchReturnsHiWhenPreRefundGasExceedsTwentyPercentAboveInitialGasUsed() {
+        final long postRefundGasUsed = 77_426L;
+        final long preRefundGasNeeded = 96_782L;
+        final long high = 111_784L;
 
-        // Fail every probe so the search must return the 20% cap.
-        final long estimated =
-                binaryGasEstimator.search((_, _) -> {}, _ -> createTxnResult(gasUsed, false), gasUsed, high);
+        final long estimated = binaryGasEstimator.search(
+                (_, b) -> iterations.addAndGet(b),
+                gasLimit -> createTxnResult(postRefundGasUsed, gasLimit >= preRefundGasNeeded),
+                postRefundGasUsed,
+                high);
 
-        assertThat(estimated).isEqualTo(floorCap);
-        assertThat((double) estimated).isLessThanOrEqualTo(scriptUpperBound);
+        assertThat(estimated).isGreaterThanOrEqualTo(preRefundGasNeeded).isLessThanOrEqualTo(high);
     }
 
     @ParameterizedTest

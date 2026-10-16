@@ -19,9 +19,7 @@ public class BinaryGasEstimator {
 
     public long search(
             final ObjIntConsumer<Long> metricUpdater, final LongFunction<EvmTransactionResult> call, long lo, long hi) {
-        final long initialGasUsed = lo;
-        final long minAllowedEstimate = (long) Math.ceil(initialGasUsed * 1.05);
-        final long maxAllowedEstimate = (long) Math.floor(initialGasUsed * 1.20);
+        final long minAllowedEstimate = (long) Math.ceil(lo * 1.05);
         if (hi <= minAllowedEstimate) {
             return minAllowedEstimate;
         }
@@ -66,9 +64,6 @@ public class BinaryGasEstimator {
 
         metricUpdater.accept(totalGasUsed, iterationsMade);
 
-        if (hi > maxAllowedEstimate) {
-            return maxAllowedEstimate;
-        }
         return Math.max(hi, minAllowedEstimate);
     }
 
