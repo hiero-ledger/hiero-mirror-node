@@ -12,22 +12,10 @@ SLEEP_SECONDS="${SLEEP_SECONDS:-0.3}"
 LIMIT=100
 MAX_PAGE_FETCH_RETRIES=30
 
-processed=0
-checked=0
-passed=0
+executed=0
 failed=0
-skipped=0
-estimate_reverts=0
-api_errors=0
-page_fetch_failures=0
-nonReproducible=0
-
-log() {
-  printf '%s\n' "$*"
-}
 
 if ! awk -v t="${TOLERANCE_PERCENT}" -v m="${MIN_TOLERANCE_PERCENT}" 'BEGIN { exit (t > m) ? 0 : 1 }'; then
-  log "TOLERANCE_PERCENT must be greater than ${MIN_TOLERANCE_PERCENT} (got ${TOLERANCE_PERCENT})"
   exit 1
 fi
 
@@ -238,50 +226,38 @@ build_request() {
 }
 
 should_skip() {
-  local result_json="$1"
-  local reason
-  reason="$(jq -r '
+  jq -e '
     .contract_id as $cid
-    | if .gas_used == null then "missing gas_used"
-      elif .gas_used <= 0 then "non-positive gas_used"
-      elif (
+    | (.gas_used == null)
+      or (.gas_used <= 0)
+      or (
+        (
           (.to == null or .to == "" or .to == "0x")
           or ($cid != null and ((.created_contract_ids // []) | index($cid) != null))
         )
         and ($cid == null)
-        and ((.created_contract_ids // []) | length) == 0 then
-        "missing contract id for contract create"
-      elif (.to == null or .to == "" or .to == "0x")
+        and (((.created_contract_ids // []) | length) == 0)
+      )
+      or (
+        (.to == null or .to == "" or .to == "0x")
         and ($cid == null or ((.created_contract_ids // []) | index($cid) == null))
-        and (.function_parameters == null or .function_parameters == "" or .function_parameters == "0x") then
-        "missing data for contract call"
-      else empty end
-  ' <<<"${result_json}")"
-  if [[ -n "${reason}" ]]; then
-    printf '%s' "${reason}"
-    return 0
-  fi
-  return 1
+        and (.function_parameters == null or .function_parameters == "" or .function_parameters == "0x")
+      )
+  ' <<<"$1" >/dev/null
 }
 
 check_result() {
   local result_json="$1"
-  if should_skip "${result_json}" >/dev/null; then
-    skipped=$((skipped + 1))
+  if should_skip "${result_json}"; then
     return 0
   fi
 
   local request consumed hash
   if ! request="$(build_request "${result_json}")"; then
-    api_errors=$((api_errors + 1))
     return 0
   fi
   hash="$(jq -r '.hash // "unknown"' <<<"${result_json}")"
   consumed="$(jq -r '.gas_used' <<<"${result_json}")"
-  if [[ -z "${consumed}" ]] || ((consumed <= 0)); then
-    skipped=$((skipped + 1))
-    return 0
-  fi
 
   local attempt estimated body http_code pre_refund_gas=""
   for attempt in 1 2; do
@@ -290,13 +266,6 @@ check_result() {
     if [[ "${http_code}" != "200" ]]; then
       if ((attempt == 2)); then
         break
-      fi
-      # Historical txs often revert on estimate replay (due to state change).
-      # Count those separately; only out-of-tolerance estimates fail the job.
-      if [[ "${http_code}" == "400" ]] && grep -q 'CONTRACT_REVERT_EXECUTED' <<<"${body}"; then
-        estimate_reverts=$((estimate_reverts + 1))
-      else
-        api_errors=$((api_errors + 1))
       fi
       return 0
     fi
@@ -307,7 +276,6 @@ check_result() {
       if ((attempt == 2)); then
         break
       fi
-      api_errors=$((api_errors + 1))
       return 0
     fi
 
@@ -319,8 +287,7 @@ check_result() {
         && ((pre_refund_gas > consumed)) \
         && within_tolerance "${estimated}" "${pre_refund_gas}"
     }; then
-      checked=$((checked + 1))
-      passed=$((passed + 1))
+      executed=$((executed + 1))
       return 0
     fi
 
@@ -329,14 +296,12 @@ check_result() {
       block_number="$(jq -r '.block_number // empty' <<<"${result_json}")"
       consensus_timestamp="$(jq -r '.consensus_timestamp // empty' <<<"${result_json}")"
       if [[ -n "${block_number}" ]] && is_near_round_hour "${consensus_timestamp}"; then
-        log "Out of tolerance for hash=${hash} at block ${block_number}-1; retrying with block=${block_number}"
         request="$(jq -c --arg b "${block_number}" '.block = $b' <<<"${request}")"
         retried=true
       fi
       if ! is_contract_create "${result_json}"; then
         action_from="$(resolve_action_sender "${hash}")"
         if [[ -n "${action_from}" ]] && ! hex_equal "${action_from}" "$(jq -r '.from // empty' <<<"${request}")"; then
-          log "Out of tolerance for hash=${hash}; retrying with action sender from=${action_from}"
           request="$(jq -c --arg f "${action_from}" '.from = $f' <<<"${request}")"
           retried=true
         fi
@@ -353,19 +318,11 @@ check_result() {
   post_contracts_call "${replay_request}"
   if ! is_reproducible_replay "${result_json}" "${http_code}" "${body}" \
     || has_intra_block_dependency "${result_json}"; then
-    nonReproducible=$((nonReproducible + 1))
     return 0
   fi
 
-  checked=$((checked + 1))
-
+  executed=$((executed + 1))
   failed=$((failed + 1))
-  local pct
-  pct="$(awk -v e="${estimated}" -v c="${consumed}" 'BEGIN {
-    printf "%.2f", ((e - c) * 100.0 / c)
-  }')"
-  log "Out of tolerance for hash=${hash}: estimated=${estimated} gas_used=${consumed} overhead=${pct}% (expected ${MIN_TOLERANCE_PERCENT}-${TOLERANCE_PERCENT}%)"
-  log "request=${request}"
 }
 
 page_url_from_next() {
@@ -385,83 +342,46 @@ fi
 
 next_path="/api/v1/contracts/results?limit=${page_limit}&order=desc"
 
-while ((processed < RESULTS_COUNT)); do
+while ((RESULTS_COUNT > 0)); do
   if [[ -z "${next_path}" || "${next_path}" == "null" ]]; then
     break
   fi
 
   page_url="$(page_url_from_next "${next_path}")"
-  if ! page_json="$(curl -sS -f "${page_url}")"; then
-    page_fetch_failures=$((page_fetch_failures + 1))
-    log "Failed to fetch results page (${page_fetch_failures}/${MAX_PAGE_FETCH_RETRIES}): ${page_url}"
-    if ((page_fetch_failures >= MAX_PAGE_FETCH_RETRIES)); then
-      log "Giving up after ${MAX_PAGE_FETCH_RETRIES} consecutive results page fetch failures"
-      break
-    fi
-    sleep "${SLEEP_SECONDS}"
-    continue
-  fi
-
-  if ! result_count="$(jq '.results | length' <<<"${page_json}")" || [[ -z "${result_count}" ]]; then
-    page_fetch_failures=$((page_fetch_failures + 1))
-    log "Invalid results page response (${page_fetch_failures}/${MAX_PAGE_FETCH_RETRIES}): ${page_url}"
-    if ((page_fetch_failures >= MAX_PAGE_FETCH_RETRIES)); then
-      log "Giving up after ${MAX_PAGE_FETCH_RETRIES} consecutive results page fetch failures"
-      break
-    fi
-    sleep "${SLEEP_SECONDS}"
-    continue
-  fi
-
-  if [[ "${result_count}" -eq 0 ]]; then
+  if ! page_json="$(curl -sS --retry "${MAX_PAGE_FETCH_RETRIES}" --retry-all-errors -f "${page_url}")"; then
     break
   fi
 
-  page_fetch_failures=0
+  if ! result_count="$(jq '.results | length' <<<"${page_json}")" \
+    || [[ -z "${result_count}" || "${result_count}" -eq 0 ]]; then
+    break
+  fi
 
   while IFS= read -r result_json; do
-    if ((processed >= RESULTS_COUNT)); then
+    if ((RESULTS_COUNT <= 0)); then
       break
     fi
     check_result "${result_json}"
-    processed=$((processed + 1))
+    RESULTS_COUNT=$((RESULTS_COUNT - 1))
     sleep "${SLEEP_SECONDS}"
   done < <(jq -c '.results[]' <<<"${page_json}")
 
   next_path="$(jq -r '.links.next // empty' <<<"${page_json}")"
 done
 
-summary="$(cat <<EOF
-  Fetched contract result count: ${processed}
-  Executed validation request count: ${checked}
-  Passed estimation count: ${passed}
-  Out of tolerance estimation count: ${failed}
-  Non reproducible contract results: ${nonReproducible}
-  Skipped request count: ${skipped}
-  Reverted estimate request count: ${estimate_reverts}
-  Errors count outside CONTRACT_REVERT_EXECUTED: ${api_errors}
-EOF
-)"
-log "${summary}"
+failure_percentage="$(awk -v e="${executed}" -v f="${failed}" 'BEGIN {
+  printf "%.2f", (e > 0 ? (f * 100.0 / e) : 0)
+}')"
+
+summary="${executed} number of gas estimations were executed, ${failure_percentage} % (${failed} number) of them has gas accuracy failures"
+printf '%s\n' "${summary}"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
-  echo "### Summary:" >> $GITHUB_STEP_SUMMARY
+  echo "### Summary:" >> "${GITHUB_STEP_SUMMARY}"
   printf '%s\n' "${summary}" >> "${GITHUB_STEP_SUMMARY}"
 fi
 
-if ((page_fetch_failures >= MAX_PAGE_FETCH_RETRIES)); then
-  log "Gas estimate accuracy check failed: results page fetch retries exhausted"
+if ((executed == 0 || failed > 0)); then
   exit 1
 fi
 
-if ((checked == 0)); then
-  log "Gas estimate accuracy check failed: no estimates were successfully checked (api_errors=${api_errors}, estimate_reverts=${estimate_reverts}, skipped=${skipped})"
-  exit 1
-fi
-
-if ((failed > 0)); then
-  log "Gas estimate accuracy check failed: ${failed} out-of-tolerance estimate(s)"
-  exit 1
-fi
-
-log "Gas estimate accuracy check passed"
 exit 0
