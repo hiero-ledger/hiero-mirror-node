@@ -2,6 +2,8 @@
 
 import {jest} from '@jest/globals';
 
+import config from '../../config';
+import {clusterIdHeader} from '../../constants.js';
 import {
   DbError,
   FileDecodeError,
@@ -46,6 +48,7 @@ describe('handleError logging', () => {
     mockResponse = {
       locals: {},
       json: jest.fn(),
+      set: jest.fn(),
       status: jest.fn().mockReturnThis(),
     };
     warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
@@ -66,6 +69,7 @@ describe('handleError logging', () => {
     expect(logged).not.toMatch(/[\r\n\t\0]/);
     expect(logged).toContain('/api/v1/accounts__WARN injected');
     expect(logged).toContain('bad_input');
+    expect(mockResponse.set).toHaveBeenCalledWith(clusterIdHeader, config.clusterId);
     expect(mockResponse.json).toHaveBeenCalledWith({
       _status: {messages: [{message: 'bad\ninput'}]},
     });

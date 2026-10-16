@@ -472,9 +472,10 @@ zfs:
     enabled: false
   autoGrow:
     growPercent: 10
+    headroomGb: 20
     intervalSeconds: 120
-    maxStepGb: 50
-    thresholdPercent: 80
+    maxStepGb: 200
+    thresholdPercent: 90
   coordinator:
     initialDiskSize: 300GB
   enabled: false

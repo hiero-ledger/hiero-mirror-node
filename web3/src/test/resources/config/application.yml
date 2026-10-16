@@ -28,6 +28,9 @@ hiero:
         network: OTHER
       requestTimeout: 60s
 spring:
+  task:
+    scheduling:
+      enabled: false
   test:
     database:
       replace: NONE

@@ -6,9 +6,10 @@ import config from '../../config';
 import {NotFoundError} from '../../errors';
 import {responseHandler} from '../../middleware';
 import {JSONStringify} from '../../utils';
-import {contentTypeHeader, responseHeadersLabel} from '../../constants.js';
+import {clusterIdHeader, contentTypeHeader, responseHeadersLabel} from '../../constants.js';
 
 const {
+  clusterId,
   response: {headers},
 } = config;
 
@@ -50,7 +51,10 @@ describe('Response middleware', () => {
     mockResponse.get.mockReturnValue('application/json; charset=utf-8');
     await responseHandler(mockRequest, mockResponse, nextMiddleware);
     expect(mockResponse.send).toHaveBeenCalledWith(JSONStringify(responseData));
-    expect(mockResponse.set).toHaveBeenNthCalledWith(1, headers.default);
+    expect(mockResponse.set).toHaveBeenNthCalledWith(1, {
+      ...headers.default,
+      [clusterIdHeader]: clusterId,
+    });
     expect(mockResponse.status).toHaveBeenCalledWith(mockResponse.locals.statusCode);
   });
 
@@ -61,6 +65,7 @@ describe('Response middleware', () => {
     expect(mockResponse.send).toHaveBeenCalledWith(JSONStringify(responseData));
     expect(mockResponse.set).toHaveBeenCalledWith({
       [cacheControl]: headers.path[mockRequest.route.path][cacheControl],
+      [clusterIdHeader]: clusterId,
       [contentTypeHeader]: 'application/json; charset=utf-8',
     });
     expect(mockResponse.status).toHaveBeenCalledWith(mockResponse.locals.statusCode);
@@ -73,6 +78,7 @@ describe('Response middleware', () => {
     expect(mockResponse.send).toHaveBeenCalledWith(mockResponse.locals.responseData);
     expect(mockResponse.set).toHaveBeenNthCalledWith(1, {
       [cacheControl]: headers.default[cacheControl],
+      [clusterIdHeader]: clusterId,
       [contentTypeHeader]: mockResponse.locals[responseHeadersLabel][contentTypeHeader],
     });
     expect(mockResponse.status).toHaveBeenCalledWith(mockResponse.locals.statusCode);

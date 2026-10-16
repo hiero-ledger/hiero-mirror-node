@@ -72,7 +72,7 @@ app.use(
   })
 );
 app.use(express.json());
-app.use(cors());
+app.use(cors({exposedHeaders: constants.clusterIdHeader}));
 
 if (config.response.compression) {
   logger.info('Response compression is enabled');
@@ -169,6 +169,9 @@ if (!isTestEnv()) {
 
   // Health check endpoints
   createTerminus(server, {
+    headers: {
+      [constants.clusterIdHeader]: config.clusterId,
+    },
     healthChecks: {
       '/health/readiness': health.readinessCheck,
       '/health/liveness': health.livenessCheck,
