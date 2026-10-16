@@ -5,6 +5,13 @@ package org.hiero.mirror.importer.parser.record.entity;
 import java.util.Collection;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -52,6 +59,22 @@ public interface EntityListener {
     }
 
     default void onAssessedCustomFee(AssessedCustomFee assessedCustomFee) throws ImporterException {}
+
+    default void onClprChannel(ClprChannel clprChannel) throws ImporterException {}
+
+    default void onClprChannelPendingCommitment(ClprChannelPendingCommitment clprChannelPendingCommitment)
+            throws ImporterException {}
+
+    default void onClprConnector(ClprConnector clprConnector) throws ImporterException {}
+
+    default void onClprConnectorPendingCommitment(ClprConnectorPendingCommitment clprConnectorPendingCommitment)
+            throws ImporterException {}
+
+    default void onClprEndpointManifest(ClprEndpointManifest clprEndpointManifest) throws ImporterException {}
+
+    default void onClprLedgerConfiguration(ClprLedgerConfiguration clprLedgerConfiguration) throws ImporterException {}
+
+    default void onClprMessage(ClprMessage clprMessage) throws ImporterException {}
 
     default void onContract(Contract contract) {}
 

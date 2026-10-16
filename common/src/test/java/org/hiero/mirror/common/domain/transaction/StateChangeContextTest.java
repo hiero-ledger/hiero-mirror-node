@@ -4,6 +4,8 @@ package org.hiero.mirror.common.domain.transaction;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_FILES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
@@ -43,6 +45,12 @@ import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
+import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprControlMessage;
+import com.hederahashgraph.api.proto.java.ClprMessage;
+import com.hederahashgraph.api.proto.java.ClprMessageKey;
+import com.hederahashgraph.api.proto.java.ClprMessagePayload;
+import com.hederahashgraph.api.proto.java.ClprMessageValue;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.File;
 import com.hederahashgraph.api.proto.java.NftID;
@@ -146,6 +154,63 @@ final class StateChangeContextTest {
                 .returns(contractId2.getAccountNum(), ContractID::getContractNum)
                 .returns(false, ContractID::hasEvmAddress);
         assertThat(context.getContractId(evmAddress())).isEmpty();
+    }
+
+    @Test
+    void clprChannel() {
+        // given
+        var channelId1 = bytes(32);
+        var channelId2 = bytes(32);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(clprChannelMapUpdateChange(channelId1))
+                .addStateChanges(clprChannelMapUpdateChange(channelId2))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getClprChannel(channelId1)).get().returns(channelId1, ClprChannel::getChannelId);
+        assertThat(context.getClprChannel(channelId2)).get().returns(channelId2, ClprChannel::getChannelId);
+        assertThat(context.getClprChannel(bytes(32))).isEmpty();
+    }
+
+    @Test
+    void clprMessages() {
+        // given
+        var channelId = bytes(32);
+        var messageKey1 = ClprMessageKey.newBuilder()
+                .setChannelId(channelId)
+                .setMessageId(1)
+                .build();
+        var messageValue1 = ClprMessageValue.newBuilder()
+                .setRunningHashAfterProcessing(bytes(32))
+                .setPayload(ClprMessagePayload.newBuilder()
+                        .setMessage(ClprMessage.newBuilder().setSender(bytes(20))))
+                .build();
+        var messageKey2 = ClprMessageKey.newBuilder()
+                .setChannelId(channelId)
+                .setMessageId(2)
+                .build();
+        var messageValue2 = ClprMessageValue.newBuilder()
+                .setRunningHashAfterProcessing(bytes(32))
+                .setPayload(ClprMessagePayload.newBuilder().setControl(ClprControlMessage.newBuilder()))
+                .build();
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(clprMessageMapUpdateChange(messageKey1, messageValue1))
+                .addStateChanges(clprMessageMapUpdateChange(messageKey2, messageValue2))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getClprMessages())
+                .containsExactly(
+                        new StateChangeContext.ClprMessageEntry(messageKey1, messageValue1),
+                        new StateChangeContext.ClprMessageEntry(messageKey2, messageValue2));
     }
 
     @Test
@@ -528,6 +593,25 @@ final class StateChangeContextTest {
 
     private StateChange accountMapUpdateChange() {
         return accountMapUpdateChange(getAccountId());
+    }
+
+    private StateChange clprChannelMapUpdateChange(ByteString channelId) {
+        return StateChange.newBuilder()
+                .setStateId(STATE_ID_CLPR_CHANNELS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(channelId)))
+                        .setValue(MapChangeValue.newBuilder()
+                                .setClprChannelValue(ClprChannel.newBuilder().setChannelId(channelId))))
+                .build();
+    }
+
+    private StateChange clprMessageMapUpdateChange(ClprMessageKey key, ClprMessageValue value) {
+        return StateChange.newBuilder()
+                .setStateId(STATE_ID_CLPR_MESSAGE_QUEUE_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setClprMessageKey(key))
+                        .setValue(MapChangeValue.newBuilder().setClprMessageValue(value)))
+                .build();
     }
 
     private StateChange contractMapUpdateChange(AccountID accountId, ByteString evmAddress) {

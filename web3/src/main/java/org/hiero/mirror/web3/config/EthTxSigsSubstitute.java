@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.config;
 
 import static org.hiero.mirror.common.util.SignatureUtils.EC_DOMAIN_PARAMETERS;
+import static org.hiero.mirror.common.util.SignatureUtils.keccak256;
 import static org.hiero.mirror.common.util.SignatureUtils.recoverAddressFromPubKey;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -15,7 +16,6 @@ import java.math.BigInteger;
 import java.util.Optional;
 import lombok.experimental.UtilityClass;
 import org.apache.tuweni.bytes.Bytes32;
-import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hyperledger.besu.crypto.SECP256K1;
 import org.hyperledger.besu.crypto.SECPSignature;
 
@@ -30,7 +30,7 @@ final class EthTxSigsSubstitute {
     static final SECP256K1 SECP256K1 = new SECP256K1();
 
     static EthTxSigs recoverPublicKey(int recoveryId, byte[] r, byte[] s, byte[] message) {
-        final var messageHash = Bytes32.wrap(new Keccak.Digest256().digest(message));
+        final var messageHash = Bytes32.wrap(keccak256(message));
         final var signature = new SECPSignature(new BigInteger(1, r), new BigInteger(1, s), (byte) recoveryId);
         final var publicKey =
                 SECP256K1.recoverPublicKeyFromSignature(messageHash, signature).orElseThrow();

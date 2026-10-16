@@ -20,6 +20,7 @@ import org.springframework.cache.CacheManager;
 class PartitionMaintenanceV1Test extends ImporterIntegrationTest {
 
     private static final String ACCOUNT_BALANCE_TABLE_NAME = "account_balance";
+    private static final String CLPR_MESSAGE_TABLE_NAME = "clpr_message";
     private static final String TOKEN_BALANCE_TABLE_NAME = "token_balance";
 
     private final @Qualifier(CACHE_TIME_PARTITION) CacheManager cacheManager;
@@ -33,9 +34,11 @@ class PartitionMaintenanceV1Test extends ImporterIntegrationTest {
         // there should be a lot more than 2 partitions using the testing partition start date and interval
         var accountBalancePartitions = timePartitionService.getTimePartitions(ACCOUNT_BALANCE_TABLE_NAME);
         var tokenBalancePartitions = timePartitionService.getTimePartitions(TOKEN_BALANCE_TABLE_NAME);
+        var clprMessagePartitions = timePartitionService.getTimePartitions(CLPR_MESSAGE_TABLE_NAME);
         for (int i = 0; i < numPartitionsToDrop; i++) {
             dropPartitionBackwards(accountBalancePartitions, i);
             dropPartitionBackwards(tokenBalancePartitions, i);
+            dropPartitionBackwards(clprMessagePartitions, i);
         }
 
         resetCacheManager(cacheManager);
@@ -45,6 +48,9 @@ class PartitionMaintenanceV1Test extends ImporterIntegrationTest {
         assertThat(timePartitionService.getTimePartitions(TOKEN_BALANCE_TABLE_NAME))
                 .size()
                 .isEqualTo(tokenBalancePartitions.size() - numPartitionsToDrop);
+        assertThat(timePartitionService.getTimePartitions(CLPR_MESSAGE_TABLE_NAME))
+                .size()
+                .isEqualTo(clprMessagePartitions.size() - numPartitionsToDrop);
 
         // when
         partitionMaintenance.runMaintenance();
@@ -55,6 +61,8 @@ class PartitionMaintenanceV1Test extends ImporterIntegrationTest {
                 .containsExactlyInAnyOrderElementsOf(accountBalancePartitions);
         assertThat(timePartitionService.getTimePartitions(TOKEN_BALANCE_TABLE_NAME))
                 .containsExactlyInAnyOrderElementsOf(tokenBalancePartitions);
+        assertThat(timePartitionService.getTimePartitions(CLPR_MESSAGE_TABLE_NAME))
+                .containsExactlyInAnyOrderElementsOf(clprMessagePartitions);
     }
 
     @Test
@@ -62,6 +70,7 @@ class PartitionMaintenanceV1Test extends ImporterIntegrationTest {
         // given
         var accountBalancePartitions = timePartitionService.getTimePartitions(ACCOUNT_BALANCE_TABLE_NAME);
         var tokenBalancePartitions = timePartitionService.getTimePartitions(TOKEN_BALANCE_TABLE_NAME);
+        var clprMessagePartitions = timePartitionService.getTimePartitions(CLPR_MESSAGE_TABLE_NAME);
 
         // when
         partitionMaintenance.runMaintenance();
@@ -73,6 +82,8 @@ class PartitionMaintenanceV1Test extends ImporterIntegrationTest {
                 .containsExactlyInAnyOrderElementsOf(accountBalancePartitions);
         assertThat(timePartitionService.getTimePartitions(TOKEN_BALANCE_TABLE_NAME))
                 .containsExactlyInAnyOrderElementsOf(tokenBalancePartitions);
+        assertThat(timePartitionService.getTimePartitions(CLPR_MESSAGE_TABLE_NAME))
+                .containsExactlyInAnyOrderElementsOf(clprMessagePartitions);
     }
 
     private void dropPartitionBackwards(List<TimePartition> partitions, int index) {

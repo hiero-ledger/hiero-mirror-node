@@ -71,6 +71,16 @@ public class RecordItem implements StreamItem {
 
     private final Long accountEthereumNonce;
     private final boolean blockstream;
+
+    // Verifier-derived CLPR Channel state from the clpr_channel_value state change; neither TransactionRecord nor
+    // TransactionSidecarRecord has a slot for this data, so ClprCompleteChannelTransformer/ClprSubmitBundleTransformer/
+    // ClprCloseChannelTransformer populate it directly here for the corresponding TransactionHandler to read.
+    private final com.hederahashgraph.api.proto.java.ClprChannel clprChannel;
+
+    // clpr_ledger_configuration_value singleton state change; ClprUpdateLedgerConfigurationTransformer populates
+    // this since the submitted body's chain_id/protocol_version/timestamp aren't trustworthy past the first update.
+    private final com.hederahashgraph.api.proto.java.ClprLedgerConfiguration clprLedgerConfiguration;
+
     private final Long congestionPricingMultiplier;
     private final RecordItem hookParent;
     private final RecordItem parent;
@@ -133,6 +143,12 @@ public class RecordItem implements StreamItem {
     @NonFinal
     @Setter
     private ArrayDeque<AbstractHook.Id> hookExecutionQueue;
+
+    // Dispatched clpr_message_key/clpr_message_value entries from a ClprSubmitBundle's StateChangeContext, in
+    // dispatch order, for ClprSubmitBundleTransactionHandler to expand into clpr_message rows
+    @Builder.Default
+    @NonFinal
+    private List<StateChangeContext.ClprMessageEntry> clprMessages = Collections.emptyList();
 
     /**
      * Gets the next hook context from the execution queue. Returns null if no more contexts are available.

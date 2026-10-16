@@ -101,6 +101,7 @@ spring:
     placeholders:
       api-password: ${hiero.mirror.importer.db.restPassword}
       api-user: ${hiero.mirror.importer.db.restUsername}
+      clprEnablementDate: "'2026-01-01'" # TODO update to the actual CLPR consensus-node enablement date before release
       db-name: ${hiero.mirror.importer.db.name}
       db-user: ${hiero.mirror.importer.db.username}
       hashShardCount: 6 # Higher shard count here causes a performance issue due to the nature of how hash indexes work

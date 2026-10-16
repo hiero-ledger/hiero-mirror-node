@@ -7,11 +7,16 @@ import static org.hiero.mirror.common.util.DomainUtils.normalize;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
+import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
+import com.hederahashgraph.api.proto.java.ClprMessageKey;
+import com.hederahashgraph.api.proto.java.ClprMessageValue;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
@@ -19,6 +24,7 @@ import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TopicID;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -45,6 +51,12 @@ public final class StateChangeContext {
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
     private final Map<ContractSlotKey, BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractSlotId, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
+    private final Map<ByteString, ClprChannel> clprChannels = new HashMap<>();
+
+    @Nullable
+    private ClprLedgerConfiguration clprLedgerConfiguration;
+
+    private final List<ClprMessageEntry> clprMessages = new ArrayList<>();
     private final List<Long> nodeIds = new ArrayList<>();
     private final List<FileID> fileIds = new ArrayList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
@@ -70,6 +82,9 @@ public final class StateChangeContext {
                     switch (stateChange.getStateId()) {
                         case StateIdentifier.STATE_ID_ACCOUNTS_VALUE -> processAccountStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_BYTECODE_VALUE -> processContractBytecode(mapUpdate);
+                        case StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE -> processClprChannelStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE ->
+                            processClprMessageStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_EVM_HOOK_STORAGE_VALUE -> processHookStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_FILES_VALUE ->
                             fileIds.add(mapUpdate.getKey().getFileIdKey());
@@ -93,6 +108,15 @@ public final class StateChangeContext {
                             // do nothing
                         }
                     }
+                } else if (stateChange.hasSingletonUpdate()) {
+                    var singletonUpdate = stateChange.getSingletonUpdate();
+                    switch (stateChange.getStateId()) {
+                        case StateIdentifier.STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE ->
+                            processClprLedgerConfigurationStateChange(singletonUpdate);
+                        default -> {
+                            // do nothing
+                        }
+                    }
                 }
             }
         }
@@ -109,6 +133,18 @@ public final class StateChangeContext {
 
     public Optional<AccountID> getAccountId(ByteString alias) {
         return Optional.ofNullable(accountIds.get(alias));
+    }
+
+    public Optional<ClprChannel> getClprChannel(ByteString channelId) {
+        return Optional.ofNullable(clprChannels.get(channelId));
+    }
+
+    public Optional<ClprLedgerConfiguration> getClprLedgerConfiguration() {
+        return Optional.ofNullable(clprLedgerConfiguration);
+    }
+
+    public List<ClprMessageEntry> getClprMessages() {
+        return Collections.unmodifiableList(clprMessages);
     }
 
     public Optional<ByteString> getContractBytecode(ContractID id) {
@@ -239,6 +275,32 @@ public final class StateChangeContext {
         }
     }
 
+    private void processClprChannelStateChange(MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getValue().hasClprChannelValue()) {
+            return;
+        }
+
+        var channelId = mapUpdate.getKey().getProtoBytesKey().getValue();
+        clprChannels.put(channelId, mapUpdate.getValue().getClprChannelValue());
+    }
+
+    private void processClprLedgerConfigurationStateChange(SingletonUpdateChange singletonUpdate) {
+        if (!singletonUpdate.hasClprLedgerConfigurationValue()) {
+            return;
+        }
+
+        clprLedgerConfiguration = singletonUpdate.getClprLedgerConfigurationValue();
+    }
+
+    private void processClprMessageStateChange(MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasClprMessageKey() || !mapUpdate.getValue().hasClprMessageValue()) {
+            return;
+        }
+
+        clprMessages.add(new ClprMessageEntry(
+                mapUpdate.getKey().getClprMessageKey(), mapUpdate.getValue().getClprMessageValue()));
+    }
+
     private void processContractBytecode(MapUpdateChange mapUpdate) {
         if (!mapUpdate.getValue().hasBytecodeValue()) {
             return;
@@ -347,4 +409,6 @@ public final class StateChangeContext {
     }
 
     public record SlotValue(ByteString slot, BytesValue valueWritten) {}
+
+    public record ClprMessageEntry(ClprMessageKey key, ClprMessageValue value) {}
 }
