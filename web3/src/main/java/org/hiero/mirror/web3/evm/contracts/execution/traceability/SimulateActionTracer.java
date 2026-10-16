@@ -8,7 +8,10 @@ import com.hedera.hapi.streams.ContractActionType;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import jakarta.inject.Named;
 import java.util.List;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.viewmodel.AccessListEntry;
+import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
@@ -16,7 +19,7 @@ import org.jspecify.annotations.NonNull;
 
 // SELFDESTRUCT beneficiary transfers are not captured.
 @Named
-public class SimulateTransferActionTracer implements ActionSidecarContentTracer {
+public class SimulateActionTracer implements ActionSidecarContentTracer {
     @Override
     public List<ContractAction> contractActions() {
         return List.of();
@@ -30,6 +33,9 @@ public class SimulateTransferActionTracer implements ActionSidecarContentTracer 
     @Override
     public void traceContextEnter(@NonNull final MessageFrame frame) {
         final var context = ContractCallContext.get();
+        if (frame.getDepth() == 0) {
+            warmUpAccessList(frame, context.getAccessList());
+        }
         if (context.isTraceTransfers()) {
             context.getTransferFrameStarts().push(context.getCapturedTransfers().size());
         }
@@ -90,5 +96,15 @@ public class SimulateTransferActionTracer implements ActionSidecarContentTracer 
     @Override
     public void traceSuspended(MessageFrame parent, MessageFrame child, CallOperationType opCall) {
         // NO-OP
+    }
+
+    private static void warmUpAccessList(final MessageFrame frame, final List<AccessListEntry> accessList) {
+        for (final var entry : accessList) {
+            final var address = Address.fromHexString(entry.getAddress());
+            frame.warmUpAddress(address);
+            for (final var storageKey : entry.getStorageKeys()) {
+                frame.warmUpStorage(address, Bytes32.fromHexStringLenient(storageKey));
+            }
+        }
     }
 }

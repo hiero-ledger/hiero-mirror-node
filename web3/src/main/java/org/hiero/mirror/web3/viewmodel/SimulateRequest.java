@@ -29,7 +29,8 @@ public class SimulateRequest {
     @JsonProperty("block_state_calls")
     @NotNull
     @Size(max = MAX_CALLS)
-    private List<@NotNull @Valid SimulateBlockStateCall> blockStateCalls = List.of();
+    @Valid
+    private List<@NotNull SimulateBlockStateCall> blockStateCalls = List.of();
 
     @JsonProperty("trace_transfers")
     private boolean traceTransfers;

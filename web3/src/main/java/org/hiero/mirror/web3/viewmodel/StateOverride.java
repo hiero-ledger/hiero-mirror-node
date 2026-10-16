@@ -65,9 +65,8 @@ public class StateOverride {
     @Size(max = 100)
     private List<@Valid StorageEntry> stateDiff = List.of();
 
-    // Plain setter, as the Jackson 3 HTTP binding ignores Jackson 2's @JsonDeserialize. A JSON number is decimal, while
-    // a
-    // string stays hexadecimal.
+    // Plain setter, as the Jackson 3 HTTP binding ignores Jackson 2's @JsonDeserialize.
+    // A JSON number is decimal, while a string stays hexadecimal.
     public void setBalance(final Object balance) {
         this.balance = switch (balance) {
             case null -> null;

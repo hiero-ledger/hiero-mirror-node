@@ -878,6 +878,18 @@ final class ContractControllerTest {
     }
 
     @Test
+    void simulateBelowMinGasReportsTheErrorOnce() throws Exception {
+        enableSimulate(true);
+        final var request = simulateRequest(1);
+        request.getBlockStateCalls().getFirst().getCalls().getFirst().setGas(1_000L);
+
+        simulate(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$._status.messages.length()").value(1))
+                .andExpect(content().string(containsString(numberErrorString("gas", "greater", 21_000L))));
+    }
+
+    @Test
     void simulateBindsHexValuesSnakeCaseGasPriceAndIntegerBalance() throws Exception {
         enableSimulate(true);
         given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(new SimulateResponse(List.of()));

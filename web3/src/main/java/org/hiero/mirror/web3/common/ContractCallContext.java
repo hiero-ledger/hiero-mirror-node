@@ -26,6 +26,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.utils.HexUtils;
+import org.hiero.mirror.web3.viewmodel.AccessListEntry;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
@@ -80,6 +81,10 @@ public class ContractCallContext {
 
     @Setter
     private long gasRequirement;
+
+    /** Access list of the current simulated call, warmed in its top-level frame. */
+    @Setter
+    private List<AccessListEntry> accessList = List.of();
 
     @Setter
     private boolean traceTransfers;

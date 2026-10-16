@@ -14,6 +14,7 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.node.app.service.contract.impl.exec.gas.HederaGasCalculator;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
@@ -23,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.StringUtils;
@@ -66,11 +68,13 @@ public class ContractSimulateService extends ContractCallService {
                     "Transfer(address,address,uint256)".getBytes(StandardCharsets.UTF_8)))
             .toHexString();
 
+    private final HederaGasCalculator gasCalculator;
     private final RecordFileService recordFileService;
     private final Web3Properties web3Properties;
 
     public ContractSimulateService(
             EvmProperties evmProperties,
+            HederaGasCalculator gasCalculator,
             MeterRegistry meterRegistry,
             RecordFileService recordFileService,
             ThrottleManager throttleManager,
@@ -84,6 +88,7 @@ public class ContractSimulateService extends ContractCallService {
                 recordFileService,
                 evmProperties,
                 transactionExecutionService);
+        this.gasCalculator = gasCalculator;
         this.recordFileService = recordFileService;
         this.web3Properties = web3Properties;
     }
@@ -99,6 +104,18 @@ public class ContractSimulateService extends ContractCallService {
     }
 
     // The address's long-zero number and the numbers of committed accounts aliased by it.
+    private long accessListGas(final SimulateCall call) {
+        final var accessList = call.getAccessList();
+        if (accessList == null || accessList.isEmpty()) {
+            return 0L;
+        }
+        int storageKeys = 0;
+        for (final var entry : accessList) {
+            storageKeys += entry.getStorageKeys().size();
+        }
+        return gasCalculator.accessListGasCost(accessList.size(), storageKeys);
+    }
+
     private Set<Long> accountNums(final Map<Object, Object> accounts, final Bytes address) {
         final var accountNums = new HashSet<Long>();
         final var longZeroId = DomainUtils.fromEvmAddress(address.toByteArray());
@@ -176,6 +193,7 @@ public class ContractSimulateService extends ContractCallService {
             final ContractExecutionParameters params,
             final ContractCallContext context,
             final SimulatedBlock block,
+            final long accessListGas,
             final long logIndex,
             final long transactionIndex,
             final long requestCallIndex) {
@@ -187,7 +205,8 @@ public class ContractSimulateService extends ContractCallService {
         final var logs = new ArrayList<SimulateLog>(contractLogs.size() + transferLogs.size());
         logs.addAll(contractLogs);
         logs.addAll(transferLogs);
-        return new SimulateCallResult(Utils.toHex(result.gasUsed()), logs, result.contractCallResult(), SUCCESS_STATUS);
+        return new SimulateCallResult(
+                Utils.toHex(result.gasUsed() + accessListGas), logs, result.contractCallResult(), SUCCESS_STATUS);
     }
 
     private void failIfTimedOut(final ContractCallContext context) {
@@ -326,20 +345,23 @@ public class ContractSimulateService extends ContractCallService {
                 for (final var call : blockCall.getCalls()) {
                     // A timeout inside the executor would otherwise surface as a failed call.
                     failIfTimedOut(context);
-                    final var params = toExecutionParameters(request.getBlock(), call);
+                    // Charged like the intrinsic gas of an Ethereum transaction carrying the same list.
+                    final long accessListGas = accessListGas(call);
+                    context.setAccessList(Objects.requireNonNullElse(call.getAccessList(), List.of()));
+                    final var params = toExecutionParameters(request.getBlock(), call, accessListGas);
                     context.getCapturedTransfers().clear();
                     context.getTransferFrameStarts().clear();
                     remainingGas.addAndGet(-call.getGas());
 
                     try {
-                        final var callResult =
-                                executeCall(params, context, block, logIndex, transactionIndex, requestCallIndex);
+                        final var callResult = executeCall(
+                                params, context, block, accessListGas, logIndex, transactionIndex, requestCallIndex);
                         results.add(callResult);
                         logIndex += callResult.logs().size();
                     } catch (MirrorEvmTransactionException e) {
                         final var partialResult = e.getResult();
                         results.add(new SimulateCallResult(
-                                Utils.toHex(partialResult != null ? partialResult.gasUsed() : 0L),
+                                Utils.toHex(partialResult != null ? partialResult.gasUsed() + accessListGas : 0L),
                                 List.of(),
                                 StringUtils.defaultIfEmpty(e.getData(), HEX_PREFIX),
                                 REVERT_STATUS));
@@ -364,7 +386,8 @@ public class ContractSimulateService extends ContractCallService {
         return Hash.keccak256(seed).toHexString();
     }
 
-    private ContractExecutionParameters toExecutionParameters(final BlockType block, final SimulateCall call) {
+    private ContractExecutionParameters toExecutionParameters(
+            final BlockType block, final SimulateCall call, final long accessListGas) {
         final var sender = call.getFrom() != null ? Address.fromHexString(call.getFrom()) : Address.ZERO;
         final var receiver = StringUtils.isNotEmpty(call.getTo()) ? Address.fromHexString(call.getTo()) : Address.ZERO;
         final var data = call.getData() != null ? call.getData() : HEX_PREFIX;
@@ -373,7 +396,7 @@ public class ContractSimulateService extends ContractCallService {
                 .block(block)
                 .callData(hexToBytes(data))
                 .callType(ETH_SIMULATE)
-                .gas(call.getGas())
+                .gas(Math.max(call.getGas() - accessListGas, 0L))
                 .gasPrice(call.getGasPrice())
                 .isEstimate(false)
                 .isStatic(false)

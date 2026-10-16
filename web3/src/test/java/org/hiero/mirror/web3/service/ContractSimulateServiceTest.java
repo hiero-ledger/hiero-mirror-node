@@ -21,6 +21,7 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
+import org.hiero.mirror.web3.viewmodel.AccessListEntry;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
@@ -262,6 +263,25 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
                 .isEqualTo("0x" + genesisRecordFile.getHash().substring(0, 64));
         assertThat(secondEntryLog.blockNumber()).isEqualTo(anchorNumber + 1);
         assertThat(secondEntryLog.blockHash()).hasSize(66).isNotEqualTo(firstEntryLog.blockHash());
+    }
+
+    @Test
+    void accessListIsChargedAndWarmsItsStorage() {
+        final var contract = testWeb3jService.deploy(StorageContract::deploy);
+        final var accessListEntry = new AccessListEntry();
+        accessListEntry.setAddress(contract.getContractAddress());
+        accessListEntry.setStorageKeys(List.of(STORAGE_SLOT_0_KEY));
+        final var listedCall = getSlot0Call(contract);
+        listedCall.setAccessList(List.of(accessListEntry));
+
+        final var results = contractSimulateService
+                .simulate(requestWithSingleEntry(getSlot0Call(contract), listedCall))
+                .result();
+
+        // 2400 per address and 1900 per storage key are charged, while reading the warm slot costs 2000 less.
+        assertThat(Long.decode(results.get(1).gasUsed())
+                        - Long.decode(results.get(0).gasUsed()))
+                .isEqualTo(2_300L);
     }
 
     @Test

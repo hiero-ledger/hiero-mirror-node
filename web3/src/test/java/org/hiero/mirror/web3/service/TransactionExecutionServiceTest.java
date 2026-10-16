@@ -54,7 +54,7 @@ import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.SimulateTransferActionTracer;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.SimulateActionTracer;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
@@ -112,7 +112,7 @@ class TransactionExecutionServiceTest {
     private MirrorOperationActionTracer mirrorOperationActionTracer;
 
     @Mock
-    private SimulateTransferActionTracer simulateTransferActionTracer;
+    private SimulateActionTracer simulateActionTracer;
 
     @Mock
     private TransactionExecutor transactionExecutor;
@@ -142,7 +142,7 @@ class TransactionExecutionServiceTest {
                 evmProperties,
                 opcodeActionTracer,
                 mirrorOperationActionTracer,
-                simulateTransferActionTracer,
+                simulateActionTracer,
                 systemEntity,
                 transactionExecutorFactory);
         when(transactionExecutorFactory.get()).thenReturn(transactionExecutor);

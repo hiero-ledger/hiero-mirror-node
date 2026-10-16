@@ -32,18 +32,18 @@ public class SimulateCall {
     // A 256-bit EVM quantity, in hexadecimal digits.
     private static final int QUANTITY_MAX_LENGTH = 64;
 
-    // Validated, but not yet applied to execution.
     @JsonProperty("access_list")
     @Nullable
     @Size(max = ACCESS_LIST_MAX_SIZE)
     @Valid
-    private List<@Valid AccessListEntry> accessList;
+    private List<AccessListEntry> accessList;
 
+    // Validated, but not yet applied to execution.
     @JsonProperty("authorization_list")
     @Nullable
     @Size(max = AUTHORIZATION_LIST_MAX_SIZE)
     @Valid
-    private List<@Valid AuthorizationListEntry> authorizationList;
+    private List<AuthorizationListEntry> authorizationList;
 
     @Hex(maxLength = DATA_MAX_LENGTH)
     private String data;

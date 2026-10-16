@@ -23,10 +23,12 @@ public class SimulateBlockStateCall {
     private BlockOverride blockOverride;
 
     @NotNull
-    private List<@NotNull @Valid SimulateCall> calls = List.of();
+    @Valid
+    private List<@NotNull SimulateCall> calls = List.of();
 
     @JsonProperty("state_overrides")
     @NotNull
     @Size(max = 10)
-    private List<@NotNull @Valid StateOverride> stateOverrides = List.of();
+    @Valid
+    private List<@NotNull StateOverride> stateOverrides = List.of();
 }
