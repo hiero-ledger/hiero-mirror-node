@@ -13,6 +13,7 @@ import jakarta.validation.ValidatorFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +36,27 @@ final class BlockPropertiesTest {
 
     @AutoClose
     private static final ValidatorFactory VALIDATOR_FACTORY = Validation.buildDefaultValidatorFactory();
+
+    @Test
+    void getLedgerIdWhenUnset() {
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        assertThat(blockProperties.getLedgerId()).isNull();
+    }
+
+    @Test
+    void getLedgerIdWhenEmpty() {
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setLedgerId("");
+        assertThat(blockProperties.getLedgerId()).isNull();
+    }
+
+    @Test
+    void getLedgerIdWhenSet() {
+        final var ledgerId = "ab".repeat(64);
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setLedgerId(ledgerId);
+        assertThat(blockProperties.getLedgerId()).isEqualTo(HexFormat.of().parseHex(ledgerId));
+    }
 
     @Test
     void initPropagatesMaxBlockSizeToStreamFileData() throws IOException {
