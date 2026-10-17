@@ -16,6 +16,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 
@@ -72,7 +73,7 @@ public class AccountBalanceLineParserV2 implements AccountBalanceLineParser {
                     : Collections.emptyList();
 
             return new AccountBalance(balance, tokenBalances, new AccountBalance.Id(consensusTimestamp, accountId));
-        } catch (NumberFormatException | InvalidProtocolBufferException ex) {
+        } catch (InvalidEntityException | InvalidProtocolBufferException | NumberFormatException ex) {
             throw new InvalidDatasetException(INVALID_BALANCE + line, ex);
         }
     }
