@@ -197,6 +197,20 @@ abstract class CsvBalanceFileReaderTest {
     }
 
     @Test
+    void readValidWhenFileHasLinesWithOutOfRangeEntityId() throws IOException {
+        List<String> lines = FileUtils.readLines(balanceFile, CsvBalanceFileReader.CHARSET);
+        FileUtils.writeLines(testFile, lines);
+        // realm above EntityId's 16-bit realm range, and account above its 38-bit num range
+        FileUtils.writeStringToFile(
+                testFile, String.format("%n0,65536,3,340%n0,0,274877906944,340%n"), CsvBalanceFileReader.CHARSET, true);
+
+        StreamFileData streamFileData = StreamFileData.from(testFile);
+        AccountBalanceFile accountBalanceFile = balanceFileReader.read(streamFileData);
+        assertAccountBalanceFile(accountBalanceFile);
+        verifySuccess(testFile, accountBalanceFile, 2);
+    }
+
+    @Test
     void supports() {
         StreamFileData streamFileData = StreamFileData.from(balanceFile);
         assertThat(balanceFileReader.supports(streamFileData)).isTrue();

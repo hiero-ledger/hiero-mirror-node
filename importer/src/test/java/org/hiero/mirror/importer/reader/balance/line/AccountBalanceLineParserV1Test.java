@@ -41,6 +41,8 @@ class AccountBalanceLineParserV1Test {
                 "'0,-1,123,700';true;;;",
                 "'0,0,-1,700';true;;;",
                 "'0,0,123,-1';true;;;",
+                "'0,65536,123,700';true;;;",
+                "'0,0,274877906944,700';true;;;",
                 "'foobar';true;;;",
                 "'';true;;;",
                 ";true;;;"
