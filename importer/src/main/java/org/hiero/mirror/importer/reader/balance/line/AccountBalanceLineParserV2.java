@@ -52,8 +52,8 @@ public class AccountBalanceLineParserV2 implements AccountBalanceLineParser {
             }
 
             long shardNum = Long.parseLong(parts.get(0));
-            int realmNum = Integer.parseInt(parts.get(1));
-            int accountNum = Integer.parseInt(parts.get(2));
+            long realmNum = Long.parseLong(parts.get(1));
+            long accountNum = Long.parseLong(parts.get(2));
             long balance = Long.parseLong(parts.get(3));
 
             if (shardNum < 0 || realmNum < 0 || accountNum < 0 || balance < 0) {

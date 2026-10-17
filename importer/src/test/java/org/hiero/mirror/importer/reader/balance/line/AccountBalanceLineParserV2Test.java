@@ -30,6 +30,7 @@ class AccountBalanceLineParserV2Test {
                 "'0,0,123,700,CggKAxjsBxCEBwoHCgMY7QcQGQoKCgMY7gcQwKilBAoICgMY8gcQhAcKBwoDGPMHEBkKCgoDGPQHEMCopQQ';false;"
                         + "0;123;700;1004=900,1005=25,1006=9000000,1010=900,1011=25,1012=9000000",
                 "'0,0,123,700,';false;" + "0;123;700;;",
+                "'0,0,2147483648,700,';false;0;2147483648;700;;",
                 "'0,0,123,700,CggKAxjsBxCEBwoHCgMY7QcQGQoKCgMY7gcQwKilBAoICgMY8gcQhAcKBwoDGPMHEBkKCgo';true;;;;",
                 "' 0,0,123,700,CggKAxjsBxCEBwoHCgMY7QcQGQoKCgMY7gcQwKilBAoICgMY8gcQhAcKBwoDGPMHEBkKCgoDGPQHEMCopQQ';"
                         + "false;0;123;700;1004=900,1005=25,1006=9000000,1010=900,1011=25,1012=9000000",
