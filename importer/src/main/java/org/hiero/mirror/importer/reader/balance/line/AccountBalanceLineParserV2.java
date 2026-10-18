@@ -66,7 +66,7 @@ public class AccountBalanceLineParserV2 implements AccountBalanceLineParser {
                         "Invalid account balance line: %s. Expect shard (0), got shard (%d)", line, shardNum));
             }
 
-            EntityId accountId = EntityId.of(shardNum, realmNum, accountNum);
+            EntityId accountId = AccountBalanceLineParser.toEntityId(shardNum, realmNum, accountNum);
 
             List<TokenBalance> tokenBalances = hasTokenBalance
                     ? parseTokenBalanceList(parts.get(4), consensusTimestamp, accountId)
@@ -88,7 +88,9 @@ public class AccountBalanceLineParserV2 implements AccountBalanceLineParser {
             final var tokenBalances = new ArrayList<TokenBalance>(tokenBalanceProtoList.size());
 
             for (final var tokenBalance : tokenBalanceProtoList) {
-                final var tokenId = EntityId.of(tokenBalance.getTokenId());
+                final var tokenProto = tokenBalance.getTokenId();
+                final var tokenId = AccountBalanceLineParser.toEntityId(
+                        tokenProto.getShardNum(), tokenProto.getRealmNum(), tokenProto.getTokenNum());
                 final var id = new TokenBalance.Id(consensusTimestamp, accountId, tokenId);
                 tokenBalances.add(new TokenBalance(tokenBalance.getBalance(), id));
             }

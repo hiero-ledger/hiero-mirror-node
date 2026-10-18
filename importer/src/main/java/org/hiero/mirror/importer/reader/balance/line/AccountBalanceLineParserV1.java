@@ -7,7 +7,6 @@ import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.List;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 
@@ -53,7 +52,8 @@ public class AccountBalanceLineParserV1 implements AccountBalanceLineParser {
             return new AccountBalance(
                     balance,
                     Collections.emptyList(),
-                    new AccountBalance.Id(consensusTimestamp, EntityId.of(shardNum, realmNum, accountNum)));
+                    new AccountBalance.Id(
+                            consensusTimestamp, AccountBalanceLineParser.toEntityId(shardNum, realmNum, accountNum)));
         } catch (InvalidEntityException | NumberFormatException ex) {
             throw new InvalidDatasetException(INVALID_BALANCE + line, ex);
         }
