@@ -3,6 +3,13 @@
 name: Test native images
 
 on:
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+    paths:
+      - ".github/workflows/test-native-images.yml"
+      - "buildSrc/src/main/kotlin/spring-conventions.gradle.kts"
   push:
     tags:
       - "v*"

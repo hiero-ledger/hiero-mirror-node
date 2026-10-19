@@ -10,7 +10,13 @@ on:
     paths:
       - ".github/actions/run-e2e/**"
       - ".github/workflows/acceptance.yaml"
+      - "grpc/Dockerfile"
+      - "importer/Dockerfile"
+      - "monitor/Dockerfile"
+      - "rest/Dockerfile"
+      - "rest-java/Dockerfile"
       - "test/**"
+      - "web3/Dockerfile"
   push:
     branches:
       - "main"
