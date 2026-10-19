@@ -56,7 +56,8 @@ updates:
     schedule:
       interval: "weekly"
 
-  - directory: "/charts"
+  - directories:
+      - "/charts/*"
     groups:
       dependencies:
         patterns:
