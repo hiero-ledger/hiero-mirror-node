@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.stream.LongStream;
 import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.CommonProperties;
@@ -100,7 +101,9 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
     private static final String SELECT_CONTRACT_RESULTS = """
             select consensus_timestamp, contract_id, coalesce(gas_used, 0) as gas_used
             from contract_result
-            where consensus_timestamp = any(cast(:timestamps as bigint[]))
+            where consensus_timestamp >= :minTimestamp
+              and consensus_timestamp <= :maxTimestamp
+              and consensus_timestamp = any(cast(:timestamps as bigint[]))
             """;
 
     private static final String SELECT_MAX_CONSENSUS_TIMESTAMP = """
@@ -123,7 +126,9 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
     private static final String SELECT_TRANSACTIONS_BY_TIMESTAMP = """
             select consensus_timestamp, parent_consensus_timestamp, scheduled
             from transaction
-            where consensus_timestamp = any(cast(:timestamps as bigint[]))
+            where consensus_timestamp >= :minTimestamp
+              and consensus_timestamp <= :maxTimestamp
+              and consensus_timestamp = any(cast(:timestamps as bigint[]))
             """;
 
     private static final RowMapper<TransactionRow> TRANSACTION_ROW_MAPPER =
@@ -284,20 +289,19 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
             }
         }
 
-        for (final var parent : getNamedParameterJdbcOperations()
-                .query(
-                        SELECT_TRANSACTIONS_BY_TIMESTAMP,
-                        new MapSqlParameterSource("timestamps", toArray(parentTimestamps)),
-                        TRANSACTION_ROW_MAPPER)) {
-            transactions.put(parent.consensusTimestamp(), parent);
+        if (!parentTimestamps.isEmpty()) {
+            for (final var parent : getNamedParameterJdbcOperations()
+                    .query(
+                            SELECT_TRANSACTIONS_BY_TIMESTAMP,
+                            timestampParams(parentTimestamps),
+                            TRANSACTION_ROW_MAPPER)) {
+                transactions.put(parent.consensusTimestamp(), parent);
+            }
         }
 
         final var contractResults = new HashMap<Long, ContractResultRow>();
         for (final var contractResult : getNamedParameterJdbcOperations()
-                .query(
-                        SELECT_CONTRACT_RESULTS,
-                        new MapSqlParameterSource("timestamps", toArray(transactions.keySet())),
-                        CONTRACT_RESULT_ROW_MAPPER)) {
+                .query(SELECT_CONTRACT_RESULTS, timestampParams(transactions.keySet()), CONTRACT_RESULT_ROW_MAPPER)) {
             contractResults.put(contractResult.consensusTimestamp(), contractResult);
         }
 
@@ -317,6 +321,16 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
         return EvmTransactionIndexCalculator.findChildren(rows, getHookContractId()).stream()
                 .filter(timestamp -> timestamp >= consensusStart)
                 .toList();
+    }
+
+    // Bounding the lookup by its min and max timestamp lets the query skip the other time partitions
+    private MapSqlParameterSource timestampParams(final Collection<Long> timestamps) {
+        final var values = toArray(timestamps);
+        final var range = LongStream.of(values).summaryStatistics();
+        return new MapSqlParameterSource()
+                .addValue("maxTimestamp", range.getMax())
+                .addValue("minTimestamp", range.getMin())
+                .addValue("timestamps", values);
     }
 
     private long[] toArray(final Collection<Long> timestamps) {
