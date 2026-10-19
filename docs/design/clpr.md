@@ -152,10 +152,6 @@ value, so the latest row is simply the one with the highest `consensus_timestamp
 needed. The **message queue** is likewise append-only (each `(channel_id, message_id)` is written once and never
 mutated), so it too is modeled as a single table, not a current/history pair.
 
-Column order within each table groups fixed 8-byte columns (`bigint`) first, then enums/booleans, then
-variable-length columns (`bytea`/`varchar`/`int8range`) last, to avoid PostgreSQL padding waste from unfavorable
-alignment (see https://www.enterprisedb.com/blog/rocks-and-sand).
-
 Table and column definitions are identical between the `v1` and `v2` (Citus) migrations, except for `clpr_message`
 (see [Message Queue](#4-message-queue-append-only)). For every table except
 `clpr_channel_pending_commitment`/`clpr_connector_pending_commitment`, `clpr_ledger_configuration`, and
@@ -163,45 +159,20 @@ Table and column definitions are identical between the `v1` and `v2` (Citus) mig
 below), the `v2` migration additionally runs the `create_distributed_table`
 calls shown at the end of each SQL block; `v1` does not.
 
-Unrevealed Channel commitments — the commit phase, before `ClprCompleteChannel` reveals `channel_id` — are
-persisted in a separate table, `clpr_channel_pending_commitment`. `clpr_channel` is keyed by `channel_id`, but per
-the commit-reveal scheme `ClprRegisterChannel` submits only a commitment hash — `channel_id` isn't revealed until
-`ClprCompleteChannel` — so `clpr_channel` cannot hold a row for the commit-only phase. Per
-`clpr_register_channel.proto`/`clpr_complete_channel.proto`, `ClprRegisterChannel` submits only
-`ownership_commitment = keccak256(channel_id || public_key)` (computed off-chain, so `channel_id`/`public_key` stay
-secret), and `ClprCompleteChannel` correlates back to it by recomputing that same hash from the _revealed_
-`channel_id`/`public_key`. `clpr_channel` itself only ever holds post-reveal rows, so `channel_id` is always known
-by the time a row is written there — `PENDING` is removed from `clpr_channel_status` accordingly.
+`channel_id` isn't revealed until `ClprCompleteChannel`, so `clpr_channel` (keyed by `channel_id`) can't hold a row
+for the commit-only phase — `clpr_channel_pending_commitment`, keyed by `ownership_commitment`, covers it instead.
+It's a standard `@Upsertable(history = true)` pair, with a single `status` enum (`OPEN`/`COMPLETED`/`DELETED`)
+instead of separate `completed`/`deleted` booleans, since the two outcomes are mutually exclusive.
+`ClprRegisterChannelHandler` writes its commitment unconditionally (no existence check), so the same
+`ownership_commitment` can legitimately be registered again later — `ClprRegisterChannelTransactionHandler` must
+therefore explicitly reset `status = 'OPEN'` on every upsert, otherwise `coalesce` preserves the prior lifecycle's
+value.
 
-`clpr_channel_pending_commitment` is a proper `@Upsertable(history = true)` current + history pair, like
-`ClprChannel`/`ClprConnector` — every transition (register, complete, abandon) is a standard upsert on the same
-`ownership_commitment` primary key, never a delete, with a single `status` enum (`OPEN`/`COMPLETED`/`DELETED`)
-instead of separate `completed`/`deleted` booleans, since the two outcomes are mutually exclusive in practice (once
-completed, `ClprCloseChannel` never touches this row again; once deleted, it was never completed). Per
-[Transaction & Query Inventory](#transaction--query-inventory) row 119, the real consensus state never removes a
-Channel's commitment from `STATE_ID_CLPR_PENDING_COMMITMENTS` either — `ClprCompleteChannelTransactionHandler` sets
-`status = 'COMPLETED'` on this same row (a self-contained recomputation of `ownership_commitment` from this
-transaction's own fields, not reliant on consensus state), and `ClprCloseChannelTransactionHandler` sets
-`status = 'DELETED'` for a genuinely-abandoned, never-completed commitment. `ClprRegisterChannelHandler` writes its
-commitment unconditionally at the consensus level (`WritablePendingCommitmentStore.put`, no existence check), so the
-same `ownership_commitment` can be legitimately registered again after `ClprCloseChannel` swept it, or after the
-Channel it completed into reaches `CLOSED` and that `channel_id` is reused —
-`ClprRegisterChannelTransactionHandler` must therefore explicitly reset `status = 'OPEN'` on every upsert (not
-leave it unset), otherwise `coalesce` preserves the prior lifecycle's value and a re-registered commitment stays
-permanently invisible to the Pending Channels API.
-
-`ClprRegisterConnector`/`ClprCompleteConnector` use the same commit-reveal _commit_ mechanism
-(`commitment = keccak256(connectorId || pubKey)`), persisted the same way in `clpr_connector_pending_commitment`
-(also `@Upsertable(history = true)`, same `status` enum). At the real consensus-state level the cleanup behavior is
-**not** symmetric with Channels: per `ClprCompleteConnectorHandler`, the Connector's commitment is removed from
-`STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS` immediately at completion (`commitmentStore.remove(...)`, step 9),
-unlike `ClprCompleteChannelHandler`, which leaves the Channel's commitment in place indefinitely. The mirror node
-doesn't mirror that removal: `ClprCompleteConnectorTransactionHandler` sets `status = 'COMPLETED'` via the same
-upsert mechanism as the Channel side, and `ClprRegisterConnectorTransactionHandler` must likewise explicitly reset
-`status = 'OPEN'` on every upsert, since the same `commitment` can be registered again once the Connector it
-completed into is deregistered. There's no separate abandonment path for Connectors today (no handler ever sets a
-Connector's pending row to `DELETED`), so that enum value stays reserved for schema symmetry with Channel's table,
-not a currently-reachable state.
+`clpr_connector_pending_commitment` works the same way, except real consensus state isn't symmetric:
+`ClprCompleteConnectorHandler` removes the Connector's commitment from state immediately on completion, while
+`ClprCompleteChannelHandler` leaves the Channel's commitment in place indefinitely. The mirror node doesn't mirror
+that removal — both sides upsert `status` the same way. There's no abandonment path for Connectors today, so
+`DELETED` stays reserved for schema symmetry with the Channel side.
 
 ### 1. Channel Tables
 
