@@ -77,7 +77,15 @@ separate ingestion path for CLPR:
    mirror — it already carries non-proto fields like `hookParent`), populated by a `ClprXxxTransformer` per CLPR
    transaction type that reads `StateChangeContext` at build time; the corresponding `TransactionHandler` then
    reads those fields directly. Since CLPR has no legacy record-stream carrier to begin with, this design assumes
-   block-stream-only delivery and builds no separate record-stream path.
+   block-stream-only delivery and builds no separate record-stream path. The new fields:
+
+   | Field                          | Type                                                                              | Populated by                                                                                   |
+   | ------------------------------ | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+   | `clprChannelValue`             | `ClprChannel`                                                                     | `ClprCompleteChannelTransformer`, `ClprSubmitBundleTransformer`, `ClprCloseChannelTransformer` |
+   | `clprConnectorValues`          | `List<ClprConnector>` (sending + receiving)                                       | `ClprSubmitBundleTransformer`                                                                  |
+   | `clprMessageValues`            | `List<Pair<ClprMessageKey, ClprMessageValue>>` (one bundle can dispatch multiple) | `ClprSubmitBundleTransformer`                                                                  |
+   | `clprLedgerConfigurationValue` | `ClprLedgerConfiguration`                                                         | `ClprUpdateLedgerConfigurationTransformer`                                                     |
+
 3. The importer persists to PostgreSQL following the existing current + history table pattern.
 4. `rest-java` (jOOQ-based) exposes read endpoints over the persisted state.
 5. **CLPR state changes are not confined to the eight `TransactionBody` cases above.** Three real exceptions exist
@@ -482,7 +490,7 @@ create index if not exists clpr_message__connector_id
     on clpr_message (connector_id, message_id)
     where connector_id is not null;
 
-select create_distributed_table('clpr_message', 'channel_id', colocate_with => 'clpr_channel');
+select create_distributed_table('clpr_messa1ge', 'channel_id', colocate_with => 'clpr_channel');
 
 -- start_from is CLPR's own enablement date, a new constant separate from the
 -- existing partitionStartDate (network genesis) other tables use here.
@@ -927,7 +935,7 @@ See [Database Schema Design](#database-schema-design) for `ClprSubmitBundle`'s p
 
 Following the existing `importer/src/main/java/org/hiero/mirror/importer/downloader/block/transformer/` pattern
 (`AbstractBlockTransactionTransformer`, one `@Named` subclass per `TransactionType` needing enrichment), these
-transformers populate the new CLPR-specific `RecordItem` fields described in [Architecture](#architecture):
+transformers populate the new CLPR-specific `RecordItem` fields listed in [Architecture](#architecture) point 2:
 
 - `ClprCompleteChannelTransformer` — copies the complete `clpr_channel_value` state change (the full `ClprChannel`
   object `ClprCompleteChannelHandler` builds — `chain_id`, `status`, `verifier_contract`, `verifier_fingerprint`,
