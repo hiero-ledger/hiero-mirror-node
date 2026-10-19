@@ -1186,6 +1186,48 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                         tokenCreate.getTransactionBody().getTokenCreation().getTreasury()));
     }
 
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            false, '', ''
+            false, ' ', ' '
+            true, '',
+            true, ' ',
+            """)
+    void tokenUpdateWithEmptyOrBlankMemo(boolean fromPrecompile, String memo, String expectedOrNoChange) {
+        // given
+        final var tokenCreate = recordItemBuilder.tokenCreate().build();
+        final var tokenId = tokenCreate.getTransactionRecord().getReceipt().getTokenID();
+        final var tokenUpdate = recordItemBuilder
+                .tokenUpdate()
+                .transactionBody(b -> b.setToken(tokenId).setMemo(StringValue.of(memo)))
+                .record(r -> {
+                    if (fromPrecompile) {
+                        r.setContractCallResult(ContractFunctionResult.newBuilder()
+                                .setContractID(systemEntity
+                                        .hederaTokenServiceContract()
+                                        .toContractID())
+                                .build());
+                    }
+                })
+                .build();
+
+        // when
+        parseRecordItemsAndCommit(List.of(tokenCreate, tokenUpdate));
+
+        // then
+        final var expectedMemo = expectedOrNoChange != null
+                ? expectedOrNoChange
+                : tokenCreate.getTransactionBody().getTokenCreation().getMemo();
+        final var expectedTokenId = EntityId.of(tokenId).getId();
+        assertThat(entityRepository.findById(expectedTokenId))
+                .get()
+                .returns(expectedTokenId, Entity::getId)
+                .returns(expectedMemo, Entity::getMemo)
+                .returns(tokenUpdate.getConsensusTimestamp(), Entity::getTimestampLower)
+                .returns(TOKEN, Entity::getType);
+        assertThat(tokenRepository.findAll()).hasSize(1).first().returns(expectedTokenId, Token::getTokenId);
+    }
+
     @Test
     void tokenPause() {
         createAndAssociateToken(

@@ -13,7 +13,7 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@google-cloud/logging": "12.2.0",
+    "@google-cloud/logging": "12.3.0",
     "parse-duration": "2.1.9",
     "yargs": "18.2.0"
   },

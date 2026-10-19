@@ -67,6 +67,7 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
@@ -1352,6 +1353,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         if (commitIndex > 1) {
             completeFileAndCommit();
             assertThat(ledgerRepository.findAll()).containsExactlyInAnyOrder(ledgerAUpdate1, ledgerBUpdate1);
+            assertThat(findHistory(Ledger.class)).isEmpty();
         }
 
         // when
@@ -1368,7 +1370,10 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         completeFileAndCommit();
 
         // then
+        ledgerAUpdate1.setTimestampUpper(ledgerAUpdate2.getTimestampLower());
+        ledgerBUpdate1.setTimestampUpper(ledgerBUpdate2.getTimestampLower());
         assertThat(ledgerRepository.findAll()).containsExactlyInAnyOrder(ledgerAUpdate2, ledgerBUpdate2);
+        assertThat(findHistory(Ledger.class)).containsExactlyInAnyOrder(ledgerAUpdate1, ledgerBUpdate1);
     }
 
     @Test
