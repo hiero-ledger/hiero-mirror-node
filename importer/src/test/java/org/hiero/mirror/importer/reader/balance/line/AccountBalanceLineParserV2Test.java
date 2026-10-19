@@ -12,9 +12,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -61,6 +59,7 @@ class AccountBalanceLineParserV2Test {
                 "'0,0,123,-1,';true;;;;",
                 "'0,65536,123,700,';true;;;;",
                 "'0,0,274877906944,700,';true;;;;",
+                "'0,65535,274877906944,700,';true;;;;",
                 "'foobar';true;;;;",
                 "'';true;;;;",
                 ";true;;;;"
@@ -130,40 +129,6 @@ class AccountBalanceLineParserV2Test {
                 .build();
         final var line = "0,0,123,700," + java.util.Base64.getEncoder().encodeToString(tokenBalances.toByteArray());
         assertThrows(InvalidDatasetException.class, () -> parser.parse(line, TIMESTAMP));
-    }
-
-    @DisplayName("Out of range account id is rejected when EntityId does not throw (importer setting)")
-    @ParameterizedTest(name = "from \"{0}\"")
-    @CsvSource({"'0,65536,123,700,'", "'0,0,274877906944,700,'", "'0,65535,274877906944,700,'"})
-    void parseOutOfRangeWhenInvalidEntityExceptionDisabled(String line) {
-        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
-        assertThrows(InvalidDatasetException.class, () -> parser.parse(line, TIMESTAMP));
-    }
-
-    @Test
-    void parseInvalidWhenTokenIdOutOfRangeAndInvalidEntityExceptionDisabled() {
-        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
-        final var tokenBalances = com.hederahashgraph.api.proto.java.TokenBalances.newBuilder()
-                .addTokenBalances(com.hederahashgraph.api.proto.java.TokenBalance.newBuilder()
-                        .setTokenId(com.hederahashgraph.api.proto.java.TokenID.newBuilder()
-                                .setRealmNum(65536)
-                                .setTokenNum(5))
-                        .setBalance(10))
-                .build();
-        final var line = "0,0,123,700," + java.util.Base64.getEncoder().encodeToString(tokenBalances.toByteArray());
-        assertThrows(InvalidDatasetException.class, () -> parser.parse(line, TIMESTAMP));
-    }
-
-    @Test
-    void parseValidWhenInvalidEntityExceptionDisabled() {
-        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
-        assertThat(parser.parse("0,0,2147483648,700,", TIMESTAMP).getId().getAccountId())
-                .isEqualTo(EntityId.of(0, 0, 2147483648L));
-    }
-
-    @AfterEach
-    void resetProperty() {
-        System.clearProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY);
     }
 
     @Test

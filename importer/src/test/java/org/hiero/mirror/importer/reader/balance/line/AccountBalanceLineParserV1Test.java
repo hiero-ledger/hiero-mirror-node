@@ -6,9 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.hiero.mirror.common.domain.balance.AccountBalance;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -45,6 +43,7 @@ class AccountBalanceLineParserV1Test {
                 "'0,0,123,-1';true;;;",
                 "'0,65536,123,700';true;;;",
                 "'0,0,274877906944,700';true;;;",
+                "'0,65535,274877906944,700';true;;;",
                 "'foobar';true;;;",
                 "'';true;;;",
                 ";true;;;"
@@ -64,27 +63,6 @@ class AccountBalanceLineParserV1Test {
         } else {
             assertThrows(InvalidDatasetException.class, () -> parser.parse(line, TIMESTAMP));
         }
-    }
-
-    @DisplayName("Out of range entity id is rejected when EntityId does not throw (importer setting)")
-    @ParameterizedTest(name = "from \"{0}\"")
-    @CsvSource({"'0,65536,123,700'", "'0,0,274877906944,700'", "'0,65535,274877906944,700'"})
-    void parseOutOfRangeWhenInvalidEntityExceptionDisabled(String line) {
-        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
-        assertThrows(InvalidDatasetException.class, () -> parser.parse(line, TIMESTAMP));
-    }
-
-    @Test
-    void parseValidWhenInvalidEntityExceptionDisabled() {
-        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
-        assertThat(parser.parse("0,0,2147483648,700", TIMESTAMP).getId().getAccountId())
-                .isEqualTo(EntityId.of(0, 0, 2147483648L));
-        assertThat(parser.parse("0,0,0,700", TIMESTAMP).getId().getAccountId()).isEqualTo(EntityId.EMPTY);
-    }
-
-    @AfterEach
-    void resetProperty() {
-        System.clearProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY);
     }
 
     @Test

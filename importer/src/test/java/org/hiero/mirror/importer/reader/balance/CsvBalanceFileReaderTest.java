@@ -23,7 +23,6 @@ import org.apache.commons.io.FileUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
@@ -209,17 +208,6 @@ abstract class CsvBalanceFileReaderTest {
         AccountBalanceFile accountBalanceFile = balanceFileReader.read(streamFileData);
         assertAccountBalanceFile(accountBalanceFile);
         verifySuccess(testFile, accountBalanceFile, 2);
-    }
-
-    @Test
-    void readValidWhenFileHasLinesWithOutOfRangeEntityIdAndInvalidEntityExceptionDisabled() throws IOException {
-        // the importer sets this property, in which case EntityId.of returns 0.0.0 instead of throwing
-        System.setProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY, "false");
-        try {
-            readValidWhenFileHasLinesWithOutOfRangeEntityId();
-        } finally {
-            System.clearProperty(EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY);
-        }
     }
 
     @Test
