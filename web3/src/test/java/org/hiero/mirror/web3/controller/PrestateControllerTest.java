@@ -166,14 +166,11 @@ final class PrestateControllerTest extends Web3IntegrationTest {
     void callSuccessCors(final TransactionProviderEnum providerEnum) throws Exception {
         final var transactionIdOrHash = persistTransaction(providerEnum);
 
-        final String param =
-                switch (transactionIdOrHash) {
-                    case TransactionHashParameter hashParameter ->
-                        hashParameter.hash().toHexString();
-                    case TransactionIdParameter transactionIdParameter ->
-                        transactionIdString(
-                                transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
-                };
+        final String param = switch (transactionIdOrHash) {
+            case TransactionHashParameter hashParameter -> hashParameter.hash().toHexString();
+            case TransactionIdParameter transactionIdParameter ->
+                transactionIdString(transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
+        };
 
         mockMvc.perform(options(PRESTATE_URI, param)
                         .accept(MediaType.APPLICATION_JSON)
@@ -230,14 +227,11 @@ final class PrestateControllerTest extends Web3IntegrationTest {
     @ValueSource(strings = {"deflate", "identity", "br", ""})
     void rejectsWhenAcceptEncodingIsNotGzip(final String acceptEncoding) throws Exception {
         final var transactionIdOrHash = persistTransaction(TransactionProviderEnum.CONTRACT_CALL);
-        final String param =
-                switch (transactionIdOrHash) {
-                    case TransactionHashParameter hashParameter ->
-                        hashParameter.hash().toHexString();
-                    case TransactionIdParameter transactionIdParameter ->
-                        transactionIdString(
-                                transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
-                };
+        final String param = switch (transactionIdOrHash) {
+            case TransactionHashParameter hashParameter -> hashParameter.hash().toHexString();
+            case TransactionIdParameter transactionIdParameter ->
+                transactionIdString(transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
+        };
 
         mockMvc.perform(get(PRESTATE_URI, param)
                         .header(HttpHeaders.ACCEPT_ENCODING, acceptEncoding)
@@ -389,14 +383,11 @@ final class PrestateControllerTest extends Web3IntegrationTest {
     // --- Helper methods ---
 
     private MockHttpServletRequestBuilder prestateRequest(final TransactionIdOrHashParameter parameter) {
-        final String transactionIdOrHash =
-                switch (parameter) {
-                    case TransactionHashParameter hashParameter ->
-                        hashParameter.hash().toHexString();
-                    case TransactionIdParameter transactionIdParameter ->
-                        transactionIdString(
-                                transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
-                };
+        final String transactionIdOrHash = switch (parameter) {
+            case TransactionHashParameter hashParameter -> hashParameter.hash().toHexString();
+            case TransactionIdParameter transactionIdParameter ->
+                transactionIdString(transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
+        };
 
         return prestateRequest(transactionIdOrHash);
     }
