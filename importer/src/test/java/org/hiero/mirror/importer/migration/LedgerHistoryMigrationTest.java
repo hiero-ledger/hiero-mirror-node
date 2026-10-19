@@ -4,11 +4,11 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.google.common.collect.Range;
 import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
@@ -37,8 +37,7 @@ final class LedgerHistoryMigrationTest extends ImporterIntegrationTest {
             alter table if exists ledger
                 drop column if exists timestamp_range,
                 add column if not exists consensus_timestamp bigint not null,
-                add column if not exists history_proof_verification_key bytea not null,
-                add column if not exists node_contributions jsonb not null;
+                add column if not exists history_proof_verification_key bytea not null;
             """;
 
     private final LedgerHistoryRepository ledgerHistoryRepository;
@@ -71,17 +70,17 @@ final class LedgerHistoryMigrationTest extends ImporterIntegrationTest {
         assertThat(ledgerHistoryRepository.findAll()).isEmpty();
     }
 
+    @SneakyThrows
     private Ledger persistLedger() {
-        final long consensusTimestamp = domainBuilder.timestamp();
-        final var ledgerId = domainBuilder.bytes(64);
-        jdbcOperations.update("""
+        final var ledger = domainBuilder.ledger().get();
+        final var nodeContributions =
+                ObjectToStringSerializer.OBJECT_MAPPER.writeValueAsString(ledger.getNodeContributions());
+        jdbcOperations.update(
+                """
                 insert into ledger (consensus_timestamp, history_proof_verification_key, ledger_id, node_contributions)
-                values (?, ?, ?, '[]'::jsonb)
-                """, consensusTimestamp, domainBuilder.bytes(32), ledgerId);
-        return Ledger.builder()
-                .ledgerId(ledgerId)
-                .timestampRange(Range.atLeast(consensusTimestamp))
-                .build();
+                values (?, ?, ?, ?::jsonb)
+                """, ledger.getTimestampLower(), domainBuilder.bytes(32), ledger.getLedgerId(), nodeContributions);
+        return ledger;
     }
 
     @SneakyThrows

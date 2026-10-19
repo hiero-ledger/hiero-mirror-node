@@ -7,8 +7,7 @@ set timestamp_range = int8range(consensus_timestamp, null);
 alter table if exists ledger
     alter column timestamp_range set not null,
     drop column if exists consensus_timestamp,
-    drop column if exists history_proof_verification_key,
-    drop column if exists node_contributions;
+    drop column if exists history_proof_verification_key;
 
 create table if not exists ledger_history
 (

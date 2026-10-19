@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.downloader.block;
 
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
-import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -21,7 +20,6 @@ import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.domain.StreamFileSignature;
@@ -29,6 +27,7 @@ import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
+import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
@@ -52,6 +51,7 @@ final class BlockStreamVerifier {
     private final BlockStateProofHasher blockStateProofHasher;
     private final ConsensusNodeService consensusNodeService;
     private final CutoverService cutoverService;
+    private final LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser;
     private final NodeSignatureVerifier nodeSignatureVerifier;
     private final StreamFileNotifier streamFileNotifier;
     private final TssVerifier tssVerifier;
@@ -67,6 +67,7 @@ final class BlockStreamVerifier {
             final BlockStateProofHasher blockStateProofHasher,
             final ConsensusNodeService consensusNodeService,
             final CutoverService cutoverService,
+            final LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser,
             final MeterRegistry meterRegistry,
             final NodeSignatureVerifier nodeSignatureVerifier,
             final StreamFileNotifier streamFileNotifier,
@@ -75,6 +76,7 @@ final class BlockStreamVerifier {
         this.blockStateProofHasher = blockStateProofHasher;
         this.consensusNodeService = consensusNodeService;
         this.cutoverService = cutoverService;
+        this.ledgerIdPublicationTransactionParser = ledgerIdPublicationTransactionParser;
         this.nodeSignatureVerifier = nodeSignatureVerifier;
         this.streamFileNotifier = streamFileNotifier;
         this.tssVerifier = tssVerifier;
@@ -151,12 +153,10 @@ final class BlockStreamVerifier {
             return;
         }
 
-        final var ledgerIdPublication = transaction.getTransactionBody().getLedgerIdPublication();
-        final var ledger = Ledger.builder()
-                .ledgerId(DomainUtils.toBytes(ledgerIdPublication.getLedgerId()))
-                .timestampRange(Range.atLeast(transaction.getConsensusTimestamp()))
-                .build();
-        tssVerifier.setLedger(ledger);
+        final var ledger = ledgerIdPublicationTransactionParser.parse(
+                transaction.getConsensusTimestamp(),
+                transaction.getTransactionBody().getLedgerIdPublication());
+        tssVerifier.setLedger(ledger, false);
     }
 
     private void verifyBlockNumber(final BlockFile blockFile) {

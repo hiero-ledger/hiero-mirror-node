@@ -17,19 +17,18 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.io.IOException;
-import java.util.HexFormat;
 import java.util.Optional;
 import lombok.SneakyThrows;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.tss.Ledger;
-import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
 import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -38,7 +37,6 @@ final class TssVerifierTest {
 
     private static final TssTestArtifact TEST_ARTIFACT = loadTssTestArtifact();
 
-    private BlockProperties blockProperties;
     private TssVerifier tssVerifier;
 
     @Mock
@@ -46,8 +44,7 @@ final class TssVerifierTest {
 
     @BeforeEach
     void setup() {
-        blockProperties = new BlockProperties(new ImporterProperties());
-        tssVerifier = new TssVerifierImpl(blockProperties, ledgerRepository);
+        tssVerifier = new TssVerifierImpl(ledgerRepository);
     }
 
     @Test
@@ -95,11 +92,26 @@ final class TssVerifierTest {
         verify(ledgerRepository).findLatest();
     }
 
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            false, 0
+            true, 1
+            """)
+    void verifyWithLedgerSet(final boolean fromConfig, final int expectedDbCalls) {
+        // given
+        tssVerifier.setLedger(TEST_ARTIFACT.toLedger(), fromConfig);
+
+        // when, then
+        assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
+                .doesNotThrowAnyException();
+        verify(ledgerRepository, times(expectedDbCalls)).findLatest();
+    }
+
     @Test
     void verifyWithOnChainLedger() {
         // given
-        tssVerifier.setLedger(TEST_ARTIFACT.toLedger());
-        blockProperties.setLedgerId("00".repeat(64));
+        tssVerifier.setLedger(TEST_ARTIFACT.toLedger(), false);
+        tssVerifier.setLedger(Ledger.builder().ledgerId(new byte[64]).build(), true);
 
         // when, then
         assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
@@ -111,18 +123,7 @@ final class TssVerifierTest {
     void verifyWithLedgerFromDb() {
         // given
         when(ledgerRepository.findLatest()).thenReturn(Optional.of(TEST_ARTIFACT.toLedger()));
-        blockProperties.setLedgerId("00".repeat(64));
-
-        // when, then
-        assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))
-                .doesNotThrowAnyException();
-        verify(ledgerRepository).findLatest();
-    }
-
-    @Test
-    void verifyWithLedgerFromProperties() {
-        // given
-        blockProperties.setLedgerId(HexFormat.of().formatHex(TEST_ARTIFACT.ledgerId));
+        tssVerifier.setLedger(Ledger.builder().ledgerId(new byte[64]).build(), true);
 
         // when, then
         assertThatCode(() -> tssVerifier.verify(0, TEST_ARTIFACT.message, TEST_ARTIFACT.signatureWithWraps))

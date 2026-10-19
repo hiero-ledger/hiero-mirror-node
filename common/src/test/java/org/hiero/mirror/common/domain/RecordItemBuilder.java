@@ -30,6 +30,7 @@ import com.hedera.hapi.node.hooks.legacy.EvmHookStorageUpdate;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import com.hedera.hapi.node.hooks.legacy.HookExtensionPoint;
 import com.hedera.hapi.node.hooks.legacy.HookStoreTransactionBody;
+import com.hedera.hapi.node.tss.legacy.LedgerIdNodeContribution;
 import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction;
@@ -802,7 +803,18 @@ public final class RecordItemBuilder {
     }
 
     public Builder<LedgerIdPublicationTransactionBody.Builder> ledgerIdPublication() {
-        final var builder = LedgerIdPublicationTransactionBody.newBuilder().setLedgerId(bytes(64));
+        final var builder = LedgerIdPublicationTransactionBody.newBuilder()
+                .setLedgerId(bytes(64))
+                .addNodeContributions(LedgerIdNodeContribution.newBuilder()
+                        .setHistoryProofKey(bytes(64))
+                        .setNodeId(id())
+                        .setWeight(id())
+                        .build())
+                .addNodeContributions(LedgerIdNodeContribution.newBuilder()
+                        .setHistoryProofKey(bytes(64))
+                        .setNodeId(id())
+                        .setWeight(id())
+                        .build());
         return new Builder<>(TransactionType.LEDGERIDPUBLICATION, builder);
     }
 

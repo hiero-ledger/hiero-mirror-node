@@ -11,7 +11,6 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.tss.Ledger;
-import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
 import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.jspecify.annotations.NullMarked;
@@ -25,14 +24,19 @@ final class TssVerifierImpl implements TssVerifier {
 
     private static final Ledger EMPTY = new Ledger();
     private final AtomicReference<Optional<Ledger>> ledger = new AtomicReference<>(Optional.empty());
-    private final BlockProperties blockProperties;
     private final LedgerRepository ledgerRepository;
 
+    private volatile @Nullable Ledger ledgerConfig;
     private volatile @Nullable Ledger ledgerOnChain;
 
     @Override
-    public synchronized void setLedger(final Ledger ledger) {
-        ledgerOnChain = ledger;
+    public synchronized void setLedger(final Ledger ledger, final boolean fromConfig) {
+        if (fromConfig) {
+            ledgerConfig = ledger;
+        } else {
+            ledgerOnChain = ledger;
+        }
+
         this.ledger.set(Optional.empty());
     }
 
@@ -58,17 +62,12 @@ final class TssVerifierImpl implements TssVerifier {
                 .or(() -> {
                     final var resolved = Optional.ofNullable(ledgerOnChain)
                             .or(ledgerRepository::findLatest)
-                            .or(this::getLedgerFromProperties)
+                            .or(() -> Optional.ofNullable(ledgerConfig))
                             .or(() -> Optional.of(EMPTY));
                     ledger.set(resolved);
                     return resolved;
                 })
                 .filter(l -> l != EMPTY)
                 .orElseThrow(() -> new IllegalStateException("Ledger id not found"));
-    }
-
-    private Optional<Ledger> getLedgerFromProperties() {
-        return Optional.ofNullable(blockProperties.getLedgerId())
-                .map(id -> Ledger.builder().ledgerId(id).build());
     }
 }

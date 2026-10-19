@@ -138,6 +138,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionSignature;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.domain.tss.LedgerHistory;
+import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -655,7 +656,10 @@ public class DomainBuilder {
     }
 
     public DomainWrapper<Ledger, Ledger.LedgerBuilder<?, ?>> ledger() {
-        final var builder = Ledger.builder().ledgerId(bytes(64)).timestampRange(Range.atLeast(timestamp()));
+        final var builder = Ledger.builder()
+                .ledgerId(bytes(64))
+                .nodeContributions(ledgerNodeContributions())
+                .timestampRange(Range.atLeast(timestamp()));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -663,6 +667,7 @@ public class DomainBuilder {
         final long lowerTimestamp = timestamp();
         final var builder = LedgerHistory.builder()
                 .ledgerId(bytes(64))
+                .nodeContributions(ledgerNodeContributions())
                 .timestampRange(Range.closedOpen(lowerTimestamp, lowerTimestamp + 1));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
@@ -1455,6 +1460,18 @@ public class DomainBuilder {
     // SQL timestamp type only supports up to microsecond granularity
     private Instant instant() {
         return now.truncatedTo(ChronoUnit.MILLIS).plusMillis(number());
+    }
+
+    private LedgerNodeContribution ledgerNodeContribution() {
+        return LedgerNodeContribution.builder()
+                .historyProofKey(bytes(48))
+                .nodeId(number())
+                .weight(number())
+                .build();
+    }
+
+    private List<LedgerNodeContribution> ledgerNodeContributions() {
+        return List.of(ledgerNodeContribution(), ledgerNodeContribution());
     }
 
     private RoyaltyFee royaltyFee() {

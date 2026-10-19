@@ -8,7 +8,7 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 public interface TssVerifier {
 
-    void setLedger(Ledger ledger);
+    void setLedger(Ledger ledger, boolean fromConfig);
 
     void verify(long blockNumber, byte[] message, byte[] signature);
 }
