@@ -86,7 +86,7 @@ final class LedgerHistoryMigrationTest extends ImporterIntegrationTest {
     @SneakyThrows
     private void runMigration() {
         final var migrationFilepath =
-                isV1() ? "v1/V1.129.1__drop_ledger_proof_columns.sql" : "v2/V2.35.1__drop_ledger_proof_columns.sql";
+                isV1() ? "v1/V1.129.1__drop_ledger_proof_columns.sql" : "v2/V2.34.1__drop_ledger_proof_columns.sql";
         final var file = TestUtils.getResource("db/migration/" + migrationFilepath);
         ownerJdbcTemplate.update(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
     }
