@@ -212,11 +212,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(spenderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // another token transfer
@@ -225,11 +221,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(spenderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp1)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp1, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         var result = repository.findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp);
@@ -283,11 +275,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(spenderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         var historyTokenTransfer = domainBuilder
@@ -295,11 +283,8 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForHistoryTransfer)
                         .payerAccountId(EntityId.of(spenderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(historyRange.lowerEndpoint() + 2)
-                                .build()))
+                        .id(new TokenTransfer.Id(
+                                historyRange.lowerEndpoint() + 2, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // allowance history
@@ -318,22 +303,16 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(spenderId + 1))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(historyRange.lowerEndpoint() + 1)
-                                .build()))
+                        .id(new TokenTransfer.Id(
+                                historyRange.lowerEndpoint() + 1, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         var contractCallTransfer = domainBuilder
                 .tokenTransfer()
                 .customize(t -> t.isApproval(true)
                         .amount(amountForContractCallTransfer)
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(historyRange.lowerEndpoint() + 3)
-                                .build()))
+                        .id(new TokenTransfer.Id(
+                                historyRange.lowerEndpoint() + 3, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // contract result
@@ -408,11 +387,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(spenderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // another token transfer
@@ -421,11 +396,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer1)
                         .payerAccountId(EntityId.of(spenderId + 1))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp1)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp1, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         var result = repository.findByOwnerAndTimestamp(allowance.getOwner(), blockTimestamp);
@@ -461,11 +432,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(-1)
                         .payerAccountId(EntityId.of(spenderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .consensusTimestamp(tokenTransferTimestamp)
-                                .accountId(EntityId.of(ownerId))
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         assertThat(repository
@@ -502,11 +469,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(spenderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         domainBuilder
@@ -547,11 +510,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(spenderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // contract result
@@ -593,11 +552,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(senderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // contract token transfer
@@ -606,11 +561,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(senderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransfer1Timestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransfer1Timestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // contract result
@@ -666,11 +617,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(spenderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // token transfer, must be decreased only for the first allowance
@@ -679,11 +626,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(senderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransfer1Timestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransfer1Timestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // contract token transfer, must be decreased only for the first allowance
@@ -692,11 +635,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(senderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransfer2Timestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransfer2Timestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // contact result
@@ -842,11 +781,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(spenderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         domainBuilder
@@ -886,11 +821,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(senderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         domainBuilder
@@ -898,11 +829,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(senderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransfer1Timestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransfer1Timestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         domainBuilder
@@ -956,11 +883,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(spenderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransferTimestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransferTimestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // Must be decreased only for the first allowance
@@ -969,11 +892,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(senderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransfer1Timestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransfer1Timestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         // Must be decreased only for the first allowance
@@ -982,11 +901,7 @@ class TokenAllowanceRepositoryTest extends Web3IntegrationTest {
                 .customize(t -> t.isApproval(true)
                         .amount(amountForTransfer)
                         .payerAccountId(EntityId.of(senderId))
-                        .id(TokenTransfer.Id.builder()
-                                .tokenId(EntityId.of(tokenId))
-                                .accountId(EntityId.of(ownerId))
-                                .consensusTimestamp(tokenTransfer2Timestamp)
-                                .build()))
+                        .id(new TokenTransfer.Id(tokenTransfer2Timestamp, EntityId.of(tokenId), EntityId.of(ownerId))))
                 .persist();
 
         domainBuilder

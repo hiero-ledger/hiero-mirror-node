@@ -388,7 +388,7 @@ final class PrestateServiceImpl implements PrestateService {
 
         final var balances = HashMap.<Long, Long>newHashMap(rows.size());
         for (final var row : rows) {
-            balances.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
+            balances.put(row.accountId(), row.balance());
         }
         return balances;
     }

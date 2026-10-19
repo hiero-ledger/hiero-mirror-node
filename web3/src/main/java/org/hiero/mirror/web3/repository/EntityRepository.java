@@ -14,7 +14,7 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface EntityRepository extends CrudRepository<Entity, Long> {
@@ -39,6 +39,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             cacheManager = CACHE_MANAGER_ENTITY,
             key = "@spelHelper.getCacheKey(#alias)",
             unless = "@spelHelper.isNullOrEmpty(#result)")
+    @Query(value = "select * from entity where evm_address = :alias and deleted is not true")
     Optional<Entity> findByEvmAddressAndDeletedIsFalse(byte[] alias);
 
     @Cacheable(
@@ -46,11 +47,11 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             cacheManager = CACHE_MANAGER_ENTITY,
             key = "@spelHelper.getCacheKey(#alias)",
             unless = "@spelHelper.isNullOrEmpty(#result)")
-    @Query(value = """
-        select *
-        from entity
-        where (evm_address = ?1 or alias = ?1) and deleted is not true
-        """, nativeQuery = true)
+    @Query("""
+            select *
+            from entity
+            where (evm_address = :alias or alias = :alias) and deleted is not true
+            """)
     Optional<Entity> findByEvmAddressOrAliasAndDeletedIsFalse(byte[] alias);
 
     /**
@@ -63,11 +64,11 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
-    @Query(value = """
+    @Query("""
             with entity_cte as (
                 select id
                 from entity
-                where evm_address = ?1 and created_timestamp <= ?2
+                where evm_address = :evmAddress and created_timestamp <= :blockTimestamp
                 order by created_timestamp desc
                 limit 1
             )
@@ -76,7 +77,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                 from entity e
                 where e.deleted is not true
                 and e.id = (select id from entity_cte)
-                and lower(e.timestamp_range) <= ?2
+                and lower(e.timestamp_range) <= :blockTimestamp
             )
             union all
             (
@@ -84,15 +85,15 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     select *
                     from entity_history eh
                     where eh.id = (select id from entity_cte)
-                    and lower(eh.timestamp_range) <= ?2
+                    and lower(eh.timestamp_range) <= :blockTimestamp
                     order by lower(eh.timestamp_range) desc
                     limit 1
                 ) latest_history
-                where deleted is not true and timestamp_range @> ?2
+                where deleted is not true and timestamp_range @> :blockTimestamp
             )
             order by timestamp_range desc
             limit 1
-            """, nativeQuery = true)
+            """)
     Optional<Entity> findActiveByEvmAddressAndTimestamp(byte[] evmAddress, long blockTimestamp);
 
     /**
@@ -105,11 +106,11 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
-    @Query(value = """
+    @Query("""
             with entity_cte as (
                 select id
                 from entity
-                where created_timestamp <= ?2 and (evm_address = ?1 or alias = ?1)
+                where created_timestamp <= :blockTimestamp and (evm_address = :alias or alias = :alias)
                 order by created_timestamp desc
                 limit 1
             )
@@ -118,7 +119,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                 from entity e
                 where e.deleted is not true
                 and e.id = (select id from entity_cte)
-                and lower(e.timestamp_range) <= ?2
+                and lower(e.timestamp_range) <= :blockTimestamp
             )
             union all
             (
@@ -126,15 +127,15 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     select *
                     from entity_history eh
                     where eh.id = (select id from entity_cte)
-                    and lower(eh.timestamp_range) <= ?2
+                    and lower(eh.timestamp_range) <= :blockTimestamp
                     order by lower(eh.timestamp_range) desc
                     limit 1
                 ) latest_history
-                where deleted is not true and timestamp_range @> ?2
+                where deleted is not true and timestamp_range @> :blockTimestamp
             )
             order by timestamp_range desc
             limit 1
-            """, nativeQuery = true)
+            """)
     Optional<Entity> findActiveByEvmAddressOrAliasAndTimestamp(byte[] alias, long blockTimestamp);
 
     /**
@@ -148,11 +149,11 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
      * @return the list of active entities (at most one per resolved entity ID); addresses with no active version are
      *     omitted.
      */
-    @Query(value = """
+    @Query("""
             with entity_cte as (
                 select id
                 from entity
-                where created_timestamp <= ?2 and (evm_address in ?1 or alias in ?1)
+                where created_timestamp <= :blockTimestamp and (evm_address in (:addresses) or alias in (:addresses))
             )
             select distinct on (id) *
             from (
@@ -161,7 +162,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     from entity
                     where id in (select id from entity_cte)
                     and deleted is not true
-                    and timestamp_range @> ?2
+                    and timestamp_range @> :blockTimestamp
                 )
                 union all
                 (
@@ -169,11 +170,11 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     from entity_history
                     where id in (select id from entity_cte)
                     and deleted is not true
-                    and timestamp_range @> ?2
+                    and timestamp_range @> :blockTimestamp
                 )
             ) as merged
             order by id, lower(timestamp_range) desc
-            """, nativeQuery = true)
+            """)
     List<Entity> findActiveByEvmAddressesOrAliasesAndTimestamp(Collection<byte[]> addresses, long blockTimestamp);
 
     /**
@@ -188,11 +189,11 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
-    @Query(value = """
+    @Query("""
                     (
                         select *
                         from entity
-                        where id = ?1 and lower(timestamp_range) <= ?2
+                        where id = :id and lower(timestamp_range) <= :blockTimestamp
                         and deleted is not true
                     )
                     union all
@@ -200,15 +201,15 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                         select * from (
                             select *
                             from entity_history
-                            where id = ?1 and lower(timestamp_range) <= ?2
+                            where id = :id and lower(timestamp_range) <= :blockTimestamp
                             order by lower(timestamp_range) desc
                             limit 1
                         ) latest_history
-                        where deleted is not true and timestamp_range @> ?2
+                        where deleted is not true and timestamp_range @> :blockTimestamp
                     )
                     order by timestamp_range desc
                     limit 1
-                    """, nativeQuery = true)
+                    """)
     Optional<Entity> findActiveByIdAndTimestamp(long id, long blockTimestamp);
 
     /**
@@ -220,34 +221,34 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
      * @param blockTimestamp the block timestamp used to filter results.
      * @return the list of active entities (at most one per requested ID); IDs with no active version are omitted.
      */
-    @Query(value = """
+    @Query("""
                     select distinct on (id) *
                     from (
                         (
                             select *
                             from entity
-                            where id in ?1
-                              and timestamp_range @> ?2
+                            where id in (:ids)
+                              and timestamp_range @> :blockTimestamp
                               and deleted is not true
                         )
                         union all
                         (
                             select *
                             from entity_history
-                            where id in ?1
-                              and timestamp_range @> ?2
+                            where id in (:ids)
+                              and timestamp_range @> :blockTimestamp
                               and deleted is not true
                         )
                     ) as merged
                     order by id, lower(timestamp_range) desc
-                    """, nativeQuery = true)
+                    """)
     List<Entity> findActiveByIdsAndTimestamp(Collection<Long> ids, long blockTimestamp);
 
-    @Query(value = """
+    @Query("""
                     select id
                     from entity
                     order by id desc
                     limit 1
-                    """, nativeQuery = true)
+                    """)
     Long findMaxId();
 }

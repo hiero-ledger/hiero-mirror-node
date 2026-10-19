@@ -5,7 +5,6 @@ package org.hiero.mirror.common.config;
 import com.google.common.collect.ImmutableMap;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -28,6 +27,7 @@ import org.springframework.boot.testcontainers.lifecycle.TestcontainersStartup;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Scope;
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 import org.springframework.transaction.support.TransactionOperations;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.output.OutputFrame;
@@ -47,8 +47,9 @@ public class CommonTestConfiguration {
     private boolean v2;
 
     @Bean
-    DomainBuilder domainBuilder(EntityManager entityManager, TransactionOperations transactionOperations) {
-        return new DomainBuilder(commonProperties, entityManager, transactionOperations);
+    DomainBuilder domainBuilder(
+            JdbcAggregateTemplate jdbcAggregateTemplate, TransactionOperations transactionOperations) {
+        return new DomainBuilder(commonProperties, jdbcAggregateTemplate, transactionOperations);
     }
 
     @Bean
@@ -136,8 +137,9 @@ public class CommonTestConfiguration {
 
             @Override
             public String getPassword() {
+                var username = dataSourceProperties.getUsername();
                 var password = dataSourceProperties.getPassword();
-                return password.contains("importer") ? password : postgresql.getPassword();
+                return username.contains("importer") ? password : postgresql.getPassword();
             }
 
             @Override

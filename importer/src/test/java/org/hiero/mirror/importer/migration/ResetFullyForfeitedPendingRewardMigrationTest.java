@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
+import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.entity.EntityStakeHistory;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
@@ -104,23 +105,28 @@ final class ResetFullyForfeitedPendingRewardMigrationTest extends ImporterIntegr
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(nodeId1).epochDay(endStakePeriod))
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), nodeId1))
+                        .epochDay(endStakePeriod))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(nodeId1).epochDay(endStakePeriod - 1))
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), nodeId1))
+                        .epochDay(endStakePeriod - 1))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(nodeId1).epochDay(endStakePeriod - 1))
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), nodeId1))
+                        .epochDay(endStakePeriod - 1))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(nodeId2).epochDay(endStakePeriod - 365))
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), nodeId2))
+                        .epochDay(endStakePeriod - 365))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(nodeId3).epochDay(endStakePeriod - 364))
+                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), nodeId3))
+                        .epochDay(endStakePeriod - 364))
                 .persist();
 
         // when

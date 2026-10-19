@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(value = "/api/v1/topics", produces = APPLICATION_JSON)
 @RequiredArgsConstructor
 @RestController
-public class TopicController {
+public final class TopicController {
 
     private final CustomFeeService customFeeService;
     private final EntityService entityService;

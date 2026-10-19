@@ -2,9 +2,13 @@
 
 package org.hiero.mirror.web3.repository.projections;
 
-public interface TokenAccountAssociationsCount {
+import lombok.Value;
 
-    Integer getTokenCount();
+/** Query projection for token association counts grouped by balance sign. */
+@Value
+public class TokenAccountAssociationsCount {
 
-    boolean getIsPositiveBalance();
+    Integer tokenCount;
+
+    boolean isPositiveBalance;
 }

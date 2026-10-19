@@ -336,7 +336,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
     private Entity scheduleContractPersist(byte[] runtimeBytecode, Address contractAddress) {
         final var contractEntityId = entityIdFromEvmAddress(contractAddress);
         final var contractEvmAddress = toEvmAddress(contractEntityId);
-        final var key = com.hederahashgraph.api.proto.java.Key.newBuilder()
+        final var key = Key.newBuilder()
                 .setContractID(com.hederahashgraph.api.proto.java.ContractID.newBuilder()
                         .setShardNum(contractEntityId.getShard())
                         .setRealmNum(contractEntityId.getRealm())

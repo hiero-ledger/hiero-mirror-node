@@ -4,19 +4,19 @@ package org.hiero.mirror.web3.repository;
 
 import java.util.List;
 import org.hiero.mirror.common.domain.contract.ContractStateChange;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface ContractStateChangeRepository extends CrudRepository<ContractStateChange, ContractStateChange.Id> {
 
-    @Query(value = """
+    @Query("""
             select *
             from contract_state_change
-            where consensus_timestamp = ?1
-              and (contract_id > ?2 or (contract_id = ?2 and slot > ?3))
+            where consensus_timestamp = :consensusTimestamp
+              and (contract_id > :contractId or (contract_id = :contractId and slot > :slot))
             order by contract_id, slot
-            limit ?4
-            """, nativeQuery = true)
+            limit :limit
+            """)
     List<ContractStateChange> findByConsensusTimestamp(
             long consensusTimestamp, long contractId, byte[] slot, int limit);
 
@@ -26,15 +26,15 @@ public interface ContractStateChangeRepository extends CrudRepository<ContractSt
      * (contract_id, slot) primary-key order: pass a key strictly before the first row to start, then the last row of
      * the previous page.
      */
-    @Query(value = """
+    @Query("""
             select *
             from contract_state_change
-            where consensus_timestamp = ?1
+            where consensus_timestamp = :consensusTimestamp
               and value_written is distinct from value_read
-              and (contract_id > ?2 or (contract_id = ?2 and slot > ?3))
+              and (contract_id > :contractId or (contract_id = :contractId and slot > :slot))
             order by contract_id, slot
-            limit ?4
-            """, nativeQuery = true)
+            limit :limit
+            """)
     List<ContractStateChange> findModifiedByConsensusTimestamp(
             long consensusTimestamp, long contractId, byte[] slot, int limit);
 }

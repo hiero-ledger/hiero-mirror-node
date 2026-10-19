@@ -24,6 +24,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.state.ContractRuntimeBytecode;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AfterAll;
@@ -123,7 +124,7 @@ class ContractBytecodeReadableKVStateTest {
     @Test
     void whenContractNumIsSetReturnRuntimeBytecode() {
         when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+                .thenReturn(Optional.of(new ContractRuntimeBytecode(BYTES.toByteArray())));
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM))
                 .satisfies(bytecode -> assertThat(bytecode).isEqualTo(BYTECODE));
     }
@@ -131,7 +132,7 @@ class ContractBytecodeReadableKVStateTest {
     @Test
     void whenContractMirrorEvmAddressIsSetReturnRuntimeBytecode() {
         when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_MIRROR_EVM_ADDRESS.getId()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+                .thenReturn(Optional.of(new ContractRuntimeBytecode(BYTES.toByteArray())));
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_MIRROR_EVM_ADDRESS))
                 .satisfies(bytecode -> assertThat(bytecode).isEqualTo(BYTECODE));
     }
@@ -142,7 +143,7 @@ class ContractBytecodeReadableKVStateTest {
                         EVM_ADDRESS.getBytes().toArrayUnsafe(), Optional.empty()))
                 .thenReturn(Optional.of(ENTITY));
         when(contractRepository.findRuntimeBytecode(ENTITY.toEntityId().getId()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+                .thenReturn(Optional.of(new ContractRuntimeBytecode(BYTES.toByteArray())));
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_EVM_ADDRESS))
                 .satisfies(bytecode -> assertThat(bytecode).isEqualTo(BYTECODE));
     }
@@ -154,7 +155,7 @@ class ContractBytecodeReadableKVStateTest {
                         EVM_ADDRESS.getBytes().toArrayUnsafe(), Optional.of(TIMESTAMP)))
                 .thenReturn(Optional.of(ENTITY));
         when(contractRepository.findRuntimeBytecode(ENTITY.toEntityId().getId()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+                .thenReturn(Optional.of(new ContractRuntimeBytecode(BYTES.toByteArray())));
 
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_EVM_ADDRESS))
                 .isEqualTo(BYTECODE);
@@ -193,7 +194,7 @@ class ContractBytecodeReadableKVStateTest {
                 Map.of(Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
         lenient()
                 .when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+                .thenReturn(Optional.of(new ContractRuntimeBytecode(BYTES.toByteArray())));
 
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM)).isEqualTo(OVERRIDE_BYTECODE);
         verify(contractRepository, never()).findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId());
@@ -242,7 +243,7 @@ class ContractBytecodeReadableKVStateTest {
         contractCallContext.setStateOverrides(
                 Map.of(Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS), stateOverrideWithBalance("0x1")));
         when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+                .thenReturn(Optional.of(new ContractRuntimeBytecode(BYTES.toByteArray())));
 
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM)).isEqualTo(BYTECODE);
     }
@@ -252,7 +253,7 @@ class ContractBytecodeReadableKVStateTest {
         contractCallContext.setStateOverrides(Map.of(
                 Bytes.fromHex("000000000000000000000000000000000000dead"), stateOverrideWithCode(OVERRIDE_CODE_HEX)));
         when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
-                .thenReturn(Optional.of(BYTES.toByteArray()));
+                .thenReturn(Optional.of(new ContractRuntimeBytecode(BYTES.toByteArray())));
 
         assertThat(contractBytecodeReadableKVState.get(CONTRACT_ID_WITH_NUM)).isEqualTo(BYTECODE);
     }

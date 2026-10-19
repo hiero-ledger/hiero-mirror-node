@@ -5,9 +5,8 @@ package org.hiero.mirror.importer.repository;
 import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
-import org.springframework.data.jpa.repository.EntityGraph;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Modifying;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,7 +15,7 @@ public interface AccountBalanceRepository
 
     @Modifying
     @Override
-    @Query(nativeQuery = true, value = """
+    @Query("""
         insert into account_balance (account_id, balance, consensus_timestamp)
         select id, balance, :consensusTimestamp
         from entity
@@ -33,7 +32,7 @@ public interface AccountBalanceRepository
 
     @Override
     @Modifying
-    @Query(nativeQuery = true, value = """
+    @Query("""
         insert into account_balance (account_id, balance, consensus_timestamp)
         select id, balance, :consensusTimestamp
         from entity
@@ -46,7 +45,7 @@ public interface AccountBalanceRepository
     @Transactional
     int balanceSnapshotDeduplicate(long minConsensusTimestamp, long consensusTimestamp, long treasuryAccountId);
 
-    @Query(nativeQuery = true, value = """
+    @Query("""
           select max(consensus_timestamp) as consensus_timestamp
           from account_balance
           where account_id = :treasuryAccountId and consensus_timestamp >= :lowerRangeTimestamp
@@ -56,9 +55,7 @@ public interface AccountBalanceRepository
             long lowerRangeTimestamp, long upperRangeTimestamp, long treasuryAccountId);
 
     @Override
-    @EntityGraph("AccountBalance.tokenBalances")
     List<AccountBalance> findAll();
 
-    @EntityGraph("AccountBalance.tokenBalances")
     List<AccountBalance> findByIdConsensusTimestamp(long consensusTimestamp);
 }

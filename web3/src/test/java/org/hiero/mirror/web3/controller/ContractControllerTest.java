@@ -15,6 +15,7 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
@@ -106,6 +107,9 @@ final class ContractControllerTest {
     @MockitoBean
     private ThrottleManager throttleManager;
 
+    @MockitoBean
+    private EvmProperties evmProperties;
+
     private static java.util.stream.Stream<ResponseCodeEnum> serverResponseCodes() {
         return GenericControllerAdvice.SERVER_RESPONSE_CODES.stream();
     }
@@ -113,6 +117,7 @@ final class ContractControllerTest {
     @BeforeEach
     void setUp() {
         web3Properties.setEnableStateOverrides(true);
+        when(evmProperties.getMaxGasLimit()).thenReturn(15_000_000L);
         throttleManager.throttle(any(ContractCallRequest.class));
         web3Properties.getApi(CALL).setEnabled(true);
     }
@@ -771,11 +776,6 @@ final class ContractControllerTest {
 
     @TestConfiguration
     public static class TestConfig {
-
-        @Bean
-        EvmProperties evmProperties() {
-            return new EvmProperties();
-        }
 
         @Bean
         MeterRegistry meterRegistry() {
