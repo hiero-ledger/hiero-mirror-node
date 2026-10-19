@@ -47,6 +47,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
@@ -245,10 +248,13 @@ final class NodeSupplierTest {
         assertThat(nodeSupplier.getNodes()).isEmpty();
     }
 
-    @Test
-    void refreshAddressBookPreferTlsNoCertHash() {
+    @NullSource
+    @ParameterizedTest
+    @ValueSource(strings = {"", "0x"})
+    void refreshAddressBookPreferTlsNoCertHash(final String certHash) {
         monitorProperties.setNodes(Set.of());
         monitorProperties.setNetwork(HederaNetwork.OTHER);
+        networkNode.setNodeCertHash(certHash);
         when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
         assertThat(nodeSupplier.refresh().collectList().block())
                 .hasSize(1)

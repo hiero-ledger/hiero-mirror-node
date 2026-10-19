@@ -208,7 +208,8 @@ public class NodeSupplier {
         // Without validation a broken TLS endpoint would go unnoticed, so keep the plaintext endpoint as before
         return nodeValidation.getTls() == TlsMode.PREFER_TLS
                 && nodeValidation.isEnabled()
-                && StringUtils.isNotBlank(networkNode.getNodeCertHash());
+                // REST reports a missing hash as "0x"
+                && StringUtils.isNotBlank(HederaNetwork.normalizeCertHash(networkNode.getNodeCertHash()));
     }
 
     private NodeProperties newNodeProperties(final NetworkNode networkNode, final ServiceEndpoint serviceEndpoint) {
