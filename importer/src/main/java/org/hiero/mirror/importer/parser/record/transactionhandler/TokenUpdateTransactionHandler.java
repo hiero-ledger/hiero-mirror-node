@@ -72,7 +72,11 @@ final class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionH
         }
 
         if (transactionBody.hasMemo()) {
-            entity.setMemo(transactionBody.getMemo().getValue());
+            final var memo = transactionBody.getMemo().getValue();
+            if (!recordItem.hasContractResult() || !memo.isBlank()) {
+                // A blank (empty or only spaces) memo update from precompile should not change the token's memo
+                entity.setMemo(memo);
+            }
         }
 
         entity.setType(EntityType.TOKEN);

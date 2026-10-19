@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.downloader.block.tss;
 
+import com.google.common.collect.Range;
 import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import jakarta.inject.Named;
 import java.util.ArrayList;
@@ -29,10 +30,9 @@ public final class LedgerIdPublicationTransactionParser {
         }
 
         return Ledger.builder()
-                .consensusTimestamp(consensusTimestamp)
-                .historyProofVerificationKey(DomainUtils.toBytes(transactionBody.getHistoryProofVerificationKey()))
                 .ledgerId(DomainUtils.toBytes(transactionBody.getLedgerId()))
                 .nodeContributions(nodeContributions)
+                .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
     }
 }

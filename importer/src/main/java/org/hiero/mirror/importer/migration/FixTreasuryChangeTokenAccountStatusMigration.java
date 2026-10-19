@@ -170,7 +170,7 @@ final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJav
 
     @Override
     public MigrationVersion getVersion() {
-        return v2 ? MigrationVersion.fromVersion("2.34.1") : MigrationVersion.fromVersion("1.129.1");
+        return v2 ? MigrationVersion.fromVersion("2.34.2") : MigrationVersion.fromVersion("1.129.2");
     }
 
     @Override
