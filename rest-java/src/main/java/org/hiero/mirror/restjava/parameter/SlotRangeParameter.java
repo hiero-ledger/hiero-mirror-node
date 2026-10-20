@@ -41,11 +41,28 @@ public record SlotRangeParameter(RangeOperator operator, byte[] value) implement
     private static byte[] getInclusiveValue(RangeOperator operator, String hexValue) throws DecoderException {
         byte[] bytes = Hex.decodeHex(hexValue);
 
+        // Guard against wrap-around: gt:0xff..ff would become gte:0x00..00 and lt:0x00..00 would become lte:0xff..ff,
+        // both turning an unsatisfiable bound into one that matches every slot
         if (operator == RangeOperator.GT) {
+            if (isAll(bytes, (byte) 0xff)) {
+                throw new IllegalArgumentException("Invalid range");
+            }
             return incrementByteArray(bytes);
         } else if (operator == RangeOperator.LT) {
+            if (isAll(bytes, (byte) 0)) {
+                throw new IllegalArgumentException("Invalid range");
+            }
             return decrementByteArray(bytes);
         }
         return bytes;
+    }
+
+    private static boolean isAll(byte[] bytes, byte value) {
+        for (byte b : bytes) {
+            if (b != value) {
+                return false;
+            }
+        }
+        return true;
     }
 }
