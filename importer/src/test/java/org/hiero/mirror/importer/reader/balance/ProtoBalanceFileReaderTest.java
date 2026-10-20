@@ -101,7 +101,7 @@ class ProtoBalanceFileReaderTest {
     @ParameterizedTest(name = "skips out-of-range entity ids with invalid entity exceptions {0}")
     @ValueSource(booleans = {true, false})
     void readSkipsRecordsWithOutOfRangeEntityId(boolean invalidEntityException) {
-        final var property = "HIERO_MIRROR_COMMON_INVALIDENTITYEXCEPTION";
+        final var property = EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY;
         final var previous = System.getProperty(property);
         System.setProperty(property, String.valueOf(invalidEntityException));
         try {
