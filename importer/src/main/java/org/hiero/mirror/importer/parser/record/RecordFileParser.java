@@ -258,6 +258,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         final var transactionRecord = recordItem.getTransactionRecord();
         final var contractResult = recordItem.getContractResult();
         if (!transactionRecord.hasParentConsensusTimestamp()
+                || transactionRecord.getTransactionID().getNonce() == 0
                 || contractResult == null
                 || contractResult.getContractID().getContractNum() == RecordItem.HOOK_CONTRACT_NUM) {
             return null;

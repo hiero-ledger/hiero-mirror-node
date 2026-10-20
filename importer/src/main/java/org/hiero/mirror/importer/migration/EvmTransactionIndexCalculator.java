@@ -77,7 +77,8 @@ final class EvmTransactionIndexCalculator {
             return null;
         }
 
-        if (current.hasContractResult() && current.contractId() != hookContractId) {
+        // Only child records (nonce > 0) can be hook or scheduled call effects, unlike atomic batch inner transactions
+        if (current.nonce() > 0 && current.hasContractResult() && current.contractId() != hookContractId) {
             for (int j = currentIndex - 1; j >= 0; j--) {
                 final var candidate = rows.get(j);
                 if (candidate.consensusTimestamp() == parentTimestamp) {
@@ -105,7 +106,8 @@ final class EvmTransactionIndexCalculator {
             long contractId,
             long gasUsed,
             boolean syntheticLogOnly,
-            boolean scheduled) {}
+            boolean scheduled,
+            int nonce) {}
 
     record Update(long consensusTimestamp, @Nullable Long transactionIndex) {}
 }

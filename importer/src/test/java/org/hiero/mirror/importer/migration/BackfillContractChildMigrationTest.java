@@ -85,6 +85,18 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         final var batchInner = transaction(0, batch.getConsensusTimestamp(), false);
         final var batchInnerResult = contractResult(batchInner.getConsensusTimestamp());
         final var batchInnerLog = contractLog(batchInner.getConsensusTimestamp(), 0);
+
+        // a user-signed atomic batch inner call after a hook chain isn't an effect of the hook
+        final var hookBatch = transaction(0, null, false);
+        final var hookBatchTransfer = transaction(0, hookBatch.getConsensusTimestamp(), false);
+        final var hookBatchExecution = transaction(1, hookBatchTransfer.getConsensusTimestamp(), false);
+        hookContractResult(hookBatchExecution.getConsensusTimestamp());
+        final var hookBatchDispatched = transaction(2, hookBatchTransfer.getConsensusTimestamp(), false);
+        final var hookBatchDispatchedResult = contractResult(hookBatchDispatched.getConsensusTimestamp());
+        final var hookBatchInnerCall = transaction(0, hookBatch.getConsensusTimestamp(), false);
+        final var hookBatchInnerCallResult = contractResult(hookBatchInnerCall.getConsensusTimestamp());
+        final var hookBatchInnerCallLog = contractLog(hookBatchInnerCall.getConsensusTimestamp(), 0);
+
         final var scheduledExecution = transaction(0, null, true);
         final var scheduledResult = contractResult(scheduledExecution.getConsensusTimestamp());
         final var recurringScheduledExecution = transaction(1, null, true);
@@ -116,6 +128,9 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         assertChild(scheduledCallEffectResult, true);
         assertChild(batchInnerResult, false);
         assertChild(batchInnerLog, false);
+        assertChild(hookBatchDispatchedResult, true);
+        assertChild(hookBatchInnerCallResult, false);
+        assertChild(hookBatchInnerCallLog, false);
         assertChild(scheduledResult, false);
         assertChild(recurringScheduledResult, false);
         assertChild(orphanResult, false);

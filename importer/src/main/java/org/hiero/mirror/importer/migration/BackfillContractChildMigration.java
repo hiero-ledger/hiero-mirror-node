@@ -91,7 +91,7 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
 
     // Scheduled executions have no parent but sit between their trigger and the trigger's children
     private static final String SELECT_CHILD_AND_SCHEDULED_TRANSACTIONS = """
-            select consensus_timestamp, parent_consensus_timestamp, scheduled
+            select consensus_timestamp, nonce, parent_consensus_timestamp, scheduled
             from transaction
             where consensus_timestamp >= :consensusStart
               and consensus_timestamp <= :consensusEnd
@@ -124,7 +124,7 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
             "select upper_bound from backfill_contract_child_progress_temp limit 1";
 
     private static final String SELECT_TRANSACTIONS_BY_TIMESTAMP = """
-            select consensus_timestamp, parent_consensus_timestamp, scheduled
+            select consensus_timestamp, nonce, parent_consensus_timestamp, scheduled
             from transaction
             where consensus_timestamp >= :minTimestamp
               and consensus_timestamp <= :maxTimestamp
@@ -315,7 +315,8 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
                     contractResult != null ? contractResult.contractId() : 0L,
                     contractResult != null ? contractResult.gasUsed() : 0L,
                     false,
-                    transaction.scheduled()));
+                    transaction.scheduled(),
+                    transaction.nonce()));
         }
 
         return EvmTransactionIndexCalculator.findChildren(rows, getHookContractId()).stream()
@@ -347,7 +348,7 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
     private record ContractResultRow(long consensusTimestamp, long contractId, long gasUsed) {}
 
     private record TransactionRow(
-            long consensusTimestamp, @Nullable Long parentConsensusTimestamp, boolean scheduled) {}
+            long consensusTimestamp, int nonce, @Nullable Long parentConsensusTimestamp, boolean scheduled) {}
 
     private record UpdateCounts(long updatedResults, long updatedLogs) {}
 }

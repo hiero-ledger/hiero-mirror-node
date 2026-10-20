@@ -113,6 +113,38 @@ final class FixScheduledAndHookEvmTransactionIndexMigrationTest
     }
 
     @Test
+    void atomicBatchInnerCallAfterHookChainClaimsOwnIndex() {
+        // given
+        final var block = persistBlock(0);
+        final var batchTimestamp = block.getConsensusStart() + 100;
+        final var innerTransferTimestamp = block.getConsensusStart() + 200;
+        final var hookCallTimestamp = block.getConsensusStart() + 300;
+        final var hookDispatchedTimestamp = block.getConsensusStart() + 400;
+        final var innerCallTimestamp = block.getConsensusStart() + 500;
+
+        persistTransaction(batchTimestamp, TransactionType.ATOMIC_BATCH, 0, false, null);
+        persistTransaction(innerTransferTimestamp, TransactionType.CRYPTOTRANSFER, 0, false, batchTimestamp);
+        persistHookDispatchTransaction(hookCallTimestamp, 1, innerTransferTimestamp);
+        persistTransaction(hookDispatchedTimestamp, TransactionType.CONTRACTCALL, 2, false, innerTransferTimestamp);
+        // user-signed inner transaction after the hook chain, not an effect of the hook
+        persistTransaction(innerCallTimestamp, TransactionType.CONTRACTCALL, 0, false, batchTimestamp);
+
+        persistHookDispatchContractResult(hookCallTimestamp, 0);
+        persistContractResult(hookDispatchedTimestamp, 2, 0);
+        // simulates the buggy output: inherited the hook's index (0) instead of claiming its own (1)
+        persistContractResult(innerCallTimestamp, 0, 0);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertContractResultIndex(hookCallTimestamp, 0);
+        assertContractResultIndex(hookDispatchedTimestamp, 0);
+        assertContractResultIndex(innerCallTimestamp, 1);
+    }
+
+    @Test
     void hookChainBreaksOnNonContractSiblingGetsOwnIndex() {
         // given
         final var block = persistBlock(0);

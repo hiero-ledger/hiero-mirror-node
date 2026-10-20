@@ -394,7 +394,9 @@ public class RecordItem implements StreamItem {
         private RecordItem parsePossiblyHookContractRelatedParent() {
             final var currentTxnRecordContractResult = getContractResult();
 
+            // Only child records (nonce > 0) can be hook effects, user-signed atomic batch inner transactions can't
             if (transactionRecord.hasParentConsensusTimestamp()
+                    && transactionRecord.getTransactionID().getNonce() > 0
                     && currentTxnRecordContractResult != null
                     && currentTxnRecordContractResult.getContractID().getContractNum() != HOOK_CONTRACT_NUM
                     && previous != null) {
