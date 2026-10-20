@@ -45,7 +45,7 @@ final class SlotRangeParameterTest {
     }
 
     @ParameterizedTest
-    @DisplayName("Exclusive bounds past the domain edge are unsatisfiable (empty set), not wrap-around or 400")
+    @DisplayName("Exclusive bounds past the domain edge are out of range and rejected")
     @ValueSource(
             strings = {
                 "gt:0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
@@ -53,11 +53,8 @@ final class SlotRangeParameterTest {
                 "lt:0x0",
                 "lt:0000000000000000000000000000000000000000000000000000000000000000"
             })
-    void edgeExclusiveBoundsAreUnsatisfiable(String input) throws Exception {
-        final var param = SlotRangeParameter.valueOf(input);
-        assertThat(param.isUnsatisfiable()).isTrue();
-        // Must not have been converted to an inclusive bound that wraps to the opposite edge
-        assertThat(param.operator()).isIn(RangeOperator.GT, RangeOperator.LT);
+    void edgeExclusiveBoundsRejected(String input) {
+        assertThrows(IllegalArgumentException.class, () -> SlotRangeParameter.valueOf(input));
     }
 
     @Test
@@ -65,13 +62,11 @@ final class SlotRangeParameterTest {
     void nearEdgeStillConverts() throws Exception {
         final var almostMax = "f".repeat(63) + "e";
         final var gt = SlotRangeParameter.valueOf("gt:0x" + almostMax);
-        assertThat(gt.isUnsatisfiable()).isFalse();
         assertThat(gt.operator()).isEqualTo(RangeOperator.GTE);
         assertThat(Hex.encodeHexString(gt.value())).isEqualTo(MAX_SLOT);
 
         final var almostMin = "0".repeat(63) + "1";
         final var lt = SlotRangeParameter.valueOf("lt:0x" + almostMin);
-        assertThat(lt.isUnsatisfiable()).isFalse();
         assertThat(lt.operator()).isEqualTo(RangeOperator.LTE);
         assertThat(Hex.encodeHexString(lt.value())).isEqualTo(ZERO_SLOT);
     }

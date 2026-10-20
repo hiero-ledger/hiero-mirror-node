@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.restjava.common.Constants.MAX_REPEATED_QUERY_PARAMETERS;
 import static org.hiero.mirror.restjava.common.LinkFactory.LINK_HEADER;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.io.BaseEncoding;
 import java.math.BigInteger;
@@ -539,7 +540,7 @@ final class HooksControllerTest extends ControllerTest {
         }
 
         @Test
-        @DisplayName("Full page ending at max slot omits links.next; following gt:max returns empty 200")
+        @DisplayName("Full page ending at max slot omits links.next; gt:max itself is out of range (400)")
         void nextLinkAtMaxSlotIsEmptyNot400() {
             final int limit = 1;
             final var maxKey = "0x" + "f".repeat(64);
@@ -565,16 +566,14 @@ final class HooksControllerTest extends ControllerTest {
             assertThat(page.getLinks()).isNotNull();
             assertThat(page.getLinks().getNext()).isNull();
 
-            // Direct follow of the bound the link builder would have written — empty 200, not 400
-            final var follow = restClient
-                    .get()
-                    .uri("?key=gt:" + maxKey + "&limit=1&order=asc", OWNER_ID, HOOK_ID)
-                    .retrieve()
-                    .body(HooksStorageResponse.class);
-
-            assertThat(follow).isNotNull();
-            assertThat(follow.getStorage()).isEmpty();
-            assertThat(follow.getLinks().getNext()).isNull();
+            // gt:max is out of range user input and is rejected rather than wrapping around
+            assertThrows(
+                    HttpClientErrorException.BadRequest.class,
+                    () -> restClient
+                            .get()
+                            .uri("?key=gt:" + maxKey + "&limit=1&order=asc", OWNER_ID, HOOK_ID)
+                            .retrieve()
+                            .toEntity(String.class));
         }
 
         @ParameterizedTest
@@ -701,12 +700,8 @@ final class HooksControllerTest extends ControllerTest {
                     Arguments.of("?key=gte:" + KEY3 + "&key=lte:" + KEY2, List.of()), // No overlap (gte + lte)
                     // 'eq'/'no-op' + range
                     Arguments.of("?key=eq:" + KEY2 + "&key=lte:" + KEY4, List.of(1)), // Eq + Lte overlap
-                    Arguments.of("?key=eq:" + KEY2 + "&key=lt:" + KEY2, List.of()), //  No overlap (eq + lt)
-                    // Exclusive bounds past the 32-byte domain edge → empty page (not 400)
-                    Arguments.of(
-                            "?key=gt:0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", List.of()),
-                    Arguments.of(
-                            "?key=lt:0x0000000000000000000000000000000000000000000000000000000000000000", List.of()));
+                    Arguments.of("?key=eq:" + KEY2 + "&key=lt:" + KEY2, List.of()) //  No overlap (eq + lt)
+                    );
         }
 
         @ParameterizedTest
