@@ -7,6 +7,7 @@ import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import com.hedera.services.stream.proto.AllAccountBalances;
 import com.hedera.services.stream.proto.SingleAccountBalances;
 import jakarta.inject.Named;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import lombok.CustomLog;
@@ -73,15 +74,15 @@ public class ProtoBalanceFileReader implements BalanceFileReader {
             final var account = balances.getAccountID();
             final var accountId = AccountBalanceLineParser.toEntityId(
                     account.getShardNum(), account.getRealmNum(), account.getAccountNum());
-            final List<TokenBalance> tokenBalances = balances.getTokenUnitBalancesList().stream()
-                    .map(tokenBalance -> {
-                        final var token = tokenBalance.getTokenId();
-                        final var tokenId = AccountBalanceLineParser.toEntityId(
-                                token.getShardNum(), token.getRealmNum(), token.getTokenNum());
-                        final var id = new TokenBalance.Id(consensusTimestamp, accountId, tokenId);
-                        return new TokenBalance(tokenBalance.getBalance(), id);
-                    })
-                    .toList();
+            final var tokenUnitBalances = balances.getTokenUnitBalancesList();
+            final List<TokenBalance> tokenBalances = new ArrayList<>(tokenUnitBalances.size());
+            for (final var tokenBalance : tokenUnitBalances) {
+                final var token = tokenBalance.getTokenId();
+                final var tokenId = AccountBalanceLineParser.toEntityId(
+                        token.getShardNum(), token.getRealmNum(), token.getTokenNum());
+                final var id = new TokenBalance.Id(consensusTimestamp, accountId, tokenId);
+                tokenBalances.add(new TokenBalance(tokenBalance.getBalance(), id));
+            }
             return new AccountBalance(
                     balances.getHbarBalance(), tokenBalances, new AccountBalance.Id(consensusTimestamp, accountId));
         } catch (InvalidDatasetException | InvalidEntityException ex) {
