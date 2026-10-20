@@ -149,14 +149,8 @@ const shouldCompress = (body) => {
  * Current key format:
  *
  *   path?query - In the future, this will utilize Edwin's request normalizer (9113).
- */
-/**
- * Generates the response cache key. An authenticated user with a custom limit can receive a response that an
- * anonymous caller is not allowed to request, so the effective user limit is part of the key. Anonymous requests keep
- * the original key.
- *
- * @param req the request
- * @returns {string} the cache key
+ *   path?query#userLimit=N - For authenticated users with a custom limit, since they may receive responses that an
+ *   anonymous caller is not allowed to request.
  */
 const cacheKeyGenerator = (req) => {
   const userLimit = httpContext.get(userLimitLabel);
