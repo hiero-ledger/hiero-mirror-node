@@ -17,7 +17,9 @@ final class TokenBurnTransformer extends AbstractTokenTransformer {
 
         var body = blockTransactionTransformation.getTransactionBody().getTokenBurn();
         var tokenId = body.getToken();
-        long amount = body.getAmount() + body.getSerialNumbersCount();
+        // Consensus nodes de-duplicate the serial numbers, so only distinct serials change the total supply
+        long amount = body.getAmount()
+                + body.getSerialNumbersList().stream().distinct().count();
         updateTotalSupply(
                 blockTransactionTransformation.recordItemBuilder(),
                 blockTransaction.getStateChangeContext(),
