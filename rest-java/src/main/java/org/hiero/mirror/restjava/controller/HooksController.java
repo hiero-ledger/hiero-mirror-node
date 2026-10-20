@@ -168,6 +168,15 @@ final class HooksController {
         var upperBound = MAX_KEY_BYTES;
 
         for (final var key : keys) {
+            // Exclusive bound past the slot domain edge (gt:0xff..ff / lt:0x00..00) — well-formed
+            // but matches nothing. Invert bounds so Between returns an empty final page instead of
+            // 400-ing a pagination next link that landed on the edge.
+            if (key.isUnsatisfiable()) {
+                lowerBound = MAX_KEY_BYTES;
+                upperBound = MIN_KEY_BYTES;
+                break;
+            }
+
             final byte[] value = key.value();
 
             if (key.hasLowerBound()) {

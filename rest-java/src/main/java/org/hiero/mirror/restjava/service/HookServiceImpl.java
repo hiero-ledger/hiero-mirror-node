@@ -3,6 +3,7 @@
 package org.hiero.mirror.restjava.service;
 
 import jakarta.inject.Named;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +63,11 @@ final class HookServiceImpl implements HookService {
         final var page = request.getPageRequest();
         final var keys = request.getKeys();
 
+        // Inverted bounds (e.g. after an exclusive edge like gt:0xff..ff) match nothing
+        if (Arrays.compareUnsigned(request.getKeyLowerBound(), request.getKeyUpperBound()) > 0) {
+            return new HookStorageResult(ownerId, List.of());
+        }
+
         if (keys.isEmpty()) {
             final var hookStorage = hookStorageRepository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
                     ownerId.getId(), request.getHookId(), request.getKeyLowerBound(), request.getKeyUpperBound(), page);
@@ -85,6 +91,10 @@ final class HookServiceImpl implements HookService {
         final var page = request.getPageRequest();
         final var ownerId = entityService.lookup(request.getOwnerId());
         final long hookId = request.getHookId();
+
+        if (Arrays.compareUnsigned(request.getKeyLowerBound(), request.getKeyUpperBound()) > 0) {
+            return new HookStorageResult(ownerId, List.of());
+        }
 
         final var keys = request.getKeys();
         final boolean requestHasKeys = !keys.isEmpty();

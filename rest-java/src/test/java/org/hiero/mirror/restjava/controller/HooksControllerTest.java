@@ -538,6 +538,45 @@ final class HooksControllerTest extends ControllerTest {
             assertThat(actual.getStorage()).hasSize(limit);
         }
 
+        @Test
+        @DisplayName("Full page ending at max slot omits links.next; following gt:max returns empty 200")
+        void nextLinkAtMaxSlotIsEmptyNot400() {
+            final int limit = 1;
+            final var maxKey = "0x" + "f".repeat(64);
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
+
+            persistHookStorage(ownerId, HOOK_ID, maxKey);
+
+            // Page of size 1 whose only row is the max slot — nothing can follow, so no next link
+            final var page = restClient
+                    .get()
+                    .uri(uriBuilder -> uriBuilder
+                            .queryParam("limit", limit)
+                            .queryParam("order", "asc")
+                            .build(Map.of(
+                                    "account_id", OWNER_ID,
+                                    "hookId", HOOK_ID)))
+                    .retrieve()
+                    .body(HooksStorageResponse.class);
+
+            assertThat(page).isNotNull();
+            assertThat(page.getStorage()).hasSize(1);
+            assertThat(page.getLinks()).isNotNull();
+            assertThat(page.getLinks().getNext()).isNull();
+
+            // Direct follow of the bound the link builder would have written — empty 200, not 400
+            final var follow = restClient
+                    .get()
+                    .uri("?key=gt:" + maxKey + "&limit=1&order=asc", OWNER_ID, HOOK_ID)
+                    .retrieve()
+                    .body(HooksStorageResponse.class);
+
+            assertThat(follow).isNotNull();
+            assertThat(follow.getStorage()).isEmpty();
+            assertThat(follow.getLinks().getNext()).isNull();
+        }
+
         @ParameterizedTest
         @CsvSource({
             "asc,  gt:" + TIMESTAMP1,
@@ -662,8 +701,12 @@ final class HooksControllerTest extends ControllerTest {
                     Arguments.of("?key=gte:" + KEY3 + "&key=lte:" + KEY2, List.of()), // No overlap (gte + lte)
                     // 'eq'/'no-op' + range
                     Arguments.of("?key=eq:" + KEY2 + "&key=lte:" + KEY4, List.of(1)), // Eq + Lte overlap
-                    Arguments.of("?key=eq:" + KEY2 + "&key=lt:" + KEY2, List.of()) //  No overlap (eq + lt)
-                    );
+                    Arguments.of("?key=eq:" + KEY2 + "&key=lt:" + KEY2, List.of()), //  No overlap (eq + lt)
+                    // Exclusive bounds past the 32-byte domain edge → empty page (not 400)
+                    Arguments.of(
+                            "?key=gt:0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", List.of()),
+                    Arguments.of(
+                            "?key=lt:0x0000000000000000000000000000000000000000000000000000000000000000", List.of()));
         }
 
         @ParameterizedTest

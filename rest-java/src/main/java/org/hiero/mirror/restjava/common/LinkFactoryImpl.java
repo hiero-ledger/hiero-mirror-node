@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.rest.model.Links;
@@ -42,6 +43,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 final class LinkFactoryImpl implements LinkFactory {
 
     private static final Links DEFAULT_LINKS = new Links();
+
+    private static final Pattern HEX_SLOT = Pattern.compile("[0-9a-f]+");
 
     private final Map<Method, Set<String>> allowedQueryParamsCache = new ConcurrentHashMap<>();
 
@@ -129,12 +132,45 @@ final class LinkFactoryImpl implements LinkFactory {
                     upper = Math.min(upper, val);
                 }
             } catch (NumberFormatException e) {
-                // Skip invalid values
+                // Not a numeric bound — may still be an exclusive hex slot bound past the domain edge
+                if (isUnsatisfiableExclusiveHexBound(value)) {
+                    return true;
+                }
             }
         }
 
         // If upper < lower, the range is empty (e.g., gt:4 AND lt:5)
         return upper < lower;
+    }
+
+    /**
+     * Exclusive pagination bound past the end of a 32-byte hex slot domain ({@code gt:0xff..ff} or
+     * {@code lt:0x00..00}). Following such a next link cannot return more rows; omit it so clients get
+     * a clean end-of-results instead of a 400 from slot parsing.
+     */
+    private static boolean isUnsatisfiableExclusiveHexBound(String value) {
+        final var normalized = value.toLowerCase();
+        final boolean gt = normalized.startsWith("gt:");
+        final boolean lt = normalized.startsWith("lt:");
+        if (!gt && !lt) {
+            return false;
+        }
+
+        var hex = normalized.substring(3);
+        if (hex.startsWith("0x")) {
+            hex = hex.substring(2);
+        }
+
+        // Slot keys are 1–64 hex digits. Values with dots (entity IDs) or other characters are ignored.
+        if (hex.isEmpty() || hex.length() > 64 || !HEX_SLOT.matcher(hex).matches()) {
+            return false;
+        }
+
+        final var padded = StringUtils.leftPad(hex, 64, '0');
+        if (gt) {
+            return padded.chars().allMatch(c -> c == 'f');
+        }
+        return padded.chars().allMatch(c -> c == '0');
     }
 
     @Override

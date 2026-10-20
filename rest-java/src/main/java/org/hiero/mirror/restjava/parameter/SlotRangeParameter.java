@@ -34,24 +34,40 @@ public record SlotRangeParameter(RangeOperator operator, byte[] value) implement
 
         final var operator = (operatorGroup == null) ? RangeOperator.EQ : RangeOperator.of(operatorGroup);
         final var hex = StringUtils.leftPad(hexGroup, 64, '0');
+        final byte[] bytes = Hex.decodeHex(hex);
 
-        return new SlotRangeParameter(operator.toInclusive(), getInclusiveValue(operator, hex));
+        // Exclusive bounds past the 32-byte domain edge are well-formed but unsatisfiable
+        // (nothing is > 0xff..ff, nothing is < 0x00..00). Keep them as exclusive GT/LT of the
+        // edge value so callers can yield an empty page — do NOT wrap (which would match every
+        // slot) and do NOT 400 (which breaks pagination next links that land on the edge).
+        if (operator == RangeOperator.GT && isAll(bytes, (byte) 0xff)) {
+            return new SlotRangeParameter(RangeOperator.GT, bytes);
+        }
+        if (operator == RangeOperator.LT && isAll(bytes, (byte) 0)) {
+            return new SlotRangeParameter(RangeOperator.LT, bytes);
+        }
+
+        return new SlotRangeParameter(operator.toInclusive(), getInclusiveValue(operator, bytes));
     }
 
-    private static byte[] getInclusiveValue(RangeOperator operator, String hexValue) throws DecoderException {
-        byte[] bytes = Hex.decodeHex(hexValue);
-
-        // Guard against wrap-around: gt:0xff..ff would become gte:0x00..00 and lt:0x00..00 would become lte:0xff..ff,
-        // both turning an unsatisfiable bound into one that matches every slot
+    /**
+     * True when this parameter is an exclusive bound past the end of the slot domain, so no key can
+     * match. Callers should treat it as an empty result set.
+     */
+    public boolean isUnsatisfiable() {
         if (operator == RangeOperator.GT) {
-            if (isAll(bytes, (byte) 0xff)) {
-                throw new IllegalArgumentException("Invalid range");
-            }
+            return value.length > 0 && isAll(value, (byte) 0xff);
+        }
+        if (operator == RangeOperator.LT) {
+            return value.length > 0 && isAll(value, (byte) 0);
+        }
+        return false;
+    }
+
+    private static byte[] getInclusiveValue(RangeOperator operator, byte[] bytes) {
+        if (operator == RangeOperator.GT) {
             return incrementByteArray(bytes);
         } else if (operator == RangeOperator.LT) {
-            if (isAll(bytes, (byte) 0)) {
-                throw new IllegalArgumentException("Invalid range");
-            }
             return decrementByteArray(bytes);
         }
         return bytes;
