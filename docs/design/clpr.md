@@ -1266,9 +1266,9 @@ Response format:
       "connector_contract_id": "0.0.789",
       "admin_key": {
         "_type": "ED25519",
-        "key": "0x302a300506032b6570032100e5b2…"
+        "key": "302a300506032b6570032100e5b2…"
       },
-      "locked_stake": 100000000,
+      "locked_stake": "100000000",
       "in_flight_message_count": 2,
       "slash_count": 0,
       "stake_recipient_id": null,
