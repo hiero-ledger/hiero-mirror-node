@@ -12,13 +12,12 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
-class ClprCompleteChannelTransactionHandler extends AbstractClprChannelTransactionHandler {
+class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
 
     private final EntityListener entityListener;
 
@@ -43,14 +42,12 @@ class ClprCompleteChannelTransactionHandler extends AbstractClprChannelTransacti
         }
 
         long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var channelId = DomainUtils.toBytes(transactionBody.getChannelId());
         var publicKey = DomainUtils.toBytes(transactionBody.getPublicKey());
-        var verifierContractId = EntityId.of(transactionBody.getVerifierContract());
+        var verifierContractId = EntityId.of(clprChannelValue.getVerifierContract());
 
         var builder = ClprChannel.builder();
-        populateFromStateChange(builder, clprChannelValue);
-        var clprChannel = builder.channelId(channelId)
-                .createdTimestamp(consensusTimestamp)
+        ClprStateChangeHandler.populateFromStateChange(builder, clprChannelValue);
+        var clprChannel = builder.createdTimestamp(consensusTimestamp)
                 .chainId(clprChannelValue.getChainId())
                 .verifierContractId(verifierContractId)
                 .verifierFingerprint(DomainUtils.toBytes(clprChannelValue.getVerifierFingerprint()))
@@ -64,11 +61,10 @@ class ClprCompleteChannelTransactionHandler extends AbstractClprChannelTransacti
         entityListener.onClprChannel(clprChannel);
         recordItem.addEntityId(verifierContractId);
 
-        // Consensus never removes the commitment from the pending-commitments map at completion; recomputing it here
-        // lets the Pending Channels API exclude it without joining across tables.
-        var ownershipCommitment = SignatureUtils.keccak256(channelId, publicKey);
+        // Marks the pending commitment completed rather than deleting it (consensus never removes it); reuses
+        // clprChannel's own ownership_commitment rather than recomputing it.
         var commitment = ClprChannelPendingCommitment.builder()
-                .ownershipCommitment(ownershipCommitment)
+                .ownershipCommitment(clprChannel.getOwnershipCommitment())
                 .completedTimestamp(consensusTimestamp)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();

@@ -26,10 +26,11 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 
 /**
  * On-ledger state for a single CLPR Connector, keyed by {@code (channelId, connectorId)}. Fields set only at
- * {@code ClprCompleteConnector} are marked {@code updatable = false}. {@code skipPartialUpdate = true} since
- * {@code ClprDeregisterConnector} never sets {@code createdTimestamp} itself. {@code publicKey}/{@code salt}/
- * {@code signature}/{@code signatureScheme} are the one-time commit-reveal completion proof, not real
- * {@code ClprConnector} state.
+ * {@code ClprCompleteConnector} and never touched again are marked {@code updatable = false}; {@code lockedStake}
+ * is also set there but stays updatable since {@code ClprSubmitBundle} slashing reduces it later.
+ * {@code skipPartialUpdate = true} since {@code ClprDeregisterConnector} never sets {@code createdTimestamp}
+ * itself. {@code publicKey}/{@code salt}/{@code signature}/{@code signatureScheme} are the one-time commit-reveal
+ * completion proof, not real {@code ClprConnector} state.
  */
 @Data
 @MappedSuperclass
@@ -60,7 +61,7 @@ public abstract class AbstractClprConnector implements History {
 
     private Long inFlightMessageCount;
 
-    @Column(updatable = false)
+    // Mutable: ClprSubmitBundle slashing reduces this.
     private Long lockedStake;
 
     @Column(updatable = false)

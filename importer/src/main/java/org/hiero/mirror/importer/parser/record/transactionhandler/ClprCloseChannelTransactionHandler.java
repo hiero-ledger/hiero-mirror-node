@@ -15,7 +15,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
 @RequiredArgsConstructor
-class ClprCloseChannelTransactionHandler extends AbstractClprChannelTransactionHandler {
+class ClprCloseChannelTransactionHandler extends AbstractTransactionHandler {
 
     private final EntityListener entityListener;
 
@@ -46,7 +46,7 @@ class ClprCloseChannelTransactionHandler extends AbstractClprChannelTransactionH
         }
 
         var builder = ClprChannel.builder();
-        populateFromStateChange(builder, clprChannelValue);
+        ClprStateChangeHandler.populateFromStateChange(builder, clprChannelValue);
         entityListener.onClprChannel(
                 builder.timestampRange(Range.atLeast(consensusTimestamp)).build());
     }

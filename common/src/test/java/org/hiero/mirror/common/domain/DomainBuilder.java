@@ -59,6 +59,11 @@ import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -262,6 +267,64 @@ public class DomainBuilder {
                 .effectivePayerAccountIds(List.of(id(), id()))
                 .payerAccountId(entityId())
                 .tokenId(entityId());
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprChannel, ClprChannel.ClprChannelBuilder<?, ?>> clprChannel() {
+        var createdTimestamp = timestamp();
+        var builder = ClprChannel.builder()
+                .ackedMessageId(0L)
+                .chainId("hedera:mainnet")
+                .channelId(bytes(32))
+                .configProofBytes(bytes(16))
+                .createdTimestamp(createdTimestamp)
+                .endpointManifestProofBytes(bytes(16))
+                .endpointManifestVersion(0L)
+                .nextMessageId(1L)
+                .ownershipCommitment(bytes(32))
+                .publicKey(bytes(64))
+                .receivedMessageId(0L)
+                .receivedRunningHash(bytes(32))
+                .sentRunningHash(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ClprSignatureScheme.ED25519)
+                .status(ClprChannelStatus.ACTIVE)
+                .timestampRange(Range.atLeast(createdTimestamp))
+                .verifierContractId(entityId())
+                .verifierFingerprint(bytes(32));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<
+                    ClprChannelPendingCommitment,
+                    ClprChannelPendingCommitment.ClprChannelPendingCommitmentBuilder<?, ?>>
+            clprChannelPendingCommitment() {
+        var createdTimestamp = timestamp();
+        var builder = ClprChannelPendingCommitment.builder()
+                .createdTimestamp(createdTimestamp)
+                .deleted(false)
+                .ownershipCommitment(bytes(32))
+                .timestampRange(Range.atLeast(createdTimestamp));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprConnector, ClprConnector.ClprConnectorBuilder<?, ?>> clprConnector() {
+        var createdTimestamp = timestamp();
+        var builder = ClprConnector.builder()
+                .adminKey(key())
+                .channelId(bytes(32))
+                .connectorContractId(entityId())
+                .connectorId(bytes(32))
+                .createdTimestamp(createdTimestamp)
+                .deleted(false)
+                .inFlightMessageCount(0L)
+                .lockedStake(100_000_000L)
+                .publicKey(bytes(64))
+                .salt(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ClprSignatureScheme.ED25519)
+                .slashCount(0L)
+                .timestampRange(Range.atLeast(createdTimestamp));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

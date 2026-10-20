@@ -4,20 +4,26 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.ClprCompleteConnectorTransactionBody;
 import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import com.hederahashgraph.api.proto.java.TransactionRecord;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SignatureUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.util.Version;
 
 class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
@@ -49,14 +55,25 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
     @Test
     void updateTransaction() {
         // given
-        var recordItem = getRecordItem(
-                getDefaultTransactionBody().build(),
-                getDefaultTransactionRecord().build());
-        var body = recordItem.getTransactionBody().getClprCompleteConnector();
+        var transactionBody = getDefaultTransactionBody().build();
+        var body = transactionBody.getClprCompleteConnector();
+
+        // Fields deliberately differ from the tx body to prove the Connector is built from state, not the body.
+        var clprConnectorValue = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
+                .setConnectorId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setConnectorContract(domainBuilder.entityNum(3000L).toContractID())
+                .setAdminKey(Key.newBuilder().setEd25519(DomainUtils.fromBytes(domainBuilder.key())))
+                .setLockedStake(200_000_000L)
+                .setSlashCount(2)
+                .setInFlightMessageCount(5)
+                .build();
+        var recordItem =
+                buildRecordItem(transactionBody, getDefaultTransactionRecord().build(), clprConnectorValue);
         var transaction = domainBuilder.transaction().get();
         var connectorCaptor = ArgumentCaptor.forClass(ClprConnector.class);
         var commitmentCaptor = ArgumentCaptor.forClass(ClprConnectorPendingCommitment.class);
-        var connectorContractId = EntityId.of(body.getConnectorContract());
+        var connectorContractId = EntityId.of(clprConnectorValue.getConnectorContract());
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -67,11 +84,13 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
 
         verify(entityListener).onClprConnector(connectorCaptor.capture());
         assertThat(connectorCaptor.getValue())
-                .returns(DomainUtils.toBytes(body.getChannelId()), ClprConnector::getChannelId)
-                .returns(DomainUtils.toBytes(body.getConnectorId()), ClprConnector::getConnectorId)
+                .returns(DomainUtils.toBytes(clprConnectorValue.getChannelId()), ClprConnector::getChannelId)
+                .returns(DomainUtils.toBytes(clprConnectorValue.getConnectorId()), ClprConnector::getConnectorId)
                 .returns(connectorContractId, ClprConnector::getConnectorContractId)
-                .returns(body.getAdminKey().toByteArray(), ClprConnector::getAdminKey)
-                .returns(body.getLockedStake(), ClprConnector::getLockedStake)
+                .returns(clprConnectorValue.getAdminKey().toByteArray(), ClprConnector::getAdminKey)
+                .returns(clprConnectorValue.getLockedStake(), ClprConnector::getLockedStake)
+                .returns(2L, ClprConnector::getSlashCount)
+                .returns(5L, ClprConnector::getInFlightMessageCount)
                 .returns(consensusTimestamp, ClprConnector::getCreatedTimestamp)
                 .returns(DomainUtils.toBytes(body.getPublicKey()), ClprConnector::getPublicKey)
                 .returns(DomainUtils.toBytes(body.getSalt()), ClprConnector::getSalt)
@@ -81,7 +100,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
 
         verify(entityListener).onClprConnectorPendingCommitment(commitmentCaptor.capture());
         var expectedCommitment = SignatureUtils.keccak256(
-                DomainUtils.toBytes(body.getConnectorId()), DomainUtils.toBytes(body.getPublicKey()));
+                DomainUtils.toBytes(clprConnectorValue.getConnectorId()), DomainUtils.toBytes(body.getPublicKey()));
         assertThat(commitmentCaptor.getValue())
                 .returns(expectedCommitment, ClprConnectorPendingCommitment::getCommitment)
                 .returns(consensusTimestamp, ClprConnectorPendingCommitment::getCompletedTimestamp)
@@ -90,5 +109,41 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(
                         getExpectedEntityTransactions(recordItem, transaction, connectorContractId));
+    }
+
+    @Test
+    void updateTransactionMissingStateChange() {
+        // given
+        var recordItem = buildRecordItem(
+                getDefaultTransactionBody().build(),
+                getDefaultTransactionRecord().build(),
+                null);
+        var transaction = domainBuilder.transaction().get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verifyNoInteractions(entityListener);
+    }
+
+    private RecordItem buildRecordItem(
+            TransactionBody body,
+            TransactionRecord transactionRecord,
+            com.hederahashgraph.api.proto.java.ClprConnector clprConnector) {
+        var transaction = Transaction.newBuilder()
+                .setSignedTransactionBytes(SignedTransaction.newBuilder()
+                        .setBodyBytes(body.toByteString())
+                        .setSigMap(getDefaultSigMap())
+                        .build()
+                        .toByteString())
+                .build();
+        return RecordItem.builder()
+                .entityTransactionPredicate(entityProperties.getPersist()::shouldPersistEntityTransaction)
+                .hapiVersion(new Version(0, 28, 0))
+                .transaction(transaction)
+                .transactionRecord(transactionRecord)
+                .clprConnector(clprConnector)
+                .build();
     }
 }

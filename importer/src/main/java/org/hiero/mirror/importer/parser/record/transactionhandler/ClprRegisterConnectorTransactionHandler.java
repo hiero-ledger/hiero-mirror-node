@@ -11,6 +11,7 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -29,14 +30,22 @@ class ClprRegisterConnectorTransactionHandler extends AbstractTransactionHandler
             return;
         }
 
-        var transactionBody = recordItem.getTransactionBody().getClprRegisterConnector();
+        var commitment = recordItem.getClprConnectorPendingCommitment();
+        if (commitment == null) {
+            Utility.handleRecoverableError(
+                    "No clpr_pending_connector_commitments state change found for successful"
+                            + " ClprRegisterConnector at {}",
+                    recordItem.getConsensusTimestamp());
+            return;
+        }
+
         long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var commitment = ClprConnectorPendingCommitment.builder()
-                .commitment(DomainUtils.toBytes(transactionBody.getCommitment()))
+        var pendingCommitment = ClprConnectorPendingCommitment.builder()
+                .commitment(DomainUtils.toBytes(commitment))
                 .createdTimestamp(consensusTimestamp)
                 .deleted(false)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
-        entityListener.onClprConnectorPendingCommitment(commitment);
+        entityListener.onClprConnectorPendingCommitment(pendingCommitment);
     }
 }

@@ -20,7 +20,6 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.common.util.SignatureUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.util.Version;
@@ -56,6 +55,7 @@ class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandl
         var transactionBody = getDefaultTransactionBody().build();
         var body = transactionBody.getClprCompleteChannel();
         var channelId = body.getChannelId();
+        // verifierContract deliberately differs from the tx body's (3000L) to prove it's read from state
         var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setChannelId(channelId)
                 .setChainId("hedera:mainnet")
@@ -67,13 +67,14 @@ class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandl
                 .setReceivedRunningHash(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                 .setOwnershipCommitment(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                 .setVerifierFingerprint(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setVerifierContract(domainBuilder.entityNum(4000L).toContractID())
                 .build();
         var recordItem =
                 buildRecordItem(transactionBody, getDefaultTransactionRecord().build(), clprChannelValue);
         var transaction = domainBuilder.transaction().get();
         var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
         var commitmentCaptor = ArgumentCaptor.forClass(ClprChannelPendingCommitment.class);
-        var verifierContractId = EntityId.of(body.getVerifierContract());
+        var verifierContractId = EntityId.of(clprChannelValue.getVerifierContract());
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -103,10 +104,10 @@ class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandl
                 .returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
 
         verify(entityListener).onClprChannelPendingCommitment(commitmentCaptor.capture());
-        var expectedCommitment =
-                SignatureUtils.keccak256(DomainUtils.toBytes(channelId), DomainUtils.toBytes(body.getPublicKey()));
         assertThat(commitmentCaptor.getValue())
-                .returns(expectedCommitment, ClprChannelPendingCommitment::getOwnershipCommitment)
+                .returns(
+                        DomainUtils.toBytes(clprChannelValue.getOwnershipCommitment()),
+                        ClprChannelPendingCommitment::getOwnershipCommitment)
                 .returns(consensusTimestamp, ClprChannelPendingCommitment::getCompletedTimestamp);
 
         assertThat(recordItem.getEntityTransactions())

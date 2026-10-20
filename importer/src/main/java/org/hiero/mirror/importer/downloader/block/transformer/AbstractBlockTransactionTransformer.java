@@ -77,7 +77,27 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         }
 
         transformSmartContractResult(blockTransactionTransformation);
+        transformClprSendMessageSideEffects(blockTransactionTransformation);
         doTransform(blockTransactionTransformation);
+    }
+
+    /**
+     * CLPR's {@code sendMessage} system contract runs synchronously inside {@code ContractCall}/
+     * {@code EthereumTransaction} handling, so its state changes land in that same transaction's
+     * {@code StateChanges}. No-op for transactions that don't touch CLPR state.
+     */
+    private void transformClprSendMessageSideEffects(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
+            return;
+        }
+
+        var stateChangeContext = blockTransaction.getStateChangeContext();
+        var recordItemBuilder = blockTransactionTransformation.recordItemBuilder();
+        stateChangeContext.getClprChannels().stream().findFirst().ifPresent(recordItemBuilder::clprChannel);
+        recordItemBuilder.clprMessages(stateChangeContext.getClprMessages());
+        recordItemBuilder.clprConnectors(stateChangeContext.getClprConnectors());
+        recordItemBuilder.clprConnectorsRemoved(stateChangeContext.getClprConnectorsRemoved());
     }
 
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
