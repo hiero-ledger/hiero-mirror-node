@@ -128,7 +128,7 @@ if (!isNativeBuild) {
                 file.parentFile.mkdirs()
                 val url =
                     URI(
-                            "https://github.com/ethereum/solidity/releases/download/v$solcVersion/$solcAsset"
+                            "https://github.com/ethereum/solidity/releases/download/v$solcVersion/$solcAsset",
                         )
                         .toURL()
                 url.openStream().use { input ->
@@ -148,7 +148,7 @@ if (!isNativeBuild) {
         executable.set(
             layout.buildDirectory.file("solc/solc-$testSolidityVersion").map {
                 it.asFile.absolutePath
-            }
+            },
         )
     }
 
@@ -157,7 +157,7 @@ if (!isNativeBuild) {
         executable.set(
             layout.buildDirectory.file("solc/solc-$historicalSolidityVersion").map {
                 it.asFile.absolutePath
-            }
+            },
         )
 
         group = "historical"
@@ -167,7 +167,7 @@ if (!isNativeBuild) {
                     resolveSolidity.get().javaClass.methods.single { it.name == "getAllImports" }
                 val allImports = getAllImports.invoke(resolveSolidity.get()) as RegularFileProperty
                 allImports.get()
-            }
+            },
         )
 
         allowPaths = setOf("src/testHistorical/solidity/openzeppelin")

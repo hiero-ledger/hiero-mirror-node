@@ -10,7 +10,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
+import com.google.protobuf.StringValue;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.Duration;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenUpdateTransactionBody;
@@ -28,7 +30,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.data.util.Version;
 
-class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     private static final long DEFAULT_AUTO_RENEW_ACCOUNT_NUM = 2;
 
@@ -242,6 +244,51 @@ class TokenUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         // Then
         verify(entityListener).onToken(assertArg(t -> assertThat(t).returns(null, Token::getTreasuryAccountId)));
         assertThat(recordItem.getEntityTransactions()).doesNotContainKey(EntityId.EMPTY.getId());
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            false, ,
+            false, '', ''
+            false, ' ', ' '
+            true, ,
+            true, '',
+            true, ' ',
+            """)
+    void updateTransactionWithMemo(boolean fromPrecompile, String memo, String expected) {
+        // Given
+        final var recordItem = recordItemBuilder
+                .tokenUpdate()
+                .transactionBody(b -> {
+                    if (memo == null) {
+                        b.clearMemo();
+                    } else {
+                        b.setMemo(StringValue.of(memo));
+                    }
+                })
+                .record(r -> {
+                    if (fromPrecompile) {
+                        r.setContractCallResult(ContractFunctionResult.newBuilder()
+                                .setContractID(systemEntity
+                                        .hederaTokenServiceContract()
+                                        .toContractID())
+                                .build());
+                    }
+                })
+                .build();
+        final var tokenEntityId =
+                EntityId.of(recordItem.getTransactionBody().getTokenUpdate().getToken());
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.entityId(tokenEntityId))
+                .get();
+
+        // When
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // Then
+        verify(entityListener).onToken(assertArg(t -> assertThat(t.getTokenId()).isEqualTo(tokenEntityId.getId())));
+        verify(entityListener).onEntity(assertArg(e -> assertThat(e.getMemo()).isEqualTo(expected)));
     }
 
     @SuppressWarnings("java:S6103")

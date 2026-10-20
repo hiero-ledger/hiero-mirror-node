@@ -2,6 +2,7 @@
 
 import config from '../config';
 import {
+  clusterIdHeader,
   contentTypeHeader,
   requestPathLabel,
   requestStartTime,
@@ -13,6 +14,7 @@ import {NotFoundError} from '../errors';
 import {JSONStringify} from '../utils';
 
 const {
+  clusterId,
   log: {sampleRate},
   response: {headers},
 } = config;
@@ -35,6 +37,7 @@ const responseHandler = async (req, res, next) => {
     ...headers.default,
     ...(headers.path[path] ?? {}),
     ...(res.locals[responseHeadersLabel] ?? {}),
+    [clusterIdHeader]: clusterId,
   };
   res.set(mergedHeaders);
 

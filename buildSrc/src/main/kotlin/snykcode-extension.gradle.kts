@@ -33,7 +33,7 @@ tasks.`snyk-monitor` {
 tasks.`snyk-test` {
     snyk {
         setArguments(
-            "$commonArguments --json-file-output=build/reports/snyk-test.json --policy-path=${rootDir}/.snyk"
+            "$commonArguments --json-file-output=build/reports/snyk-test.json --policy-path=${rootDir}/.snyk",
         )
         setSeverity("high")
     }

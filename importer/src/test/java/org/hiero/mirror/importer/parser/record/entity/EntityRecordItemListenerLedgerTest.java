@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
+import com.google.common.collect.Range;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.tss.Ledger;
@@ -39,8 +40,7 @@ final class EntityRecordItemListenerLedgerTest extends AbstractEntityRecordItemL
         assertThat(ledgerRepository.findAll())
                 .hasSize(1)
                 .first()
-                .returns(recordItem.getConsensusTimestamp(), Ledger::getConsensusTimestamp)
-                .returns(toBytes(body.getHistoryProofVerificationKey()), Ledger::getHistoryProofVerificationKey)
+                .returns(Range.atLeast(recordItem.getConsensusTimestamp()), Ledger::getTimestampRange)
                 .returns(toBytes(body.getLedgerId()), Ledger::getLedgerId)
                 .extracting(Ledger::getNodeContributions, LIST)
                 .containsExactlyInAnyOrderElementsOf(expectedNodeContributions);

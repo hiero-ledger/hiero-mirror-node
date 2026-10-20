@@ -44,7 +44,7 @@ tasks.register<Exec>("uploadCoverage") {
             "bash",
             "-c",
             "bash <(curl -Ls https://coverage.codacy.com/get.sh) report --partial $args",
-        )
+        ),
     )
     onlyIf { System.getenv().containsKey("CI") && System.getenv("CODACY_PROJECT_TOKEN") != null }
 }
