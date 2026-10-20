@@ -11,6 +11,7 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -28,6 +29,9 @@ import org.springframework.scheduling.annotation.Scheduled;
  * <p>The check runs every {@code hiero.mirror.web3.exchangeRateRefreshPeriod}. Only the current rate's expiration is
  * remembered. While that expiration is still in the future the database is left alone. Once it has passed, the file is
  * loaded through {@link SystemFileLoader} and applied to each manager whose rates differ.
+ *
+ * <p>A historical call loads the exchange rate file at the block timestamp for the duration of that call, then restores
+ * the rates that were in memory. That load does not change the expiration remembered for the scheduled refresh.
  */
 @CustomLog
 @Named
@@ -60,9 +64,44 @@ final class ExchangeRateUpdater {
         }
     }
 
+    /**
+     * Runs {@code call} with the exchange rate file at {@code consensusNanos} applied to every manager, then restores
+     * the previous rates. The scheduled refresh expiration is left unchanged.
+     */
+    synchronized <T> T callAt(final long consensusNanos, final Supplier<T> call) {
+        final var loaded = load(consensusNanos);
+        if (loaded == null) {
+            return call.get();
+        }
+
+        final var exchangeRates = loaded.rates();
+        if (!exchangeRates.hasCurrentRate()
+                || !exchangeRates.currentRateOrThrow().hasExpirationTime()) {
+            log.warn("Ignoring exchange rates without an expiration time: {}", exchangeRates);
+            return call.get();
+        }
+
+        final var managers = transactionExecutorFactory.getExchangeRateManagers();
+        final var previous = new Bytes[managers.size()];
+        for (var i = 0; i < managers.size(); i++) {
+            previous[i] = ExchangeRateSet.PROTOBUF.toBytes(managers.get(i).exchangeRates());
+        }
+        for (final var exchangeRateManager : managers) {
+            apply(exchangeRateManager, loaded.contents(), exchangeRates);
+        }
+
+        try {
+            return call.get();
+        } finally {
+            for (var i = 0; i < managers.size(); i++) {
+                restore(managers.get(i), previous[i]);
+            }
+        }
+    }
+
     /** Applies the exchange rate file at {@code now}. The scheduled check calls this once the current rate has expired. */
     synchronized void refresh(final Instant now) {
-        final var loaded = load(now);
+        final var loaded = load(DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano()));
         if (loaded == null) {
             return;
         }
@@ -107,9 +146,8 @@ final class ExchangeRateUpdater {
         }
     }
 
-    private @Nullable LoadedExchangeRates load(final Instant now) {
-        final var file = systemFileLoader.load(
-                exchangeRateFileId, DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano()));
+    private @Nullable LoadedExchangeRates load(final long consensusNanos) {
+        final var file = systemFileLoader.load(exchangeRateFileId, consensusNanos);
         if (file == null) {
             return null;
         }
@@ -119,6 +157,14 @@ final class ExchangeRateUpdater {
         } catch (final ParseException e) {
             log.warn("Unable to parse exchange rates: {}", e.getMessage());
             return null;
+        }
+    }
+
+    private void restore(final ExchangeRateManager exchangeRateManager, final Bytes contents) {
+        try {
+            exchangeRateManager.systemUpdate(contents);
+        } catch (final HandleException e) {
+            log.warn("Unable to restore exchange rates: {}", e.getStatus());
         }
     }
 
