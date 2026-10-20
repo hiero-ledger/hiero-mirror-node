@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {jest} from '@jest/globals';
+import httpContext from 'express-http-context';
 
 import config from '../../config';
 import integrationContainerOps from '../integrationContainerOps';
 import {slowStepTimeoutMillis} from '../integrationUtils';
 import {cacheKeyGenerator, getCache, responseCacheCheckHandler, responseCacheUpdateHandler} from '../../middleware';
 import {CachedApiResponse} from '../../model';
-import {httpStatusCodes, responseBodyLabel, responseCacheKeyLabel} from '../../constants';
+import {httpStatusCodes, responseBodyLabel, responseCacheKeyLabel, userLimitLabel} from '../../constants';
 import {JSONStringify} from '../../utils';
 
 let compressEnabled;
@@ -74,6 +75,33 @@ describe('Response cache middleware', () => {
       status: jest.fn(),
       setHeader: jest.fn(),
     };
+  });
+
+  describe('cache key', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    test('Authenticated user limit is part of the cache key', () => {
+      const getSpy = jest.spyOn(httpContext, 'get');
+      getSpy.mockReturnValue(undefined);
+      const anonymousKey = cacheKeyGenerator(mockRequest);
+
+      getSpy.mockImplementation((key) => (key === userLimitLabel ? 500 : undefined));
+      const userKey = cacheKeyGenerator(mockRequest);
+
+      getSpy.mockImplementation((key) => (key === userLimitLabel ? 200 : undefined));
+      const otherUserKey = cacheKeyGenerator(mockRequest);
+
+      expect(userKey).not.toEqual(anonymousKey);
+      expect(otherUserKey).not.toEqual(anonymousKey);
+      expect(otherUserKey).not.toEqual(userKey);
+    });
+
+    test('Anonymous cache key is unchanged', () => {
+      jest.spyOn(httpContext, 'get').mockReturnValue(undefined);
+      expect(cacheKeyGenerator(mockRequest)).toEqual(cacheKeyGenerator({...mockRequest}));
+    });
   });
 
   describe('no compression', () => {

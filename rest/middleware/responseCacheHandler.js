@@ -2,6 +2,7 @@
 
 import Negotiator from 'negotiator';
 import crypto from 'crypto';
+import httpContext from 'express-http-context';
 
 import {Cache} from '../cache';
 import {CachedApiResponse} from '../model';
@@ -13,6 +14,7 @@ import {
   responseBodyLabel,
   responseCacheKeyLabel,
   responseHeadersLabel,
+  userLimitLabel,
 } from '../constants';
 
 const CACHE_CONTROL_HEADER = 'cache-control';
@@ -148,8 +150,18 @@ const shouldCompress = (body) => {
  *
  *   path?query - In the future, this will utilize Edwin's request normalizer (9113).
  */
+/**
+ * Generates the response cache key. An authenticated user with a custom limit can receive a response that an
+ * anonymous caller is not allowed to request, so the effective user limit is part of the key. Anonymous requests keep
+ * the original key.
+ *
+ * @param req the request
+ * @returns {string} the cache key
+ */
 const cacheKeyGenerator = (req) => {
-  return crypto.createHash('md5').update(req.originalUrl).digest('hex') + CACHE_KEY_VERSION_SUFFIX;
+  const userLimit = httpContext.get(userLimitLabel);
+  const keySource = userLimit === undefined ? req.originalUrl : `${req.originalUrl}#${userLimitLabel}=${userLimit}`;
+  return crypto.createHash('md5').update(keySource).digest('hex') + CACHE_KEY_VERSION_SUFFIX;
 };
 
 const getCacheControlExpiryOrDefault = (headerValue) => {
