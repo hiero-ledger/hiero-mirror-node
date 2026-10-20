@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Data;
+import org.hibernate.validator.constraints.time.DurationMax;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.validation.annotation.Validated;
 
@@ -14,10 +15,12 @@ import org.springframework.validation.annotation.Validated;
 public class NettyProperties {
 
     @DurationMin(seconds = 1)
+    @DurationMax(days = 1000)
     @NotNull
     private Duration keepAliveTime = Duration.ofMinutes(5);
 
     @DurationMin(seconds = 1)
+    @DurationMax(days = 1000)
     @NotNull
     private Duration keepAliveTimeout = Duration.ofSeconds(20);
 
@@ -25,20 +28,24 @@ public class NettyProperties {
     private int maxConcurrentCallsPerConnection = 5;
 
     @DurationMin(seconds = 1)
+    @DurationMax(days = 1000)
     @NotNull
     private Duration maxConnectionAge = Duration.ofDays(500);
 
     @DurationMin(seconds = 0)
+    @DurationMax(days = 1000)
     @NotNull
     private Duration maxConnectionAgeGrace = Duration.ofSeconds(30);
 
     @DurationMin(seconds = 1)
+    @DurationMax(days = 1000)
     @NotNull
     private Duration maxConnectionIdle = Duration.ofMinutes(10);
 
     @DurationMin(seconds = 0)
+    @DurationMax(days = 1000)
     @NotNull
     private Duration permitKeepAliveTime = Duration.ofSeconds(90);
 
-    private boolean permitKeepAliveWithoutCalls = false;
+    private boolean permitKeepAliveWithoutCalls;
 }

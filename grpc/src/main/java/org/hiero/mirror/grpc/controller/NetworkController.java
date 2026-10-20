@@ -50,9 +50,7 @@ final class NetworkController extends NetworkServiceGrpc.NetworkServiceImplBase 
 
     private int resolveLimit(final int requestedLimit) {
         if (requestedLimit < 0) {
-            throw Status.INVALID_ARGUMENT
-                    .withDescription("limit: must be greater than or equal to 0")
-                    .asRuntimeException();
+            throw new IllegalArgumentException("limit: must be greater than or equal to 0");
         }
 
         final int maxLimit = addressBookProperties.getMaxLimit();
