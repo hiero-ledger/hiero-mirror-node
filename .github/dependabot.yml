@@ -14,6 +14,12 @@ updates:
 
   - directory: "/"
     groups:
+      hedera:
+        patterns:
+          - "com.hedera.*"
+          - "org.hiero.*"
+        exclude-patterns:
+          - "com.hedera.hashgraph:sdk"
       dependencies:
         patterns:
           - "*"
@@ -50,7 +56,8 @@ updates:
     schedule:
       interval: "weekly"
 
-  - directory: "/charts"
+  - directories:
+      - "/charts/*"
     groups:
       dependencies:
         patterns:

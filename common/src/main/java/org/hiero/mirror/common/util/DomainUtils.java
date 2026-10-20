@@ -386,14 +386,13 @@ public class DomainUtils {
      * @return the parsed protobuf message
      */
     public static <T> T parseProtobuf(Object protobufBytes, ThrowingFunction<CodedInputStream, T> parser, int maxSize) {
-        final var codedInputStream =
-                switch (protobufBytes) {
-                    case null -> ByteString.EMPTY.newCodedInput();
-                    case byte[] bytes -> CodedInputStream.newInstance(bytes);
-                    case ByteString bytes -> bytes.newCodedInput();
-                    case InputStream inputStream -> CodedInputStream.newInstance(inputStream);
-                    default -> throw new IllegalStateException("Unexpected type: " + protobufBytes.getClass());
-                };
+        final var codedInputStream = switch (protobufBytes) {
+            case null -> ByteString.EMPTY.newCodedInput();
+            case byte[] bytes -> CodedInputStream.newInstance(bytes);
+            case ByteString bytes -> bytes.newCodedInput();
+            case InputStream inputStream -> CodedInputStream.newInstance(inputStream);
+            default -> throw new IllegalStateException("Unexpected type: " + protobufBytes.getClass());
+        };
 
         codedInputStream.setRecursionLimit(MAX_DEPTH);
         codedInputStream.setSizeLimit(maxSize);
