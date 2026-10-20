@@ -26,6 +26,7 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -98,14 +99,15 @@ class ProtoBalanceFileReaderTest {
         assertThat(accountBalanceFile.getItems()).hasSize(1);
     }
 
-    @ParameterizedTest(name = "skips out-of-range entity ids with invalid entity exceptions {0}")
+    @ParameterizedTest(name = "fails whole file on out-of-range entity ids with invalid entity exceptions {0}")
     @ValueSource(booleans = {true, false})
-    void readSkipsRecordsWithOutOfRangeEntityId(boolean invalidEntityException) {
+    void readFailsWhenOutOfRangeEntityId(boolean invalidEntityException) {
         final var property = EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY;
         final var previous = System.getProperty(property);
         System.setProperty(property, String.valueOf(invalidEntityException));
         try {
             final long outOfRangeNum = 1L << 38; // above EntityId's 38-bit num range
+            // Mix a valid record with out-of-range account/token ids — any bad entry must reject the whole file.
             final var allAccountBalances = AllAccountBalances.newBuilder()
                     .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(1L).build())
                     .addAllAccounts(accountBalance(0, 0, 2000, 3000, 0, 5000))
@@ -115,15 +117,32 @@ class ProtoBalanceFileReaderTest {
                     .build();
             final var data = StreamFileData.from(TIMESTAMP + "_Balances.pb", allAccountBalances.toByteArray());
 
-            final var items = protoBalanceFileReader.read(data).getItems();
+            assertThrows(RuntimeException.class, () -> protoBalanceFileReader.read(data));
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, previous);
+            }
+        }
+    }
 
-            assertThat(items).hasSize(1);
-            final var item = items.getFirst();
-            assertThat(item.getId().getAccountId()).isEqualTo(EntityId.of(0, 0, 2000));
-            assertThat(item.getBalance()).isEqualTo(3000);
-            assertThat(item.getTokenBalances())
-                    .extracting(tb -> tb.getId().getTokenId())
-                    .containsExactly(EntityId.of(0, 0, 5000));
+    @Test
+    void readFailsWhenOnlyAccountIdOutOfRange() {
+        // Force the disabled-exception path so toEntityId throws InvalidDatasetException (not
+        // InvalidEntityException from EntityId.of), independent of other tests' System properties.
+        final var property = EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY;
+        final var previous = System.getProperty(property);
+        System.setProperty(property, "false");
+        try {
+            final long outOfRangeNum = 1L << 38;
+            final var allAccountBalances = AllAccountBalances.newBuilder()
+                    .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(1L).build())
+                    .addAllAccounts(accountBalance(0, 0, outOfRangeNum, 340, 0, 5000))
+                    .build();
+            final var data = StreamFileData.from(TIMESTAMP + "_Balances.pb", allAccountBalances.toByteArray());
+
+            assertThrows(InvalidDatasetException.class, () -> protoBalanceFileReader.read(data));
         } finally {
             if (previous == null) {
                 System.clearProperty(property);

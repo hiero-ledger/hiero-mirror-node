@@ -13,7 +13,6 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -81,18 +80,15 @@ public abstract class CsvBalanceFileReader implements BalanceFileReader {
             accountBalanceFile.setLoadStart(streamFileData.getStreamFilename().getTimestamp());
             accountBalanceFile.setName(streamFileData.getFilename());
 
+            // Blank lines are whitespace, not signed entries; skip them. Any parse failure fails the whole file so
+            // partial ingestion cannot leave the balance sum inconsistent with the consensus-signed snapshot.
             reader.lines()
+                    .filter(line -> !line.isBlank())
                     .map(line -> {
-                        try {
-                            AccountBalance accountBalance = parser.parse(line, consensusTimestamp);
-                            count.incrementAndGet();
-                            return accountBalance;
-                        } catch (InvalidDatasetException ex) {
-                            log.error("Error reading line", ex);
-                            return null;
-                        }
+                        AccountBalance accountBalance = parser.parse(line, consensusTimestamp);
+                        count.incrementAndGet();
+                        return accountBalance;
                     })
-                    .filter(Objects::nonNull)
                     .forEachOrdered(items::add);
 
             accountBalanceFile.setCount(count.get());
