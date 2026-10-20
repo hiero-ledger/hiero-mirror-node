@@ -30,14 +30,6 @@ public final class ProtoUtil {
     static final String SCHEDULER_CAPACITY = "Service is busy. Please retry later";
     static final String UNKNOWN_ERROR = "Unknown error";
 
-    public static Instant fromTimestamp(Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-
-        return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
-    }
-
     public static ByteString toByteString(byte[] bytes) {
         if (bytes == null) {
             return ByteString.EMPTY;
