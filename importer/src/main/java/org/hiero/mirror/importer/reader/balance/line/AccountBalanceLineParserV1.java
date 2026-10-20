@@ -7,7 +7,7 @@ import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.List;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
-import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 
 @Named
@@ -37,8 +37,8 @@ public class AccountBalanceLineParserV1 implements AccountBalanceLineParser {
             }
 
             long shardNum = Long.parseLong(parts.get(0));
-            int realmNum = Integer.parseInt(parts.get(1));
-            int accountNum = Integer.parseInt(parts.get(2));
+            long realmNum = Long.parseLong(parts.get(1));
+            long accountNum = Long.parseLong(parts.get(2));
             long balance = Long.parseLong(parts.get(3));
             if (shardNum < 0 || realmNum < 0 || accountNum < 0 || balance < 0) {
                 throw new InvalidDatasetException(INVALID_BALANCE + line);
@@ -52,8 +52,9 @@ public class AccountBalanceLineParserV1 implements AccountBalanceLineParser {
             return new AccountBalance(
                     balance,
                     Collections.emptyList(),
-                    new AccountBalance.Id(consensusTimestamp, EntityId.of(shardNum, realmNum, accountNum)));
-        } catch (NumberFormatException ex) {
+                    new AccountBalance.Id(
+                            consensusTimestamp, AccountBalanceLineParser.toEntityId(shardNum, realmNum, accountNum)));
+        } catch (InvalidEntityException | NumberFormatException ex) {
             throw new InvalidDatasetException(INVALID_BALANCE + line, ex);
         }
     }

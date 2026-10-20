@@ -33,26 +33,25 @@ public final class BlockRootHashDigest {
             throw new IllegalStateException("Can't add more block items once finalized");
         }
 
-        final var blockItems =
-                switch (blockItem.getItemCase()) {
-                    case BLOCK_HEADER -> {
-                        blockTimestamp = blockItem.getBlockHeader().getBlockTimestamp();
-                        yield outputs;
-                    }
-                    case BLOCK_FOOTER -> {
-                        final var blockFooter = blockItem.getBlockFooter();
-                        previousBlocksTreeHash = DomainUtils.toBytes(blockFooter.getRootHashOfAllBlockHashesTree());
-                        previousHash = DomainUtils.toBytes(blockFooter.getPreviousBlockRootHash());
-                        startOfBlockStateHash = DomainUtils.toBytes(blockFooter.getStartOfBlockStateRootHash());
-                        yield null;
-                    }
-                    case EVENT_HEADER, ROUND_HEADER -> consensusHeaders;
-                    case RECORD_FILE, TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputs;
-                    case SIGNED_TRANSACTION -> inputs;
-                    case STATE_CHANGES -> stateChanges;
-                    case TRACE_DATA -> traceDatum;
-                    default -> null;
-                };
+        final var blockItems = switch (blockItem.getItemCase()) {
+            case BLOCK_HEADER -> {
+                blockTimestamp = blockItem.getBlockHeader().getBlockTimestamp();
+                yield outputs;
+            }
+            case BLOCK_FOOTER -> {
+                final var blockFooter = blockItem.getBlockFooter();
+                previousBlocksTreeHash = DomainUtils.toBytes(blockFooter.getRootHashOfAllBlockHashesTree());
+                previousHash = DomainUtils.toBytes(blockFooter.getPreviousBlockRootHash());
+                startOfBlockStateHash = DomainUtils.toBytes(blockFooter.getStartOfBlockStateRootHash());
+                yield null;
+            }
+            case EVENT_HEADER, ROUND_HEADER -> consensusHeaders;
+            case RECORD_FILE, TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputs;
+            case SIGNED_TRANSACTION -> inputs;
+            case STATE_CHANGES -> stateChanges;
+            case TRACE_DATA -> traceDatum;
+            default -> null;
+        };
 
         if (blockItems != null) {
             blockItems.add(blockItem);

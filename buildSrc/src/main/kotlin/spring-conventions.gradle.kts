@@ -107,7 +107,7 @@ tasks.register<BootRun>("bootRunWithNativeAgent") {
     jvmArgs =
         bootRun.jvmArgs +
             listOf(
-                "-agentlib:native-image-agent=config-output-dir=${project.projectDir}/src/main/resources/META-INF/native-image/org.hiero.mirror/${project.name}"
+                "-agentlib:native-image-agent=config-output-dir=${project.projectDir}/src/main/resources/META-INF/native-image/org.hiero.mirror/${project.name}",
             )
     mainClass.set(bootRun.mainClass)
     systemProperties.putAll(bootRun.systemProperties)

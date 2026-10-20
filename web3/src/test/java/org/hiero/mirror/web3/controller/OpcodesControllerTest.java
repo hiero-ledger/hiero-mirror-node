@@ -211,14 +211,12 @@ class OpcodesControllerTest extends Web3IntegrationTest {
 
     private MockHttpServletRequestBuilder opcodesRequest(
             final TransactionIdOrHashParameter parameter, final OpcodeContext options) {
-        final String transactionIdOrHash =
-                switch (parameter) {
-                    case TransactionHashParameter hashParameter ->
-                        hashParameter.hash().toHexString();
-                    case TransactionIdParameter transactionIdParameter ->
-                        Builder.transactionIdString(
-                                transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
-                };
+        final String transactionIdOrHash = switch (parameter) {
+            case TransactionHashParameter hashParameter -> hashParameter.hash().toHexString();
+            case TransactionIdParameter transactionIdParameter ->
+                Builder.transactionIdString(
+                        transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
+        };
 
         return opcodesRequest(transactionIdOrHash)
                 .queryParam("stack", String.valueOf(options.isStack()))
@@ -574,14 +572,12 @@ class OpcodesControllerTest extends Web3IntegrationTest {
     void callSuccessCors(final TransactionProviderEnum providerEnum) throws Exception {
         final TransactionIdOrHashParameter transactionIdOrHash = persistTransaction(providerEnum);
 
-        final String param =
-                switch (transactionIdOrHash) {
-                    case TransactionHashParameter hashParameter ->
-                        hashParameter.hash().toHexString();
-                    case TransactionIdParameter transactionIdParameter ->
-                        Builder.transactionIdString(
-                                transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
-                };
+        final String param = switch (transactionIdOrHash) {
+            case TransactionHashParameter hashParameter -> hashParameter.hash().toHexString();
+            case TransactionIdParameter transactionIdParameter ->
+                Builder.transactionIdString(
+                        transactionIdParameter.payerAccountId(), transactionIdParameter.validStart());
+        };
 
         mockMvc.perform(options(OPCODES_URI, param)
                         .accept(MediaType.APPLICATION_JSON)
