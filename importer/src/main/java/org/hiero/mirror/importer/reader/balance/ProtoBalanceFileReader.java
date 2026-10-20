@@ -8,17 +8,20 @@ import com.hedera.services.stream.proto.AllAccountBalances;
 import com.hedera.services.stream.proto.SingleAccountBalances;
 import jakarta.inject.Named;
 import java.util.List;
+import java.util.Objects;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
-import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.reader.balance.line.AccountBalanceLineParser;
 
 @CustomLog
 @Named
@@ -48,6 +51,7 @@ public class ProtoBalanceFileReader implements BalanceFileReader {
         final long consensusTimestamp = DomainUtils.timestampInNanosMax(allAccountBalances.getConsensusTimestamp());
         final var items = allAccountBalances.getAllAccountsList().stream()
                 .map(ab -> toAccountBalance(consensusTimestamp, ab))
+                .filter(Objects::nonNull)
                 .toList();
 
         final var accountBalanceFile = new AccountBalanceFile();
@@ -60,16 +64,29 @@ public class ProtoBalanceFileReader implements BalanceFileReader {
         return accountBalanceFile;
     }
 
+    /**
+     * Converts one record, or returns null if it has an out-of-range account or token id. This matches the CSV readers,
+     * which skip a malformed line instead of aborting the whole file or importing it as 0.0.0.
+     */
     private AccountBalance toAccountBalance(long consensusTimestamp, SingleAccountBalances balances) {
-        EntityId accountId = EntityId.of(balances.getAccountID());
-        List<TokenBalance> tokenBalances = balances.getTokenUnitBalancesList().stream()
-                .map(tokenBalance -> {
-                    EntityId tokenId = EntityId.of(tokenBalance.getTokenId());
-                    TokenBalance.Id id = new TokenBalance.Id(consensusTimestamp, accountId, tokenId);
-                    return new TokenBalance(tokenBalance.getBalance(), id);
-                })
-                .toList();
-        return new AccountBalance(
-                balances.getHbarBalance(), tokenBalances, new AccountBalance.Id(consensusTimestamp, accountId));
+        try {
+            final var account = balances.getAccountID();
+            final var accountId = AccountBalanceLineParser.toEntityId(
+                    account.getShardNum(), account.getRealmNum(), account.getAccountNum());
+            final List<TokenBalance> tokenBalances = balances.getTokenUnitBalancesList().stream()
+                    .map(tokenBalance -> {
+                        final var token = tokenBalance.getTokenId();
+                        final var tokenId = AccountBalanceLineParser.toEntityId(
+                                token.getShardNum(), token.getRealmNum(), token.getTokenNum());
+                        final var id = new TokenBalance.Id(consensusTimestamp, accountId, tokenId);
+                        return new TokenBalance(tokenBalance.getBalance(), id);
+                    })
+                    .toList();
+            return new AccountBalance(
+                    balances.getHbarBalance(), tokenBalances, new AccountBalance.Id(consensusTimestamp, accountId));
+        } catch (InvalidDatasetException | InvalidEntityException ex) {
+            log.error("Skipping account balance with invalid entity ID", ex);
+            return null;
+        }
     }
 }

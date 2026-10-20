@@ -8,7 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.google.protobuf.UnknownFieldSet;
 import com.hedera.services.stream.proto.AllAccountBalances;
 import com.hedera.services.stream.proto.SingleAccountBalances;
+import com.hedera.services.stream.proto.TokenUnitBalance;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TokenID;
 import java.io.File;
 import java.nio.file.Paths;
 import java.time.Instant;
@@ -95,6 +98,41 @@ class ProtoBalanceFileReaderTest {
         assertThat(accountBalanceFile.getItems()).hasSize(1);
     }
 
+    @ParameterizedTest(name = "skips out-of-range entity ids with invalid entity exceptions {0}")
+    @ValueSource(booleans = {true, false})
+    void readSkipsRecordsWithOutOfRangeEntityId(boolean invalidEntityException) {
+        final var property = "HIERO_MIRROR_COMMON_INVALIDENTITYEXCEPTION";
+        final var previous = System.getProperty(property);
+        System.setProperty(property, String.valueOf(invalidEntityException));
+        try {
+            final long outOfRangeNum = 1L << 38; // above EntityId's 38-bit num range
+            final var allAccountBalances = AllAccountBalances.newBuilder()
+                    .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(1L).build())
+                    .addAllAccounts(accountBalance(0, 0, 2000, 3000, 0, 5000))
+                    .addAllAccounts(accountBalance(0, 65536, 3, 340, 0, 5000))
+                    .addAllAccounts(accountBalance(0, 0, outOfRangeNum, 340, 0, 5000))
+                    .addAllAccounts(accountBalance(0, 0, 2001, 3001, 0, outOfRangeNum))
+                    .build();
+            final var data = StreamFileData.from(TIMESTAMP + "_Balances.pb", allAccountBalances.toByteArray());
+
+            final var items = protoBalanceFileReader.read(data).getItems();
+
+            assertThat(items).hasSize(1);
+            final var item = items.getFirst();
+            assertThat(item.getId().getAccountId()).isEqualTo(EntityId.of(0, 0, 2000));
+            assertThat(item.getBalance()).isEqualTo(3000);
+            assertThat(item.getTokenBalances())
+                    .extracting(tb -> tb.getId().getTokenId())
+                    .containsExactly(EntityId.of(0, 0, 5000));
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, previous);
+            }
+        }
+    }
+
     @Test
     void readCorruptedBytes() {
         corrupt(streamFileData.getBytes());
@@ -114,6 +152,20 @@ class ProtoBalanceFileReaderTest {
     void unsupported(String filename) {
         StreamFileData balancesStreamFileData = StreamFileData.from(filename, new byte[] {1, 2, 3});
         assertThat(protoBalanceFileReader.supports(balancesStreamFileData)).isFalse();
+    }
+
+    private SingleAccountBalances accountBalance(
+            long shard, long realm, long num, long hbarBalance, long tokenRealm, long tokenNum) {
+        return SingleAccountBalances.newBuilder()
+                .setAccountID(AccountID.newBuilder()
+                        .setShardNum(shard)
+                        .setRealmNum(realm)
+                        .setAccountNum(num))
+                .setHbarBalance(hbarBalance)
+                .addTokenUnitBalances(TokenUnitBalance.newBuilder()
+                        .setTokenId(TokenID.newBuilder().setRealmNum(tokenRealm).setTokenNum(tokenNum))
+                        .setBalance(10))
+                .build();
     }
 
     private void corrupt(byte[] bytes) {
