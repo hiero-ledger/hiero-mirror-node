@@ -14,19 +14,18 @@ import org.hiero.mirror.restjava.common.RangeOperator;
 
 public record SlotRangeParameter(RangeOperator operator, byte[] value) implements RangeParameter<byte[]> {
 
-    public static final int KEY_BYTE_LENGTH = 32;
-    public static final byte[] MIN_KEY_BYTES = new byte[KEY_BYTE_LENGTH]; // A 32-byte array of 0x00
-    public static final byte[] MAX_KEY_BYTES = new byte[KEY_BYTE_LENGTH];
+    public static final SlotRangeParameter EMPTY = new SlotRangeParameter(RangeOperator.UNKNOWN, new byte[0]);
+    public static final byte[] MAX_KEY_BYTES = new byte[SlotRangeParameter.KEY_BYTE_LENGTH];
+    public static final byte[] MIN_KEY_BYTES = new byte[SlotRangeParameter.KEY_BYTE_LENGTH]; // A 32-byte array of 0x00
+    private static final String HEX_GROUP_NAME = "hex";
+    private static final int KEY_BYTE_LENGTH = 32;
+    private static final String OPERATOR_GROUP_NAME = "op";
+    private static final Pattern SLOT_PATTERN =
+            Pattern.compile("^(?:(?<op>eq|gt|gte|lt|lte):)?(?:0x)?(?<hex>[0-9a-fA-F]{1,64})$");
 
     static {
         Arrays.fill(MAX_KEY_BYTES, (byte) 0xFF); // A 32-byte array of 0xFF
     }
-
-    public static final SlotRangeParameter EMPTY = new SlotRangeParameter(RangeOperator.UNKNOWN, new byte[0]);
-    private static final String HEX_GROUP_NAME = "hex";
-    private static final String OPERATOR_GROUP_NAME = "op";
-    private static final Pattern SLOT_PATTERN =
-            Pattern.compile("^(?:(?<op>eq|gt|gte|lt|lte):)?(?:0x)?(?<hex>[0-9a-fA-F]{1,64})$");
 
     public static SlotRangeParameter valueOf(String valueRangeParam) throws DecoderException {
         if (StringUtils.isBlank(valueRangeParam)) {
