@@ -118,6 +118,10 @@ final class LinkFactoryImpl implements LinkFactory {
             var normalized = value.toLowerCase();
 
             try {
+                if (normalized.equals(MAX_SLOT_EXCLUSIVE) || normalized.equals(MIN_SLOT_EXCLUSIVE)) {
+                    return true;
+                }
+
                 // Extract the numeric value and update bounds
                 if (normalized.startsWith("gt:")) {
                     long val = Long.parseLong(value.substring(3)) + 1; // gt:4 → gte:5
@@ -133,9 +137,7 @@ final class LinkFactoryImpl implements LinkFactory {
                     upper = Math.min(upper, val);
                 }
             } catch (NumberFormatException e) {
-                if (normalized.equals(MAX_SLOT_EXCLUSIVE) || normalized.equals(MIN_SLOT_EXCLUSIVE)) {
-                    return true;
-                }
+                // Skip invalid values
             }
         }
 
