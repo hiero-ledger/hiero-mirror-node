@@ -970,12 +970,15 @@ transformers populate the new CLPR-specific `RecordItem` fields listed in [Archi
   `connector_contract`, `admin_key`, `locked_stake`, and the fresh `slash_count`/`in_flight_message_count`
   defaults) onto `RecordItem`.
 - `ClprSubmitBundleTransformer` — populates the dispatched `clpr_message_value` entries for the handler to expand
-  into `clpr_message` rows, plus the updated `clpr_channel_value` (queue positions, running hashes, status) and
-  `clpr_connector_value` (`in_flight_message_count`/`slash_count`, for both the sending and receiving Connector) —
-  or, if slashing banned a Connector this bundle, its `clpr_connector_value` deletion instead (see
+  into `clpr_message` rows, plus the updated `clpr_channel_value` (queue positions, running hashes, and any
+  automatic `status` transition the bundle triggers — `ACTIVE`↔`PAUSED`, or `CLOSING`/`DRAINED`/`CLOSED` as the
+  local Channel mirrors the peer's own advertised status) and `clpr_connector_value`
+  (`in_flight_message_count`/`slash_count`, for both the sending and receiving Connector) — or, if slashing banned
+  a Connector this bundle, its `clpr_connector_value` deletion instead (see
   [Transaction & Query Inventory](#transaction--query-inventory) row 122).
-- `ClprCloseChannelTransformer` — populates the resulting channel status/queue state for the
-  `CLOSING`/`DRAINED`/`CLOSED` transitions.
+- `ClprCloseChannelTransformer` — populates the resulting channel status/queue state for the admin-initiated
+  `CLOSING`/`DRAINED`/`CLOSED` push (`ClprSubmitBundle` can also drive these same transitions automatically, see
+  above).
 - `ClprUpdateLedgerConfigurationTransformer` — copies the complete `clpr_ledger_configuration_value` state change
   onto `RecordItem`, since `chain_id`/`protocol_version` always reflect existing state regardless of what's
   submitted (the handler ignores the transaction body for these — they're immutable past genesis) and
