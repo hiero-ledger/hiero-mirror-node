@@ -946,6 +946,7 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
                 .returns(parseContractResultLongs(functionResult.getGasUsed()), ContractResult::getGasUsed)
                 .returns(toBytes(failedInitcode), ContractResult::getFailedInitcode)
                 .returns(recordItem.getEvmTransactionIndex(), ContractResult::getTransactionIndex)
+                .returns(recordItem.isEvmChild(), ContractResult::isChild)
                 .returns(transaction.getNonce(), ContractResult::getTransactionNonce)
                 .returns(transaction.getResult(), ContractResult::getTransactionResult)
                 .extracting(ContractResult::getTransactionHash, InstanceOfAssertFactories.BYTE_ARRAY)

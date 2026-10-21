@@ -7,6 +7,7 @@ import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import com.hedera.services.stream.proto.AllAccountBalances;
 import com.hedera.services.stream.proto.SingleAccountBalances;
 import jakarta.inject.Named;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -14,11 +15,11 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.reader.balance.line.AccountBalanceLineParser;
 
 @CustomLog
 @Named
@@ -60,15 +61,23 @@ public class ProtoBalanceFileReader implements BalanceFileReader {
         return accountBalanceFile;
     }
 
+    /**
+     * Converts one record. An out-of-range account or token id throws so the whole file is rejected rather than
+     * partially ingested — consensus nodes signed the file as a unit, so a single bad entry must fail the file.
+     */
     private AccountBalance toAccountBalance(long consensusTimestamp, SingleAccountBalances balances) {
-        EntityId accountId = EntityId.of(balances.getAccountID());
-        List<TokenBalance> tokenBalances = balances.getTokenUnitBalancesList().stream()
-                .map(tokenBalance -> {
-                    EntityId tokenId = EntityId.of(tokenBalance.getTokenId());
-                    TokenBalance.Id id = new TokenBalance.Id(consensusTimestamp, accountId, tokenId);
-                    return new TokenBalance(tokenBalance.getBalance(), id);
-                })
-                .toList();
+        final var account = balances.getAccountID();
+        final var accountId = AccountBalanceLineParser.toEntityId(
+                account.getShardNum(), account.getRealmNum(), account.getAccountNum());
+        final var tokenUnitBalances = balances.getTokenUnitBalancesList();
+        final List<TokenBalance> tokenBalances = new ArrayList<>(tokenUnitBalances.size());
+        for (final var tokenBalance : tokenUnitBalances) {
+            final var token = tokenBalance.getTokenId();
+            final var tokenId =
+                    AccountBalanceLineParser.toEntityId(token.getShardNum(), token.getRealmNum(), token.getTokenNum());
+            final var id = new TokenBalance.Id(consensusTimestamp, accountId, tokenId);
+            tokenBalances.add(new TokenBalance(tokenBalance.getBalance(), id));
+        }
         return new AccountBalance(
                 balances.getHbarBalance(), tokenBalances, new AccountBalance.Id(consensusTimestamp, accountId));
     }

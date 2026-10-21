@@ -145,19 +145,17 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     protected ResponseEntity<Object> handleExceptionInternal(
             Exception ex, @Nullable Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
 
-        Error errorResponse =
-                switch (ex) {
-                    case BindException e -> bindExceptionResponse(e);
-                    case Errors errors -> errorResponse(errors.getAllErrors());
-                    case MethodValidationResult errors -> errorResponse(errors.getAllErrors());
-                    default -> {
-                        var message =
-                                statusCode instanceof HttpStatus hs ? hs.getReasonPhrase() : statusCode.toString();
-                        var detail = body instanceof ProblemDetail pb ? pb.getDetail() : ex.getMessage();
-                        var nonSensitiveDetail = !statusCode.is5xxServerError() ? detail : StringUtils.EMPTY;
-                        yield errorResponse(message, nonSensitiveDetail);
-                    }
-                };
+        Error errorResponse = switch (ex) {
+            case BindException e -> bindExceptionResponse(e);
+            case Errors errors -> errorResponse(errors.getAllErrors());
+            case MethodValidationResult errors -> errorResponse(errors.getAllErrors());
+            default -> {
+                var message = statusCode instanceof HttpStatus hs ? hs.getReasonPhrase() : statusCode.toString();
+                var detail = body instanceof ProblemDetail pb ? pb.getDetail() : ex.getMessage();
+                var nonSensitiveDetail = !statusCode.is5xxServerError() ? detail : StringUtils.EMPTY;
+                yield errorResponse(message, nonSensitiveDetail);
+            }
+        };
 
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, ex, SCOPE_REQUEST);
         return new ResponseEntity<>(errorResponse, headers, statusCode);
