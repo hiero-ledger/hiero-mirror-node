@@ -126,20 +126,20 @@ function convertType(value) {
   return value;
 }
 
-function getConfig() {
+function getRestConfig() {
   return config.hiero?.mirror?.rest;
 }
 
-function getMirrorConfig() {
+function getConfig() {
   return config.hiero?.mirror;
 }
 
 function getResponseLimit() {
-  return getConfig().response.limit;
+  return getRestConfig().response.limit;
 }
 
 function parseDbPoolConfig() {
-  const {pool} = getConfig().db;
+  const {pool} = getRestConfig().db;
   const configKeys = ['connectionTimeout', 'maxConnections', 'statementTimeout'];
   configKeys.forEach((configKey) => {
     const value = pool[configKey];
@@ -169,7 +169,7 @@ const durationQueryConfigKeys = [
 ];
 
 const parseQueryConfig = () => {
-  const {db, query} = getConfig();
+  const {db, query} = getRestConfig();
   const {maxConnections} = db.pool;
   if (query.maxAccountBalanceConcurrency == null) {
     query.maxAccountBalanceConcurrency = Math.max(1, Math.floor(maxConnections / 2));
@@ -202,7 +202,7 @@ const parseQueryConfig = () => {
 };
 
 const parseCommon = () => {
-  const {common} = getMirrorConfig();
+  const {common} = getConfig();
   if (common?.shard !== undefined) {
     common.shard = BigInt(common.shard);
   }
@@ -212,7 +212,7 @@ const parseCommon = () => {
 };
 
 const parseUsersConfig = () => {
-  const users = getConfig().users || [];
+  const users = getRestConfig().users || [];
 
   if (!Array.isArray(users)) {
     throw new InvalidConfigError('users configuration must be an array');
@@ -254,9 +254,9 @@ if (!loaded) {
   parseUsersConfig();
   parseCommon();
   loaded = true;
-  logger.setLevel(getConfig().log.level);
+  logger.setLevel(getRestConfig().log.level);
 }
 
-export default getConfig();
+export default getRestConfig();
 
-export {getMirrorConfig, getResponseLimit};
+export {getConfig, getResponseLimit};

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getMirrorConfig} from '../config';
+import {getConfig} from '../config';
 import * as constants from '../constants';
 import EntityId from '../entityId';
 import {InvalidArgumentError} from '../errors';
 
 const {
   common: {realm, shard},
-} = getMirrorConfig();
+} = getConfig();
 
 describe('EntityId isValidEntityId tests', () => {
   test('Verify invalid for null', () => {

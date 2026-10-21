@@ -4,7 +4,7 @@ import isNil from 'lodash/isNil';
 import last from 'lodash/last';
 import quickLru from 'quick-lru';
 
-import {getMirrorConfig} from './config';
+import {getConfig} from './config';
 import * as constants from './constants';
 import {InvalidArgumentError} from './errors';
 import {stripHexPrefix, toHexString} from './utils';
@@ -14,7 +14,7 @@ const {
   rest: {
     cache: {entityId: entityIdCacheConfig},
   },
-} = getMirrorConfig();
+} = getConfig();
 
 // format: |10-bit shard|16-bit realm|38-bit num|
 const numBits = 38n;

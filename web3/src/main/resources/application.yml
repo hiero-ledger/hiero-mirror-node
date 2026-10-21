@@ -2,6 +2,8 @@
 
 hiero:
   mirror:
+    common:
+      clusterId: "9ef9396"
     web3:
       api:
         call:

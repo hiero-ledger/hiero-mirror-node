@@ -60,7 +60,7 @@ const assertCustomConfig = (actual, customConfig) => {
   expect(actual.rest.response.compression).toBe(customConfig.hiero.mirror.rest.response.compression);
 };
 
-const loadConfig = async () => (await import('../config')).getMirrorConfig();
+const loadConfig = async () => (await import('../config')).getConfig();
 
 const loadCustomConfig = async (customConfig, filename = 'application.yml') => {
   fs.writeFileSync(path.join(tempDir, filename), dump(customConfig));
@@ -71,7 +71,7 @@ describe('Load YAML configuration:', () => {
   test('./config/application.yml', async () => {
     const config = await loadConfig();
     expect(config.common.shard).not.toBeNull();
-    expect(config.rest.clusterId).toBe('9ef9396');
+    expect(config.common.clusterId).toBe('9ef9396');
     expect(config.rest.metrics.enabled).toBe(true);
     expect(config.rest.log.level).toBe('info');
   });
@@ -186,9 +186,9 @@ describe('Load environment configuration:', () => {
   });
 
   test('Cluster id', async () => {
-    process.env['HIERO_MIRROR_REST_CLUSTERID'] = 'abc1234';
+    process.env['HIERO_MIRROR_COMMON_CLUSTERID'] = 'abc1234';
     const config = await loadConfig();
-    expect(config.rest.clusterId).toBe('abc1234');
+    expect(config.common.clusterId).toBe('abc1234');
   });
 
   test('Hexadecimal environment variable', async () => {

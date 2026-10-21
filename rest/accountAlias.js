@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {getMirrorConfig} from './config';
+import {getConfig} from './config';
 import base32 from './base32';
 import {InvalidArgumentError} from './errors';
 import isNil from 'lodash/isNil';
@@ -10,7 +10,7 @@ import isNil from 'lodash/isNil';
 // segment is capped at 64 chars,leaving margin while rejecting arbitrarily long input before base32.decode.
 const accountAliasRegex = /^(\d{1,5}\.){0,2}[A-Z2-7]{1,64}$/;
 const noShardRealmAccountAliasRegex = /^[A-Z2-7]{1,64}$/;
-const {common} = getMirrorConfig();
+const {common} = getConfig();
 
 class AccountAlias {
   /**

@@ -2,16 +2,16 @@
 
 import {jest} from '@jest/globals';
 
-import config from '../../config';
+import config, {getConfig} from '../../config';
 import {NotFoundError} from '../../errors';
 import {responseHandler} from '../../middleware';
 import {JSONStringify} from '../../utils';
 import {clusterIdHeader, contentTypeHeader, responseHeadersLabel} from '../../constants.js';
 
 const {
-  clusterId,
   response: {headers},
 } = config;
+const {clusterId} = getConfig().common;
 
 const nextMiddleware = () => {};
 

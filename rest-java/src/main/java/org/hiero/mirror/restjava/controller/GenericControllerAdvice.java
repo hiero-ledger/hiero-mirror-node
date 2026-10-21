@@ -17,6 +17,7 @@ import java.util.Locale;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatus;
@@ -72,7 +73,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/api/**").allowedOrigins("*");
+                registry.addMapping("/api/**").allowedOrigins("*").exposedHeaders(CommonProperties.CLUSTER_ID_HEADER);
             }
         };
     }

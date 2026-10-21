@@ -8,14 +8,14 @@ import {AccountIDSchema, TransactionIDSchema, TokenIDSchema} from '../gen/servic
 import {CustomFeeLimitSchema, FixedFeeSchema} from '../gen/services/custom_fees_pb.js';
 
 import base32 from '../base32';
-import {getMirrorConfig} from '../config';
+import {getConfig} from '../config';
 import * as constants from '../constants';
 import EntityId from '../entityId';
 import {valueToBuffer} from './testutils';
 import {parseInteger, JSONStringify} from '../utils';
 import {encodedIdFromSpecValue} from './integrationUtils';
 
-const config = getMirrorConfig();
+const config = getConfig();
 const NETWORK_FEE = 1n;
 const NODE_FEE = 2n;
 const SERVICE_FEE = 4n;

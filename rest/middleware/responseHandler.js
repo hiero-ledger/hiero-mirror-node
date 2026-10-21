@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import config from '../config';
+import config, {getConfig} from '../config';
 import {
   clusterIdHeader,
   contentTypeHeader,
@@ -14,10 +14,10 @@ import {NotFoundError} from '../errors';
 import {JSONStringify} from '../utils';
 
 const {
-  clusterId,
   log: {sampleRate},
   response: {headers},
 } = config;
+const {clusterId} = getConfig().common;
 
 const APPLICATION_JSON = 'application/json; charset=utf-8';
 const LINK_NEXT_HEADER = 'Link';

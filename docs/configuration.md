@@ -22,6 +22,7 @@ Some variables are common to more than one module.
 
 | Name                                                    | Default | Description                                                         |
 | ------------------------------------------------------- | ------- | ------------------------------------------------------------------- |
+| `hiero.mirror.common.clusterId`                         | 9ef9396 | Returned on every response in the `x-cluster-id` header.            |
 | `hiero.mirror.common.databaseStartup.enabled`           | true    | Controls if app waits for database connection on app start          |
 | `hiero.mirror.common.databaseStartup.interval`          | 2s      | Interval between checking if database is connectable                |
 | `hiero.mirror.common.databaseStartup.timeout`           | 5m      | Total time to wait for database to become available before erroring |
@@ -575,7 +576,6 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hiero.mirror.rest.cache.response.compressThreshold`                     | 150                     | The minimum response body size to compress                                                                                                                                                    |
 | `hiero.mirror.rest.cache.token.maxSize`                                  | 100000                  | The maximum number of entries in the token cache                                                                                                                                              |
 | `hiero.mirror.rest.chainId`                                              | "0x128"                 | The network chain ID used for Ethereum transactions                                                                                                                                           |
-| `hiero.mirror.rest.clusterId`                                            | 9ef9396                 | Returned on every response in the `x-cluster-id` header. Set to a distinct value per mirror node deployment.                                                                                  |
 | `hiero.mirror.rest.db.host`                                              | 127.0.0.1               | The IP or hostname used to connect to the database                                                                                                                                            |
 | `hiero.mirror.rest.db.name`                                              | mirror_node             | The name of the database                                                                                                                                                                      |
 | `hiero.mirror.rest.db.password`                                          | mirror_api_pass         | The database password the processor uses to connect.                                                                                                                                          |

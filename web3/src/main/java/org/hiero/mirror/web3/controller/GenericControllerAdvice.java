@@ -27,6 +27,7 @@ import java.util.Set;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
@@ -84,7 +85,9 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/api/v1/contracts/**").allowedOrigins("*");
+                registry.addMapping("/api/v1/contracts/**")
+                        .allowedOrigins("*")
+                        .exposedHeaders(CommonProperties.CLUSTER_ID_HEADER);
             }
         };
     }

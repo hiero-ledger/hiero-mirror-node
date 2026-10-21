@@ -5,9 +5,9 @@ import _ from 'lodash';
 import AccountAlias from '../accountAlias';
 import {getAllAccountAliases, invalidBase32Strs} from './testutils';
 import {InvalidArgumentError} from '../errors/index.js';
-import {getMirrorConfig} from '../config';
+import {getConfig} from '../config';
 
-const {common} = getMirrorConfig();
+const {common} = getConfig();
 
 describe('AccountAlias', () => {
   describe('fromString', () => {

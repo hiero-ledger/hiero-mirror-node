@@ -6,7 +6,7 @@ import {exec} from 'child_process';
 import integrationContainerOps from './integrationContainerOps';
 import testExports from '../timestampRange';
 import {FileDataService, TokenService} from '../service';
-import {getMirrorConfig} from '../config.js';
+import {getConfig} from '../config.js';
 import EntityId from '../entityId.js';
 import {apiPrefix} from '../constants.js';
 
@@ -16,7 +16,7 @@ const slowStepTimeoutMillis = process.env.CI ? 12 * 60 * 1000 : 4 * 60 * 1000;
 
 const {
   common: {realm: systemRealm, shard: systemShard},
-} = getMirrorConfig();
+} = getConfig();
 
 const transformResponseHeaders = (headers) => {
   const shardRealm = `${systemShard}.${systemRealm}.`;

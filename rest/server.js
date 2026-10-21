@@ -12,7 +12,7 @@ import compression from 'compression';
 import accounts from './accounts';
 import balances from './balances';
 import extendExpress from './extendExpress';
-import config from './config';
+import config, {getConfig} from './config';
 import * as constants from './constants';
 import health from './health';
 import schedules from './schedules';
@@ -170,7 +170,7 @@ if (!isTestEnv()) {
   // Health check endpoints
   createTerminus(server, {
     headers: {
-      [constants.clusterIdHeader]: config.clusterId,
+      [constants.clusterIdHeader]: getConfig().common.clusterId,
     },
     healthChecks: {
       '/health/readiness': health.readinessCheck,

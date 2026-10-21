@@ -5,13 +5,13 @@ import {EntityService} from '../../service';
 import AccountAlias from '../../accountAlias';
 import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
-import {getMirrorConfig} from '../../config.js';
+import {getConfig} from '../../config.js';
 
 setupIntegrationTest();
 
 const {
   common: {realm: systemRealm, shard: systemShard},
-} = getMirrorConfig();
+} = getConfig();
 
 const defaultEntityAlias = new AccountAlias(
   systemShard,
