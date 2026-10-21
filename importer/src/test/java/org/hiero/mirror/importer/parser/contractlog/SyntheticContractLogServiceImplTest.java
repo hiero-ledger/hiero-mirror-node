@@ -19,6 +19,7 @@ import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TokenType;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
 import java.util.Arrays;
 import java.util.Random;
@@ -606,6 +607,58 @@ final class SyntheticContractLogServiceImplTest {
                 .isEqualTo(parentContractCallRecordItem.getTransactionHash());
         assertThat(contractLogCaptor.getValue().getConsensusTimestamp()).isEqualTo(parentContractCallTimestamp);
         assertThat(contractLogCaptor.getValue().isChild()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Should attribute synthetic log for old HAPI version to the scheduled contract call")
+    void createSyntheticLogForOldHapiVersionWithScheduledContractCall() {
+        final var scheduledTransactionId = TransactionID.newBuilder()
+                .setAccountID(recordItemBuilder.accountId())
+                .setScheduled(true)
+                .setTransactionValidStart(recordItemBuilder.timestamp())
+                .build();
+        final var scheduleSignRecordItem = recordItemBuilder
+                .scheduleSign()
+                .receipt(r -> r.setScheduledTransactionID(scheduledTransactionId))
+                .recordItem(r -> r.hapiVersion(OLD_HAPI_VERSION))
+                .build();
+        final var scheduleSignTimestamp = scheduleSignRecordItem.getConsensusTimestamp();
+
+        // the scheduled contract call executed immediately by the schedule sign has no parent
+        final var scheduledContractCallRecordItem = recordItemBuilder
+                .contractCall()
+                .transactionBodyWrapper(w -> w.setTransactionID(scheduledTransactionId))
+                .recordItem(r -> r.previous(scheduleSignRecordItem).hapiVersion(OLD_HAPI_VERSION))
+                .build();
+
+        // the precompile child of the scheduled contract call is parented to the schedule sign
+        recordItem = recordItemBuilder
+                .contractCall(HTS_PRECOMPILE_CONTRACT_ADDRESS)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(1))
+                        .setContractCallResult(
+                                ContractFunctionResult.newBuilder().setContractID(HTS_PRECOMPILE_CONTRACT_ADDRESS))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(scheduleSignTimestamp / 1_000_000_000)
+                                .setNanos((int) (scheduleSignTimestamp % 1_000_000_000))))
+                .recordItem(r -> r.previous(scheduledContractCallRecordItem).hapiVersion(OLD_HAPI_VERSION))
+                .build();
+
+        assertThat(recordItem)
+                .returns(scheduleSignRecordItem, RecordItem::getParent)
+                .returns(scheduledContractCallRecordItem, RecordItem::getContractRelatedParent);
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener).onContractLog(contractLogCaptor.capture());
+        final var scheduledContractId = EntityId.of(scheduledContractCallRecordItem
+                .getTransactionRecord()
+                .getContractCallResult()
+                .getContractID());
+        assertThat(contractLogCaptor.getValue())
+                .returns(scheduledContractCallRecordItem.getConsensusTimestamp(), ContractLog::getConsensusTimestamp)
+                .returns(scheduledContractId, ContractLog::getContractId)
+                .returns(scheduledContractCallRecordItem.getTransactionHash(), ContractLog::getTransactionHash);
     }
 
     @Test

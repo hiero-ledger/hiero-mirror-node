@@ -45,6 +45,7 @@ import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TokenType;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionReceipt.Builder;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.util.ArrayList;
@@ -1139,6 +1140,77 @@ final class ContractTransformerTest extends AbstractTransformerTest {
             var expectedParentItems = ListUtils.union(
                     Collections.nCopies(1, null), Collections.nCopies(items.size() - 1, items.getFirst()));
             assertThat(items).map(RecordItem::getParent).containsExactlyElementsOf(expectedParentItems);
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void scheduledContractCall(final boolean triggeredByScheduleSign) {
+        // given
+        // The schedule sign / create transaction which triggers the execution, the scheduled contract call transaction
+        // without a parent, and a synthetic child transaction whose parent is the triggering transaction. The state
+        // changes of the transactional unit are externalized with the triggering transaction
+        final var scheduledTransactionId = TransactionID.newBuilder()
+                .setAccountID(recordItemBuilder.accountId())
+                .setScheduled(true)
+                .setTransactionValidStart(recordItemBuilder.timestamp())
+                .build();
+        final var scheduleId = recordItemBuilder.scheduleId();
+        final var triggeringRecordItem = (triggeredByScheduleSign
+                        ? recordItemBuilder.scheduleSign()
+                        : recordItemBuilder.scheduleCreate())
+                .receipt(r -> r.setScheduledTransactionID(scheduledTransactionId))
+                .customize(this::finalize)
+                .build();
+        final var parentConsensusTimestamp =
+                triggeringRecordItem.getTransactionRecord().getConsensusTimestamp();
+        final var contractCallRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.setScheduleRef(scheduleId))
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .transactionBodyWrapper(w -> w.setTransactionID(scheduledTransactionId))
+                .recordItem(r -> r.transactionIndex(1))
+                .customize(this::finalize)
+                .build();
+        final var childRecordItem = recordItemBuilder
+                .cryptoTransfer()
+                .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
+                .recordItem(r -> r.transactionIndex(2))
+                .customize(this::finalize)
+                .build();
+
+        final var contractCallBuilder = blockTransactionBuilder
+                .contractCall(contractCallRecordItem, false)
+                .transactionResult(r -> r.setScheduleRef(scheduleId));
+        final var stateChanges = new ArrayList<StateChanges>();
+        contractCallBuilder.stateChanges(s -> {
+            stateChanges.addAll(s);
+            s.clear();
+        });
+        final var triggeringBlockTransaction = (triggeredByScheduleSign
+                        ? blockTransactionBuilder.scheduleSign(triggeringRecordItem)
+                        : blockTransactionBuilder.scheduleCreate(triggeringRecordItem))
+                .stateChanges(s -> s.addAll(stateChanges))
+                .build();
+        final var contractCallBlockTransaction =
+                contractCallBuilder.previous(triggeringBlockTransaction).build();
+        final var childBlockTransaction = blockTransactionBuilder
+                .cryptoTransfer(childRecordItem)
+                .previous(contractCallBlockTransaction)
+                .build();
+        final var blockFile = blockFileBuilder
+                .items(List.of(triggeringBlockTransaction, contractCallBlockTransaction, childBlockTransaction))
+                .build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        final var expected = List.of(triggeringRecordItem, contractCallRecordItem, childRecordItem);
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertRecordItems(items, expected);
+            assertThat(items).map(RecordItem::getParent).containsExactly(null, null, items.getFirst());
         });
     }
 

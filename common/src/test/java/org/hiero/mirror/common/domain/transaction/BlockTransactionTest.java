@@ -17,9 +17,11 @@ import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
+import com.hedera.hapi.block.stream.output.protoc.CreateScheduleOutput;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
+import com.hedera.hapi.block.stream.output.protoc.SignScheduleOutput;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
@@ -29,6 +31,7 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.SubmitMessageTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ConsensusSubmitMessageTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -37,6 +40,7 @@ import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Topic;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -304,6 +308,101 @@ final class BlockTransactionTest {
                 .extracting(StateChangeContext::getNewTokenId, InstanceOfAssertFactories.optional(TokenID.class))
                 .contains(tokenId);
         assertThat(failed.getStateChangeContext()).isSameAs(EMPTY_CONTEXT);
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = TransactionCase.class,
+            names = {"CREATE_SCHEDULE", "SIGN_SCHEDULE"})
+    void getStateChangeContextForScheduledTransaction(final TransactionCase transactionCase) {
+        // given
+        final var scheduledTransactionId = TransactionID.newBuilder()
+                .setAccountID(AccountID.newBuilder().setAccountNum(1001L))
+                .setScheduled(true)
+                .setTransactionValidStart(Timestamp.newBuilder().setSeconds(12340L))
+                .build();
+        final var transactionOutput = transactionCase == TransactionCase.CREATE_SCHEDULE
+                ? TransactionOutput.newBuilder()
+                        .setCreateSchedule(
+                                CreateScheduleOutput.newBuilder().setScheduledTransactionId(scheduledTransactionId))
+                        .build()
+                : TransactionOutput.newBuilder()
+                        .setSignSchedule(
+                                SignScheduleOutput.newBuilder().setScheduledTransactionId(scheduledTransactionId))
+                        .build();
+        final var tokenId = TokenID.newBuilder().setTokenNum(123L).build();
+        final var triggerConsensusTimestamp =
+                Timestamp.newBuilder().setSeconds(12345L).build();
+        final var trigger = defaultBuilder()
+                .stateChanges(List.of(StateChanges.newBuilder()
+                        .addStateChanges(StateChange.newBuilder()
+                                .setStateId(StateIdentifier.STATE_ID_TOKENS_VALUE)
+                                .setMapUpdate(MapUpdateChange.newBuilder()
+                                        .setKey(MapChangeKey.newBuilder().setTokenIdKey(tokenId))
+                                        .setValue(MapChangeValue.newBuilder()
+                                                .setTokenValue(
+                                                        Token.newBuilder().setTokenId(tokenId)))))
+                        .build()))
+                .transactionOutputs(Map.of(transactionCase, transactionOutput))
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(triggerConsensusTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+        final var scheduled = defaultBuilder()
+                .previous(trigger)
+                .transactionBody(TransactionBody.newBuilder()
+                        .setTransactionID(scheduledTransactionId)
+                        .build())
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(nextTick(triggerConsensusTimestamp))
+                        .setStatus(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED)
+                        .build())
+                .build();
+        final var child1 = defaultBuilder()
+                .previous(scheduled)
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(scheduled.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(triggerConsensusTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+        final var child2 = defaultBuilder()
+                .previous(child1)
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(child1.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(triggerConsensusTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+        final var otherScheduled = defaultBuilder()
+                .previous(trigger)
+                .transactionBody(TransactionBody.newBuilder()
+                        .setTransactionID(scheduledTransactionId.toBuilder().setNonce(1))
+                        .build())
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(nextTick(triggerConsensusTimestamp))
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+
+        // when, then
+        assertThat(scheduled)
+                .returns(null, BlockTransaction::getParent)
+                .returns(trigger, BlockTransaction::getScheduleTrigger)
+                .returns(false, BlockTransaction::isSuccessful);
+        assertThat(scheduled.getStateChangeContext())
+                .isSameAs(trigger.getStateChangeContext())
+                .extracting(StateChangeContext::getNewTokenId, InstanceOfAssertFactories.optional(TokenID.class))
+                .contains(tokenId);
+        assertThat(List.of(child1, child2))
+                .allSatisfy(child -> assertThat(child)
+                        .returns(trigger, BlockTransaction::getParent)
+                        .returns(trigger.getStateChangeContext(), BlockTransaction::getStateChangeContext));
+        assertThat(otherScheduled.getScheduleTrigger()).isNull();
+        assertThat(otherScheduled.getStateChangeContext()).isSameAs(EMPTY_CONTEXT);
     }
 
     @Test
