@@ -88,37 +88,36 @@ public class EthereumClient extends AbstractNetworkClient {
     public NetworkTransactionResponse transferValue(
             ExpandedAccountId signerAccount, String toEvmAddress, BigInteger value, TransactionType type) {
 
-        var rawTransaction =
-                switch (type) {
-                    case EIP1559 ->
-                        RawTransaction.createTransaction(
-                                acceptanceTestProperties.getNetwork().getChainId(),
-                                getNonce(signerAccount.getPrivateKey()),
-                                maxContractFunctionGas(),
-                                toEvmAddress,
-                                value,
-                                "",
-                                BigInteger.valueOf(20000L), // maxPriorityGas
-                                maxFeePerGas);
-                    case EIP2930 ->
-                        RawTransaction.createTransaction(
-                                acceptanceTestProperties.getNetwork().getChainId(),
-                                getNonce(signerAccount.getPrivateKey()),
-                                maxContractFunctionGas(),
-                                toEvmAddress,
-                                value,
-                                "",
-                                BigInteger.valueOf(20000L), // maxPriorityGas
-                                maxFeePerGas,
-                                Collections.emptyList());
-                    default ->
-                        RawTransaction.createEtherTransaction(
-                                getNonce(signerAccount.getPrivateKey()),
-                                gasPrice,
-                                maxContractFunctionGas(),
-                                toEvmAddress,
-                                value);
-                };
+        var rawTransaction = switch (type) {
+            case EIP1559 ->
+                RawTransaction.createTransaction(
+                        acceptanceTestProperties.getNetwork().getChainId(),
+                        getNonce(signerAccount.getPrivateKey()),
+                        maxContractFunctionGas(),
+                        toEvmAddress,
+                        value,
+                        "",
+                        BigInteger.valueOf(20000L), // maxPriorityGas
+                        maxFeePerGas);
+            case EIP2930 ->
+                RawTransaction.createTransaction(
+                        acceptanceTestProperties.getNetwork().getChainId(),
+                        getNonce(signerAccount.getPrivateKey()),
+                        maxContractFunctionGas(),
+                        toEvmAddress,
+                        value,
+                        "",
+                        BigInteger.valueOf(20000L), // maxPriorityGas
+                        maxFeePerGas,
+                        Collections.emptyList());
+            default ->
+                RawTransaction.createEtherTransaction(
+                        getNonce(signerAccount.getPrivateKey()),
+                        gasPrice,
+                        maxContractFunctionGas(),
+                        toEvmAddress,
+                        value);
+        };
 
         Credentials credentials =
                 Credentials.create(signerAccount.getPrivateKey().toStringRaw());
@@ -171,45 +170,42 @@ public class EthereumClient extends AbstractNetworkClient {
         var toAddress = Numeric.prependHexPrefix(contractEvmAddress);
 
         // build raw transaction
-        var rawTransaction =
-                switch (type) {
-                    case EIP1559 ->
-                        RawTransaction.createTransaction(
-                                chainId,
-                                nonce,
-                                maxContractFunctionGas(),
-                                toAddress,
-                                value,
-                                callData,
-                                maxPriorityFeePerGas,
-                                maxFeePerGas);
-                    case EIP2930 ->
-                        RawTransaction.createTransaction(
-                                chainId,
-                                nonce,
-                                maxContractFunctionGas(),
-                                toAddress,
-                                value,
-                                callData,
-                                maxPriorityFeePerGas,
-                                maxFeePerGas,
-                                Collections.emptyList());
-                    case EIP7702 ->
-                        RawTransaction.createTransaction(
-                                chainId,
-                                nonce,
-                                maxPriorityFeePerGas,
-                                maxFeePerGas,
-                                maxContractFunctionGas(),
-                                toAddress,
-                                value,
-                                callData,
-                                Collections.emptyList(),
-                                authorizationList);
-                    default ->
-                        RawTransaction.createTransaction(
-                                nonce, gasPrice, maxContractFunctionGas(), "", value, callData);
-                };
+        var rawTransaction = switch (type) {
+            case EIP1559 ->
+                RawTransaction.createTransaction(
+                        chainId,
+                        nonce,
+                        maxContractFunctionGas(),
+                        toAddress,
+                        value,
+                        callData,
+                        maxPriorityFeePerGas,
+                        maxFeePerGas);
+            case EIP2930 ->
+                RawTransaction.createTransaction(
+                        chainId,
+                        nonce,
+                        maxContractFunctionGas(),
+                        toAddress,
+                        value,
+                        callData,
+                        maxPriorityFeePerGas,
+                        maxFeePerGas,
+                        Collections.emptyList());
+            case EIP7702 ->
+                RawTransaction.createTransaction(
+                        chainId,
+                        nonce,
+                        maxPriorityFeePerGas,
+                        maxFeePerGas,
+                        maxContractFunctionGas(),
+                        toAddress,
+                        value,
+                        callData,
+                        Collections.emptyList(),
+                        authorizationList);
+            default -> RawTransaction.createTransaction(nonce, gasPrice, maxContractFunctionGas(), "", value, callData);
+        };
 
         // sign and execute transaction
         Credentials credentials = Credentials.create(signerKey.toStringRaw());

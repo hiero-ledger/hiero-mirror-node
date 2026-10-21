@@ -32,6 +32,8 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @ToString.Exclude
     private byte[] bloom;
 
+    private boolean child;
+
     @jakarta.persistence.Id
     private long consensusTimestamp;
 

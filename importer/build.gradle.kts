@@ -20,7 +20,9 @@ dependencies {
     implementation(project(":common"))
     implementation("com.esaulpaugh:headlong")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
-    implementation("com.hedera.cryptography:hedera-cryptography-wraps")
+    implementation("com.hedera.cryptography:hedera-cryptography-wraps") {
+        capabilities { requireFeature("verifier") }
+    }
     implementation("commons-io:commons-io")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
     implementation("io.grpc:grpc-protobuf")

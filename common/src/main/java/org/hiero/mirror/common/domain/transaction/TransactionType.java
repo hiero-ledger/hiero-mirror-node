@@ -78,7 +78,6 @@ public enum TransactionType {
     CLPRCOMPLETECHANNEL(84, EntityOperation.NONE),
     CLPRCLOSECHANNEL(85, EntityOperation.NONE),
     CLPRSUBMITBUNDLE(86, EntityOperation.NONE),
-    CLPRREDACTMESSAGE(87, EntityOperation.NONE),
     CLPRREGISTERCONNECTOR(88, EntityOperation.NONE),
     CLPRDEREGISTERCONNECTOR(89, EntityOperation.NONE),
     CLPRCOMPLETECONNECTOR(90, EntityOperation.NONE);
