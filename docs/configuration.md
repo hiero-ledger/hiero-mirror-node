@@ -20,17 +20,17 @@ support automatic generation of random [passwords](/charts/README.md#passwords).
 
 Some variables are common to more than one module.
 
-| Name                                                    | Default | Description                                                         |
-| ------------------------------------------------------- | ------- | ------------------------------------------------------------------- |
-| `hiero.mirror.common.clusterId`                         | 9ef9396 | Returned on every response in the `x-cluster-id` header.            |
-| `hiero.mirror.common.databaseStartup.enabled`           | true    | Controls if app waits for database connection on app start          |
-| `hiero.mirror.common.databaseStartup.interval`          | 2s      | Interval between checking if database is connectable                |
-| `hiero.mirror.common.databaseStartup.timeout`           | 5m      | Total time to wait for database to become available before erroring |
-| `hiero.mirror.common.databaseStartup.validationTimeout` | 2s      | Time allowed for query to check if connection is valid              |
-| `hiero.mirror.common.databaseStartup.connectTimeout`    | 2s      | Time allowed for driver connect timeout                             |
-| `hiero.mirror.common.databaseStartup.socketTimeout`     | 2s      | Time allowed for driver socket timeout                              |
-| `hiero.mirror.common.realm`                             | 0       | The default base realm the mirror node participates in.             |
-| `hiero.mirror.common.shard`                             | 0       | The default shard number this mirror node participates in.          |
+| Name                                                    | Default | Description                                                                                                  |
+| ------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------ |
+| `hiero.mirror.common.clusterId`                         | 9ef9396 | Returned on every response in the `x-cluster-id` header. Set to a distinct value per mirror node deployment. |
+| `hiero.mirror.common.databaseStartup.enabled`           | true    | Controls if app waits for database connection on app start                                                   |
+| `hiero.mirror.common.databaseStartup.interval`          | 2s      | Interval between checking if database is connectable                                                         |
+| `hiero.mirror.common.databaseStartup.timeout`           | 5m      | Total time to wait for database to become available before erroring                                          |
+| `hiero.mirror.common.databaseStartup.validationTimeout` | 2s      | Time allowed for query to check if connection is valid                                                       |
+| `hiero.mirror.common.databaseStartup.connectTimeout`    | 2s      | Time allowed for driver connect timeout                                                                      |
+| `hiero.mirror.common.databaseStartup.socketTimeout`     | 2s      | Time allowed for driver socket timeout                                                                       |
+| `hiero.mirror.common.realm`                             | 0       | The default base realm the mirror node participates in.                                                      |
+| `hiero.mirror.common.shard`                             | 0       | The default shard number this mirror node participates in.                                                   |
 
 ## Importer
 

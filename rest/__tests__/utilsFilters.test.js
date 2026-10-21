@@ -4,14 +4,14 @@ import {jest} from '@jest/globals';
 import httpContext from 'express-http-context';
 import sinon from 'sinon';
 
-import config, {getConfig} from '../config';
+import config, {getMirrorConfig} from '../config';
 import * as constants from '../constants';
 import EntityId from '../entityId';
 import * as utils from '../utils';
 
 const {
   common: {realm, shard},
-} = getConfig();
+} = getMirrorConfig();
 
 describe('utils buildAndValidateFilters test', () => {
   const defaultMaxRepeatedQueryParameters = config.maxRepeatedQueryParameters;

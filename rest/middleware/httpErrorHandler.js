@@ -2,7 +2,7 @@
 
 import {HttpError} from 'http-errors';
 
-import {getConfig} from '../config';
+import config from '../config';
 import {clusterIdHeader, httpStatusCodes, requestStartTime, StatusCode} from '../constants';
 import {DbError, InvalidArgumentError, NotFoundError, TooManyRequestsError} from '../errors';
 import RestError from '../errors/restError';
@@ -53,7 +53,7 @@ const handleError = async (err, req, res, next) => {
     );
   }
 
-  res.set(clusterIdHeader, getConfig().common.clusterId);
+  res.set(clusterIdHeader, config.common.clusterId);
   res.status(statusCode.code).json(errorMessageFormat(errorMessage));
 };
 

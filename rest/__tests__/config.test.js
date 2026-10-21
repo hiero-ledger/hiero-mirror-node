@@ -60,7 +60,7 @@ const assertCustomConfig = (actual, customConfig) => {
   expect(actual.rest.response.compression).toBe(customConfig.hiero.mirror.rest.response.compression);
 };
 
-const loadConfig = async () => (await import('../config')).getConfig();
+const loadConfig = async () => (await import('../config')).getMirrorConfig();
 
 const loadCustomConfig = async (customConfig, filename = 'application.yml') => {
   fs.writeFileSync(path.join(tempDir, filename), dump(customConfig));
