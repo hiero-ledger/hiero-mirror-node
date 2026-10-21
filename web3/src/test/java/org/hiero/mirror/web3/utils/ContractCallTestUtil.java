@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.function.ToLongFunction;
 import lombok.experimental.UtilityClass;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 
 @UtilityClass
 public class ContractCallTestUtil {
@@ -75,5 +76,12 @@ public class ContractCallTestUtil {
      */
     public static long getUnixSeconds(long nanoseconds) {
         return nanoseconds / NANOS_PER_SECOND;
+    }
+
+    public static StateOverride stateOverride(final String address) {
+        final var override = new StateOverride();
+        override.setAddress(address);
+        override.setBalance("0x1");
+        return override;
     }
 }

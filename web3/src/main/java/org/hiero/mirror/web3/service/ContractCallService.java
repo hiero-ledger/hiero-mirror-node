@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static java.time.ZoneOffset.UTC;
 import static org.apache.logging.log4j.util.Strings.EMPTY;
+import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
@@ -125,13 +126,13 @@ public abstract class ContractCallService {
             status = e.getMessage();
             throw e;
         } finally {
-            if (!estimate) {
+            if (!estimate && ContractCallContext.get().getApi() != ACTIONS) {
                 restoreGasToBucket(result, params.getGas());
+            }
 
-                // Only record metric if EVM is invoked and not inside estimate loop
-                if (result != null) {
-                    updateMetrics(params, result.gasUsed(), 1, status);
-                }
+            // Only record metric if EVM is invoked and not inside estimate loop
+            if (!estimate && result != null) {
+                updateMetrics(params, result.gasUsed(), 1, status);
             }
         }
         return result;

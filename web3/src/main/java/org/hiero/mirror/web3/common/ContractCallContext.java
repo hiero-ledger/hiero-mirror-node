@@ -147,6 +147,21 @@ public class ContractCallContext {
         writeCache.clear();
     }
 
+    /** Drops cached reads and writes so the next call does not observe the previous call's state. */
+    public void clearCaches() {
+        readCache.clear();
+        writeCache.clear();
+    }
+
+    /**
+     * Drops one cached state so the next read reloads it. Other states stay, including account and storage changes
+     * carried from an earlier trace bundle.
+     */
+    public void evictCachedState(final int stateId) {
+        readCache.remove(stateId);
+        writeCache.remove(stateId);
+    }
+
     public boolean useHistorical() {
         return callServiceParameters != null && callServiceParameters.getBlock() != BlockType.LATEST;
     }
@@ -206,6 +221,7 @@ public class ContractCallContext {
 
     public void applyStateOverrides(final List<StateOverride> overrides) {
         if (overrides == null || overrides.isEmpty()) {
+            this.stateOverrides = null;
             return;
         }
         final var addressToAccounts = new HashMap<Bytes, StateOverride>(overrides.size());
@@ -216,10 +232,12 @@ public class ContractCallContext {
     }
 
     /**
-     * Applies HIP-1485 {@code block_override}. A set {@code number} becomes EVM {@code block.number}; a set {@code time}
-     * becomes EVM {@code block.timestamp}.
+     * Applies HIP-1485 {@code block_override}. A set {@code number} becomes EVM {@code block.number} and a set
+     * {@code time} becomes EVM {@code block.timestamp}. Both may be set. A null override clears both.
      */
     public void applyBlockOverride(final @Nullable BlockOverride override) {
+        blockOverrideNumber = null;
+        blockOverrideTimeNanos = null;
         if (override == null) {
             return;
         }
@@ -232,6 +250,28 @@ public class ContractCallContext {
             }
         } catch (NumberFormatException e) {
             throw new InvalidParametersException("Invalid block_override: " + e.getMessage());
+        }
+    }
+
+    /** Whether a previous bundle left an EVM block number or timestamp in effect. */
+    public boolean hasBlockOverride() {
+        return blockOverrideNumber != null || blockOverrideTimeNanos != null;
+    }
+
+    /**
+     * Continues the previous bundle's block override when this bundle sets none. A set block number increases by 1. A
+     * set block timestamp increases by 2 seconds. A field that was not set stays unset.
+     */
+    public void advanceBlockOverride() {
+        try {
+            if (blockOverrideNumber != null) {
+                blockOverrideNumber = Math.addExact(blockOverrideNumber, 1L);
+            }
+            if (blockOverrideTimeNanos != null) {
+                blockOverrideTimeNanos = Math.addExact(blockOverrideTimeNanos, DomainUtils.convertToNanosMax(2L, 0L));
+            }
+        } catch (ArithmeticException e) {
+            throw new InvalidParametersException("Invalid block_override: block context overflow");
         }
     }
 

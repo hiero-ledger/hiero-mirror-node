@@ -526,10 +526,17 @@ paths:
     post:
       summary: Trace simulated contract calls
       description:
-        "Simulates one or more contract calls and returns a list of call action execution trees. A single-element
-        request list maps to debug_traceCall; multiple elements map to debug_traceCallMany. Requires Accept-Encoding
-        gzip. The estimate field is not supported. A client timeout that elapses returns 408 with any actions collected
-        so far."
+        "Simulates contract calls and returns one call-action tree per transaction, in bundle order. One bundle with
+        one transaction maps to debug_traceCall. Multiple bundles, or a bundle with multiple transactions, map to
+        debug_traceCallMany. block, state_override, timeout, and only_top_call apply to the whole request. Each bundle
+        has its own transactions and block_override. Transactions share state for the whole request: later bundles
+        keep earlier state changes. A bundle with block_override applies the fields it sets. When it omits the block
+        number, the previous block number increases by 1. When it omits the timestamp, the previous timestamp increases
+        by 2 seconds. A later bundle without block_override keeps that context and advances it: the block number
+        increases by 1 and the block timestamp increases by 2 seconds. A field the previous override did not set stays
+        unset. An explicit block_override cannot set an older block number or timestamp than the previous bundle. The
+        request state override stays in place. estimate is rejected. Requires Accept-Encoding gzip. A transaction
+        failure returns 400. A client timeout returns 408 with any actions collected so far."
       operationId: contractActionsCall
       parameters:
         - name: Accept-Encoding
@@ -543,10 +550,7 @@ paths:
         content:
           application/json:
             schema:
-              type: array
-              minItems: 1
-              items:
-                $ref: "#/components/schemas/ActionTraceRequest"
+              $ref: "#/components/schemas/ActionTraceRequest"
       responses:
         200:
           description: OK
@@ -557,7 +561,7 @@ paths:
                 items:
                   $ref: "#/components/schemas/ActionResponse"
         400:
-          description: Validation error
+          description: Validation error or failed transaction
           content:
             application/json:
               schema:
@@ -2311,7 +2315,7 @@ components:
           type: string
     BlockOverride:
       type: object
-      description: Optional EVM block context override. `number` and `time` cannot be populated simultaneously.
+      description: Optional EVM block context override. `number` and `time` may both be set.
       properties:
         number:
           description: Hexadecimal or decimal block number used as the EVM block.number
@@ -2488,24 +2492,69 @@ components:
       items:
         type: string
       type: array
+    ActionTraceBundle:
+      type: object
+      description:
+        One debug_traceCallMany bundle. Transactions execute sequentially and share this bundle's block_override.
+        State changes persist into later bundles. When this bundle sets block_override without a block number, the
+        previous block number increases by 1. When it sets block_override without a timestamp, the previous timestamp
+        increases by 2 seconds. When this bundle omits block_override and an earlier bundle set one, the previous block
+        number increases by 1 and the previous block timestamp increases by 2 seconds. A field that was not set stays
+        unset. An explicit block_override cannot set an older block number or timestamp than the previous bundle. The
+        request block and state_override apply instead of the same fields on each transaction. estimate is rejected.
+        block_override requires block overrides to be enabled.
+      required:
+        - transactions
+      properties:
+        block_override:
+          description:
+            EVM block context override for every transaction in this bundle. Requires block overrides to be enabled.
+            number and time may both be set.
+          $ref: "#/components/schemas/BlockOverride"
+        transactions:
+          description: Contract calls to simulate in this bundle
+          items:
+            $ref: "#/components/schemas/ContractCallRequest"
+          minItems: 1
+          type: array
     ActionTraceRequest:
-      allOf:
-        - $ref: "#/components/schemas/ContractCallRequest"
-        - type: object
-          properties:
-            block_override:
-              $ref: "#/components/schemas/BlockOverride"
-            only_top_call:
-              description: If true, the result contains only the root top-level call and omits nested actions
-              type: boolean
-              default: false
-            timeout:
-              description:
-                Optional maximum duration allowed for transaction tracing before execution is terminated. When omitted,
-                the server-side actions request timeout is used. Uses ISO-8601 duration format or shorthand (e.g. "PT5S"
-                or "5s").
-              type: [string, "null"]
-              example: 5s
+      type: object
+      description:
+        A debug_traceCallMany request. A single bundle containing a single transaction is treated like a debug_traceCall.
+        block, state_override, timeout, and only_top_call apply to every bundle. State changes persist from one bundle
+        to the next. A bundle without block_override continues the previous override with the block number increased
+        by 1 and the block timestamp increased by 2 seconds. A block_override that omits the block number keeps the
+        previous number and increases it by 1. A block_override that omits the timestamp keeps the previous timestamp
+        and increases it by 2 seconds. An explicit block_override cannot set an older block number or timestamp than
+        the previous bundle.
+      required:
+        - bundles
+      properties:
+        block:
+          description: Block number or tag to simulate against. Defaults to "latest".
+          example: "latest"
+          pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
+          type: [string, "null"]
+        bundles:
+          description: Call bundles executed in order
+          items:
+            $ref: "#/components/schemas/ActionTraceBundle"
+          minItems: 1
+          type: array
+        only_top_call:
+          description: If true, each result contains only the root top-level call and omits nested actions
+          type: boolean
+          default: false
+        state_override:
+          description: State override applied to every bundle. Requires state overrides to be enabled.
+          $ref: "#/components/schemas/StateOverride"
+        timeout:
+          description:
+            Optional maximum duration allowed for the whole trace before execution is terminated. When omitted, the
+            server-side actions request timeout is used. Uses ISO-8601 duration format or shorthand (e.g. "PT5S" or
+            "5s").
+          type: [string, "null"]
+          example: 5s
     ActionResponse:
       type: object
       properties:
@@ -3042,6 +3091,12 @@ components:
           example: "latest"
           pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
           type: [string, "null"]
+        block_override:
+          description:
+            Optional EVM block.number and block.timestamp override for this call. Both may be set. Requires block
+            overrides to be enabled. Ignored on trace transactions; set block_override
+            on the bundle instead.
+          $ref: "#/components/schemas/BlockOverride"
         data:
           description: Hexadecimal method signature and encoded parameters. Up to 131072 bytes as at most 262146 hexadecimal digits including optional leading 0x.
           example: "0x47f1aae7"

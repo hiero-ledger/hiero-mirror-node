@@ -4,8 +4,10 @@ package org.hiero.mirror.web3.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.stateOverride;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -134,6 +136,80 @@ class ContractCallContextTest {
     }
 
     @Test
+    void applyStateOverridesReplacesPreviousAndClearsWhenEmpty() {
+        final var context = ContractCallContext.get();
+        final var first = stateOverride("00000000000000000000000000000000000004e4");
+        final var second = stateOverride("00000000000000000000000000000000000004e5");
+
+        context.applyStateOverrides(List.of(first));
+        assertThat(context.getStateOverrides()).containsValue(first);
+
+        context.applyStateOverrides(List.of());
+        assertThat(context.getStateOverrides()).isNull();
+
+        context.applyStateOverrides(null);
+        assertThat(context.getStateOverrides()).isNull();
+
+        context.applyStateOverrides(List.of(first));
+        context.applyStateOverrides(List.of(second));
+        assertThat(context.getStateOverrides()).containsValue(second).doesNotContainValue(first);
+    }
+
+    @Test
+    void applyBlockOverrideClearsPreviousWhenUnset() {
+        final var context = ContractCallContext.get();
+        final var number = new BlockOverride();
+        number.setNumber("0x100");
+        final var time = new BlockOverride();
+        time.setTime("0x65f9e0c0");
+        final var expectedNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0);
+
+        context.applyBlockOverride(number);
+        assertThat(context.getBlockOverrideNumber()).isEqualTo(256L);
+
+        context.applyBlockOverride(null);
+        assertThat(context.getBlockOverrideNumber()).isNull();
+        assertThat(context.getBlockOverrideTimeNanos()).isNull();
+        assertThat(context.evmBlockNumber(1L)).isEqualTo(1L);
+        assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(9L);
+
+        context.applyBlockOverride(number);
+        context.applyBlockOverride(time);
+        assertThat(context.getBlockOverrideNumber()).isNull();
+        assertThat(context.getBlockOverrideTimeNanos()).isEqualTo(expectedNanos);
+        assertThat(context.evmBlockNumber(1L)).isEqualTo(1L);
+        assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(expectedNanos);
+    }
+
+    @Test
+    void evictCachedStateDropsOnlyThatState() {
+        final var context = ContractCallContext.get();
+        context.getReadCacheState(1).put("account", "read");
+        context.getWriteCacheState(1).put("account", "write");
+        context.getReadCacheState(2).put("block", "read");
+        context.getWriteCacheState(2).put("block", "write");
+
+        context.evictCachedState(2);
+
+        assertThat(context.getReadCacheState(1)).containsEntry("account", "read");
+        assertThat(context.getWriteCacheState(1)).containsEntry("account", "write");
+        assertThat(context.getReadCacheState(2)).doesNotContainKey("block");
+        assertThat(context.getWriteCacheState(2)).doesNotContainKey("block");
+    }
+
+    @Test
+    void clearCachesDropsReadsAndWritesFromPreviousCall() {
+        final var context = ContractCallContext.get();
+        context.getReadCacheState(1).put("slot", "read");
+        context.getWriteCacheState(1).put("slot", "write");
+
+        context.clearCaches();
+
+        assertThat(context.getReadCacheState(1)).doesNotContainKey("slot");
+        assertThat(context.getWriteCacheState(1)).doesNotContainKey("slot");
+    }
+
+    @Test
     void applyBlockOverrideNumberIsUsedInContext() {
         final var context = ContractCallContext.get();
         final var override = new BlockOverride();
@@ -145,6 +221,22 @@ class ContractCallContextTest {
         assertThat(context.getBlockOverrideTimeNanos()).isNull();
         assertThat(context.evmBlockNumber(1L)).isEqualTo(256L);
         assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(9L);
+    }
+
+    @Test
+    void applyBlockOverrideNumberAndTimeAreUsedTogether() {
+        final var context = ContractCallContext.get();
+        final var override = new BlockOverride();
+        override.setNumber("0x100");
+        override.setTime("0x65f9e0c0");
+
+        context.applyBlockOverride(override);
+
+        final var expectedNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0);
+        assertThat(context.getBlockOverrideNumber()).isEqualTo(256L);
+        assertThat(context.getBlockOverrideTimeNanos()).isEqualTo(expectedNanos);
+        assertThat(context.evmBlockNumber(1L)).isEqualTo(256L);
+        assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(expectedNanos);
     }
 
     @Test
@@ -160,6 +252,30 @@ class ContractCallContextTest {
         assertThat(context.getBlockOverrideNumber()).isNull();
         assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(expectedNanos);
         assertThat(context.evmBlockNumber(1L)).isEqualTo(1L);
+    }
+
+    @Test
+    void advanceBlockOverrideIncrementsOnlySetFields() {
+        final var context = ContractCallContext.get();
+        final var number = new BlockOverride();
+        number.setNumber("0x100");
+        final var time = new BlockOverride();
+        time.setTime("0x65f9e0c0");
+        final var expectedNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0);
+        final var twoSecondsNanos = DomainUtils.convertToNanosMax(2L, 0L);
+
+        context.applyBlockOverride(number);
+        context.advanceBlockOverride();
+        assertThat(context.getBlockOverrideNumber()).isEqualTo(257L);
+        assertThat(context.getBlockOverrideTimeNanos()).isNull();
+
+        context.applyBlockOverride(time);
+        context.advanceBlockOverride();
+        assertThat(context.getBlockOverrideNumber()).isNull();
+        assertThat(context.getBlockOverrideTimeNanos()).isEqualTo(expectedNanos + twoSecondsNanos);
+
+        context.advanceBlockOverride();
+        assertThat(context.getBlockOverrideTimeNanos()).isEqualTo(expectedNanos + twoSecondsNanos * 2);
     }
 
     @Test

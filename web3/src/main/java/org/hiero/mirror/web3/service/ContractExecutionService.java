@@ -65,6 +65,7 @@ public class ContractExecutionService extends ContractCallService {
                 updateGasLimitMetric(params);
 
                 ctx.applyStateOverrides(params.getStateOverrides());
+                ctx.applyBlockOverride(params.getBlockOverride());
 
                 Bytes result;
                 if (params.isEstimate()) {

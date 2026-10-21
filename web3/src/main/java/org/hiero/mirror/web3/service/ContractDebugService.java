@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.service;
 
+import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID;
+import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
 import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -10,6 +12,8 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
+import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
@@ -23,9 +27,11 @@ import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
-import org.hiero.mirror.web3.service.model.TraceRequest;
+import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
+import org.jspecify.annotations.Nullable;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.validation.annotation.Validated;
 
@@ -34,7 +40,6 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class ContractDebugService extends ContractCallService {
     private final ContractActionRepository contractActionRepository;
-    private final ThrottleManager throttleManager;
 
     @SuppressWarnings("java:S107")
     public ContractDebugService(
@@ -53,7 +58,6 @@ public class ContractDebugService extends ContractCallService {
                 evmProperties,
                 transactionExecutionService);
         this.contractActionRepository = contractActionRepository;
-        this.throttleManager = throttleManager;
     }
 
     public OpcodesProcessingResult processOpcodeCall(
@@ -69,51 +73,80 @@ public class ContractDebugService extends ContractCallService {
                 ethCallTxnResult, params.getReceiver(), ctx.getOpcodeContext().getOpcodes());
     }
 
-    public List<ActionResponse> processTraceCall(final @Valid List<TraceRequest> traceRequests) {
-        if (traceRequests.isEmpty()) {
-            throw new InvalidParametersException("At least one action trace request is required");
-        }
+    public List<ActionResponse> processTraceCall(final @Valid TraceCall traceCall) {
         return ContractCallContext.run(ctx -> {
             ctx.setApi(ACTIONS);
-            final var first = traceRequests.getFirst();
-            ctx.setDeadlineMillis(ctx.getStartTime() + first.getTimeout().toMillis());
+            ctx.setDeadlineMillis(ctx.getStartTime() + traceCall.getTimeout().toMillis());
             final var actionContext = ActionContext.builder().build();
             ctx.setActionContext(actionContext);
+            actionContext.setOnlyTopCall(traceCall.isOnlyTopCall());
+            final var stateOverride = traceCall.getStateOverride();
+            ctx.applyStateOverrides(stateOverride == null ? List.of() : List.of(stateOverride));
 
-            for (int i = 0; i < traceRequests.size(); i++) {
-                final var traceRequest = traceRequests.get(i);
-                actionContext.setOnlyTopCall(traceRequest.isOnlyTopCall());
-                actionContext.beginCall();
-                final var params = traceRequest.getContractExecutionParameters();
-                try {
-                    ctx.applyStateOverrides(params.getStateOverrides());
-                    ctx.applyBlockOverride(traceRequest.getBlockOverride());
-                    callContract(params, ctx);
-                } catch (final QueryTimeoutException e) {
-                    throw new TraceTimeoutException(actionResponse(ctx));
-                } catch (final MirrorEvmTransactionException e) {
+            final var bundles = traceCall.getBundles();
+            for (int bundleIndex = 0; bundleIndex < bundles.size(); bundleIndex++) {
+                final var bundle = bundles.get(bundleIndex);
+                // The first bundle starts clean. Later bundles keep account and storage changes.
+                if (bundleIndex == 0) {
+                    ctx.clearCaches();
+                }
+                applyBundleBlockOverride(ctx, bundle.getBlockOverride());
+                if (bundleIndex > 0) {
+                    // Drop cached block headers so this bundle's number and time are read again.
+                    ctx.evictCachedState(BLOCKS_STATE_ID);
+                    ctx.evictCachedState(BLOCK_STREAM_INFO_STATE_ID);
+                }
+
+                final var transactions = bundle.getTransactions();
+                for (final var transaction : transactions) {
+                    actionContext.beginCall();
+                    try {
+                        callContract(transaction, ctx);
+                    } catch (final QueryTimeoutException _) {
+                        throw new TraceTimeoutException(actionResponse(ctx));
+                    } catch (final MirrorEvmTransactionException e) {
+                        if (actionContext.isTimedOut()) {
+                            throw new TraceTimeoutException(actionResponse(ctx));
+                        }
+                        throw e;
+                    }
                     if (actionContext.isTimedOut()) {
                         throw new TraceTimeoutException(actionResponse(ctx));
                     }
-                    throw e;
-                } catch (final IllegalArgumentException | InvalidParametersException e) {
-                    throttleManager.restore(remainingGas(traceRequests, i));
-                    throw e;
-                }
-                if (actionContext.isTimedOut()) {
-                    throw new TraceTimeoutException(actionResponse(ctx));
                 }
             }
             return actionResponse(ctx);
         });
     }
 
-    private static long remainingGas(final List<TraceRequest> traceRequests, final int fromIndex) {
-        var gas = 0L;
-        for (int i = fromIndex; i < traceRequests.size(); i++) {
-            gas += traceRequests.get(i).getContractExecutionParameters().getGas();
+    /**
+     * A bundle with {@code block_override} applies the fields it sets. An omitted block number keeps the previous
+     * number and increases it by 1. An omitted timestamp keeps the previous timestamp and increases it by 2 seconds. A
+     * later bundle without an override keeps that context and advances both.
+     */
+    private static void applyBundleBlockOverride(
+            final ContractCallContext ctx, final @Nullable BlockOverride override) {
+        if (override == null) {
+            if (ctx.hasBlockOverride()) {
+                ctx.advanceBlockOverride();
+            }
+            return;
         }
-        return gas;
+        final var omittedNumber = StringUtils.isBlank(override.getNumber());
+        final var omittedTime = StringUtils.isBlank(override.getTime());
+        final var previousNumber = ctx.getBlockOverrideNumber();
+        final var previousTime = ctx.getBlockOverrideTimeNanos();
+        ctx.applyBlockOverride(override);
+        try {
+            if (omittedNumber && previousNumber != null) {
+                ctx.setBlockOverrideNumber(Math.addExact(previousNumber, 1L));
+            }
+            if (omittedTime && previousTime != null) {
+                ctx.setBlockOverrideTimeNanos(Math.addExact(previousTime, DomainUtils.convertToNanosMax(2L, 0L)));
+            }
+        } catch (ArithmeticException e) {
+            throw new InvalidParametersException("Invalid block_override: block context overflow");
+        }
     }
 
     private List<ActionResponse> actionResponse(final ContractCallContext ctx) {
