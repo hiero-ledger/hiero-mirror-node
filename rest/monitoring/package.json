@@ -6,10 +6,11 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">=24.21.0 <25"
+    "node": ">=24.22.1 <25"
   },
   "scripts": {
-    "dev": "nodemon --import=extensionless/register server.js",
+    "build": "",
+    "dev": "node --watch --import=extensionless/register server.js",
     "start": "node --import=extensionless/register server.js",
     "test": ""
   },
@@ -25,11 +26,7 @@
     "parse-duration": "2.1.9",
     "pretty-ms": "10.0.0"
   },
-  "devDependencies": {
-    "nodemon": "3.1.14"
-  },
   "overrides": {
-    "brace-expansion": "5.0.12",
     "proxy-addr": "2.0.8"
   },
   "peerDependencies": {
