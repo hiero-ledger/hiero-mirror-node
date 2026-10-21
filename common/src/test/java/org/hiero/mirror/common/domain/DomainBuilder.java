@@ -61,6 +61,7 @@ import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
@@ -309,6 +310,27 @@ public class DomainBuilder {
                 .trustAnchorId(bytes(32))
                 .verifierContractId(entityId())
                 .verifierFingerprint(bytes(32));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprConnector, ClprConnector.ClprConnectorBuilder<?, ?>> clprConnector() {
+        final long timestamp = timestamp();
+        final var builder = ClprConnector.builder()
+                .adminKey(key())
+                .channelId(bytes(32))
+                .connectorContractId(entityId())
+                .connectorId(bytes(32))
+                .createdTimestamp(timestamp)
+                .deleted(false)
+                .inFlightMessageCount(2L)
+                .lockedStake(100_000_000L)
+                .publicKey(bytes(33))
+                .salt(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ClprSignatureScheme.ED25519)
+                .slashCount(0L)
+                .stakeRecipientId(entityId())
+                .timestampRange(Range.atLeast(timestamp));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

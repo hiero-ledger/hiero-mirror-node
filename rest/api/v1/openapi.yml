@@ -544,6 +544,29 @@ paths:
           $ref: "#/components/responses/InvalidParameterError"
       tags:
         - clpr
+  /api/v1/clpr/connectors:
+    get:
+      summary: List CLPR connectors
+      description: Returns a list of CLPR (HIP-1535) connectors across all channels or a single channel, paginated and sorted by creation timestamp.
+      operationId: getClprConnectors
+      parameters:
+        - $ref: "#/components/parameters/clprChannelIdQueryParam"
+        - $ref: "#/components/parameters/clprConnectorIdQueryParam"
+        - $ref: "#/components/parameters/clprDeletedQueryParam"
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamDesc"
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClprConnectorsResponse"
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
+      tags:
+        - clpr
   /api/v1/contracts:
     get:
       summary: List contract entities on network
@@ -2430,6 +2453,73 @@ components:
       type: string
       enum: [ACTIVE, PAUSED, CLOSING, DRAINED, CLOSED]
       example: ACTIVE
+    ClprConnector:
+      type: object
+      required:
+        - channel_id
+        - connector_contract_id
+        - connector_id
+        - created_timestamp
+        - in_flight_message_count
+        - locked_stake
+        - slash_count
+        - timestamp
+      properties:
+        admin_key:
+          $ref: "#/components/schemas/Key"
+        channel_id:
+          allOf:
+            - $ref: "#/components/schemas/ClprHexBytes"
+          description: The 32-byte id of the channel the connector is registered under
+        connector_contract_id:
+          $ref: "#/components/schemas/EntityId"
+        connector_id:
+          allOf:
+            - $ref: "#/components/schemas/ClprHexBytes"
+          description: The 32-byte connector id
+        created_timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        deleted:
+          description: Whether the connector was removed, either deregistered or banned
+          type: [boolean, "null"]
+          example: false
+        in_flight_message_count:
+          type: integer
+          format: int64
+          example: 2
+        locked_stake:
+          description: The stake locked by the connector, in tinybars
+          type: string
+          pattern: '^\d+$'
+          example: "100000000"
+        public_key:
+          $ref: "#/components/schemas/ClprHexBytes"
+        salt:
+          $ref: "#/components/schemas/ClprHexBytes"
+        signature:
+          $ref: "#/components/schemas/ClprHexBytes"
+        signature_scheme:
+          $ref: "#/components/schemas/ClprSignatureScheme"
+        slash_count:
+          type: integer
+          format: int64
+          example: 0
+        stake_recipient_id:
+          $ref: "#/components/schemas/EntityId"
+        timestamp:
+          $ref: "#/components/schemas/TimestampRange"
+    ClprConnectorsResponse:
+      type: object
+      required:
+        - connectors
+        - links
+      properties:
+        connectors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClprConnector"
+        links:
+          $ref: "#/components/schemas/Links"
     ClprEndpoint:
       type: object
       properties:
@@ -5141,6 +5231,22 @@ components:
       schema:
         type: string
         pattern: "^((eq):)?(0x)?[0-9a-fA-F]{64}$"
+    clprConnectorIdQueryParam:
+      name: connector.id
+      description: The 32-byte connector id as a hex string with an optional 0x prefix. Only the eq operator is supported.
+      in: query
+      example: "eq:0x4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c"
+      schema:
+        type: string
+        pattern: "^((eq):)?(0x)?[0-9a-fA-F]{64}$"
+    clprDeletedQueryParam:
+      name: deleted
+      description: Filter connectors by removal status, either deregistered or banned. Omit to return both.
+      in: query
+      example: "eq:false"
+      schema:
+        type: string
+        pattern: "^((eq):)?(true|false)$"
     clprChannelStatusQueryParam:
       name: status
       description: Filter channels by status

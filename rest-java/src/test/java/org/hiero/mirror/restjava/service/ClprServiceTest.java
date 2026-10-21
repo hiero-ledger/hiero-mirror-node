@@ -9,8 +9,10 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
+import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -92,7 +94,7 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     @Test
     void getChannelsTimestampRangeExceedsMax() {
         // given
-        final var maxRange = queryProperties.getMaxClprChannelsTimestampRange().toNanos();
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
         final var request = ClprChannelsRequest.builder()
                 .lowerBound(1L)
                 .upperBound(maxRange + 2)
@@ -107,7 +109,7 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     @Test
     void getChannelsTimestampRangeAtMax() {
         // given
-        final var maxRange = queryProperties.getMaxClprChannelsTimestampRange().toNanos();
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
         final var channel = persist(maxRange, ClprChannelStatus.ACTIVE);
         final var request = ClprChannelsRequest.builder()
                 .lowerBound(1L)
@@ -179,7 +181,7 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     @Test
     void getChannelsByChannelIdIsNotCappedByMaxRange() {
         // given
-        final var maxRange = queryProperties.getMaxClprChannelsTimestampRange().toNanos();
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
         final var channel = persist(maxRange + 10, ClprChannelStatus.ACTIVE);
         final var request = ClprChannelsRequest.builder()
                 .channelId(channel.getChannelId())
@@ -263,7 +265,7 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     @Test
     void getChannelsZeroLowerBoundIsOpenEnded() {
         // given
-        final var maxRange = queryProperties.getMaxClprChannelsTimestampRange().toNanos();
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
         final var channel = persist(maxRange + 10, ClprChannelStatus.ACTIVE);
         final var request = ClprChannelsRequest.builder()
                 .lowerBound(0L)
@@ -277,7 +279,7 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     @Test
     void getChannelsTimestampRangeOneNanosecondOverMax() {
         // given
-        final var maxRange = queryProperties.getMaxClprChannelsTimestampRange().toNanos();
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
         final var request = ClprChannelsRequest.builder()
                 .lowerBound(100L)
                 .upperBound(100L + maxRange + 1)
@@ -287,6 +289,115 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
         assertThatThrownBy(() -> service.getChannels(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must not exceed");
+    }
+
+    @Test
+    void getConnectors() {
+        // given
+        final var connector1 = persistConnector(100L);
+        final var connector2 = persistConnector(200L);
+        final var request = ClprConnectorsRequest.builder().build();
+
+        // when / then
+        assertThat(service.getConnectors(request)).containsExactly(connector2, connector1);
+    }
+
+    @Test
+    void getConnectorsByFilters() {
+        // given
+        final var connector = persistConnector(200L);
+        persistConnector(200L); // other channel and connector
+        final var request = ClprConnectorsRequest.builder()
+                .channelId(connector.getChannelId())
+                .connectorId(connector.getConnectorId())
+                .deleted(false)
+                .lowerBound(200L)
+                .upperBound(200L)
+                .build();
+
+        // when / then
+        assertThat(service.getConnectors(request)).containsExactly(connector);
+    }
+
+    @Test
+    void getConnectorsInvalidTimestampRange() {
+        // given
+        final var request = ClprConnectorsRequest.builder()
+                .lowerBound(300L)
+                .upperBound(200L)
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getConnectors(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid range provided for timestamp");
+    }
+
+    @Test
+    void getConnectorsTimestampRangeExceedsMax() {
+        // given
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
+        final var request = ClprConnectorsRequest.builder()
+                .lowerBound(1L)
+                .upperBound(maxRange + 2)
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getConnectors(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not exceed");
+    }
+
+    @Test
+    void getConnectorsTimestampRangeExceedsMaxWithConnectorIdOnly() {
+        // given
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
+        final var request = ClprConnectorsRequest.builder()
+                .connectorId(new byte[32])
+                .lowerBound(1L)
+                .upperBound(maxRange + 2)
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getConnectors(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not exceed");
+    }
+
+    @Test
+    void getConnectorsTimestampRangeAtMax() {
+        // given
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
+        final var connector = persistConnector(maxRange);
+        final var request = ClprConnectorsRequest.builder()
+                .lowerBound(1L)
+                .upperBound(maxRange + 1)
+                .build();
+
+        // when / then
+        assertThat(service.getConnectors(request)).containsExactly(connector);
+    }
+
+    @Test
+    void getConnectorsByChannelIdIsNotCappedByMaxRange() {
+        // given
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
+        final var connector = persistConnector(maxRange + 10);
+        final var request = ClprConnectorsRequest.builder()
+                .channelId(connector.getChannelId())
+                .lowerBound(1L)
+                .upperBound(maxRange * 2)
+                .build();
+
+        // when / then
+        assertThat(service.getConnectors(request)).containsExactly(connector);
+    }
+
+    private ClprConnector persistConnector(long createdTimestamp) {
+        return domainBuilder
+                .clprConnector()
+                .customize(c -> c.createdTimestamp(createdTimestamp))
+                .persist();
     }
 
     private ClprChannel persist(long createdTimestamp, ClprChannelStatus status) {

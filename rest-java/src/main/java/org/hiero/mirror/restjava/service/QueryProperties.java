@@ -15,7 +15,7 @@ import org.springframework.validation.annotation.Validated;
 public final class QueryProperties {
 
     @DurationMin(nanos = 1)
-    private Duration maxClprChannelsTimestampRange = Duration.ofDays(30);
+    private Duration maxClprTimestampRange = Duration.ofDays(30);
 
     @Min(1)
     private int maxFileAttempts = 12;

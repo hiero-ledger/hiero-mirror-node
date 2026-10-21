@@ -16,6 +16,8 @@ public class Constants {
     // Parameter names
     public static final String ACCOUNT_ID = "account.id";
     public static final String CHANNEL_ID = "channel.id";
+    public static final String CONNECTOR_ID = "connector.id";
+    public static final String DELETED = "deleted";
     public static final String FILE_ID = "file.id";
     public static final String HIGH_VOLUME_THROTTLE = "high_volume_throttle";
     public static final String HOOK_ID = "hook.id";
