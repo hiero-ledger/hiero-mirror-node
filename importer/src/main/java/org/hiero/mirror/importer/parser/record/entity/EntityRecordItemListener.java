@@ -599,8 +599,10 @@ public class EntityRecordItemListener implements RecordItemListener {
 
     private void insertAutomaticTokenAssociations(RecordItem recordItem) {
         if (entityProperties.getPersist().isTokens()) {
-            if (recordItem.getTransactionBody().hasTokenCreation()) {
-                // Automatic token associations for token create transactions are handled by its transaction handler.
+            final var body = recordItem.getTransactionBody();
+            if (body.hasTokenCreation() || body.hasTokenUpdate()) {
+                // Automatic token associations for token create and update transactions are handled by their
+                // transaction handlers.
                 return;
             }
 

@@ -1619,6 +1619,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .balance(0L)
                 .balanceTimestamp(updateTimestamp)
                 .createdTimestamp(tokenCreateRecordItem.getConsensusTimestamp())
+                .freezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE)
+                .kycStatus(TokenKycStatusEnum.NOT_APPLICABLE)
                 .timestampRange(Range.atLeast(tokenCreateRecordItem.getConsensusTimestamp()))
                 .tokenId(tokenId.getId())
                 .build();
@@ -1629,11 +1631,12 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .balance(2L)
                 .balanceTimestamp(updateTimestamp)
                 .createdTimestamp(newTreasuryAssociationTimestamp)
-                .timestampRange(Range.atLeast(newTreasuryAssociationTimestamp))
+                .freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
+                .kycStatus(TokenKycStatusEnum.GRANTED)
+                .timestampRange(Range.atLeast(updateTimestamp))
                 .tokenId(tokenId.getId())
                 .build();
         assertThat(tokenAccountRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("freezeStatus", "kycStatus")
                 .containsExactlyInAnyOrder(tokenAccountOldTreasury, tokenAccountNewTreasury);
     }
 
