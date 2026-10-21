@@ -528,7 +528,8 @@ paths:
       description:
         "Simulates contract calls and returns one call-action tree per transaction, in bundle order. One bundle with
         one transaction maps to debug_traceCall. Multiple bundles, or a bundle with multiple transactions, map to
-        debug_traceCallMany. block, state_override, timeout, and only_top_call apply to the whole request. Each bundle
+        debug_traceCallMany. block, state_override, and timeout apply to the whole request. only_top_call is supported
+        only for debug_traceCall. Each bundle
         has its own transactions and block_override. Transactions share state for the whole request: later bundles
         keep earlier state changes. A bundle with block_override applies the fields it sets. When it omits the block
         number, the previous block number increases by 1. When it omits the timestamp, the previous timestamp increases
@@ -2521,7 +2522,8 @@ components:
       type: object
       description:
         A debug_traceCallMany request. A single bundle containing a single transaction is treated like a debug_traceCall.
-        block, state_override, timeout, and only_top_call apply to every bundle. State changes persist from one bundle
+        block, state_override, and timeout apply to every bundle. only_top_call is supported only for debug_traceCall.
+        State changes persist from one bundle
         to the next. A bundle without block_override continues the previous override with the block number increased
         by 1 and the block timestamp increased by 2 seconds. A block_override that omits the block number keeps the
         previous number and increases it by 1. A block_override that omits the timestamp keeps the previous timestamp
@@ -2542,7 +2544,9 @@ components:
           minItems: 1
           type: array
         only_top_call:
-          description: If true, each result contains only the root top-level call and omits nested actions
+          description:
+            If true, the result contains only the root top-level call and omits nested actions. Supported only when the
+            request is a single bundle with a single transaction.
           type: boolean
           default: false
         state_override:

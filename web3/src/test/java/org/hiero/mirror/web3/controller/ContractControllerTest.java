@@ -487,6 +487,32 @@ final class ContractControllerTest {
     }
 
     @Test
+    void actionsCallRejectsOnlyTopCallForTraceCallMany() throws Exception {
+        enableActionsApi();
+        final var manyBundles = traceRequest();
+        transaction(manyBundles).setValue(0);
+        manyBundles.getBundles().add(bundleOf(transaction()));
+        manyBundles.setOnlyTopCall(true);
+
+        contractActionsCall(manyBundles)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("Top level result is only supported for debug_traceCall.")));
+
+        final var manyTransactions = traceRequest();
+        transaction(manyTransactions).setValue(0);
+        manyTransactions.getBundles().getFirst().getTransactions().add(transaction());
+        manyTransactions.setOnlyTopCall(true);
+
+        contractActionsCall(manyTransactions)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("Top level result is only supported for debug_traceCall.")));
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(endpointThrottle, never()).throttle(any(), anyLong());
+    }
+
+    @Test
     void actionsCallRejectsEstimate() throws Exception {
         enableActionsApi();
         final var request = traceRequest();

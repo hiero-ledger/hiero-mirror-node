@@ -96,6 +96,7 @@ class ContractController {
             }
         }
         validateConsecutiveBlockOverrides(request.getBundles());
+        rejectOnlyTopCallForTraceCallMany(request);
 
         endpointThrottle.throttle(ACTIONS, transactionCount(request));
         return contractDebugService.processTraceCall(toTraceCall(request));
@@ -278,6 +279,17 @@ class ContractController {
         if (transaction.isEstimate()) {
             throw new InvalidParametersException("Estimate is not supported for tracing.");
         }
+    }
+
+    private static void rejectOnlyTopCallForTraceCallMany(final ActionTraceRequest request) {
+        if (request.isOnlyTopCall() && !isTraceCall(request)) {
+            throw new InvalidParametersException("Top level result is only supported for debug_traceCall.");
+        }
+    }
+
+    private static boolean isTraceCall(final ActionTraceRequest request) {
+        final var bundles = request.getBundles();
+        return bundles.size() == 1 && bundles.getFirst().getTransactions().size() == 1;
     }
 
     private void validateContractMaxGasLimit(final ContractCallRequest request) {
