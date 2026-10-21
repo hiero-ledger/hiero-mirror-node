@@ -4,7 +4,6 @@ package org.hiero.mirror.grpc.config;
 
 import io.grpc.netty.NettyServerBuilder;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 import org.hiero.mirror.grpc.GrpcProperties;
 import org.hiero.mirror.grpc.service.AddressBookProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -46,17 +45,7 @@ class GrpcConfiguration {
         final var nettyProperties = grpcProperties.getNetty();
         return serverBuilder -> {
             serverBuilder.executor(applicationTaskExecutor);
-            serverBuilder.keepAliveTime(nettyProperties.getKeepAliveTime().toNanos(), TimeUnit.NANOSECONDS);
-            serverBuilder.keepAliveTimeout(nettyProperties.getKeepAliveTimeout().toNanos(), TimeUnit.NANOSECONDS);
             serverBuilder.maxConcurrentCallsPerConnection(nettyProperties.getMaxConcurrentCallsPerConnection());
-            serverBuilder.maxConnectionAge(nettyProperties.getMaxConnectionAge().toNanos(), TimeUnit.NANOSECONDS);
-            serverBuilder.maxConnectionAgeGrace(
-                    nettyProperties.getMaxConnectionAgeGrace().toNanos(), TimeUnit.NANOSECONDS);
-            serverBuilder.maxConnectionIdle(
-                    nettyProperties.getMaxConnectionIdle().toNanos(), TimeUnit.NANOSECONDS);
-            serverBuilder.permitKeepAliveTime(
-                    nettyProperties.getPermitKeepAliveTime().toNanos(), TimeUnit.NANOSECONDS);
-            serverBuilder.permitKeepAliveWithoutCalls(nettyProperties.isPermitKeepAliveWithoutCalls());
         };
     }
 }
