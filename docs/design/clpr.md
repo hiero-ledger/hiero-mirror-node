@@ -510,7 +510,7 @@ create index if not exists clpr_message__connector_id
     on clpr_message (connector_id, message_id)
     where connector_id is not null;
 
-select create_distributed_table('clpr_messa1ge', 'channel_id', colocate_with => 'clpr_channel');
+select create_distributed_table('clpr_message', 'channel_id', colocate_with => 'clpr_channel');
 
 -- start_from is CLPR's own enablement date, a new constant separate from the
 -- existing partitionStartDate (network genesis) other tables use here.
@@ -1363,10 +1363,9 @@ assumptions it's building on.
    initialization.** We expect each to be emitted as its own synthetic system transaction.
 5. **A documented maximum length for `chain_id`.** Neither `clpr_ledger_configuration.proto` nor
    `clpr_channel.proto` bounds `chain_id`'s length — it's a plain protobuf `string`, constrained only by convention
-   to the CAIP-2 format (`namespace:reference`, well under 50 bytes for any conformant value). `clpr_channel.chain_id`
-   is part of a Postgres btree index, which rejects any insert whose index entry exceeds ~2704 bytes (the standard
-   8KB-page limit) — we'd like the consensus-node team to enforce an explicit maximum length at the protocol level,
-   rather than relying solely on implementations emitting conformant values.
+   to the CAIP-2 format (`namespace:reference`, well under 50 bytes for any conformant value) — we'd like the
+   consensus-node team to enforce an explicit maximum length at the protocol level, rather than relying solely on
+   implementations emitting conformant values.
 
 ## Testing Strategy
 
