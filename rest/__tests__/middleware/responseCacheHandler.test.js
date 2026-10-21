@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {jest} from '@jest/globals';
+import crypto from 'crypto';
 import httpContext from 'express-http-context';
 
 import config from '../../config';
@@ -98,9 +99,24 @@ describe('Response cache middleware', () => {
       expect(otherUserKey).not.toEqual(userKey);
     });
 
+    test.each([`#${userLimitLabel}=500`, '%20500', '#500', '+500'])(
+      'Anonymous URL with forged suffix %s does not collide with authenticated key',
+      (suffix) => {
+        const getSpy = jest.spyOn(httpContext, 'get');
+        getSpy.mockImplementation((key) => (key === userLimitLabel ? 500 : undefined));
+        const userKey = cacheKeyGenerator(mockRequest);
+
+        getSpy.mockReturnValue(undefined);
+        const forgedKey = cacheKeyGenerator({...mockRequest, originalUrl: `${mockRequest.originalUrl}${suffix}`});
+
+        expect(forgedKey).not.toEqual(userKey);
+      }
+    );
+
     test('Anonymous cache key is unchanged', () => {
       jest.spyOn(httpContext, 'get').mockReturnValue(undefined);
-      expect(cacheKeyGenerator(mockRequest)).toEqual(cacheKeyGenerator({...mockRequest}));
+      const expected = crypto.createHash('md5').update(mockRequest.originalUrl).digest('hex') + '-v1';
+      expect(cacheKeyGenerator(mockRequest)).toEqual(expected);
     });
   });
 

@@ -149,12 +149,13 @@ const shouldCompress = (body) => {
  * Current key format:
  *
  *   path?query - In the future, this will utilize Edwin's request normalizer (9113).
- *   path?query#userLimit=N - For authenticated users with a custom limit, since they may receive responses that an
- *   anonymous caller is not allowed to request.
+ *   path?query N - For authenticated users with a custom limit N, since they may receive responses that an
+ *   anonymous caller is not allowed to request. The separator is a literal space, which cannot appear in a
+ *   request-target, so a client cannot forge an authenticated key through the URL.
  */
 const cacheKeyGenerator = (req) => {
   const userLimit = httpContext.get(userLimitLabel);
-  const keySource = userLimit === undefined ? req.originalUrl : `${req.originalUrl}#${userLimitLabel}=${userLimit}`;
+  const keySource = userLimit === undefined ? req.originalUrl : `${req.originalUrl} ${userLimit}`;
   return crypto.createHash('md5').update(keySource).digest('hex') + CACHE_KEY_VERSION_SUFFIX;
 };
 
