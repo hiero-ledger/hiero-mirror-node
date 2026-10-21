@@ -23,7 +23,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @RequiredArgsConstructor
-final class ClprChannelsControllerTest extends ControllerTest {
+final class ClprControllerTest extends ControllerTest {
 
     private final ClprChannelMapper mapper;
 

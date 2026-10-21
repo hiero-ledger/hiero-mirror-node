@@ -17,10 +17,10 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.data.domain.Sort.Direction;
 
 @RequiredArgsConstructor
-final class ClprChannelServiceTest extends RestJavaIntegrationTest {
+final class ClprServiceTest extends RestJavaIntegrationTest {
 
     private final QueryProperties queryProperties;
-    private final ClprChannelService service;
+    private final ClprService service;
 
     @ParameterizedTest
     @EnumSource(Direction.class)

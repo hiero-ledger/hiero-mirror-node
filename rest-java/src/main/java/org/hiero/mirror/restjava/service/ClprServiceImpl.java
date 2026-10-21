@@ -15,7 +15,7 @@ import org.springframework.data.domain.Sort;
 
 @Named
 @RequiredArgsConstructor
-final class ClprChannelServiceImpl implements ClprChannelService {
+final class ClprServiceImpl implements ClprService {
 
     private final QueryProperties queryProperties;
     private final ClprChannelRepository repository;

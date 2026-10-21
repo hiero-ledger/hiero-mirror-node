@@ -25,7 +25,7 @@ import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
 import org.hiero.mirror.restjava.parameter.ClprChannelIdParameter;
 import org.hiero.mirror.restjava.parameter.RangeParameter;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
-import org.hiero.mirror.restjava.service.ClprChannelService;
+import org.hiero.mirror.restjava.service.ClprService;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.PageRequest;
@@ -36,10 +36,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @NullMarked
-@RequestMapping(value = "/api/v1/clpr/channels", produces = APPLICATION_JSON)
+@RequestMapping(value = "/api/v1/clpr", produces = APPLICATION_JSON)
 @RequiredArgsConstructor
 @RestController
-final class ClprChannelsController {
+final class ClprController {
 
     // created_timestamp is the consensus timestamp of the completing transaction, so it's unique per channel and is
     // the sole sort and pagination key
@@ -48,9 +48,9 @@ final class ClprChannelsController {
 
     private final LinkFactory linkFactory;
     private final ClprChannelMapper mapper;
-    private final ClprChannelService service;
+    private final ClprService service;
 
-    @GetMapping
+    @GetMapping("/channels")
     ClprChannelsResponse getChannels(
             @RequestParam(name = CHANNEL_ID, required = false) @Nullable ClprChannelIdParameter channelId,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,

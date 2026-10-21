@@ -6,7 +6,7 @@ import java.util.List;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 
-public interface ClprChannelService {
+public interface ClprService {
 
     List<ClprChannel> getChannels(ClprChannelsRequest request);
 }
