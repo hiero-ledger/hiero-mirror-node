@@ -56,6 +56,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
             cr.amount,
             cr.bloom,
             cr.call_result,
+            cr.child,
             cr.consensus_timestamp,
             cr.contract_id,
             cr.created_contract_ids,
@@ -95,6 +96,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.amount,
         cr.bloom,
         cr.call_result,
+        cr.child,
         cr.consensus_timestamp,
         cr.contract_id,
         cr.created_contract_ids,
@@ -134,6 +136,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.amount,
         cr.bloom,
         cr.call_result,
+        cr.child,
         cr.consensus_timestamp,
         cr.contract_id,
         cr.created_contract_ids,
@@ -174,6 +177,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.amount,
         cr.bloom,
         cr.call_result,
+        cr.child,
         cr.consensus_timestamp,
         cr.contract_id,
         cr.created_contract_ids,
@@ -213,6 +217,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
     const expected = `
       with synth_raw as (
         select distinct on (cl.consensus_timestamp)
+          cl.child,
           cl.consensus_timestamp,
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id
@@ -228,6 +233,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       )
       select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
+        synth_raw.child,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
         null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
@@ -253,6 +259,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
     const expected = `
       with synth_raw as (
         select distinct on (cl.consensus_timestamp)
+          cl.child,
           cl.consensus_timestamp,
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id
@@ -269,6 +276,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       )
       select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
+        synth_raw.child,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
         null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
@@ -561,7 +569,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
     assertSqlQueryEqual(
       query,
       `with entity as (select evm_address, id from entity)
-      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+      select cl.bloom, cl.child, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,
              evm_address
       from contract_log cl
@@ -602,7 +610,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
     assertSqlQueryEqual(
       query,
       `with entity as (select evm_address, id from entity)
-      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+      select cl.bloom, cl.child, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,evm_address
       from contract_log cl
       left join entity e on id = contract_id
@@ -634,7 +642,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
       query,
       `(
         with entity as (select evm_address, id from entity)
-        select cl.bloom,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
+        select cl.bloom,cl.child,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
           cl.topic1,cl.topic2,cl.topic3,cl.transaction_hash,cl.transaction_index,evm_address
         from contract_log cl
         left join entity e on id = contract_id
@@ -643,7 +651,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
         limit $5
       ) union (
         with entity as (select evm_address, id from entity)
-        select cl.bloom,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
+        select cl.bloom,cl.child,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
           cl.topic1,cl.topic2,cl.topic3,cl.transaction_hash,cl.transaction_index,evm_address
         from contract_log cl
         left join entity e on id = contract_id
@@ -686,6 +694,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
+          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -714,6 +723,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
+          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -743,6 +753,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
+          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -1161,6 +1172,20 @@ describe('ContractService.getContractResultsByTimestamps tests', () => {
       expected.map((e) => e.consensusTimestamp)
     );
     expect(pickContractResultFields(contractResults)).toIncludeSameMembers(expected);
+  });
+
+  test('child reflects the persisted contract_result.child column', async () => {
+    await integrationDomainOps.loadContractResults([
+      {
+        consensus_timestamp: 3,
+        contract_id: entityId2.num,
+        payer_account_id: entityId5.num,
+        child: true,
+      },
+    ]);
+
+    const contractResults = await ContractService.getContractResultsByTimestamps(3);
+    expect(contractResults[0].child).toBe(true);
   });
 });
 

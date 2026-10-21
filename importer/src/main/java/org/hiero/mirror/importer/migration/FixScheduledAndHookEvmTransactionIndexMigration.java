@@ -118,7 +118,7 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
     // %s is an OR of the batch's block ranges; one read per batch since each query fans out to every Citus shard
     private static final String SELECT_BLOCK_ROWS_SQL = """
             with t as (
-                select consensus_timestamp, parent_consensus_timestamp, scheduled
+                select consensus_timestamp, nonce, parent_consensus_timestamp, scheduled
                 from transaction
                 where consensus_timestamp between :minTimestamp and :maxTimestamp and (%1$s)
             ), cr as (
@@ -132,6 +132,7 @@ final class FixScheduledAndHookEvmTransactionIndexMigration extends AsyncJavaMig
             )
             select
                 t.consensus_timestamp,
+                t.nonce,
                 t.parent_consensus_timestamp,
                 t.scheduled,
                 cr.consensus_timestamp is not null as has_contract_result,

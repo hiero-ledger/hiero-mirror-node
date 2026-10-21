@@ -20,6 +20,7 @@ class ContractResult {
   static AMOUNT = 'amount';
   static BLOOM = 'bloom';
   static CALL_RESULT = 'call_result';
+  static CHILD = 'child';
   static CONSENSUS_TIMESTAMP = 'consensus_timestamp';
   static CONTRACT_ID = 'contract_id';
   static CREATED_CONTRACT_IDS = 'created_contract_ids';

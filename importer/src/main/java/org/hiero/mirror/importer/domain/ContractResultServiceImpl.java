@@ -119,6 +119,7 @@ final class ContractResultServiceImpl implements ContractResultService {
         var payerAccountId = transaction.getPayerAccountId();
         var contractResult = ContractResult.builder()
                 .callResult(DomainUtils.EMPTY_BYTE_ARRAY)
+                .child(recordItem.isEvmChild())
                 .consensusTimestamp(transaction.getConsensusTimestamp())
                 .contractId(0)
                 .functionParameters(functionParameters)
@@ -254,6 +255,7 @@ final class ContractResultServiceImpl implements ContractResultService {
         var payerAccountId = recordItem.getPayerAccountId();
 
         var contractResult = new ContractResult();
+        contractResult.setChild(recordItem.isEvmChild());
         contractResult.setConsensusTimestamp(recordItem.getConsensusTimestamp());
         contractResult.setContractId(contractEntityId.getId());
         contractResult.setPayerAccountId(payerAccountId);
@@ -315,6 +317,7 @@ final class ContractResultServiceImpl implements ContractResultService {
             var contractId = EntityId.of(contractLogInfo.getContractID());
             var rootContractId = EntityId.of(contractResult.getContractId());
             contractLog.setBloom(DomainUtils.toBytes(contractLogInfo.getBloom()));
+            contractLog.setChild(recordItem.isEvmChild());
             contractLog.setConsensusTimestamp(contractResult.getConsensusTimestamp());
             contractLog.setContractId(contractId);
             contractLog.setData(DomainUtils.toBytes(contractLogInfo.getData()));
