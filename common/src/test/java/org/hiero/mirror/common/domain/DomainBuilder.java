@@ -59,6 +59,11 @@ import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -262,6 +267,48 @@ public class DomainBuilder {
                 .effectivePayerAccountIds(List.of(id(), id()))
                 .payerAccountId(entityId())
                 .tokenId(entityId());
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprChannel, ClprChannel.ClprChannelBuilder<?, ?>> clprChannel() {
+        final long timestamp = timestamp();
+        final var builder = ClprChannel.builder()
+                .ackedMessageId(number())
+                .chainId("eip155:" + number())
+                .channelContext(bytes(32))
+                .channelId(bytes(32))
+                .configProofBytes(bytes(64))
+                .createdTimestamp(timestamp)
+                .endpointManifest(List.of(ClprEndpoint.builder()
+                        .accountId(bytes(8))
+                        .serviceEndpoint(new ClprServiceEndpoint("10.0.0.5", 50211))
+                        .tlsCertificate(bytes(32))
+                        .build()))
+                .endpointManifestProofBytes(bytes(64))
+                .endpointManifestVersion(number())
+                .lastConfigTimestamp(timestamp)
+                .nextMessageId(number())
+                .ownershipCommitment(bytes(32))
+                .peerConfigTimestamp(timestamp)
+                .peerMaxGasPerMessage(15_000_000L)
+                .peerMaxLocalEndpoints(39L)
+                .peerMaxMessagePayloadBytes(8192L)
+                .peerMaxMessagesPerBundle(100L)
+                .peerMaxPeerEndpoints(39L)
+                .peerMaxQueueDepth(1000L)
+                .peerMaxSyncBytes(4_194_304L)
+                .publicKey(bytes(33))
+                .receivedMessageId(number())
+                .receivedRunningHash(bytes(32))
+                .sentRunningHash(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ClprSignatureScheme.ED25519)
+                .status(ClprChannelStatus.ACTIVE)
+                .timestampRange(Range.atLeast(timestamp))
+                .trustAnchor(bytes(32))
+                .trustAnchorId(bytes(32))
+                .verifierContractId(entityId())
+                .verifierFingerprint(bytes(32));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

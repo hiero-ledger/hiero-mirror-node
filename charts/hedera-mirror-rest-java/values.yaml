@@ -55,6 +55,11 @@ gateway:
           name: "{{ include \"hedera-mirror-rest-java.fullname\" $ }}"
           port: 80
       matches: |
+        {{- if .Values.routes.clpr }}
+        - path:
+            type: PathPrefix
+            value: '/api/v1/clpr/'
+        {{- end }}
         {{- if .Values.routes.hooks }}
         - path:
             type: RegularExpression
@@ -121,6 +126,9 @@ ingress:
           condition: '{{ .Values.routes.hooks }}'
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/hooks/(0|[1-9]\d*)/storage'
           condition: '{{ .Values.routes.hooks }}'
+        - path: '/api/v1/clpr/'
+          type: Prefix
+          condition: '{{ .Values.routes.clpr }}'
         - path: '/api/v1/network/'
           type: Prefix
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
@@ -187,6 +195,7 @@ resources:
 revisionHistoryLimit: 3
 
 routes:
+  clpr: false
   hooks: false
 
 securityContext:

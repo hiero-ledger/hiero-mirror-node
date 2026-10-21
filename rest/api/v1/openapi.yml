@@ -522,6 +522,28 @@ paths:
                 $ref: "#/components/schemas/Error"
       tags:
         - contracts
+  /api/v1/clpr/channels:
+    get:
+      summary: List CLPR channels
+      description: Returns a list of CLPR (HIP-1535) channels, paginated and sorted by creation timestamp.
+      operationId: getClprChannels
+      parameters:
+        - $ref: "#/components/parameters/clprChannelIdQueryParam"
+        - $ref: "#/components/parameters/clprChannelStatusQueryParam"
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamDesc"
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClprChannelsResponse"
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
+      tags:
+        - clpr
   /api/v1/contracts:
     get:
       summary: List contract entities on network
@@ -1549,6 +1571,8 @@ tags:
     description: The balance object represents the balance of accounts on the Hedera network.
     externalDocs:
       url: https://docs.hedera.com/guides/docs/mirror-node-api/cryptocurrency-api#balances
+  - name: clpr
+    description: The CLPR objects represent the state of the Cross-Ledger Protocol (HIP-1535), such as channels.
   - name: contracts
     description: The contracts objects represents the information associated with contract entities.The contracts list endpoint is cached and not updated as frequently as the contract lookup by a specific ID endpoint.
   - name: schedules
@@ -2308,6 +2332,177 @@ components:
       example: "0x549358c4c2e573e02410ef7b5a5ffa5f36dd7398"
       format: binary
       type: [string, "null"]
+    ClprChannelsResponse:
+      type: object
+      required:
+        - channels
+        - links
+      properties:
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClprChannel"
+        links:
+          $ref: "#/components/schemas/Links"
+    ClprChannel:
+      type: object
+      required:
+        - acked_message_id
+        - chain_id
+        - channel_id
+        - created_timestamp
+        - endpoint_manifest_version
+        - next_message_id
+        - ownership_commitment
+        - received_message_id
+        - status
+        - timestamp
+      properties:
+        acked_message_id:
+          description: The id of the last outbound message acknowledged by the peer
+          type: integer
+          format: int64
+          example: 47
+        chain_id:
+          description: The identifier of the peer chain
+          type: string
+          example: "eip155:1"
+        channel_context:
+          $ref: "#/components/schemas/ClprHexBytes"
+        channel_id:
+          allOf:
+            - $ref: "#/components/schemas/ClprHexBytes"
+          description: The 32-byte channel id
+        config_proof_bytes:
+          $ref: "#/components/schemas/ClprHexBytes"
+        created_timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        endpoint_manifest:
+          $ref: "#/components/schemas/ClprEndpointManifest"
+        endpoint_manifest_proof_bytes:
+          $ref: "#/components/schemas/ClprHexBytes"
+        endpoint_manifest_version:
+          description: The version of the endpoint manifest
+          type: integer
+          format: int64
+          example: 3
+        last_config_timestamp:
+          $ref: "#/components/schemas/TimestampNullable"
+        next_message_id:
+          description: The id the next outbound message will receive
+          type: integer
+          format: int64
+          example: 48
+        ownership_commitment:
+          $ref: "#/components/schemas/ClprHexBytes"
+        peer_config_timestamp:
+          $ref: "#/components/schemas/TimestampNullable"
+        peer_throttles:
+          $ref: "#/components/schemas/ClprPeerThrottles"
+        public_key:
+          $ref: "#/components/schemas/ClprHexBytes"
+        received_message_id:
+          description: The id of the last inbound message received from the peer
+          type: integer
+          format: int64
+          example: 52
+        received_running_hash:
+          $ref: "#/components/schemas/ClprHexBytes"
+        sent_running_hash:
+          $ref: "#/components/schemas/ClprHexBytes"
+        signature:
+          $ref: "#/components/schemas/ClprHexBytes"
+        signature_scheme:
+          $ref: "#/components/schemas/ClprSignatureScheme"
+        status:
+          $ref: "#/components/schemas/ClprChannelStatus"
+        timestamp:
+          $ref: "#/components/schemas/TimestampRange"
+        trust_anchor:
+          $ref: "#/components/schemas/ClprHexBytes"
+        trust_anchor_id:
+          $ref: "#/components/schemas/ClprHexBytes"
+        verifier_contract_id:
+          $ref: "#/components/schemas/EntityId"
+        verifier_fingerprint:
+          $ref: "#/components/schemas/ClprHexBytes"
+    ClprChannelStatus:
+      type: string
+      enum: [ACTIVE, PAUSED, CLOSING, DRAINED, CLOSED]
+      example: ACTIVE
+    ClprEndpoint:
+      type: object
+      properties:
+        account_id:
+          $ref: "#/components/schemas/ClprHexBytes"
+        service_endpoint:
+          $ref: "#/components/schemas/ClprServiceEndpoint"
+        tls_certificate:
+          $ref: "#/components/schemas/ClprHexBytes"
+    ClprEndpointManifest:
+      type: object
+      required:
+        - endpoints
+        - version
+      properties:
+        endpoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClprEndpoint"
+        version:
+          type: integer
+          format: int64
+          example: 3
+    ClprHexBytes:
+      description: A hex encoded byte array with a 0x prefix
+      type: [string, "null"]
+      example: "0x1a2b3c"
+      pattern: "^0x[0-9a-fA-F]*$"
+    ClprPeerThrottles:
+      type: object
+      properties:
+        max_gas_per_message:
+          type: [integer, "null"]
+          format: int64
+          example: 15000000
+        max_local_endpoints:
+          type: [integer, "null"]
+          format: int64
+          example: 39
+        max_message_payload_bytes:
+          type: [integer, "null"]
+          format: int64
+          example: 8192
+        max_messages_per_bundle:
+          type: [integer, "null"]
+          format: int64
+          example: 100
+        max_peer_endpoints:
+          type: [integer, "null"]
+          format: int64
+          example: 39
+        max_queue_depth:
+          type: [integer, "null"]
+          format: int64
+          example: 1000
+        max_sync_bytes:
+          type: [integer, "null"]
+          format: int64
+          example: 4194304
+    ClprServiceEndpoint:
+      type: object
+      properties:
+        ip_address:
+          type: string
+          example: 10.0.0.5
+        port:
+          type: integer
+          format: int32
+          example: 50211
+    ClprSignatureScheme:
+      type: string
+      enum: [ECDSA_SECP256K1, ED25519]
+      example: ED25519
     ChunkInfo:
       type: [object, "null"]
       properties:
@@ -4938,6 +5133,21 @@ components:
       schema:
         type: boolean
         default: false
+    clprChannelIdQueryParam:
+      name: channel.id
+      description: The 32-byte channel id as a hex string with an optional 0x prefix. Only the eq operator is supported.
+      in: query
+      example: "eq:0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809"
+      schema:
+        type: string
+        pattern: "^((eq):)?(0x)?[0-9a-fA-F]{64}$"
+    clprChannelStatusQueryParam:
+      name: status
+      description: Filter channels by status
+      in: query
+      example: ACTIVE
+      schema:
+        $ref: "#/components/schemas/ClprChannelStatus"
     contractIdQueryParam:
       name: contract.id
       description: The ID of the smart contract
