@@ -27,6 +27,8 @@ import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.service.AddressBookProperties;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.grpc.client.ImportGrpcClients;
 
 @ImportGrpcClients(types = NetworkServiceGrpc.NetworkServiceBlockingStub.class)
@@ -84,8 +86,9 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .isEqualTo(Status.Code.INVALID_ARGUMENT);
     }
 
-    @Test
-    void getNodesZeroLimitUsesMax() {
+    @ParameterizedTest
+    @ValueSource(ints = {0, 50})
+    void getNodesLimitClampedToMax(final int limit) {
         final int originalMaxLimit = addressBookProperties.getMaxLimit();
         addressBookProperties.setMaxLimit(1);
         try {
@@ -94,30 +97,7 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
             addressBookEntry();
             final var query = AddressBookQuery.newBuilder()
                     .setFileId(addressBook.getFileId().toFileID())
-                    .setLimit(0)
-                    .build();
-
-            final var responseIterator = blockingService.getNodes(query);
-            List<NodeAddress> nodes = new ArrayList<>();
-            responseIterator.forEachRemaining(nodes::add);
-
-            assertThat(nodes).hasSize(1).satisfies(n -> assertEntry(addressBookEntry1, n.get(0)));
-        } finally {
-            addressBookProperties.setMaxLimit(originalMaxLimit);
-        }
-    }
-
-    @Test
-    void getNodesLimitClampedToMax() {
-        final int originalMaxLimit = addressBookProperties.getMaxLimit();
-        addressBookProperties.setMaxLimit(1);
-        try {
-            final var addressBook = addressBook();
-            final var addressBookEntry1 = addressBookEntry();
-            addressBookEntry();
-            final var query = AddressBookQuery.newBuilder()
-                    .setFileId(addressBook.getFileId().toFileID())
-                    .setLimit(50)
+                    .setLimit(limit)
                     .build();
 
             final var responseIterator = blockingService.getNodes(query);

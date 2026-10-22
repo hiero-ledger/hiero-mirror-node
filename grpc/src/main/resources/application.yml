@@ -82,8 +82,8 @@ spring:
       keep-alive:
         connection:
           grace-period: 30s
-          max-age: 500d
-          max-idle-time: 10m
+          max-age: 1d
+          max-idle-time: 1m
         permit:
           time: 90s
           without-calls: false

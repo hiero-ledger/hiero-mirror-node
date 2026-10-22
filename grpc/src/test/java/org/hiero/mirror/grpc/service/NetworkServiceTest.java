@@ -8,6 +8,7 @@ import static org.hiero.mirror.grpc.service.NetworkServiceImpl.INVALID_FILE_ID;
 
 import jakarta.validation.ConstraintViolationException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
@@ -152,6 +153,23 @@ class NetworkServiceTest extends GrpcIntegrationTest {
                 .build();
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
+    }
+
+    @Test
+    void limitSpansMultiplePages() {
+        addressBookProperties.setPageDelay(Duration.ofMillis(10L));
+        addressBookProperties.setPageSize(2);
+        final var addressBook = addressBook();
+        final var entries = new ArrayList<AddressBookEntry>();
+        for (int i = 0; i < 7; i++) {
+            entries.add(addressBookEntry());
+        }
+        final var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(5)
+                .build();
+
+        assertThat(getNodes(filter)).containsExactlyElementsOf(entries.subList(0, 5));
     }
 
     @Test
