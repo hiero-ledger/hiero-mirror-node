@@ -421,7 +421,7 @@ create table if not exists clpr_message
     reply_status           clpr_message_reply_status,
     channel_id             bytea                       not null,
     connector_id           bytea,
-    control_configuration  jsonb,
+    control_message        jsonb,
     message_data           bytea,
     running_hash           bytea                       not null,
     sender                 bytea,
@@ -487,7 +487,7 @@ create table if not exists clpr_message
     reply_status           clpr_message_reply_status,
     channel_id             bytea                       not null,
     connector_id           bytea,
-    control_configuration  jsonb,
+    control_message        jsonb,
     message_data           bytea,
     running_hash           bytea                       not null,
     sender                 bytea,
@@ -521,8 +521,9 @@ application sent) and `ClprMessageReply.message_reply_data` (what the destinatio
 distinct wire fields serving the same role in opposite directions — never both populated for the same row, since a
 row is exactly one of Data, Response, or Control. `message_data` holds whichever one applies, keyed off
 `message_type`; it's `null` for Control rows, which carry no application payload. Control rows instead populate
-`control_configuration` — the `ClprLedgerConfiguration` propagated via that row's `ClprConfigUpdate`, stored as
-`jsonb` as with `clpr_channel.endpoint_manifest` — `null` for Data and Response rows.
+`control_message` — the complete `ClprControlMessage` (its `payload` oneof included, not just
+`config_update.configuration`, so future oneof variants need no schema change), stored as `jsonb` as with
+`clpr_channel.endpoint_manifest` — `null` for Data and Response rows.
 
 **Every `clpr_message` Response row is one this ledger generated, answering inbound Data — never one confirming
 this ledger's own outbound Data.** Per HIP-1535 §6.4, the sending ledger retains a sent Data message until a
@@ -907,20 +908,20 @@ public class ClprMessage implements Persistable<ClprMessage.Id> {
 `ClprSubmitBundleTransformer`, for rows this ledger generates — never for a reply confirming this ledger's own
 outbound Data, which produces no row at all (see [Database Schema Design](#database-schema-design)).
 
-| Field                           | Access path                                                                                                                  | Notes                                                                                                           |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `channel_id`                    | `ClprMessageKey.channel_id`                                                                                                  |                                                                                                                 |
-| `message_id`                    | `ClprMessageKey.message_id`                                                                                                  |                                                                                                                 |
-| `consensus_timestamp`           | Derived (consensus timestamp)                                                                                                |                                                                                                                 |
-| `running_hash`                  | `ClprMessageValue.running_hash_after_processing`                                                                             |                                                                                                                 |
-| `message_type`                  | `ClprMessageValue.payload` oneof case: `message`→DATA, `message_reply`→RESPONSE, `control`→CONTROL; not itself a proto field |                                                                                                                 |
-| `connector_id`                  | `ClprMessage.connector_id`                                                                                                   | DATA rows only (also pending on generated RESPONSE rows, see [Database Schema Design](#database-schema-design)) |
-| `sender`                        | `ClprMessage.sender`                                                                                                         | DATA rows only                                                                                                  |
-| `target_application`            | `ClprMessage.target_application`                                                                                             | DATA rows only                                                                                                  |
-| `message_data`                  | `ClprMessage.message_data` or `ClprMessageReply.message_reply_data`                                                          | DATA and generated-RESPONSE rows                                                                                |
-| `reply_to_message_id`           | `ClprMessageReply.message_id`                                                                                                | generated-RESPONSE rows only                                                                                    |
-| `reply_status`                  | `ClprMessageReply.status`                                                                                                    | generated-RESPONSE rows only                                                                                    |
-| `control_configuration` (jsonb) | `ClprControlMessage.config_update.configuration`                                                                             | CONTROL rows only, when a config update is present                                                              |
+| Field                     | Access path                                                                                                                  | Notes                                                                                                           |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `channel_id`              | `ClprMessageKey.channel_id`                                                                                                  |                                                                                                                 |
+| `message_id`              | `ClprMessageKey.message_id`                                                                                                  |                                                                                                                 |
+| `consensus_timestamp`     | Derived (consensus timestamp)                                                                                                |                                                                                                                 |
+| `running_hash`            | `ClprMessageValue.running_hash_after_processing`                                                                             |                                                                                                                 |
+| `message_type`            | `ClprMessageValue.payload` oneof case: `message`→DATA, `message_reply`→RESPONSE, `control`→CONTROL; not itself a proto field |                                                                                                                 |
+| `connector_id`            | `ClprMessage.connector_id`                                                                                                   | DATA rows only (also pending on generated RESPONSE rows, see [Database Schema Design](#database-schema-design)) |
+| `sender`                  | `ClprMessage.sender`                                                                                                         | DATA rows only                                                                                                  |
+| `target_application`      | `ClprMessage.target_application`                                                                                             | DATA rows only                                                                                                  |
+| `message_data`            | `ClprMessage.message_data` or `ClprMessageReply.message_reply_data`                                                          | DATA and generated-RESPONSE rows                                                                                |
+| `reply_to_message_id`     | `ClprMessageReply.message_id`                                                                                                | generated-RESPONSE rows only                                                                                    |
+| `reply_status`            | `ClprMessageReply.status`                                                                                                    | generated-RESPONSE rows only                                                                                    |
+| `control_message` (jsonb) | `ClprControlMessage` (complete, including its `payload` oneof)                                                               | CONTROL rows only                                                                                               |
 
 ### 2. Transaction Handlers
 
