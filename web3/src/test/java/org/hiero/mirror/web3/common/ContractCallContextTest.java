@@ -342,4 +342,67 @@ class ContractCallContextTest {
                 .isInstanceOf(InvalidParametersException.class)
                 .hasMessage("Trace state cache exceeded the configured limit");
     }
+
+    @Test
+    void writeCacheInsertFailsAboveTheCeiling() {
+        final var context = ContractCallContext.get();
+        final var cache = context.getWriteCacheState(1);
+        for (int i = 0; i < ContractCallContext.MAX_CACHE_ENTRIES; i++) {
+            cache.put(i, i);
+        }
+
+        assertThatThrownBy(() -> cache.put("overflow", "value"))
+                .isInstanceOf(InvalidParametersException.class)
+                .hasMessage("Trace state cache exceeded the configured limit");
+        cache.put(0, "replaced");
+
+        final var snapshot = context.captureCaches();
+        assertThat(cache).containsKey(1);
+        assertThat(cache.remove(1)).isEqualTo(1);
+        cache.put("during-call", "value");
+        context.restoreCaches(snapshot);
+        final var restored = context.getWriteCacheState(1);
+        restored.put(0, "still-there");
+        assertThat(restored).containsEntry(0, "still-there").doesNotContainKey("during-call");
+        assertThatThrownBy(() -> context.getReadCacheState(2).put("extra", "value"))
+                .isInstanceOf(InvalidParametersException.class)
+                .hasMessage("Trace state cache exceeded the configured limit");
+    }
+
+    @Test
+    void restoreCachesDropsWritesFromTheRevertedCall() {
+        final var context = ContractCallContext.get();
+        context.getWriteCacheState(1).put("slot", "first");
+        context.getReadCacheState(1).put("slot", "read");
+        final var snapshot = context.captureCaches();
+
+        context.getWriteCacheState(1).put("slot", "second");
+        context.getWriteCacheState(1).put("other", "new");
+        context.getReadCacheState(1).put("slot", "changed");
+
+        context.restoreCaches(snapshot);
+
+        assertThat(context.getWriteCacheState(1)).containsEntry("slot", "first").doesNotContainKey("other");
+        assertThat(context.getReadCacheState(1)).containsEntry("slot", "read");
+    }
+
+    @Test
+    void retainDroppedWritesKeepsTombstonesAndRestoresResetKeys() {
+        final var context = ContractCallContext.get();
+        context.getWriteCacheState(1).put("kept", "value");
+        context.getWriteCacheState(1).put("deleted", "old");
+        final var snapshot = context.captureCaches();
+
+        final var live = context.getWriteCacheState(1);
+        live.clear();
+        live.put("deleted", null);
+        live.put("added", "new");
+
+        context.retainDroppedWrites(snapshot);
+
+        assertThat(live)
+                .containsEntry("kept", "value")
+                .containsEntry("deleted", null)
+                .containsEntry("added", "new");
+    }
 }

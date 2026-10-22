@@ -7,7 +7,9 @@ import static org.hiero.mirror.web3.utils.HexUtils.convertLongToHexString;
 import static org.hiero.mirror.web3.utils.HexUtils.convertValueToHexString;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_EXECUTING;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_SUSPENDED;
+import static org.hyperledger.besu.evm.frame.MessageFrame.State.COMPLETED_FAILED;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.EXCEPTIONAL_HALT;
+import static org.hyperledger.besu.evm.frame.MessageFrame.State.REVERT;
 import static org.hyperledger.besu.evm.frame.MessageFrame.Type.CONTRACT_CREATION;
 
 import com.hedera.hapi.streams.CallOperationType;
@@ -35,6 +37,7 @@ import org.jspecify.annotations.Nullable;
 @NullMarked
 public class ActionTracer implements ActionSidecarContentTracer {
 
+    private static final String EXECUTION_REVERTED = "execution reverted";
     private static final String OPCODE_PREFIX = "OP_";
 
     static final ExceptionalHaltReason TIMEOUT_HALT_REASON = new ExceptionalHaltReason() {
@@ -153,20 +156,21 @@ public class ActionTracer implements ActionSidecarContentTracer {
         if (action == null) {
             return;
         }
-        final var gasUsed = Math.max(0L, convertHexStringToLong(action.getGas()) - frame.getRemainingGas());
+        final var reverted = frame.getState() == REVERT;
         actionContext.finalizeAction(
                 frame.getDepth(),
-                haltError(frame),
-                convertLongToHexString(gasUsed),
-                frame.getOutputData().toHexString(),
-                revertReason(frame));
+                reverted ? EXECUTION_REVERTED : haltError(frame),
+                gasUsedHex(frame, action.getGas()),
+                reverted ? null : actionContext.hexWithinBudget(frame.getOutputData()),
+                revertReason(actionContext, frame));
     }
 
     private ActionResponse buildActionResponse(final MessageFrame frame, final TypeEnum type) {
+        final var actionContext = actionContext();
         return new ActionResponse()
                 .from(frame.getSenderAddress().toHexString())
                 .gas(convertLongToHexString(frame.getRemainingGas()))
-                .input(frame.getInputData().toHexString())
+                .input(actionContext == null ? null : actionContext.hexWithinBudget(frame.getInputData()))
                 .to(frame.getRecipientAddress().toHexString())
                 .type(type)
                 .value(convertValueToHexString(frame.getValue()))
@@ -199,6 +203,14 @@ public class ActionTracer implements ActionSidecarContentTracer {
         actionContext.setTimedOut(true);
         frame.setState(EXCEPTIONAL_HALT);
         frame.setExceptionalHaltReason(Optional.of(TIMEOUT_HALT_REASON));
+        // The executor can return without a later finalize callback once the frame is halted.
+        final var action = actionContext.getCurrentAction(frame.getDepth());
+        if (action != null && !ActionContext.TRUNCATED_ERROR.equals(action.getError())) {
+            action.error(TIMEOUT_HALT_REASON.toString());
+            if (action.getGasUsed() == null && action.getGas() != null) {
+                action.gasUsed(gasUsedHex(frame, action.getGas()));
+            }
+        }
     }
 
     private @Nullable ActionContext actionContext() {
@@ -213,19 +225,52 @@ public class ActionTracer implements ActionSidecarContentTracer {
         }
     }
 
-    private @Nullable String haltError(final MessageFrame frame) {
-        final var halt = frame.getExceptionalHaltReason().orElse(null);
-        if (halt == null || halt == ExceptionalHaltReason.NONE) {
-            return null;
+    /**
+     * Gas burned by this frame, clamped to the gas recorded when the frame was entered. An exceptional halt consumes
+     * the whole frame. A timeout reports only the gas used before the deadline. A revert keeps gas consumed so far.
+     */
+    private String gasUsedHex(final MessageFrame frame, final @Nullable String gasHex) {
+        final long gas = convertHexStringToLong(gasHex);
+        if (burnsFrameGas(frame)) {
+            return convertLongToHexString(gas);
         }
-        return halt.toString();
+        final long remaining = Math.max(0L, frame.getRemainingGas());
+        final long used = Math.min(gas, Math.max(0L, gas - remaining));
+        return convertLongToHexString(used);
     }
 
-    private @Nullable String revertReason(final MessageFrame frame) {
+    private boolean burnsFrameGas(final MessageFrame frame) {
+        final var actionContext = actionContext();
+        if (actionContext != null && actionContext.isTimedOut()) {
+            return false;
+        }
+        final var halt = frame.getExceptionalHaltReason().orElse(null);
+        if (halt == TIMEOUT_HALT_REASON) {
+            return false;
+        }
+        final var state = frame.getState();
+        return state == EXCEPTIONAL_HALT || state == COMPLETED_FAILED;
+    }
+
+    private @Nullable String haltError(final MessageFrame frame) {
+        final var halt = frame.getExceptionalHaltReason().orElse(null);
+        if (halt != null && halt != ExceptionalHaltReason.NONE) {
+            return halt.toString();
+        }
+        // Besu can clear the halt reason before the frame is finalized. The timeout flag is the record that this
+        // call was stopped because the trace deadline passed.
+        final var actionContext = actionContext();
+        if (actionContext != null && actionContext.isTimedOut()) {
+            return TIMEOUT_HALT_REASON.toString();
+        }
+        return null;
+    }
+
+    private @Nullable String revertReason(final ActionContext actionContext, final MessageFrame frame) {
         final var reason = frame.getRevertReason().orElse(null);
         if (reason == null || reason.isEmpty()) {
             return null;
         }
-        return reason.toHexString();
+        return actionContext.hexWithinBudget(reason);
     }
 }

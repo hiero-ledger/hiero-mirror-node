@@ -251,12 +251,11 @@ public class TransactionExecutionService {
     }
 
     private Instant getConsensusTimeFromContext() {
-        final var ctx = ContractCallContext.get();
-        final var overrideNanos = ctx.getBlockOverrideTimeNanos();
-        if (overrideNanos != null) {
-            return Utils.convertToInstant(overrideNanos);
-        }
-        return ctx.getTimestamp().map(Utils::convertToInstant).orElseGet(Instant::now);
+        // block_override.time changes only the EVM block header. Entity expiry and state reads follow this instant.
+        return ContractCallContext.get()
+                .getTimestamp()
+                .map(Utils::convertToInstant)
+                .orElseGet(Instant::now);
     }
 
     private TransactionBody buildEthereumTransactionBody(

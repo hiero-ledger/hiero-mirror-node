@@ -438,6 +438,23 @@ final class ContractControllerTest {
     }
 
     @Test
+    void actionsCallDoesNotThrottleWhenTraceValidationFails() throws Exception {
+        enableActionsApi();
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        request.setTransactionIndex(99);
+        doThrow(new InvalidParametersException("transaction_index exceeds the number of transactions in the block"))
+                .when(contractDebugService)
+                .validateTrace(any());
+
+        contractActionsCall(request).andExpect(status().isBadRequest());
+
+        verify(throttleManager, never()).throttle(any());
+        verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
     void actionsCallRestoresThrottleOnInvalidParameters() throws Exception {
         enableActionsApi();
         clearInvocations(throttleManager);
@@ -658,6 +675,20 @@ final class ContractControllerTest {
             }
             return true;
         }));
+    }
+
+    @Test
+    void actionsCallEvmRevertReturnsOkWithRevertPayload() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var reverted =
+                new ActionResponse().from("0x01").to("0x02").error("REVERT").revertReason("0x08c379a0");
+        given(contractDebugService.processTraceCall(any())).willReturn(List.of(reverted));
+
+        contractActionsCall(request)
+                .andExpect(status().isOk())
+                .andExpect(content().string(convert(List.of(reverted))));
     }
 
     @Test

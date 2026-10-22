@@ -532,8 +532,11 @@ paths:
         only_top_call applies to every transaction. When true, each transaction returns only its root call and omits
         nested actions. Each bundle has its own transactions and block_override.
         Transactions share state for the whole request: later bundles keep earlier state changes. The request state
-        override stays in place. estimate is rejected. Requires Accept-Encoding gzip. A transaction failure returns
-        400. A client timeout returns 408 with any actions collected so far."
+        override stays in place. estimate is rejected. Requires Accept-Encoding gzip. An EVM revert is returned in the
+        200 trace, with error set to 'execution reverted', revert_reason set to the revert payload, and output empty.
+        Later transactions still run. HTTP 400 is returned for
+        validation and for pre-checks that never reach the EVM, such as a missing sender; that response discards the
+        body. A client timeout returns 408 with any actions collected so far."
       operationId: contractActionsCall
       parameters:
         - name: Accept-Encoding
@@ -2506,12 +2509,11 @@ components:
         block_override:
           description: >-
             EVM block context override for every transaction in this bundle. Requires block overrides to be enabled.
-            number and time may both be set. A bundle with block_override applies the fields it sets. When it omits
-            the block number, the previous block number is kept and increased by 1. When it omits the timestamp, the
-            previous timestamp is kept and increased by 2 seconds. A later bundle without block_override keeps that
-            context and advances it: the block number increases by 1 and the block timestamp increases by 2 seconds.
-            A field the previous override did not set stays unset. An explicit block_override cannot set an older
-            block number or timestamp than the previous bundle.
+            number and time may both be set. The first bundle uses the bound record file's block number and
+            consensus start when a field is omitted, without incrementing those values. Each later bundle keeps the
+            previous header and advances an omitted block number by 1 and an omitted timestamp by 2 seconds. A later
+            bundle without block_override advances both. An explicit block_override cannot set an older block number
+            or timestamp than the previous bundle. The first bundle's explicit values are not compared to the chain head.
           $ref: "#/components/schemas/BlockOverride"
         transactions:
           description: Contract calls to simulate in this bundle
@@ -2550,9 +2552,12 @@ components:
           default: false
         transaction_index:
           description:
-            Position of a transaction in block, ordered by consensus timestamp ascending. 0 starts the simulation at
-            the beginning of the block, before its first transaction. A positive value of N reads state at the
-            consensus timestamp of the Nth transaction. Every bundle and transaction in the request reads that same
+            Position of a top-level ContractCall, ContractCreate, or EthereumTransaction in the block, ordered by
+            consensus timestamp ascending. A scheduled execution of those types is included, including one whose
+            consensus timestamp is after the block's consensus end but still inside the scheduled consensus window.
+            Child rows, duplicate transactions, and every other transaction type are skipped. 0 starts the simulation at
+            the beginning of the block, before its first such transaction. A positive value of N reads state at the
+            consensus timestamp of the Nth such transaction. Every bundle and transaction in the request reads that same
             timestamp. block_override.time changes only the EVM block header. -1, or omitting the field, starts the
             simulation after every transaction in the block. A past block uses that record file's consensus end.
             latest reads current state. A value less than -1, or greater than the number of transactions in the

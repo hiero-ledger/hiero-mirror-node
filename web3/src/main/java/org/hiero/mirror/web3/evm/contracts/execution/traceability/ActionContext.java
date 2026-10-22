@@ -13,6 +13,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -157,7 +158,7 @@ public class ActionContext {
             final int depth,
             final @Nullable String error,
             final String gasUsed,
-            final String output,
+            final @Nullable String output,
             final @Nullable String revertReason) {
         final var action = getCurrentAction(depth);
         if (action == null) {
@@ -172,6 +173,22 @@ public class ActionContext {
             return;
         }
         action.error(error).gasUsed(gasUsed).output(output).revertReason(revertReason);
+    }
+
+    /**
+     * Hex-encodes {@code bytes} when {@code 0x} plus the hex digits fit in the remaining retained-byte budget.
+     * Otherwise marks the trace truncated and returns null without allocating the hex string.
+     */
+    public @Nullable String hexWithinBudget(final @Nullable Bytes bytes) {
+        if (bytes == null) {
+            return null;
+        }
+        final long encoded = 2L * bytes.size() + 2L;
+        if (encoded > Integer.MAX_VALUE || (long) retainedBytes + encoded > MAX_RETAINED_BYTES) {
+            markTruncated();
+            return null;
+        }
+        return bytes.toHexString();
     }
 
     /**
@@ -232,17 +249,15 @@ public class ActionContext {
             return;
         }
         truncated = true;
-        final ActionResponse marker;
         if (lastAction != null) {
-            marker = lastAction;
-        } else if (actionResponses.isEmpty()) {
-            marker = null;
-        } else {
-            marker = actionResponses.getLast();
+            lastAction.error(TRUNCATED_ERROR);
+            return;
         }
-        if (marker != null) {
-            marker.error(TRUNCATED_ERROR);
-        }
+        // This transaction has no action yet. Do not rewrite the previous transaction's last action.
+        final var marker = new ActionResponse().error(TRUNCATED_ERROR).calls(new ArrayList<>());
+        actionResponses.add(marker);
+        lastAction = marker;
+        getActionsByDepth(0).add(marker);
     }
 
     private static int textLength(final @Nullable String value) {

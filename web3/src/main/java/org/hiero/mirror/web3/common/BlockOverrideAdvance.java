@@ -16,6 +16,21 @@ public final class BlockOverrideAdvance {
     private BlockOverrideAdvance() {}
 
     /**
+     * Header for the first bundle. Omitted fields take the bound record file's block number and timestamp. They are
+     * not incremented, and an explicit value is not compared to the chain head.
+     *
+     * @param recordNumber       block number of the record file the trace is bound to
+     * @param recordTimeSeconds  that record file's consensus start, in seconds
+     * @param override           this bundle's override, or null when the bundle omits one
+     */
+    public static Cursor first(
+            final long recordNumber, final long recordTimeSeconds, final @Nullable BlockOverride override) {
+        final var number = override == null ? null : parse(override.getNumber(), "number");
+        final var time = override == null ? null : parse(override.getTime(), "time");
+        return new Cursor(number != null ? number : recordNumber, time != null ? time : recordTimeSeconds);
+    }
+
+    /**
      * @param previousNumber       block number left by the previous bundle, or null when unset
      * @param previousTimeSeconds  block timestamp in seconds left by the previous bundle, or null when unset
      * @param override             this bundle's override, or null when the bundle omits one

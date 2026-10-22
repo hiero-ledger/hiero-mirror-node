@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_EXECUTING;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_SUSPENDED;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.COMPLETED_SUCCESS;
+import static org.hyperledger.besu.evm.frame.MessageFrame.State.EXCEPTIONAL_HALT;
+import static org.hyperledger.besu.evm.frame.MessageFrame.State.REVERT;
 import static org.hyperledger.besu.evm.frame.MessageFrame.Type.CONTRACT_CREATION;
 import static org.hyperledger.besu.evm.frame.MessageFrame.Type.MESSAGE_CALL;
 import static org.mockito.ArgumentMatchers.any;
@@ -27,6 +29,7 @@ import org.hiero.mirror.web3.utils.HexUtils;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.EVM;
+import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.AbstractOperation;
 import org.hyperledger.besu.evm.operation.Operation;
@@ -507,12 +510,107 @@ class ActionTracerTest {
     }
 
     @Test
+    void omitsPayloadsThatExceedTheRetainedByteBudget() {
+        actionContext.addAction(new ActionResponse().input("a".repeat(ActionContext.MAX_RETAINED_BYTES - 4)), 0);
+        final var previous = actionContext.getActions().getFirst();
+        actionContext.beginCall();
+
+        givenOriginFrameData();
+        given(messageFrame.getInputData()).willReturn(Bytes.of((byte) 1));
+        actionTracer.traceOriginAction(messageFrame);
+
+        given(messageFrame.getDepth()).willReturn(0);
+        givenCompletedFrameData(messageFrame, REMAINING_GAS, Bytes.of((byte) 2));
+        given(messageFrame.getRevertReason()).willReturn(Optional.of(Bytes.of((byte) 3)));
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        assertThat(previous.getError()).isNull();
+        final var current = actionContext.getActions().getLast();
+        assertThat(current).isNotSameAs(previous);
+        assertThat(current.getInput()).isEqualTo("0x01");
+        assertThat(current.getOutput()).isNull();
+        assertThat(current.getRevertReason()).isNull();
+        assertThat(current.getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+    }
+
+    @Test
     void contractActionsIsEmpty() {
         // When
         final var result = actionTracer.contractActions();
 
         // Then
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void recordsRevertWithoutReturningThePayloadAsOutput() {
+        givenOriginFrameData();
+        actionTracer.traceOriginAction(messageFrame);
+        given(messageFrame.getState()).willReturn(REVERT);
+        given(messageFrame.getDepth()).willReturn(0);
+        given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.empty());
+        given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
+        given(messageFrame.getRevertReason()).willReturn(Optional.of(Bytes.fromHexString("0x08c379a0")));
+
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        final var action = actionContext.getActions().getFirst();
+        assertThat(action.getError()).isEqualTo("execution reverted");
+        assertThat(action.getRevertReason()).isEqualTo("0x08c379a0");
+        assertThat(action.getOutput()).isNull();
+        assertThat(action.getGasUsed()).isEqualTo(HexUtils.convertLongToHexString(INITIAL_GAS - REMAINING_GAS));
+    }
+
+    @Test
+    void burnsFrameGasOnExceptionalHalt() {
+        givenOriginFrameData();
+        actionTracer.traceOriginAction(messageFrame);
+        given(messageFrame.getState()).willReturn(EXCEPTIONAL_HALT);
+        given(messageFrame.getDepth()).willReturn(0);
+        given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.of(ExceptionalHaltReason.INSUFFICIENT_GAS));
+        given(messageFrame.getOutputData()).willReturn(Bytes.EMPTY);
+        given(messageFrame.getRevertReason()).willReturn(Optional.empty());
+
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        final var action = actionContext.getActions().getFirst();
+        assertThat(action.getError()).isEqualTo(ExceptionalHaltReason.INSUFFICIENT_GAS.toString());
+        assertThat(action.getGasUsed()).isEqualTo(HexUtils.convertLongToHexString(INITIAL_GAS));
+    }
+
+    @Test
+    void timeoutKeepsGasConsumedBeforeTheDeadline() {
+        givenOriginFrameData();
+        actionTracer.traceOriginAction(messageFrame);
+        actionContext.setTimedOut(true);
+        given(messageFrame.getState()).willReturn(EXCEPTIONAL_HALT);
+        given(messageFrame.getDepth()).willReturn(0);
+        given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.of(ActionTracer.TIMEOUT_HALT_REASON));
+        given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
+        given(messageFrame.getOutputData()).willReturn(Bytes.EMPTY);
+        given(messageFrame.getRevertReason()).willReturn(Optional.empty());
+
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        final var action = actionContext.getActions().getFirst();
+        assertThat(action.getError()).isEqualTo("TIMEOUT");
+        assertThat(action.getGasUsed()).isEqualTo(HexUtils.convertLongToHexString(INITIAL_GAS - REMAINING_GAS));
+    }
+
+    @Test
+    void clampsRevertGasUsedWhenRemainingGasIsNegative() {
+        givenOriginFrameData();
+        actionTracer.traceOriginAction(messageFrame);
+        given(messageFrame.getState()).willReturn(REVERT);
+        given(messageFrame.getDepth()).willReturn(0);
+        given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.empty());
+        given(messageFrame.getRemainingGas()).willReturn(-50L);
+        given(messageFrame.getRevertReason()).willReturn(Optional.empty());
+
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        assertThat(actionContext.getActions().getFirst().getGasUsed())
+                .isEqualTo(HexUtils.convertLongToHexString(INITIAL_GAS));
     }
 
     private void givenOriginFrameData() {

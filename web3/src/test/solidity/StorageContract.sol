@@ -26,6 +26,11 @@ contract StorageContract {
         slot0 = value;
     }
 
+    function setSlot0ThenRevert(uint256 value) public {
+        slot0 = value;
+        revert("slot0 reverted");
+    }
+
     function setSlot1(uint256 value) public {
         slot1 = value;
     }

@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
 import org.junit.jupiter.api.Test;
@@ -119,7 +120,9 @@ class ActionContextTest {
         context.addAction(new ActionResponse().from("0xorphan"), 1);
 
         assertThat(context.isTruncated()).isTrue();
-        assertThat(context.getActions()).isEmpty();
+        assertThat(context.getActions()).hasSize(1);
+        assertThat(context.getActions().getFirst().getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+        assertThat(context.getActions().getFirst().getFrom()).isNull();
         assertThat(context.getActionsByDepth(1)).isEmpty();
     }
 
@@ -172,9 +175,11 @@ class ActionContextTest {
         final var next = new ActionResponse().type(TypeEnum.CALL).from("0xnext");
         context.addAction(next, 0);
         assertThat(context.isTruncated()).isTrue();
-        assertThat(context.getActions()).hasSize(ActionContext.MAX_ACTIONS);
+        assertThat(context.getActions()).hasSize(ActionContext.MAX_ACTIONS + 1);
         assertThat(context.getActions()).doesNotContain(next);
         assertThat(truncated.getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+        assertThat(context.getActions().getLast()).isNotSameAs(truncated);
+        assertThat(context.getActions().getLast().getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
     }
 
     @Test
@@ -202,8 +207,30 @@ class ActionContextTest {
         context.addAction(new ActionResponse().type(TypeEnum.CALL).input("b"), 0);
 
         assertThat(context.isTruncated()).isTrue();
-        assertThat(context.getActions()).containsExactly(first);
-        assertThat(first.getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+        assertThat(first.getError()).isNull();
+        assertThat(context.getActions()).hasSize(2);
+        assertThat(context.getActions().getFirst()).isSameAs(first);
+        final var marker = context.getActions().getLast();
+        assertThat(marker.getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+        assertThat(marker.getInput()).isNull();
+        assertThat(marker.getFrom()).isNull();
+    }
+
+    @Test
+    void hexWithinBudgetOmitsPayloadThatDoesNotFit() {
+        final var context = new ActionContext();
+        context.addAction(new ActionResponse().input("a".repeat(ActionContext.MAX_RETAINED_BYTES - 4)), 0);
+        final var previous = context.getActions().getFirst();
+
+        context.beginCall();
+        final var encoded = context.hexWithinBudget(Bytes.wrap(new byte[2]));
+
+        assertThat(encoded).isNull();
+        assertThat(context.isTruncated()).isTrue();
+        assertThat(previous.getError()).isNull();
+        assertThat(context.getActions().getLast().getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+        assertThat(new ActionContext().hexWithinBudget(Bytes.fromHexString("0xab")))
+                .isEqualTo("0xab");
     }
 
     @Test
