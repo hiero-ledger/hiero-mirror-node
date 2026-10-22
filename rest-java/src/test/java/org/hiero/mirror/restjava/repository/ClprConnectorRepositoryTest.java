@@ -3,16 +3,19 @@
 package org.hiero.mirror.restjava.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.restjava.jooq.domain.tables.ClprConnector.CLPR_CONNECTOR;
 
 import java.util.List;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.AbstractClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
-import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 
 @RequiredArgsConstructor
@@ -22,138 +25,139 @@ final class ClprConnectorRepositoryTest extends RestJavaIntegrationTest {
 
     @ParameterizedTest
     @EnumSource(Direction.class)
-    void findAllOrder(Direction order) {
+    void findByCreatedTimestampBetween(Direction order) {
         // given
-        final var connector1 = persist(100L);
-        final var connector2 = persist(200L);
-        final var connector3 = persist(300L);
+        persist(100L); // out of range
+        final var connector1 = persist(200L);
+        final var connector2 = persist(300L);
+        final var connector3 = persist(400L);
+        persist(500L); // out of range
         final var expected = order.isAscending()
                 ? List.of(connector1, connector2, connector3)
                 : List.of(connector3, connector2, connector1);
 
         // when
-        final var actual =
-                repository.findAll(ClprConnectorsRequest.builder().order(order).build());
+        final var actual = repository.findByCreatedTimestampBetween(200L, 400L, page(order, 10));
 
         // then
         assertThat(actual).containsExactlyElementsOf(expected);
     }
 
     @Test
-    void findAllLimit() {
+    void findByCreatedTimestampBetweenLimit() {
         // given
         persist(100L);
         final var connector2 = persist(200L);
         final var connector3 = persist(300L);
 
         // when
-        final var actual =
-                repository.findAll(ClprConnectorsRequest.builder().limit(2).build());
+        final var actual = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, page(Direction.DESC, 2));
 
         // then
         assertThat(actual).containsExactly(connector3, connector2);
     }
 
     @Test
-    void findAllTimestampRangeIsInclusive() {
+    void findByCreatedTimestampBetweenIncludesDeleted() {
         // given
-        persist(100L);
-        final var connector2 = persist(200L);
-        final var connector3 = persist(300L);
-        persist(400L);
-        final var request = ClprConnectorsRequest.builder()
-                .lowerBound(200L)
-                .upperBound(300L)
-                .build();
+        final var active = persist(100L, c -> c.deleted(false));
+        final var removed = persist(200L, c -> c.deleted(true));
 
-        // when / then
-        assertThat(repository.findAll(request)).containsExactly(connector3, connector2);
+        // when
+        final var actual = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, page(Direction.ASC, 10));
+
+        // then
+        assertThat(actual).containsExactly(active, removed);
     }
 
-    @Test
-    void findAllByChannelId() {
+    @ParameterizedTest
+    @EnumSource(Direction.class)
+    void findByChannelId(Direction order) {
         // given
         final var channelId = domainBuilder.bytes(32);
         final var connector1 = persist(100L, c -> c.channelId(channelId));
         final var connector2 = persist(200L, c -> c.channelId(channelId));
         persist(300L); // other channel
-        final var request = ClprConnectorsRequest.builder().channelId(channelId).build();
+        final var expected = order.isAscending() ? List.of(connector1, connector2) : List.of(connector2, connector1);
 
-        // when / then
-        assertThat(repository.findAll(request)).containsExactly(connector2, connector1);
+        // when
+        final var actual = repository.findByChannelId(channelId, 0L, Long.MAX_VALUE, null, null, page(order, 10));
+
+        // then
+        assertThat(actual).containsExactlyElementsOf(expected);
     }
 
     @Test
-    void findAllByConnectorId() {
+    void findByChannelIdTimestampRangeIsInclusive() {
         // given
-        final var connector = persist(100L);
-        persist(200L);
-        final var request = ClprConnectorsRequest.builder()
-                .connectorId(connector.getConnectorId())
-                .build();
+        final var channelId = domainBuilder.bytes(32);
+        persist(100L, c -> c.channelId(channelId));
+        final var connector2 = persist(200L, c -> c.channelId(channelId));
+        final var connector3 = persist(300L, c -> c.channelId(channelId));
+        persist(400L, c -> c.channelId(channelId));
 
-        // when / then
-        assertThat(repository.findAll(request)).containsExactly(connector);
+        // when
+        final var actual = repository.findByChannelId(channelId, 200L, 300L, null, null, page(Direction.DESC, 10));
+
+        // then
+        assertThat(actual).containsExactly(connector3, connector2);
     }
 
     @Test
-    void findAllByChannelIdAndConnectorId() {
+    void findByChannelIdAndConnectorId() {
         // given
-        final var connector = persist(100L);
-        final var matching = ClprConnectorsRequest.builder()
-                .channelId(connector.getChannelId())
-                .connectorId(connector.getConnectorId())
-                .build();
-        final var wrongChannel = ClprConnectorsRequest.builder()
-                .channelId(domainBuilder.bytes(32))
-                .connectorId(connector.getConnectorId())
-                .build();
+        final var channelId = domainBuilder.bytes(32);
+        final var connector = persist(100L, c -> c.channelId(channelId));
+        persist(200L, c -> c.channelId(channelId)); // other connector
+        persist(300L, c -> c.connectorId(connector.getConnectorId())); // other channel
 
-        // when / then
-        assertThat(repository.findAll(matching)).containsExactly(connector);
-        assertThat(repository.findAll(wrongChannel)).isEmpty();
+        // when
+        final var actual = repository.findByChannelId(
+                channelId, 0L, Long.MAX_VALUE, connector.getConnectorId(), null, page(Direction.DESC, 10));
+
+        // then
+        assertThat(actual).containsExactly(connector);
     }
 
     @Test
-    void findAllByDeleted() {
+    void findByChannelIdAndDeleted() {
         // given
-        final var active = persist(100L, c -> c.deleted(false));
-        final var neverSet = persist(200L, c -> c.deleted(null));
-        final var removed = persist(300L, c -> c.deleted(true));
+        final var channelId = domainBuilder.bytes(32);
+        final var active = persist(100L, c -> c.channelId(channelId).deleted(false));
+        final var neverSet = persist(200L, c -> c.channelId(channelId).deleted(null));
+        final var removed = persist(300L, c -> c.channelId(channelId).deleted(true));
+        final var page = page(Direction.DESC, 10);
 
         // when / then
-        assertThat(repository.findAll(
-                        ClprConnectorsRequest.builder().deleted(true).build()))
+        assertThat(repository.findByChannelId(channelId, 0L, Long.MAX_VALUE, null, true, page))
                 .containsExactly(removed);
-        assertThat(repository.findAll(
-                        ClprConnectorsRequest.builder().deleted(false).build()))
+        assertThat(repository.findByChannelId(channelId, 0L, Long.MAX_VALUE, null, false, page))
                 .containsExactly(neverSet, active);
-        assertThat(repository.findAll(ClprConnectorsRequest.builder().build()))
+        assertThat(repository.findByChannelId(channelId, 0L, Long.MAX_VALUE, null, null, page))
                 .containsExactly(removed, neverSet, active);
     }
 
     @Test
-    void findAllCombinedFilters() {
+    void findByChannelIdCombinedFilters() {
         // given
         final var channelId = domainBuilder.bytes(32);
         final var target = persist(200L, c -> c.channelId(channelId).deleted(true));
         persist(100L, c -> c.channelId(channelId).deleted(true)); // out of range
         persist(200L, c -> c.channelId(channelId).deleted(false)); // not deleted
         persist(200L, c -> c.deleted(true)); // other channel
-        final var request = ClprConnectorsRequest.builder()
-                .channelId(channelId)
-                .deleted(true)
-                .lowerBound(150L)
-                .upperBound(250L)
-                .build();
 
-        // when / then
-        assertThat(repository.findAll(request)).containsExactly(target);
+        // when
+        final var actual = repository.findByChannelId(
+                channelId, 150L, 250L, target.getConnectorId(), true, page(Direction.DESC, 10));
+
+        // then
+        assertThat(actual).containsExactly(target);
     }
 
     @Test
-    void findAllEmpty() {
-        assertThat(repository.findAll(ClprConnectorsRequest.builder().build())).isEmpty();
+    void findByChannelIdEmpty() {
+        assertThat(repository.findByChannelId(new byte[32], 0L, Long.MAX_VALUE, null, null, page(Direction.DESC, 10)))
+                .isEmpty();
     }
 
     @Test
@@ -168,12 +172,16 @@ final class ClprConnectorRepositoryTest extends RestJavaIntegrationTest {
                 .contains(connector);
     }
 
+    private PageRequest page(Direction order, int limit) {
+        return PageRequest.of(0, limit, Sort.by(order, CLPR_CONNECTOR.CREATED_TIMESTAMP.getName()));
+    }
+
     private ClprConnector persist(long createdTimestamp) {
         return persist(createdTimestamp, c -> {});
     }
 
     private ClprConnector persist(
-            long createdTimestamp, java.util.function.Consumer<ClprConnector.ClprConnectorBuilder<?, ?>> customizer) {
+            long createdTimestamp, Consumer<ClprConnector.ClprConnectorBuilder<?, ?>> customizer) {
         return domainBuilder
                 .clprConnector()
                 .customize(c -> {

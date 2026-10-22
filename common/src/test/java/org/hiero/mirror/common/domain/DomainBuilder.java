@@ -63,6 +63,8 @@ import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprMessage;
+import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.contract.Contract;
@@ -331,6 +333,20 @@ public class DomainBuilder {
                 .slashCount(0L)
                 .stakeRecipientId(entityId())
                 .timestampRange(Range.atLeast(timestamp));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprMessage, ClprMessage.ClprMessageBuilder> clprMessage() {
+        final var builder = ClprMessage.builder()
+                .channelId(bytes(32))
+                .connectorId(bytes(32))
+                .consensusTimestamp(timestamp())
+                .messageData(bytes(16))
+                .messageId(number())
+                .messageType(ClprMessageType.DATA)
+                .runningHash(bytes(32))
+                .sender(bytes(32))
+                .targetApplication(bytes(32));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

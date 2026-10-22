@@ -3,6 +3,8 @@
 package org.hiero.mirror.restjava.service;
 
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprChannel.CLPR_CHANNEL;
+import static org.hiero.mirror.restjava.jooq.domain.tables.ClprConnector.CLPR_CONNECTOR;
+import static org.hiero.mirror.restjava.jooq.domain.tables.ClprMessage.CLPR_MESSAGE;
 
 import jakarta.inject.Named;
 import java.util.List;
@@ -11,8 +13,11 @@ import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
+import org.hiero.mirror.restjava.dto.ClprMessageDto;
+import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
 import org.hiero.mirror.restjava.repository.ClprConnectorRepository;
+import org.hiero.mirror.restjava.repository.ClprMessageRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
@@ -22,6 +27,7 @@ final class ClprServiceImpl implements ClprService {
 
     private final ClprChannelRepository channelRepository;
     private final ClprConnectorRepository connectorRepository;
+    private final ClprMessageRepository messageRepository;
     private final QueryProperties queryProperties;
 
     @Override
@@ -30,7 +36,9 @@ final class ClprServiceImpl implements ClprService {
         final long upperBound = request.getUpperBound();
         final var channelId = request.getChannelId();
         validateRange(lowerBound, upperBound);
-        validateWindow(lowerBound, upperBound, channelId != null);
+        if (channelId == null) {
+            validateWindow(lowerBound, upperBound);
+        }
 
         final var sort = Sort.by(request.getOrder(), CLPR_CHANNEL.CREATED_TIMESTAMP.getName());
         final var page = PageRequest.of(0, request.getLimit(), sort);
@@ -64,7 +72,67 @@ final class ClprServiceImpl implements ClprService {
                     "channel.id is required when filtering by connector.id, deleted or timestamp");
         }
 
-        return connectorRepository.findAll(request);
+        final var sort = Sort.by(request.getOrder(), CLPR_CONNECTOR.CREATED_TIMESTAMP.getName());
+        final var page = PageRequest.of(0, request.getLimit(), sort);
+        final var channelId = request.getChannelId();
+        if (channelId == null) {
+            return connectorRepository.findByCreatedTimestampBetween(lowerBound, upperBound, page);
+        }
+
+        return connectorRepository.findByChannelId(
+                channelId, lowerBound, upperBound, request.getConnectorId(), request.getDeleted(), page);
+    }
+
+    @Override
+    public List<ClprMessageDto> getMessages(final ClprMessagesRequest request) {
+        final long timestampLowerBound = request.getTimestampLowerBound();
+        final long timestampUpperBound = request.getTimestampUpperBound();
+        final long messageIdLowerBound = request.getMessageIdLowerBound();
+        final long messageIdUpperBound = request.getMessageIdUpperBound();
+        validateRange(timestampLowerBound, timestampUpperBound);
+        if (messageIdLowerBound > messageIdUpperBound) {
+            throw new IllegalArgumentException("Invalid range provided for message.id");
+        }
+
+        // Without a timestamp bound the query can't be pruned to the right clpr_message partition(s). connector.id is
+        // served by its own selective index, so it doesn't need one.
+        final boolean timestampFiltered = timestampLowerBound > 0L || timestampUpperBound < Long.MAX_VALUE;
+        if (!timestampFiltered) {
+            if (messageIdLowerBound > 0L || messageIdUpperBound < Long.MAX_VALUE) {
+                throw new IllegalArgumentException("timestamp is required when filtering by message.id");
+            }
+
+            if (request.getType() != null) {
+                throw new IllegalArgumentException("timestamp is required when filtering by type");
+            }
+        }
+
+        validateWindow(timestampLowerBound, timestampUpperBound);
+
+        final var channelId = request.getChannelId();
+        final var sort = Sort.by(
+                request.getOrder(), CLPR_MESSAGE.CONSENSUS_TIMESTAMP.getName(), CLPR_MESSAGE.MESSAGE_ID.getName());
+        final var page = PageRequest.of(0, request.getLimit(), sort);
+        final var type = request.getType() == null ? null : request.getType().name();
+        final var connectorId = request.getConnectorId();
+        return connectorId == null
+                ? messageRepository.findByChannelId(
+                        channelId,
+                        timestampLowerBound,
+                        timestampUpperBound,
+                        messageIdLowerBound,
+                        messageIdUpperBound,
+                        type,
+                        page)
+                : messageRepository.findByChannelIdAndConnectorId(
+                        channelId,
+                        connectorId,
+                        timestampLowerBound,
+                        timestampUpperBound,
+                        messageIdLowerBound,
+                        messageIdUpperBound,
+                        type,
+                        page);
     }
 
     private void validateRange(final long lowerBound, final long upperBound) {
@@ -73,13 +141,12 @@ final class ClprServiceImpl implements ClprService {
         }
     }
 
-    private void validateWindow(final long lowerBound, final long upperBound, final boolean shardLocal) {
-        if (shardLocal || lowerBound <= 0L || upperBound == Long.MAX_VALUE) {
+    private void validateWindow(final long lowerBound, final long upperBound) {
+        if (lowerBound <= 0L || upperBound == Long.MAX_VALUE) {
             // Open-ended ranges (a default bound) aren't capped
             return;
         }
 
-        // Without channel.id the query scatter-gathers across shards, so cap the window
         final var maxRange = queryProperties.getMaxClprTimestampRange();
         if (upperBound - lowerBound > maxRange.toNanos()) {
             throw new IllegalArgumentException(

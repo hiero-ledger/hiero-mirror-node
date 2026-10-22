@@ -4,15 +4,21 @@ package org.hiero.mirror.restjava.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprMessage;
+import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
+import org.hiero.mirror.restjava.dto.ClprMessageDto;
+import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -399,6 +405,179 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("channel.id is required when filtering by connector.id, deleted or timestamp");
         }
+    }
+
+    @Test
+    void getMessages() {
+        // given
+        final var channel = persistChannelWithAcked(1L);
+        final var message1 = persistMessage(channel.getChannelId(), 100L, 1L);
+        final var message2 = persistMessage(channel.getChannelId(), 200L, 2L);
+        persistMessage(domainBuilder.bytes(32), 150L, 3L); // other channel
+        final var request =
+                ClprMessagesRequest.builder().channelId(channel.getChannelId()).build();
+
+        // when
+        final var actual = service.getMessages(request);
+
+        // then message 1 is at or below the channel's acked_message_id and message 2 isn't
+        assertThat(actual)
+                .extracting(ClprMessageDto::messageId, ClprMessageDto::acknowledged)
+                .containsExactly(tuple(message2.getMessageId(), false), tuple(message1.getMessageId(), true));
+    }
+
+    @Test
+    void getMessagesUnknownChannel() {
+        // given
+        persistMessage(domainBuilder.bytes(32), 100L, 1L);
+        final var request =
+                ClprMessagesRequest.builder().channelId(new byte[32]).build();
+
+        // when / then
+        assertThat(service.getMessages(request)).isEmpty();
+    }
+
+    @Test
+    void getMessagesByConnectorIdDoesNotRequireTimestamp() {
+        // given
+        final var channel = persistChannelWithAcked(0L);
+        final var connectorId = domainBuilder.bytes(32);
+        final var message = persistMessage(channel.getChannelId(), connectorId, 100L, 1L, ClprMessageType.DATA);
+        persistMessage(channel.getChannelId(), 200L, 2L); // other connector
+        final var request = ClprMessagesRequest.builder()
+                .channelId(channel.getChannelId())
+                .connectorId(connectorId)
+                .build();
+
+        // when / then
+        assertThat(ids(service.getMessages(request))).containsExactly(message.getMessageId());
+    }
+
+    @Test
+    void getMessagesMessageIdWithoutTimestamp() {
+        // given
+        final var channel = persistChannelWithAcked(0L);
+        final var request = ClprMessagesRequest.builder()
+                .channelId(channel.getChannelId())
+                .messageIdLowerBound(2L)
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getMessages(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("timestamp is required when filtering by message.id");
+    }
+
+    @Test
+    void getMessagesTypeWithoutTimestamp() {
+        // given
+        final var channel = persistChannelWithAcked(0L);
+        final var request = ClprMessagesRequest.builder()
+                .channelId(channel.getChannelId())
+                .type(ClprMessageType.CONTROL)
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getMessages(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("timestamp is required when filtering by type");
+    }
+
+    @Test
+    void getMessagesMessageIdAndTypeWithTimestamp() {
+        // given
+        final var channel = persistChannelWithAcked(0L);
+        persistMessage(channel.getChannelId(), null, 100L, 1L, ClprMessageType.CONTROL);
+        final var expected = persistMessage(channel.getChannelId(), null, 100L, 2L, ClprMessageType.CONTROL);
+        persistMessage(channel.getChannelId(), 100L, 3L); // DATA
+        final var request = ClprMessagesRequest.builder()
+                .channelId(channel.getChannelId())
+                .messageIdLowerBound(2L)
+                .timestampLowerBound(100L)
+                .timestampUpperBound(100L)
+                .type(ClprMessageType.CONTROL)
+                .build();
+
+        // when / then
+        assertThat(ids(service.getMessages(request))).containsExactly(expected.getMessageId());
+    }
+
+    @Test
+    void getMessagesTimestampRangeExceedsMax() {
+        // given
+        final var channel = persistChannelWithAcked(0L);
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
+        final var request = ClprMessagesRequest.builder()
+                .channelId(channel.getChannelId())
+                .timestampLowerBound(1L)
+                .timestampUpperBound(maxRange + 2)
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getMessages(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not exceed");
+    }
+
+    @Test
+    void getMessagesTimestampRangeAtMax() {
+        // given
+        final var channel = persistChannelWithAcked(0L);
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
+        final var message = persistMessage(channel.getChannelId(), maxRange, 1L);
+        final var request = ClprMessagesRequest.builder()
+                .channelId(channel.getChannelId())
+                .timestampLowerBound(1L)
+                .timestampUpperBound(maxRange + 1)
+                .build();
+
+        // when / then
+        assertThat(ids(service.getMessages(request))).containsExactly(message.getMessageId());
+    }
+
+    @Test
+    void getMessagesOpenEndedTimestampIsNotCapped() {
+        // given
+        final var channel = persistChannelWithAcked(0L);
+        final var message = persistMessage(channel.getChannelId(), domainBuilder.timestamp(), 1L);
+        final var request = ClprMessagesRequest.builder()
+                .channelId(channel.getChannelId())
+                .timestampLowerBound(1L)
+                .build();
+
+        // when / then
+        assertThat(ids(service.getMessages(request))).containsExactly(message.getMessageId());
+    }
+
+    private static List<Long> ids(List<ClprMessageDto> messages) {
+        return messages.stream().map(ClprMessageDto::messageId).toList();
+    }
+
+    private ClprChannel persistChannelWithAcked(long ackedMessageId) {
+        return domainBuilder
+                .clprChannel()
+                .customize(c -> c.ackedMessageId(ackedMessageId))
+                .persist();
+    }
+
+    private ClprMessage persistMessage(byte[] channelId, long consensusTimestamp, long messageId) {
+        return persistMessage(channelId, domainBuilder.bytes(32), consensusTimestamp, messageId, ClprMessageType.DATA);
+    }
+
+    private ClprMessage persistMessage(
+            byte[] channelId,
+            byte @Nullable [] connectorId,
+            long consensusTimestamp,
+            long messageId,
+            ClprMessageType type) {
+        return domainBuilder
+                .clprMessage()
+                .customize(m -> m.channelId(channelId)
+                        .connectorId(connectorId)
+                        .consensusTimestamp(consensusTimestamp)
+                        .messageId(messageId)
+                        .messageType(type))
+                .persist();
     }
 
     private ClprConnector persistConnector(long createdTimestamp) {
