@@ -13,7 +13,8 @@ import lombok.RequiredArgsConstructor;
 public enum ApiEndpointName {
     CALL("/api/v1/contracts/call"),
     OPCODES("/api/v1/contracts/results/{transactionIdOrHash}/opcodes"),
-    PRESTATE("/api/v1/contracts/results/{transactionIdOrHash}/prestate");
+    PRESTATE("/api/v1/contracts/results/{transactionIdOrHash}/prestate"),
+    SIMULATE("/api/v1/contracts/simulate");
 
     private static final Map<String, ApiEndpointName> PATHS = EnumSet.allOf(ApiEndpointName.class).stream()
             .collect(Collectors.toMap(ApiEndpointName::getPath, Function.identity()));

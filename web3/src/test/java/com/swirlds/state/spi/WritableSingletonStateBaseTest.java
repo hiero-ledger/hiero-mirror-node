@@ -43,6 +43,16 @@ final class WritableSingletonStateBaseTest {
     }
 
     @Test
+    void committedValueTakesPrecedenceOverSupplier() {
+        final var state = new FunctionWritableSingletonState<>(SERVICE, STATE_ID, () -> "backend");
+        state.put("from-earlier-block");
+        ContractCallContext.get().commitWriteCache();
+
+        assertThat(ContractCallContext.get().getWriteCacheState(STATE_ID)).isEmpty();
+        assertThat(state.get()).isEqualTo("from-earlier-block");
+    }
+
+    @Test
     void contextResetClearsWriteStaging() {
         final var state = new FunctionWritableSingletonState<>(SERVICE, STATE_ID, () -> "backend");
         state.put("from-put");
