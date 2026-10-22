@@ -328,9 +328,6 @@ create index if not exists clpr_connector__channel_id_created_timestamp
 create index if not exists clpr_connector__created_timestamp
     on clpr_connector (created_timestamp);
 
-create index if not exists clpr_connector__connector_id
-    on clpr_connector (connector_id);
-
 create table if not exists clpr_connector_history
 (
     like clpr_connector including defaults
@@ -343,12 +340,11 @@ select create_distributed_table('clpr_connector', 'channel_id', colocate_with =>
 select create_distributed_table('clpr_connector_history', 'channel_id', colocate_with => 'clpr_connector');
 ```
 
-[Connectors](#5-connectors-api) supports `channel.id` as an optional filter, so `clpr_connector` carries an index
-for each case: `clpr_connector__channel_id_created_timestamp` (`channel.id` supplied — shard-local in `v2`) and
-`clpr_connector__created_timestamp` (omitted — scatter-gather, listing across every Channel). `connector_id` is
-globally unique by construction (`keccak256(channel_id || public_key || salt)`), but isn't usable alone as a direct
-lookup via the `(channel_id, connector_id)` primary key when `channel.id` is unknown, so
-`clpr_connector__connector_id` covers that case directly.
+[Connectors](#5-connectors-api) requires `channel.id` whenever `connector.id`, `deleted`, or `timestamp` is also
+supplied, so `clpr_connector` carries an index for each remaining case: `clpr_connector__channel_id_created_timestamp`
+(`channel.id` supplied — shard-local in `v2`) and `clpr_connector__created_timestamp` (no filters at all —
+scatter-gather). A `connector.id` lookup always pairs with `channel.id`, resolving via the `(channel_id,
+connector_id)` primary key, so no separate index on `connector_id` is needed.
 
 ### 3. Ledger Configuration and Endpoint Manifest
 
@@ -1281,10 +1277,9 @@ Response format:
 GET /api/v1/clpr/connectors
 ```
 
-`channel.id` is an optional filter, not a required path param: omitting it lists Connectors across every Channel —
-needed so a Connector Operator can look up their own Connector by `connector.id` alone without first knowing which
-Channel it's registered under (see [Database Schema Design](#database-schema-design) for the indexes backing both
-cases).
+`channel.id` is optional only when no other filter is supplied, returning a scatter-gathered listing across every
+Channel. If `connector.id`, `deleted`, or `timestamp` is also supplied, `channel.id` becomes mandatory, to keep the
+query shard-local in `v2` (see [Database Schema Design](#database-schema-design)).
 
 Response format:
 
@@ -1323,24 +1318,22 @@ Response format:
 
 #### Query Parameters
 
-| Parameter      | Type    | Description                                       | Default | Validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| -------------- | ------- | ------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `channel.id`   | string  | Filter by `channel_id`                            | none    | Supports `eq:` only — `channel_id` is opaque and non-sequential, so it isn't used for pagination; omit to list Connectors across every Channel                                                                                                                                                                                                                                                                                                                                      |
-| `connector.id` | string  | Filter by `connector_id`                          | none    | Supports `eq:` only — `connector_id` is opaque and non-sequential, so it isn't used for pagination; globally unique by construction, so works without `channel.id` too (see [Database Schema Design](#database-schema-design))                                                                                                                                                                                                                                                      |
-| `deleted`      | boolean | Filter by removal status (deregistered or banned) | none    | Supports `true`/`false`; omit to return both removed and still-registered Connectors                                                                                                                                                                                                                                                                                                                                                                                                |
-| `timestamp`    | string  | Filter/paginate by `created_timestamp`            | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; sole sort/pagination key, since `created_timestamp` is a `ClprCompleteConnector` consensus timestamp and is therefore unique per Connector; combined range must not exceed the configured max window (following this codebase's `maxTransactionsTimestampRangeNs`-style convention, e.g. 30 days) — this query scatter-gathers in `v2` whenever `channel.id` is omitted (see [Scalability Requirements](#2-scalability-requirements)) |
-| `limit`        | integer | Maximum number of Connectors to return            | `25`    | Must be between 1 and 100                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `order`        | string  | Sort order for results                            | `desc`  | Must be either `asc` or `desc`                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Parameter      | Type    | Description                                       | Default | Validation                                                                                                                                      |
+| -------------- | ------- | ------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `channel.id`   | string  | Filter by `channel_id`                            | none    | Supports `eq:` only; omit to list Connectors across every Channel; required whenever `connector.id`, `deleted`, or `timestamp` is also supplied |
+| `connector.id` | string  | Filter by `connector_id`                          | none    | Supports `eq:` only; requires `channel.id`                                                                                                      |
+| `deleted`      | boolean | Filter by removal status (deregistered or banned) | none    | Supports `true`/`false`; omit to return both removed and still-registered Connectors; requires `channel.id`                                     |
+| `timestamp`    | string  | Filter/paginate by `created_timestamp`            | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (e.g. 30 days); requires `channel.id`    |
+| `limit`        | integer | Maximum number of Connectors to return            | `25`    | Must be between 1 and 100                                                                                                                       |
+| `order`        | string  | Sort order for results                            | `desc`  | Must be either `asc` or `desc`                                                                                                                  |
 
 **Examples:**
 
+- `/api/v1/clpr/connectors?limit=10` — Get the 10 newest Connectors across every Channel (scatter-gathers in `v2`)
 - `/api/v1/clpr/connectors?channel.id=eq:0x1a2b3c...` — Get all Connectors on a Channel, newest first
 - `/api/v1/clpr/connectors?channel.id=eq:0x1a2b3c...&limit=10` — Get first 10 Connectors on a Channel
 - `/api/v1/clpr/connectors?channel.id=eq:0x1a2b3c...&connector.id=eq:0x4d5e6f...` — Get a specific Connector by id
-- `/api/v1/clpr/connectors?connector.id=eq:0x4d5e6f...` — Get a specific Connector by id alone
 - `/api/v1/clpr/connectors?channel.id=eq:0x1a2b3c...&deleted=false` — Get only still-registered Connectors on a
-  Channel
-- `/api/v1/clpr/connectors?deleted=false&limit=10` — Get the 10 newest still-registered Connectors across every
   Channel
 
 ## Consensus-Node Assumptions
