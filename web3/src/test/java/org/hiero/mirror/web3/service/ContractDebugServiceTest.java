@@ -19,7 +19,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -326,11 +325,84 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         assertThat(executionTimestamp(block, 1)).contains(first);
         assertThat(executionTimestamp(block, 2)).contains(second);
         assertThat(executionTimestamp(block, 5)).contains(fifth);
-        assertThat(executionTimestamp(block, -1)).isEmpty();
+        assertThat(executionTimestamp(block, -1)).contains(fifth);
+        assertThat(executionTimestamp(block, 0)).contains(first - 1);
 
         assertThatThrownBy(() -> contractDebugService.processTraceCall(traceCallAtIndex(block, 6)))
                 .isInstanceOf(InvalidParametersException.class)
                 .hasMessage("transaction_index exceeds the number of transactions in the block");
+    }
+
+    @Test
+    void processTraceCallStartsAtBlockBoundaries() {
+        final long consensusStart = 1_000L;
+        final long firstTransaction = 2_500L;
+        final long lastTransaction = 4_000L;
+        final long consensusEnd = 9_000L;
+        domainBuilder
+                .recordFile()
+                .customize(recordFile -> recordFile
+                        .index(22L)
+                        .consensusStart(consensusStart)
+                        .consensusEnd(consensusEnd)
+                        .count(2L))
+                .persist();
+        persistTransaction(lastTransaction);
+        persistTransaction(firstTransaction);
+        persistTransaction(consensusStart - 1);
+        persistTransaction(consensusEnd + 1);
+
+        final var block = BlockType.of("22");
+        assertThat(executionTimestamp(block, 0)).contains(consensusStart - 1);
+        assertThat(executionTimestamp(block, 1)).contains(firstTransaction);
+        assertThat(executionTimestamp(block, 2)).contains(lastTransaction);
+        assertThat(executionTimestamp(block, -1)).contains(consensusEnd);
+
+        assertThatThrownBy(() -> contractDebugService.processTraceCall(traceCallAtIndex(block, 3)))
+                .isInstanceOf(InvalidParametersException.class)
+                .hasMessage("transaction_index exceeds the number of transactions in the block");
+    }
+
+    @Test
+    void processTraceCallHistoricalBlockWithoutIndexKeepsConsensusEnd() {
+        final long consensusEnd = 9_000L;
+        domainBuilder
+                .recordFile()
+                .customize(recordFile -> recordFile
+                        .index(21L)
+                        .consensusStart(1_000L)
+                        .consensusEnd(consensusEnd)
+                        .count(1L))
+                .persist();
+        final var timed = new BlockOverride();
+        timed.setTime("0x65f9e0c0");
+        final var timestamps = new ArrayList<Optional<Long>>();
+        doAnswer(invocation -> {
+                    timestamps.add(ContractCallContext.get().getTimestamp());
+                    return new EvmTransactionResult(
+                            SUCCESS,
+                            ContractFunctionResult.newBuilder()
+                                    .gasUsed(TRANSACTION_GAS_LIMIT)
+                                    .build());
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+
+        contractDebugService.processTraceCall(TraceCall.builder()
+                .block(BlockType.of("21"))
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .blockOverride(timed)
+                                .transactions(List.of(executionParameters()))
+                                .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .build());
+
+        assertThat(timestamps)
+                .containsExactly(Optional.of(consensusEnd), Optional.of(consensusEnd), Optional.of(consensusEnd));
     }
 
     @Test
@@ -354,12 +426,48 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {0, -2})
+    @ValueSource(ints = {-2})
     void processTraceCallRejectsInvalidTransactionIndex(final int transactionIndex) {
+        clearInvocations(throttleManager);
         assertThatThrownBy(() ->
                         contractDebugService.processTraceCall(traceCallAtIndex(BlockType.LATEST, transactionIndex)))
                 .isInstanceOf(InvalidParametersException.class)
                 .hasMessage("Invalid transaction_index");
+        verify(throttleManager).restore(TRANSACTION_GAS_LIMIT);
+    }
+
+    @Test
+    void processTraceCallAcceptsTransactionIndexZero() {
+        final var recordFile =
+                domainBuilder.recordFile().customize(file -> file.count(0L)).persist();
+        final long consensusStart = recordFile.getConsensusStart();
+        final var timestamps = new ArrayList<Optional<Long>>();
+        doAnswer(invocation -> {
+                    timestamps.add(ContractCallContext.get().getTimestamp());
+                    return new EvmTransactionResult(
+                            SUCCESS,
+                            ContractFunctionResult.newBuilder()
+                                    .gasUsed(TRANSACTION_GAS_LIMIT)
+                                    .build());
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+
+        contractDebugService.processTraceCall(TraceCall.builder()
+                .block(BlockType.of(Long.toString(recordFile.getIndex())))
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .transactionIndex(0)
+                .build());
+
+        final long base = consensusStart - 1;
+        assertThat(timestamps).containsExactly(Optional.of(base), Optional.of(base), Optional.of(base));
     }
 
     @Test
@@ -380,10 +488,12 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .persist();
         persistTransaction(stateTimestamp);
         final var timestamps = new ArrayList<Optional<Long>>();
+        final var headerTimes = new ArrayList<Long>();
         doAnswer(invocation -> {
                     final var ctx = ContractCallContext.get();
                     final var timestamp = ctx.getTimestamp();
                     timestamps.add(timestamp);
+                    headerTimes.add(ctx.getBlockOverrideTimeNanos());
                     assertThat(ctx.getTimestampForSystemFiles()).isEqualTo(timestamp.map(time -> time + 1));
                     return new EvmTransactionResult(
                             SUCCESS,
@@ -418,6 +528,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .transactionIndex(1)
                 .build());
 
+        final long step = DomainUtils.convertToNanosMax(2L, 0L);
+        final long overrideNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0L);
         assertThat(timestamps)
                 .containsExactly(
                         Optional.of(stateTimestamp),
@@ -427,6 +539,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                         Optional.of(stateTimestamp),
                         Optional.of(stateTimestamp),
                         Optional.of(stateTimestamp));
+        assertThat(headerTimes)
+                .containsExactly(
+                        null, null, null, overrideNanos, overrideNanos, overrideNanos + step, overrideNanos + step * 2);
     }
 
     @Test
@@ -443,14 +558,21 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
+        final var timed = new BlockOverride();
+        timed.setTime("0x65f9e0c0");
         contractDebugService.processTraceCall(TraceCall.builder()
-                .bundles(List.of(TraceBundle.builder()
-                        .transactions(List.of(executionParameters()))
-                        .build()))
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .blockOverride(timed)
+                                .transactions(List.of(executionParameters()))
+                                .build()))
                 .timeout(DEFAULT_TIMEOUT)
                 .build());
 
-        assertThat(timestamps).containsExactly(Optional.empty());
+        assertThat(timestamps).containsExactly(Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     @Test
@@ -632,7 +754,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     @Test
-    void processTraceCallDoesNotRestoreGas() {
+    void processTraceCallRestoresUnusedAndUnstartedGas() {
         clearInvocations(throttleManager);
         final var first = action("0x01", TypeEnum.CALL);
         doAnswer(invocation -> {
@@ -684,7 +806,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                         .build()))
                 .isInstanceOf(InvalidParametersException.class)
                 .hasMessageContaining("Invalid block_override");
-        verify(throttleManager, never()).restore(anyLong());
+        verify(throttleManager).restore(0L);
+        verify(throttleManager).restore(TRANSACTION_GAS_LIMIT / 2);
+        verify(throttleManager).restore(TRANSACTION_GAS_LIMIT / 4);
     }
 
     @Test

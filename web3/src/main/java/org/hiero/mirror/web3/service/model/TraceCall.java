@@ -37,8 +37,10 @@ public class TraceCall {
     private Duration timeout;
 
     /**
-     * n-th position of a transaction in a block, ordered by consensus timestamp. For example {@code 5} loads
-     * the state after the first five transactions. {@code -1} uses the block state directly.
+     * Position of a transaction in the block, ordered by consensus timestamp. {@code 0} starts the simulation at the
+     * beginning of the block, before its first transaction. A positive value is that transaction's consensus
+     * timestamp. {@code -1} starts the simulation after every transaction in the block. The timestamp applies to the
+     * whole request.
      */
     @Builder.Default
     private int transactionIndex = -1;

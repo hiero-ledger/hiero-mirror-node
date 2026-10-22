@@ -137,14 +137,14 @@ class TransactionExecutionServiceTest {
         evmProperties = new EvmProperties();
         transactionExecutionService = new TransactionExecutionService(
                 accountReadableKVState,
+                actionTracer,
                 aliasesReadableKVState,
                 commonProperties,
                 contractResultRepository,
                 contractTransactionHashRepository,
                 evmProperties,
-                opcodeActionTracer,
-                actionTracer,
                 mirrorOperationActionTracer,
+                opcodeActionTracer,
                 systemEntity,
                 transactionExecutorFactory);
         when(transactionExecutorFactory.get()).thenReturn(transactionExecutor);

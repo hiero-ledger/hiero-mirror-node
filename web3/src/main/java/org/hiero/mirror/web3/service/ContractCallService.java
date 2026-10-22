@@ -101,8 +101,13 @@ public abstract class ContractCallService {
     protected final EvmTransactionResult callContract(CallServiceParameters params, ContractCallContext ctx)
             throws MirrorEvmTransactionException {
         ctx.setCallServiceParameters(params);
-        ctx.setBlockSupplier(Suppliers.memoize(() ->
-                recordFileService.findByBlockType(params.getBlock()).orElseThrow(BlockNumberNotFoundException::new)));
+        // An actions trace installs one record-file supplier for the whole request. Replacing it per transaction
+        // would let "latest" move between transactions in the same trace.
+        if (ctx.getApi() != ACTIONS) {
+            ctx.setBlockSupplier(Suppliers.memoize(() -> recordFileService
+                    .findByBlockType(params.getBlock())
+                    .orElseThrow(BlockNumberNotFoundException::new)));
+        }
 
         return doProcessCall(params, params.getGas(), false);
     }
@@ -126,7 +131,7 @@ public abstract class ContractCallService {
             status = e.getMessage();
             throw e;
         } finally {
-            if (!estimate && ContractCallContext.get().getApi() != ACTIONS) {
+            if (!estimate) {
                 restoreGasToBucket(result, params.getGas());
             }
 
@@ -136,6 +141,14 @@ public abstract class ContractCallService {
             }
         }
         return result;
+    }
+
+    /**
+     * Returns the full gas reserved for a transaction that never entered execution. A transaction whose
+     * {@code finally} already ran uses {@link #restoreGasToBucket} instead.
+     */
+    protected final void restoreReservedGas(final long gas) {
+        throttleManager.restore(gas);
     }
 
     private void restoreGasToBucket(EvmTransactionResult result, long gasLimit) {

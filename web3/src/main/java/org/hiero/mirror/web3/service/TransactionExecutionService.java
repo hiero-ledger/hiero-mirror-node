@@ -73,14 +73,14 @@ public class TransactionExecutionService {
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
 
     private final AccountReadableKVState accountReadableKVState;
+    private final ActionTracer actionTracer;
     private final AliasesReadableKVState aliasesReadableKVState;
     private final CommonProperties commonProperties;
     private final ContractResultRepository contractResultRepository;
     private final ContractTransactionHashRepository contractTransactionHashRepository;
     private final EvmProperties evmProperties;
-    private final OpcodeActionTracer opcodeActionTracer;
-    private final ActionTracer actionTracer;
     private final MirrorOperationActionTracer mirrorOperationActionTracer;
+    private final OpcodeActionTracer opcodeActionTracer;
     private final SystemEntity systemEntity;
     private final TransactionExecutorFactory transactionExecutorFactory;
 

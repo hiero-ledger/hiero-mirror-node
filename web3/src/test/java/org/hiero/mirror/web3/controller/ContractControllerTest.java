@@ -18,6 +18,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_ACCEPTABLE;
@@ -279,6 +280,7 @@ final class ContractControllerTest {
         verify(contractDebugService)
                 .processTraceCall(argThat((TraceCall call) -> isSingleTrace(call, false, Duration.ofSeconds(4))));
         verify(endpointThrottle).throttle(ACTIONS, 1L);
+        verify(throttleManager).throttle(any(ContractCallRequest.class));
     }
 
     @Test
@@ -300,12 +302,14 @@ final class ContractControllerTest {
 
         verify(contractDebugService)
                 .processTraceCall(argThat((TraceCall call) -> call.getBundles().size() == 2));
-        verify(endpointThrottle).throttle(ACTIONS, 2L);
+        verify(endpointThrottle).throttle(ACTIONS, 1L);
+        verify(throttleManager, times(2)).throttle(any(ContractCallRequest.class));
     }
 
     @Test
-    void actionsCallExceedingRateLimit() throws Exception {
+    void actionsCallExceedingEndpointRateLimit() throws Exception {
         enableActionsApi();
+        clearInvocations(throttleManager);
         final var request = traceRequest();
         transaction(request).setValue(0);
         doThrow(new ThrottleException("")).when(endpointThrottle).throttle(ACTIONS, 1L);
@@ -313,6 +317,48 @@ final class ContractControllerTest {
         contractActionsCall(request).andExpect(status().isTooManyRequests());
 
         verify(contractDebugService, never()).processTraceCall(any());
+        verify(throttleManager, never()).throttle(any());
+        verify(throttleManager, never()).restoreRequest();
+        verify(throttleManager, never()).restore(anyLong());
+    }
+
+    @Test
+    void actionsCallExceedingRateLimit() throws Exception {
+        enableActionsApi();
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        doThrow(new ThrottleException("")).when(throttleManager).throttle(any(ContractCallRequest.class));
+
+        contractActionsCall(request).andExpect(status().isTooManyRequests());
+
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(endpointThrottle).throttle(ACTIONS, 1L);
+        verify(throttleManager).throttle(any(ContractCallRequest.class));
+        verify(throttleManager, never()).restoreRequest();
+        verify(throttleManager, never()).restore(anyLong());
+    }
+
+    @Test
+    void actionsCallReleasesEarlierReservationWhenALaterTransactionIsThrottled() throws Exception {
+        enableActionsApi();
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var second = transaction();
+        second.setValue(0);
+        second.setData("0x1079023b");
+        request.getBundles().getFirst().getTransactions().add(second);
+        doThrow(new ThrottleException(""))
+                .when(throttleManager)
+                .throttle(argThat((ContractCallRequest call) -> "0x1079023b".equals(call.getData())));
+
+        contractActionsCall(request).andExpect(status().isTooManyRequests());
+
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(endpointThrottle).throttle(ACTIONS, 1L);
+        verify(throttleManager).restoreRequest();
+        verify(throttleManager).restore(THROTTLE_GAS_LIMIT);
     }
 
     @Test
@@ -320,7 +366,6 @@ final class ContractControllerTest {
         enableActionsApi();
         contractActionsCall(new ActionTraceRequest()).andExpect(status().isBadRequest());
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(endpointThrottle, never()).throttle(any(), anyLong());
     }
 
     @Test
@@ -395,13 +440,19 @@ final class ContractControllerTest {
     @Test
     void actionsCallRestoresThrottleOnInvalidParameters() throws Exception {
         enableActionsApi();
+        clearInvocations(throttleManager);
         final var request = traceRequest();
         transaction(request).setValue(0);
         given(contractDebugService.processTraceCall(any())).willThrow(new InvalidParametersException("invalid"));
 
         contractActionsCall(request).andExpect(status().isBadRequest());
         verify(contractDebugService).processTraceCall(any());
+        verify(endpointThrottle).throttle(ACTIONS, 1L);
+        verify(throttleManager).throttle(argThat((ContractCallRequest call) -> call.getGas() == THROTTLE_GAS_LIMIT));
+        // The service returns gas for transactions that never ran. This mock does not, and the controller must not
+        // return it a second time.
         verify(throttleManager, never()).restore(anyLong());
+        verify(throttleManager, never()).restoreRequest();
     }
 
     @Test
@@ -509,7 +560,6 @@ final class ContractControllerTest {
                 .andExpect(content()
                         .string(new StringContains("Top level result is only supported for debug_traceCall.")));
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(endpointThrottle, never()).throttle(any(), anyLong());
     }
 
     @Test
@@ -529,7 +579,8 @@ final class ContractControllerTest {
         verify(contractDebugService)
                 .processTraceCall(
                         argThat((TraceCall call) -> call.getBundles().size() == 2 && call.getTransactionIndex() == 5));
-        verify(endpointThrottle).throttle(ACTIONS, 2L);
+        verify(endpointThrottle).throttle(ACTIONS, 1L);
+        verify(throttleManager, times(2)).throttle(any(ContractCallRequest.class));
     }
 
     @Test
@@ -544,6 +595,7 @@ final class ContractControllerTest {
 
         verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> call.getTransactionIndex() == -1));
         verify(endpointThrottle).throttle(ACTIONS, 1L);
+        verify(throttleManager).throttle(any(ContractCallRequest.class));
     }
 
     @Test
@@ -557,7 +609,6 @@ final class ContractControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(new StringContains("Estimate is not supported for tracing.")));
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(endpointThrottle, never()).throttle(any(), anyLong());
     }
 
     @Test
@@ -700,7 +751,6 @@ final class ContractControllerTest {
                 .andExpect(content()
                         .string(new StringContains("block_override.number on bundle 1 is older than bundle 0")));
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(endpointThrottle, never()).throttle(any(), anyLong());
     }
 
     @Test
@@ -716,7 +766,6 @@ final class ContractControllerTest {
                 .andExpect(
                         content().string(new StringContains("block_override.time on bundle 1 is older than bundle 0")));
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(endpointThrottle, never()).throttle(any(), anyLong());
     }
 
     @Test
@@ -733,7 +782,6 @@ final class ContractControllerTest {
                 .andExpect(content()
                         .string(new StringContains("block_override.number on bundle 2 is older than bundle 1")));
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(endpointThrottle, never()).throttle(any(), anyLong());
     }
 
     @Test
@@ -750,7 +798,6 @@ final class ContractControllerTest {
                 .andExpect(
                         content().string(new StringContains("block_override.time on bundle 2 is older than bundle 1")));
         verify(contractDebugService, never()).processTraceCall(any());
-        verify(endpointThrottle, never()).throttle(any(), anyLong());
     }
 
     @Test

@@ -16,17 +16,17 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.common.BlockOverrideAdvance;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
+import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
-import org.hiero.mirror.web3.throttle.EndpointThrottle;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.utils.GzipEncoding;
-import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.viewmodel.ActionTraceBundle;
 import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
@@ -52,13 +52,12 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 class ContractController {
 
-    private final ContractExecutionService contractExecutionService;
     private final ContractDebugService contractDebugService;
-    private final EndpointThrottle endpointThrottle;
+    private final ContractExecutionService contractExecutionService;
     private final EvmProperties evmProperties;
+    private final ThrottleManager throttleManager;
     private final TracerProperties tracerProperties;
     private final Web3Properties web3Properties;
-    private final ThrottleManager throttleManager;
 
     @PostMapping(value = "/call")
     ContractCallResponse call(@RequestBody @Valid ContractCallRequest request) {
@@ -98,8 +97,31 @@ class ContractController {
         validateConsecutiveBlockOverrides(request.getBundles());
         rejectOnlyTopCallForTraceCallMany(request);
 
-        endpointThrottle.throttle(ACTIONS, transactionCount(request));
-        return contractDebugService.processTraceCall(toTraceCall(request));
+        final var traceCall = toTraceCall(request);
+        throttleActions(request);
+        return contractDebugService.processTraceCall(traceCall);
+    }
+
+    /**
+     * Charges each nested transaction with the same limits eth_call uses. A later rejection returns the request tokens
+     * and the gas already taken.
+     */
+    private void throttleActions(final ActionTraceRequest request) {
+        final var throttled = new ArrayList<ContractCallRequest>();
+        try {
+            for (final var bundle : request.getBundles()) {
+                for (final var transaction : bundle.getTransactions()) {
+                    throttleManager.throttle(transaction);
+                    throttled.add(transaction);
+                }
+            }
+        } catch (final ThrottleException exception) {
+            for (final var transaction : throttled) {
+                throttleManager.restoreRequest();
+                throttleManager.restore(transaction.getGas());
+            }
+            throw exception;
+        }
     }
 
     private TraceCall toTraceCall(final ActionTraceRequest request) {
@@ -125,14 +147,6 @@ class ContractController {
                 .timeout(resolveTimeout(request.getTimeout()))
                 .transactionIndex(transactionIndex == null ? -1 : transactionIndex)
                 .build();
-    }
-
-    private static int transactionCount(final ActionTraceRequest request) {
-        var count = 0;
-        for (final var bundle : request.getBundles()) {
-            count += bundle.getTransactions().size();
-        }
-        return count;
     }
 
     private Duration resolveTimeout(final @Nullable String timeout) {
@@ -207,49 +221,10 @@ class ContractController {
         Long previousNumber = null;
         Long previousTime = null;
         for (int bundleIndex = 0; bundleIndex < bundles.size(); bundleIndex++) {
-            final var override = bundles.get(bundleIndex).getBlockOverride();
-            if (override == null) {
-                previousNumber = advanceBlockValue(previousNumber, 1L);
-                previousTime = advanceBlockValue(previousTime, 2L);
-                continue;
-            }
-            final var number = parseOverrideQuantity(override.getNumber(), "number");
-            final var time = parseOverrideQuantity(override.getTime(), "time");
-            if (number != null && previousNumber != null && Long.compareUnsigned(number, previousNumber) < 0) {
-                throw olderBlockOverride(bundleIndex, "number");
-            }
-            if (time != null && previousTime != null && Long.compareUnsigned(time, previousTime) < 0) {
-                throw olderBlockOverride(bundleIndex, "time");
-            }
-            previousNumber = number != null ? number : advanceBlockValue(previousNumber, 1L);
-            previousTime = time != null ? time : advanceBlockValue(previousTime, 2L);
-        }
-    }
-
-    private static InvalidParametersException olderBlockOverride(final int bundleIndex, final String field) {
-        return new InvalidParametersException("block_override.%s on bundle %d is older than bundle %d"
-                .formatted(field, bundleIndex, bundleIndex - 1));
-    }
-
-    private static @Nullable Long advanceBlockValue(final @Nullable Long value, final long step) {
-        if (value == null) {
-            return null;
-        }
-        final var sum = value + step;
-        if (Long.compareUnsigned(sum, value) < 0) {
-            throw new InvalidParametersException("Invalid block_override: block context overflow");
-        }
-        return sum;
-    }
-
-    private static @Nullable Long parseOverrideQuantity(final @Nullable String value, final String field) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return HexUtils.parseValue(value);
-        } catch (NumberFormatException e) {
-            throw new InvalidParametersException("Invalid block_override." + field + ": " + e.getMessage());
+            final var next = BlockOverrideAdvance.next(
+                    previousNumber, previousTime, bundles.get(bundleIndex).getBlockOverride(), bundleIndex);
+            previousNumber = next.number();
+            previousTime = next.timeSeconds();
         }
     }
 

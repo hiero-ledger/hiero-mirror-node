@@ -2541,10 +2541,13 @@ components:
           default: false
         transaction_index:
           description:
-            N-th position of a transaction in block, ordered by consensus timestamp ascending. A positive value of N
-            loads the state after the first N transactions, and every execution starts at that transaction's consensus
-            timestamp. -1, or omitting the field, uses the block state directly. A value less than -1, zero, or greater
-            than the number of transactions in the block is rejected.
+            Position of a transaction in block, ordered by consensus timestamp ascending. 0 starts the simulation at
+            the beginning of the block, before its first transaction. A positive value of N reads state at the
+            consensus timestamp of the Nth transaction. Every bundle and transaction in the request reads that same
+            timestamp. block_override.time changes only the EVM block header. -1, or omitting the field, starts the
+            simulation after every transaction in the block. A past block uses that record file's consensus end.
+            latest reads current state. A value less than -1, or greater than the number of transactions in the
+            block, is rejected.
           example: 5
           format: int32
           type: [integer, "null"]

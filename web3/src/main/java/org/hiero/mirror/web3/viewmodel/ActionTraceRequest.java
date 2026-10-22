@@ -50,9 +50,10 @@ public class ActionTraceRequest {
     private String timeout;
 
     /**
-     * the position of a transaction inside a {@link #block}, ordered by consensus timestamp. For example 5 loads the state
-     * after the first five transactions. {@code -1} uses the block state directly. {@code null} means the field was
-     * omitted and uses the block state directly.
+     * Position of a transaction inside {@link #block}, ordered by consensus timestamp. {@code 0} starts the simulation
+     * at the beginning of the block, before its first transaction. A positive value reads state at that transaction's
+     * consensus timestamp. {@code -1} and {@code null} start the simulation after every transaction in the block. The
+     * timestamp applies to the whole request. Values less than {@code -1} are rejected.
      */
     @JsonProperty("transaction_index")
     @Nullable

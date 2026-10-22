@@ -11,6 +11,7 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.service.PrestateService;
 import org.hiero.mirror.web3.service.model.PrestateRequest;
+import org.hiero.mirror.web3.utils.GzipEncoding;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -54,7 +55,7 @@ final class PrestateController {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }
 
-        GzipEncoding.validate(acceptEncoding);
+        GzipEncoding.require(acceptEncoding);
         final var request = new PrestateRequest(transactionIdOrHash, diff, code, storage);
         return prestateService.processPrestateCall(request);
     }

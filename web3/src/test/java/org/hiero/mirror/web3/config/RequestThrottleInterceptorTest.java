@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.ApiEndpointName.OPCODES;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE;
 
@@ -40,18 +39,18 @@ final class RequestThrottleInterceptorTest {
     }
 
     @Test
+    void throttlesActionsEndpoint() {
+        request.setAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE, ACTIONS.getPath());
+
+        assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
+        verify(endpointThrottle).throttle(ACTIONS, 1L);
+    }
+
+    @Test
     void throttlesKnownEndpoint() {
         request.setAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE, OPCODES.getPath());
 
         assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
         verify(endpointThrottle).throttle(OPCODES, 1L);
-    }
-
-    @Test
-    void skipsActionsEndpoint() {
-        request.setAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE, ACTIONS.getPath());
-
-        assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
-        verify(endpointThrottle, never()).throttle(ACTIONS, 1L);
     }
 }

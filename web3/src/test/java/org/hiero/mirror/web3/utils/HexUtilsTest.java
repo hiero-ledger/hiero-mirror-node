@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigInteger;
 import java.util.stream.Stream;
@@ -79,9 +80,34 @@ class HexUtilsTest {
         assertThat(HexUtils.convertHexStringToLong(null)).isEqualTo(0L);
     }
 
-    @CsvSource({"'0x0',0", "'0x100',256", "'0X65f9e0c0',1710874816", "'256',256", "' 16 ',16"})
+    @CsvSource({
+        "'0x0',0",
+        "'0x100',256",
+        "'0X65f9e0c0',1710874816",
+        "'256',256",
+        "' 16 ',16",
+        "'9223372036854775807',9223372036854775807"
+    })
     @ParameterizedTest
     void parseValue(String value, long expected) {
         assertThat(HexUtils.parseValue(value)).isEqualTo(expected);
+    }
+
+    @CsvSource({
+        "0xffffffffffffffff",
+        "0x8000000000000000",
+        "ffffffffffffffff",
+        "18446744073709551615",
+        "9223372036854775808"
+    })
+    @ParameterizedTest
+    void rejectsQuantitiesThatDoNotFitInASignedLong(String value) {
+        assertThatThrownBy(() -> HexUtils.parseValue(value)).isInstanceOf(NumberFormatException.class);
+    }
+
+    @CsvSource({"0xffffffffffffffff", "0x8000000000000000", "ffffffffffffffff"})
+    @ParameterizedTest
+    void convertHexStringToLongRejectsValuesThatDoNotFitInASignedLong(String value) {
+        assertThatThrownBy(() -> HexUtils.convertHexStringToLong(value)).isInstanceOf(NumberFormatException.class);
     }
 }

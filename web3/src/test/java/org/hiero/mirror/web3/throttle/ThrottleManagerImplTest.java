@@ -79,6 +79,41 @@ final class ThrottleManagerImplTest {
     }
 
     @Test
+    void gasLimitFailureRestoresRequestToken() {
+        var request = request();
+        var small = request();
+        small.setGas(21_000L);
+        throttleManager.throttle(request);
+        assertThatThrownBy(() -> throttleManager.throttle(request))
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(GAS_PER_SECOND_LIMIT_EXCEEDED);
+        assertThatThrownBy(() -> throttleManager.throttle(small))
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining(GAS_PER_SECOND_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    void requestRejectedRestoresRateAndGas() {
+        requestProperties.setAction(ActionType.REJECT);
+        var request = request();
+        assertThatThrownBy(() -> throttleManager.throttle(request))
+                .isInstanceOf(ThrottleException.class)
+                .hasMessageContaining("Invalid request");
+        requestProperties.setAction(ActionType.LOG);
+        throttleManager.throttle(request);
+    }
+
+    @Test
+    void restoreRequest() {
+        var request = request();
+        request.setGas(21_000L);
+        throttleManager.throttle(request);
+        throttleManager.throttle(request);
+        throttleManager.restoreRequest();
+        throttleManager.throttle(request);
+    }
+
+    @Test
     void restore() {
         var request = request();
         throttleManager.throttle(request);

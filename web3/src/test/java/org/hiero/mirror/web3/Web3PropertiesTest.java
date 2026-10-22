@@ -28,6 +28,29 @@ class Web3PropertiesTest {
     }
 
     @Test
+    void getRequestTimeoutFallsBackWhenResponseIsMissing() {
+        var properties = new Web3Properties();
+        properties.setRequestTimeout(Duration.ofSeconds(9L));
+        var api = new ApiProperties();
+        api.setResponse(null);
+        properties.getApi().put(CALL, api);
+
+        assertThat(properties.getRequestTimeout(CALL)).isEqualTo(Duration.ofSeconds(9L));
+        assertThat(properties.getRequestTimeout(null)).isEqualTo(Duration.ofSeconds(9L));
+    }
+
+    @Test
+    void getRequestTimeoutFallsBackWhenResponseTimeoutIsMissing() {
+        var properties = new Web3Properties();
+        properties.setRequestTimeout(Duration.ofSeconds(9L));
+        var api = new ApiProperties();
+        api.getResponse().setTimeout(null);
+        properties.getApi().put(CALL, api);
+
+        assertThat(properties.getRequestTimeout(CALL)).isEqualTo(Duration.ofSeconds(9L));
+    }
+
+    @Test
     void isApiEnabledDefaults() {
         var properties = new Web3Properties();
 

@@ -44,9 +44,9 @@ public class Web3Properties {
      */
     public Duration getRequestTimeout(ApiEndpointName endpoint) {
         if (endpoint != null) {
-            var properties = api.get(endpoint);
+            final var properties = api.get(endpoint);
             if (properties != null
-                    && properties.getRequest() != null
+                    && properties.getResponse() != null
                     && properties.getResponse().getTimeout() != null) {
                 return properties.getResponse().getTimeout();
             }

@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.config;
 
-import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE;
 
 import jakarta.inject.Named;
@@ -27,7 +26,7 @@ final class RequestThrottleInterceptor implements HandlerInterceptor {
         }
 
         final var endpoint = ApiEndpointName.fromPath(requestMapping);
-        if (endpoint == null || endpoint == ACTIONS) {
+        if (endpoint == null) {
             return true;
         }
 

@@ -36,7 +36,7 @@ public class ActionContext {
 
     /**
      * Check the execution deadline every N opcodes while a frame is {@code CODE_EXECUTING}, so a 15M-gas loop cannot
-     * ignore {@code api.actions.request.timeout}. Must be a power of two.
+     * ignore {@code api.actions.response.timeout}. Must be a power of two.
      */
     public static final int DEADLINE_CHECK_INTERVAL = 64;
 
@@ -117,12 +117,16 @@ public class ActionContext {
     }
 
     /**
-     * Starts a new request body. Resets the current call-tree index so the next depth-0 action is a new
-     * {@link #actionResponses} entry. Previously completed bodies are kept.
+     * Starts a new request body. Resets the current call-tree index, truncation flag, and action count so the next
+     * depth-0 action is recorded. Previously completed bodies, including a truncation error already written on the
+     * previous transaction, are kept. {@link #executedOpcodes} stays cumulative so the deadline check does not skip a
+     * window.
      */
     public void beginCall() {
         actionsByDepth = new List[MAX_DEPTH];
         lastAction = null;
+        totalActionCount = 0;
+        truncated = false;
     }
 
     /**

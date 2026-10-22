@@ -112,6 +112,23 @@ class ContractCallContextTest {
     }
 
     @Test
+    void testGetTimestampForHistoricalActionsFallsBackToRecordFile() {
+        var context = ContractCallContext.get();
+        var consensusEnd = 1_786_518_658_483_854_104L;
+        context.setApi(ApiEndpointName.ACTIONS);
+        context.setCallServiceParameters(ContractExecutionParameters.builder()
+                .block(BlockType.of("39156482"))
+                .callData(new byte[0])
+                .gasPrice(0L)
+                .build());
+        context.setBlockSupplier(() ->
+                RecordFile.builder().consensusEnd(consensusEnd).index(39156482L).build());
+
+        assertThat(context.getTimestamp()).isEqualTo(Optional.of(consensusEnd));
+        assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(consensusEnd + 1));
+    }
+
+    @Test
     void testGetTimestampForSystemFilesFallsBackToRecordFileWhenNotOpcodeReplay() {
         var context = ContractCallContext.get();
         var consensusEnd = 1_786_518_658_483_854_104L;

@@ -14,6 +14,7 @@ import java.util.Optional;
 import lombok.CustomLog;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ActionResponse;
+import org.hiero.mirror.web3.common.BlockOverrideAdvance;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
@@ -34,6 +35,7 @@ import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.Suppliers;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
+import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.jspecify.annotations.Nullable;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.validation.annotation.Validated;
@@ -45,6 +47,7 @@ public class ContractDebugService extends ContractCallService {
     private final ContractActionRepository contractActionRepository;
     private final RecordFileService recordFileService;
     private final TransactionRepository transactionRepository;
+    private static final String TRANSACTION_INDEX_ERROR = "Invalid transaction_index";
 
     @SuppressWarnings("java:S107")
     public ContractDebugService(
@@ -89,7 +92,6 @@ public class ContractDebugService extends ContractCallService {
                     .orElseThrow(BlockNumberNotFoundException::new)));
             ctx.setDeadlineMillis(ctx.getStartTime() + traceCall.getTimeout().toMillis());
 
-            applyStateTimestamp(ctx, traceCall);
             final var actionContext = ActionContext.builder().build();
             ctx.setActionContext(actionContext);
             actionContext.setOnlyTopCall(traceCall.isOnlyTopCall());
@@ -97,31 +99,48 @@ public class ContractDebugService extends ContractCallService {
             ctx.applyStateOverrides(stateOverride == null ? List.of() : List.of(stateOverride));
 
             final var bundles = traceCall.getBundles();
-            for (final var bundle : bundles) {
-                executeBundle(ctx, actionContext, bundle);
+            final var started = new int[1];
+            try {
+                final var timestamp = resolveStateTimestamp(ctx, traceCall);
+                if (timestamp != null) {
+                    ctx.setTimestamp(Optional.of(timestamp));
+                }
+                for (var bundleIndex = 0; bundleIndex < bundles.size(); bundleIndex++) {
+                    executeBundle(ctx, actionContext, bundles.get(bundleIndex), bundleIndex, started);
+                }
+                return actionResponse(ctx);
+            } catch (final RuntimeException exception) {
+                restoreUnstartedGas(bundles, started[0]);
+                throw exception;
             }
-            return actionResponse(ctx);
         });
     }
 
     private void executeBundle(
-            final ContractCallContext ctx, final ActionContext actionContext, final TraceBundle bundle) {
+            final ContractCallContext ctx,
+            final ActionContext actionContext,
+            final TraceBundle bundle,
+            final int bundleIndex,
+            final int[] started) {
         ctx.evictCachedState(BLOCKS_STATE_ID);
         ctx.evictCachedState(BLOCK_STREAM_INFO_STATE_ID);
-        applyBlockOverride(ctx, bundle.getBlockOverride());
+        applyBlockOverride(ctx, bundle.getBlockOverride(), bundleIndex);
 
-        final var transactions = bundle.getTransactions();
-        for (final var transaction : transactions) {
+        for (final var transaction : bundle.getTransactions()) {
             actionContext.beginCall();
             try {
                 callContract(transaction, ctx);
             } catch (final QueryTimeoutException _) {
                 throw new TraceTimeoutException(actionResponse(ctx));
-            } catch (final MirrorEvmTransactionException e) {
+            } catch (final MirrorEvmTransactionException exception) {
                 if (actionContext.isTimedOut()) {
                     throw new TraceTimeoutException(actionResponse(ctx));
                 }
-                throw e;
+                throw exception;
+            } finally {
+                // callContract's finally already returned unused gas. Count the transaction so a later abort does not
+                // return that gas again.
+                started[0]++;
             }
             if (actionContext.isTimedOut()) {
                 throw new TraceTimeoutException(actionResponse(ctx));
@@ -129,54 +148,66 @@ public class ContractDebugService extends ContractCallService {
         }
     }
 
-    private void applyBlockOverride(final ContractCallContext ctx, final @Nullable BlockOverride override) {
-        final Long previousNumber = ctx.getBlockOverrideNumber();
-        final Long previousTime = ctx.getBlockOverrideTimeNanos();
-        if (override == null) {
-            if (ctx.hasBlockOverride()) {
-                ctx.advanceBlockOverride();
-            }
-            return;
-        }
-        ctx.applyBlockOverride(override);
-        try {
-            if (ctx.getBlockOverrideNumber() == null && previousNumber != null) {
-                ctx.setBlockOverrideNumber(Math.addExact(previousNumber, 1L));
-            }
-            if (ctx.getBlockOverrideTimeNanos() == null && previousTime != null) {
-                ctx.setBlockOverrideTimeNanos(Math.addExact(previousTime, DomainUtils.convertToNanosMax(2L, 0L)));
-            }
-        } catch (final ArithmeticException _) {
-            throw new InvalidParametersException("Invalid block_override: block context overflow");
-        }
+    private void applyBlockOverride(
+            final ContractCallContext ctx, final @Nullable BlockOverride override, final int bundleIndex) {
+        final var previousTimeNanos = ctx.getBlockOverrideTimeNanos();
+        final var next = BlockOverrideAdvance.next(
+                ctx.getBlockOverrideNumber(),
+                previousTimeNanos == null ? null : previousTimeNanos / DomainUtils.NANOS_PER_SECOND,
+                override,
+                bundleIndex);
+        ctx.setBlockOverrideNumber(next.number());
+        ctx.setBlockOverrideTimeNanos(
+                next.timeSeconds() == null ? null : DomainUtils.convertToNanosMax(next.timeSeconds(), 0L));
     }
 
     /**
-     * Starts the first bundle at the consensus timestamp of {@code transaction_index} in the request block. The index is
-     * pointing to the n-th transactions of the block, so for example 5 is the state after the first five transactions.
-     * {@code -1} uses the block state directly. Each later bundle keeps that base timestamp and increases it by 2
-     * seconds. A bundle that sets {@code block_override.time} uses that timestamp for its own transactions. The next
-     * bundle continues from the base, not from the override. Transactions in one bundle share one timestamp.
+     * State timestamp for the whole trace. {@code 0} is the beginning of the block, one nanosecond before its first
+     * transaction. {@code -1} is after every transaction in the block: a past block uses that record file's consensus
+     * end, and {@code latest} keeps current state. A positive index is that transaction's consensus timestamp. The
+     * record file comes from the supplier installed for the whole trace. State reads are inclusive, so the consensus
+     * end includes the block's last transaction. {@code block_override} changes only the EVM block header.
      */
-    private void applyStateTimestamp(final ContractCallContext ctx, final TraceCall traceCall) {
+    private @Nullable Long resolveStateTimestamp(final ContractCallContext ctx, final TraceCall traceCall) {
         final int transactionIndex = traceCall.getTransactionIndex();
-        if (transactionIndex == -1) {
-            return;
+        if (transactionIndex < -1) {
+            throw new InvalidParametersException(TRANSACTION_INDEX_ERROR);
         }
-        if (transactionIndex < 1) {
-            throw new InvalidParametersException("Invalid transaction_index");
+        // latest has no closed block end. Current state is the state after every imported transaction.
+        if (transactionIndex == -1 && traceCall.getBlock() == BlockType.LATEST) {
+            return null;
         }
-        final var recordFile =
-                recordFileService.findByBlockType(traceCall.getBlock()).orElseThrow(BlockNumberNotFoundException::new);
+        final var recordFile = ctx.getRecordFile();
         final var consensusStart = recordFile.getConsensusStart();
         final var consensusEnd = recordFile.getConsensusEnd();
         if (consensusStart == null || consensusEnd == null) {
             throw transactionIndexOutOfRange();
         }
-        final var stateTimestamp = transactionRepository
+        if (transactionIndex == -1) {
+            return consensusEnd;
+        }
+        if (transactionIndex == 0) {
+            try {
+                return Math.subtractExact(consensusStart, 1L);
+            } catch (final ArithmeticException _) {
+                throw new InvalidParametersException(TRANSACTION_INDEX_ERROR);
+            }
+        }
+        return transactionRepository
                 .findConsensusTimestampAtPosition(consensusStart, consensusEnd, transactionIndex - 1)
                 .orElseThrow(this::transactionIndexOutOfRange);
-        ctx.setTimestamp(Optional.of(stateTimestamp));
+    }
+
+    private void restoreUnstartedGas(final List<TraceBundle> bundles, final int started) {
+        var index = 0;
+        for (final var bundle : bundles) {
+            for (final var transaction : bundle.getTransactions()) {
+                if (index >= started) {
+                    restoreReservedGas(transaction.getGas());
+                }
+                index++;
+            }
+        }
     }
 
     private InvalidParametersException transactionIndexOutOfRange() {

@@ -151,6 +151,33 @@ class ActionContextTest {
     }
 
     @Test
+    void beginCallResetsTruncationAndRecordsTheNextRoot() {
+        final var context = new ActionContext();
+        for (int i = 0; i < ActionContext.MAX_ACTIONS; i++) {
+            context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x" + i), 0);
+        }
+        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xoverflow"), 0);
+        assertThat(context.isTruncated()).isTrue();
+        final var truncated = context.getActions().getLast();
+        assertThat(truncated.getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+
+        for (int i = 1; i < ActionContext.DEADLINE_CHECK_INTERVAL; i++) {
+            assertThat(context.shouldCheckDeadline()).isFalse();
+        }
+
+        context.beginCall();
+
+        assertThat(context.isTruncated()).isFalse();
+        assertThat(context.shouldCheckDeadline()).isTrue();
+        final var next = new ActionResponse().type(TypeEnum.CALL).from("0xnext");
+        context.addAction(next, 0);
+        assertThat(context.isTruncated()).isFalse();
+        assertThat(context.getActions()).hasSize(ActionContext.MAX_ACTIONS + 1);
+        assertThat(context.getActions().getLast()).isSameAs(next);
+        assertThat(truncated.getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+    }
+
+    @Test
     void beginCallKeepsCompletedBodiesAndStartsANewTree() {
         final var context = new ActionContext();
         final var first = new ActionResponse().from("0x0");
