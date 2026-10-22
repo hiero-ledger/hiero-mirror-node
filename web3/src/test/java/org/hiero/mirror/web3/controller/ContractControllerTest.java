@@ -538,28 +538,30 @@ final class ContractControllerTest {
     }
 
     @Test
-    void actionsCallRejectsOnlyTopCallForTraceCallMany() throws Exception {
+    void actionsCallForwardsOnlyTopCallForTraceCallMany() throws Exception {
         enableActionsApi();
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSES);
         final var manyBundles = traceRequest();
         transaction(manyBundles).setValue(0);
         manyBundles.getBundles().add(bundleOf(transaction()));
         manyBundles.setOnlyTopCall(true);
 
-        contractActionsCall(manyBundles)
-                .andExpect(status().isBadRequest())
-                .andExpect(content()
-                        .string(new StringContains("Top level result is only supported for debug_traceCall.")));
+        contractActionsCall(manyBundles).andExpect(status().isOk());
 
         final var manyTransactions = traceRequest();
         transaction(manyTransactions).setValue(0);
         manyTransactions.getBundles().getFirst().getTransactions().add(transaction());
         manyTransactions.setOnlyTopCall(true);
 
-        contractActionsCall(manyTransactions)
-                .andExpect(status().isBadRequest())
-                .andExpect(content()
-                        .string(new StringContains("Top level result is only supported for debug_traceCall.")));
-        verify(contractDebugService, never()).processTraceCall(any());
+        contractActionsCall(manyTransactions).andExpect(status().isOk());
+
+        verify(contractDebugService)
+                .processTraceCall(argThat((TraceCall call) ->
+                        call.isOnlyTopCall() && call.getBundles().size() == 2));
+        verify(contractDebugService)
+                .processTraceCall(argThat((TraceCall call) -> call.isOnlyTopCall()
+                        && call.getBundles().size() == 1
+                        && call.getBundles().getFirst().getTransactions().size() == 2));
     }
 
     @Test

@@ -20,8 +20,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * One {@code debug_traceCallMany} request. A single bundle with one transaction is {@code debug_traceCall}.
  * {@code block}, {@code state_override}, {@code timeout}, and {@code transaction_index} apply to every bundle.
- * {@code only_top_call} is supported only for {@code debug_traceCall}. State changes from earlier bundles stay visible
- * to later bundles. Each bundle applies its own {@code block_override}.
+ * When {@code only_top_call} is true, each transaction returns only its root call and omits nested actions. State
+ * changes from earlier bundles stay visible to later bundles. Each bundle applies its own {@code block_override}.
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

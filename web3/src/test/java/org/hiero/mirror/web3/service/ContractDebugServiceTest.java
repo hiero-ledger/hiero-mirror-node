@@ -217,6 +217,33 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     @Test
+    void processTraceCallManyIntegrationOnlyTopCall() {
+        final var contract = testWeb3jService.deploy(InternalCaller::deploy);
+        final var functionCall = contract.call_callNonExisting(contract.getContractAddress());
+        final var params = getContractExecutionParameters(functionCall, contract);
+
+        final var allActions =
+                contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT, null));
+        final var topCallsOnly = contractDebugService.processTraceCall(TraceCall.builder()
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(params, params))
+                                .build(),
+                        TraceBundle.builder().transactions(List.of(params)).build()))
+                .onlyTopCall(true)
+                .timeout(INTEGRATION_TIMEOUT)
+                .build());
+
+        assertThat(allActions).hasSize(1);
+        assertThat(allActions.getFirst().getCalls()).isNotEmpty();
+        assertThat(topCallsOnly).hasSize(3);
+        assertThat(topCallsOnly).allSatisfy(action -> {
+            assertThat(action.getCalls()).isNullOrEmpty();
+            assertThat(action.getTo()).isEqualTo(allActions.getFirst().getTo());
+        });
+    }
+
+    @Test
     void processTraceCallAppliesRequestedTimeout() {
         final var deadlineWindow = new AtomicLong();
         stubActionsAndCaptureDeadline(deadlineWindow, action("0x02", TypeEnum.CALL));
