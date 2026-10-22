@@ -353,11 +353,17 @@ final class ClprControllerTest extends ControllerTest {
         @ValueSource(strings = {"%s", "0x%s", "eq:%s", "eq:0x%s"})
         void connectorIdFilter(String format) {
             final var connector = persist(100L);
-            persist(200L);
+            persistDeleted(200L, false, connector.getChannelId());
             final var id = format.formatted(HexFormat.of().formatHex(connector.getConnectorId()));
 
-            final var actual =
-                    restClient.get().uri("?connector.id={id}", id).retrieve().body(ClprConnectorsResponse.class);
+            final var actual = restClient
+                    .get()
+                    .uri(
+                            "?channel.id={channelId}&connector.id={id}",
+                            HexFormat.of().formatHex(connector.getChannelId()),
+                            id)
+                    .retrieve()
+                    .body(ClprConnectorsResponse.class);
 
             assertThat(actual.getConnectors()).containsExactlyElementsOf(connectorMapper.map(List.of(connector)));
         }
@@ -365,11 +371,15 @@ final class ClprControllerTest extends ControllerTest {
         @ParameterizedTest
         @ValueSource(strings = {"true", "TRUE"})
         void deletedTrue(String value) {
-            persist(100L);
-            final var removed = persistDeleted(200L, true);
+            final var channelId = domainBuilder.bytes(32);
+            persistDeleted(100L, false, channelId);
+            final var removed = persistDeleted(200L, true, channelId);
 
-            final var actual =
-                    restClient.get().uri("?deleted={value}", value).retrieve().body(ClprConnectorsResponse.class);
+            final var actual = restClient
+                    .get()
+                    .uri("?channel.id={id}&deleted={value}", HexFormat.of().formatHex(channelId), value)
+                    .retrieve()
+                    .body(ClprConnectorsResponse.class);
 
             assertThat(actual.getConnectors()).containsExactlyElementsOf(connectorMapper.map(List.of(removed)));
         }
@@ -377,11 +387,15 @@ final class ClprControllerTest extends ControllerTest {
         @ParameterizedTest
         @ValueSource(strings = {"false", "FALSE"})
         void deletedFalse(String value) {
-            final var active = persist(100L);
-            persistDeleted(200L, true);
+            final var channelId = domainBuilder.bytes(32);
+            final var active = persistDeleted(100L, false, channelId);
+            persistDeleted(200L, true, channelId);
 
-            final var actual =
-                    restClient.get().uri("?deleted={value}", value).retrieve().body(ClprConnectorsResponse.class);
+            final var actual = restClient
+                    .get()
+                    .uri("?channel.id={id}&deleted={value}", HexFormat.of().formatHex(channelId), value)
+                    .retrieve()
+                    .body(ClprConnectorsResponse.class);
 
             assertThat(actual.getConnectors()).containsExactlyElementsOf(connectorMapper.map(List.of(active)));
         }
@@ -398,13 +412,16 @@ final class ClprControllerTest extends ControllerTest {
 
         @Test
         void timestampRange() {
-            persist(1_000_000_000L);
-            final var connector2 = persist(2_000_000_000L);
-            persist(3_000_000_000L);
+            final var channelId = domainBuilder.bytes(32);
+            persistDeleted(1_000_000_000L, false, channelId);
+            final var connector2 = persistDeleted(2_000_000_000L, false, channelId);
+            persistDeleted(3_000_000_000L, false, channelId);
 
             final var actual = restClient
                     .get()
-                    .uri("?timestamp=gt:1.000000000&timestamp=lt:3.000000000")
+                    .uri(
+                            "?channel.id={id}&timestamp=gt:1.000000000&timestamp=lt:3.000000000",
+                            HexFormat.of().formatHex(channelId))
                     .retrieve()
                     .body(ClprConnectorsResponse.class);
 
@@ -413,11 +430,17 @@ final class ClprControllerTest extends ControllerTest {
 
         @Test
         void timestampEq() {
-            persist(1_000_000_000L);
-            final var connector2 = persist(2_000_000_000L);
+            final var channelId = domainBuilder.bytes(32);
+            persistDeleted(1_000_000_000L, false, channelId);
+            final var connector2 = persistDeleted(2_000_000_000L, false, channelId);
 
-            final var actual =
-                    restClient.get().uri("?timestamp=eq:2.000000000").retrieve().body(ClprConnectorsResponse.class);
+            final var actual = restClient
+                    .get()
+                    .uri(
+                            "?channel.id={id}&timestamp=eq:2.000000000",
+                            HexFormat.of().formatHex(channelId))
+                    .retrieve()
+                    .body(ClprConnectorsResponse.class);
 
             assertThat(actual.getConnectors()).containsExactlyElementsOf(connectorMapper.map(List.of(connector2)));
         }
@@ -472,16 +495,27 @@ final class ClprControllerTest extends ControllerTest {
             assertThat(actual.getConnectors()).containsExactlyElementsOf(connectorMapper.map(List.of(connector)));
         }
 
-        @Test
-        void timestampRangeExceedsMax() {
+        @ParameterizedTest
+        @ValueSource(
+                strings = {
+                    "?deleted=true",
+                    "?deleted=false",
+                    "?timestamp=gte:1",
+                    "?timestamp=lte:2",
+                    "?timestamp=gte:1&timestamp=lte:2",
+                    "?connector.id=%s",
+                    "?connector.id=%s&deleted=false",
+                    "?connector.id=%s&timestamp=gte:1"
+                })
+        void channelIdRequiredForOtherFilters(String query) {
             validateError(
                     () -> restClient
                             .get()
-                            .uri("?timestamp=gte:1&timestamp=lte:2592002")
+                            .uri(query.formatted("ab".repeat(32)))
                             .retrieve()
                             .toBodilessEntity(),
                     HttpClientErrorException.BadRequest.class,
-                    "Timestamp range by the lower and upper bounds must not exceed PT720H");
+                    "channel.id is required when filtering by connector.id, deleted or timestamp");
         }
 
         @ParameterizedTest
@@ -514,9 +548,15 @@ final class ClprControllerTest extends ControllerTest {
         }
 
         private ClprConnector persistDeleted(long createdTimestamp, boolean deleted) {
+            return persistDeleted(createdTimestamp, deleted, domainBuilder.bytes(32));
+        }
+
+        private ClprConnector persistDeleted(long createdTimestamp, boolean deleted, byte[] channelId) {
             return domainBuilder
                     .clprConnector()
-                    .customize(c -> c.createdTimestamp(createdTimestamp).deleted(deleted))
+                    .customize(c -> c.channelId(channelId)
+                            .createdTimestamp(createdTimestamp)
+                            .deleted(deleted))
                     .persist();
         }
     }

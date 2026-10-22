@@ -29,7 +29,8 @@ final class ClprServiceImpl implements ClprService {
         final long lowerBound = request.getLowerBound();
         final long upperBound = request.getUpperBound();
         final var channelId = request.getChannelId();
-        validateRange(lowerBound, upperBound, channelId != null);
+        validateRange(lowerBound, upperBound);
+        validateWindow(lowerBound, upperBound, channelId != null);
 
         final var sort = Sort.by(request.getOrder(), CLPR_CHANNEL.CREATED_TIMESTAMP.getName());
         final var page = PageRequest.of(0, request.getLimit(), sort);
@@ -50,15 +51,29 @@ final class ClprServiceImpl implements ClprService {
 
     @Override
     public List<ClprConnector> getConnectors(final ClprConnectorsRequest request) {
-        validateRange(request.getLowerBound(), request.getUpperBound(), request.getChannelId() != null);
+        final long lowerBound = request.getLowerBound();
+        final long upperBound = request.getUpperBound();
+        validateRange(lowerBound, upperBound);
+
+        // Only channel_id routes to a single shard, so any other filter without it would scatter-gather across all
+        // shards. connector_id isn't the distribution column either, so it needs channel.id too.
+        final boolean timestampFiltered = lowerBound > 0L || upperBound < Long.MAX_VALUE;
+        if (request.getChannelId() == null
+                && (request.getConnectorId() != null || request.getDeleted() != null || timestampFiltered)) {
+            throw new IllegalArgumentException(
+                    "channel.id is required when filtering by connector.id, deleted or timestamp");
+        }
+
         return connectorRepository.findAll(request);
     }
 
-    private void validateRange(final long lowerBound, final long upperBound, final boolean shardLocal) {
+    private void validateRange(final long lowerBound, final long upperBound) {
         if (lowerBound > upperBound) {
             throw new IllegalArgumentException("Invalid range provided for timestamp");
         }
+    }
 
+    private void validateWindow(final long lowerBound, final long upperBound, final boolean shardLocal) {
         if (shardLocal || lowerBound <= 0L || upperBound == Long.MAX_VALUE) {
             // Open-ended ranges (a default bound) aren't capped
             return;

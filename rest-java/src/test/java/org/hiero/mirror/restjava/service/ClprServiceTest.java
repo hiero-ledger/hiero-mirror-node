@@ -334,63 +334,71 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void getConnectorsTimestampRangeExceedsMax() {
+    void getConnectorsConnectorIdWithoutChannelId() {
         // given
-        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
-        final var request = ClprConnectorsRequest.builder()
-                .lowerBound(1L)
-                .upperBound(maxRange + 2)
-                .build();
+        final var request =
+                ClprConnectorsRequest.builder().connectorId(new byte[32]).build();
 
         // when / then
         assertThatThrownBy(() -> service.getConnectors(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must not exceed");
+                .hasMessage("channel.id is required when filtering by connector.id, deleted or timestamp");
     }
 
     @Test
-    void getConnectorsTimestampRangeExceedsMaxWithConnectorIdOnly() {
+    void getConnectorsByChannelIdWithDeletedAndTimestamp() {
         // given
-        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
-        final var request = ClprConnectorsRequest.builder()
-                .connectorId(new byte[32])
-                .lowerBound(1L)
-                .upperBound(maxRange + 2)
-                .build();
-
-        // when / then
-        assertThatThrownBy(() -> service.getConnectors(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must not exceed");
-    }
-
-    @Test
-    void getConnectorsTimestampRangeAtMax() {
-        // given
-        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
-        final var connector = persistConnector(maxRange);
-        final var request = ClprConnectorsRequest.builder()
-                .lowerBound(1L)
-                .upperBound(maxRange + 1)
-                .build();
-
-        // when / then
-        assertThat(service.getConnectors(request)).containsExactly(connector);
-    }
-
-    @Test
-    void getConnectorsByChannelIdIsNotCappedByMaxRange() {
-        // given
-        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
-        final var connector = persistConnector(maxRange + 10);
+        final var connector = persistConnector(200L);
         final var request = ClprConnectorsRequest.builder()
                 .channelId(connector.getChannelId())
+                .deleted(false)
                 .lowerBound(1L)
-                .upperBound(maxRange * 2)
+                .upperBound(Long.MAX_VALUE - 1)
                 .build();
 
         // when / then
         assertThat(service.getConnectors(request)).containsExactly(connector);
+    }
+
+    @Test
+    void getConnectorsDeletedWithoutChannelId() {
+        // given
+        final var request = ClprConnectorsRequest.builder().deleted(true).build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getConnectors(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("channel.id is required when filtering by connector.id, deleted or timestamp");
+    }
+
+    @Test
+    void getConnectorsDeletedWithConnectorIdWithoutChannelId() {
+        // given
+        final var request = ClprConnectorsRequest.builder()
+                .connectorId(new byte[32])
+                .deleted(false)
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getConnectors(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("channel.id is required when filtering by connector.id, deleted or timestamp");
+    }
+
+    @Test
+    void getConnectorsTimestampWithoutChannelId() {
+        // given
+        final var lowerOnly = ClprConnectorsRequest.builder().lowerBound(1L).build();
+        final var upperOnly = ClprConnectorsRequest.builder().upperBound(100L).build();
+        final var both =
+                ClprConnectorsRequest.builder().lowerBound(1L).upperBound(100L).build();
+
+        // when / then
+        for (final var request : List.of(lowerOnly, upperOnly, both)) {
+            assertThatThrownBy(() -> service.getConnectors(request))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("channel.id is required when filtering by connector.id, deleted or timestamp");
+        }
     }
 
     private ClprConnector persistConnector(long createdTimestamp) {

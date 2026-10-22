@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
@@ -23,7 +24,8 @@ final class ClprConnectorRepositoryCustomImpl implements ClprConnectorRepository
     @Override
     public List<ClprConnector> findAll(final ClprConnectorsRequest request) {
         final var conditions = new ArrayList<Condition>();
-        conditions.add(CLPR_CONNECTOR.CREATED_TIMESTAMP.between(request.getLowerBound(), request.getUpperBound()));
+        conditions.add(getCondition(CLPR_CONNECTOR.CREATED_TIMESTAMP, RangeOperator.GTE, request.getLowerBound()));
+        conditions.add(getCondition(CLPR_CONNECTOR.CREATED_TIMESTAMP, RangeOperator.LTE, request.getUpperBound()));
 
         final var channelId = request.getChannelId();
         if (channelId != null) {

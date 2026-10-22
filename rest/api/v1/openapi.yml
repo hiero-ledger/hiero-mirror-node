@@ -547,7 +547,7 @@ paths:
   /api/v1/clpr/connectors:
     get:
       summary: List CLPR connectors
-      description: Returns a list of CLPR (HIP-1535) connectors across all channels or a single channel, paginated and sorted by creation timestamp.
+      description: Returns a list of CLPR (HIP-1535) connectors across all channels or a single channel, paginated and sorted by creation timestamp. The connector.id, deleted and timestamp filters require channel.id.
       operationId: getClprConnectors
       parameters:
         - $ref: "#/components/parameters/clprChannelIdQueryParam"

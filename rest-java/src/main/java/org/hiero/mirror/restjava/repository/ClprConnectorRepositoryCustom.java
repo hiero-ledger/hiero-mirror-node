@@ -6,7 +6,7 @@ import java.util.List;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 
-public interface ClprConnectorRepositoryCustom {
+public interface ClprConnectorRepositoryCustom extends JooqRepository {
 
     List<ClprConnector> findAll(ClprConnectorsRequest request);
 }
