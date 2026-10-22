@@ -5,18 +5,24 @@ package org.hiero.mirror.importer.parser.record;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.hapi.block.stream.protoc.Block;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorHistory;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.downloader.block.BlockFileTransformer;
+import org.hiero.mirror.importer.parser.domain.BlockFileBuilder;
+import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.ClprChannelRepository;
 import org.hiero.mirror.importer.repository.ClprConnectorRepository;
+import org.hiero.mirror.importer.repository.ClprEndpointManifestRepository;
 import org.hiero.mirror.importer.repository.ClprLedgerConfigurationRepository;
 import org.hiero.mirror.importer.repository.ClprMessageRepository;
 import org.hiero.mirror.importer.repository.TransactionRepository;
@@ -43,6 +49,11 @@ import org.junit.jupiter.api.Test;
  * which only the multi-network {@code ClprMessagesSuite} round-trip exercises. It also doesn't exercise
  * {@code clpr_ledger_configuration} — the suite's {@code clprUpdateLedgerConfiguration} call landed in a later block
  * of the same run, not captured here.
+ *
+ * <p>{@link #clprMaintenance()} is the one exception to "real captured blocks only": {@code ClprMaintenance} only
+ * fires when the consensus node's per-round endpoint-manifest reconciler actually changes something (genesis,
+ * post-upgrade, or a real roster/endpoint change), none of which this capture run triggers, so it uses a synthetic
+ * block built via {@code RecordItemBuilder}/{@code BlockTransactionBuilder} instead.
  */
 @RequiredArgsConstructor
 class ClprBlockFileE2ETest extends ImporterIntegrationTest {
@@ -50,13 +61,17 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
     private static final String CLPR_BLOCK_FILE_1 = "data/blockstreams-clpr/0000/0000/0000/0000/001.blk.zstd";
     private static final String CLPR_BLOCK_FILE_2 = "data/blockstreams-clpr/0000/0000/0000/0000/002.blk.zstd";
 
+    private final BlockFileBuilder blockFileBuilder;
     private final BlockFileTransformer blockFileTransformer;
     private final BlockStreamReader blockStreamReader;
+    private final BlockTransactionBuilder blockTransactionBuilder;
     private final ClprChannelRepository clprChannelRepository;
     private final ClprConnectorRepository clprConnectorRepository;
+    private final ClprEndpointManifestRepository clprEndpointManifestRepository;
     private final ClprLedgerConfigurationRepository clprLedgerConfigurationRepository;
     private final ClprMessageRepository clprMessageRepository;
     private final RecordFileParser recordFileParser;
+    private final RecordItemBuilder recordItemBuilder;
     private final TransactionRepository transactionRepository;
 
     @BeforeEach
@@ -111,6 +126,33 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         assertThat(findHistory(ClprConnectorHistory.class)).isEmpty();
 
         assertThat(transactionRepository.count()).isGreaterThanOrEqualTo(9L);
+    }
+
+    @Test
+    // TODO: generate real block file
+    void clprMaintenance() {
+        // given -- synthetic block, see class javadoc for why
+        var recordItem = recordItemBuilder
+                .clprMaintenance()
+                .recordItem(r -> r.congestionPricingMultiplier(0L))
+                .build();
+        var blockTransaction =
+                blockTransactionBuilder.clprMaintenance(recordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+        recordFileParser.parse(recordFile);
+
+        // then
+        var expectedManifest = recordItem.getClprEndpointManifest();
+        assertThat(clprEndpointManifestRepository.findAll()).singleElement().satisfies(manifest -> {
+            assertThat(manifest.getConsensusTimestamp()).isEqualTo(recordItem.getConsensusTimestamp());
+            assertThat(manifest.getVersion()).isEqualTo(expectedManifest.getVersion());
+            assertThat(manifest.getServiceAddress())
+                    .isEqualTo(DomainUtils.toBytes(expectedManifest.getServiceAddress()));
+            assertThat(manifest.getEndpoints()).hasSize(1);
+        });
     }
 
     private void parse(String resource) throws Exception {

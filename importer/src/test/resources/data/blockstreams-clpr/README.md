@@ -52,8 +52,11 @@ re-sourced from a different consensus-node version or test run.
   All `SUCCESS` except the close-channel attempt (expected failure).
 
 - **Covers**: `sendMessage` → `ClprSubmitBundle` → message persistence, channel status transition, a failed
-  close-channel attempt, and (combined with `001.blk.zstd`) confirms `clpr_channel_history`/`clpr_connector_history`
-  stay empty across the whole register→complete→message→close-attempt lifecycle (patch-in-place, not versioned).
+  close-channel attempt, and (combined with `001.blk.zstd`) confirms `clpr_channel_history` picks up **both**
+  channel writes in this block — the `sendMessage` call's `nextMessageId` bump and the `ClprSubmitBundle`'s status
+  transition each cut a history row today (every channel write historizes for now, see `channelHistorizes()` in
+  `ClprStateChangeHandler` / `CLPR-DESIGN-DEVIATIONS.md` §4) — while `clpr_connector_history` stays empty, since
+  this block never touches the connector.
 - **Bug found via this fixture**: step 3's child `ContractCall` shares its parent `ClprSubmitBundle`'s
   `StateChangeContext` by reference (`BlockTransaction.createStateChangeContext()`), so before the fix in
   `AbstractBlockTransactionTransformer.transformClprSendMessageSideEffects` (skip when `blockTransaction.getParent()

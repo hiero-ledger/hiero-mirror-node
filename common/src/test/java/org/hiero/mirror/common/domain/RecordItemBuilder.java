@@ -32,6 +32,8 @@ import com.hedera.hapi.node.hooks.legacy.HookExtensionPoint;
 import com.hedera.hapi.node.hooks.legacy.HookStoreTransactionBody;
 import com.hedera.hapi.node.tss.legacy.LedgerIdNodeContribution;
 import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
+import com.hedera.hapi.services.auxiliary.clpr.legacy.ClprMaintenanceReason;
+import com.hedera.hapi.services.auxiliary.clpr.legacy.ClprMaintenanceTransactionBody;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
@@ -53,6 +55,8 @@ import com.hederahashgraph.api.proto.java.ClprCompleteChannelTransactionBody;
 import com.hederahashgraph.api.proto.java.ClprCompleteConnectorTransactionBody;
 import com.hederahashgraph.api.proto.java.ClprConnector;
 import com.hederahashgraph.api.proto.java.ClprDeregisterConnectorTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprEndpoint;
+import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
 import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
 import com.hederahashgraph.api.proto.java.ClprMessage;
 import com.hederahashgraph.api.proto.java.ClprMessageKey;
@@ -60,6 +64,7 @@ import com.hederahashgraph.api.proto.java.ClprMessagePayload;
 import com.hederahashgraph.api.proto.java.ClprMessageValue;
 import com.hederahashgraph.api.proto.java.ClprRegisterChannelTransactionBody;
 import com.hederahashgraph.api.proto.java.ClprRegisterConnectorTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprServiceEndpoint;
 import com.hederahashgraph.api.proto.java.ClprSignatureScheme;
 import com.hederahashgraph.api.proto.java.ClprSubmitBundleTransactionBody;
 import com.hederahashgraph.api.proto.java.ClprThrottles;
@@ -379,6 +384,23 @@ public final class RecordItemBuilder {
                 .setConnectorId(bytes(32))
                 .setStakeRecipient(accountId());
         return new Builder<>(TransactionType.CLPRDEREGISTERCONNECTOR, builder);
+    }
+
+    public Builder<ClprMaintenanceTransactionBody.Builder> clprMaintenance() {
+        var builder = ClprMaintenanceTransactionBody.newBuilder()
+                .setReason(ClprMaintenanceReason.ENDPOINT_MANIFEST_RECONCILIATION);
+        var manifest = ClprEndpointManifest.newBuilder()
+                .setVersion(2)
+                .setServiceAddress(bytes(20))
+                .addEndpoints(ClprEndpoint.newBuilder()
+                        .setServiceEndpoint(ClprServiceEndpoint.newBuilder()
+                                .setIpAddress("10.0.0.1")
+                                .setPort(50211))
+                        .setTlsCertificate(bytes(64))
+                        .setAccountId(bytes(20)))
+                .build();
+        return new Builder<>(TransactionType.CLPRMAINTENANCE, builder)
+                .recordItem(r -> r.clprEndpointManifest(manifest));
     }
 
     public Builder<ClprRegisterChannelTransactionBody.Builder> clprRegisterChannel() {

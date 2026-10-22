@@ -134,8 +134,8 @@ public final class StateChangeContext {
                 } else if (stateChange.hasSingletonUpdate()) {
                     var singletonUpdate = stateChange.getSingletonUpdate();
                     switch (stateChange.getStateId()) {
-                        // TODO: no transaction type carries this state change yet (consensus-node gap, see
-                        // docs/design/clpr.md Consensus-Node Assumption #4); wire a transformer/handler once one does.
+                        // Carried by the system-initiated ClprMaintenance transaction (field 92) -- see
+                        // ClprMaintenanceTransformer/ClprMaintenanceTransactionHandler.
                         case StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE ->
                             processClprEndpointManifestStateChange(singletonUpdate);
                         case StateIdentifier.STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE ->

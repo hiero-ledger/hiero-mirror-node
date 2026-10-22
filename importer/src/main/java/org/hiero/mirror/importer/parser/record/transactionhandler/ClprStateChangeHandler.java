@@ -99,7 +99,7 @@ class ClprStateChangeHandler {
         };
     }
 
-    private static List<ClprEndpoint> toEndpoints(List<com.hederahashgraph.api.proto.java.ClprEndpoint> endpoints) {
+    static List<ClprEndpoint> toEndpoints(List<com.hederahashgraph.api.proto.java.ClprEndpoint> endpoints) {
         var result = new ArrayList<ClprEndpoint>(endpoints.size());
         for (var endpoint : endpoints) {
             var serviceEndpoint = endpoint.getServiceEndpoint();

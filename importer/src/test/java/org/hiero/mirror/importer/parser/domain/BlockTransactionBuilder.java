@@ -254,6 +254,20 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
+    public BlockTransactionBuilder.Builder clprMaintenance(RecordItem recordItem) {
+        var stateChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE)
+                .setSingletonUpdate(SingletonUpdateChange.newBuilder()
+                        .setClprEndpointManifestValue(recordItem.getClprEndpointManifest()))
+                .build();
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                Collections.emptyList());
+    }
+
     public BlockTransactionBuilder.Builder clprRegisterChannel(RecordItem recordItem) {
         var stateChange = StateChange.newBuilder()
                 .setStateId(StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE)

@@ -86,6 +86,9 @@ public class RecordItem implements StreamItem {
     // clpr_pending_connector_commitments map-update's own key; set by ClprRegisterConnectorTransformer.
     private final ByteString clprConnectorPendingCommitment;
 
+    // clpr_endpoint_manifest_value singleton state change; set by ClprMaintenanceTransformer.
+    private final com.hederahashgraph.api.proto.java.ClprEndpointManifest clprEndpointManifest;
+
     // clpr_ledger_configuration_value singleton state change; set by ClprUpdateLedgerConfigurationTransformer.
     private final com.hederahashgraph.api.proto.java.ClprLedgerConfiguration clprLedgerConfiguration;
 
