@@ -79,7 +79,7 @@ spring:
           max-size: 1024B
         metadata:
           max-size: 2048B
-      keep-alive:
+      keepalive:
         connection:
           grace-period: 30s
           max-age: 1d
