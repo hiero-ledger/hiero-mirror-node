@@ -59,13 +59,16 @@ public class NodeValidationProperties {
 
     private boolean retrieveAddressBook = true;
 
-    private TlsMode tls = TlsMode.BOTH;
+    @NotNull
+    private TlsMode tls = TlsMode.PREFER_TLS;
 
     @Getter
     @RequiredArgsConstructor
     public enum TlsMode {
         BOTH(n -> true),
         PLAINTEXT(port -> port != TLS_PORT),
+        // Use a node's TLS endpoint when it publishes one with a certificate hash, otherwise its plaintext endpoint
+        PREFER_TLS(n -> true),
         TLS(port -> port == TLS_PORT);
 
         private final Predicate<Integer> predicate;
