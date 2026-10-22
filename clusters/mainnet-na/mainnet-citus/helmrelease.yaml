@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.164.2'
+      version: '0.165.0'
   dependsOn:
     - name: mirror
       namespace: common
@@ -71,6 +71,11 @@ spec:
         HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_PROPERTIES_TOPICID: "0.0.368908"
         HIERO_MIRROR_MONITOR_SUBSCRIBE_GRPC_HCS_TOPICID: "0.0.368908"
     rest:
+      config:
+        hiero:
+          mirror:
+            rest:
+              clusterId: "a722379"
       env:
         HIERO_MIRROR_REST_CHAINID: "0x127"
       monitor:
