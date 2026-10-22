@@ -376,6 +376,9 @@ class OpcodesControllerTest extends Web3IntegrationTest {
 
         mockMvc.perform(opcodesRequest(transactionIdOrHash))
                 .andExpect(status().isOk())
+                .andExpect(header().string(
+                                CommonProperties.CLUSTER_ID_HEADER,
+                                CommonProperties.getInstance().getClusterId()))
                 .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
 
         expectedCallServiceParameters.set(
@@ -589,10 +592,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "*"))
                 .andExpect(header().string("Access-Control-Allow-Methods", "GET,HEAD,POST"))
-                .andExpect(header().string("Access-Control-Expose-Headers", CommonProperties.CLUSTER_ID_HEADER))
-                .andExpect(header().string(
-                                CommonProperties.CLUSTER_ID_HEADER,
-                                CommonProperties.getInstance().getClusterId()));
+                .andExpect(header().string("Access-Control-Expose-Headers", CommonProperties.CLUSTER_ID_HEADER));
     }
 
     /**

@@ -257,6 +257,9 @@ if (!loaded) {
   logger.setLevel(getConfig().log.level);
 }
 
-export default Object.assign(getConfig(), {common: getMirrorConfig().common});
+const restConfig = getConfig();
+restConfig.common = getMirrorConfig().common;
+
+export default restConfig;
 
 export {getMirrorConfig, getResponseLimit};

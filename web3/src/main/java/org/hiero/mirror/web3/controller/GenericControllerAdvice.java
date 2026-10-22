@@ -56,6 +56,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -189,7 +190,17 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         var detail = !statusCode.is5xxServerError() ? ex.getMessage() : StringUtils.EMPTY; // Don't leak server errors
         var genericErrorResponse = new GenericErrorResponse(message, detail, StringUtils.EMPTY);
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, ex, SCOPE_REQUEST);
-        return new ResponseEntity<>(genericErrorResponse, headers, statusCode);
+        var responseHeaders = new HttpHeaders();
+        if (headers != null) {
+            responseHeaders.addAll(headers);
+        }
+        var servletResponse = request instanceof ServletWebRequest servletRequest ? servletRequest.getResponse() : null;
+        properties.getResponse().getHeaders().getDefaults().forEach((name, value) -> {
+            if (servletResponse == null || !servletResponse.containsHeader(name)) {
+                responseHeaders.set(name, value);
+            }
+        });
+        return new ResponseEntity<>(genericErrorResponse, responseHeaders, statusCode);
     }
 
     private ErrorMessage formatErrorMessage(ObjectError error) {
