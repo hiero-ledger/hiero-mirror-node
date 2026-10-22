@@ -412,43 +412,43 @@ to configure the application.
 The following table lists the available properties along with their default values. Unless you need to set a non-default
 value, it is recommended to only populate overridden properties in the custom `application.yml`.
 
-| Name                                                       | Default          | Description                                                                                               |
-| ---------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
-| `hiero.mirror.grpc.addressbook.cacheExpiry`                | 2s               | The amount of time to cache address book entries                                                          |
-| `hiero.mirror.grpc.addressbook.cacheSize`                  | 50               | The maximum number of address book pages to cache                                                         |
-| `hiero.mirror.grpc.addressbook.maxConcurrent`              | 120              | The maximum number of concurrent address book subscriptions. Further subscriptions are rejected           |
-| `hiero.mirror.grpc.addressbook.maxLimit`                   | 1000             | The maximum entries returned per subscription. Non-positive and larger limits are clamped to this value   |
-| `hiero.mirror.grpc.addressbook.pageDelay`                  | 250ms            | The amount of time to sleep between paging for address book entries                                       |
-| `hiero.mirror.grpc.addressbook.pageSize`                   | 10               | The maximum number of address book entries to return in a single page                                     |
-| `hiero.mirror.grpc.addressbook.nodeStakeCacheExpiry`       | 24h              | The amount of time to cache node stake assignments                                                        |
-| `hiero.mirror.grpc.addressbook.nodeStakeCacheSize`         | 5                | The maximum number of versions of node stake assignments to cache                                         |
-| `hiero.mirror.grpc.addressbook.schedulerQueueSize`         | 32               | The maximum number of tasks that can be queued for the address book scheduler                             |
-| `hiero.mirror.grpc.addressbook.schedulerSize`              | 4                | The maximum number of threads used by the address book scheduler                                          |
-| `hiero.mirror.grpc.addressbook.timeout`                    | 4s               | How long an address book subscription may run before returning an error                                   |
-| `hiero.mirror.grpc.checkTopicExists`                       | true             | Whether to throw an error when the topic doesn't exist                                                    |
-| `hiero.mirror.grpc.db.host`                                | 127.0.0.1        | The IP or hostname used to connect to the database                                                        |
-| `hiero.mirror.grpc.db.name`                                | mirror_node      | The name of the database                                                                                  |
-| `hiero.mirror.grpc.db.password`                            | mirror_grpc_pass | The database password used to connect to the database.                                                    |
-| `hiero.mirror.grpc.db.port`                                | 5432             | The port used to connect to the database                                                                  |
-| `hiero.mirror.grpc.db.statementTimeout`                    | 10000            | The number of milliseconds to wait before timing out a query statement                                    |
-| `hiero.mirror.grpc.db.username`                            | mirror_grpc      | The username used to connect to the database                                                              |
-| `hiero.mirror.grpc.endTimeInterval`                        | 30s              | How often we should check if a subscription has gone past the end time                                    |
-| `hiero.mirror.grpc.entityCacheSize`                        | 50000            | The maximum size of the cache to store entities used for existence check                                  |
-| `hiero.mirror.grpc.listener.enabled`                       | true             | Whether to listen for incoming massages or not                                                            |
-| `hiero.mirror.grpc.listener.interval`                      | 500ms            | How often to poll or retry errors (varies by type). Can accept duration units like `50ms`, `10s`, etc.    |
-| `hiero.mirror.grpc.listener.maxBufferSize`                 | 16384            | The maximum number of messages the shared polling listener buffers before sending an error to a client    |
-| `hiero.mirror.grpc.listener.maxPageSize`                   | 5000             | The maximum number of messages the listener can return in a single call to the database                   |
-| `hiero.mirror.grpc.listener.prefetch`                      | 48               | The prefetch queue size for shared listeners                                                              |
-| `hiero.mirror.grpc.listener.type`                          | REDIS            | The type of listener to use for incoming messages. Accepts either POLL, REDIS or SHARED_POLL              |
-| `hiero.mirror.grpc.netty.maxConcurrentCallsPerConnection`  | 5                | The maximum number of concurrent calls permitted for each incoming connection                             |
-| `hiero.mirror.grpc.port`                                   | 5600             | The GRPC API port                                                                                         |
-| `hiero.mirror.grpc.retriever.enabled`                      | true             | Whether to retrieve historical massages or not                                                            |
-| `hiero.mirror.grpc.retriever.maxPageSize`                  | 1000             | The maximum number of messages the retriever can return in a single call to the database                  |
-| `hiero.mirror.grpc.retriever.pollingFrequency`             | 2s               | How often to poll for historical messages. Can accept duration units like `50ms`, `10s` etc               |
-| `hiero.mirror.grpc.retriever.timeout`                      | 60s              | How long to wait between emission of messages before returning an error                                   |
-| `hiero.mirror.grpc.retriever.unthrottled.maxPageSize`      | 5000             | The maximum number of messages the retriever can return in a single call to the database when unthrottled |
-| `hiero.mirror.grpc.retriever.unthrottled.maxPolls`         | 12               | The max number of polls when unthrottled                                                                  |
-| `hiero.mirror.grpc.retriever.unthrottled.pollingFrequency` | 20ms             | How often to poll for messages when unthrottled. Can accept duration units like `50ms`, `10s` etc         |
+| Name                                                       | Default          | Description                                                                                                                    |
+| ---------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `hiero.mirror.grpc.addressbook.cacheExpiry`                | 2s               | The amount of time to cache address book entries                                                                               |
+| `hiero.mirror.grpc.addressbook.cacheSize`                  | 50               | The maximum number of address book pages to cache                                                                              |
+| `hiero.mirror.grpc.addressbook.maxConcurrent`              | 120              | The maximum number of concurrent address book subscriptions. Further subscriptions are rejected                                |
+| `hiero.mirror.grpc.addressbook.maxLimit`                   | 1000             | The maximum entries returned per subscription. A limit of 0 or above this value is clamped to it. Negative values are rejected |
+| `hiero.mirror.grpc.addressbook.pageDelay`                  | 250ms            | The amount of time to sleep between paging for address book entries                                                            |
+| `hiero.mirror.grpc.addressbook.pageSize`                   | 10               | The maximum number of address book entries to return in a single page                                                          |
+| `hiero.mirror.grpc.addressbook.nodeStakeCacheExpiry`       | 24h              | The amount of time to cache node stake assignments                                                                             |
+| `hiero.mirror.grpc.addressbook.nodeStakeCacheSize`         | 5                | The maximum number of versions of node stake assignments to cache                                                              |
+| `hiero.mirror.grpc.addressbook.schedulerQueueSize`         | 32               | The maximum number of tasks that can be queued for the address book scheduler                                                  |
+| `hiero.mirror.grpc.addressbook.schedulerSize`              | 4                | The maximum number of threads used by the address book scheduler                                                               |
+| `hiero.mirror.grpc.addressbook.timeout`                    | 4s               | How long an address book subscription may run before returning an error                                                        |
+| `hiero.mirror.grpc.checkTopicExists`                       | true             | Whether to throw an error when the topic doesn't exist                                                                         |
+| `hiero.mirror.grpc.db.host`                                | 127.0.0.1        | The IP or hostname used to connect to the database                                                                             |
+| `hiero.mirror.grpc.db.name`                                | mirror_node      | The name of the database                                                                                                       |
+| `hiero.mirror.grpc.db.password`                            | mirror_grpc_pass | The database password used to connect to the database.                                                                         |
+| `hiero.mirror.grpc.db.port`                                | 5432             | The port used to connect to the database                                                                                       |
+| `hiero.mirror.grpc.db.statementTimeout`                    | 10000            | The number of milliseconds to wait before timing out a query statement                                                         |
+| `hiero.mirror.grpc.db.username`                            | mirror_grpc      | The username used to connect to the database                                                                                   |
+| `hiero.mirror.grpc.endTimeInterval`                        | 30s              | How often we should check if a subscription has gone past the end time                                                         |
+| `hiero.mirror.grpc.entityCacheSize`                        | 50000            | The maximum size of the cache to store entities used for existence check                                                       |
+| `hiero.mirror.grpc.listener.enabled`                       | true             | Whether to listen for incoming massages or not                                                                                 |
+| `hiero.mirror.grpc.listener.interval`                      | 500ms            | How often to poll or retry errors (varies by type). Can accept duration units like `50ms`, `10s`, etc.                         |
+| `hiero.mirror.grpc.listener.maxBufferSize`                 | 16384            | The maximum number of messages the shared polling listener buffers before sending an error to a client                         |
+| `hiero.mirror.grpc.listener.maxPageSize`                   | 5000             | The maximum number of messages the listener can return in a single call to the database                                        |
+| `hiero.mirror.grpc.listener.prefetch`                      | 48               | The prefetch queue size for shared listeners                                                                                   |
+| `hiero.mirror.grpc.listener.type`                          | REDIS            | The type of listener to use for incoming messages. Accepts either POLL, REDIS or SHARED_POLL                                   |
+| `hiero.mirror.grpc.netty.maxConcurrentCallsPerConnection`  | 5                | The maximum number of concurrent calls permitted for each incoming connection                                                  |
+| `hiero.mirror.grpc.port`                                   | 5600             | The GRPC API port                                                                                                              |
+| `hiero.mirror.grpc.retriever.enabled`                      | true             | Whether to retrieve historical massages or not                                                                                 |
+| `hiero.mirror.grpc.retriever.maxPageSize`                  | 1000             | The maximum number of messages the retriever can return in a single call to the database                                       |
+| `hiero.mirror.grpc.retriever.pollingFrequency`             | 2s               | How often to poll for historical messages. Can accept duration units like `50ms`, `10s` etc                                    |
+| `hiero.mirror.grpc.retriever.timeout`                      | 60s              | How long to wait between emission of messages before returning an error                                                        |
+| `hiero.mirror.grpc.retriever.unthrottled.maxPageSize`      | 5000             | The maximum number of messages the retriever can return in a single call to the database when unthrottled                      |
+| `hiero.mirror.grpc.retriever.unthrottled.maxPolls`         | 12               | The max number of polls when unthrottled                                                                                       |
+| `hiero.mirror.grpc.retriever.unthrottled.pollingFrequency` | 20ms             | How often to poll for messages when unthrottled. Can accept duration units like `50ms`, `10s` etc                              |
 
 ## Monitor
 
