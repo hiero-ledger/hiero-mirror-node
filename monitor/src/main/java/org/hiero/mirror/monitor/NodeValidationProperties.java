@@ -59,6 +59,7 @@ public class NodeValidationProperties {
 
     private boolean retrieveAddressBook = true;
 
+    @NotNull
     private TlsMode tls = TlsMode.PREFER_TLS;
 
     @Getter

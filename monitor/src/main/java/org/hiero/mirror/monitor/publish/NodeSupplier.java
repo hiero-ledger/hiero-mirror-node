@@ -88,7 +88,7 @@ public class NodeSupplier {
                                         valid.stream().filter(v -> v).count(),
                                         valid.size()))
                                 .repeatWhen(repeat -> repeat.filter(
-                                                l -> nodes.get().isEmpty())
+                                                l -> getNodes().isEmpty())
                                         .doOnNext(_ -> log.info("Retrying in {} ms", retryBackoff))
                                         .flatMap(_ -> Mono.delay(Duration.ofMillis(retryBackoff), validationScheduler)))
                                 .onErrorResume(t -> {
@@ -101,7 +101,7 @@ public class NodeSupplier {
     }
 
     public NodeProperties get() {
-        final var current = nodes.get();
+        final var current = getNodes();
         if (current.isEmpty()) {
             throw new IllegalArgumentException("No valid nodes available");
         }
@@ -119,7 +119,7 @@ public class NodeSupplier {
 
     public Mono<List<NodeProperties>> list() {
         return Flux.interval(Duration.ZERO, Duration.ofSeconds(1L), Schedulers.boundedElastic())
-                .map(i -> nodes.get())
+                .map(i -> getNodes())
                 .filter(list -> !list.isEmpty())
                 .next();
     }
