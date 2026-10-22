@@ -14,6 +14,8 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.InvalidEntityException;
+import org.hiero.mirror.graphql.exception.InvalidInputException;
 import org.hiero.mirror.graphql.viewmodel.EntityIdInput;
 import org.hiero.mirror.graphql.viewmodel.HbarUnit;
 import org.hiero.mirror.graphql.viewmodel.Node;
@@ -46,23 +48,32 @@ public class GraphQlUtils {
     }
 
     public static <T> T getId(Node node, Function<List<String>, T> converter) {
-        var id = new String(Base64.getDecoder().decode(node.getId()), StandardCharsets.UTF_8);
-        var parts = SPLITTER.splitToList(id);
+        final String id;
+        try {
+            id = new String(Base64.getDecoder().decode(node.getId()), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidInputException("Invalid Node.id", e);
+        }
+        final var parts = SPLITTER.splitToList(id);
 
         if (parts.size() <= 1) {
-            throw new IllegalArgumentException("Invalid Node.id");
+            throw new InvalidInputException("Invalid Node.id");
         }
 
-        var clazz = node.getClass();
+        final var clazz = node.getClass();
         if (!clazz.getSimpleName().equals(parts.get(0))) {
-            throw new IllegalArgumentException("Invalid Node.id");
+            throw new InvalidInputException("Invalid Node.id");
         }
 
         return converter.apply(parts.subList(1, parts.size()));
     }
 
     public static EntityId toEntityId(EntityIdInput entityId) {
-        return EntityId.of(entityId.getShard(), entityId.getRealm(), entityId.getNum());
+        try {
+            return EntityId.of(entityId.getShard(), entityId.getRealm(), entityId.getNum());
+        } catch (InvalidEntityException e) {
+            throw new InvalidInputException("Invalid entity ID", e);
+        }
     }
 
     public static void validateOneOf(Object... values) {
@@ -75,8 +86,8 @@ public class GraphQlUtils {
         }
 
         if (nonNull != 1) {
-            throw new IllegalArgumentException(
-                    "Must provide exactly one input value but " + nonNull + " have been " + "provided");
+            throw new InvalidInputException(
+                    "Must provide exactly one input value but " + nonNull + " have been provided");
         }
     }
 
@@ -93,7 +104,7 @@ public class GraphQlUtils {
             evmAddress = Strings.CS.removeStart(evmAddress, HEX_PREFIX);
             return Hex.decodeHex(evmAddress);
         } catch (DecoderException e) {
-            throw new IllegalArgumentException("Unable to decode evmAddress: " + evmAddress);
+            throw new InvalidInputException("Unable to decode evmAddress", e);
         }
     }
 }
