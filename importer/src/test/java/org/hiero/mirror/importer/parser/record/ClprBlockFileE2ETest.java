@@ -101,9 +101,10 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         // RESPONSE, since this single-network capture has no real peer connector to deliver to)
         assertThat(clprMessageRepository.count()).isEqualTo(2L);
 
-        // the channel's status really changed (ACTIVE -> CLOSING), so it's historized (historizeOnChange); the
-        // connector wasn't touched by this bundle, so no connector history row is produced
-        assertThat(findHistory(ClprChannelHistory.class)).singleElement().satisfies(history -> {
+        // every channel write in block 2 historizes for now -- sendMessage's nextMessageId bump and submitBundle's
+        // status transition alike (placeholder until the stream exposes real per-field diffs, see
+        // CLPR-DESIGN-DEVIATIONS.md); the connector wasn't touched by this bundle, so no connector history row
+        assertThat(findHistory(ClprChannelHistory.class)).hasSize(2).allSatisfy(history -> {
             assertThat(history.getStatus()).isEqualTo(ClprChannelStatus.ACTIVE);
             assertThat(history.getTimestampRange().hasUpperBound()).isTrue();
         });

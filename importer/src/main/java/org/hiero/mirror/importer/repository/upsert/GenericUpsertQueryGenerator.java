@@ -17,7 +17,6 @@ public class GenericUpsertQueryGenerator implements UpsertQueryGenerator {
 
     private static final String UPSERT_TEMPLATE = "/db/template/upsert.vm";
     private static final String UPSERT_HISTORY_TEMPLATE = "/db/template/upsert_history.vm";
-    private static final String UPSERT_HISTORY_CONDITIONAL_TEMPLATE = "/db/template/upsert_history_conditional.vm";
 
     private final EntityMetadata metadata;
 
@@ -39,11 +38,7 @@ public class GenericUpsertQueryGenerator implements UpsertQueryGenerator {
         velocityEngine.setProperty("resource.loader.class.class", ClasspathResourceLoader.class.getName());
         velocityEngine.init();
 
-        String templatePath = !metadata.getUpsertable().history()
-                ? UPSERT_TEMPLATE
-                : metadata.hasHistorizeOnChangeColumns()
-                        ? UPSERT_HISTORY_CONDITIONAL_TEMPLATE
-                        : UPSERT_HISTORY_TEMPLATE;
+        String templatePath = metadata.getUpsertable().history() ? UPSERT_HISTORY_TEMPLATE : UPSERT_TEMPLATE;
         Template template = velocityEngine.getTemplate(templatePath);
 
         VelocityContext velocityContext = new VelocityContext();
@@ -59,14 +54,11 @@ public class GenericUpsertQueryGenerator implements UpsertQueryGenerator {
         velocityContext.put("conflictColumns", metadata.columns(ColumnMetadata::isId, "{0}"));
         velocityContext.put("existingColumns", closeRange(metadata.columns("e_{0}")));
         velocityContext.put("existingColumnsAs", metadata.columns("e.{0} as e_{0}"));
-        velocityContext.put("historizeCondition", metadata.historizeCondition());
-        velocityContext.put("idExistsCondition", metadata.idExistsCondition());
         velocityContext.put("idJoin", metadata.columns(ColumnMetadata::isId, "e.{0} = t.{0}", " and "));
         velocityContext.put("insertColumns", metadata.columns("{0}"));
         velocityContext.put(
                 "notUpdatableColumn", metadata.column(c -> !c.isUpdatable(), "coalesce({0}, e_{0}) is not null"));
         velocityContext.put("skipPartialUpdate", metadata.getUpsertable().skipPartialUpdate());
-        velocityContext.put("tempIdColumns", metadata.tempIdColumns());
         velocityContext.put("updateColumns", metadata.columns(ColumnMetadata::isUpdatable, "{0} = excluded.{0}"));
 
         StringWriter writer = new StringWriter();

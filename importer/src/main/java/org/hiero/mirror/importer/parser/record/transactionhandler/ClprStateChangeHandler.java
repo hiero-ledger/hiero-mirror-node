@@ -27,8 +27,9 @@ import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Patches whatever CLPR Channel/Message/Connector state changes are present on a {@link RecordItem}, non-historically.
- * Shared by {@code ClprSubmitBundleTransactionHandler}, {@code ContractCallTransactionHandler}, and
+ * Patches whatever CLPR Channel/Message/Connector state changes are present on a {@link RecordItem}. Connector
+ * patches are non-historical; channel patches historize per {@link #channelHistorizes}. Shared by
+ * {@code ClprSubmitBundleTransactionHandler}, {@code ContractCallTransactionHandler}, and
  * {@code EthereumTransactionHandler} (the CLPR {@code sendMessage} system contract can run inside the latter two).
  * No-op when none of these fields are present.
  */
@@ -78,6 +79,12 @@ class ClprStateChangeHandler {
         }
     }
 
+    // Placeholder: always historize until hiero-ledger/hiero-consensus-node#27718 lands upstream (see
+    // CLPR-DESIGN-DEVIATIONS.md).
+    private static boolean channelHistorizes(com.hederahashgraph.api.proto.java.ClprChannel value) {
+        return true;
+    }
+
     private static ClprChannelStatus toChannelStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus status) {
         return switch (status) {
             case ACTIVE -> ClprChannelStatus.ACTIVE;
@@ -115,8 +122,10 @@ class ClprStateChangeHandler {
         if (clprChannelValue != null) {
             var builder = ClprChannel.builder();
             populateFromStateChange(builder, clprChannelValue);
-            entityListener.onClprChannel(
-                    builder.timestampRange(Range.atLeast(consensusTimestamp)).build());
+            if (channelHistorizes(clprChannelValue)) {
+                builder.timestampRange(Range.atLeast(consensusTimestamp));
+            }
+            entityListener.onClprChannel(builder.build());
         }
 
         for (var entry : recordItem.getClprMessages()) {

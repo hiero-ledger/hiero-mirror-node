@@ -394,10 +394,9 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     @ParameterizedTest
     @ValueSource(ints = {1, 2, 3})
     void onClprChannelHistory(int commitIndex) {
-        // given -- only Complete and Close are real transitions; SubmitBundle's status matches Complete's (no
-        // real change), so it's not historized (see onClprChannelSubmitBundleSameStatusNeverHistorized) and its
-        // patch folds into whichever row Close actually closes -- but its own timestampRange is NOT adopted,
-        // since historizeOnChange only reopens the range when status actually changed
+        // given -- the handler always sets timestampRange for now (placeholder until the stream exposes real
+        // per-field diffs, see CLPR-DESIGN-DEVIATIONS.md), so Complete, SubmitBundle, and Close each cut their own
+        // version even though SubmitBundle's status here matches Complete's
         var complete = domainBuilder.clprChannel().get();
 
         var submitBundle = ClprChannel.builder()
@@ -411,8 +410,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .ownershipCommitment(complete.getOwnershipCommitment())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
                 .build();
-        var patchedBySubmitBundle = TestUtils.merge(complete, submitBundle);
-        patchedBySubmitBundle.setTimestampRange(complete.getTimestampRange());
+        var mergedSubmitBundle = TestUtils.merge(complete, submitBundle);
 
         var close = ClprChannel.builder()
                 .channelId(complete.getChannelId())
@@ -425,7 +423,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .ownershipCommitment(complete.getOwnershipCommitment())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
                 .build();
-        var mergedClose = TestUtils.merge(patchedBySubmitBundle, close);
+        var mergedClose = TestUtils.merge(mergedSubmitBundle, close);
 
         // when
         sqlEntityListener.onClprChannel(complete);
@@ -436,26 +434,27 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         }
 
         sqlEntityListener.onClprChannel(submitBundle);
+        complete.setTimestampUpper(submitBundle.getTimestampLower());
         if (commitIndex > 2) {
             completeFileAndCommit();
-            assertThat(clprChannelRepository.findAll()).containsExactly(patchedBySubmitBundle);
-            assertThat(findHistory(ClprChannel.class)).isEmpty();
+            assertThat(clprChannelRepository.findAll()).containsExactly(mergedSubmitBundle);
+            assertThat(findHistory(ClprChannel.class)).containsExactly(complete);
         }
 
         sqlEntityListener.onClprChannel(close);
+        mergedSubmitBundle.setTimestampUpper(close.getTimestampLower());
         completeFileAndCommit();
 
         // then
-        patchedBySubmitBundle.setTimestampUpper(close.getTimestampLower());
         assertThat(clprChannelRepository.findAll()).containsExactly(mergedClose);
-        assertThat(findHistory(ClprChannel.class)).containsExactly(patchedBySubmitBundle);
+        assertThat(findHistory(ClprChannel.class)).containsExactlyInAnyOrder(complete, mergedSubmitBundle);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2})
-    void onClprChannelSubmitBundleSameStatusNeverHistorized(int commitIndex) {
-        // given -- SubmitBundle always sets timestampRange now, but historizeOnChange only reopens the range (and
-        // archives the prior one) when status actually differs from the existing row; same status patches in place
+    void onClprChannelSubmitBundleSameStatusStillHistorizes(int commitIndex) {
+        // given -- the handler always sets timestampRange for now (placeholder until the stream exposes real
+        // per-field diffs, see CLPR-DESIGN-DEVIATIONS.md), so even a same-status SubmitBundle write historizes
         var complete = domainBuilder.clprChannel().get();
         var submitBundle1 = ClprChannel.builder()
                 .channelId(complete.getChannelId())
@@ -471,8 +470,8 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .ownershipCommitment(complete.getOwnershipCommitment())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
                 .build();
-        var expected = TestUtils.merge(TestUtils.merge(complete, submitBundle1), submitBundle2);
-        expected.setTimestampRange(complete.getTimestampRange());
+        var mergedSubmitBundle1 = TestUtils.merge(complete, submitBundle1);
+        var mergedSubmitBundle2 = TestUtils.merge(mergedSubmitBundle1, submitBundle2);
 
         // when
         sqlEntityListener.onClprChannel(complete);
@@ -481,19 +480,21 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         }
 
         sqlEntityListener.onClprChannel(submitBundle1);
+        complete.setTimestampUpper(submitBundle1.getTimestampLower());
         sqlEntityListener.onClprChannel(submitBundle2);
+        mergedSubmitBundle1.setTimestampUpper(submitBundle2.getTimestampLower());
         completeFileAndCommit();
 
         // then
-        assertThat(clprChannelRepository.findAll()).containsExactly(expected);
-        assertThat(findHistory(ClprChannel.class)).isEmpty();
+        assertThat(clprChannelRepository.findAll()).containsExactly(mergedSubmitBundle2);
+        assertThat(findHistory(ClprChannel.class)).containsExactlyInAnyOrder(complete, mergedSubmitBundle1);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2})
     void onClprChannelSubmitBundleHistorizesOnStatusChange(int commitIndex) {
         // given -- a SubmitBundle-driven cascade (e.g. a peer-closed channel) can change status without any
-        // ClprCloseChannel transaction at all; historizeOnChange must still historize it
+        // ClprCloseChannel transaction at all; it historizes just like every other SubmitBundle write does today
         var complete = domainBuilder.clprChannel().get();
         var submitBundle = ClprChannel.builder()
                 .channelId(complete.getChannelId())

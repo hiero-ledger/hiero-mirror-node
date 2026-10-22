@@ -20,7 +20,6 @@ import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
-import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
@@ -115,12 +114,8 @@ public abstract class AbstractClprChannel implements History {
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @UpsertColumn(historizeOnChange = true)
     private ClprChannelStatus status;
 
-    @UpsertColumn(
-            coalesce =
-                    "int8range(case when rn = 1 and not is_new_segment then lower(e_{0}) else lower({0}) end, upper({0}))")
     private Range<Long> timestampRange;
 
     @ToString.Exclude

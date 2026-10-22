@@ -35,10 +35,6 @@ class ColumnMetadata implements Comparable<ColumnMetadata> {
         return Comparator.comparing(ColumnMetadata::getName).compare(this, other);
     }
 
-    boolean isHistorizeOnChange() {
-        return upsertColumn != null && upsertColumn.historizeOnChange();
-    }
-
     String format(String pattern) {
         if (pattern.contains("coalesce") && upsertColumn != null) {
             if (!upsertColumn.shouldCoalesce()) {
