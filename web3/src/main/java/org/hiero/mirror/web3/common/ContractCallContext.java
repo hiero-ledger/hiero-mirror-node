@@ -34,6 +34,10 @@ import org.jspecify.annotations.Nullable;
 public class ContractCallContext {
 
     public static final String CONTEXT_NAME = "ContractCallContext";
+
+    /** Maximum new read-cache and write-cache entries one request may insert. */
+    public static final int MAX_CACHE_ENTRIES = 100_000;
+
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
 
     @Getter(AccessLevel.NONE)
@@ -44,6 +48,8 @@ public class ContractCallContext {
 
     @Getter(AccessLevel.NONE)
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
+
+    private int cacheEntries;
 
     @Setter
     private ActionContext actionContext = null;
@@ -217,6 +223,16 @@ public class ContractCallContext {
     }
 
     /**
+     * Counts one new cache entry. Fails the request once {@link #MAX_CACHE_ENTRIES} inserts have happened. Callers skip
+     * this when the key is already present.
+     */
+    public void recordCacheInsert() {
+        if (++cacheEntries > MAX_CACHE_ENTRIES) {
+            throw new InvalidParametersException("Trace state cache exceeded the configured limit");
+        }
+    }
+
+    /**
      * Milliseconds remaining until this request should stop work. Uses {@link #deadlineMillis} when set; otherwise
      * {@code startTime + fallbackTimeoutMillis}.
      */
@@ -254,8 +270,8 @@ public class ContractCallContext {
             if (StringUtils.isNotBlank(override.getTime())) {
                 blockOverrideTimeNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue(override.getTime()), 0);
             }
-        } catch (final NumberFormatException e) {
-            throw new InvalidParametersException("Invalid block_override: " + e.getMessage());
+        } catch (final NumberFormatException _) {
+            throw new InvalidParametersException("Invalid block_override");
         }
     }
 

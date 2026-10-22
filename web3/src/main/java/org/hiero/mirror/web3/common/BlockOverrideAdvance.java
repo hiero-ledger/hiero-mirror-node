@@ -64,8 +64,8 @@ public final class BlockOverrideAdvance {
         }
         try {
             return HexUtils.parseValue(value);
-        } catch (final NumberFormatException exception) {
-            throw new InvalidParametersException("Invalid block_override." + field + ": " + exception.getMessage());
+        } catch (final NumberFormatException _) {
+            throw new InvalidParametersException("Invalid block_override." + field);
         }
     }
 

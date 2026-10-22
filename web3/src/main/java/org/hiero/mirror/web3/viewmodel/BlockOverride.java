@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.viewmodel;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -15,9 +16,14 @@ import org.jspecify.annotations.Nullable;
 @NullMarked
 public class BlockOverride {
 
+    /** Decimal signed long, or {@code 0x} plus 16 hex digits. */
+    public static final int MAX_LENGTH = 19;
+
     @Nullable
+    @Size(max = MAX_LENGTH)
     private String number;
 
     @Nullable
+    @Size(max = MAX_LENGTH)
     private String time;
 }

@@ -2275,6 +2275,9 @@ components:
           maxItems: 10000
           items:
             format: binary
+            maxLength: 68
+            minLength: 64
+            pattern: "^(0x)?[0-9a-fA-F]{64,66}$"
             type: string
           default: []
           example:
@@ -2316,10 +2319,12 @@ components:
       properties:
         number:
           description: Hexadecimal or decimal block number used as the EVM block.number
+          maxLength: 19
           type: [string, "null"]
           example: "0x100"
         time:
           description: Unix timestamp used as the EVM block.timestamp
+          maxLength: 19
           type: [string, "null"]
           example: "0x65f9e0c0"
     AccountBalance:
@@ -2512,6 +2517,7 @@ components:
           description: Contract calls to simulate in this bundle
           items:
             $ref: "#/components/schemas/ContractCallRequest"
+          maxItems: 16
           minItems: 1
           type: array
     ActionTraceRequest:
@@ -2533,6 +2539,7 @@ components:
           description: Call bundles executed in order
           items:
             $ref: "#/components/schemas/ActionTraceBundle"
+          maxItems: 16
           minItems: 1
           type: array
         only_top_call:
@@ -3102,11 +3109,10 @@ components:
         block_override:
           description:
             Optional EVM block.number and block.timestamp override for this call. Both may be set. Requires block
-            overrides to be enabled. Ignored on trace transactions; set block_override
-            on the bundle instead.
+            overrides to be enabled. Ignored on trace transactions; set block_override on the bundle instead.
           $ref: "#/components/schemas/BlockOverride"
         data:
-          description: Hexadecimal method signature and encoded parameters. Up to 131072 bytes as at most 262146 hexadecimal digits including optional leading 0x.
+          description: Hexadecimal method signature and encoded parameters.
           example: "0x47f1aae7"
           format: binary
           maxLength: 262146

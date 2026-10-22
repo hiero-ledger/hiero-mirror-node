@@ -30,9 +30,13 @@ public class ActionContext {
     public static final int MAX_DEPTH = 1024;
 
     /**
-     * Maximum number of total actions (root + nested) to collect. Prevents OOM from complex call graphs.
+     * Maximum number of total actions (root + nested) to collect for the whole request. Prevents OOM from complex call
+     * graphs. Shared across every transaction; {@link #beginCall()} does not reset it.
      */
     public static final int MAX_ACTIONS = 10_000;
+
+    /** Maximum retained {@code input}, {@code output}, and {@code revertReason} characters for one request. */
+    public static final int MAX_RETAINED_BYTES = 4 * 1024 * 1024;
 
     /**
      * Check the execution deadline every N opcodes while a frame is {@code CODE_EXECUTING}, so a 15M-gas loop cannot
@@ -67,6 +71,11 @@ public class ActionContext {
     @Builder.Default
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
+    private int retainedBytes = 0;
+
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
     private int totalActionCount = 0;
 
     @Builder.Default
@@ -97,6 +106,9 @@ public class ActionContext {
             markTruncated();
             return;
         }
+        if (!charge(textLength(actionResponse.getInput()))) {
+            return;
+        }
         if (actionResponse.getCalls() == null) {
             actionResponse.setCalls(new ArrayList<>());
         }
@@ -108,6 +120,7 @@ public class ActionContext {
             }
             parents.getLast().addCallsItem(actionResponse);
         }
+
         totalActionCount++;
         lastAction = actionResponse;
         if (depth == 0) {
@@ -117,15 +130,15 @@ public class ActionContext {
     }
 
     /**
-     * Starts a new request body. Resets the current call-tree index, truncation flag, and action count so the next
-     * depth-0 action is recorded. Previously completed bodies, including a truncation error already written on the
-     * previous transaction, are kept. {@link #executedOpcodes} stays cumulative so the deadline check does not skip a
-     * window.
+     * Starts a new request body. Resets the current call-tree index and truncation flag so the next depth-0 action can
+     * be recorded. Previously completed bodies, including a truncation error already written on the previous
+     * transaction, are kept. {@link #totalActionCount}, {@link #retainedBytes}, and {@link #executedOpcodes} stay
+     * cumulative so later transactions share one action ceiling, one byte budget, and the deadline check does not skip
+     * a window.
      */
     public void beginCall() {
         actionsByDepth = new List[MAX_DEPTH];
         lastAction = null;
-        totalActionCount = 0;
         truncated = false;
     }
 
@@ -148,6 +161,10 @@ public class ActionContext {
             final @Nullable String revertReason) {
         final var action = getCurrentAction(depth);
         if (action == null) {
+            return;
+        }
+        if (!charge(textLength(output) + textLength(revertReason))) {
+            action.gasUsed(gasUsed);
             return;
         }
         if (TRUNCATED_ERROR.equals(action.getError())) {
@@ -198,13 +215,37 @@ public class ActionContext {
         return actionsByDepth[depth];
     }
 
+    private boolean charge(final int additional) {
+        if (additional <= 0) {
+            return true;
+        }
+        if ((long) retainedBytes + additional > MAX_RETAINED_BYTES) {
+            markTruncated();
+            return false;
+        }
+        retainedBytes += additional;
+        return true;
+    }
+
     private void markTruncated() {
         if (truncated) {
             return;
         }
         truncated = true;
+        final ActionResponse marker;
         if (lastAction != null) {
-            lastAction.error(TRUNCATED_ERROR);
+            marker = lastAction;
+        } else if (actionResponses.isEmpty()) {
+            marker = null;
+        } else {
+            marker = actionResponses.getLast();
         }
+        if (marker != null) {
+            marker.error(TRUNCATED_ERROR);
+        }
+    }
+
+    private static int textLength(final @Nullable String value) {
+        return value == null ? 0 : value.length();
     }
 }

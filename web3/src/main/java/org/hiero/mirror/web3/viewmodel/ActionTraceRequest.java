@@ -2,14 +2,19 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_BUNDLES;
+import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_TRANSACTIONS;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
@@ -35,6 +40,7 @@ public class ActionTraceRequest {
 
     @NotEmpty
     @NotNull
+    @Size(max = MAX_TRACE_BUNDLES)
     @Valid
     private List<@Valid ActionTraceBundle> bundles = new ArrayList<>();
 
@@ -58,4 +64,19 @@ public class ActionTraceRequest {
     @JsonProperty("transaction_index")
     @Nullable
     private Integer transactionIndex;
+
+    @AssertTrue(message = "transactions field size must be between 1 and " + MAX_TRACE_TRANSACTIONS)
+    private boolean hasTransactionLimit() {
+        if (bundles == null) {
+            return true;
+        }
+        int count = 0;
+        for (final var bundle : bundles) {
+            if (bundle == null || bundle.getTransactions() == null) {
+                continue;
+            }
+            count += bundle.getTransactions().size();
+        }
+        return count <= MAX_TRACE_TRANSACTIONS;
+    }
 }

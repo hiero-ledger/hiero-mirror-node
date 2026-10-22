@@ -330,4 +330,16 @@ class ContractCallContextTest {
         assertThat(context.evmBlockNumber(42L)).isEqualTo(42L);
         assertThat(context.evmBlockTimeNanos(99L)).isEqualTo(99L);
     }
+
+    @Test
+    void recordCacheInsertFailsAboveTheCeiling() {
+        final var context = ContractCallContext.get();
+        for (int i = 0; i < ContractCallContext.MAX_CACHE_ENTRIES; i++) {
+            context.recordCacheInsert();
+        }
+
+        assertThatThrownBy(context::recordCacheInsert)
+                .isInstanceOf(InvalidParametersException.class)
+                .hasMessage("Trace state cache exceeded the configured limit");
+    }
 }

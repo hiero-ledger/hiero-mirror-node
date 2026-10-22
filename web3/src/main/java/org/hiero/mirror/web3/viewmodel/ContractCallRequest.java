@@ -32,6 +32,12 @@ public class ContractCallRequest {
     public static final int ACCESS_LIST_MAX_SIZE = 7000;
     public static final int AUTHORIZATION_LIST_MAX_SIZE = 1500;
 
+    /** Maximum bundles in one {@code debug_traceCallMany} request. */
+    public static final int MAX_TRACE_BUNDLES = 16;
+
+    /** Maximum transactions across every bundle in one {@code debug_traceCallMany} request. */
+    public static final int MAX_TRACE_TRANSACTIONS = 16;
+
     @JsonSerialize(using = BlockTypeSerializer.class)
     @JsonSetter(nulls = Nulls.SKIP)
     @NotNull

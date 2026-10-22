@@ -171,10 +171,39 @@ class ActionContextTest {
         assertThat(context.shouldCheckDeadline()).isTrue();
         final var next = new ActionResponse().type(TypeEnum.CALL).from("0xnext");
         context.addAction(next, 0);
-        assertThat(context.isTruncated()).isFalse();
-        assertThat(context.getActions()).hasSize(ActionContext.MAX_ACTIONS + 1);
-        assertThat(context.getActions().getLast()).isSameAs(next);
+        assertThat(context.isTruncated()).isTrue();
+        assertThat(context.getActions()).hasSize(ActionContext.MAX_ACTIONS);
+        assertThat(context.getActions()).doesNotContain(next);
         assertThat(truncated.getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+    }
+
+    @Test
+    void byteBudgetTruncatesLargeOutput() {
+        final var context = new ActionContext();
+        final var root = new ActionResponse().type(TypeEnum.CALL).from("0x0").input("0x");
+        context.addAction(root, 0);
+
+        context.finalizeAction(0, null, "0x1", "ab".repeat(ActionContext.MAX_RETAINED_BYTES), null);
+
+        assertThat(context.isTruncated()).isTrue();
+        assertThat(root.getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
+        assertThat(root.getGasUsed()).isEqualTo("0x1");
+        assertThat(root.getOutput()).isNull();
+    }
+
+    @Test
+    void retainedBytesSurviveBeginCall() {
+        final var context = new ActionContext();
+        final var first = new ActionResponse().type(TypeEnum.CALL).input("a".repeat(ActionContext.MAX_RETAINED_BYTES));
+        context.addAction(first, 0);
+        assertThat(context.isTruncated()).isFalse();
+
+        context.beginCall();
+        context.addAction(new ActionResponse().type(TypeEnum.CALL).input("b"), 0);
+
+        assertThat(context.isTruncated()).isTrue();
+        assertThat(context.getActions()).containsExactly(first);
+        assertThat(first.getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
     }
 
     @Test

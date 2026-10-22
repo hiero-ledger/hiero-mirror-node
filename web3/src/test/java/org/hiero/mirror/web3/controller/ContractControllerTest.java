@@ -1003,10 +1003,81 @@ final class ContractControllerTest {
 
         transaction(request).setAccessList(List.of());
         transaction(request).setAuthorizationList(List.of());
-        final var access = new AccessListEntry();
-        access.setAddress("0x00000000000000000000000000000000000004e4");
-        transaction(request).setAccessList(List.of(access));
         contractActionsCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void actionsCallRejectsTooManyBundles() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        final var bundles = new ArrayList<ActionTraceBundle>();
+        for (int i = 0; i < ContractCallRequest.MAX_TRACE_BUNDLES + 1; i++) {
+            bundles.add(bundleOf(transaction()));
+        }
+        request.setBundles(bundles);
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("bundles field size must be between 0 and %d"
+                                .formatted(ContractCallRequest.MAX_TRACE_BUNDLES))));
+        verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
+    void actionsCallRejectsTooManyTransactions() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        final var transactions = new ArrayList<ContractCallRequest>();
+        for (int i = 0; i < ContractCallRequest.MAX_TRACE_TRANSACTIONS + 1; i++) {
+            transactions.add(transaction());
+        }
+        bundle(request).setTransactions(transactions);
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("transactions field size must be between 0 and %d"
+                                .formatted(ContractCallRequest.MAX_TRACE_TRANSACTIONS))));
+        verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
+    void actionsCallRejectsTooManyTransactionsAcrossBundles() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        final var bundles = new ArrayList<ActionTraceBundle>();
+        for (int i = 0; i < 8; i++) {
+            final var transactions = new ArrayList<ContractCallRequest>();
+            for (int j = 0; j < 3; j++) {
+                transactions.add(transaction());
+            }
+            final var bundle = new ActionTraceBundle();
+            bundle.setTransactions(transactions);
+            bundles.add(bundle);
+        }
+        request.setBundles(bundles);
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("transactions field size must be between 1 and %d"
+                                .formatted(ContractCallRequest.MAX_TRACE_TRANSACTIONS))));
+        verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
+    void actionsCallRejectsOversizedBlockOverride() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        bundle(request).setBlockOverride(blockNumber("1".repeat(BlockOverride.MAX_LENGTH + 1)));
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains(
+                                "number field size must be between 0 and %d".formatted(BlockOverride.MAX_LENGTH))));
+        verify(contractDebugService, never()).processTraceCall(any());
     }
 
     @ValueSource(
