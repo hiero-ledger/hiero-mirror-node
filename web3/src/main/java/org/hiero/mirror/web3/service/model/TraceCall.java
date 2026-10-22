@@ -35,4 +35,11 @@ public class TraceCall {
 
     @NotNull
     private Duration timeout;
+
+    /**
+     * n-th position of a transaction in a block, ordered by consensus timestamp. For example {@code 5} loads
+     * the state after the first five transactions. {@code -1} uses the block state directly.
+     */
+    @Builder.Default
+    private int transactionIndex = -1;
 }

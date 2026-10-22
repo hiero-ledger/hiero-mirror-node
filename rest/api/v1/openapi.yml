@@ -528,16 +528,11 @@ paths:
       description:
         "Simulates contract calls and returns one call-action tree per transaction, in bundle order. One bundle with
         one transaction maps to debug_traceCall. Multiple bundles, or a bundle with multiple transactions, map to
-        debug_traceCallMany. block, state_override, and timeout apply to the whole request. only_top_call is supported
-        only for debug_traceCall. Each bundle
-        has its own transactions and block_override. Transactions share state for the whole request: later bundles
-        keep earlier state changes. A bundle with block_override applies the fields it sets. When it omits the block
-        number, the previous block number increases by 1. When it omits the timestamp, the previous timestamp increases
-        by 2 seconds. A later bundle without block_override keeps that context and advances it: the block number
-        increases by 1 and the block timestamp increases by 2 seconds. A field the previous override did not set stays
-        unset. An explicit block_override cannot set an older block number or timestamp than the previous bundle. The
-        request state override stays in place. estimate is rejected. Requires Accept-Encoding gzip. A transaction
-        failure returns 400. A client timeout returns 408 with any actions collected so far."
+        debug_traceCallMany. block, state_override, timeout, and transaction_index apply to the whole request.
+        only_top_call is supported only for debug_traceCall. Each bundle has its own transactions and block_override.
+        Transactions share state for the whole request: later bundles keep earlier state changes. The request state
+        override stays in place. estimate is rejected. Requires Accept-Encoding gzip. A transaction failure returns
+        400. A client timeout returns 408 with any actions collected so far."
       operationId: contractActionsCall
       parameters:
         - name: Accept-Encoding
@@ -2497,20 +2492,20 @@ components:
       type: object
       description:
         One debug_traceCallMany bundle. Transactions execute sequentially and share this bundle's block_override.
-        State changes persist into later bundles. When this bundle sets block_override without a block number, the
-        previous block number increases by 1. When it sets block_override without a timestamp, the previous timestamp
-        increases by 2 seconds. When this bundle omits block_override and an earlier bundle set one, the previous block
-        number increases by 1 and the previous block timestamp increases by 2 seconds. A field that was not set stays
-        unset. An explicit block_override cannot set an older block number or timestamp than the previous bundle. The
-        request block and state_override apply instead of the same fields on each transaction. estimate is rejected.
-        block_override requires block overrides to be enabled.
+        State changes persist into later bundles. The request block and state_override apply instead of the same
+        fields on each transaction. estimate is rejected.
       required:
         - transactions
       properties:
         block_override:
-          description:
+          description: >-
             EVM block context override for every transaction in this bundle. Requires block overrides to be enabled.
-            number and time may both be set.
+            number and time may both be set. A bundle with block_override applies the fields it sets. When it omits
+            the block number, the previous block number is kept and increased by 1. When it omits the timestamp, the
+            previous timestamp is kept and increased by 2 seconds. A later bundle without block_override keeps that
+            context and advances it: the block number increases by 1 and the block timestamp increases by 2 seconds.
+            A field the previous override did not set stays unset. An explicit block_override cannot set an older
+            block number or timestamp than the previous bundle.
           $ref: "#/components/schemas/BlockOverride"
         transactions:
           description: Contract calls to simulate in this bundle
@@ -2522,13 +2517,8 @@ components:
       type: object
       description:
         A debug_traceCallMany request. A single bundle containing a single transaction is treated like a debug_traceCall.
-        block, state_override, and timeout apply to every bundle. only_top_call is supported only for debug_traceCall.
-        State changes persist from one bundle
-        to the next. A bundle without block_override continues the previous override with the block number increased
-        by 1 and the block timestamp increased by 2 seconds. A block_override that omits the block number keeps the
-        previous number and increases it by 1. A block_override that omits the timestamp keeps the previous timestamp
-        and increases it by 2 seconds. An explicit block_override cannot set an older block number or timestamp than
-        the previous bundle.
+        block, state_override, timeout, and transaction_index apply to every bundle. only_top_call is supported only
+        for debug_traceCall. State changes persist from one bundle to the next.
       required:
         - bundles
       properties:
@@ -2549,6 +2539,15 @@ components:
             request is a single bundle with a single transaction.
           type: boolean
           default: false
+        transaction_index:
+          description:
+            N-th position of a transaction in block, ordered by consensus timestamp ascending. A positive value of N
+            loads the state after the first N transactions, and every execution starts at that transaction's consensus
+            timestamp. -1, or omitting the field, uses the block state directly. A value less than -1, zero, or greater
+            than the number of transactions in the block is rejected.
+          example: 5
+          format: int32
+          type: [integer, "null"]
         state_override:
           description: State override applied to every bundle. Requires state overrides to be enabled.
           $ref: "#/components/schemas/StateOverride"

@@ -116,12 +116,14 @@ class ContractController {
                     .transactions(transactions)
                     .build());
         }
+        final var transactionIndex = request.getTransactionIndex();
         return TraceCall.builder()
                 .block(request.getBlock())
                 .bundles(bundles)
                 .onlyTopCall(request.isOnlyTopCall())
                 .stateOverride(request.getStateOverride())
                 .timeout(resolveTimeout(request.getTimeout()))
+                .transactionIndex(transactionIndex == null ? -1 : transactionIndex)
                 .build();
     }
 

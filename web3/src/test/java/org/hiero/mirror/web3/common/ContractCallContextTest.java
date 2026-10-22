@@ -12,6 +12,7 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
@@ -52,6 +53,22 @@ class ContractCallContextTest {
 
         assertThat(context.getTimestamp()).isEmpty();
         assertThat(context.getTimestampForSystemFiles()).isEmpty();
+    }
+
+    @Test
+    void testGetTimestampForActionsReturnsSetTimestamp() {
+        var context = ContractCallContext.get();
+        var timestamp = 123L;
+        context.setApi(ApiEndpointName.ACTIONS);
+        context.setTimestamp(Optional.of(timestamp));
+        context.setCallServiceParameters(ContractExecutionParameters.builder()
+                .block(BlockType.LATEST)
+                .callData(new byte[0])
+                .gasPrice(0L)
+                .build());
+
+        assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));
+        assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(timestamp + 1));
     }
 
     @Test

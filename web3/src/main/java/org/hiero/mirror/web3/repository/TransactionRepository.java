@@ -78,4 +78,23 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
             @Param("parentConsensusTimestamp") long parentConsensusTimestamp,
             @Param("consensusTimestampStart") long consensusTimestampStart,
             @Param("payerAccountId") long payerAccountId);
+
+    /**
+     * Consensus timestamp of the transaction at {@code position} in the block, ordered by consensus timestamp
+     * ascending. {@code position} is zero-based, so {@code 0} is the first transaction. The block is the inclusive
+     * consensus range of its record file.
+     */
+    @Query(value = """
+            select consensus_timestamp
+            from transaction
+            where consensus_timestamp >= :consensusStart
+              and consensus_timestamp <= :consensusEnd
+            order by consensus_timestamp asc
+            offset :position
+            limit 1
+            """, nativeQuery = true)
+    Optional<Long> findConsensusTimestampAtPosition(
+            @Param("consensusStart") long consensusStart,
+            @Param("consensusEnd") long consensusEnd,
+            @Param("position") int position);
 }

@@ -513,6 +513,40 @@ final class ContractControllerTest {
     }
 
     @Test
+    void actionsCallPassesTransactionIndexForTraceCallMany() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var second = transaction();
+        second.setValue(0);
+        request.getBundles().add(bundleOf(second));
+        request.setBlock(BlockType.of("15"));
+        request.setTransactionIndex(5);
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request).andExpect(status().isOk());
+
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) -> call.getBundles().size() == 2 && call.getTransactionIndex() == 5));
+        verify(endpointThrottle).throttle(ACTIONS, 2L);
+    }
+
+    @Test
+    void actionsCallPassesMinusOneTransactionIndex() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        request.setTransactionIndex(-1);
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request).andExpect(status().isOk());
+
+        verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> call.getTransactionIndex() == -1));
+        verify(endpointThrottle).throttle(ACTIONS, 1L);
+    }
+
+    @Test
     void actionsCallRejectsEstimate() throws Exception {
         enableActionsApi();
         final var request = traceRequest();
@@ -557,7 +591,9 @@ final class ContractControllerTest {
 
         contractActionsCall(request).andExpect(status().isOk());
         verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> {
-            if (!BlockType.of("32").equals(call.getBlock()) || call.getBundles().size() != 2) {
+            if (!BlockType.of("32").equals(call.getBlock())
+                    || call.getBundles().size() != 2
+                    || call.getTransactionIndex() != -1) {
                 return false;
             }
             for (final var bundle : call.getBundles()) {

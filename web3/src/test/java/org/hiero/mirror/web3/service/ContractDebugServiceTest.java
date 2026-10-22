@@ -10,6 +10,8 @@ import static com.hedera.services.stream.proto.ContractActionType.SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_RECORD_FILE_LATEST;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_RECORD_FILE_LATEST;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.stateOverride;
@@ -23,12 +25,14 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
+import jakarta.annotation.Resource;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,6 +48,7 @@ import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
@@ -63,6 +68,10 @@ import org.hiero.mirror.web3.web3j.generated.EvmCodes;
 import org.hiero.mirror.web3.web3j.generated.InternalCaller;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.CacheManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -78,6 +87,10 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
     @MockitoSpyBean
     private ThrottleManager throttleManager;
+
+    @Qualifier(CACHE_MANAGER_RECORD_FILE_LATEST)
+    @Resource
+    private CacheManager recordFileLatestCacheManager;
 
     @Test
     void processOpcodeCallMapsRevertedActionsToCorrectDepths() {
@@ -284,6 +297,160 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         assertThat(result).containsExactly(first, second);
         assertThat(remaining).isEmpty();
+    }
+
+    @Test
+    void processTraceCallUsesNthTransactionInConsensusOrder() {
+        final long first = 1_000L;
+        final long second = 2_000L;
+        final long third = 3_000L;
+        final long fourth = 4_000L;
+        final long fifth = 5_000L;
+        domainBuilder
+                .recordFile()
+                .customize(recordFile -> recordFile
+                        .index(15L)
+                        .consensusStart(first)
+                        .consensusEnd(fifth)
+                        .count(5L))
+                .persist();
+        persistTransaction(third);
+        persistTransaction(fifth);
+        persistTransaction(first);
+        persistTransaction(fourth);
+        persistTransaction(second);
+        persistTransaction(first - 1);
+        persistTransaction(fifth + 1);
+
+        final var block = BlockType.of("15");
+        assertThat(executionTimestamp(block, 1)).contains(first);
+        assertThat(executionTimestamp(block, 2)).contains(second);
+        assertThat(executionTimestamp(block, 5)).contains(fifth);
+        assertThat(executionTimestamp(block, -1)).isEmpty();
+
+        assertThatThrownBy(() -> contractDebugService.processTraceCall(traceCallAtIndex(block, 6)))
+                .isInstanceOf(InvalidParametersException.class)
+                .hasMessage("transaction_index exceeds the number of transactions in the block");
+    }
+
+    @Test
+    void processTraceCallUsesLatestBlockTransactionIndex() {
+        final long consensusTimestamp = Long.MAX_VALUE - 10;
+        domainBuilder
+                .recordFile()
+                .customize(recordFile ->
+                        recordFile.consensusStart(consensusTimestamp).consensusEnd(consensusTimestamp))
+                .persist();
+        persistTransaction(consensusTimestamp);
+        recordFileLatestCacheManager.getCache(CACHE_NAME_RECORD_FILE_LATEST).invalidate();
+
+        assertThat(executionTimestamp(BlockType.LATEST, 1)).contains(consensusTimestamp);
+    }
+
+    @Test
+    void processTraceCallRejectsTransactionIndexForUnknownBlock() {
+        assertThatThrownBy(() -> contractDebugService.processTraceCall(traceCallAtIndex(BlockType.of("999999"), 1)))
+                .isInstanceOf(BlockNumberNotFoundException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -2})
+    void processTraceCallRejectsInvalidTransactionIndex(final int transactionIndex) {
+        assertThatThrownBy(() ->
+                        contractDebugService.processTraceCall(traceCallAtIndex(BlockType.LATEST, transactionIndex)))
+                .isInstanceOf(InvalidParametersException.class)
+                .hasMessage("Invalid transaction_index");
+    }
+
+    @Test
+    void processTraceCallKeepsTransactionTimestampTheSame() {
+        final long stateTimestamp = 1_700_000_000_000_000_000L;
+        final var blockOverride = new BlockOverride();
+        blockOverride.setNumber("0x100");
+        blockOverride.setTime("0x65f9e0c0");
+        final var numberOnly = new BlockOverride();
+        numberOnly.setNumber("0x200");
+        domainBuilder
+                .recordFile()
+                .customize(recordFile -> recordFile
+                        .index(16L)
+                        .consensusStart(stateTimestamp)
+                        .consensusEnd(stateTimestamp)
+                        .count(1L))
+                .persist();
+        persistTransaction(stateTimestamp);
+        final var timestamps = new ArrayList<Optional<Long>>();
+        doAnswer(invocation -> {
+                    final var ctx = ContractCallContext.get();
+                    final var timestamp = ctx.getTimestamp();
+                    timestamps.add(timestamp);
+                    assertThat(ctx.getTimestampForSystemFiles()).isEqualTo(timestamp.map(time -> time + 1));
+                    return new EvmTransactionResult(
+                            SUCCESS,
+                            ContractFunctionResult.newBuilder()
+                                    .gasUsed(TRANSACTION_GAS_LIMIT)
+                                    .build());
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+
+        contractDebugService.processTraceCall(TraceCall.builder()
+                .block(BlockType.of("16"))
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .blockOverride(blockOverride)
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .blockOverride(numberOnly)
+                                .transactions(List.of(executionParameters()))
+                                .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .transactionIndex(1)
+                .build());
+
+        assertThat(timestamps)
+                .containsExactly(
+                        Optional.of(stateTimestamp),
+                        Optional.of(stateTimestamp),
+                        Optional.of(stateTimestamp),
+                        Optional.of(stateTimestamp),
+                        Optional.of(stateTimestamp),
+                        Optional.of(stateTimestamp),
+                        Optional.of(stateTimestamp));
+    }
+
+    @Test
+    void processTraceCallWithoutTransactionIndexKeepsBlockState() {
+        final var timestamps = new ArrayList<Optional<Long>>();
+        doAnswer(invocation -> {
+                    timestamps.add(ContractCallContext.get().getTimestamp());
+                    return new EvmTransactionResult(
+                            SUCCESS,
+                            ContractFunctionResult.newBuilder()
+                                    .gasUsed(TRANSACTION_GAS_LIMIT)
+                                    .build());
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+
+        contractDebugService.processTraceCall(TraceCall.builder()
+                .bundles(List.of(TraceBundle.builder()
+                        .transactions(List.of(executionParameters()))
+                        .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .build());
+
+        assertThat(timestamps).containsExactly(Optional.empty());
     }
 
     @Test
@@ -617,6 +784,13 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         return actions;
     }
 
+    private void persistTransaction(final long consensusTimestamp) {
+        domainBuilder
+                .transaction()
+                .customize(transaction -> transaction.consensusTimestamp(consensusTimestamp))
+                .persist();
+    }
+
     private byte[] revertReasonBytes(final int depth, final int actionIndex) {
         return revertMessage(depth, actionIndex).getBytes(StandardCharsets.UTF_8);
     }
@@ -678,6 +852,34 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .receiver(Address.ZERO)
                 .sender(Address.ZERO)
                 .value(0L)
+                .build();
+    }
+
+    private Optional<Long> executionTimestamp(final BlockType block, final int transactionIndex) {
+        final var timestamps = new ArrayList<Optional<Long>>();
+        doAnswer(invocation -> {
+                    timestamps.add(ContractCallContext.get().getTimestamp());
+                    return new EvmTransactionResult(
+                            SUCCESS,
+                            ContractFunctionResult.newBuilder()
+                                    .gasUsed(TRANSACTION_GAS_LIMIT)
+                                    .build());
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+        contractDebugService.processTraceCall(traceCallAtIndex(block, transactionIndex));
+        assertThat(timestamps).hasSize(1);
+        return timestamps.getFirst();
+    }
+
+    private TraceCall traceCallAtIndex(final BlockType block, final int transactionIndex) {
+        return TraceCall.builder()
+                .block(block)
+                .bundles(List.of(TraceBundle.builder()
+                        .transactions(List.of(executionParameters()))
+                        .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .transactionIndex(transactionIndex)
                 .build();
     }
 

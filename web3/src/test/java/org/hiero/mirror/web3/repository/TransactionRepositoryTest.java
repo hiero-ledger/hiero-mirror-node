@@ -261,6 +261,27 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findConsensusTimestampAtPositionReturnsNthTransactionInConsensusOrder() {
+        final long first = 1_000L;
+        final long second = 2_000L;
+        final long third = 3_000L;
+        persistTransaction(second);
+        persistTransaction(third);
+        persistTransaction(first);
+        persistTransaction(first - 1);
+        persistTransaction(third + 1);
+
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, 0))
+                .contains(first);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, 1))
+                .contains(second);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, 2))
+                .contains(third);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, 3))
+                .isEmpty();
+    }
+
+    @Test
     void findSuccessfulCryptoCreateChildEntityIdsReturnsSuccessfulChildren() {
         final var parentConsensusTimestamp = domainBuilder.timestamp();
         final var payerAccountId = domainBuilder.entityId();
@@ -353,5 +374,12 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
     private static EntityId hookContractEntityId() {
         final var commonProperties = CommonProperties.getInstance();
         return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), RecordItem.HOOK_CONTRACT_NUM);
+    }
+
+    private void persistTransaction(final long consensusTimestamp) {
+        domainBuilder
+                .transaction()
+                .customize(transaction -> transaction.consensusTimestamp(consensusTimestamp))
+                .persist();
     }
 }

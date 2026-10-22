@@ -169,10 +169,13 @@ public class ContractCallContext {
     /**
      * Returns the set timestamp or the consensus end timestamp from the set record file only if we are in a historical
      * context. For opcode replay, returns the pre-transaction {@link #timestamp} so entity state is read as-of before
-     * the replayed transaction.
+     * the replayed transaction. An action trace returns {@link #timestamp}. A {@code transaction_index} sets it for the
+     * first bundle, and each later bundle increases that base by 2 seconds. A bundle that sets
+     * {@code block_override.time} uses that timestamp for its own transactions. The following bundle continues from the
+     * base timestamp.
      */
     public Optional<Long> getTimestamp() {
-        if (opcodeContext != null) {
+        if (opcodeContext != null || ApiEndpointName.ACTIONS.equals(getApi())) {
             return timestamp;
         }
         if (useHistorical()) {
@@ -248,14 +251,9 @@ public class ContractCallContext {
             if (StringUtils.isNotBlank(override.getTime())) {
                 blockOverrideTimeNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue(override.getTime()), 0);
             }
-        } catch (NumberFormatException e) {
+        } catch (final NumberFormatException e) {
             throw new InvalidParametersException("Invalid block_override: " + e.getMessage());
         }
-    }
-
-    /** Whether a previous bundle left an EVM block number or timestamp in effect. */
-    public boolean hasBlockOverride() {
-        return blockOverrideNumber != null || blockOverrideTimeNanos != null;
     }
 
     /**
@@ -270,7 +268,7 @@ public class ContractCallContext {
             if (blockOverrideTimeNanos != null) {
                 blockOverrideTimeNanos = Math.addExact(blockOverrideTimeNanos, DomainUtils.convertToNanosMax(2L, 0L));
             }
-        } catch (ArithmeticException e) {
+        } catch (ArithmeticException _) {
             throw new InvalidParametersException("Invalid block_override: block context overflow");
         }
     }
@@ -281,5 +279,10 @@ public class ContractCallContext {
 
     public long evmBlockTimeNanos(final long fallback) {
         return blockOverrideTimeNanos != null ? blockOverrideTimeNanos : fallback;
+    }
+
+    /** Whether a previous bundle left an EVM block number or timestamp in effect. */
+    public boolean hasBlockOverride() {
+        return blockOverrideNumber != null || blockOverrideTimeNanos != null;
     }
 }
