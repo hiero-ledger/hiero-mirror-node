@@ -232,7 +232,6 @@ public class ContractDebugService extends ContractCallService {
         for (final var bundle : bundles) {
             for (final var transaction : bundle.getTransactions()) {
                 if (index >= started) {
-                    restoreReservedRequest();
                     restoreReservedGas(transaction.getGas());
                 }
                 index++;

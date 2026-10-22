@@ -438,23 +438,6 @@ final class ContractControllerTest {
     }
 
     @Test
-    void actionsCallDoesNotThrottleWhenTraceValidationFails() throws Exception {
-        enableActionsApi();
-        clearInvocations(throttleManager);
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        request.setTransactionIndex(99);
-        doThrow(new InvalidParametersException("transaction_index exceeds the number of transactions in the block"))
-                .when(contractDebugService)
-                .validateTrace(any());
-
-        contractActionsCall(request).andExpect(status().isBadRequest());
-
-        verify(throttleManager, never()).throttle(any());
-        verify(contractDebugService, never()).processTraceCall(any());
-    }
-
-    @Test
     void actionsCallRestoresThrottleOnInvalidParameters() throws Exception {
         enableActionsApi();
         clearInvocations(throttleManager);

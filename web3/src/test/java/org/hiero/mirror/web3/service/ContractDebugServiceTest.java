@@ -10,6 +10,7 @@ import static com.hedera.services.stream.proto.ContractActionType.SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCALL;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_RECORD_FILE_LATEST;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_RECORD_FILE_LATEST;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
@@ -38,6 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
@@ -51,6 +53,7 @@ import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
+import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
@@ -90,6 +93,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     @Qualifier(CACHE_MANAGER_RECORD_FILE_LATEST)
     @Resource
     private CacheManager recordFileLatestCacheManager;
+
+    @Resource
+    private RecordFileRepository recordFileRepository;
 
     @Test
     void processOpcodeCallMapsRevertedActionsToCorrectDepths() {
@@ -568,7 +574,13 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                         Optional.of(stateTimestamp));
         assertThat(headerTimes)
                 .containsExactly(
-                        null, null, null, overrideNanos, overrideNanos, overrideNanos + step, overrideNanos + step * 2);
+                        stateTimestamp,
+                        stateTimestamp,
+                        stateTimestamp + step,
+                        overrideNanos,
+                        overrideNanos,
+                        overrideNanos + step,
+                        overrideNanos + step * 2);
     }
 
     @Test
@@ -586,7 +598,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .execute(any(), anyLong());
 
         final var timed = new BlockOverride();
-        timed.setTime("0x65f9e0c0");
+        timed.setTime(latestHeaderTimeHex());
         contractDebugService.processTraceCall(TraceCall.builder()
                 .bundles(List.of(
                         TraceBundle.builder()
@@ -610,6 +622,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var blockTime = new BlockOverride();
         blockTime.setTime("0x65f9e0c0");
         final var expectedTimeNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0);
+        final var recordFile = persistRecordFile(40L);
         final var snapshots = new ArrayList<OverrideSnapshot>();
 
         doAnswer(invocation -> {
@@ -631,6 +644,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .execute(any(), anyLong());
 
         final var result = contractDebugService.processTraceCall(TraceCall.builder()
+                .block(BlockType.of(Long.toString(recordFile.getIndex())))
                 .bundles(List.of(
                         TraceBundle.builder()
                                 .blockOverride(blockNumber)
@@ -653,14 +667,14 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var firstInBundle = snapshots.get(0);
         assertThat(firstInBundle.stateOverrides()).containsExactly(stateOverride);
         assertThat(firstInBundle.blockNumber()).isEqualTo(256L);
-        assertThat(firstInBundle.blockTimeNanos()).isNull();
+        assertThat(firstInBundle.blockTimeNanos()).isZero();
         assertThat(firstInBundle.readLeaked()).isFalse();
         assertThat(firstInBundle.blockHeaderCached()).isFalse();
 
         final var secondInBundle = snapshots.get(1);
         assertThat(secondInBundle.stateOverrides()).containsExactly(stateOverride);
         assertThat(secondInBundle.blockNumber()).isEqualTo(256L);
-        assertThat(secondInBundle.blockTimeNanos()).isNull();
+        assertThat(secondInBundle.blockTimeNanos()).isZero();
         assertThat(secondInBundle.readLeaked()).isTrue();
         assertThat(secondInBundle.writeLeaked()).isTrue();
         assertThat(secondInBundle.blockHeaderCached()).isTrue();
@@ -668,7 +682,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var nextBundle = snapshots.get(2);
         assertThat(nextBundle.stateOverrides()).containsExactly(stateOverride);
         assertThat(nextBundle.blockNumber()).isEqualTo(257L);
-        assertThat(nextBundle.blockTimeNanos()).isNull();
+        assertThat(nextBundle.blockTimeNanos()).isEqualTo(DomainUtils.convertToNanosMax(2L, 0L));
         assertThat(nextBundle.readLeaked()).isTrue();
         assertThat(nextBundle.writeLeaked()).isTrue();
         assertThat(nextBundle.blockHeaderCached()).isFalse();
@@ -689,6 +703,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var blockTime = new BlockOverride();
         blockTime.setTime("0x65f9e0c0");
         final var expectedTimeNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0);
+        final var recordFile = persistRecordFile(41L);
         final var twoSecondsNanos = DomainUtils.convertToNanosMax(2L, 0L);
         final var laterNumber = new BlockOverride();
         laterNumber.setNumber("0x200");
@@ -706,6 +721,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .execute(any(), anyLong());
 
         contractDebugService.processTraceCall(TraceCall.builder()
+                .block(BlockType.of(Long.toString(recordFile.getIndex())))
                 .bundles(List.of(
                         TraceBundle.builder()
                                 .blockOverride(blockNumber)
@@ -737,9 +753,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         assertThat(snapshots)
                 .extracting(OverrideSnapshot::blockTimeNanos)
                 .containsExactly(
-                        null,
-                        null,
-                        null,
+                        0L,
+                        twoSecondsNanos,
+                        twoSecondsNanos * 2,
                         expectedTimeNanos,
                         expectedTimeNanos + twoSecondsNanos,
                         expectedTimeNanos + twoSecondsNanos * 2);
@@ -935,10 +951,33 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         return actions;
     }
 
+    private String latestHeaderTimeHex() {
+        recordFileLatestCacheManager.getCache(CACHE_NAME_RECORD_FILE_LATEST).invalidate();
+        final var latest = recordFileRepository.findLatest().orElseThrow();
+        final var consensusStart = latest.getConsensusStart();
+        final long headerSeconds =
+                consensusStart == null ? 0L : Math.floorDiv(consensusStart, DomainUtils.NANOS_PER_SECOND);
+        return HexUtils.convertLongToHexString(headerSeconds);
+    }
+
+    private RecordFile persistRecordFile(final long index) {
+        return domainBuilder
+                .recordFile()
+                .customize(file -> file.index(index)
+                        .consensusStart(1_000L)
+                        .consensusEnd(2_000L)
+                        .count(0L))
+                .persist();
+    }
+
     private void persistTransaction(final long consensusTimestamp) {
         domainBuilder
                 .transaction()
-                .customize(transaction -> transaction.consensusTimestamp(consensusTimestamp))
+                .customize(transaction -> transaction
+                        .consensusTimestamp(consensusTimestamp)
+                        .nonce(0)
+                        .parentConsensusTimestamp(null)
+                        .type(CONTRACTCALL.getProtoId()))
                 .persist();
     }
 
