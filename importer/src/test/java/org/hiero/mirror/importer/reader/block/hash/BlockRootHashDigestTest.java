@@ -5,6 +5,8 @@ package org.hiero.mirror.importer.reader.block.hash;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.toUnparsed;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.withUnknownField;
 import static org.hiero.mirror.importer.reader.block.hash.IncrementalStreamingHasherTest.emptyTreeHash;
 import static org.hiero.mirror.importer.reader.block.hash.ShaMessageDigestFactory.SHA_256_SIZE;
 import static org.hiero.mirror.importer.reader.block.hash.ShaMessageDigestFactory.SHA_384_SIZE;
@@ -22,10 +24,10 @@ import com.hederahashgraph.api.proto.java.Timestamp;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Collections;
+import lombok.SneakyThrows;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.importer.TestUtils;
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -45,16 +47,15 @@ final class BlockRootHashDigestTest {
     @ValueSource(ints = {SHA_256_SIZE, SHA_384_SIZE})
     void digest(final int digestSize) {
         // given
-        final var digest = new BlockRootHashDigest();
         final byte[] previousRootHash = hashOf(digestSize, (byte) 1);
         final byte[] previousBlocksTreeHash = hashOf(digestSize, (byte) 2);
         final byte[] startOfBlockStateRootHash = hashOf(digestSize, (byte) 3);
         final var blockHeader = blockHeader();
-        digest.addBlockItem(blockHeader);
-        digest.addBlockItem(blockFooter(previousRootHash, previousBlocksTreeHash, startOfBlockStateRootHash));
+        final var blockFooter = blockFooter(previousRootHash, previousBlocksTreeHash, startOfBlockStateRootHash);
+        final var digest = newDigest(blockHeader, blockFooter);
 
         // when
-        final var actual = digest.digest();
+        final var actual = digest.digest(BLOCK_TIMESTAMP, blockFooter.getBlockFooter());
 
         // then the block header is the sole output item, so slot 5 is its leaf hash and every other sub-tree is empty
         final var emptyTreeHash = emptyTreeHash(digestSize);
@@ -109,18 +110,19 @@ final class BlockRootHashDigestTest {
         final byte[] startOfBlockStateRootHash = hashOf(digestSize, (byte) 3);
 
         // the sub-trees interleave in the block, as signed transactions and their results do
-        final var digest = new BlockRootHashDigest();
-        digest.addBlockItem(blockHeader);
-        digest.addBlockItem(roundHeader);
-        digest.addBlockItem(eventHeader);
-        digest.addBlockItem(signedTransactions[0]);
-        digest.addBlockItem(transactionResults[0]);
-        digest.addBlockItem(signedTransactions[1]);
-        digest.addBlockItem(transactionResults[1]);
-        digest.addBlockItem(signedTransactions[2]);
-        digest.addBlockItem(stateChanges);
-        digest.addBlockItem(traceData);
-        digest.addBlockItem(blockFooter(previousRootHash, previousBlocksTreeHash, startOfBlockStateRootHash));
+        final var blockFooter = blockFooter(previousRootHash, previousBlocksTreeHash, startOfBlockStateRootHash);
+        final var digest = newDigest(
+                blockHeader,
+                roundHeader,
+                eventHeader,
+                signedTransactions[0],
+                transactionResults[0],
+                signedTransactions[1],
+                transactionResults[1],
+                signedTransactions[2],
+                stateChanges,
+                traceData,
+                blockFooter);
 
         final var messageDigest = ShaMessageDigestFactory.createMessageDigest(digestSize);
         final byte[] consensusHeadersRootHash = HashUtils.hashInternalNode(
@@ -139,7 +141,7 @@ final class BlockRootHashDigestTest {
                 leaf(messageDigest, transactionResults[1]));
 
         // when
-        final var actual = digest.digest();
+        final var actual = digest.digest(BLOCK_TIMESTAMP, blockFooter.getBlockFooter());
 
         // then
         assertThat(actual)
@@ -154,6 +156,42 @@ final class BlockRootHashDigestTest {
                         outputRootHash,
                         leaf(messageDigest, stateChanges),
                         leaf(messageDigest, traceData)));
+    }
+
+    @ParameterizedTest(name = "digest size {0}")
+    @SneakyThrows
+    @ValueSource(ints = {SHA_256_SIZE, SHA_384_SIZE})
+    void digestWithUnknownField(final int digestSize) {
+        // given a block header with an unknown field ahead of its known fields, so its bytes differ from the bytes of
+        // the re-serialized block header
+        final var blockHeader = withUnknownField(blockHeader());
+        final byte[] blockHeaderBytes = blockHeader.toByteArray();
+        assertThat(blockHeaderBytes)
+                .isNotEqualTo(BlockItem.parseFrom(blockHeaderBytes).toByteArray());
+        final byte[] previousRootHash = hashOf(digestSize, (byte) 1);
+        final byte[] previousBlocksTreeHash = hashOf(digestSize, (byte) 2);
+        final byte[] startOfBlockStateRootHash = hashOf(digestSize, (byte) 3);
+        final var blockFooter = blockFooter(previousRootHash, previousBlocksTreeHash, startOfBlockStateRootHash)
+                .getBlockFooter();
+        final var digest = new BlockRootHashDigest();
+        digest.addBlockItem(blockHeader);
+
+        // when
+        final var actual = digest.digest(BLOCK_TIMESTAMP, blockFooter);
+
+        // then the leaf hash of the block header is calculated from its bytes
+        final var emptyTreeHash = emptyTreeHash(digestSize);
+        assertThat(actual)
+                .isEqualTo(expectedRootHash(
+                        digestSize,
+                        previousRootHash,
+                        previousBlocksTreeHash,
+                        startOfBlockStateRootHash,
+                        emptyTreeHash,
+                        emptyTreeHash,
+                        HashUtils.hashLeaf(ShaMessageDigestFactory.createMessageDigest(digestSize), blockHeaderBytes),
+                        emptyTreeHash,
+                        emptyTreeHash));
     }
 
     @ParameterizedTest(name = "root of {1} empty leaves with digest size {0}")
@@ -174,37 +212,16 @@ final class BlockRootHashDigestTest {
     void throwWhenUnsupportedDigestSize(final int size) {
         // given - the digest size is detected from the root hash of all block hashes tree
         final var digest = new BlockRootHashDigest();
-        digest.addBlockItem(blockHeader());
-        digest.addBlockItem(blockFooter(
-                TestUtils.generateRandomByteArray(size),
-                TestUtils.generateRandomByteArray(size),
-                TestUtils.generateRandomByteArray(size)));
+        final var blockFooter = blockFooter(
+                        TestUtils.generateRandomByteArray(size),
+                        TestUtils.generateRandomByteArray(size),
+                        TestUtils.generateRandomByteArray(size))
+                .getBlockFooter();
 
         // when, then
-        assertThatThrownBy(digest::digest)
+        assertThatThrownBy(() -> digest.digest(BLOCK_TIMESTAMP, blockFooter))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unsupported digest size " + size);
-    }
-
-    @Test
-    void throwWithoutBlockFooter() {
-        // given
-        final var digest = new BlockRootHashDigest();
-        digest.addBlockItem(blockHeader());
-
-        // when, then
-        assertThatThrownBy(digest::digest).isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
-    void throwWithoutBlockHeader() {
-        // given
-        final var digest = new BlockRootHashDigest();
-        digest.addBlockItem(blockFooter(
-                hashOf(SHA_256_SIZE, (byte) 1), hashOf(SHA_256_SIZE, (byte) 2), hashOf(SHA_256_SIZE, (byte) 3)));
-
-        // when, then
-        assertThatThrownBy(digest::digest).isInstanceOf(IllegalStateException.class);
     }
 
     private static BlockItem blockFooter(
@@ -262,5 +279,14 @@ final class BlockRootHashDigestTest {
 
     private static byte[] leaf(final MessageDigest digest, final BlockItem blockItem) {
         return HashUtils.hashLeaf(digest, blockItem.toByteArray());
+    }
+
+    private static BlockRootHashDigest newDigest(final BlockItem... blockItems) {
+        final var digest = new BlockRootHashDigest();
+        for (final var blockItem : blockItems) {
+            digest.addBlockItem(toUnparsed(blockItem));
+        }
+
+        return digest;
     }
 }
