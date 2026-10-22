@@ -394,8 +394,10 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     @ParameterizedTest
     @ValueSource(ints = {1, 2, 3})
     void onClprChannelHistory(int commitIndex) {
-        // given -- only Complete and Close are real transitions; SubmitBundle never historizes (see
-        // onClprChannelSubmitBundleNeverHistorized), so its patch folds into whichever row Close actually closes
+        // given -- only Complete and Close are real transitions; SubmitBundle's status matches Complete's (no
+        // real change), so it's not historized (see onClprChannelSubmitBundleSameStatusNeverHistorized) and its
+        // patch folds into whichever row Close actually closes -- but its own timestampRange is NOT adopted,
+        // since historizeOnChange only reopens the range when status actually changed
         var complete = domainBuilder.clprChannel().get();
 
         var submitBundle = ClprChannel.builder()
@@ -407,8 +409,10 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .receivedMessageId(complete.getReceivedMessageId() + 2)
                 .receivedRunningHash(domainBuilder.bytes(32))
                 .ownershipCommitment(complete.getOwnershipCommitment())
+                .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
                 .build();
         var patchedBySubmitBundle = TestUtils.merge(complete, submitBundle);
+        patchedBySubmitBundle.setTimestampRange(complete.getTimestampRange());
 
         var close = ClprChannel.builder()
                 .channelId(complete.getChannelId())
@@ -449,20 +453,26 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2})
-    void onClprChannelSubmitBundleNeverHistorized(int commitIndex) {
-        // given -- SubmitBundle sends no timestampRange, so it only ever patches the current row
+    void onClprChannelSubmitBundleSameStatusNeverHistorized(int commitIndex) {
+        // given -- SubmitBundle always sets timestampRange now, but historizeOnChange only reopens the range (and
+        // archives the prior one) when status actually differs from the existing row; same status patches in place
         var complete = domainBuilder.clprChannel().get();
         var submitBundle1 = ClprChannel.builder()
                 .channelId(complete.getChannelId())
+                .status(ClprChannelStatus.ACTIVE)
                 .nextMessageId(complete.getNextMessageId() + 1)
                 .ownershipCommitment(complete.getOwnershipCommitment())
+                .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
                 .build();
         var submitBundle2 = ClprChannel.builder()
                 .channelId(complete.getChannelId())
+                .status(ClprChannelStatus.ACTIVE)
                 .nextMessageId(complete.getNextMessageId() + 2)
                 .ownershipCommitment(complete.getOwnershipCommitment())
+                .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
                 .build();
         var expected = TestUtils.merge(TestUtils.merge(complete, submitBundle1), submitBundle2);
+        expected.setTimestampRange(complete.getTimestampRange());
 
         // when
         sqlEntityListener.onClprChannel(complete);
@@ -477,6 +487,36 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then
         assertThat(clprChannelRepository.findAll()).containsExactly(expected);
         assertThat(findHistory(ClprChannel.class)).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2})
+    void onClprChannelSubmitBundleHistorizesOnStatusChange(int commitIndex) {
+        // given -- a SubmitBundle-driven cascade (e.g. a peer-closed channel) can change status without any
+        // ClprCloseChannel transaction at all; historizeOnChange must still historize it
+        var complete = domainBuilder.clprChannel().get();
+        var submitBundle = ClprChannel.builder()
+                .channelId(complete.getChannelId())
+                .status(ClprChannelStatus.CLOSING)
+                .nextMessageId(complete.getNextMessageId() + 1)
+                .ownershipCommitment(complete.getOwnershipCommitment())
+                .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
+                .build();
+        var expected = TestUtils.merge(complete, submitBundle);
+
+        // when
+        sqlEntityListener.onClprChannel(complete);
+        if (commitIndex > 1) {
+            completeFileAndCommit();
+        }
+
+        sqlEntityListener.onClprChannel(submitBundle);
+        completeFileAndCommit();
+
+        // then
+        complete.setTimestampUpper(submitBundle.getTimestampLower());
+        assertThat(clprChannelRepository.findAll()).containsExactly(expected);
+        assertThat(findHistory(ClprChannel.class)).containsExactly(complete);
     }
 
     @Test

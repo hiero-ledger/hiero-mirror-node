@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.github.vertical_blank.sqlformatter.SqlFormatter;
 import com.github.vertical_blank.sqlformatter.languages.Dialect;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -684,6 +685,19 @@ class GenericUpsertQueryGeneratorTest extends ImporterIntegrationTest {
         var generator = factory.get(Schedule.class);
         assertThat(generator).isInstanceOf(GenericUpsertQueryGenerator.class);
         assertThat(format(generator.getUpsertQuery())).isEqualTo(format(sql));
+    }
+
+    @Test
+    void historizeOnChangeColumn() {
+        var generator = factory.get(ClprChannel.class);
+        assertThat(generator).isInstanceOf(GenericUpsertQueryGenerator.class);
+        var sql = format(generator.getUpsertQuery());
+        assertThat(sql)
+                .containsIgnoringWhitespaces(
+                        "(not (e.channel_id is not null) or (e.status is distinct from t.status)) as is_new_segment")
+                .containsIgnoringWhitespaces("where e_timestamp_range is not null and is_new_segment")
+                .containsIgnoringWhitespaces(
+                        "int8range(case when rn = 1 and not is_new_segment then lower(e_timestamp_range) else lower(timestamp_range) end, upper(timestamp_range))");
     }
 
     @Test

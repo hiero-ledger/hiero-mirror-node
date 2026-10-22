@@ -103,7 +103,7 @@ final class ClprStateChangeHandlerTest {
                 .returns(channelId, ClprChannel::getChannelId)
                 .returns(4L, ClprChannel::getNextMessageId)
                 .returns(2L, ClprChannel::getAckedMessageId)
-                .returns(null, ClprChannel::getTimestampRange);
+                .returns(Range.atLeast(0L), ClprChannel::getTimestampRange);
     }
 
     @Test

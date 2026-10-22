@@ -33,4 +33,16 @@ public @interface UpsertColumn {
      * @return Whether to coalesce the column
      */
     boolean shouldCoalesce() default true;
+
+    /**
+     * Only meaningful on an {@code @Upsertable(history = true)} entity. Marks this column as the condition for
+     * whether an upsert actually versions the row: the current row is always patched in place, but a
+     * {@code _history} row is only cut when this column's incoming value differs from the existing row's (and an
+     * existing row is present — the first-ever write for an id never historizes, since there's nothing to archive).
+     * Lets a transaction type historize conditionally instead of the all-or-nothing choice of setting
+     * {@code timestampRange} or not.
+     *
+     * @return whether a change to this column should trigger historization
+     */
+    boolean historizeOnChange() default false;
 }

@@ -115,7 +115,8 @@ class ClprStateChangeHandler {
         if (clprChannelValue != null) {
             var builder = ClprChannel.builder();
             populateFromStateChange(builder, clprChannelValue);
-            entityListener.onClprChannel(builder.build());
+            entityListener.onClprChannel(
+                    builder.timestampRange(Range.atLeast(consensusTimestamp)).build());
         }
 
         for (var entry : recordItem.getClprMessages()) {

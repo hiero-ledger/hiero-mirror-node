@@ -1,0 +1,40 @@
+## @formatter:off
+
+## A _history row is only cut when a $historizeOnChange column actually differs from the existing row (or there's
+## no existing row yet). See CLPR-DESIGN-DEVIATIONS.md for the full reasoning and known edge-case limitation.
+with existing as (
+  select $existingColumnsAs, t.*,
+    row_number() over (partition by $tempIdColumns order by t.timestamp_range asc) as rn,
+    (not ($idExistsCondition) or ($historizeCondition)) as is_new_segment
+  from $tempTable t
+  left join $finalTable e on $idJoin
+), earliest as (
+  ## Pick the chronologically-earliest temp row per id before filtering, so is_new_segment is evaluated against
+  ## the row that's actually adjacent to the existing row -- not whichever later row happens to pass the filter.
+  select distinct on ($conflictColumns) *
+  from existing
+  order by $conflictColumns, timestamp_range asc
+), existing_history as (
+  insert into $historyTable ($insertColumns)
+  select $existingColumns
+  from earliest
+  where e_timestamp_range is not null and is_new_segment
+),
+temp_history as (
+  insert into $historyTable ($insertColumns)
+  select distinct $coalesceHistoryColumns
+  from existing
+  where upper(timestamp_range) is not null
+#if($skipPartialUpdate)
+  and coalesce(e_created_timestamp, created_timestamp) is not null
+#end
+)
+insert into $finalTable ($insertColumns)
+select $coalesceColumns
+from existing
+where upper(timestamp_range) is null
+#if($skipPartialUpdate)
+and coalesce(e_created_timestamp, created_timestamp) is not null
+#end
+on conflict ($conflictColumns)
+do update set $updateColumns;

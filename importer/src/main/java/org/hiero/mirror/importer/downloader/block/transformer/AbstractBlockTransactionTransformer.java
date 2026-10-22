@@ -85,10 +85,13 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
      * CLPR's {@code sendMessage} system contract runs synchronously inside {@code ContractCall}/
      * {@code EthereumTransaction} handling, so its state changes land in that same transaction's
      * {@code StateChanges}. No-op for transactions that don't touch CLPR state.
+     *
+     * <p>Children share their parent's {@code StateChangeContext} by reference, so without the parent check below
+     * they'd reprocess the same CLPR state changes a second time.
      */
     private void transformClprSendMessageSideEffects(BlockTransactionTransformation blockTransactionTransformation) {
         var blockTransaction = blockTransactionTransformation.blockTransaction();
-        if (!blockTransaction.isSuccessful()) {
+        if (!blockTransaction.isSuccessful() || blockTransaction.getParent() != null) {
             return;
         }
 

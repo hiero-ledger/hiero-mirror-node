@@ -506,8 +506,9 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @SuppressWarnings("java:S3776")
     private ClprChannel mergeClprChannel(ClprChannel previous, ClprChannel current) {
-        // No timestampRange: a non-historical patch, same mechanism as Entity.balance. See CLPR-DESIGN-DEVIATIONS.md.
-        if (!current.hasHistory()) {
+        // Mirrors the SQL upsert's own historize-on-status-change condition (see CLPR-DESIGN-DEVIATIONS.md) so
+        // same-batch updates to one channel don't cut a version boundary unless status actually changed.
+        if (Objects.equals(previous.getStatus(), current.getStatus())) {
             if (current.getStatus() != null) {
                 previous.setStatus(current.getStatus());
             }
