@@ -76,6 +76,11 @@ spec:
         HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_PROPERTIES_TOPICID: "0.0.368908"
         HIERO_MIRROR_MONITOR_SUBSCRIBE_GRPC_HCS_TOPICID: "0.0.368908"
     rest:
+      config:
+        hiero:
+          mirror:
+            rest:
+              clusterId: "b9b8f2f"
       env:
         HIERO_MIRROR_REST_CHAINID: "0x127"
       ingress:
