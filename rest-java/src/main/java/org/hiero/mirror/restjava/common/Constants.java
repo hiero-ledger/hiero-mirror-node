@@ -23,6 +23,7 @@ public class Constants {
     public static final String HOOK_ID = "hook.id";
     public static final String KEY = "key";
     public static final String LIMIT = "limit";
+    public static final String MESSAGE_ID = "message.id";
     public static final String NODE_ID = "node.id";
     public static final String ORDER = "order";
     public static final String OWNER = "owner";

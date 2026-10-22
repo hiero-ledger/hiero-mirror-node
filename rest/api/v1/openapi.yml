@@ -544,6 +544,32 @@ paths:
           $ref: "#/components/responses/InvalidParameterError"
       tags:
         - clpr
+  /api/v1/clpr/channels/{channelId}/messages:
+    get:
+      summary: List CLPR messages for a channel
+      description: Returns the messages in a CLPR (HIP-1535) channel's queue, paginated and sorted by consensus timestamp then message id. The message.id and type filters require timestamp. Combined timestamp ranges are capped.
+      operationId: getClprChannelMessages
+      parameters:
+        - $ref: "#/components/parameters/clprChannelIdPathParam"
+        - $ref: "#/components/parameters/clprConnectorIdQueryParam"
+        - $ref: "#/components/parameters/clprMessageIdQueryParam"
+        - $ref: "#/components/parameters/clprMessageTypeQueryParam"
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamDesc"
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClprMessagesResponse"
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      tags:
+        - clpr
   /api/v1/clpr/connectors:
     get:
       summary: List CLPR connectors
@@ -2548,6 +2574,69 @@ components:
       type: [string, "null"]
       example: "0x1a2b3c"
       pattern: "^0x[0-9a-fA-F]*$"
+    ClprMessage:
+      type: object
+      required:
+        - acknowledged
+        - channel_id
+        - message_id
+        - running_hash
+        - timestamp
+        - type
+      properties:
+        acknowledged:
+          description: Whether the peer has acknowledged the message, i.e. message_id is at most the channel's acked_message_id
+          type: boolean
+          example: false
+        channel_id:
+          $ref: "#/components/schemas/ClprHexBytes"
+        connector_id:
+          allOf:
+            - $ref: "#/components/schemas/ClprHexBytes"
+          description: The connector the message is associated with. Null for response and control messages
+        message_data:
+          $ref: "#/components/schemas/ClprHexBytes"
+        message_id:
+          type: integer
+          format: int64
+          example: 5
+        reply_status:
+          $ref: "#/components/schemas/ClprMessageReplyStatus"
+        reply_to_message_id:
+          type: [integer, "null"]
+          format: int64
+          example: null
+        running_hash:
+          $ref: "#/components/schemas/ClprHexBytes"
+        sender:
+          $ref: "#/components/schemas/ClprHexBytes"
+        target_application:
+          $ref: "#/components/schemas/ClprHexBytes"
+        timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        type:
+          $ref: "#/components/schemas/ClprMessageType"
+    ClprMessageReplyStatus:
+      type: string
+      enum:
+        [SUCCESS, APPLICATION_ERROR, CONNECTOR_NOT_FOUND, CONNECTOR_UNDERFUNDED]
+      example: SUCCESS
+    ClprMessagesResponse:
+      type: object
+      required:
+        - links
+        - messages
+      properties:
+        links:
+          $ref: "#/components/schemas/Links"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClprMessage"
+    ClprMessageType:
+      type: string
+      enum: [DATA, RESPONSE, CONTROL]
+      example: DATA
     ClprPeerThrottles:
       type: object
       properties:
@@ -5247,6 +5336,34 @@ components:
       schema:
         type: string
         pattern: "^((eq):)?(true|false)$"
+    clprChannelIdPathParam:
+      name: channelId
+      description: The 32-byte channel id as a hex string with an optional 0x prefix
+      in: path
+      required: true
+      example: "0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809"
+      schema:
+        type: string
+        pattern: "^(0x)?[0-9a-fA-F]{64}$"
+    clprMessageIdQueryParam:
+      name: message.id
+      description: The message id with an optional comparison operator. Requires timestamp.
+      in: query
+      explode: true
+      example: "lt:5"
+      schema:
+        type: array
+        items:
+          type: string
+          pattern: '^((eq|gt|gte|lt|lte):)?\d{1,19}$'
+        maxItems: 2
+    clprMessageTypeQueryParam:
+      name: type
+      description: Filter messages by type. Requires timestamp.
+      in: query
+      example: DATA
+      schema:
+        $ref: "#/components/schemas/ClprMessageType"
     clprChannelStatusQueryParam:
       name: status
       description: Filter channels by status
