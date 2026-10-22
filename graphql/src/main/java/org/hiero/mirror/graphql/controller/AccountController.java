@@ -11,7 +11,7 @@ import java.util.Optional;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.graphql.exception.InvalidInputException;
+import org.hiero.mirror.graphql.exception.NotImplementedException;
 import org.hiero.mirror.graphql.mapper.AccountMapper;
 import org.hiero.mirror.graphql.service.EntityService;
 import org.hiero.mirror.graphql.viewmodel.Account;
@@ -55,7 +55,7 @@ class AccountController {
                     .map(accountMapper::map);
         }
 
-        throw new InvalidInputException("Not implemented");
+        throw new NotImplementedException("Not implemented");
     }
 
     @SchemaMapping

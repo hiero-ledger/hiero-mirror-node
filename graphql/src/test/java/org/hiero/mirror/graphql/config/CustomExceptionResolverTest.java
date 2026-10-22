@@ -16,6 +16,7 @@ import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.exception.NonParsableKeyException;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.graphql.exception.InvalidInputException;
+import org.hiero.mirror.graphql.exception.NotImplementedException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -48,6 +49,14 @@ class CustomExceptionResolverTest {
 
         assertThat(error.getMessage()).isEqualTo("Invalid Node.id");
         assertThat(error.toSpecification().toString()).doesNotContain(INTERNAL_MESSAGE);
+    }
+
+    @Test
+    void notImplemented() {
+        final var error = execute(new NotImplementedException("Not implemented"));
+
+        assertThat(error.getMessage()).isEqualTo("Not implemented");
+        assertThat(error.getErrorType()).isEqualTo(graphql.ErrorType.ValidationError);
     }
 
     @MethodSource("unexpectedExceptions")
