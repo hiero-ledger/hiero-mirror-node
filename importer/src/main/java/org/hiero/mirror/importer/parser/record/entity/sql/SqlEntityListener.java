@@ -506,7 +506,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @SuppressWarnings("java:S3776")
     private ClprChannel mergeClprChannel(ClprChannel previous, ClprChannel current) {
-        // No timestampRange: a non-historical patch, same mechanism as Entity.balance. See CLPR-DESIGN-DEVIATIONS.md.
+        // No timestampRange: a non-historical patch, same mechanism as Entity.balance.
         if (!current.hasHistory()) {
             if (current.getStatus() != null) {
                 previous.setStatus(current.getStatus());

@@ -81,8 +81,7 @@ class ClprStateChangeHandler {
         }
     }
 
-    // Placeholder: always historize until hiero-ledger/hiero-consensus-node#27718 lands upstream (see
-    // CLPR-DESIGN-DEVIATIONS.md).
+    // Placeholder: always historize until hiero-ledger/hiero-consensus-node#27718 lands upstream.
     private static boolean channelHistorizes(com.hederahashgraph.api.proto.java.ClprChannel value) {
         return true;
     }

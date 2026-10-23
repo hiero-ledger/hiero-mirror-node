@@ -395,8 +395,8 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     @ValueSource(ints = {1, 2, 3})
     void onClprChannelHistory(int commitIndex) {
         // given -- the handler always sets timestampRange for now (placeholder until the stream exposes real
-        // per-field diffs, see CLPR-DESIGN-DEVIATIONS.md), so Complete, SubmitBundle, and Close each cut their own
-        // version even though SubmitBundle's status here matches Complete's
+        // per-field diffs), so Complete, SubmitBundle, and Close each cut their own version even though
+        // SubmitBundle's status here matches Complete's
         var complete = domainBuilder.clprChannel().get();
 
         var submitBundle = ClprChannel.builder()
@@ -454,7 +454,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     @ValueSource(ints = {1, 2})
     void onClprChannelSubmitBundleSameStatusStillHistorizes(int commitIndex) {
         // given -- the handler always sets timestampRange for now (placeholder until the stream exposes real
-        // per-field diffs, see CLPR-DESIGN-DEVIATIONS.md), so even a same-status SubmitBundle write historizes
+        // per-field diffs), so even a same-status SubmitBundle write historizes
         var complete = domainBuilder.clprChannel().get();
         var submitBundle1 = ClprChannel.builder()
                 .channelId(complete.getChannelId())
