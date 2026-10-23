@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCALL;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_RECORD_FILE_LATEST;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_RECORD_FILE_LATEST;
+import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.stateOverride;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.when;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import jakarta.annotation.Resource;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -37,6 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -61,6 +64,7 @@ import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
+import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -191,6 +195,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var functionCall = contract.call_multiplySimpleNumbers();
         final var params = getContractExecutionParameters(functionCall, contract);
+        publishFixtureBlock();
 
         // When
         final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT, null));
@@ -206,6 +211,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var contract = testWeb3jService.deploy(InternalCaller::deploy);
         final var functionCall = contract.call_callNonExisting(contract.getContractAddress());
         final var params = getContractExecutionParameters(functionCall, contract);
+        publishFixtureBlock();
 
         // When
         final var allActions =
@@ -227,6 +233,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var contract = testWeb3jService.deploy(InternalCaller::deploy);
         final var functionCall = contract.call_callNonExisting(contract.getContractAddress());
         final var params = getContractExecutionParameters(functionCall, contract);
+        publishFixtureBlock();
 
         final var allActions =
                 contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT, null));
@@ -250,6 +257,57 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     @Test
+    void processTraceCallAppliesMultipleStateOverrides() {
+        final var contract = testWeb3jService.deployWithoutPersist(EthCall::deploy);
+        final var account = toAddress(9001L);
+        final var functionCall = contract.call_getAccountBalance(account.toHexString());
+        final var params = getContractExecutionParameters(functionCall, contract);
+        publishFixtureBlock();
+
+        final var codeOverride = new StateOverride();
+        codeOverride.setAddress(contract.getContractAddress().toLowerCase());
+        codeOverride.setCode(BytecodeUtils.extractRuntimeBytecode(EthCall.BINARY));
+        final var balanceOverride = balanceOverride(account, "0x64");
+
+        final var result = contractDebugService.processTraceCall(TraceCall.builder()
+                .bundles(List.of(
+                        TraceBundle.builder().transactions(List.of(params)).build()))
+                .stateOverrides(List.of(codeOverride, balanceOverride))
+                .timeout(INTEGRATION_TIMEOUT)
+                .build());
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getError()).isNull();
+        assertThat(result.getFirst().getTo()).isEqualToIgnoringCase(contract.getContractAddress());
+        assertThat(decodedUint256(result.getFirst().getOutput())).isEqualTo(BigInteger.valueOf(100L));
+    }
+
+    @Test
+    void processTraceCallManyAppliesMultipleStateOverrides() {
+        final var contract = testWeb3jService.deploy(EthCall::deploy);
+        final var firstAccount = toAddress(9001L);
+        final var secondAccount = toAddress(9002L);
+        final var firstCall =
+                getContractExecutionParameters(contract.call_getAccountBalance(firstAccount.toHexString()), contract);
+        final var secondCall =
+                getContractExecutionParameters(contract.call_getAccountBalance(secondAccount.toHexString()), contract);
+        publishFixtureBlock();
+
+        final var result = contractDebugService.processTraceCall(TraceCall.builder()
+                .bundles(List.of(
+                        TraceBundle.builder().transactions(List.of(firstCall)).build(),
+                        TraceBundle.builder().transactions(List.of(secondCall)).build()))
+                .stateOverrides(List.of(balanceOverride(firstAccount, "0x64"), balanceOverride(secondAccount, "0xc8")))
+                .timeout(INTEGRATION_TIMEOUT)
+                .build());
+
+        assertThat(result).hasSize(2);
+        assertThat(result).allSatisfy(action -> assertThat(action.getError()).isNull());
+        assertThat(decodedUint256(result.get(0).getOutput())).isEqualTo(BigInteger.valueOf(100L));
+        assertThat(decodedUint256(result.get(1).getOutput())).isEqualTo(BigInteger.valueOf(200L));
+    }
+
+    @Test
     void processTraceCallAppliesRequestedTimeout() {
         final var deadlineWindow = new AtomicLong();
         stubActionsAndCaptureDeadline(deadlineWindow, action("0x02", TypeEnum.CALL));
@@ -264,6 +322,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
         final var functionCall = contract.call_calculateSHA256();
         final var params = getContractExecutionParameters(functionCall, contract);
+        publishFixtureBlock();
 
         final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT, null));
 
@@ -585,6 +644,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
     @Test
     void processTraceCallWithoutTransactionIndexKeepsBlockState() {
+        recordFileLatestCacheManager.getCache(CACHE_NAME_RECORD_FILE_LATEST).invalidate();
+        final var pinnedEnd = recordFileRepository.findLatest().orElseThrow().getConsensusEnd();
         final var timestamps = new ArrayList<Optional<Long>>();
         doAnswer(invocation -> {
                     timestamps.add(ContractCallContext.get().getTimestamp());
@@ -611,7 +672,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .timeout(DEFAULT_TIMEOUT)
                 .build());
 
-        assertThat(timestamps).containsExactly(Optional.empty(), Optional.empty(), Optional.empty());
+        assertThat(timestamps).containsExactly(Optional.of(pinnedEnd), Optional.of(pinnedEnd), Optional.of(pinnedEnd));
     }
 
     @Test
@@ -657,7 +718,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                                 .blockOverride(blockTime)
                                 .transactions(List.of(executionParameters()))
                                 .build()))
-                .stateOverride(stateOverride)
+                .stateOverrides(List.of(stateOverride))
                 .timeout(DEFAULT_TIMEOUT)
                 .build());
 
@@ -1071,6 +1132,23 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .timeout(DEFAULT_TIMEOUT)
                 .transactionIndex(transactionIndex)
                 .build();
+    }
+
+    private static StateOverride balanceOverride(final Address address, final String balance) {
+        final var override = new StateOverride();
+        override.setAddress(address.toHexString());
+        override.setBalance(balance);
+        return override;
+    }
+
+    private void publishFixtureBlock() {
+        // Fixture deployments happen after the genesis record file. Publish a block containing that state.
+        domainBuilder.recordFile().persist();
+        recordFileLatestCacheManager.getCache(CACHE_NAME_RECORD_FILE_LATEST).invalidate();
+    }
+
+    private static BigInteger decodedUint256(final String output) {
+        return Bytes.fromHexString(output).toBigInteger();
     }
 
     private static TraceCall traceCall(

@@ -69,19 +69,19 @@ public class ContractCallRequest {
     @JsonProperty("state_overrides")
     @NotNull
     @Size(max = 10)
-    private List<@Valid StateOverride> stateOverrides = new ArrayList<>();
+    private List<@NotNull @Valid StateOverride> stateOverrides = new ArrayList<>();
 
     @JsonProperty("access_list")
     @Nullable
     @Size(max = ACCESS_LIST_MAX_SIZE)
     @Valid
-    private List<@Valid AccessListEntry> accessList;
+    private List<@NotNull @Valid AccessListEntry> accessList;
 
     @JsonProperty("authorization_list")
     @Nullable
     @Size(max = AUTHORIZATION_LIST_MAX_SIZE)
     @Valid
-    private List<@Valid AuthorizationListEntry> authorizationList;
+    private List<@NotNull @Valid AuthorizationListEntry> authorizationList;
 
     @PositiveOrZero
     private long value;

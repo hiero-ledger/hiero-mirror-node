@@ -34,5 +34,5 @@ public class AccessListEntry {
     @JsonSetter(nulls = Nulls.AS_EMPTY)
     @NotNull
     @Size(max = STORAGE_KEYS_MAX_SIZE)
-    private List<@Hex(minLength = 64, maxLength = 66) String> storageKeys = new ArrayList<>();
+    private List<@NotNull @Hex(minLength = 64, maxLength = 66) String> storageKeys = new ArrayList<>();
 }

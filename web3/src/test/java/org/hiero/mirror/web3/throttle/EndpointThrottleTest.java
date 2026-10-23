@@ -30,33 +30,17 @@ final class EndpointThrottleTest {
     void allowsRequestsWhenEndpointThrottleIsDisabled() {
         setEndpointThrottle(OPCODES, 0);
 
-        assertThatNoException().isThrownBy(() -> endpointThrottle.throttle(OPCODES, 1L));
-        assertThatNoException().isThrownBy(() -> endpointThrottle.throttle(OPCODES, 1L));
+        assertThatNoException().isThrownBy(() -> endpointThrottle.throttle(OPCODES));
+        assertThatNoException().isThrownBy(() -> endpointThrottle.throttle(OPCODES));
     }
 
     @Test
-    void consumesMultipleTokensAtomically() {
-        setEndpointThrottle(ACTIONS, 5);
-
-        endpointThrottle.throttle(ACTIONS, 3L);
-        assertThatThrownBy(() -> endpointThrottle.throttle(ACTIONS, 3L))
-                .isInstanceOf(ThrottleException.class)
-                .hasMessageContaining("Requests per second rate limit exceeded");
-        assertThatNoException().isThrownBy(() -> endpointThrottle.throttle(ACTIONS, 2L));
-        assertThatThrownBy(() -> endpointThrottle.throttle(ACTIONS, 1L))
-                .isInstanceOf(ThrottleException.class)
-                .hasMessageContaining("Requests per second rate limit exceeded");
-    }
-
-    @Test
-    void oversizedRequestDoesNotConsumeTokens() {
+    void rejectsRequestsAboveTheRateLimit() {
         setEndpointThrottle(ACTIONS, 2);
 
-        assertThatThrownBy(() -> endpointThrottle.throttle(ACTIONS, 3L))
-                .isInstanceOf(ThrottleException.class)
-                .hasMessageContaining("Requests per second rate limit exceeded");
-        assertThatNoException().isThrownBy(() -> endpointThrottle.throttle(ACTIONS, 2L));
-        assertThatThrownBy(() -> endpointThrottle.throttle(ACTIONS, 1L))
+        assertThatNoException().isThrownBy(() -> endpointThrottle.throttle(ACTIONS));
+        assertThatNoException().isThrownBy(() -> endpointThrottle.throttle(ACTIONS));
+        assertThatThrownBy(() -> endpointThrottle.throttle(ACTIONS))
                 .isInstanceOf(ThrottleException.class)
                 .hasMessageContaining("Requests per second rate limit exceeded");
     }
@@ -66,11 +50,11 @@ final class EndpointThrottleTest {
         setEndpointThrottle(OPCODES, 1);
         setEndpointThrottle(PRESTATE, 1);
 
-        endpointThrottle.throttle(OPCODES, 1L);
-        assertThatThrownBy(() -> endpointThrottle.throttle(OPCODES, 1L)).isInstanceOf(ThrottleException.class);
+        endpointThrottle.throttle(OPCODES);
+        assertThatThrownBy(() -> endpointThrottle.throttle(OPCODES)).isInstanceOf(ThrottleException.class);
 
-        endpointThrottle.throttle(PRESTATE, 1L);
-        assertThatThrownBy(() -> endpointThrottle.throttle(PRESTATE, 1L)).isInstanceOf(ThrottleException.class);
+        endpointThrottle.throttle(PRESTATE);
+        assertThatThrownBy(() -> endpointThrottle.throttle(PRESTATE)).isInstanceOf(ThrottleException.class);
     }
 
     private void setEndpointThrottle(final ApiEndpointName endpoint, final long rateLimit) {

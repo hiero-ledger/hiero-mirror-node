@@ -39,6 +39,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Spy;
@@ -107,7 +109,7 @@ class ActionTracerTest {
     @BeforeEach
     void setup() {
         actionTracer = new ActionTracer();
-        actionContext = ActionContext.builder().build();
+        actionContext = new ActionContext();
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
         lenient().when(contractCallContext.getActionContext()).thenReturn(actionContext);
     }
@@ -416,7 +418,6 @@ class ActionTracerTest {
 
         given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
         given(messageFrame.getOutputData()).willReturn(OUTPUT);
-        given(messageFrame.getRevertReason()).willReturn(Optional.empty());
         given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.of(ActionTracer.TIMEOUT_HALT_REASON));
 
         // When
@@ -498,7 +499,6 @@ class ActionTracerTest {
         given(nestedFrame.getValue()).willReturn(Wei.ZERO);
         given(nestedFrame.getOutputData()).willReturn(NESTED_OUTPUT);
         given(nestedFrame.getExceptionalHaltReason()).willReturn(Optional.empty());
-        given(nestedFrame.getRevertReason()).willReturn(Optional.empty());
 
         actionTracer.tracePrecompileResult(nestedFrame, com.hedera.hapi.streams.ContractActionType.PRECOMPILE);
 
@@ -521,7 +521,6 @@ class ActionTracerTest {
 
         given(messageFrame.getDepth()).willReturn(0);
         givenCompletedFrameData(messageFrame, REMAINING_GAS, Bytes.of((byte) 2));
-        given(messageFrame.getRevertReason()).willReturn(Optional.of(Bytes.of((byte) 3)));
         actionTracer.tracePostExecution(messageFrame, operationResult);
 
         assertThat(previous.getError()).isNull();
@@ -543,22 +542,46 @@ class ActionTracerTest {
     }
 
     @Test
-    void recordsRevertWithoutReturningThePayloadAsOutput() {
+    void recordsRawRevertPayloadAndDecodedReason() {
         givenOriginFrameData();
         actionTracer.traceOriginAction(messageFrame);
         given(messageFrame.getState()).willReturn(REVERT);
         given(messageFrame.getDepth()).willReturn(0);
         given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.empty());
         given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
-        given(messageFrame.getRevertReason()).willReturn(Optional.of(Bytes.fromHexString("0x08c379a0")));
+        given(messageFrame.getRevertReason())
+                .willReturn(Optional.of(Bytes.fromHexString(
+                        org.hiero.mirror.web3.convert.BytesDecoder.getAbiEncodedRevertReason("failed"))));
 
         actionTracer.tracePostExecution(messageFrame, operationResult);
 
         final var action = actionContext.getActions().getFirst();
         assertThat(action.getError()).isEqualTo("execution reverted");
-        assertThat(action.getRevertReason()).isEqualTo("0x08c379a0");
-        assertThat(action.getOutput()).isNull();
+        assertThat(action.getRevertReason()).isEqualTo("failed");
+        assertThat(action.getOutput())
+                .isEqualTo(org.hiero.mirror.web3.convert.BytesDecoder.getAbiEncodedRevertReason("failed"));
         assertThat(action.getGasUsed()).isEqualTo(HexUtils.convertLongToHexString(INITIAL_GAS - REMAINING_GAS));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {"0x", "0xdeadbeef", "0x4e487b710000000000000000000000000000000000000000000000000000000000000001"
+            })
+    void preservesEmptyCustomAndPanicReverts(final String payload) {
+        givenOriginFrameData();
+        actionTracer.traceOriginAction(messageFrame);
+        given(messageFrame.getState()).willReturn(REVERT);
+        given(messageFrame.getDepth()).willReturn(0);
+        given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.empty());
+        given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
+        given(messageFrame.getRevertReason()).willReturn(Optional.of(Bytes.fromHexString(payload)));
+
+        actionTracer.tracePostExecution(messageFrame, operationResult);
+
+        final var action = actionContext.getActions().getFirst();
+        assertThat(action.getOutput()).isEqualTo(payload);
+        assertThat(action.getRevertReason()).isNull();
+        assertThat(action.getError()).isEqualTo("execution reverted");
     }
 
     @Test
@@ -569,7 +592,6 @@ class ActionTracerTest {
         given(messageFrame.getDepth()).willReturn(0);
         given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.of(ExceptionalHaltReason.INSUFFICIENT_GAS));
         given(messageFrame.getOutputData()).willReturn(Bytes.EMPTY);
-        given(messageFrame.getRevertReason()).willReturn(Optional.empty());
 
         actionTracer.tracePostExecution(messageFrame, operationResult);
 
@@ -588,7 +610,6 @@ class ActionTracerTest {
         given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.of(ActionTracer.TIMEOUT_HALT_REASON));
         given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
         given(messageFrame.getOutputData()).willReturn(Bytes.EMPTY);
-        given(messageFrame.getRevertReason()).willReturn(Optional.empty());
 
         actionTracer.tracePostExecution(messageFrame, operationResult);
 
@@ -605,7 +626,6 @@ class ActionTracerTest {
         given(messageFrame.getDepth()).willReturn(0);
         given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.empty());
         given(messageFrame.getRemainingGas()).willReturn(-50L);
-        given(messageFrame.getRevertReason()).willReturn(Optional.empty());
 
         actionTracer.tracePostExecution(messageFrame, operationResult);
 
@@ -641,7 +661,6 @@ class ActionTracerTest {
         given(frame.getExceptionalHaltReason()).willReturn(Optional.empty());
         given(frame.getRemainingGas()).willReturn(remainingGas);
         given(frame.getOutputData()).willReturn(output);
-        given(frame.getRevertReason()).willReturn(Optional.empty());
     }
 
     private void assertTopLevelAction(final ActionResponse action, final boolean finalized) {

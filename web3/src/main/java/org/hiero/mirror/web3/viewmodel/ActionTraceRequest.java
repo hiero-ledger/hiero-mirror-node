@@ -25,13 +25,18 @@ import org.jspecify.annotations.Nullable;
 /**
  * One {@code debug_traceCallMany} request. A single bundle with one transaction is {@code debug_traceCall}.
  * {@code block}, {@code state_override}, {@code timeout}, and {@code transaction_index} apply to every bundle.
- * When {@code only_top_call} is true, each transaction returns only its root call and omits nested actions. State
- * changes from earlier bundles stay visible to later bundles. Each bundle applies its own {@code block_override}.
+ * {@code state_override} is one entry per account. When {@code only_top_call} is true, each transaction returns only
+ * its root call and omits nested actions. State changes from earlier bundles stay visible to later bundles. Each
+ * bundle applies its own {@code block_override}.
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 @NullMarked
 public class ActionTraceRequest {
+
+    public static final long MAX_DOCUMENT_LENGTH = 8 * 1024 * 1024;
+    public static final long MAX_JSON_TOKENS = 100_000;
+    public static final long MAX_INPUT_CHARACTERS = MAX_TRACE_TRANSACTIONS * ContractCallRequest.DATA_MAX_LENGTH;
 
     @JsonSerialize(using = BlockTypeSerializer.class)
     @JsonSetter(nulls = Nulls.SKIP)
@@ -42,15 +47,65 @@ public class ActionTraceRequest {
     @NotNull
     @Size(max = MAX_TRACE_BUNDLES)
     @Valid
-    private List<@Valid ActionTraceBundle> bundles = new ArrayList<>();
+    private List<@NotNull @Valid ActionTraceBundle> bundles = new ArrayList<>();
 
     @JsonProperty("only_top_call")
     private boolean onlyTopCall;
 
     @JsonProperty("state_override")
-    @Nullable
-    @Valid
-    private StateOverride stateOverride;
+    @JsonSetter(nulls = Nulls.SKIP)
+    @NotNull
+    @Size(max = 10)
+    private List<@NotNull @Valid StateOverride> stateOverrides = new ArrayList<>();
+
+    @AssertTrue(message = "aggregate calldata and state overrides exceed the trace input limit")
+    private boolean hasInputBudget() {
+        long length = overrideLength(stateOverrides);
+        if (bundles != null) {
+            for (final var bundle : bundles) {
+                if (bundle == null || bundle.getTransactions() == null) {
+                    continue;
+                }
+                for (final var transaction : bundle.getTransactions()) {
+                    if (transaction != null) {
+                        length += textLength(transaction.getData()) + overrideLength(transaction.getStateOverrides());
+                    }
+                }
+            }
+        }
+        return length <= MAX_INPUT_CHARACTERS;
+    }
+
+    private static long overrideLength(final List<StateOverride> overrides) {
+        long length = 0;
+        if (overrides == null) {
+            return length;
+        }
+        for (final var override : overrides) {
+            if (override == null) {
+                continue;
+            }
+            length += textLength(override.getCode());
+            length += storageLength(override.getState()) + storageLength(override.getStateDiff());
+        }
+        return length;
+    }
+
+    private static long storageLength(final List<StorageEntry> entries) {
+        long length = 0;
+        if (entries != null) {
+            for (final var entry : entries) {
+                if (entry != null) {
+                    length += textLength(entry.getKey()) + textLength(entry.getValue());
+                }
+            }
+        }
+        return length;
+    }
+
+    private static int textLength(final @Nullable String text) {
+        return text == null ? 0 : text.length();
+    }
 
     @Nullable
     private String timeout;

@@ -2,6 +2,7 @@
 
 package com.swirlds.state.spi;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -12,11 +13,17 @@ import org.jspecify.annotations.Nullable;
 /**
  * A base class for implementations of {@link WritableKVState}.
  *
+ * <p>Process-wide states ({@link #useRequestWriteCache()}) stage writes in the request-scoped
+ * {@link ContractCallContext}. Savepoint wrappers keep a private map, so dropping the wrapper discards an uncommitted
+ * frame. A wrapper {@link #commit()} pushes that frame into its delegate.
+ *
  * @param <K> The key type
  * @param <V> The value type
  */
-@SuppressWarnings("unchecked")
 public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V> implements WritableKVState<K, V> {
+
+    /** Modifications for one savepoint wrapper. Request-scoped states use {@link ContractCallContext} instead. */
+    private final Map<K, V> localModifications = new LinkedHashMap<>();
 
     /**
      * Create a new StateBase.
@@ -40,24 +47,42 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     }
 
     /**
-     * Flushes all changes into the underlying data store. This method should <strong>ONLY</strong>
-     * be called by the code that created the {@link WritableKVStateBase} instance or owns it. Don't
-     * cast and commit unless you own the instance!
+     * Flushes this frame into its delegate. Request-scoped states leave their staged writes in
+     * {@link ContractCallContext} and override this method when those writes should be published. A savepoint wrapper
+     * pushes its private modifications to the parent. This method should <strong>ONLY</strong> be called by the code
+     * that created the {@link WritableKVStateBase} instance or owns it.
      */
     public void commit() {
-        // Do nothing since we do not want to propagate any changes to the underlying datasource.
+        if (useRequestWriteCache()) {
+            return;
+        }
+        for (final var entry : localModifications.entrySet()) {
+            final K key = entry.getKey();
+            final V value = entry.getValue();
+            if (value == null) {
+                removeFromDataSource(key);
+            } else {
+                putIntoDataSource(key, value);
+            }
+        }
+        localModifications.clear();
     }
 
     /**
      * {@inheritDoc}
      *
      * <p>Clears the set of modified keys and removed keys. Equivalent semantically to a "rollback"
-     * operation.
+     * operation. A request-scoped state also drops its read cache. A savepoint wrapper clears only its private
+     * modifications, so a nested rollback does not wipe the parent frame.
      */
     @Override
     public final void reset() {
-        super.reset();
-        getWriteCacheState().clear();
+        if (useRequestWriteCache()) {
+            getWriteCacheState().clear();
+            super.reset();
+        } else {
+            localModifications.clear();
+        }
     }
 
     /** {@inheritDoc} */
@@ -66,12 +91,16 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     public final V get(@NonNull K key) {
         // If there is a modification, then we've already done a "put" or "remove"
         // and should return based on the modification
-        final var writeCache = getWriteCacheState();
-        if (writeCache.containsKey(key)) {
-            return (V) writeCache.get(key);
-        } else {
-            return super.get(key);
+        final var mods = modifications();
+        if (mods.containsKey(key)) {
+            return mods.get(key);
         }
+        // A wrapper must not answer from the shared read cache. That cache is shared with the root and the database
+        // readable state, so a hit would hide a parent frame's uncommitted put.
+        if (!useRequestWriteCache()) {
+            return readFromDataSource(key);
+        }
+        return super.get(key);
     }
 
     /** {@inheritDoc} */
@@ -86,21 +115,21 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     public final void put(@NonNull final K key, @NonNull final V value) {
         Objects.requireNonNull(key);
         Objects.requireNonNull(value);
-        getWriteCacheState().put(key, value);
+        modifications().put(key, value);
     }
 
     /** {@inheritDoc} */
     @Override
     public final void remove(@NonNull final K key) {
         Objects.requireNonNull(key);
-        getWriteCacheState().put(key, null);
+        modifications().put(key, null);
     }
 
     /** {@inheritDoc} */
     @NonNull
     @Override
     public final Set<K> modifiedKeys() {
-        return (Set<K>) getWriteCacheState().keySet();
+        return modifications().keySet();
     }
 
     /**
@@ -123,9 +152,9 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
         int numAdditions = 0;
         int numRemovals = 0;
 
-        for (final var mod : getWriteCacheState().entrySet()) {
-            boolean isPresentInBackingMap = readFromDataSource((K) mod.getKey()) != null;
-            boolean isRemovedInMod = mod.getValue() == null;
+        for (final var mod : modifications().entrySet()) {
+            final boolean isPresentInBackingMap = readFromDataSource(mod.getKey()) != null;
+            final boolean isRemovedInMod = mod.getValue() == null;
 
             if (isPresentInBackingMap && isRemovedInMod) {
                 numRemovals++;
@@ -157,7 +186,23 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
      */
     protected abstract long sizeOfDataSource();
 
+    /**
+     * Process-wide states stage every request's writes in {@link ContractCallContext}. Savepoint wrappers return false
+     * and keep {@link #localModifications}.
+     */
+    protected boolean useRequestWriteCache() {
+        return false;
+    }
+
     private Map<Object, Object> getWriteCacheState() {
         return ContractCallContext.get().getWriteCacheState(getStateId());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<K, V> modifications() {
+        if (useRequestWriteCache()) {
+            return (Map<K, V>) (Map<?, ?>) getWriteCacheState();
+        }
+        return localModifications;
     }
 }

@@ -20,60 +20,10 @@ class Web3PropertiesTest {
     void getApiReturnsDefaultWhenNotConfigured() {
         var properties = new Web3Properties();
 
-        assertThat(properties.getRequestTimeout(CALL)).isEqualTo(Duration.ofSeconds(4L));
-        assertThat(properties.getRequestTimeout(ACTIONS)).isEqualTo(Duration.ofSeconds(4L));
-        assertThat(properties.getRequestTimeout(OPCODES)).isEqualTo(Duration.ofSeconds(4L));
+        assertThat(properties.getApi(ACTIONS).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));
+        assertThat(properties.getApi(CALL).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));
+        assertThat(properties.getApi(OPCODES).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));
         assertThat(properties.getApi(PRESTATE).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));
-        assertThat(properties.getRequestTimeout(null)).isEqualTo(Duration.ofSeconds(4L));
-    }
-
-    @Test
-    void getRequestTimeoutFallsBackWhenResponseIsMissing() {
-        var properties = new Web3Properties();
-        properties.setRequestTimeout(Duration.ofSeconds(9L));
-        var api = new ApiProperties();
-        api.setResponse(null);
-        properties.getApi().put(CALL, api);
-
-        assertThat(properties.getRequestTimeout(CALL)).isEqualTo(Duration.ofSeconds(9L));
-        assertThat(properties.getRequestTimeout(null)).isEqualTo(Duration.ofSeconds(9L));
-    }
-
-    @Test
-    void getRequestTimeoutFallsBackWhenResponseTimeoutIsMissing() {
-        var properties = new Web3Properties();
-        properties.setRequestTimeout(Duration.ofSeconds(9L));
-        var api = new ApiProperties();
-        api.getResponse().setTimeout(null);
-        properties.getApi().put(CALL, api);
-
-        assertThat(properties.getRequestTimeout(CALL)).isEqualTo(Duration.ofSeconds(9L));
-    }
-
-    @Test
-    void isApiEnabledDefaults() {
-        var properties = new Web3Properties();
-
-        assertThat(properties.isApiEnabled(CALL)).isTrue();
-        assertThat(properties.isApiEnabled(OPCODES)).isTrue();
-        assertThat(properties.isApiEnabled(ACTIONS)).isFalse();
-        assertThat(properties.isApiEnabled(null)).isTrue();
-    }
-
-    @Test
-    void isApiEnabledUsesConfiguredValue() {
-        var properties = new Web3Properties();
-        var actionsApi = new ApiProperties();
-        actionsApi.setEnabled(true);
-        properties.getApi().put(ACTIONS, actionsApi);
-
-        var callApi = new ApiProperties();
-        callApi.setEnabled(false);
-        properties.getApi().put(CALL, callApi);
-
-        assertThat(properties.isApiEnabled(ACTIONS)).isTrue();
-        assertThat(properties.isApiEnabled(CALL)).isFalse();
-        assertThat(properties.isApiEnabled(OPCODES)).isTrue();
     }
 
     @Test

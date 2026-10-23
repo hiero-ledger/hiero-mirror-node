@@ -22,14 +22,14 @@ public final class EndpointThrottle {
     private final Map<ApiEndpointName, Bucket> buckets = new ConcurrentHashMap<>();
     private final Web3Properties web3Properties;
 
-    public void throttle(final ApiEndpointName endpoint, final long tokens) {
+    public void throttle(final ApiEndpointName endpoint) {
         final long rateLimit = web3Properties.getApi(endpoint).getRequest().getThrottle();
         if (rateLimit == 0) {
             return;
         }
 
         final var bucket = buckets.computeIfAbsent(endpoint, ignored -> createBucket(rateLimit));
-        if (!bucket.tryConsume(tokens)) {
+        if (!bucket.tryConsume(1)) {
             throw new ThrottleException(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
         }
     }

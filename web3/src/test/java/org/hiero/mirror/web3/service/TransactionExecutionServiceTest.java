@@ -205,7 +205,7 @@ class TransactionExecutionServiceTest {
     @Test
     void testExecuteUsesActionTracerWhenActionContextPresent() {
         // Given
-        ContractCallContext.get().setActionContext(ActionContext.builder().build());
+        ContractCallContext.get().setActionContext(new ActionContext());
 
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
         var transactionRecord = mock(TransactionRecord.class);
@@ -586,7 +586,7 @@ class TransactionExecutionServiceTest {
                         any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord));
 
-        ContractCallContext.get().setActionContext(ActionContext.builder().build());
+        ContractCallContext.get().setActionContext(new ActionContext());
 
         var result =
                 transactionExecutionService.execute(buildServiceParams(false, HEX_PREFIX, Address.ZERO), DEFAULT_GAS);

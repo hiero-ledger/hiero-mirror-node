@@ -5,13 +5,13 @@ package org.hiero.mirror.web3.service.model;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.time.Duration;
 import java.util.List;
 import lombok.Builder;
 import lombok.Value;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
-import org.jspecify.annotations.Nullable;
 
 /** Top-level configuration shared by every bundle in one trace request. */
 @Builder
@@ -29,9 +29,10 @@ public class TraceCall {
 
     private boolean onlyTopCall;
 
-    @Nullable
-    @Valid
-    private StateOverride stateOverride;
+    @Builder.Default
+    @NotNull
+    @Size(max = 10)
+    private List<@Valid StateOverride> stateOverrides = List.of();
 
     @NotNull
     private Duration timeout;

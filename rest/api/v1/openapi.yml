@@ -532,7 +532,7 @@ paths:
         only_top_call applies to every transaction. When true, each transaction returns only its root call and omits
         nested actions. Each bundle has its own transactions and block_override.
         Transactions share state for the whole request: later bundles keep earlier state changes. The request state
-        override stays in place. estimate is rejected. Requires Accept-Encoding gzip. An EVM revert is returned in the
+        overrides stay in place. estimate is rejected. Requires Accept-Encoding gzip. An EVM revert is returned in the
         200 trace, with error set to 'execution reverted', revert_reason set to the revert payload, and output empty.
         Later transactions still run. HTTP 400 is returned for
         validation and for pre-checks that never reach the EVM, such as a missing sender; that response discards the
@@ -2501,7 +2501,7 @@ components:
       type: object
       description:
         One debug_traceCallMany bundle. Transactions execute sequentially and share this bundle's block_override.
-        State changes persist into later bundles. The request block and state_override apply instead of the same
+        State changes persist into later bundles. The request block and state_override list apply instead of the same
         fields on each transaction. estimate is rejected.
       required:
         - transactions
@@ -2528,7 +2528,8 @@ components:
         A debug_traceCallMany request. A single bundle containing a single transaction is treated like a debug_traceCall.
         block, state_override, timeout, and transaction_index apply to every bundle. only_top_call applies to every
         transaction. When true, each transaction returns only its root call and omits nested actions. State changes
-        persist from one bundle to the next.
+        persist from one bundle to the next within this request only. The request is limited to an 8 MiB JSON
+        document, 100000 JSON tokens, and 4800000 aggregate calldata and storage/code override characters.
       required:
         - bundles
       properties:
@@ -2560,14 +2561,17 @@ components:
             consensus timestamp of the Nth such transaction. Every bundle and transaction in the request reads that same
             timestamp. block_override.time changes only the EVM block header. -1, or omitting the field, starts the
             simulation after every transaction in the block. A past block uses that record file's consensus end.
-            latest reads current state. A value less than -1, or greater than the number of transactions in the
+            latest reads state at the consensus end of the latest fully imported record file. A value less than -1, or greater than the number of transactions in the
             block, is rejected.
           example: 5
           format: int32
           type: [integer, "null"]
         state_override:
-          description: State override applied to every bundle. Requires state overrides to be enabled.
-          $ref: "#/components/schemas/StateOverride"
+          description: Per-account state overrides applied to every bundle. Requires state overrides to be enabled.
+          items:
+            $ref: "#/components/schemas/StateOverride"
+          maxItems: 10
+          type: [array, "null"]
         timeout:
           description:
             Optional maximum duration allowed for the whole trace before execution is terminated. When omitted, the
@@ -2603,7 +2607,7 @@ components:
           description: The output for the given call action
           type: [string, "null"]
         revert_reason:
-          description: The reason for the call action revert, if available
+          description: The decoded Solidity Error(string) reason, if available. Raw revert bytes are retained in output.
           type: [string, "null"]
         to:
           description: The recipient address for the call action

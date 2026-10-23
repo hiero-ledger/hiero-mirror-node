@@ -16,6 +16,11 @@ class Web3PropertiesIntegrationTest extends Web3IntegrationTest {
     private final Web3Properties properties;
 
     @Test
+    void loadsActionsEnabledFromApplicationYml() {
+        assertThat(properties.getApi(ApiEndpointName.ACTIONS).isEnabled()).isFalse();
+    }
+
+    @Test
     void loadsActionsRequestThrottleFromApplicationYml() {
         assertThat(properties.getApi(ApiEndpointName.ACTIONS).getRequest().getThrottle())
                 .isEqualTo(100L);

@@ -30,7 +30,7 @@ final class RequestThrottleInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        endpointThrottle.throttle(endpoint, 1L);
+        endpointThrottle.throttle(endpoint);
         return true;
     }
 }

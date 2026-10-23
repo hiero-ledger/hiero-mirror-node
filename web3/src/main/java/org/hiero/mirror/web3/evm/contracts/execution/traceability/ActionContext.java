@@ -4,40 +4,15 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import java.util.ArrayList;
 import java.util.List;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.ToString;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-@Data
-@Builder(toBuilder = true)
-@AllArgsConstructor
-@NoArgsConstructor
 @NullMarked
 public class ActionContext {
-
-    /**
-     * Maximum call depth to track. Matches the EVM call-depth cap (Besu depths {@code 0..1023}).
-     */
-    public static final int MAX_DEPTH = 1024;
-
-    /**
-     * Maximum number of total actions (root + nested) to collect for the whole request. Prevents OOM from complex call
-     * graphs. Shared across every transaction; {@link #beginCall()} does not reset it.
-     */
-    public static final int MAX_ACTIONS = 10_000;
-
-    /** Maximum retained {@code input}, {@code output}, and {@code revertReason} characters for one request. */
-    public static final int MAX_RETAINED_BYTES = 4 * 1024 * 1024;
 
     /**
      * Check the execution deadline every N opcodes while a frame is {@code CODE_EXECUTING}, so a 15M-gas loop cannot
@@ -45,57 +20,56 @@ public class ActionContext {
      */
     public static final int DEADLINE_CHECK_INTERVAL = 64;
 
+    /**
+     * Maximum number of total actions (root + nested) to collect for the whole request. Prevents OOM from complex call
+     * graphs. Shared across every transaction; {@link #beginCall()} does not reset it.
+     */
+    public static final int MAX_ACTIONS = 10_000;
+
+    /**
+     * Maximum retained call depth. Each frame adds an object and calls array, so 40 frames fit Jackson's nesting
+     * limit of 100. This does not limit EVM execution depth.
+     */
+    public static final int MAX_DEPTH = 40;
+
+    /** Maximum retained {@code input}, {@code output}, and {@code revertReason} characters for one request. */
+    public static final int MAX_RETAINED_BYTES = 4 * 1024 * 1024;
+
     static final String TRUNCATED_ERROR = "Trace truncated after reaching the configured limit";
 
     /**
      * One top-level {@link ActionResponse} per request body. Nested frames are attached under each body's
      * {@code calls} list.
      */
-    @Builder.Default
-    @EqualsAndHashCode.Exclude
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    @ToString.Exclude
-    private List<ActionResponse> actionResponses = new ArrayList<>();
+    private final List<ActionResponse> actionResponses = new ArrayList<>();
 
     /**
      * All actions organized by depth for the current request body. Index {@code d} is every action at that depth in
      * chronological order. The last entry at a depth is the current frame; the current body's root is index {@code 0}.
      */
-    @Builder.Default
-    @EqualsAndHashCode.Exclude
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    @ToString.Exclude
-    private List<ActionResponse>[] actionsByDepth = new List[MAX_DEPTH];
+    private List<ActionResponse>[] actionsByDepth = emptyActionsByDepth();
 
-    @Builder.Default
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private int retainedBytes = 0;
+    private int executedOpcodes;
 
-    @Builder.Default
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private int totalActionCount = 0;
-
-    @Builder.Default
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private int executedOpcodes = 0;
-
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
     private @Nullable ActionResponse lastAction;
-
-    private boolean timedOut;
-
-    private boolean truncated;
 
     /**
      * Include only the root message frame in the response.
      */
+    @Getter
+    @Setter
     private boolean onlyTopCall;
+
+    private int retainedBytes;
+
+    @Getter
+    @Setter
+    private boolean timedOut;
+
+    private int totalActionCount;
+
+    @Getter
+    private boolean truncated;
 
     /**
      * Records a new action at the given call depth. Depth {@code 0} actions are roots; deeper actions are appended to
@@ -138,16 +112,9 @@ public class ActionContext {
      * a window.
      */
     public void beginCall() {
-        actionsByDepth = new List[MAX_DEPTH];
+        actionsByDepth = emptyActionsByDepth();
         lastAction = null;
         truncated = false;
-    }
-
-    /**
-     * {@code true} every {@link #DEADLINE_CHECK_INTERVAL} opcodes so the tracer can halt a tight loop.
-     */
-    public boolean shouldCheckDeadline() {
-        return (++executedOpcodes & (DEADLINE_CHECK_INTERVAL - 1)) == 0;
     }
 
     /**
@@ -176,26 +143,26 @@ public class ActionContext {
     }
 
     /**
-     * Hex-encodes {@code bytes} when {@code 0x} plus the hex digits fit in the remaining retained-byte budget.
-     * Otherwise marks the trace truncated and returns null without allocating the hex string.
-     */
-    public @Nullable String hexWithinBudget(final @Nullable Bytes bytes) {
-        if (bytes == null) {
-            return null;
-        }
-        final long encoded = 2L * bytes.size() + 2L;
-        if (encoded > Integer.MAX_VALUE || (long) retainedBytes + encoded > MAX_RETAINED_BYTES) {
-            markTruncated();
-            return null;
-        }
-        return bytes.toHexString();
-    }
-
-    /**
      * Top-level action for each request body. Nested frames are already attached under each body's {@code calls} list.
      */
     public List<ActionResponse> getActions() {
         return actionResponses;
+    }
+
+    /**
+     * Returns all actions recorded at the specified depth, in chronological order.
+     *
+     * @param depth Call depth (0 = root, {@link #MAX_DEPTH} exclusive)
+     * @return List of actions at that depth, or empty list if none
+     */
+    public List<ActionResponse> getActionsByDepth(final int depth) {
+        if (depth < 0 || depth >= MAX_DEPTH) {
+            return List.of();
+        }
+        if (actionsByDepth[depth] == null) {
+            actionsByDepth[depth] = new ArrayList<>();
+        }
+        return actionsByDepth[depth];
     }
 
     /**
@@ -217,19 +184,26 @@ public class ActionContext {
     }
 
     /**
-     * Returns all actions recorded at the specified depth, in chronological order.
-     *
-     * @param depth Call depth (0 = root, {@link #MAX_DEPTH} exclusive)
-     * @return List of actions at that depth, or empty list if none
+     * Hex-encodes {@code bytes} when {@code 0x} plus the hex digits fit in the remaining retained-byte budget.
+     * Otherwise marks the trace truncated and returns null without allocating the hex string.
      */
-    public List<ActionResponse> getActionsByDepth(final int depth) {
-        if (depth < 0 || depth >= MAX_DEPTH) {
-            return List.of();
+    public @Nullable String hexWithinBudget(final @Nullable Bytes bytes) {
+        if (bytes == null) {
+            return null;
         }
-        if (actionsByDepth[depth] == null) {
-            actionsByDepth[depth] = new ArrayList<>();
+        final long encoded = 2L * bytes.size() + 2L;
+        if (encoded > Integer.MAX_VALUE || (long) retainedBytes + encoded > MAX_RETAINED_BYTES) {
+            markTruncated();
+            return null;
         }
-        return actionsByDepth[depth];
+        return bytes.toHexString();
+    }
+
+    /**
+     * {@code true} every {@link #DEADLINE_CHECK_INTERVAL} opcodes so the tracer can halt a tight loop.
+     */
+    public boolean shouldCheckDeadline() {
+        return (++executedOpcodes & (DEADLINE_CHECK_INTERVAL - 1)) == 0;
     }
 
     private boolean charge(final int additional) {
@@ -242,6 +216,11 @@ public class ActionContext {
         }
         retainedBytes += additional;
         return true;
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static List<ActionResponse>[] emptyActionsByDepth() {
+        return new List[MAX_DEPTH];
     }
 
     private void markTruncated() {

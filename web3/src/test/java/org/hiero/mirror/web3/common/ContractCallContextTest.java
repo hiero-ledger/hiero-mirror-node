@@ -232,15 +232,23 @@ class ContractCallContextTest {
     }
 
     @Test
-    void clearCachesDropsReadsAndWritesFromPreviousCall() {
+    void applyBlockOverrideReplacesHeaderForEachBundle() {
         final var context = ContractCallContext.get();
-        context.getReadCacheState(1).put("slot", "read");
-        context.getWriteCacheState(1).put("slot", "write");
+        final long timeSeconds = HexUtils.parseValue("0x65f9e0c0");
 
-        context.clearCaches();
+        context.applyBlockOverride(256L, null);
+        assertThat(context.getBlockOverrideNumber()).isEqualTo(256L);
+        assertThat(context.getBlockOverrideTimeNanos()).isNull();
 
-        assertThat(context.getReadCacheState(1)).doesNotContainKey("slot");
-        assertThat(context.getWriteCacheState(1)).doesNotContainKey("slot");
+        context.applyBlockOverride(257L, timeSeconds);
+        assertThat(context.getBlockOverrideNumber()).isEqualTo(257L);
+        assertThat(context.getBlockOverrideTimeNanos()).isEqualTo(DomainUtils.convertToNanosMax(timeSeconds, 0L));
+
+        context.applyBlockOverride(null, null);
+        assertThat(context.getBlockOverrideNumber()).isNull();
+        assertThat(context.getBlockOverrideTimeNanos()).isNull();
+        assertThat(context.evmBlockNumber(1L)).isEqualTo(1L);
+        assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(9L);
     }
 
     @Test
@@ -289,30 +297,6 @@ class ContractCallContextTest {
     }
 
     @Test
-    void advanceBlockOverrideIncrementsOnlySetFields() {
-        final var context = ContractCallContext.get();
-        final var number = new BlockOverride();
-        number.setNumber("0x100");
-        final var time = new BlockOverride();
-        time.setTime("0x65f9e0c0");
-        final var expectedNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0);
-        final var twoSecondsNanos = DomainUtils.convertToNanosMax(2L, 0L);
-
-        context.applyBlockOverride(number);
-        context.advanceBlockOverride();
-        assertThat(context.getBlockOverrideNumber()).isEqualTo(257L);
-        assertThat(context.getBlockOverrideTimeNanos()).isNull();
-
-        context.applyBlockOverride(time);
-        context.advanceBlockOverride();
-        assertThat(context.getBlockOverrideNumber()).isNull();
-        assertThat(context.getBlockOverrideTimeNanos()).isEqualTo(expectedNanos + twoSecondsNanos);
-
-        context.advanceBlockOverride();
-        assertThat(context.getBlockOverrideTimeNanos()).isEqualTo(expectedNanos + twoSecondsNanos * 2);
-    }
-
-    @Test
     void applyBlockOverrideRejectsInvalidQuantity() {
         final var context = ContractCallContext.get();
         final var override = new BlockOverride();
@@ -329,80 +313,5 @@ class ContractCallContextTest {
 
         assertThat(context.evmBlockNumber(42L)).isEqualTo(42L);
         assertThat(context.evmBlockTimeNanos(99L)).isEqualTo(99L);
-    }
-
-    @Test
-    void recordCacheInsertFailsAboveTheCeiling() {
-        final var context = ContractCallContext.get();
-        for (int i = 0; i < ContractCallContext.MAX_CACHE_ENTRIES; i++) {
-            context.recordCacheInsert();
-        }
-
-        assertThatThrownBy(context::recordCacheInsert)
-                .isInstanceOf(InvalidParametersException.class)
-                .hasMessage("Trace state cache exceeded the configured limit");
-    }
-
-    @Test
-    void writeCacheInsertFailsAboveTheCeiling() {
-        final var context = ContractCallContext.get();
-        final var cache = context.getWriteCacheState(1);
-        for (int i = 0; i < ContractCallContext.MAX_CACHE_ENTRIES; i++) {
-            cache.put(i, i);
-        }
-
-        assertThatThrownBy(() -> cache.put("overflow", "value"))
-                .isInstanceOf(InvalidParametersException.class)
-                .hasMessage("Trace state cache exceeded the configured limit");
-        cache.put(0, "replaced");
-
-        final var snapshot = context.captureCaches();
-        assertThat(cache).containsKey(1);
-        assertThat(cache.remove(1)).isEqualTo(1);
-        cache.put("during-call", "value");
-        context.restoreCaches(snapshot);
-        final var restored = context.getWriteCacheState(1);
-        restored.put(0, "still-there");
-        assertThat(restored).containsEntry(0, "still-there").doesNotContainKey("during-call");
-        assertThatThrownBy(() -> context.getReadCacheState(2).put("extra", "value"))
-                .isInstanceOf(InvalidParametersException.class)
-                .hasMessage("Trace state cache exceeded the configured limit");
-    }
-
-    @Test
-    void restoreCachesDropsWritesFromTheRevertedCall() {
-        final var context = ContractCallContext.get();
-        context.getWriteCacheState(1).put("slot", "first");
-        context.getReadCacheState(1).put("slot", "read");
-        final var snapshot = context.captureCaches();
-
-        context.getWriteCacheState(1).put("slot", "second");
-        context.getWriteCacheState(1).put("other", "new");
-        context.getReadCacheState(1).put("slot", "changed");
-
-        context.restoreCaches(snapshot);
-
-        assertThat(context.getWriteCacheState(1)).containsEntry("slot", "first").doesNotContainKey("other");
-        assertThat(context.getReadCacheState(1)).containsEntry("slot", "read");
-    }
-
-    @Test
-    void retainDroppedWritesKeepsTombstonesAndRestoresResetKeys() {
-        final var context = ContractCallContext.get();
-        context.getWriteCacheState(1).put("kept", "value");
-        context.getWriteCacheState(1).put("deleted", "old");
-        final var snapshot = context.captureCaches();
-
-        final var live = context.getWriteCacheState(1);
-        live.clear();
-        live.put("deleted", null);
-        live.put("added", "new");
-
-        context.retainDroppedWrites(snapshot);
-
-        assertThat(live)
-                .containsEntry("kept", "value")
-                .containsEntry("deleted", null)
-                .containsEntry("added", "new");
     }
 }

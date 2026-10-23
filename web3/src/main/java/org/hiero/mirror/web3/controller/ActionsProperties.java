@@ -11,7 +11,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "hiero.mirror.web3.action.tracer")
 @Data
 @Validated
-public class TracerProperties {
+public class ActionsProperties {
 
     @NotNull
     private Duration maxTimeout = Duration.ofSeconds(10);

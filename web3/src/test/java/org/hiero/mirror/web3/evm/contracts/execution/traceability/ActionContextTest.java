@@ -28,7 +28,7 @@ class ActionContextTest {
     }
 
     @Test
-    void dropsActionsAtDepth1024() {
+    void dropsActionsBeyondRetainedDepth() {
         final var context = new ActionContext();
         context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x0"), 0);
 
@@ -54,6 +54,22 @@ class ActionContextTest {
         assertThat(context.isTruncated()).isFalse();
         assertThat(context.getActions()).hasSize(1);
         assertThat(context.getActionsByDepth(ActionContext.MAX_DEPTH - 1)).hasSize(1);
+    }
+
+    @Test
+    void serializesTruncatedTreeWithinProductionNestingLimit() throws Exception {
+        final var context = new ActionContext();
+        for (int depth = 0; depth <= ActionContext.MAX_DEPTH; depth++) {
+            context.addAction(new ActionResponse().type(TypeEnum.CALL), depth);
+        }
+        final var factory = new com.fasterxml.jackson.databind.MappingJsonFactory();
+        factory.setStreamWriteConstraints(com.fasterxml.jackson.core.StreamWriteConstraints.builder()
+                .maxNestingDepth(100)
+                .build());
+        final var mapper = new com.fasterxml.jackson.databind.ObjectMapper(factory);
+
+        assertThat(mapper.writeValueAsString(context.getActions())).contains(ActionContext.TRUNCATED_ERROR);
+        assertThat(context.isTruncated()).isTrue();
     }
 
     @Test

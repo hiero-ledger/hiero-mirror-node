@@ -43,7 +43,7 @@ final class RequestThrottleInterceptorTest {
         request.setAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE, ACTIONS.getPath());
 
         assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
-        verify(endpointThrottle).throttle(ACTIONS, 1L);
+        verify(endpointThrottle).throttle(ACTIONS);
     }
 
     @Test
@@ -51,6 +51,6 @@ final class RequestThrottleInterceptorTest {
         request.setAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE, OPCODES.getPath());
 
         assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
-        verify(endpointThrottle).throttle(OPCODES, 1L);
+        verify(endpointThrottle).throttle(OPCODES);
     }
 }

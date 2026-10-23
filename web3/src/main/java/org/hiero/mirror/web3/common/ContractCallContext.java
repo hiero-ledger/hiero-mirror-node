@@ -35,9 +35,6 @@ public class ContractCallContext {
 
     public static final String CONTEXT_NAME = "ContractCallContext";
 
-    /** Maximum new read-cache and write-cache entries one request may insert. */
-    public static final int MAX_CACHE_ENTRIES = 100_000;
-
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
 
     @Getter(AccessLevel.NONE)
@@ -49,10 +46,9 @@ public class ContractCallContext {
     @Getter(AccessLevel.NONE)
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
 
-    private int cacheEntries;
-
-    /** When set, cache puts update the maps without changing {@link #cacheEntries}. */
-    private boolean countingSuspended;
+    /** Successful simulation writes, retained only for this request. Null values are deletion tombstones. */
+    @Getter(AccessLevel.NONE)
+    private final Map<Integer, Map<Object, Object>> committedCache = new HashMap<>();
 
     @Setter
     private ActionContext actionContext = null;
@@ -153,15 +149,6 @@ public class ContractCallContext {
     }
 
     public void reset() {
-        discardAll(writeCache);
-        writeCache.clear();
-    }
-
-    /** Drops cached reads and writes so the next call does not observe the previous call's state. */
-    public void clearCaches() {
-        discardAll(readCache);
-        discardAll(writeCache);
-        readCache.clear();
         writeCache.clear();
     }
 
@@ -170,8 +157,9 @@ public class ContractCallContext {
      * carried from an earlier trace bundle.
      */
     public void evictCachedState(final int stateId) {
-        discard(readCache.remove(stateId));
-        discard(writeCache.remove(stateId));
+        readCache.remove(stateId);
+        writeCache.remove(stateId);
+        committedCache.remove(stateId);
     }
 
     public boolean useHistorical() {
@@ -213,11 +201,23 @@ public class ContractCallContext {
     }
 
     public Map<Object, Object> getReadCacheState(final int stateId) {
-        return readCache.computeIfAbsent(stateId, _ -> new CountingMap());
+        return readCache.computeIfAbsent(stateId, _ -> new HashMap<>());
     }
 
     public Map<Object, Object> getWriteCacheState(final int stateId) {
-        return writeCache.computeIfAbsent(stateId, _ -> new CountingMap());
+        return writeCache.computeIfAbsent(stateId, _ -> new HashMap<>());
+    }
+
+    public Map<Object, Object> getCommittedCacheState(final int stateId) {
+        return committedCache.computeIfAbsent(stateId, _ -> new HashMap<>());
+    }
+
+    /** Move pending writes into the committed overlay for later transactions in this request. */
+    public void commitWrites(final int stateId) {
+        final var pending = getWriteCacheState(stateId);
+        final var committed = getCommittedCacheState(stateId);
+        committed.putAll(pending);
+        pending.clear();
     }
 
     public RecordFile getRecordFile() {
@@ -226,17 +226,6 @@ public class ContractCallContext {
 
     public boolean isDeadlineExceeded() {
         return deadlineMillis > 0 && remainingMillis(0L) <= 0L;
-    }
-
-    /**
-     * Counts one new cache entry. Fails the request once {@link #MAX_CACHE_ENTRIES} inserts have happened. Callers skip
-     * this when the key is already present.
-     */
-    public void recordCacheInsert() {
-        if (cacheEntries >= MAX_CACHE_ENTRIES) {
-            throw new InvalidParametersException("Trace state cache exceeded the configured limit");
-        }
-        cacheEntries++;
     }
 
     /**
@@ -265,38 +254,29 @@ public class ContractCallContext {
      * {@code time} becomes EVM {@code block.timestamp}. Both may be set. A null override clears both.
      */
     public void applyBlockOverride(final @Nullable BlockOverride override) {
-        blockOverrideNumber = null;
-        blockOverrideTimeNanos = null;
         if (override == null) {
+            applyBlockOverride(null, null);
             return;
         }
         try {
-            if (StringUtils.isNotBlank(override.getNumber())) {
-                blockOverrideNumber = HexUtils.parseValue(override.getNumber());
-            }
-            if (StringUtils.isNotBlank(override.getTime())) {
-                blockOverrideTimeNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue(override.getTime()), 0);
-            }
+            final Long number =
+                    StringUtils.isNotBlank(override.getNumber()) ? HexUtils.parseValue(override.getNumber()) : null;
+            final Long timeSeconds =
+                    StringUtils.isNotBlank(override.getTime()) ? HexUtils.parseValue(override.getTime()) : null;
+            applyBlockOverride(number, timeSeconds);
         } catch (final NumberFormatException _) {
             throw new InvalidParametersException("Invalid block_override");
         }
     }
 
     /**
-     * Continues the previous bundle's block override when this bundle sets none. A set block number increases by 1. A
-     * set block timestamp increases by 2 seconds. A field that was not set stays unset.
+     * Applies one bundle's resolved block header. {@code number} is the EVM block number and {@code timeSeconds} is the
+     * block timestamp in seconds. A null field clears that header value. Trace execution passes the cursor from
+     * {@link BlockOverrideAdvance}, including increments from the previous bundle.
      */
-    public void advanceBlockOverride() {
-        try {
-            if (blockOverrideNumber != null) {
-                blockOverrideNumber = Math.addExact(blockOverrideNumber, 1L);
-            }
-            if (blockOverrideTimeNanos != null) {
-                blockOverrideTimeNanos = Math.addExact(blockOverrideTimeNanos, DomainUtils.convertToNanosMax(2L, 0L));
-            }
-        } catch (ArithmeticException _) {
-            throw new InvalidParametersException("Invalid block_override: block context overflow");
-        }
+    public void applyBlockOverride(final @Nullable Long number, final @Nullable Long timeSeconds) {
+        blockOverrideNumber = number;
+        blockOverrideTimeNanos = timeSeconds == null ? null : DomainUtils.convertToNanosMax(timeSeconds, 0L);
     }
 
     public long evmBlockNumber(final long fallback) {
@@ -307,48 +287,24 @@ public class ContractCallContext {
         return blockOverrideTimeNanos != null ? blockOverrideTimeNanos : fallback;
     }
 
-    /** Whether a previous bundle left an EVM block number or timestamp in effect. */
-    public boolean hasBlockOverride() {
-        return blockOverrideNumber != null || blockOverrideTimeNanos != null;
-    }
-
     /**
-     * Copies of the read and write caches taken before one trace transaction. The maps are independent of the live
-     * caches.
+     * Copies of the read, write, and committed caches taken before one trace transaction. The maps are independent of
+     * the live caches.
      */
     public record CacheSnapshot(
-            Map<Integer, Map<Object, Object>> readCache, Map<Integer, Map<Object, Object>> writeCache) {}
+            Map<Integer, Map<Object, Object>> readCache,
+            Map<Integer, Map<Object, Object>> writeCache,
+            Map<Integer, Map<Object, Object>> committedCache) {}
 
     public CacheSnapshot captureCaches() {
-        return new CacheSnapshot(copyCache(readCache), copyCache(writeCache));
+        return new CacheSnapshot(copyCache(readCache), copyCache(writeCache), copyCache(committedCache));
     }
 
-    /** Replaces both live caches with the snapshot. Used when a trace transaction reverts or throws. */
+    /** Replaces the live caches with the snapshot. Used when a trace transaction reverts or throws. */
     public void restoreCaches(final CacheSnapshot snapshot) {
         replaceCache(readCache, snapshot.readCache());
         replaceCache(writeCache, snapshot.writeCache());
-        recountCacheEntries();
-    }
-
-    /**
-     * After a successful call, put back keys a stack {@code reset()} dropped. A key that is still present, including a
-     * null tombstone for a delete, stays as the call left it.
-     */
-    public void retainDroppedWrites(final CacheSnapshot snapshot) {
-        countingSuspended = true;
-        try {
-            for (final var state : snapshot.writeCache().entrySet()) {
-                final var live = writeCache.computeIfAbsent(state.getKey(), _ -> new CountingMap());
-                for (final var entry : state.getValue().entrySet()) {
-                    if (!live.containsKey(entry.getKey())) {
-                        live.put(entry.getKey(), entry.getValue());
-                    }
-                }
-            }
-        } finally {
-            countingSuspended = false;
-            recountCacheEntries();
-        }
+        replaceCache(committedCache, snapshot.committedCache());
     }
 
     private static Map<Integer, Map<Object, Object>> copyCache(final Map<Integer, Map<Object, Object>> source) {
@@ -363,87 +319,7 @@ public class ContractCallContext {
             final Map<Integer, Map<Object, Object>> target, final Map<Integer, Map<Object, Object>> snapshot) {
         target.clear();
         for (final var entry : snapshot.entrySet()) {
-            final var map = new CountingMap();
-            map.copyFrom(entry.getValue());
-            target.put(entry.getKey(), map);
-        }
-    }
-
-    private void discardAll(final Map<Integer, Map<Object, Object>> cache) {
-        for (final var state : cache.values()) {
-            discard(state);
-        }
-    }
-
-    private void discard(final @Nullable Map<Object, Object> state) {
-        if (state != null) {
-            cacheEntries = Math.max(0, cacheEntries - state.size());
-        }
-    }
-
-    private void recountCacheEntries() {
-        var total = 0;
-        for (final var state : readCache.values()) {
-            total += state.size();
-        }
-        for (final var state : writeCache.values()) {
-            total += state.size();
-        }
-        if (total > MAX_CACHE_ENTRIES) {
-            cacheEntries = total;
-            throw new InvalidParametersException("Trace state cache exceeded the configured limit");
-        }
-        cacheEntries = total;
-    }
-
-    /**
-     * Counts a new key in {@link #cacheEntries}. Restored snapshots copy through {@link #copyFrom} so a revert does not
-     * count the same keys again.
-     */
-    private final class CountingMap extends HashMap<Object, Object> {
-
-        @Override
-        public Object put(final Object key, final Object value) {
-            noteNewKey(key);
-            return super.put(key, value);
-        }
-
-        @Override
-        public void putAll(final Map<?, ?> entries) {
-            for (final var entry : entries.entrySet()) {
-                put(entry.getKey(), entry.getValue());
-            }
-        }
-
-        @Override
-        public Object remove(final Object key) {
-            if (containsKey(key)) {
-                cacheEntries = Math.max(0, cacheEntries - 1);
-            }
-            return super.remove(key);
-        }
-
-        @Override
-        public void clear() {
-            cacheEntries = Math.max(0, cacheEntries - size());
-            super.clear();
-        }
-
-        private void copyFrom(final Map<Object, Object> source) {
-            final var previous = countingSuspended;
-            countingSuspended = true;
-            try {
-                super.putAll(source);
-            } finally {
-                countingSuspended = previous;
-            }
-        }
-
-        private void noteNewKey(final Object key) {
-            if (countingSuspended || containsKey(key)) {
-                return;
-            }
-            recordCacheInsert();
+            target.put(entry.getKey(), new HashMap<>(entry.getValue()));
         }
     }
 }

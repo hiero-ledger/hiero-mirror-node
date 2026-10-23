@@ -20,13 +20,14 @@ import org.hiero.mirror.web3.common.BlockOverrideAdvance;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.ThrottleException;
+import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
+import org.hiero.mirror.web3.service.RecordFileService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
-import org.hiero.mirror.web3.utils.GzipEncoding;
 import org.hiero.mirror.web3.viewmodel.ActionTraceBundle;
 import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
@@ -52,11 +53,13 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 class ContractController {
 
+    private final ActionsProperties actionsProperties;
     private final ContractDebugService contractDebugService;
     private final ContractExecutionService contractExecutionService;
     private final EvmProperties evmProperties;
+    private final RecordFileService recordFileService;
     private final ThrottleManager throttleManager;
-    private final TracerProperties tracerProperties;
+    private final TransactionRepository transactionRepository;
     private final Web3Properties web3Properties;
 
     @PostMapping(value = "/call")
@@ -81,12 +84,11 @@ class ContractController {
     List<ActionResponse> actions(
             @RequestBody @Valid ActionTraceRequest request,
             @RequestHeader(value = HttpHeaders.ACCEPT_ENCODING, required = false) final String acceptEncoding) {
-        if (!web3Properties.isApiEnabled(ACTIONS)) {
+        if (!web3Properties.getApi(ACTIONS).isEnabled()) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }
 
-        GzipEncoding.require(acceptEncoding);
-        validateStateOverrides(request.getStateOverride());
+        GzipEncoding.validate(acceptEncoding);
         for (final var bundle : request.getBundles()) {
             validateBlockOverrides(bundle.getBlockOverride());
             for (final var transaction : bundle.getTransactions()) {
@@ -97,6 +99,7 @@ class ContractController {
         validateConsecutiveBlockOverrides(request.getBundles());
 
         final var traceCall = toTraceCall(request);
+        validateTrace(traceCall);
         throttleActions(request);
         return contractDebugService.processTraceCall(traceCall);
     }
@@ -142,16 +145,16 @@ class ContractController {
                 .block(request.getBlock())
                 .bundles(bundles)
                 .onlyTopCall(request.isOnlyTopCall())
-                .stateOverride(request.getStateOverride())
+                .stateOverrides(request.getStateOverrides())
                 .timeout(resolveTimeout(request.getTimeout()))
                 .transactionIndex(transactionIndex == null ? -1 : transactionIndex)
                 .build();
     }
 
     private Duration resolveTimeout(final @Nullable String timeout) {
-        final var apiTimeout = web3Properties.getRequestTimeout(ACTIONS);
-        final var maxTimeout = tracerProperties.getMaxTimeout();
-        var effective = apiTimeout.compareTo(maxTimeout) > 0 ? maxTimeout : apiTimeout;
+        final var apiTimeout = web3Properties.getApi(ACTIONS).getResponse().getTimeout();
+        final var maxTimeout = actionsProperties.getMaxTimeout();
+        final var effective = apiTimeout.compareTo(maxTimeout) > 0 ? maxTimeout : apiTimeout;
         if (timeout == null || timeout.isBlank()) {
             return effective;
         }
@@ -161,7 +164,7 @@ class ContractController {
                 throw new InvalidParametersException("Invalid timeout: " + timeout);
             }
             return parsed.compareTo(effective) < 0 ? parsed : effective;
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             throw new InvalidParametersException("Invalid timeout: " + timeout);
         }
     }
@@ -233,15 +236,23 @@ class ContractController {
         }
     }
 
-    private void validateStateOverrides(final @Nullable StateOverride stateOverride) {
-        if (stateOverride != null) {
+    private void validateStateOverrides(final List<StateOverride> stateOverrides) {
+        if (!stateOverrides.isEmpty()) {
             requireStateOverridesEnabled();
         }
     }
 
-    private void validateStateOverrides(final List<StateOverride> stateOverrides) {
-        if (!stateOverrides.isEmpty()) {
-            requireStateOverridesEnabled();
+    /**
+     * Rejects state overrides when they are disabled, a bad {@code transaction_index}, or a block cursor older than the
+     * bound record file before any rate token is taken. The first bundle's omitted header fields come from that record
+     * file's block number and consensus start.
+     */
+    private void validateTrace(final TraceCall traceCall) {
+        validateStateOverrides(traceCall.getStateOverrides());
+        for (final var bundle : traceCall.getBundles()) {
+            for (final var transaction : bundle.getTransactions()) {
+                validateStateOverrides(transaction.getStateOverrides());
+            }
         }
     }
 

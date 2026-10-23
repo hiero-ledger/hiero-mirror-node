@@ -34,5 +34,5 @@ public class ActionTraceBundle {
     @NotNull
     @Size(max = MAX_TRACE_TRANSACTIONS)
     @Valid
-    private List<@Valid ContractCallRequest> transactions = new ArrayList<>();
+    private List<@NotNull @Valid ContractCallRequest> transactions = new ArrayList<>();
 }

@@ -34,6 +34,16 @@ contract ModificationPrecompileTestContract is HederaTokenService {
         }
     }
 
+    // Applies a transfer, then reverts so the call's state changes must not be kept.
+    function cryptoTransferThenRevert(IHederaTokenService.TransferList memory transferList, IHederaTokenService.TokenTransferList[] memory tokenTransfers) external
+    {
+        int responseCode = HederaTokenService.cryptoTransfer(transferList, tokenTransfers);
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            revert();
+        }
+        revert("revert after transfer");
+    }
+
     function mintTokenExternal(address token, int64 amount, bytes[] memory metadata) external
     returns (int responseCode, int64 newTotalSupply, int64[] memory serialNumbers)
     {
