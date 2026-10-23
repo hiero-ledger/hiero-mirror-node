@@ -440,7 +440,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
     @Test
     void processTraceCallUsesLatestBlockTransactionIndex() {
-        final long consensusTimestamp = Long.MAX_VALUE - 10;
+        final long consensusTimestamp = genesisRecordFile.getConsensusEnd() + 1_000L;
         domainBuilder
                 .recordFile()
                 .customize(recordFile ->
