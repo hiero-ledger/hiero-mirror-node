@@ -27,6 +27,7 @@ import com.hederahashgraph.api.proto.java.EvmTransactionResult;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 abstract class AbstractBlockTransactionTransformer implements BlockTransactionTransformer {
+
+    // consensus nodes sort createdContractIDs by contract num only
+    private static final Comparator<ContractID> CONTRACT_NUM_COMPARATOR =
+            Comparator.comparingLong(ContractID::getContractNum);
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -84,21 +89,127 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         // do nothing
     }
 
-    protected EvmTransactionInfo getEvmTransactionInfo(BlockTransaction blockTransaction) {
-        return blockTransaction
+    /**
+     * Finds the EVM transaction which created the contract in the child ContractCreate transaction. It's the parent if
+     * the parent has an EVM transaction result. Otherwise, the parent is the scheduling transaction of a triggered
+     * scheduled transaction, or the user transaction of a hook execution, and the creator is the closest preceding
+     * such scheduled transaction or hook execution under the parent. Note a synthetic child transaction of any type
+     * dispatched by a system contract also has an EVM transaction result, so it alone doesn't identify the creator.
+     *
+     * @param childContractCreate The child ContractCreate transaction
+     * @return The creator, or null if not found
+     */
+    private BlockTransaction findCreator(final BlockTransaction childContractCreate) {
+        final var parent = childContractCreate.getParent();
+        if (parent == null || getEvmTransactionInfo(parent) != null) {
+            return parent;
+        }
+
+        for (var previous = childContractCreate.getPrevious();
+                previous != null && previous != parent;
+                previous = previous.getPrevious()) {
+            final var evmTransactionInfo = getEvmTransactionInfo(previous);
+            if (evmTransactionInfo != null
+                    && (evmTransactionInfo.evmTransactionResult().hasExecutedHookId()
+                            || previous.getTransactionResult().hasScheduleRef())) {
+                return previous;
+            }
+        }
+
+        return null;
+    }
+
+    private EvmTransactionInfo getContractCallInfo(final BlockTransaction blockTransaction) {
+        final var callContractOutput = blockTransaction
                 .getTransactionOutput(TransactionCase.CONTRACT_CALL)
                 .map(TransactionOutput::getContractCall)
-                .map(callContractOutput -> {
-                    if (!callContractOutput.hasEvmTransactionResult()) {
-                        log.warn(
-                                "CallContractOutput has no EvmTransactionResult at {}",
-                                blockTransaction.getConsensusTimestamp());
-                        return null;
-                    }
-
-                    return EvmTransactionInfo.ofContractCall(callContractOutput.getEvmTransactionResult());
-                })
                 .orElse(null);
+        if (callContractOutput == null) {
+            return null;
+        }
+
+        if (!callContractOutput.hasEvmTransactionResult()) {
+            log.warn("CallContractOutput has no EvmTransactionResult at {}", blockTransaction.getConsensusTimestamp());
+            return null;
+        }
+
+        return EvmTransactionInfo.ofContractCall(callContractOutput.getEvmTransactionResult());
+    }
+
+    private EvmTransactionInfo getContractCreateInfo(final BlockTransaction blockTransaction) {
+        final var createContractOutput = blockTransaction
+                .getTransactionOutput(TransactionCase.CONTRACT_CREATE)
+                .map(TransactionOutput::getContractCreate)
+                .orElse(null);
+        if (createContractOutput == null) {
+            return null;
+        }
+
+        if (!createContractOutput.hasEvmTransactionResult()) {
+            log.warn(
+                    "CreateContractOutput has no EvmTransactionResult at {}", blockTransaction.getConsensusTimestamp());
+            return null;
+        }
+
+        return EvmTransactionInfo.ofContractCreate(createContractOutput.getEvmTransactionResult());
+    }
+
+    private EvmTransactionInfo getEthereumTransactionInfo(final BlockTransaction blockTransaction) {
+        final var ethereumOutput = blockTransaction
+                .getTransactionOutput(TransactionCase.ETHEREUM_CALL)
+                .map(TransactionOutput::getEthereumCall)
+                .orElse(null);
+        if (ethereumOutput == null) {
+            return null;
+        }
+
+        final var transactionResultCase = ethereumOutput.getTransactionResultCase();
+        return switch (transactionResultCase) {
+            case EVM_CALL_TRANSACTION_RESULT ->
+                EvmTransactionInfo.ofContractCall(ethereumOutput.getEvmCallTransactionResult());
+            case EVM_CREATE_TRANSACTION_RESULT ->
+                EvmTransactionInfo.ofContractCreate(ethereumOutput.getEvmCreateTransactionResult());
+            default -> {
+                log.warn(
+                        "Unhandled transaction result case {} in EthereumOutput at {}",
+                        transactionResultCase,
+                        blockTransaction.getConsensusTimestamp());
+                yield null;
+            }
+        };
+    }
+
+    /**
+     * Gets the EVM transaction info from the transaction output of the transaction's type. Note besides a ContractCall,
+     * a synthetic child transaction of any other type dispatched by a system contract also has a CallContractOutput.
+     *
+     * @param blockTransaction The block transaction
+     * @return The EVM transaction info, or null if the transaction has no EVM transaction result
+     */
+    private EvmTransactionInfo getEvmTransactionInfo(final BlockTransaction blockTransaction) {
+        return switch (blockTransaction.getTransactionBody().getDataCase()) {
+            case CONTRACTCREATEINSTANCE -> getContractCreateInfo(blockTransaction);
+            case ETHEREUMTRANSACTION -> getEthereumTransactionInfo(blockTransaction);
+            default -> getContractCallInfo(blockTransaction);
+        };
+    }
+
+    /**
+     * Whether the transaction is a ContractCreate dispatched by the EVM for a CREATE / CREATE2 operation or a hollow
+     * account finalization. Such a transaction is always a child transaction with a nonzero nonce. Note the scheduled
+     * flag of its transaction id can't be relied on, since the child transactions of a scheduled transaction executed
+     * at expiry inherit the flag from it. Instead, a triggered scheduled ContractCreate is told apart by its schedule
+     * ref, which is only set for the scheduled transaction itself.
+     *
+     * @param blockTransaction The block transaction
+     * @return Whether the transaction is a child ContractCreate
+     */
+    private static boolean isChildContractCreate(final BlockTransaction blockTransaction) {
+        final var transactionBody = blockTransaction.getTransactionBody();
+        return transactionBody.hasContractCreateInstance()
+                && blockTransaction.getParentConsensusTimestamp() != null
+                && transactionBody.getTransactionID().getNonce() > 0
+                && !blockTransaction.getTransactionResult().hasScheduleRef();
     }
 
     private SlotValue resolveIndexedSlotValue(
@@ -188,6 +299,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                     .setGas(internalCallContext.getGas());
         }
 
+        transformCreatedContractIds(blockTransaction, evmTransactionInfo, contractResultbuilder);
         transformEvmTraceData(
                 blockTransaction, contractResultbuilder, transformation.recordItemBuilder(), evmTransactionResult);
     }
@@ -401,6 +513,50 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         blockTransaction.setContractStorageReads(contractStorageReads);
     }
 
+    /**
+     * Rebuilds the deprecated createdContractIDs, which isn't in block stream. Same as consensus nodes, the list has
+     * the contract created by the transaction itself and the contracts created by its child ContractCreate
+     * transactions, sorted by contract num, and it's only set for a successful transaction. Since transactions are
+     * transformed in descending order by consensus timestamp, a child ContractCreate registers its contract with its
+     * creator, and the creator collects the registered contracts when it's transformed later.
+     */
+    @SuppressWarnings("deprecation")
+    private void transformCreatedContractIds(
+            final BlockTransaction blockTransaction,
+            final EvmTransactionInfo evmTransactionInfo,
+            final ContractFunctionResult.Builder contractResultBuilder) {
+        if (!blockTransaction.isSuccessful()) {
+            return;
+        }
+
+        final var evmTransactionResult = evmTransactionInfo.evmTransactionResult();
+        final var contractId = evmTransactionInfo.isContractCreate() && evmTransactionResult.hasContractId()
+                ? evmTransactionResult.getContractId()
+                : null;
+        if (isChildContractCreate(blockTransaction)) {
+            // A child ContractCreate has no createdContractIDs of its own in record stream
+            final var creator = findCreator(blockTransaction);
+            if (creator != null) {
+                creator.addCreatedContractId(contractId);
+            }
+
+            return;
+        }
+
+        if (blockTransaction.getCreatedContractIds().isEmpty()) {
+            if (contractId != null) {
+                contractResultBuilder.addCreatedContractIDs(contractId);
+            }
+
+            return;
+        }
+
+        blockTransaction.addCreatedContractId(contractId);
+        final var createdContractIds = new ArrayList<>(blockTransaction.getCreatedContractIds());
+        createdContractIds.sort(CONTRACT_NUM_COMPARATOR);
+        contractResultBuilder.addAllCreatedContractIDs(createdContractIds);
+    }
+
     private void transformSidecarRecords(
             BlockTransaction blockTransaction,
             ContractID contractId,
@@ -417,7 +573,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         recordItemBuilder.sidecarRecords(sidecarRecords);
     }
 
-    protected record EvmTransactionInfo(EvmTransactionResult evmTransactionResult, boolean isContractCreate) {
+    private record EvmTransactionInfo(EvmTransactionResult evmTransactionResult, boolean isContractCreate) {
 
         static EvmTransactionInfo ofContractCall(EvmTransactionResult evmTransactionResult) {
             return new EvmTransactionInfo(evmTransactionResult, false);
