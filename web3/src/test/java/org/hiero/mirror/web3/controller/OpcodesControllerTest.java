@@ -42,6 +42,7 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -375,6 +376,9 @@ class OpcodesControllerTest extends Web3IntegrationTest {
 
         mockMvc.perform(opcodesRequest(transactionIdOrHash))
                 .andExpect(status().isOk())
+                .andExpect(header().string(
+                                CommonProperties.CLUSTER_ID_HEADER,
+                                CommonProperties.getInstance().getClusterId()))
                 .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
 
         expectedCallServiceParameters.set(
@@ -593,7 +597,8 @@ class OpcodesControllerTest extends Web3IntegrationTest {
                         .header(HttpHeaders.ACCEPT_ENCODING, "gzip"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "*"))
-                .andExpect(header().string("Access-Control-Allow-Methods", "GET,HEAD,POST"));
+                .andExpect(header().string("Access-Control-Allow-Methods", "GET,HEAD,POST"))
+                .andExpect(header().string("Access-Control-Expose-Headers", CommonProperties.CLUSTER_ID_HEADER));
     }
 
     /**

@@ -2,12 +2,14 @@
 
 package org.hiero.mirror.web3;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import lombok.Data;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.jspecify.annotations.NonNull;
@@ -34,6 +36,29 @@ public class Web3Properties {
 
     @Positive
     private int maxPayloadLogSize = 300;
+
+    /*
+     * Copy ApiEndpointName.DEFAULT response headers onto each configured endpoint. Endpoint headers override defaults.
+     * Header names are case-insensitive.
+     */
+    @PostConstruct
+    void mergeHeaders() {
+        final var defaultProperties = api.get(ApiEndpointName.DEFAULT);
+        if (defaultProperties == null) {
+            return;
+        }
+        final var defaultHeaders = defaultProperties.getResponse().getHeaders();
+        for (final var entry : api.entrySet()) {
+            if (entry.getKey() == ApiEndpointName.DEFAULT) {
+                continue;
+            }
+            final var headers = entry.getValue().getResponse().getHeaders();
+            final var merged = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+            merged.putAll(defaultHeaders);
+            merged.putAll(headers);
+            entry.getValue().getResponse().setHeaders(merged);
+        }
+    }
 
     public @NonNull ApiProperties getApi(@NonNull ApiEndpointName name) {
         return api.getOrDefault(name, API_PROPERTIES);

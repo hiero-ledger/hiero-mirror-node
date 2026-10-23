@@ -47,6 +47,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.web3.ApiEndpointName;
@@ -1583,7 +1584,17 @@ final class ContractControllerTest {
                         .header("Origin", "http://example.com")
                         .header("Access-Control-Request-Method", "POST"))
                 .andExpect(header().string("Access-Control-Allow-Origin", "*"))
-                .andExpect(header().string("Access-Control-Allow-Methods", "GET,HEAD,POST"));
+                .andExpect(header().string("Access-Control-Allow-Methods", "GET,HEAD,POST"))
+                .andExpect(header().string("Access-Control-Expose-Headers", CommonProperties.CLUSTER_ID_HEADER));
+    }
+
+    @Test
+    void callSuccessReturnsClusterIdHeader() throws Exception {
+        contractCall(request())
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                                CommonProperties.CLUSTER_ID_HEADER,
+                                CommonProperties.getInstance().getClusterId()));
     }
 
     @Test
@@ -1594,6 +1605,9 @@ final class ContractControllerTest {
 
         contractCall(request)
                 .andExpect(status().isServiceUnavailable())
+                .andExpect(header().string(
+                                CommonProperties.CLUSTER_ID_HEADER,
+                                CommonProperties.getInstance().getClusterId()))
                 .andExpect(content().string(convert(new GenericErrorResponse("Service Unavailable"))));
         assertThat(capturedOutput.getOut()).contains("503 Query timeout");
     }
