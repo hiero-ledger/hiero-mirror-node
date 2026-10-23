@@ -6,8 +6,10 @@ import {fromHex, isSuccess, RestJavaTestScenarioBuilder} from '../libex/common.j
 
 const urlTag = '/network/fees?mode=STATE';
 
-const transactionHex = __ENV.DEFAULT_NETWORK_FEES_TRANSACTION;
-const transaction = transactionHex ? fromHex(transactionHex) : undefined;
+const transactionHex =
+  __ENV.DEFAULT_NETWORK_FEES_TRANSACTION ||
+  '2a3e0a3c723a0a380a1a0a162214000000000000000000000000000000000000000210010a1a0a16221400000000000000000000000000000000000000031002';
+const transaction = fromHex(transactionHex);
 
 const {options, run, setup} = new RestJavaTestScenarioBuilder()
   .name('networkFeesEstimateState') // use unique scenario name among all tests
