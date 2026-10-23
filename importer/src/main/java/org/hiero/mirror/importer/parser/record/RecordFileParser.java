@@ -32,7 +32,6 @@ import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.hiero.mirror.importer.util.Utility;
-import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.resilience.annotation.Retryable;
 import org.springframework.transaction.annotation.Transactional;
@@ -236,9 +235,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             return;
         }
 
-        final var scheduledExecution = findScheduledExecution(recordItem);
-        final var contractRelatedParent =
-                scheduledExecution != null ? scheduledExecution : recordItem.getContractRelatedParent();
+        final var contractRelatedParent = recordItem.getContractRelatedParent();
         final var parent = recordItem.getParent();
         if (contractRelatedParent != null) {
             // Effects of a contract call share its index, or none if the call itself didn't claim one
@@ -251,34 +248,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         } else if (hasPositiveGasUsed(recordItem)) {
             recordItem.claimEvmTransactionIndex();
         }
-    }
-
-    // A scheduled call's effects are parented to its trigger, so walk back to the call the same way as for hooks
-    private @Nullable RecordItem findScheduledExecution(RecordItem recordItem) {
-        final var transactionRecord = recordItem.getTransactionRecord();
-        final var contractResult = recordItem.getContractResult();
-        if (!transactionRecord.hasParentConsensusTimestamp()
-                || transactionRecord.getTransactionID().getNonce() == 0
-                || contractResult == null
-                || contractResult.getContractID().getContractNum() == RecordItem.HOOK_CONTRACT_NUM) {
-            return null;
-        }
-
-        final long parentTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getParentConsensusTimestamp());
-        for (var candidate = recordItem.getPrevious();
-                candidate != null && candidate.getConsensusTimestamp() != parentTimestamp;
-                candidate = candidate.getPrevious()) {
-            final var candidateResult = candidate.getContractResult();
-            if (candidateResult == null
-                    || candidateResult.getContractID().getContractNum() == RecordItem.HOOK_CONTRACT_NUM) {
-                return null;
-            }
-            if (candidate.getTransactionRecord().getTransactionID().getScheduled()) {
-                return candidate;
-            }
-        }
-
-        return null;
     }
 
     private boolean hasPositiveGasUsed(RecordItem recordItem) {

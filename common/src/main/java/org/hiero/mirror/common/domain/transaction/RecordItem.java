@@ -72,7 +72,7 @@ public class RecordItem implements StreamItem {
     private final Long accountEthereumNonce;
     private final boolean blockstream;
     private final Long congestionPricingMultiplier;
-    private final RecordItem hookParent;
+    private final RecordItem executionParent;
     private final RecordItem parent;
     private final EntityId payerAccountId;
     private final RecordItem previous;
@@ -304,8 +304,8 @@ public class RecordItem implements StreamItem {
     }
 
     public RecordItem getContractRelatedParent() {
-        if (hookParent != null) {
-            return hookParent;
+        if (executionParent != null) {
+            return executionParent;
         }
         if (parent != null && parent.hasContractResult()) {
             return parent;
@@ -339,7 +339,7 @@ public class RecordItem implements StreamItem {
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
-            this.hookParent = parsePossiblyHookContractRelatedParent();
+            this.executionParent = parseExecutionParent();
             this.payerAccountId = parsePayerAccountId();
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
@@ -386,34 +386,36 @@ public class RecordItem implements StreamItem {
                     // inner
                     // transaction so following items in batch may need to look at the grandparent
                     return previous.parent.parent;
+                } else if (isScheduleTriggeredBy(previous, previous.previous)
+                        && parentTimestamp.equals(previous.previous.transactionRecord.getConsensusTimestamp())) {
+                    // a scheduled transaction executed immediately by a schedule create / sign transaction has no
+                    // parent, while its child transactions have the triggering transaction as parent
+                    return previous.previous;
                 }
             }
             return this.parent;
         }
 
-        private RecordItem parsePossiblyHookContractRelatedParent() {
-            final var currentTxnRecordContractResult = getContractResult();
+        // A contract related child of a hook execution or of an immediately executed scheduled transaction is parented
+        // to the hook's parent / the triggering schedule create or sign, so walk back to find the actual execution.
+        // Only child records (nonce > 0) can be such effects, user-signed atomic batch inner transactions can't
+        private RecordItem parseExecutionParent() {
+            final var contractResult = getContractResult();
+            if (!transactionRecord.hasParentConsensusTimestamp()
+                    || transactionRecord.getTransactionID().getNonce() == 0
+                    || contractResult == null
+                    || contractResult.getContractID().getContractNum() == HOOK_CONTRACT_NUM) {
+                return null;
+            }
 
-            // Only child records (nonce > 0) can be hook effects, user-signed atomic batch inner transactions can't
-            if (transactionRecord.hasParentConsensusTimestamp()
-                    && transactionRecord.getTransactionID().getNonce() > 0
-                    && currentTxnRecordContractResult != null
-                    && currentTxnRecordContractResult.getContractID().getContractNum() != HOOK_CONTRACT_NUM
-                    && previous != null) {
-                var candidateRecord = previous;
-
-                while (candidateRecord != null && candidateRecord != parent) {
-                    var candidateTxnRecordContractResult = candidateRecord.getContractResult();
-                    if (candidateTxnRecordContractResult == null) {
-                        break;
-                    }
-
-                    if (candidateTxnRecordContractResult.getContractID().getContractNum() == HOOK_CONTRACT_NUM) {
-                        // we found the first hook child item, which has a ContractResult and is executed via a hook
-                        return candidateRecord;
-                    }
-
-                    candidateRecord = candidateRecord.previous;
+            for (var candidate = previous; candidate != null && candidate != parent; candidate = candidate.previous) {
+                final var candidateContractResult = candidate.getContractResult();
+                if (candidateContractResult == null) {
+                    return null;
+                }
+                if (candidateContractResult.getContractID().getContractNum() == HOOK_CONTRACT_NUM
+                        || candidate.transactionRecord.getTransactionID().getScheduled()) {
+                    return candidate;
                 }
             }
 
@@ -503,6 +505,16 @@ public class RecordItem implements StreamItem {
 
             logRecoverableError("Encountered unknown transaction type: {}", genericTransactionType);
             return genericTransactionType;
+        }
+
+        private static boolean isScheduleTriggeredBy(final RecordItem scheduled, final RecordItem trigger) {
+            if (trigger == null || scheduled.transactionRecord.hasParentConsensusTimestamp()) {
+                return false;
+            }
+            final var transactionId = scheduled.transactionRecord.getTransactionID();
+            return transactionId.getScheduled()
+                    && transactionId.equals(
+                            trigger.transactionRecord.getReceipt().getScheduledTransactionID());
         }
     }
 }

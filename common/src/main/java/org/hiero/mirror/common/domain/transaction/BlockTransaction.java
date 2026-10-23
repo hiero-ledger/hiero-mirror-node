@@ -64,6 +64,7 @@ public class BlockTransaction implements StreamItem {
     private final BlockTransaction parent;
     private final Long parentConsensusTimestamp;
     private final BlockTransaction previous;
+    private final BlockTransaction scheduleTrigger;
     private final List<StateChanges> stateChanges;
     private final SignedTransaction signedTransaction;
     private final byte[] signedTransactionBytes;
@@ -119,6 +120,7 @@ public class BlockTransaction implements StreamItem {
         parentConsensusTimestamp = transactionResult.hasParentConsensusTimestamp()
                 ? DomainUtils.timestampInNanosMax(transactionResult.getParentConsensusTimestamp())
                 : null;
+        scheduleTrigger = parseScheduleTrigger();
         parent = parseParent();
         successful = parseSuccess();
 
@@ -222,6 +224,10 @@ public class BlockTransaction implements StreamItem {
             return parent.getStateChangeContext();
         }
 
+        if (scheduleTrigger != null) {
+            return scheduleTrigger.getStateChangeContext();
+        }
+
         return !CollectionUtils.isEmpty(stateChanges)
                 ? new StateChangeContext(stateChanges)
                 : StateChangeContext.EMPTY_CONTEXT;
@@ -243,10 +249,35 @@ public class BlockTransaction implements StreamItem {
                 // batch transactions can have inner transactions with n children. The child's parent will be the inner
                 // transaction so following items in batch may need to look at the grandparent
                 return previous.parent.parent;
+            } else if (previous.scheduleTrigger != null
+                    && parentConsensusTimestamp == previous.scheduleTrigger.consensusTimestamp) {
+                // the first child of a scheduled transaction has the triggering schedule create / sign transaction as
+                // its parent
+                return previous.scheduleTrigger;
             }
         }
 
         return this.parent;
+    }
+
+    private BlockTransaction parseScheduleTrigger() {
+        if (parentConsensusTimestamp != null
+                || previous == null
+                || !transactionBody.getTransactionID().getScheduled()) {
+            return null;
+        }
+
+        // A scheduled transaction executed immediately by the schedule create / sign transaction which satisfies its
+        // signing requirements has no parent, while its state changes are externalized with the triggering transaction
+        final var transactionId = transactionBody.getTransactionID();
+        final var createSchedule = previous.transactionOutputs.get(TransactionCase.CREATE_SCHEDULE);
+        final var signSchedule = previous.transactionOutputs.get(TransactionCase.SIGN_SCHEDULE);
+        final boolean triggered = (createSchedule != null
+                        && transactionId.equals(
+                                createSchedule.getCreateSchedule().getScheduledTransactionId()))
+                || (signSchedule != null
+                        && transactionId.equals(signSchedule.getSignSchedule().getScheduledTransactionId()));
+        return triggered ? previous : null;
     }
 
     private boolean parseSuccess() {

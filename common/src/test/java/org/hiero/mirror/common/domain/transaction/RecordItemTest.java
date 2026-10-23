@@ -756,6 +756,80 @@ class RecordItemTest {
         assertThat(recordItem.getParent()).isNull();
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testWithParentFromScheduleTrigger(final boolean matchingScheduledTransactionId) {
+        final var transaction = Transaction.newBuilder()
+                .setSignedTransactionBytes(SIGNED_TRANSACTION.toByteString())
+                .build();
+        final var scheduledTransactionId = TransactionID.newBuilder()
+                .setAccountID(AccountID.newBuilder().setAccountNum(1001L))
+                .setScheduled(true)
+                .setTransactionValidStart(Timestamp.newBuilder().setSeconds(1))
+                .build();
+        final var triggerTransactionRecord = TransactionRecord.newBuilder()
+                .setConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(1).setNanos(2).build())
+                .setReceipt(TransactionReceipt.newBuilder()
+                        .setScheduledTransactionID(
+                                matchingScheduledTransactionId
+                                        ? scheduledTransactionId
+                                        : scheduledTransactionId.toBuilder()
+                                                .setNonce(1)
+                                                .build())
+                        .setStatus(ResponseCodeEnum.SUCCESS))
+                .setMemo("trigger")
+                .build();
+        final var triggerRecordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transactionRecord(triggerTransactionRecord)
+                .transaction(transaction)
+                .build();
+
+        final var scheduledTransactionRecord = TransactionRecord.newBuilder()
+                .setConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(1).setNanos(3).build())
+                .setReceipt(TransactionReceipt.newBuilder().setStatus(ResponseCodeEnum.SUCCESS))
+                .setTransactionID(scheduledTransactionId)
+                .setMemo("scheduled")
+                .build();
+        final var scheduledRecordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .previous(triggerRecordItem)
+                .transactionRecord(scheduledTransactionRecord)
+                .transaction(DEFAULT_TRANSACTION)
+                .build();
+
+        final var childTransactionRecord = TransactionRecord.newBuilder()
+                .setConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(1).setNanos(4).build())
+                .setParentConsensusTimestamp(triggerTransactionRecord.getConsensusTimestamp())
+                .setReceipt(TransactionReceipt.newBuilder().setStatus(ResponseCodeEnum.SUCCESS))
+                .setMemo("child1")
+                .build();
+        final var childRecordItem1 = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .previous(scheduledRecordItem)
+                .transactionRecord(childTransactionRecord)
+                .transaction(DEFAULT_TRANSACTION)
+                .build();
+        final var childRecordItem2 = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .previous(childRecordItem1)
+                .transactionRecord(childTransactionRecord.toBuilder()
+                        .setConsensusTimestamp(
+                                Timestamp.newBuilder().setSeconds(1).setNanos(5).build())
+                        .setMemo("child2")
+                        .build())
+                .transaction(DEFAULT_TRANSACTION)
+                .build();
+
+        final var expectedParent = matchingScheduledTransactionId ? triggerRecordItem : null;
+        assertThat(scheduledRecordItem.getParent()).isNull();
+        assertThat(childRecordItem1.getParent()).isSameAs(expectedParent);
+        assertThat(childRecordItem2.getParent()).isSameAs(expectedParent);
+    }
+
     /**
      * This test writes a TransactionBody that contains an unknown field with a protobuf ID of 9999 to test that the
      * unknown transaction is still inserted into the database.
