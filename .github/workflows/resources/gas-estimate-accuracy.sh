@@ -11,297 +11,31 @@ MIN_TOLERANCE_PERCENT="${MIN_TOLERANCE_PERCENT:-2}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-0.3}"
 LIMIT=100
 MAX_PAGE_FETCH_RETRIES=30
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RESULT_HEX_PATTERN='"result"[[:space:]]*:[[:space:]]*"(0x[0-9a-fA-F]+)"'
 
-processed=0
-checked=0
-passed=0
+executed=0
 failed=0
-skipped=0
-estimate_reverts=0
-api_errors=0
-page_fetch_failures=0
-nonReproducible=0
 
-log() {
-  printf '%s\n' "$*"
+read -r MIN_TOLERANCE_BPS TOLERANCE_BPS < <(awk -v t="${TOLERANCE_PERCENT}" -v m="${MIN_TOLERANCE_PERCENT}" \
+  'BEGIN { printf "%.0f %.0f\n", m * 100, t * 100 }')
+
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "${WORK_DIR}"' EXIT
+mkdir -p "${WORK_DIR}/cache"
+
+# ---------------------------------------------------------------------------------------------------------------------
+# HTTP
+# ---------------------------------------------------------------------------------------------------------------------
+
+# Runs jq with gas-estimate-accuracy.jq loaded: jq_lib FILTER [jq options and input files...]
+jq_lib() {
+  local filter="$1"
+  shift
+  jq -L "${SCRIPT_DIR}" "include \"gas-estimate-accuracy\"; ${filter}" "$@"
 }
 
-if ! awk -v t="${TOLERANCE_PERCENT}" -v m="${MIN_TOLERANCE_PERCENT}" 'BEGIN { exit (t > m) ? 0 : 1 }'; then
-  log "TOLERANCE_PERCENT must be greater than ${MIN_TOLERANCE_PERCENT} (got ${TOLERANCE_PERCENT})"
-  exit 1
-fi
-
-hex_to_dec() {
-  local hex="${1#0x}"
-  printf '%d' "0x${hex}"
-}
-
-# Canonical hex for equality: optional 0x, case-insensitive, odd nibble padded,
-# leading zeros stripped so 0x1, 0x01, and 0x001 compare equal (empty/0x/0x0 too).
-normalize_hex() {
-  local hex="${1:-}"
-  if [[ "${hex}" == [0][xX]* ]]; then
-    hex="${hex:2}"
-  fi
-  hex="$(tr '[:upper:]' '[:lower:]' <<<"${hex}")"
-  if ((${#hex} % 2 == 1)); then
-    hex="0${hex}"
-  fi
-  hex="${hex#"${hex%%[!0]*}"}"
-  printf '%s' "${hex:-0}"
-}
-
-hex_equal() {
-  [[ "$(normalize_hex "$1")" == "$(normalize_hex "$2")" ]]
-}
-
-# True when eth_call replay matches the original contract result.
-# A consensus CONTRACT_REVERT_EXECUTED with a successful eth_call is not reproducible.
-is_reproducible_replay() {
-  local result_json="$1"
-  local http_code="$2"
-  local replay_body="$3"
-  local expected_result replay_result original_status
-
-  expected_result="$(jq -r '.call_result // empty' <<<"${result_json}")"
-  replay_result="$(jq -r '.result // empty' <<<"${replay_body}")"
-  original_status="$(jq -r '.result // empty' <<<"${result_json}")"
-
-  [[ "${http_code}" == "200" ]] \
-    && hex_equal "${expected_result}" "${replay_result}" \
-    && [[ "${original_status}" != "CONTRACT_REVERT_EXECUTED" ]]
-}
-
-# Sets http_code and body for a /contracts/call POST.
-post_contracts_call() {
-  local request_body="$1"
-  local tmp
-  tmp="$(mktemp)"
-  http_code="$(curl -sS -o "${tmp}" -w '%{http_code}' \
-    -X POST "${BASE_URL}/api/v1/contracts/call" \
-    -H 'Accept: application/json' \
-    -H 'Content-Type: application/json' \
-    --data "${request_body}" || true)"
-  body="$(cat "${tmp}")"
-  rm -f "${tmp}"
-}
-
-within_tolerance() {
-  local estimated="$1"
-  local consumed="$2"
-  # Estimate must be at least MIN_TOLERANCE_PERCENT above gas_used and at most TOLERANCE_PERCENT above it.
-  awk -v e="${estimated}" -v c="${consumed}" -v t="${TOLERANCE_PERCENT}" -v m="${MIN_TOLERANCE_PERCENT}" 'BEGIN {
-    if (c <= 0) exit 1
-    lower = c * (1.0 + m / 100.0)
-    upper = c * (1.0 + t / 100.0)
-    exit (e >= lower && e <= upper) ? 0 : 1
-  }'
-}
-
-# Check if a consensus_timestamp (format: seconds.nanoseconds) is at a round hour or up to 2 seconds after.
-is_near_round_hour() {
-  local timestamp="$1"
-  local seconds="${timestamp%%.*}"
-  if [[ -z "${seconds}" || ! "${seconds}" =~ ^[0-9]+$ ]]; then
-    return 1
-  fi
-  local seconds_in_hour=$((seconds % 3600))
-  # Return true (0) if at round hour (0) or up to 2 seconds after (1, 2)
-  ((seconds_in_hour <= 2))
-}
-
-# Contract create: missing to, or the result's contract_id was itself created by the tx.
-is_contract_create() {
-  jq -e '
-    .contract_id as $cid
-    | (.to == null or .to == "" or .to == "0x")
-      or ($cid != null and ((.created_contract_ids // []) | index($cid) != null))
-  ' <<<"$1" >/dev/null
-}
-
-fetch_contract_bytecode() {
-  local contract_id="$1"
-  curl -sS -f "${BASE_URL}/api/v1/contracts/${contract_id}" | jq -r '.bytecode // empty'
-}
-
-# Build create estimate data:
-# - Ethereum creates: function_parameters already has initcode + args
-# - Hedera creates: contracts.bytecode + function_parameters
-build_create_data() {
-  local result_json="$1"
-  local contract_id bytecode params
-
-  contract_id="$(jq -r '.contract_id // .created_contract_ids[0] // empty' <<<"${result_json}")"
-  params="$(jq -r '.function_parameters // empty' <<<"${result_json}")"
-  [[ "${params}" == 0x* || -z "${params}" ]] || params="0x${params}"
-
-  if [[ -n "${contract_id}" ]] \
-    && bytecode="$(fetch_contract_bytecode "${contract_id}")" \
-    && [[ -n "${bytecode}" && "${bytecode}" != "null" && "${bytecode}" != "0x" ]]; then
-    [[ "${bytecode}" == 0x* ]] || bytecode="0x${bytecode}"
-    # function_parameters already contains the bytecode (ethereum-style) — use it as-is.
-    if [[ -n "${params}" && "${params}" != "0x" && "${params}" == "${bytecode}"* ]]; then
-      printf '%s' "${params}"
-      return 0
-    fi
-    printf '%s%s' "${bytecode}" "${params#0x}"
-    return 0
-  fi
-
-  # No usable stored bytecode — fall back to function_parameters.
-  if [[ -n "${params}" && "${params}" != "0x" ]]; then
-    printf '%s' "${params}"
-    return 0
-  fi
-  return 1
-}
-
-# Build /contracts/call estimate body from a ContractResult.
-build_request() {
-  local result_json="$1"
-  local data
-
-  if is_contract_create "${result_json}"; then
-    if ! data="$(build_create_data "${result_json}")"; then
-      return 1
-    fi
-    jq -c --arg data "${data}" '
-      {
-        estimate: true,
-        data: $data,
-        from: .from,
-        gas: (.gas_limit // 15000000),
-        value: (.amount // 0),
-        block: (if .block_number != null then ((.block_number - 1) | tostring) else "latest" end)
-      }
-    ' <<<"${result_json}"
-  else
-    jq -c '
-      {
-        estimate: true,
-        data: (.function_parameters // "0x"),
-        from: .from,
-        gas: (.gas_limit // 15000000),
-        value: (.amount // 0),
-        block: (if .block_number != null then ((.block_number - 1) | tostring) else "latest" end)
-      }
-      + (if (.to != null and .to != "" and .to != "0x") then {to: .to} else {} end)
-    ' <<<"${result_json}"
-  fi
-}
-
-should_skip() {
-  local result_json="$1"
-  local reason
-  reason="$(jq -r '
-    .contract_id as $cid
-    | if .gas_used == null then "missing gas_used"
-      elif .gas_used <= 0 then "non-positive gas_used"
-      elif (
-          (.to == null or .to == "" or .to == "0x")
-          or ($cid != null and ((.created_contract_ids // []) | index($cid) != null))
-        )
-        and ($cid == null)
-        and ((.created_contract_ids // []) | length) == 0 then
-        "missing contract id for contract create"
-      elif (.to == null or .to == "" or .to == "0x")
-        and ($cid == null or ((.created_contract_ids // []) | index($cid) == null))
-        and (.function_parameters == null or .function_parameters == "" or .function_parameters == "0x") then
-        "missing data for contract call"
-      else empty end
-  ' <<<"${result_json}")"
-  if [[ -n "${reason}" ]]; then
-    printf '%s' "${reason}"
-    return 0
-  fi
-  return 1
-}
-
-check_result() {
-  local result_json="$1"
-  if should_skip "${result_json}" >/dev/null; then
-    skipped=$((skipped + 1))
-    return 0
-  fi
-
-  local request consumed hash
-  if ! request="$(build_request "${result_json}")"; then
-    api_errors=$((api_errors + 1))
-    return 0
-  fi
-  hash="$(jq -r '.hash // "unknown"' <<<"${result_json}")"
-  consumed="$(jq -r '.gas_used' <<<"${result_json}")"
-  if [[ -z "${consumed}" ]] || ((consumed <= 0)); then
-    skipped=$((skipped + 1))
-    return 0
-  fi
-
-  local attempt estimated body http_code
-  for attempt in 1 2; do
-    post_contracts_call "${request}"
-
-    if [[ "${http_code}" != "200" ]]; then
-      if ((attempt == 2)); then
-        break
-      fi
-      # Historical txs often revert on estimate replay (due to state change).
-      # Count those separately; only out-of-tolerance estimates fail the job.
-      if [[ "${http_code}" == "400" ]] && grep -q 'CONTRACT_REVERT_EXECUTED' <<<"${body}"; then
-        estimate_reverts=$((estimate_reverts + 1))
-      else
-        api_errors=$((api_errors + 1))
-      fi
-      return 0
-    fi
-
-    local result_hex
-    result_hex="$(jq -r '.result // empty' <<<"${body}")"
-    if [[ -z "${result_hex}" || "${result_hex}" == "null" ]]; then
-      if ((attempt == 2)); then
-        break
-      fi
-      api_errors=$((api_errors + 1))
-      return 0
-    fi
-
-    estimated="$(hex_to_dec "${result_hex}")"
-
-    if within_tolerance "${estimated}" "${consumed}"; then
-      passed=$((passed + 1))
-      return 0
-    fi
-
-    local block_number consensus_timestamp
-    block_number="$(jq -r '.block_number // empty' <<<"${result_json}")"
-    consensus_timestamp="$(jq -r '.consensus_timestamp // empty' <<<"${result_json}")"
-    if ((attempt == 1)) && [[ -n "${block_number}" ]] && is_near_round_hour "${consensus_timestamp}"; then
-      log "Out of tolerance for hash=${hash} at block ${block_number}-1; retrying with block=${block_number}"
-      request="$(jq -c --arg b "${block_number}" '.block = $b' <<<"${request}")"
-      continue
-    fi
-    break
-  done
-
-  local replay_request
-  replay_request="$(jq -c '.estimate = false' <<<"${request}")"
-  post_contracts_call "${replay_request}"
-  if ! is_reproducible_replay "${result_json}" "${http_code}" "${body}"; then
-    nonReproducible=$((nonReproducible + 1))
-    return 0
-  fi
-
-  checked=$((checked + 1))
-
-  failed=$((failed + 1))
-  local pct
-  pct="$(awk -v e="${estimated}" -v c="${consumed}" 'BEGIN {
-    printf "%.2f", ((e - c) * 100.0 / c)
-  }')"
-  log "Out of tolerance for hash=${hash}: estimated=${estimated} gas_used=${consumed} overhead=${pct}% (expected ${MIN_TOLERANCE_PERCENT}-${TOLERANCE_PERCENT}%)"
-  log "request=${request}"
-}
-
-page_url_from_next() {
+absolute_url() {
   local path_or_url="$1"
   if [[ "${path_or_url}" =~ ^https?:// ]]; then
     printf '%s' "${path_or_url}"
@@ -310,91 +44,409 @@ page_url_from_next() {
   fi
 }
 
-if ((RESULTS_COUNT < LIMIT)); then
-  page_limit="${RESULTS_COUNT}"
-else
-  page_limit="${LIMIT}"
+# GET a BASE_URL path (or an absolute links.next URL), failing on HTTP errors.
+http_get() {
+  curl -sSf --retry "${2:-3}" --retry-all-errors "$(absolute_url "$1")"
+}
+
+# Follows links.next starting at path and prints jq_lib filter's raw output for every page.
+paginate() {
+  local next="$1" filter="$2" retries="${3:-3}" page
+  while [[ -n "${next}" ]]; do
+    page="$(http_get "${next}" "${retries}")" || return 1
+    jq_lib "${filter}" -r <<<"${page}" || return 1
+    next="$(jq -r '.links.next // empty' <<<"${page}")"
+  done
+}
+
+# Prints the path of a cached response, fetching it at most once per run.
+cached_get() {
+  local file="${WORK_DIR}/cache/$1"
+  if [[ ! -s "${file}" ]] && ! http_get "$2" > "${file}"; then
+    rm -f "${file}"
+    return 1
+  fi
+  printf '%s' "${file}"
+}
+
+cached_detail() {
+  [[ "$1" =~ ^0x[0-9a-fA-F]+$ ]] || return 1
+  cached_get "$1.detail" "/api/v1/contracts/results/$1"
+}
+
+cached_actions() {
+  [[ "$1" =~ ^0x[0-9a-fA-F]+$ ]] || return 1
+  cached_get "$1.actions" "/api/v1/contracts/results/$1/actions?limit=100"
+}
+
+# Sets http_code and body for a /contracts/call POST.
+post_contracts_call() {
+  local response nl=$'\n'
+  response="$(curl -sS -w '\n%{http_code}' \
+    -X POST "${BASE_URL}/api/v1/contracts/call" \
+    -H 'Accept: application/json' \
+    -H 'Content-Type: application/json' \
+    --data "$1")" || true
+  http_code="${response##*"${nl}"}"
+  body="${response%"${nl}"*}"
+}
+
+# Prints the decimal gas estimate for an estimate=true request.
+estimate_gas() {
+  post_contracts_call "$1"
+  [[ "${http_code}" == "200" && "${body}" =~ ${RESULT_HEX_PATTERN} ]] || return 1
+  printf '%d' "${BASH_REMATCH[1]}"
+}
+
+# Prints the integer part of a block's start timestamp.
+block_start_seconds() {
+  local seconds
+  seconds="$(http_get "/api/v1/blocks/$1" | jq -r '.timestamp.from // empty | split(".")[0]')" || return 1
+  [[ "${seconds}" =~ ^[0-9]+$ ]] || return 1
+  printf '%s' "${seconds}"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Estimation
+# ---------------------------------------------------------------------------------------------------------------------
+
+# Estimate must be at least MIN_TOLERANCE_PERCENT above gas_used and at most TOLERANCE_PERCENT above it.
+within_tolerance() {
+  local estimated="$1" consumed="$2"
+  ((consumed > 0)) || return 1
+  ((estimated * 10000 >= consumed * (10000 + MIN_TOLERANCE_BPS) \
+    && estimated * 10000 <= consumed * (10000 + TOLERANCE_BPS)))
+}
+
+# Accurate against gas_used, or against the pre-refund gas when the transaction got a refund.
+is_accurate() {
+  local estimated="$1" consumed="$2" pre_refund="$3"
+  within_tolerance "${estimated}" "${consumed}" \
+    || { [[ -n "${pre_refund}" ]] && ((pre_refund > consumed)) && within_tolerance "${estimated}" "${pre_refund}"; }
+}
+
+# True when a consensus timestamp (seconds.nanoseconds) is at a round hour or up to 2 seconds after.
+is_near_round_hour() {
+  local seconds="${1%%.*}"
+  [[ "${seconds}" =~ ^[0-9]+$ ]] || return 1
+  (((seconds % 3600) <= 2))
+}
+
+pre_refund_gas() {
+  local result_json="$1" hash="$2" actions
+  actions="$(cached_actions "${hash}")" || return 1
+  jq_lib '($actions[0].actions[0].gas_used) as $gas | select($gas | type == "number") | pre_refund_gas($gas)' \
+    -er --slurpfile actions "${actions}" <<<"${result_json}"
+}
+
+build_create_request() {
+  local result_json="$1" contract_id params bytecode="" data
+
+  IFS=$'\t' read -r contract_id params < <(jq -r '
+    [.contract_id // .created_contract_ids[0]?, .function_parameters]
+    | map(if . == null or . == "" then "-" else . end) | @tsv
+  ' <<<"${result_json}")
+  [[ "${contract_id}" != "-" ]] || contract_id=""
+  [[ "${params}" != "-" ]] || params=""
+  [[ -z "${params}" || "${params}" == 0x* ]] || params="0x${params}"
+
+  if [[ -n "${contract_id}" ]]; then
+    bytecode="$(http_get "/api/v1/contracts/${contract_id}" | jq -r '.bytecode // empty')" || bytecode=""
+  fi
+
+  if [[ -n "${bytecode}" && "${bytecode}" != "0x" ]]; then
+    [[ "${bytecode}" == 0x* ]] || bytecode="0x${bytecode}"
+    if [[ -n "${params}" && "${params}" != "0x" && "${params}" == "${bytecode}"* ]]; then
+      data="${params}"
+    else
+      data="${bytecode}${params#0x}"
+    fi
+  elif [[ -n "${params}" && "${params}" != "0x" ]]; then
+    data="${params}"
+  else
+    return 1
+  fi
+
+  jq_lib 'estimate_request($data)' -c --arg data "${data}" <<<"${result_json}"
+}
+
+# Prints the request for a second attempt (block N for round-hour transactions, the top-level action
+# sender as from), or fails when neither changes the request.
+retry_request() {
+  local request="$1" hash="$2" block="$3" timestamp="$4" create="$5"
+  local near_round_hour=false actions=/dev/null
+
+  if is_near_round_hour "${timestamp}"; then
+    near_round_hour=true
+  fi
+  if [[ "${create}" != true ]]; then
+    actions="$(cached_actions "${hash}")" || actions=/dev/null
+  fi
+
+  jq_lib '
+    . as $original
+    | ($actions[0].actions[0].from // "") as $sender
+    | (if $near_round_hour then .block = $block else . end)
+    | (if $sender != "" and (hex_equal($sender; .from // "") | not) then .from = $sender else . end)
+    | select(. != $original)
+  ' -ce --slurpfile actions "${actions}" --argjson near_round_hour "${near_round_hour}" --arg block "${block}" \
+    <<<"${request}"
+}
+
+# True when replaying the request as a plain call returns the original call_result.
+is_reproducible_replay() {
+  local request="$1" result_json="$2"
+  post_contracts_call "$(jq -c '.estimate = false' <<<"${request}")"
+  [[ "${http_code}" == "200" ]] \
+    && printf '%s\n%s\n' "${result_json}" "${body}" \
+    | jq_lib 'hex_equal(.[1].result // ""; .[0].call_result // "")' -es >/dev/null 2>&1
+}
+
+# Accurate estimates pass right away. Reproducible inaccurate ones are deferred to resolve_block_failures,
+# which needs the complete block and block N-1 to rule out dependencies on other transactions.
+check_result() {
+  local result_json="$1" request="$2" hash="$3" block="$4" timestamp="$5" gas_used="$6" status="$7" create="$8"
+  local estimated pre_refund="" retry
+
+  if [[ "${create}" == true ]] && ! request="$(build_create_request "${result_json}")"; then
+    return 0
+  fi
+
+  if ! estimated="$(estimate_gas "${request}")"; then
+    return 0
+  fi
+  if [[ "${create}" != true ]] && ! within_tolerance "${estimated}" "${gas_used}"; then
+    pre_refund="$(pre_refund_gas "${result_json}" "${hash}")" || pre_refund=""
+  fi
+  if is_accurate "${estimated}" "${gas_used}" "${pre_refund}"; then
+    executed=$((executed + 1))
+    return 0
+  fi
+
+  if retry="$(retry_request "${request}" "${hash}" "${block}" "${timestamp}" "${create}")"; then
+    request="${retry}"
+    if ! estimated="$(estimate_gas "${request}")"; then
+      return 0
+    fi
+    if is_accurate "${estimated}" "${gas_used}" "${pre_refund}"; then
+      executed=$((executed + 1))
+      return 0
+    fi
+  fi
+
+  # A consensus CONTRACT_REVERT_EXECUTED with a successful eth_call is not reproducible.
+  if [[ "${status}" == "CONTRACT_REVERT_EXECUTED" ]] || ! is_reproducible_replay "${request}" "${result_json}"; then
+    return 0
+  fi
+
+  jq -c --argjson estimated "${estimated}" --argjson request "${request}" \
+    '{hash, transaction_index: (.transaction_index // 0), gas_used, estimated: $estimated, request: $request}' \
+    <<<"${result_json}" >> "${WORK_DIR}/failures-${block}.jsonl"
+}
+
+record_failure() {
+  local hash="$1" estimated="$2" consumed="$3" request="$4" overhead
+  executed=$((executed + 1))
+  failed=$((failed + 1))
+  overhead="$(awk -v e="${estimated}" -v c="${consumed}" 'BEGIN { printf "%.2f", ((e - c) * 100.0 / c) }')"
+  echo "Out of tolerance for hash=${hash}: estimated=${estimated} gas_used=${consumed} overhead=${overhead}% (expected ${MIN_TOLERANCE_PERCENT}-${TOLERANCE_PERCENT}%)"
+  echo "request=${request}"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Block dependencies
+# ---------------------------------------------------------------------------------------------------------------------
+
+# A block is complete once the stream has moved past it. Otherwise (end of stream) it is listed directly.
+ensure_block_complete() {
+  local block="$1" file="${WORK_DIR}/block-${1}.jsonl"
+  if { [[ -n "${reading_block}" ]] && ((block > reading_block)); } || [[ -e "${file}.listed" ]]; then
+    return 0
+  fi
+  paginate "/api/v1/contracts/results?block.number=${block}&limit=${LIMIT}" '.results[]? | tojson' > "${file}.tmp" \
+    || return 1
+  mv "${file}.tmp" "${file}"
+  touch "${file}.listed"
+}
+
+# Prints the block's transactions up to max_index (all when empty) with state_changes and, when with_actions
+# is true, touched entities. enriched=false marks transactions whose detail or actions could not be loaded.
+load_state_changes_from_block() {
+  local block="$1" with_actions="$2" max_index="${3:-null}"
+  local file="${WORK_DIR}/block-${1}.jsonl" hash summary detail actions
+
+  ensure_block_complete "${block}" || return 1
+  [[ -s "${file}" ]] || return 0
+
+  while IFS= read -r -u 5 hash && IFS= read -r -u 5 summary; do
+    actions=/dev/null
+    if detail="$(cached_detail "${hash}")" \
+      && { [[ "${with_actions}" != true ]] || actions="$(cached_actions "${hash}")"; } \
+      && jq_lib '
+        $detail[0] as $d
+        | . + {
+            enriched: true,
+            state_changes: ($d.state_changes // []),
+            touched: (if $with_actions then ($d | touched_entities($actions[0] // {actions: []})) else [] end)
+          }
+      ' -c --slurpfile detail "${detail}" --slurpfile actions "${actions}" --argjson with_actions "${with_actions}" \
+        <<<"${summary}" 2>/dev/null; then
+      continue
+    fi
+    jq -c '. + {enriched: false}' <<<"${summary}"
+  done 5< <(jq -r --argjson max "${max_index}" \
+    'select($max == null or (.transaction_index // 0) <= $max) | (.hash // ""), tojson' "${file}")
+}
+
+# Marks independent failures of a block as dependent when they read a slot that block N-1 wrote its own
+# timestamp to and write block N's timestamp.
+timestamp_dependant() {
+  local block="$1" enriched="$2" is_timestamp_dependant="$3"
+  local prev_enriched="${WORK_DIR}/enriched-prev-${1}.jsonl" curr_sec prev_sec curr_hex prev_hex candidates
+
+  if ((block <= 0)) || ! jq -e 'any(.[]; . == "independent")' <<<"${is_timestamp_dependant}" >/dev/null; then
+    printf '%s' "${is_timestamp_dependant}"
+    return 0
+  fi
+  if ! curr_sec="$(block_start_seconds "${block}")" || ! prev_sec="$(block_start_seconds $((block - 1)))"; then
+    jq -c 'map_values(if . == "independent" then "unknown" else . end)' <<<"${is_timestamp_dependant}"
+    return 0
+  fi
+  printf -v curr_hex '%08x' "${curr_sec}"
+  printf -v prev_hex '%08x' "${prev_sec}"
+
+  candidates="$(jq_lib '
+    map(select($is_timestamp_dependant[.hash // ""] == "independent")
+      | {key: .hash, value: timestamp_candidate_slots($curr; $prev)}
+      | select(.value != []))
+    | from_entries
+  ' -cs --argjson is_timestamp_dependant "${is_timestamp_dependant}" --arg curr "${curr_hex}" --arg prev "${prev_hex}" "${enriched}")" \
+    || candidates='{}'
+  if [[ "${candidates}" == "{}" ]]; then
+    printf '%s' "${is_timestamp_dependant}"
+    return 0
+  fi
+
+  load_state_changes_from_block $((block - 1)) false > "${prev_enriched}" || echo '{"enriched":false}' > "${prev_enriched}"
+  jq_lib '
+    . as $prev_txs
+    | any(.[]; .enriched | not) as $incomplete
+    | $is_timestamp_dependant + ($candidates | with_entries(
+        .value as $slots
+        | if ($prev_txs | wrote_timestamp($slots; $prev)) then .value = "dependent"
+          elif $incomplete then .value = "unknown"
+          else empty
+          end))
+  ' -cs --argjson is_timestamp_dependant "${is_timestamp_dependant}" --argjson candidates "${candidates}" --arg prev "${prev_hex}" \
+    "${prev_enriched}"
+  rm -f "${prev_enriched}"
+}
+
+# Decides the deferred failures of a block once the block and block N-1 have been read completely.
+resolve_block_related_discrepancies() {
+  local block="$1"
+  local failures="${WORK_DIR}/failures-${1}.jsonl" enriched="${WORK_DIR}/enriched-${1}.jsonl"
+  local max_index is_timestamp_dependant hash verdict estimated consumed request
+
+  if [[ -s "${failures}" ]]; then
+    max_index="$(jq -s 'map(.transaction_index) | max' "${failures}")"
+    load_state_changes_from_block "${block}" true "${max_index}" > "${enriched}" || : > "${enriched}"
+    is_timestamp_dependant="$(jq_lib 'intra_block_is_timestamp_dependant($failures)' -cs --slurpfile failures "${failures}" "${enriched}")" \
+      || is_timestamp_dependant='{}'
+    is_timestamp_dependant="$(timestamp_dependant "${block}" "${enriched}" "${is_timestamp_dependant}")"
+
+    while IFS=$'\t' read -r -u 4 hash verdict estimated consumed && IFS= read -r -u 4 request; do
+      if [[ "${verdict}" == independent ]]; then
+        record_failure "${hash}" "${estimated}" "${consumed}" "${request}"
+      fi
+    done 4< <(jq -r --argjson is_timestamp_dependant "${is_timestamp_dependant}" \
+      '"\(.hash)\t\($is_timestamp_dependant[.hash // ""] // "unknown")\t\(.estimated)\t\(.gas_used)", (.request | tojson)' \
+      "${failures}")
+  fi
+
+  rm -f "${failures}" "${enriched}" "${WORK_DIR}/block-${block}.jsonl" "${WORK_DIR}/block-${block}.jsonl.listed"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Main loop
+# ---------------------------------------------------------------------------------------------------------------------
+
+# Per result: a TSV line of scalars ("-" for empty, since read collapses consecutive tabs), the result JSON,
+# and the call request ("-" for creates, which are built on demand).
+STREAM_FILTER='
+  .results[]?
+  | ([.hash, .block_number, .timestamp, .gas_used, .result, is_create, should_skip]
+     | map(if . == null or . == "" then "-" else tostring end) | @tsv),
+    tojson,
+    (if is_create then "-" else (call_request | tojson) end)
+'
+
+# Results arrive newest first, so a block's results are contiguous and block N-1 follows block N. Each result is
+# estimated as it arrives and buffered per block. A block's failures are resolved once block N-1 has been read
+# completely, so no block is listed twice and every transaction detail is fetched at most once.
+verify_results() {
+  local page_limit cutoff_timestamp first_page
+  local hash block timestamp gas_used status create skip result_json request resolvable_block
+  local remaining="${RESULTS_COUNT}" stop_block=""
+
+  page_limit=$((RESULTS_COUNT < LIMIT ? RESULTS_COUNT : LIMIT))
+  cutoff_timestamp="$(($(date +%s) - 2 * 86400)).000000000"
+  first_page="/api/v1/contracts/results?limit=${page_limit}&order=desc&timestamp=lte:${cutoff_timestamp}"
+  reading_block=""
+  pending_block=""
+
+  while IFS=$'\t' read -r -u 3 hash block timestamp gas_used status create skip \
+    && IFS= read -r -u 3 result_json \
+    && IFS= read -r -u 3 request; do
+    [[ "${block}" != "-" ]] || continue
+
+    if [[ "${block}" != "${reading_block}" ]]; then
+      resolvable_block="${pending_block}"
+      pending_block="${reading_block}"
+      reading_block="${block}"
+      [[ -z "${resolvable_block}" ]] || resolve_block_related_discrepancies "${resolvable_block}"
+      # Once the budget is spent, read on only until block N-1 of the last counted block is complete.
+      if [[ -n "${stop_block}" ]] && ((block < stop_block)); then
+        break
+      fi
+    fi
+
+    printf '%s\n' "${result_json}" >> "${WORK_DIR}/block-${block}.jsonl"
+    [[ -z "${stop_block}" ]] || continue
+    remaining=$((remaining - 1))
+    ((remaining > 0)) || stop_block=$((block - 1))
+
+    if [[ "${skip}" == true ]]; then
+      continue
+    fi
+    check_result "${result_json}" "${request}" "${hash}" "${block}" "${timestamp}" "${gas_used}" "${status}" "${create}"
+    sleep "${SLEEP_SECONDS}"
+  done 3< <(paginate "${first_page}" "${STREAM_FILTER}" "${MAX_PAGE_FETCH_RETRIES}")
+
+  for block in "${pending_block}" "${reading_block}"; do
+    [[ -z "${block}" ]] || resolve_block_related_discrepancies "${block}"
+  done
+}
+
+if ((RESULTS_COUNT > 0)); then
+  verify_results
 fi
 
-next_path="/api/v1/contracts/results?limit=${page_limit}&order=desc"
+failure_percentage="$(awk -v e="${executed}" -v f="${failed}" 'BEGIN {
+  printf "%.2f", (e > 0 ? (f * 100.0 / e) : 0)
+}')"
 
-while ((processed < RESULTS_COUNT)); do
-  if [[ -z "${next_path}" || "${next_path}" == "null" ]]; then
-    break
-  fi
-
-  page_url="$(page_url_from_next "${next_path}")"
-  if ! page_json="$(curl -sS -f "${page_url}")"; then
-    page_fetch_failures=$((page_fetch_failures + 1))
-    log "Failed to fetch results page (${page_fetch_failures}/${MAX_PAGE_FETCH_RETRIES}): ${page_url}"
-    if ((page_fetch_failures >= MAX_PAGE_FETCH_RETRIES)); then
-      log "Giving up after ${MAX_PAGE_FETCH_RETRIES} consecutive results page fetch failures"
-      break
-    fi
-    sleep "${SLEEP_SECONDS}"
-    continue
-  fi
-
-  if ! result_count="$(jq '.results | length' <<<"${page_json}")" || [[ -z "${result_count}" ]]; then
-    page_fetch_failures=$((page_fetch_failures + 1))
-    log "Invalid results page response (${page_fetch_failures}/${MAX_PAGE_FETCH_RETRIES}): ${page_url}"
-    if ((page_fetch_failures >= MAX_PAGE_FETCH_RETRIES)); then
-      log "Giving up after ${MAX_PAGE_FETCH_RETRIES} consecutive results page fetch failures"
-      break
-    fi
-    sleep "${SLEEP_SECONDS}"
-    continue
-  fi
-
-  if [[ "${result_count}" -eq 0 ]]; then
-    break
-  fi
-
-  page_fetch_failures=0
-
-  while IFS= read -r result_json; do
-    if ((processed >= RESULTS_COUNT)); then
-      break
-    fi
-    check_result "${result_json}"
-    processed=$((processed + 1))
-    sleep "${SLEEP_SECONDS}"
-  done < <(jq -c '.results[]' <<<"${page_json}")
-
-  next_path="$(jq -r '.links.next // empty' <<<"${page_json}")"
-done
-
-summary="$(cat <<EOF
-  Fetched contract result count: ${processed}
-  Executed validation request count: ${checked}
-  Passed estimation count: ${passed}
-  Out of tolerance estimation count: ${failed}
-  Non reproducible contract results: ${nonReproducible}
-  Skipped request count: ${skipped}
-  Reverted estimate request count: ${estimate_reverts}
-  Errors count outside CONTRACT_REVERT_EXECUTED: ${api_errors}
-EOF
-)"
-log "${summary}"
+summary="${executed} of gas estimations were executed, ${failure_percentage} % (${failed}) of them has gas accuracy failures"
+printf '%s\n' "${summary}"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
-  echo "### Summary:" >> $GITHUB_STEP_SUMMARY
-  printf '%s\n' "${summary}" >> "${GITHUB_STEP_SUMMARY}"
+  {
+    echo "### Summary:"
+    printf '%s\n' "${summary}"
+  } >> "${GITHUB_STEP_SUMMARY}"
 fi
 
-if ((page_fetch_failures >= MAX_PAGE_FETCH_RETRIES)); then
-  log "Gas estimate accuracy check failed: results page fetch retries exhausted"
+if ((executed == 0 || failed > 0)); then
   exit 1
 fi
 
-if ((checked == 0)); then
-  log "Gas estimate accuracy check failed: no estimates were successfully checked (api_errors=${api_errors}, estimate_reverts=${estimate_reverts}, skipped=${skipped})"
-  exit 1
-fi
-
-if ((failed > 0)); then
-  log "Gas estimate accuracy check failed: ${failed} out-of-tolerance estimate(s)"
-  exit 1
-fi
-
-log "Gas estimate accuracy check passed"
 exit 0

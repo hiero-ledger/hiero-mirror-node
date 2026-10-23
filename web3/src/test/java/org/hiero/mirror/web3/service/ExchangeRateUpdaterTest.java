@@ -23,6 +23,7 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
@@ -186,6 +187,41 @@ class ExchangeRateUpdaterTest {
         exchangeRateUpdater.refresh();
 
         assertThat(exchangeRateManager.exchangeRates()).isEqualTo(newRates);
+    }
+
+    @Test
+    void callAtAppliesHistoricalRatesThenRestoresPrevious() {
+        final var initialRates = exchangeRateManager.exchangeRates();
+        final var historicalRates = rates(120_000, Instant.parse("2100-01-01T00:00:00Z"));
+        final var renewedRates = rates(130_000, Instant.parse("2100-01-02T00:00:00Z"));
+        final var seen = new AtomicReference<ExchangeRateSet>();
+        when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
+        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(file(historicalRates));
+
+        final var result = exchangeRateUpdater.callAt(1L, () -> {
+            seen.set(exchangeRateManager.exchangeRates());
+            return "ok";
+        });
+
+        assertThat(result).isEqualTo("ok");
+        assertThat(seen.get()).isEqualTo(historicalRates);
+        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(initialRates);
+
+        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(file(renewedRates));
+        exchangeRateUpdater.refresh();
+        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(renewedRates);
+    }
+
+    @Test
+    void callAtKeepsCurrentRatesWhenHistoricalFileIsMissing() {
+        final var initialRates = exchangeRateManager.exchangeRates();
+        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(null);
+
+        final var result = exchangeRateUpdater.callAt(1L, () -> exchangeRateManager.exchangeRates());
+
+        assertThat(result).isEqualTo(initialRates);
+        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(initialRates);
+        verify(transactionExecutorFactory, never()).getExchangeRateManagers();
     }
 
     private ExchangeRateManager newExchangeRateManager(final ExchangeRateSet initialRates) {

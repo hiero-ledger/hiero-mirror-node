@@ -19,7 +19,11 @@ public class BinaryGasEstimator {
 
     public long search(
             final ObjIntConsumer<Long> metricUpdater, final LongFunction<EvmTransactionResult> call, long lo, long hi) {
-        long initialGasUsed = lo;
+        final long minAllowedEstimate = (long) Math.ceil(lo * 1.05);
+        if (hi <= minAllowedEstimate) {
+            return minAllowedEstimate;
+        }
+
         long prevGasLimit = lo;
         int iterationsMade = 0;
         long totalGasUsed = 0;
@@ -32,20 +36,20 @@ public class BinaryGasEstimator {
         // threshold. Adjust via estimateGasIterationThresholdPercent value.
         final long estimateIterationThreshold = (long) (lo * properties.getEstimateGasIterationThresholdPercent());
 
-        ContractCallContext contractCallContext = ContractCallContext.get();
+        final var contractCallContext = ContractCallContext.get();
         while (lo + 1 < hi && iterationsMade < properties.getMaxGasEstimateRetriesCount()) {
             contractCallContext.reset();
 
-            long mid = (hi + lo) / 2;
+            final long mid = (hi + lo) / 2;
 
             // If modularizedServices is true - we call the safeCall function that handles if an exception is thrown
             final var transactionResult = safeCall(mid, call);
 
             iterationsMade++;
 
-            boolean err =
+            final boolean err =
                     transactionResult == null || !transactionResult.isSuccessful() || transactionResult.gasUsed() < 0;
-            long gasUsed = err ? prevGasLimit : transactionResult.gasUsed();
+            final long gasUsed = err ? prevGasLimit : transactionResult.gasUsed();
             totalGasUsed += gasUsed;
             if (err || gasUsed == 0) {
                 lo = mid;
@@ -60,11 +64,7 @@ public class BinaryGasEstimator {
 
         metricUpdater.accept(totalGasUsed, iterationsMade);
 
-        final long maxAllowedEstimate = (long) Math.floor(initialGasUsed * 1.20);
-        if (hi > maxAllowedEstimate) {
-            return maxAllowedEstimate;
-        }
-        return Math.max(hi, (long) Math.ceil(initialGasUsed * 1.05));
+        return Math.max(hi, minAllowedEstimate);
     }
 
     // This method is needed because within the modularized services if the contract call fails an exception is thrown

@@ -10,6 +10,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_CONTRA
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.data.Offset.offset;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
@@ -35,10 +36,12 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.google.common.collect.Range;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
+import java.time.Instant;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
@@ -50,6 +53,9 @@ import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
@@ -88,10 +94,18 @@ import org.web3j.protocol.core.DefaultBlockParameter;
 @RequiredArgsConstructor
 final class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTest {
 
+    private static final int HBAR_EQUIV = 30_000;
+    private static final int HISTORICAL_CENT_EQUIV = 100_000;
+    private static final int LATEST_CENT_EQUIV = 1_000_000;
+    private static final long SECONDS_PER_HOUR = 3_600L;
+
     private final BinaryGasEstimator binaryGasEstimator;
+    private final ExchangeRateUpdater exchangeRateUpdater;
     private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
     private final TransactionExecutionService transactionExecutionService;
+    private final TransactionExecutorFactory transactionExecutorFactory;
+    private final Web3Properties web3Properties;
 
     @MockitoBean
     private ThrottleManager throttleManager;
@@ -338,11 +352,55 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
         final var serviceParameters = getContractExecutionParameters(HEX_PREFIX, receiverAddress, senderAddress, 7L);
+        final var estimateGasParameters =
+                getContractExecutionParameters(HEX_PREFIX, receiverAddress, senderAddress, 7L, ETH_ESTIMATE_GAS);
+
+        // When
+        final var executionResult =
+                assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(serviceParameters));
+        final var estimatedGasUsed = assertDoesNotThrow(
+                        () -> contractExecutionService.processCallWithGas(estimateGasParameters))
+                .gasUsed();
 
         // Then
-        assertDoesNotThrow(() -> contractExecutionService.processCall(serviceParameters));
         assertGasLimit(serviceParameters);
         assertGasUsedIsPositive(gasUsedBeforeExecution, ETH_CALL);
+        assertThat(isWithinExpectedGasRange(estimatedGasUsed, executionResult.gasUsed()))
+                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimatedGasUsed, executionResult.gasUsed())
+                .isTrue();
+    }
+
+    @Test
+    void transferFundsWithIntrinsicGasLimit() {
+        // Given
+        final var sender = accountEntityWithEvmAddressAndSufficientBalancePersist();
+        final var receiver = accountEntityWithEvmAddressPersist();
+        final var senderAddress = toAddress(sender.toEntityId());
+        final var receiverAddress = getAliasAddressFromEntity(receiver);
+        final var intrinsicGasLimit = 21_000L;
+
+        final var serviceParameters = contractExecutionParametersBuilder(
+                        BlockType.LATEST, HEX_PREFIX, senderAddress, receiverAddress, ETH_CALL, 7L)
+                .gas(intrinsicGasLimit)
+                .build();
+        final var estimateGasParameters = contractExecutionParametersBuilder(
+                        BlockType.LATEST, HEX_PREFIX, senderAddress, receiverAddress, ETH_ESTIMATE_GAS, 7L)
+                .gas(intrinsicGasLimit)
+                .build();
+
+        // When
+        final var executionResult =
+                assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(serviceParameters));
+        final var estimatedGasUsed = assertDoesNotThrow(
+                        () -> contractExecutionService.processCallWithGas(estimateGasParameters))
+                .gasUsed();
+
+        // Then
+        assertGasLimit(serviceParameters);
+        assertThat(executionResult.gasUsed()).isEqualTo(intrinsicGasLimit);
+        assertThat(isWithinExpectedGasRange(estimatedGasUsed, executionResult.gasUsed()))
+                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimatedGasUsed, executionResult.gasUsed())
+                .isTrue();
     }
 
     @Test
@@ -644,6 +702,64 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         // Then
         assertThat(testWeb3jService.getTransactionResult()).isEqualTo(HEX_PREFIX);
         assertGasLimit(ETH_CALL, TRANSACTION_GAS_LIMIT);
+    }
+
+    /**
+     * Hollow-account creation prices the synthetic crypto create with {@code ExchangeRateManager.activeRate}.
+     * {@link ExchangeRateUpdater} keeps that in-memory rate on the latest file, while the gas conversion reads the
+     * exchange-rate file from state at the block. A historical call must follow the block file even after the
+     * in-memory rate moves.
+     */
+    @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
+    void historicalHollowCreationGasFollowsBlockExchangeRate() {
+        // Given
+        final long currentHourStartSeconds = Instant.now().getEpochSecond() / SECONDS_PER_HOUR * SECONDS_PER_HOUR;
+        final long historicalHourStartNanos =
+                DomainUtils.convertToNanosMax(currentHourStartSeconds - SECONDS_PER_HOUR, 0);
+        final long currentHourStartNanos = DomainUtils.convertToNanosMax(currentHourStartSeconds, 0);
+        final long blockNumber = 150L;
+        final var recordFile = domainBuilder
+                .recordFile()
+                .customize(file -> file.index(blockNumber)
+                        .consensusStart(historicalHourStartNanos)
+                        .consensusEnd(historicalHourStartNanos + 1))
+                .persist();
+        final var historicalRange = Range.closedOpen(recordFile.getConsensusStart(), recordFile.getConsensusEnd());
+        final var sender = accountEntityPersistHistoricalCustomizable(
+                historicalRange,
+                entity -> entity.balance(DEFAULT_ACCOUNT_BALANCE)
+                        .createdTimestamp(historicalHourStartNanos)
+                        .timestampRange(Range.atLeast(historicalHourStartNanos)));
+        accountBalancePersistHistorical(sender.toEntityId(), DEFAULT_ACCOUNT_BALANCE, historicalRange);
+        final var senderAddress = getAliasAddressFromEntity(sender);
+        final var block = BlockType.of(Long.toString(blockNumber));
+
+        persistExchangeRate(HBAR_EQUIV, HISTORICAL_CENT_EQUIV, historicalHourStartNanos);
+        transactionExecutorFactory.get();
+        exchangeRateUpdater.refresh(Instant.now());
+        final long firstGasEstimationAtBlockRate = hollowCreationGas(senderAddress, block);
+
+        // The test method's call context times SQL out after 4 seconds, and the estimate above uses that up.
+        ContractCallContext.run(ctx -> {
+            persistExchangeRate(HBAR_EQUIV, LATEST_CENT_EQUIV, currentHourStartNanos);
+            exchangeRateUpdater.refresh(Instant.now());
+            return null;
+        });
+        final var exchangeRateManagers = transactionExecutorFactory.getExchangeRateManagers();
+        assertThat(exchangeRateManagers.isEmpty()).isFalse();
+        for (final var exchangeRateManager : exchangeRateManagers) {
+            assertThat(exchangeRateManager.exchangeRates().currentRateOrThrow().centEquiv())
+                    .isEqualTo(LATEST_CENT_EQUIV);
+        }
+
+        // When
+        final long secondGasEstimationAtBlockRate = hollowCreationGas(senderAddress, block);
+
+        // Then
+        assertThat(secondGasEstimationAtBlockRate)
+                .as("historical hollow-creation gas must use the exchange rate file at the block")
+                .isCloseTo(firstGasEstimationAtBlockRate, offset(1L));
     }
 
     /**
@@ -1082,6 +1198,14 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .receiver(receiverAddress)
                 .sender(senderAddress)
                 .value(value);
+    }
+
+    private long hollowCreationGas(final Address sender, final BlockType block) {
+        final var hollowAlias = Address.wrap(Bytes.wrap(domainBuilder.evmAddress()));
+        return contractExecutionService
+                .processCallWithGas(
+                        getContractExecutionParametersWithValue(block, HEX_PREFIX, sender, hollowAlias, ETH_CALL, 1L))
+                .gasUsed();
     }
 
     @SuppressWarnings("unchecked")

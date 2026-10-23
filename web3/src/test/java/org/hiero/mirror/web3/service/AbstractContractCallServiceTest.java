@@ -5,8 +5,10 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.FILECREATE;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
@@ -22,6 +24,9 @@ import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.hedera.cryptography.libsecp256k1.ContextualLibsecp256k1;
 import com.hedera.cryptography.libsecp256k1.Libsecp256k1;
+import com.hedera.hapi.node.base.TimestampSeconds;
+import com.hedera.hapi.node.transaction.ExchangeRate;
+import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.swirlds.state.State;
@@ -73,6 +78,7 @@ import org.hiero.mirror.web3.web3j.TestWeb3jService.Web3jTestConfiguration;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -115,6 +121,11 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected RecordFile genesisRecordFile;
     protected Entity treasuryEntity;
     protected String treasuryAddress;
+
+    private static final long EXCHANGE_RATE_EXPIRY_SECONDS = 4_102_444_800L;
+
+    @Resource(name = CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE)
+    private CacheManager exchangeRatesCacheManager;
 
     public static Key getKeyWithDelegatableContractId(final Contract contract) {
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -899,6 +910,25 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .key(publicKey)
                 .type(EntityType.ACCOUNT)
                 .balance(accountBalance));
+    }
+
+    protected void persistExchangeRate(final int hbarEquiv, final int centEquiv, final long consensusTimestamp) {
+        final var rate = ExchangeRate.newBuilder()
+                .hbarEquiv(hbarEquiv)
+                .centEquiv(centEquiv)
+                .expirationTime(new TimestampSeconds(EXCHANGE_RATE_EXPIRY_SECONDS))
+                .build();
+        final var exchangeRates =
+                ExchangeRateSet.newBuilder().currentRate(rate).nextRate(rate).build();
+        domainBuilder
+                .fileData()
+                .customize(fileData -> fileData.consensusTimestamp(consensusTimestamp)
+                        .entityId(systemEntity.exchangeRateFile())
+                        .fileData(
+                                ExchangeRateSet.PROTOBUF.toBytes(exchangeRates).toByteArray())
+                        .transactionType(FILECREATE.getProtoId()))
+                .persist();
+        resetCacheManager(exchangeRatesCacheManager);
     }
 
     protected EntityId getEntityId(final String address) {
