@@ -160,7 +160,7 @@ class ContractController {
         }
         try {
             final var parsed = DurationStyle.detectAndParse(timeout.trim());
-            if (parsed.isNegative() || parsed.isZero()) {
+            if (parsed.compareTo(Duration.ofMillis(1)) < 0) {
                 throw new InvalidParametersException("Invalid timeout: " + timeout);
             }
             return parsed.compareTo(effective) < 0 ? parsed : effective;
