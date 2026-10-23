@@ -35,12 +35,14 @@ class HibernateConfiguration implements HibernatePropertiesCustomizer {
             }
 
             final var context = ContractCallContext.get();
-            final var timeout =
-                    web3Properties.getApi(context.getApi()).getResponse().getTimeout();
-            final long timeoutMs = timeout.toMillis();
-            final long elapsed = System.currentTimeMillis() - context.getStartTime();
-
-            if (elapsed >= timeoutMs) {
+            // A trace sets its own deadline. Otherwise use the endpoint response timeout.
+            final long timeoutMs = web3Properties
+                    .getApi(context.getApi())
+                    .getResponse()
+                    .getTimeout()
+                    .toMillis();
+            if (context.remainingMillis(timeoutMs) <= 0) {
+                final long elapsed = System.currentTimeMillis() - context.getStartTime();
                 throw new QueryTimeoutException("Transaction timed out after %s ms".formatted(elapsed));
             }
 

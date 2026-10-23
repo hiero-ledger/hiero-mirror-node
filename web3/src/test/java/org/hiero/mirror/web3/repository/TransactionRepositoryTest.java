@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCALL;
+import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CRYPTOCREATEACCOUNT;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CRYPTOTRANSFER;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
@@ -261,6 +262,142 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
+    void findConsensusTimestampAtPositionReturnsNthTransactionInConsensusOrder() {
+        final long first = 1_000L;
+        final long second = 2_000L;
+        final long third = 3_000L;
+        final var payerAccountId = domainBuilder.entityId();
+        final var otherPayerAccountId = domainBuilder.entityId();
+        persistTransaction(second, payerAccountId);
+        persistTransaction(third, payerAccountId);
+        persistTransaction(first, payerAccountId);
+        persistChildTransaction(1_500L, first);
+        persistTransaction(first - 1, payerAccountId);
+        persistTransaction(third + 1, payerAccountId);
+        persistTransaction(1_100L, otherPayerAccountId);
+
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, third, 0))
+                .contains(first);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, third, 1))
+                .contains(1_100L);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, third, 2))
+                .contains(second);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, third, 3))
+                .contains(third);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, third, 4))
+                .isEmpty();
+    }
+
+    @Test
+    void findConsensusTimestampAtPositionCountsContractTransactionsOnly() {
+        final long consensusStart = 1_000L;
+        final long consensusEnd = 8_000L;
+        final var payerAccountId = domainBuilder.entityId();
+        final var otherPayerAccountId = domainBuilder.entityId();
+        persistTransaction(
+                consensusStart,
+                CRYPTOTRANSFER.getProtoId(),
+                0,
+                false,
+                ResponseCodeEnum.SUCCESS.getNumber(),
+                payerAccountId);
+        persistTransaction(
+                2_000L, CONTRACTCALL.getProtoId(), 0, false, ResponseCodeEnum.SUCCESS.getNumber(), payerAccountId);
+        persistTransaction(
+                2_500L, SCHEDULECREATE.getProtoId(), 0, false, ResponseCodeEnum.SUCCESS.getNumber(), payerAccountId);
+        persistTransaction(
+                3_000L, CONTRACTCALL.getProtoId(), 0, true, ResponseCodeEnum.SUCCESS.getNumber(), payerAccountId);
+        persistTransaction(
+                3_500L, CONTRACTCALL.getProtoId(), 1, false, ResponseCodeEnum.SUCCESS.getNumber(), payerAccountId);
+        persistTransaction(
+                4_000L,
+                CONTRACTCALL.getProtoId(),
+                0,
+                false,
+                ResponseCodeEnum.DUPLICATE_TRANSACTION.getNumber(),
+                payerAccountId);
+        persistTransaction(
+                4_500L,
+                CONTRACTCREATEINSTANCE.getProtoId(),
+                0,
+                false,
+                ResponseCodeEnum.SUCCESS.getNumber(),
+                payerAccountId);
+        persistTransaction(
+                5_000L,
+                ETHEREUMTRANSACTION.getProtoId(),
+                0,
+                false,
+                ResponseCodeEnum.SUCCESS.getNumber(),
+                payerAccountId);
+        persistChildTransaction(5_500L, 2_000L);
+        persistTransaction(
+                6_000L,
+                CONTRACTCALL.getProtoId(),
+                0,
+                false,
+                ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.getNumber(),
+                payerAccountId);
+        persistTransaction(
+                consensusEnd + 1,
+                CONTRACTCALL.getProtoId(),
+                0,
+                false,
+                ResponseCodeEnum.SUCCESS.getNumber(),
+                payerAccountId);
+        persistTransaction(
+                2_200L, CONTRACTCALL.getProtoId(), 0, false, ResponseCodeEnum.SUCCESS.getNumber(), otherPayerAccountId);
+
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(
+                        consensusStart, consensusEnd, consensusEnd, 0))
+                .contains(2_000L);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(
+                        consensusStart, consensusEnd, consensusEnd, 1))
+                .contains(2_200L);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(
+                        consensusStart, consensusEnd, consensusEnd, 2))
+                .contains(3_000L);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(
+                        consensusStart, consensusEnd, consensusEnd, 3))
+                .contains(4_500L);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(
+                        consensusStart, consensusEnd, consensusEnd, 4))
+                .contains(5_000L);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(
+                        consensusStart, consensusEnd, consensusEnd, 5))
+                .contains(6_000L);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(
+                        consensusStart, consensusEnd, consensusEnd, 6))
+                .isEmpty();
+    }
+
+    @Test
+    void findConsensusTimestampAtPositionIncludesScheduledExecutionAfterNormalEnd() {
+        final long consensusStart = 1_000L;
+        final long consensusEnd = 2_000L;
+        final long scheduledConsensusTimestampEnd = 5_000L;
+        final var payerAccountId = domainBuilder.entityId();
+        persistTransaction(
+                1_500L, CONTRACTCALL.getProtoId(), 0, false, ResponseCodeEnum.SUCCESS.getNumber(), payerAccountId);
+        persistTransaction(
+                3_000L, CONTRACTCALL.getProtoId(), 0, false, ResponseCodeEnum.SUCCESS.getNumber(), payerAccountId);
+        persistTransaction(
+                4_000L, CONTRACTCALL.getProtoId(), 0, true, ResponseCodeEnum.SUCCESS.getNumber(), payerAccountId);
+        persistTransaction(
+                6_000L, CONTRACTCALL.getProtoId(), 0, true, ResponseCodeEnum.SUCCESS.getNumber(), payerAccountId);
+
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(
+                        consensusStart, consensusEnd, scheduledConsensusTimestampEnd, 0))
+                .contains(1_500L);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(
+                        consensusStart, consensusEnd, scheduledConsensusTimestampEnd, 1))
+                .contains(4_000L);
+        assertThat(transactionRepository.findConsensusTimestampAtPosition(
+                        consensusStart, consensusEnd, scheduledConsensusTimestampEnd, 2))
+                .isEmpty();
+    }
+
+    @Test
     void findSuccessfulCryptoCreateChildEntityIdsReturnsSuccessfulChildren() {
         final var parentConsensusTimestamp = domainBuilder.timestamp();
         final var payerAccountId = domainBuilder.entityId();
@@ -353,5 +490,47 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
     private static EntityId hookContractEntityId() {
         final var commonProperties = CommonProperties.getInstance();
         return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), RecordItem.HOOK_CONTRACT_NUM);
+    }
+
+    private void persistTransaction(final long consensusTimestamp, final EntityId payerAccountId) {
+        persistTransaction(
+                consensusTimestamp,
+                CONTRACTCALL.getProtoId(),
+                0,
+                false,
+                ResponseCodeEnum.SUCCESS.getNumber(),
+                payerAccountId);
+    }
+
+    private void persistTransaction(
+            final long consensusTimestamp,
+            final int type,
+            final int nonce,
+            final boolean scheduled,
+            final int result,
+            final EntityId payerAccountId) {
+        domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(consensusTimestamp)
+                        .nonce(nonce)
+                        .parentConsensusTimestamp(null)
+                        .payerAccountId(payerAccountId)
+                        .result(result)
+                        .scheduled(scheduled)
+                        .type(type))
+                .persist();
+    }
+
+    private void persistChildTransaction(final long consensusTimestamp, final long parentConsensusTimestamp) {
+        domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(consensusTimestamp)
+                        .nonce(1)
+                        .parentConsensusTimestamp(parentConsensusTimestamp)
+                        .result(ResponseCodeEnum.SUCCESS.getNumber())
+                        .type(CONTRACTCALL.getProtoId()))
+                .persist();
     }
 }

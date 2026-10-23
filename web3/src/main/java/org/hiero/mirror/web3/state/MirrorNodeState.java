@@ -8,6 +8,7 @@ import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSche
 import static com.hedera.node.app.service.entityid.impl.schemas.V0590EntityIdSchema.ENTITY_COUNTS_STATE_ID;
 import static com.hedera.node.app.service.entityid.impl.schemas.V0730EntityIdSchema.HIGHEST_NODE_ID_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_COUNTS_STATE_ID;
+import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_ORDERS_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_USAGES_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.STAKING_NETWORK_REWARDS_STATE_ID;
@@ -212,6 +213,7 @@ public class MirrorNodeState implements State {
                 EVM_HOOK_STATES_STATE_ID, ContractService.NAME,
                 SCHEDULE_ID_BY_EQUALITY_STATE_ID, ScheduleService.NAME,
                 SCHEDULED_COUNTS_STATE_ID, ScheduleService.NAME,
+                SCHEDULED_ORDERS_STATE_ID, ScheduleService.NAME,
                 SCHEDULED_USAGES_STATE_ID, ScheduleService.NAME);
         defaultKvImplementations.forEach(
                 (stateId, serviceName) -> states.computeIfAbsent(serviceName, k -> new HashMap<>())

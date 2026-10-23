@@ -78,4 +78,33 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
             @Param("parentConsensusTimestamp") long parentConsensusTimestamp,
             @Param("consensusTimestampStart") long consensusTimestampStart,
             @Param("payerAccountId") long payerAccountId);
+
+    /**
+     * Consensus timestamp of the transaction at {@code position}, ordered by consensus timestamp ascending. Uses the
+     * same selection and consensus window as {@link #findByTransactionId}: top-level {@code ContractCall},
+     * {@code ContractCreate}, or {@code EthereumTransaction}. A scheduled execution may fall after
+     * {@code consensusTimestampEnd} when it is still within {@code scheduledConsensusTimestampEnd}. Child rows,
+     * non-zero nonces, duplicate results, and every other transaction type are skipped. {@code position} is
+     * zero-based.
+     */
+    @Query(value = """
+            select consensus_timestamp
+            from transaction
+            where nonce = 0
+              and type in (7, 8, 50)
+              and result <> 11
+              and consensus_timestamp >= :consensusTimestampStart
+              and (
+                    consensus_timestamp <= :consensusTimestampEnd
+                    or (scheduled and consensus_timestamp <= :scheduledConsensusTimestampEnd)
+                  )
+            order by consensus_timestamp
+            offset :position
+            limit 1
+            """, nativeQuery = true)
+    Optional<Long> findConsensusTimestampAtPosition(
+            @Param("consensusTimestampStart") long consensusTimestampStart,
+            @Param("consensusTimestampEnd") long consensusTimestampEnd,
+            @Param("scheduledConsensusTimestampEnd") long scheduledConsensusTimestampEnd,
+            @Param("position") int position);
 }

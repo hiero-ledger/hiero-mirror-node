@@ -6,7 +6,10 @@ import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 
 public interface ThrottleManager {
 
-    void throttle(ContractCallRequest request);
-
     void restore(long gas);
+
+    /** Returns one global requests-per-second token taken by {@link #throttle(ContractCallRequest)}. */
+    void restoreRequest();
+
+    void throttle(ContractCallRequest request);
 }

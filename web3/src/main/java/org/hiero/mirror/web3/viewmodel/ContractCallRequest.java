@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
@@ -20,6 +21,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -27,11 +29,24 @@ public class ContractCallRequest {
 
     public static final int ADDRESS_LENGTH = 40;
     public static final long DATA_MAX_LENGTH = 300_000L;
+    public static final int ACCESS_LIST_MAX_SIZE = 7000;
+    public static final int AUTHORIZATION_LIST_MAX_SIZE = 1500;
+
+    /** Maximum bundles in one {@code debug_traceCallMany} request. */
+    public static final int MAX_TRACE_BUNDLES = 16;
+
+    /** Maximum transactions across every bundle in one {@code debug_traceCallMany} request. */
+    public static final int MAX_TRACE_TRANSACTIONS = 16;
 
     @JsonSerialize(using = BlockTypeSerializer.class)
     @JsonSetter(nulls = Nulls.SKIP)
     @NotNull
     private BlockType block = BlockType.LATEST;
+
+    @JsonProperty("block_override")
+    @Nullable
+    @Valid
+    private BlockOverride blockOverride;
 
     @Hex(maxLength = DATA_MAX_LENGTH)
     private String data;
@@ -44,6 +59,7 @@ public class ContractCallRequest {
     @Min(21_000)
     private long gas = 15_000_000L;
 
+    @JsonAlias("gas_price")
     @Min(0)
     private long gasPrice;
 
@@ -53,7 +69,19 @@ public class ContractCallRequest {
     @JsonProperty("state_overrides")
     @NotNull
     @Size(max = 10)
-    private List<@Valid StateOverride> stateOverrides = new ArrayList<>();
+    private List<@NotNull @Valid StateOverride> stateOverrides = new ArrayList<>();
+
+    @JsonProperty("access_list")
+    @Nullable
+    @Size(max = ACCESS_LIST_MAX_SIZE)
+    @Valid
+    private List<@NotNull @Valid AccessListEntry> accessList;
+
+    @JsonProperty("authorization_list")
+    @Nullable
+    @Size(max = AUTHORIZATION_LIST_MAX_SIZE)
+    @Valid
+    private List<@NotNull @Valid AuthorizationListEntry> authorizationList;
 
     @PositiveOrZero
     private long value;

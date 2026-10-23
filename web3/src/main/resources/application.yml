@@ -11,6 +11,12 @@ hiero:
             headers:
               # Merged into every endpoint's response headers on startup unless overridden below.
               "x-cluster-id": "${hiero.mirror.common.clusterId}"
+        actions:
+          enabled: false
+          request:
+            throttle: 100
+          response:
+            timeout: 4s
         call:
           enabled: true
           response:
