@@ -1,4 +1,4 @@
-FROM node:24.21.0-trixie-slim@sha256:173f125896c3b47ddf056734c7ea789d04595a6a08769a8f78e0df642781fb66 AS builder
+FROM node:24.22.1-trixie-slim@sha256:43b9ba1142b8dcf33fa8f922ca1be85714adc444e0586c7cf7726daaeabc1bea AS builder
 WORKDIR /dist
 
 RUN apt-get update && \
@@ -19,7 +19,7 @@ RUN npm run build && \
         -type d \( -name tests -o -name __tests__ \) \
     \) -exec rm -rf {} + 2>/dev/null || true
 
-FROM node:24.21.0-trixie-slim@sha256:173f125896c3b47ddf056734c7ea789d04595a6a08769a8f78e0df642781fb66
+FROM node:24.22.1-trixie-slim@sha256:43b9ba1142b8dcf33fa8f922ca1be85714adc444e0586c7cf7726daaeabc1bea
 LABEL maintainer="mirrornode@hedera.com"
 
 ENV NODE_ENV=production
