@@ -195,7 +195,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
             responseHeaders.addAll(headers);
         }
         var servletResponse = request instanceof ServletWebRequest servletRequest ? servletRequest.getResponse() : null;
-        properties.getResponse().getHeaders().getDefaults().forEach((name, value) -> {
+        properties.getApi(ApiEndpointName.DEFAULT).getResponse().getHeaders().forEach((name, value) -> {
             if (servletResponse == null || !servletResponse.containsHeader(name)) {
                 responseHeaders.set(name, value);
             }

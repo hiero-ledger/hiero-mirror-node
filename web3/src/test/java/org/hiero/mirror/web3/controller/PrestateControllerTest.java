@@ -91,7 +91,11 @@ final class PrestateControllerTest extends Web3IntegrationTest {
         when(requestThrottleInterceptor.preHandle(any(), any(), any())).thenReturn(true);
 
         final var response = new ResponseProperties();
-        response.getHeaders().putAll(web3Properties.getResponse().getHeaders().getDefaults());
+        response.getHeaders()
+                .putAll(web3Properties
+                        .getApi(ApiEndpointName.DEFAULT)
+                        .getResponse()
+                        .getHeaders());
         response.getHeaders().put("Access-Control-Allow-Origin", "*");
         response.getHeaders().put("Cache-Control", "public, max-age=600");
         final var api = new ApiProperties();
