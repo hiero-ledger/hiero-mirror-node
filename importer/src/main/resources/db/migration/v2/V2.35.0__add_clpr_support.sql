@@ -1,6 +1,4 @@
 -- HIP-1535 CLPR Mirror Node Support
--- Columns are ordered by decreasing alignment to avoid padding waste: bigint/int8range (8-byte), then
--- enum/bytea/varchar/jsonb (4-byte), then boolean last (1-byte).
 
 create type clpr_channel_status as enum ('ACTIVE', 'PAUSED', 'CLOSING', 'DRAINED', 'CLOSED');
 create type clpr_signature_scheme as enum ('ECDSA_SECP256K1', 'ED25519');
@@ -197,7 +195,7 @@ create table if not exists clpr_message
     reply_status           clpr_message_reply_status,
     channel_id             bytea                       not null,
     connector_id           bytea,
-    control_configuration  jsonb,
+    control_message        jsonb,
     message_data           bytea,
     running_hash           bytea                       not null,
     sender                 bytea,

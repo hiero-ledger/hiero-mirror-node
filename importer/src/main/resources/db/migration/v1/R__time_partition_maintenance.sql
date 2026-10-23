@@ -1,7 +1,8 @@
 -- empty procedure
 drop procedure if exists create_mirror_node_range_partitions();
+drop procedure if exists create_time_partition_for_table(regclass);
 
-create or replace procedure create_time_partition_for_table(table_name regclass) language plpgsql as
+create or replace procedure create_time_partition_for_table(table_name regclass, vacuum_insert_threshold bigint default 10000) language plpgsql as
 $$
 declare
   one_sec_in_ns constant bigint := 10^9;
@@ -35,7 +36,7 @@ begin
         );
         -- set storage parameters
         execute format('alter table %I set (autovacuum_vacuum_insert_scale_factor = 0,' ||
-          ' autovacuum_vacuum_insert_threshold = 10000, parallel_workers = 4)', partition_name);
+          ' autovacuum_vacuum_insert_threshold = %s, parallel_workers = 4)', partition_name, vacuum_insert_threshold);
         raise notice 'Created partition %', partition_name;
 
         next_from := next_to;

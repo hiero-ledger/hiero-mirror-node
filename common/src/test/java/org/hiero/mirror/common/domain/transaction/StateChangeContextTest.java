@@ -5,8 +5,11 @@ package org.hiero.mirror.common.domain.transaction;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_FILES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
@@ -37,6 +40,7 @@ import com.google.protobuf.BytesValue;
 import com.google.protobuf.UInt64Value;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
+import com.hedera.hapi.block.stream.output.protoc.MapDeleteChange;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.NewStateChange;
 import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
@@ -48,6 +52,8 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprConnector;
+import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ClprControlMessage;
 import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
 import com.hederahashgraph.api.proto.java.ClprMessage;
@@ -177,6 +183,109 @@ final class StateChangeContextTest {
         assertThat(context.getClprChannel(channelId1)).get().returns(channelId1, ClprChannel::getChannelId);
         assertThat(context.getClprChannel(channelId2)).get().returns(channelId2, ClprChannel::getChannelId);
         assertThat(context.getClprChannel(bytes(32))).isEmpty();
+    }
+
+    @Test
+    void clprChannelPendingCommitment() {
+        // given
+        var ownershipCommitment = bytes(32);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(ownershipCommitment)))
+                                .setValue(MapChangeValue.newBuilder()
+                                        .setProtoBytesValue(BytesValue.getDefaultInstance()))))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getClprChannelPendingCommitment()).contains(ownershipCommitment);
+        assertThat(EMPTY_CONTEXT.getClprChannelPendingCommitment()).isEmpty();
+    }
+
+    @Test
+    void clprConnector() {
+        // given
+        var channelId = bytes(32);
+        var connectorId1 = bytes(32);
+        var connectorId2 = bytes(32);
+        var key1 = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId1)
+                .build();
+        var key2 = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId2)
+                .build();
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(clprConnectorMapUpdateChange(key1))
+                .addStateChanges(clprConnectorMapUpdateChange(key2))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getClprConnector(key1)).get().returns(connectorId1, ClprConnector::getConnectorId);
+        assertThat(context.getClprConnector(key2)).get().returns(connectorId2, ClprConnector::getConnectorId);
+        assertThat(context.getClprConnector(ClprConnectorKey.newBuilder()
+                        .setChannelId(channelId)
+                        .setConnectorId(bytes(32))
+                        .build()))
+                .isEmpty();
+        assertThat(context.getClprConnectors())
+                .extracting(ClprConnector::getConnectorId)
+                .containsExactlyInAnyOrder(connectorId1, connectorId2);
+    }
+
+    @Test
+    void clprConnectorRemoved() {
+        // given -- a slash-threshold ban removes the Connector from state entirely (map-delete, not an update)
+        var key = ClprConnectorKey.newBuilder()
+                .setChannelId(bytes(32))
+                .setConnectorId(bytes(32))
+                .build();
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_CLPR_CONNECTORS_VALUE)
+                        .setMapDelete(MapDeleteChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getClprConnectorsRemoved()).containsExactly(key);
+        assertThat(EMPTY_CONTEXT.getClprConnectorsRemoved()).isEmpty();
+    }
+
+    @Test
+    void clprConnectorPendingCommitment() {
+        // given
+        var commitment = bytes(32);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(commitment)))
+                                .setValue(MapChangeValue.newBuilder()
+                                        .setProtoBytesValue(BytesValue.getDefaultInstance()))))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getClprConnectorPendingCommitment()).contains(commitment);
+        assertThat(EMPTY_CONTEXT.getClprConnectorPendingCommitment()).isEmpty();
     }
 
     @Test
@@ -625,6 +734,18 @@ final class StateChangeContextTest {
                         .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(channelId)))
                         .setValue(MapChangeValue.newBuilder()
                                 .setClprChannelValue(ClprChannel.newBuilder().setChannelId(channelId))))
+                .build();
+    }
+
+    private StateChange clprConnectorMapUpdateChange(ClprConnectorKey key) {
+        return StateChange.newBuilder()
+                .setStateId(STATE_ID_CLPR_CONNECTORS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))
+                        .setValue(MapChangeValue.newBuilder()
+                                .setClprConnectorValue(ClprConnector.newBuilder()
+                                        .setConnectorId(key.getConnectorId())
+                                        .setChannelId(key.getChannelId()))))
                 .build();
     }
 

@@ -44,7 +44,7 @@ public class ClprMessage implements Persistable<ClprMessage.Id> {
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @JdbcTypeCode(SqlTypes.JSON)
-    private ClprControlConfiguration controlConfiguration;
+    private ClprControlMessage controlMessage;
 
     @ToString.Exclude
     private byte[] messageData;

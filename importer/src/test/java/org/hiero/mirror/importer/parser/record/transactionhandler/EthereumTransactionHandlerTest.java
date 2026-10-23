@@ -66,6 +66,9 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
     private static final int EIP_7702_TYPE_BYTE = 4;
 
     @Mock
+    private ClprStateChangeHandler clprStateChangeHandler;
+
+    @Mock
     private ContractBytecodeService contractBytecodeService;
 
     @Mock(strictness = LENIENT)
@@ -82,7 +85,11 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .when(ethereumTransactionParser)
                 .decode(any());
         return new EthereumTransactionHandler(
-                contractBytecodeService, entityListener, entityProperties, ethereumTransactionParser);
+                clprStateChangeHandler,
+                contractBytecodeService,
+                entityListener,
+                entityProperties,
+                ethereumTransactionParser);
     }
 
     @Override
@@ -663,6 +670,28 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
     @Test
     void updateTransactionUnsuccessful() {
         throw new UnsupportedOperationException("Missing method implementation");
+    }
+
+    @Test
+    void updateTransactionDelegatesToClprStateChangeHandler() {
+        // given
+        var ethereumTransaction = domainBuilder.ethereumTransaction(true).get();
+        doReturn(ethereumTransaction).when(ethereumTransactionParser).decode(any());
+
+        var recordItem = recordItemBuilder
+                .ethereumTransaction(true)
+                .record(x -> x.setEthereumHash(ETHEREUM_HASH))
+                .build();
+        var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(recordItem.getConsensusTimestamp()))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(clprStateChangeHandler).process(recordItem);
     }
 
     private ContractFunctionResult getContractFunctionResult(TransactionRecord txnRecord, boolean create) {

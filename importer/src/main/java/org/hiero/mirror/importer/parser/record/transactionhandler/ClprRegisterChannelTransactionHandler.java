@@ -11,6 +11,7 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -29,7 +30,14 @@ class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        var transactionBody = recordItem.getTransactionBody().getClprRegisterChannel();
+        var ownershipCommitment = recordItem.getClprChannelPendingCommitment();
+        if (ownershipCommitment == null) {
+            Utility.handleRecoverableError(
+                    "No clpr_pending_commitments state change found for successful ClprRegisterChannel at {}",
+                    recordItem.getConsensusTimestamp());
+            return;
+        }
+
         long consensusTimestamp = recordItem.getConsensusTimestamp();
 
         // deleted must be set explicitly: a swept commitment can be legitimately re-registered, and leaving it
@@ -37,7 +45,7 @@ class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
         var commitment = ClprChannelPendingCommitment.builder()
                 .createdTimestamp(consensusTimestamp)
                 .deleted(false)
-                .ownershipCommitment(DomainUtils.toBytes(transactionBody.getOwnershipCommitment()))
+                .ownershipCommitment(DomainUtils.toBytes(ownershipCommitment))
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprChannelPendingCommitment(commitment);

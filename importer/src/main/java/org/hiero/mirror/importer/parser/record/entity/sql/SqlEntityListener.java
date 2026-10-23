@@ -506,6 +506,75 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @SuppressWarnings("java:S3776")
     private ClprChannel mergeClprChannel(ClprChannel previous, ClprChannel current) {
+        // No timestampRange: a non-historical patch, same mechanism as Entity.balance.
+        if (!current.hasHistory()) {
+            if (current.getStatus() != null) {
+                previous.setStatus(current.getStatus());
+            }
+            if (current.getNextMessageId() != null) {
+                previous.setNextMessageId(current.getNextMessageId());
+            }
+            if (current.getAckedMessageId() != null) {
+                previous.setAckedMessageId(current.getAckedMessageId());
+            }
+            if (current.getReceivedMessageId() != null) {
+                previous.setReceivedMessageId(current.getReceivedMessageId());
+            }
+            if (current.getSentRunningHash() != null) {
+                previous.setSentRunningHash(current.getSentRunningHash());
+            }
+            if (current.getReceivedRunningHash() != null) {
+                previous.setReceivedRunningHash(current.getReceivedRunningHash());
+            }
+            if (current.getOwnershipCommitment() != null) {
+                previous.setOwnershipCommitment(current.getOwnershipCommitment());
+            }
+            if (current.getTrustAnchor() != null) {
+                previous.setTrustAnchor(current.getTrustAnchor());
+            }
+            if (current.getTrustAnchorId() != null) {
+                previous.setTrustAnchorId(current.getTrustAnchorId());
+            }
+            if (current.getChannelContext() != null) {
+                previous.setChannelContext(current.getChannelContext());
+            }
+            if (current.getEndpointManifestVersion() != null) {
+                previous.setEndpointManifestVersion(current.getEndpointManifestVersion());
+            }
+            if (current.getLastConfigTimestamp() != null) {
+                previous.setLastConfigTimestamp(current.getLastConfigTimestamp());
+            }
+            if (current.getPeerConfigTimestamp() != null) {
+                previous.setPeerConfigTimestamp(current.getPeerConfigTimestamp());
+            }
+            if (current.getPeerMaxGasPerMessage() != null) {
+                previous.setPeerMaxGasPerMessage(current.getPeerMaxGasPerMessage());
+            }
+            if (current.getPeerMaxLocalEndpoints() != null) {
+                previous.setPeerMaxLocalEndpoints(current.getPeerMaxLocalEndpoints());
+            }
+            if (current.getPeerMaxMessagePayloadBytes() != null) {
+                previous.setPeerMaxMessagePayloadBytes(current.getPeerMaxMessagePayloadBytes());
+            }
+            if (current.getPeerMaxMessagesPerBundle() != null) {
+                previous.setPeerMaxMessagesPerBundle(current.getPeerMaxMessagesPerBundle());
+            }
+            if (current.getPeerMaxPeerEndpoints() != null) {
+                previous.setPeerMaxPeerEndpoints(current.getPeerMaxPeerEndpoints());
+            }
+            if (current.getPeerMaxQueueDepth() != null) {
+                previous.setPeerMaxQueueDepth(current.getPeerMaxQueueDepth());
+            }
+            if (current.getPeerMaxSyncBytes() != null) {
+                previous.setPeerMaxSyncBytes(current.getPeerMaxSyncBytes());
+            }
+            if (current.getEndpointManifest() != null) {
+                previous.setEndpointManifest(current.getEndpointManifest());
+            }
+
+            return previous;
+        }
+
         previous.setTimestampUpper(current.getTimestampLower());
 
         // Channels are only ever created once; every later touch is a partial update, so no "fresh creation" branch
@@ -628,6 +697,27 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     }
 
     private ClprConnector mergeClprConnector(ClprConnector previous, ClprConnector current) {
+        // No timestampRange: a non-historical patch, same mechanism as mergeClprChannel above.
+        if (!current.hasHistory()) {
+            if (current.getConnectorContractId() != null) {
+                previous.setConnectorContractId(current.getConnectorContractId());
+            }
+            if (current.getAdminKey() != null) {
+                previous.setAdminKey(current.getAdminKey());
+            }
+            if (current.getLockedStake() != null) {
+                previous.setLockedStake(current.getLockedStake());
+            }
+            if (current.getSlashCount() != null) {
+                previous.setSlashCount(current.getSlashCount());
+            }
+            if (current.getInFlightMessageCount() != null) {
+                previous.setInFlightMessageCount(current.getInFlightMessageCount());
+            }
+
+            return previous;
+        }
+
         previous.setTimestampUpper(current.getTimestampLower());
 
         if (current.getCreatedTimestamp() != null

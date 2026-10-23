@@ -54,6 +54,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
@@ -225,6 +226,72 @@ public class BlockTransactionBuilder {
     public BlockTransactionBuilder.Builder clprCompleteChannel(RecordItem recordItem) {
         var channelId = recordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
         var stateChange = clprChannelStateChange(channelId, recordItem.getClprChannel());
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprCompleteConnector(RecordItem recordItem) {
+        var body = recordItem.getTransactionBody().getClprCompleteConnector();
+        var key = ClprConnectorKey.newBuilder()
+                .setChannelId(body.getChannelId())
+                .setConnectorId(body.getConnectorId())
+                .build();
+        var stateChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))
+                        .setValue(MapChangeValue.newBuilder().setClprConnectorValue(recordItem.getClprConnector())))
+                .build();
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprMaintenance(RecordItem recordItem) {
+        var stateChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE)
+                .setSingletonUpdate(SingletonUpdateChange.newBuilder()
+                        .setClprEndpointManifestValue(recordItem.getClprEndpointManifest()))
+                .build();
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprRegisterChannel(RecordItem recordItem) {
+        var stateChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder()
+                                .setProtoBytesKey(BytesValue.of(recordItem.getClprChannelPendingCommitment())))
+                        .setValue(MapChangeValue.newBuilder().setProtoBytesValue(BytesValue.getDefaultInstance())))
+                .build();
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprRegisterConnector(RecordItem recordItem) {
+        var stateChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder()
+                                .setProtoBytesKey(BytesValue.of(recordItem.getClprConnectorPendingCommitment())))
+                        .setValue(MapChangeValue.newBuilder().setProtoBytesValue(BytesValue.getDefaultInstance())))
+                .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),

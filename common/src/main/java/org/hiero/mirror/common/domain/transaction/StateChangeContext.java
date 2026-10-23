@@ -14,6 +14,8 @@ import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprConnector;
+import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
 import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
 import com.hederahashgraph.api.proto.java.ClprMessageKey;
@@ -53,6 +55,14 @@ public final class StateChangeContext {
     private final Map<ContractSlotKey, BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractSlotId, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
     private final Map<ByteString, ClprChannel> clprChannels = new HashMap<>();
+    private final Map<ClprConnectorKey, ClprConnector> clprConnectors = new HashMap<>();
+    private final List<ClprConnectorKey> clprConnectorsRemoved = new ArrayList<>();
+
+    @Nullable
+    private ByteString clprChannelPendingCommitment;
+
+    @Nullable
+    private ByteString clprConnectorPendingCommitment;
 
     @Nullable
     private ClprEndpointManifest clprEndpointManifest;
@@ -87,8 +97,16 @@ public final class StateChangeContext {
                         case StateIdentifier.STATE_ID_ACCOUNTS_VALUE -> processAccountStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_BYTECODE_VALUE -> processContractBytecode(mapUpdate);
                         case StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE -> processClprChannelStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE ->
+                            processClprConnectorStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE ->
                             processClprMessageStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE ->
+                            clprChannelPendingCommitment =
+                                    mapUpdate.getKey().getProtoBytesKey().getValue();
+                        case StateIdentifier.STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS_VALUE ->
+                            clprConnectorPendingCommitment =
+                                    mapUpdate.getKey().getProtoBytesKey().getValue();
                         case StateIdentifier.STATE_ID_EVM_HOOK_STORAGE_VALUE -> processHookStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_FILES_VALUE ->
                             fileIds.add(mapUpdate.getKey().getFileIdKey());
@@ -106,6 +124,7 @@ public final class StateChangeContext {
                 } else if (stateChange.hasMapDelete()) {
                     final var key = stateChange.getMapDelete().getKey();
                     switch (key.getKeyChoiceCase()) {
+                        case CLPR_CONNECTOR_KEY -> clprConnectorsRemoved.add(key.getClprConnectorKey());
                         case EVM_HOOK_SLOT_KEY -> processContractStorageDelete(key.getEvmHookSlotKey());
                         case SLOT_KEY_KEY -> processContractStorageDelete(key.getSlotKeyKey());
                         default -> {
@@ -115,8 +134,8 @@ public final class StateChangeContext {
                 } else if (stateChange.hasSingletonUpdate()) {
                     var singletonUpdate = stateChange.getSingletonUpdate();
                     switch (stateChange.getStateId()) {
-                        // TODO: no transaction type carries this state change yet (consensus-node gap, see
-                        // docs/design/clpr.md Consensus-Node Assumption #4); wire a transformer/handler once one does.
+                        // Carried by the system-initiated ClprMaintenance transaction (field 92) -- see
+                        // ClprMaintenanceTransformer/ClprMaintenanceTransactionHandler.
                         case StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE ->
                             processClprEndpointManifestStateChange(singletonUpdate);
                         case StateIdentifier.STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE ->
@@ -145,6 +164,30 @@ public final class StateChangeContext {
 
     public Optional<ClprChannel> getClprChannel(ByteString channelId) {
         return Optional.ofNullable(clprChannels.get(channelId));
+    }
+
+    public Optional<ByteString> getClprChannelPendingCommitment() {
+        return Optional.ofNullable(clprChannelPendingCommitment);
+    }
+
+    public List<ClprChannel> getClprChannels() {
+        return List.copyOf(clprChannels.values());
+    }
+
+    public Optional<ClprConnector> getClprConnector(ClprConnectorKey key) {
+        return Optional.ofNullable(clprConnectors.get(key));
+    }
+
+    public Optional<ByteString> getClprConnectorPendingCommitment() {
+        return Optional.ofNullable(clprConnectorPendingCommitment);
+    }
+
+    public List<ClprConnector> getClprConnectors() {
+        return List.copyOf(clprConnectors.values());
+    }
+
+    public List<ClprConnectorKey> getClprConnectorsRemoved() {
+        return Collections.unmodifiableList(clprConnectorsRemoved);
     }
 
     public Optional<ClprEndpointManifest> getClprEndpointManifest() {
@@ -294,6 +337,15 @@ public final class StateChangeContext {
 
         var channelId = mapUpdate.getKey().getProtoBytesKey().getValue();
         clprChannels.put(channelId, mapUpdate.getValue().getClprChannelValue());
+    }
+
+    private void processClprConnectorStateChange(MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasClprConnectorKey() || !mapUpdate.getValue().hasClprConnectorValue()) {
+            return;
+        }
+
+        clprConnectors.put(
+                mapUpdate.getKey().getClprConnectorKey(), mapUpdate.getValue().getClprConnectorValue());
     }
 
     private void processClprEndpointManifestStateChange(SingletonUpdateChange singletonUpdate) {

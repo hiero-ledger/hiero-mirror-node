@@ -14,6 +14,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -33,17 +34,27 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
         }
 
         var transactionBody = recordItem.getTransactionBody().getClprCompleteConnector();
+        var clprConnectorValue = recordItem.getClprConnector();
+        if (clprConnectorValue == null) {
+            Utility.handleRecoverableError(
+                    "No clpr_connector_value state change found for successful ClprCompleteConnector at {}",
+                    recordItem.getConsensusTimestamp());
+            return;
+        }
+
         long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var connectorId = DomainUtils.toBytes(transactionBody.getConnectorId());
+        var connectorId = DomainUtils.toBytes(clprConnectorValue.getConnectorId());
         var publicKey = DomainUtils.toBytes(transactionBody.getPublicKey());
-        var connectorContractId = EntityId.of(transactionBody.getConnectorContract());
+        var connectorContractId = EntityId.of(clprConnectorValue.getConnectorContract());
 
         var connector = ClprConnector.builder()
-                .channelId(DomainUtils.toBytes(transactionBody.getChannelId()))
+                .channelId(DomainUtils.toBytes(clprConnectorValue.getChannelId()))
                 .connectorId(connectorId)
                 .connectorContractId(connectorContractId)
-                .adminKey(transactionBody.getAdminKey().toByteArray())
-                .lockedStake(transactionBody.getLockedStake())
+                .adminKey(clprConnectorValue.getAdminKey().toByteArray())
+                .lockedStake(clprConnectorValue.getLockedStake())
+                .slashCount((long) clprConnectorValue.getSlashCount())
+                .inFlightMessageCount(clprConnectorValue.getInFlightMessageCount())
                 .createdTimestamp(consensusTimestamp)
                 .publicKey(publicKey)
                 .salt(DomainUtils.toBytes(transactionBody.getSalt()))
@@ -54,8 +65,7 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
         entityListener.onClprConnector(connector);
         recordItem.addEntityId(connectorContractId);
 
-        // Recomputes the keccak256(connectorId || publicKey) commitment from this transaction's own fields; no
-        // verifier/state-change data needed
+        // ClprConnector has no commitment field (unlike Channel), so this must be recomputed, not read off state.
         var commitment = ClprConnectorPendingCommitment.builder()
                 .commitment(SignatureUtils.keccak256(connectorId, publicKey))
                 .completedTimestamp(consensusTimestamp)

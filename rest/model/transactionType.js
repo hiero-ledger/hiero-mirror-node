@@ -84,6 +84,7 @@ const protoToName = {
   89: 'CLPRDEREGISTERCONNECTOR',
   90: 'CLPRCOMPLETECONNECTOR',
   91: 'CLPR_ENDPOINT_PUBLICATION',
+  92: 'CLPRMAINTENANCE',
 };
 
 // Temporary extra mappings until we can update the hashgraph proto dependency with the latest types
