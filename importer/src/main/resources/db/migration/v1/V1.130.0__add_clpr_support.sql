@@ -186,7 +186,7 @@ create table if not exists clpr_message
     reply_status           clpr_message_reply_status,
     channel_id             bytea                       not null,
     connector_id           bytea,
-    control_configuration  jsonb,
+    control_message        jsonb,
     message_data           bytea,
     running_hash           bytea                       not null,
     sender                 bytea,

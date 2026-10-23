@@ -12,8 +12,10 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.AbstractClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprConfigUpdate;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprControlMessage;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
@@ -188,6 +190,17 @@ class ClprStateChangeHandler {
         return builder.build();
     }
 
+    private ClprControlMessage toControlMessage(com.hederahashgraph.api.proto.java.ClprControlMessage control) {
+        var builder = ClprControlMessage.builder();
+        if (control.hasConfigUpdate()) {
+            builder.configUpdate(ClprConfigUpdate.builder()
+                    .configuration(
+                            toControlConfiguration(control.getConfigUpdate().getConfiguration()))
+                    .build());
+        }
+        return builder.build();
+    }
+
     private @Nullable ClprMessage toMessage(ClprMessageEntry entry, long consensusTimestamp) {
         var key = entry.key();
         var value = entry.value();
@@ -218,12 +231,9 @@ class ClprStateChangeHandler {
                         .messageData(DomainUtils.toBytes(reply.getMessageReplyData()));
             }
             case CONTROL -> {
-                messageBuilder.messageType(ClprMessageType.CONTROL);
-                var control = payload.getControl();
-                if (control.hasConfigUpdate()) {
-                    messageBuilder.controlConfiguration(
-                            toControlConfiguration(control.getConfigUpdate().getConfiguration()));
-                }
+                messageBuilder
+                        .messageType(ClprMessageType.CONTROL)
+                        .controlMessage(toControlMessage(payload.getControl()));
             }
             default -> {
                 // PAYLOAD_NOT_SET would indicate a future, not-yet-understood protocol version

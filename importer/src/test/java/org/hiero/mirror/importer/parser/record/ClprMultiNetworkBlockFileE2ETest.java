@@ -69,8 +69,10 @@ class ClprMultiNetworkBlockFileE2ETest extends ImporterIntegrationTest {
                 .singleElement()
                 .satisfies(control -> {
                     assertThat(control.getMessageId()).isEqualTo(7L);
-                    assertThat(control.getControlConfiguration()).isNotNull();
-                    assertThat(control.getControlConfiguration().getMaxMessagesPerBundle())
+                    assertThat(control.getControlMessage()).isNotNull();
+                    var configUpdate = control.getControlMessage().getConfigUpdate();
+                    assertThat(configUpdate).isNotNull();
+                    assertThat(configUpdate.getConfiguration().getMaxMessagesPerBundle())
                             .isEqualTo(6L);
                 });
         assertThat(clprMessageRepository.findAll())

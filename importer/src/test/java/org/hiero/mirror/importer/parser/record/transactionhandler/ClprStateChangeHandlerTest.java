@@ -210,7 +210,8 @@ final class ClprStateChangeHandlerTest {
                 .anySatisfy(message -> assertThat(message)
                         .returns(3L, ClprMessage::getMessageId)
                         .returns(ClprMessageType.CONTROL, ClprMessage::getMessageType)
-                        .satisfies(m -> assertThat(m.getControlConfiguration())
+                        .satisfies(m -> assertThat(
+                                        m.getControlMessage().getConfigUpdate().getConfiguration())
                                 .returns(1L, ClprControlConfiguration::getProtocolVersion)
                                 .returns("hedera:mainnet", ClprControlConfiguration::getChainId)
                                 .returns(100L, ClprControlConfiguration::getMaxMessagesPerBundle)));
