@@ -91,6 +91,11 @@ final class PrestateControllerTest extends Web3IntegrationTest {
         when(requestThrottleInterceptor.preHandle(any(), any(), any())).thenReturn(true);
 
         final var response = new ResponseProperties();
+        response.getHeaders()
+                .putAll(web3Properties
+                        .getApi(ApiEndpointName.DEFAULT)
+                        .getResponse()
+                        .getHeaders());
         response.getHeaders().put("Access-Control-Allow-Origin", "*");
         response.getHeaders().put("Cache-Control", "public, max-age=600");
         final var api = new ApiProperties();
@@ -128,7 +133,10 @@ final class PrestateControllerTest extends Web3IntegrationTest {
         mockMvc.perform(prestateRequest(transactionIdOrHash))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "*"))
-                .andExpect(header().string("Cache-Control", "public, max-age=600"));
+                .andExpect(header().string("Cache-Control", "public, max-age=600"))
+                .andExpect(header().string(
+                                CommonProperties.CLUSTER_ID_HEADER,
+                                CommonProperties.getInstance().getClusterId()));
     }
 
     @ParameterizedTest
@@ -179,7 +187,8 @@ final class PrestateControllerTest extends Web3IntegrationTest {
                         .header("Access-Control-Request-Method", "GET"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "*"))
-                .andExpect(header().string("Access-Control-Allow-Methods", "GET,HEAD,POST"));
+                .andExpect(header().string("Access-Control-Allow-Methods", "GET,HEAD,POST"))
+                .andExpect(header().string("Access-Control-Expose-Headers", CommonProperties.CLUSTER_ID_HEADER));
     }
 
     // --- Negative / Error tests ---

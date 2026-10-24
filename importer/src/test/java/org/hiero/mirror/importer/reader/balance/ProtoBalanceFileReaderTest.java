@@ -8,7 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.google.protobuf.UnknownFieldSet;
 import com.hedera.services.stream.proto.AllAccountBalances;
 import com.hedera.services.stream.proto.SingleAccountBalances;
+import com.hedera.services.stream.proto.TokenUnitBalance;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TokenID;
 import java.io.File;
 import java.nio.file.Paths;
 import java.time.Instant;
@@ -23,6 +26,7 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -95,6 +99,59 @@ class ProtoBalanceFileReaderTest {
         assertThat(accountBalanceFile.getItems()).hasSize(1);
     }
 
+    @ParameterizedTest(name = "fails whole file on out-of-range entity ids with invalid entity exceptions {0}")
+    @ValueSource(booleans = {true, false})
+    void readFailsWhenOutOfRangeEntityId(boolean invalidEntityException) {
+        final var property = EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY;
+        final var previous = System.getProperty(property);
+        System.setProperty(property, String.valueOf(invalidEntityException));
+        try {
+            final long outOfRangeNum = 1L << 38; // above EntityId's 38-bit num range
+            // Mix a valid record with out-of-range account/token ids — any bad entry must reject the whole file.
+            final var allAccountBalances = AllAccountBalances.newBuilder()
+                    .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(1L).build())
+                    .addAllAccounts(accountBalance(0, 0, 2000, 3000, 0, 5000))
+                    .addAllAccounts(accountBalance(0, 65536, 3, 340, 0, 5000))
+                    .addAllAccounts(accountBalance(0, 0, outOfRangeNum, 340, 0, 5000))
+                    .addAllAccounts(accountBalance(0, 0, 2001, 3001, 0, outOfRangeNum))
+                    .build();
+            final var data = StreamFileData.from(TIMESTAMP + "_Balances.pb", allAccountBalances.toByteArray());
+
+            assertThrows(RuntimeException.class, () -> protoBalanceFileReader.read(data));
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, previous);
+            }
+        }
+    }
+
+    @Test
+    void readFailsWhenOnlyAccountIdOutOfRange() {
+        // Force the disabled-exception path so toEntityId throws InvalidDatasetException (not
+        // InvalidEntityException from EntityId.of), independent of other tests' System properties.
+        final var property = EntityId.INVALID_ENTITY_EXCEPTION_PROPERTY;
+        final var previous = System.getProperty(property);
+        System.setProperty(property, "false");
+        try {
+            final long outOfRangeNum = 1L << 38;
+            final var allAccountBalances = AllAccountBalances.newBuilder()
+                    .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(1L).build())
+                    .addAllAccounts(accountBalance(0, 0, outOfRangeNum, 340, 0, 5000))
+                    .build();
+            final var data = StreamFileData.from(TIMESTAMP + "_Balances.pb", allAccountBalances.toByteArray());
+
+            assertThrows(InvalidDatasetException.class, () -> protoBalanceFileReader.read(data));
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, previous);
+            }
+        }
+    }
+
     @Test
     void readCorruptedBytes() {
         corrupt(streamFileData.getBytes());
@@ -114,6 +171,20 @@ class ProtoBalanceFileReaderTest {
     void unsupported(String filename) {
         StreamFileData balancesStreamFileData = StreamFileData.from(filename, new byte[] {1, 2, 3});
         assertThat(protoBalanceFileReader.supports(balancesStreamFileData)).isFalse();
+    }
+
+    private SingleAccountBalances accountBalance(
+            long shard, long realm, long num, long hbarBalance, long tokenRealm, long tokenNum) {
+        return SingleAccountBalances.newBuilder()
+                .setAccountID(AccountID.newBuilder()
+                        .setShardNum(shard)
+                        .setRealmNum(realm)
+                        .setAccountNum(num))
+                .setHbarBalance(hbarBalance)
+                .addTokenUnitBalances(TokenUnitBalance.newBuilder()
+                        .setTokenId(TokenID.newBuilder().setRealmNum(tokenRealm).setTokenNum(tokenNum))
+                        .setBalance(10))
+                .build();
     }
 
     private void corrupt(byte[] bytes) {

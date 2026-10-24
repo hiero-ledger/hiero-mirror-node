@@ -17,6 +17,7 @@ import java.util.Locale;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatus;
@@ -48,6 +49,7 @@ import org.springframework.web.bind.MissingPathVariableException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
@@ -72,7 +74,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/api/**").allowedOrigins("*");
+                registry.addMapping("/api/**").allowedOrigins("*").exposedHeaders(CommonProperties.CLUSTER_ID_HEADER);
             }
         };
     }
@@ -158,7 +160,17 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         };
 
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, ex, SCOPE_REQUEST);
-        return new ResponseEntity<>(errorResponse, headers, statusCode);
+        var responseHeaders = new HttpHeaders();
+        if (headers != null) {
+            responseHeaders.addAll(headers);
+        }
+        var servletResponse = request instanceof ServletWebRequest servletRequest ? servletRequest.getResponse() : null;
+        properties.getResponse().getHeaders().getDefaults().forEach((name, value) -> {
+            if (servletResponse == null || !servletResponse.containsHeader(name)) {
+                responseHeaders.set(name, value);
+            }
+        });
+        return new ResponseEntity<>(errorResponse, responseHeaders, statusCode);
     }
 
     private Error bindExceptionResponse(BindException e) {

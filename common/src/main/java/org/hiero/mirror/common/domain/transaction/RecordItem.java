@@ -98,6 +98,11 @@ public class RecordItem implements StreamItem {
     @Setter
     private Integer evmTransactionIndex;
 
+    // Whether this item shares the EVM transaction of another item instead of being its own EVM transaction
+    @NonFinal
+    @Setter
+    private boolean evmChild;
+
     @NonFinal
     @Setter
     private Predicate<EntityId> contractTransactionPredicate;
@@ -389,7 +394,9 @@ public class RecordItem implements StreamItem {
         private RecordItem parsePossiblyHookContractRelatedParent() {
             final var currentTxnRecordContractResult = getContractResult();
 
+            // Only child records (nonce > 0) can be hook effects, user-signed atomic batch inner transactions can't
             if (transactionRecord.hasParentConsensusTimestamp()
+                    && transactionRecord.getTransactionID().getNonce() > 0
                     && currentTxnRecordContractResult != null
                     && currentTxnRecordContractResult.getContractID().getContractNum() != HOOK_CONTRACT_NUM
                     && previous != null) {

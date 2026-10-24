@@ -8,6 +8,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.importer.downloader.block.BlockNode.ERROR_METRIC_NAME;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleServiceEndpoint;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.toParsed;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.toUnparsed;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.withUnknownField;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
@@ -16,12 +19,17 @@ import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.BindableService;
+import io.grpc.MethodDescriptor;
 import io.grpc.Server;
+import io.grpc.ServerServiceDefinition;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.BlockingClientCall;
+import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -44,6 +52,8 @@ import org.hiero.block.api.protoc.ServerStatusDetailResponse;
 import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
+import org.hiero.block.internal.protoc.BlockItemSetUnparsed;
+import org.hiero.block.internal.protoc.SubscribeStreamResponseUnparsed;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
@@ -68,6 +78,18 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
     private static final BiFunction<BlockStream, String, Boolean> IGNORE = (_, _) -> false;
     private static final BiConsumer<String, BlockingClientCall<?, ?>> NOOP_GRPC_BUFFER_DISPOSER = (_, _) -> {};
+    private static final MethodDescriptor.Marshaller<byte[]> RAW_MARSHALLER = new MethodDescriptor.Marshaller<>() {
+        @Override
+        public InputStream stream(final byte[] value) {
+            return new ByteArrayInputStream(value);
+        }
+
+        @Override
+        @SneakyThrows
+        public byte[] parse(final InputStream stream) {
+            return stream.readAllBytes();
+        }
+    };
     private static final String SERVER = "test1";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
@@ -487,6 +509,38 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @Test
+    void streamWithUnknownField(Resources resources) {
+        // given a block header with an unknown field ahead of its known fields, as if produced with a newer version of
+        // the protobuf definitions
+        final var blockHeader = withUnknownField(blockHead(1));
+        final var blockItemSet = BlockItemSetUnparsed.newBuilder()
+                .addBlockItems(blockHeader)
+                .addBlockItems(toUnparsed(eventHeader()))
+                .addBlockItems(toUnparsed(blockProof()))
+                .build();
+        runRawBlockStreamSubscribeService(
+                resources,
+                List.of(
+                        SubscribeStreamResponseUnparsed.newBuilder()
+                                .setBlockItems(blockItemSet)
+                                .build()
+                                .toByteArray(),
+                        subscribeStreamResponse(1).toByteArray()));
+
+        // when
+        final var streamed = new ArrayList<BlockStream>();
+        node.streamBlocks(1, null, accumulate(streamed), TIMEOUT);
+
+        // then the block header is kept as received, which differs from the re-serialized parsed block header
+        assertThat(streamed).singleElement().satisfies(blockStream -> {
+            final byte[] actual = blockStream.blockItems().getFirst().toByteArray();
+            final var parsed = BlockItem.parseFrom(actual);
+            assertThat(parsed.getBlockHeader().getNumber()).isOne();
+            assertThat(actual).isEqualTo(blockHeader.toByteArray()).isNotEqualTo(parsed.toByteArray());
+        });
+    }
+
+    @Test
     void streamWithinMaxBlockSize() {
         // given
         blockNodeSimulator = new BlockNodeSimulator()
@@ -679,7 +733,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 .satisfies(b -> assertThat(b.loadStart())
                         .isGreaterThan(Instant.now().minusSeconds(10).toEpochMilli()))
                 .returns(BlockFile.getFilename(number, false), BlockStream::filename)
-                .extracting(BlockStream::blockItems)
+                .extracting(b -> toParsed(b.blockItems()))
                 .satisfies(
                         x -> assertThat(x.getFirst())
                                 .returns(BlockItem.ItemCase.BLOCK_HEADER, BlockItem::getItemCase)
@@ -764,6 +818,20 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 responseObserver.onError(responsesOrError.getError());
             }
         });
+    }
+
+    // Serves the response bytes as is, so they aren't re-serialized with the protobuf classes
+    private Server runRawBlockStreamSubscribeService(final Resources resources, final List<byte[]> responses) {
+        final var method = BlockStreamSubscribeServiceGrpc.getSubscribeBlockStreamMethod().toBuilder(
+                        RAW_MARSHALLER, RAW_MARSHALLER)
+                .build();
+        final var service = ServerServiceDefinition.builder(BlockStreamSubscribeServiceGrpc.SERVICE_NAME)
+                .addMethod(method, ServerCalls.asyncServerStreamingCall((_, responseObserver) -> {
+                    responses.forEach(responseObserver::onNext);
+                    responseObserver.onCompleted();
+                }))
+                .build();
+        return startServer(resources, () -> service);
     }
 
     @SneakyThrows

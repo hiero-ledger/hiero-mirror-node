@@ -6,13 +6,13 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">=24.21.0 <25"
+    "node": ">=24.22.1 <25"
   },
   "scripts": {
     "generate-proto-js": "node scripts/generate-proto-js.mjs",
     "prebuild": "npm run generate-proto-js",
     "build": "node esbuild.config.js",
-    "dev": "cross-env HIERO_MIRROR_REST_LOG_LEVEL=trace nodemon --import=extensionless/register server.js",
+    "dev": "cross-env HIERO_MIRROR_REST_LOG_LEVEL=trace node --watch --import=extensionless/register server.js",
     "start": "npm run build && node buildDist/server.js",
     "pretest": "node --import=extensionless/register __tests__/integration/generator.js && npm run prebuild",
     "test": "cross-env NODE_NO_WARNINGS=1 node --import=extensionless/register --experimental-vm-modules node_modules/jest/bin/jest.js"
@@ -22,10 +22,10 @@
   "dependencies": {
     "@bufbuild/protobuf": "2.16.0",
     "@godaddy/terminus": "4.12.1",
-    "@opentelemetry/api": "1.9.1",
-    "@opentelemetry/exporter-prometheus": "0.223.0",
-    "@opentelemetry/sdk-metrics": "2.12.0",
-    "asn1js": "3.0.10",
+    "@opentelemetry/api": "1.10.0",
+    "@opentelemetry/exporter-prometheus": "0.300.0",
+    "@opentelemetry/sdk-metrics": "3.0.0",
+    "asn1js": "4.0.0",
     "basic-auth": "3.0.0",
     "compression": "1.8.2",
     "cors": "2.8.6",
@@ -34,7 +34,7 @@
     "express-openapi-validator": "5.6.2",
     "extend": "3.0.2",
     "ioredis": "6.0.0",
-    "js-yaml": "5.4.2",
+    "js-yaml": "5.5.0",
     "json-bigint": "1.0.0",
     "lodash": "4.18.1",
     "negotiator": "1.1.0",
@@ -50,7 +50,7 @@
     "tsscmp": "1.0.6"
   },
   "devDependencies": {
-    "@bufbuild/buf": "1.73.0",
+    "@bufbuild/buf": "1.74.0",
     "@bufbuild/protoc-gen-es": "2.16.0",
     "@testcontainers/postgresql": "12.2.1",
     "cross-env": "10.1.0",
@@ -60,7 +60,6 @@
     "jest": "30.5.2",
     "jest-extended": "7.0.0",
     "jest-junit": "17.0.0",
-    "nodemon": "3.1.14",
     "pg-format": "1.0.4",
     "pgsql-parser": "18.2.12",
     "sinon": "22.1.0",
@@ -82,32 +81,31 @@
   },
   "baseUrlPath": "/api/v1",
   "overrides": {
-    "baseline-browser-mapping": "2.11.26",
+    "baseline-browser-mapping": "2.11.29",
     "brace-expansion": "5.0.12",
-    "electron-to-chromium": "1.5.439",
-    "fast-uri": "4.2.1",
+    "electron-to-chromium": "1.5.458",
+    "fast-uri": "4.2.3",
     "form-data": "4.0.6",
     "glob": "13.0.6",
-    "grpc-js": "1.14.5",
     "@istanbuljs/load-nyc-config": {
-      "js-yaml": "5.4.2"
+      "js-yaml": "5.5.0"
     },
-    "js-yaml": "5.4.2",
+    "js-yaml": "5.5.0",
     "multer": "2.4.0",
     "path-to-regexp": "8.4.2",
-    "protobufjs": "8.8.0",
+    "protobufjs": "8.8.1",
     "proxy-addr": "2.0.8",
     "test-exclude": "8.0.0"
   },
   "bundleDependencies": true,
   "allowScripts": {
-    "@bufbuild/buf@1.73.0": true,
+    "@bufbuild/buf@1.74.0": true,
     "@parcel/watcher@2.6.0": true,
     "@scarf/scarf@1.4.0": true,
     "esbuild@0.28.2": true,
     "cpu-features@0.0.10": true,
     "fsevents@2.3.3": true,
-    "protobufjs@8.8.0": true,
+    "protobufjs@8.8.1": true,
     "ssh2@1.17.0": true,
     "unrs-resolver@1.12.2": true
   }

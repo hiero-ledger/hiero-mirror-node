@@ -33,6 +33,7 @@ public class SyntheticContractResultServiceImpl implements SyntheticContractResu
         ContractResult contractResult = new ContractResult();
 
         contractResult.setCallResult(Bytes.of(recordItem.isSuccessful() ? 1 : 0).toArrayUnsafe());
+        contractResult.setChild(recordItem.isEvmChild());
         contractResult.setConsensusTimestamp(consensusTimestamp);
         contractResult.setContractId(result.getEntityId().getId());
         contractResult.setFunctionParameters(result.getFunctionParameters());

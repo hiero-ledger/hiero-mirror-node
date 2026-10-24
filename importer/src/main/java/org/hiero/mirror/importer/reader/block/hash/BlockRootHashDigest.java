@@ -2,51 +2,34 @@
 
 package org.hiero.mirror.importer.reader.block.hash;
 
-import com.hedera.hapi.block.stream.protoc.BlockItem;
+import com.hedera.hapi.block.stream.output.protoc.BlockFooter;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import org.hiero.block.internal.protoc.BlockItemUnparsed;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.NullUnmarked;
 
-@NullUnmarked
 public final class BlockRootHashDigest {
 
     // Slots 0-7 carry the block's subtree roots, slots 8-15 are reserved for future extension
     private static final int SLOT_COUNT = 16;
 
-    private final List<BlockItem> consensusHeaders = new ArrayList<>();
-    private final List<BlockItem> inputs = new ArrayList<>();
-    private final List<BlockItem> outputs = new ArrayList<>();
-    private final List<BlockItem> stateChanges = new ArrayList<>();
-    private final List<BlockItem> traceDatum = new ArrayList<>();
+    private final List<BlockItemUnparsed> consensusHeaders = new ArrayList<>();
+    private final List<BlockItemUnparsed> inputs = new ArrayList<>();
+    private final List<BlockItemUnparsed> outputs = new ArrayList<>();
+    private final List<BlockItemUnparsed> stateChanges = new ArrayList<>();
+    private final List<BlockItemUnparsed> traceDatum = new ArrayList<>();
 
-    private Timestamp blockTimestamp;
     private boolean finalized;
-    private byte[] previousBlocksTreeHash;
-    private byte[] previousHash;
-    private byte[] startOfBlockStateHash;
 
-    public void addBlockItem(final @NonNull BlockItem blockItem) {
+    public void addBlockItem(final BlockItemUnparsed blockItem) {
         if (finalized) {
             throw new IllegalStateException("Can't add more block items once finalized");
         }
 
         final var blockItems = switch (blockItem.getItemCase()) {
-            case BLOCK_HEADER -> {
-                blockTimestamp = blockItem.getBlockHeader().getBlockTimestamp();
-                yield outputs;
-            }
-            case BLOCK_FOOTER -> {
-                final var blockFooter = blockItem.getBlockFooter();
-                previousBlocksTreeHash = DomainUtils.toBytes(blockFooter.getRootHashOfAllBlockHashesTree());
-                previousHash = DomainUtils.toBytes(blockFooter.getPreviousBlockRootHash());
-                startOfBlockStateHash = DomainUtils.toBytes(blockFooter.getStartOfBlockStateRootHash());
-                yield null;
-            }
             case EVENT_HEADER, ROUND_HEADER -> consensusHeaders;
-            case RECORD_FILE, TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputs;
+            case BLOCK_HEADER, RECORD_FILE, TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputs;
             case SIGNED_TRANSACTION -> inputs;
             case STATE_CHANGES -> stateChanges;
             case TRACE_DATA -> traceDatum;
@@ -58,20 +41,20 @@ public final class BlockRootHashDigest {
         }
     }
 
-    public byte[] digest() {
-        if (blockTimestamp == null
-                || previousBlocksTreeHash == null
-                || previousHash == null
-                || startOfBlockStateHash == null) {
-            throw new IllegalStateException(
-                    "blockTimestamp / previousBlocksTreeHash / previousHash / startOfBlockStateHash are not set");
-        }
-
+    /**
+     * Calculates the block root hash from the block items added, the block timestamp and the block footer.
+     *
+     * @param blockTimestamp the block timestamp in the block header
+     * @param blockFooter    the block footer
+     * @return the block root hash
+     */
+    public byte[] digest(final Timestamp blockTimestamp, final BlockFooter blockFooter) {
+        final byte[] previousHash = DomainUtils.toBytes(blockFooter.getPreviousBlockRootHash());
         final int digestSize = previousHash.length;
         final var slots = new ArrayList<byte[]>(SLOT_COUNT);
         slots.add(previousHash);
-        slots.add(previousBlocksTreeHash);
-        slots.add(startOfBlockStateHash);
+        slots.add(DomainUtils.toBytes(blockFooter.getRootHashOfAllBlockHashesTree()));
+        slots.add(DomainUtils.toBytes(blockFooter.getStartOfBlockStateRootHash()));
         slots.add(computeBlockItemSubTreeRootHash(consensusHeaders, digestSize));
         slots.add(computeBlockItemSubTreeRootHash(inputs, digestSize));
         slots.add(computeBlockItemSubTreeRootHash(outputs, digestSize));
@@ -102,9 +85,12 @@ public final class BlockRootHashDigest {
         }
     }
 
-    private byte[] computeBlockItemSubTreeRootHash(final List<BlockItem> blockItems, final int digestSize) {
+    private byte[] computeBlockItemSubTreeRootHash(final List<BlockItemUnparsed> blockItems, final int digestSize) {
         final var hasher = new IncrementalStreamingHasher(digestSize);
         for (int i = 0; i < blockItems.size(); i++) {
+            // A BlockItemUnparsed keeps its item as the serialized bytes, so serializing it reproduces the block item
+            // as produced. Re-serializing a parsed BlockItem may not, e.g., when it has fields unknown to this version
+            // of the protobuf classes
             hasher.addLeaf(blockItems.get(i).toByteArray());
         }
         return hasher.computeRootHash();

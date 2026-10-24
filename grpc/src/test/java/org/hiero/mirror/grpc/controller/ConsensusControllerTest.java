@@ -128,6 +128,43 @@ final class ConsensusControllerTest extends GrpcIntegrationTest {
     }
 
     @Test
+    void minConsensusEndTime(CapturedOutput capturedOutput) {
+        final var query = ConsensusTopicQuery.newBuilder()
+                .setConsensusStartTime(Timestamp.newBuilder().setSeconds(0).build())
+                .setConsensusEndTime(Timestamp.newBuilder()
+                        .setSeconds(Long.MIN_VALUE)
+                        .setNanos(Integer.MIN_VALUE)
+                        .build())
+                .setTopicID(TOPIC_ID.toTopicID())
+                .build();
+
+        assertThatThrownBy(() -> blockingService.subscribeTopic(query).hasNext())
+                .isInstanceOf(StatusRuntimeException.class)
+                .hasMessageContaining("End time must be after start time")
+                .extracting(t -> ((StatusRuntimeException) t).getStatus().getCode())
+                .isEqualTo(Status.Code.INVALID_ARGUMENT);
+        assertThat(capturedOutput.getAll()).doesNotContain("Long overflow when converting time");
+    }
+
+    @Test
+    void minConsensusStartTime(CapturedOutput capturedOutput) {
+        final var query = ConsensusTopicQuery.newBuilder()
+                .setConsensusStartTime(Timestamp.newBuilder()
+                        .setSeconds(-9223372035L)
+                        .setNanos(Integer.MIN_VALUE)
+                        .build())
+                .setTopicID(TOPIC_ID.toTopicID())
+                .build();
+
+        assertThatThrownBy(() -> blockingService.subscribeTopic(query).hasNext())
+                .isInstanceOf(StatusRuntimeException.class)
+                .hasMessageContaining("startTime: must be greater than or equal to 0")
+                .extracting(t -> ((StatusRuntimeException) t).getStatus().getCode())
+                .isEqualTo(Status.Code.INVALID_ARGUMENT);
+        assertThat(capturedOutput.getAll()).doesNotContain("Long overflow when converting time");
+    }
+
+    @Test
     void constraintViolationException() {
         ConsensusTopicQuery query = ConsensusTopicQuery.newBuilder()
                 .setTopicID(TopicID.newBuilder().build())

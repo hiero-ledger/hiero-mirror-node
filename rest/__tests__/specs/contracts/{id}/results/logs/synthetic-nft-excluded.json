@@ -99,7 +99,8 @@
             "transaction_hash": "0x4444444444444444444444444444444444444444444444444444444444444444",
             "transaction_index": 1,
             "block_hash": "0xaabbccdd11223344556677889900112233445566778899001122334455667788aabbccdd112233445566778899001122",
-            "block_number": 1
+            "block_number": 1,
+            "child": false
           },
           {
             "address": "0xa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3",
@@ -117,7 +118,8 @@
             "transaction_hash": "0x3333333333333333333333333333333333333333333333333333333333333333",
             "transaction_index": 1,
             "block_hash": "0xaabbccdd11223344556677889900112233445566778899001122334455667788aabbccdd112233445566778899001122",
-            "block_number": 1
+            "block_number": 1,
+            "child": false
           },
           {
             "address": "0xa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3",
@@ -136,7 +138,8 @@
             "transaction_hash": "0x5555555555555555555555555555555555555555555555555555555555555555",
             "transaction_index": 1,
             "block_hash": "0xaabbccdd11223344556677889900112233445566778899001122334455667788aabbccdd112233445566778899001122",
-            "block_number": 1
+            "block_number": 1,
+            "child": false
           },
           {
             "address": "0xa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3",
@@ -155,7 +158,8 @@
             "transaction_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
             "transaction_index": 1,
             "block_hash": "0xaabbccdd11223344556677889900112233445566778899001122334455667788aabbccdd112233445566778899001122",
-            "block_number": 1
+            "block_number": 1,
+            "child": false
           }
         ],
         "links": {

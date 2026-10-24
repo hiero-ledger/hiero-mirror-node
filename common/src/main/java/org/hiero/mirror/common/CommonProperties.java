@@ -5,6 +5,7 @@ package org.hiero.mirror.common;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -21,7 +22,12 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("hiero.mirror.common")
 public class CommonProperties {
 
+    public static final String CLUSTER_ID_HEADER = "x-cluster-id";
+
     private static final AtomicReference<CommonProperties> INSTANCE = new AtomicReference<>();
+
+    @NotBlank
+    private String clusterId = "9ef9396";
 
     @Valid
     @NotNull

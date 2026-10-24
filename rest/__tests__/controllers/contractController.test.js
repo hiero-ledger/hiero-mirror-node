@@ -1549,7 +1549,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
     assertSqlQueryEqual(
       sql,
       `with entity as (select evm_address, id from entity)
-      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+      select cl.bloom, cl.child, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,
              evm_address
       from contract_log cl
@@ -1581,7 +1581,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
     assertSqlQueryEqual(
       sql,
       `with entity as (select evm_address, id from entity)
-      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+      select cl.bloom, cl.child, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,evm_address
       from contract_log cl
       left join entity e on id = contract_id
@@ -1609,6 +1609,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
+          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -1636,6 +1637,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
+          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -1663,6 +1665,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
+          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,

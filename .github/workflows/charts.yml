@@ -42,6 +42,9 @@ jobs:
         with:
           version: "4.3.0"
 
+      - name: Install envsubst Dependency for Cosign
+        run: sudo apt-get update && sudo apt-get install -y gettext-base
+
       - name: Install ct
         uses: helm/chart-testing-action@720270857a28afd41e2426521a7801db09e9b510 # v2.9.0
 
@@ -86,6 +89,9 @@ jobs:
         run: |
           helm repo add stackgres https://stackgres.io/downloads/stackgres-k8s/stackgres/helm
           helm install stackgres stackgres/stackgres-operator --version 1.18.6 --create-namespace -n stackgres
+
+      - name: Install envsubst Dependency for Cosign
+        run: sudo apt-get update && sudo apt-get install -y gettext-base
 
       - name: Install ct
         uses: helm/chart-testing-action@720270857a28afd41e2426521a7801db09e9b510 # v2.9.0
