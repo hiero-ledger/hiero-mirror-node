@@ -538,6 +538,10 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             final var creator = findCreator(blockTransaction);
             if (creator != null) {
                 creator.addCreatedContractId(contractId);
+            } else {
+                Utility.handleRecoverableError(
+                        "Unable to find creator for child contract create at {}",
+                        blockTransaction.getConsensusTimestamp());
             }
 
             return;
