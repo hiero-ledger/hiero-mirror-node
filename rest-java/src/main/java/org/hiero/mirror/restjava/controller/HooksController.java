@@ -10,6 +10,8 @@ import static org.hiero.mirror.restjava.common.Constants.KEY;
 import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.MAX_REPEATED_QUERY_PARAMETERS;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
+import static org.hiero.mirror.restjava.parameter.SlotRangeParameter.MAX_KEY_BYTES;
+import static org.hiero.mirror.restjava.parameter.SlotRangeParameter.MIN_KEY_BYTES;
 
 import com.google.common.collect.ImmutableSortedMap;
 import jakarta.validation.constraints.Max;
@@ -57,20 +59,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class HooksController {
 
-    private static final int KEY_BYTE_LENGTH = 32;
-    private static final byte[] MIN_KEY_BYTES = new byte[KEY_BYTE_LENGTH]; // A 32-byte array of 0x00
-    private static final byte[] MAX_KEY_BYTES;
-
     private static final Function<Hook, Map<String, String>> HOOK_EXTRACTOR =
             hook -> ImmutableSortedMap.of(HOOK_ID, hook.getHookId().toString());
 
     private static final Function<HookStorage, Map<String, String>> HOOK_STORAGE_EXTRACTOR =
             hook -> ImmutableSortedMap.of(KEY, hook.getKey());
-
-    static {
-        MAX_KEY_BYTES = new byte[KEY_BYTE_LENGTH];
-        Arrays.fill(MAX_KEY_BYTES, (byte) 0xFF); // A 32-byte array of 0xFF
-    }
 
     private final HookService hookService;
     private final HookMapper hookMapper;

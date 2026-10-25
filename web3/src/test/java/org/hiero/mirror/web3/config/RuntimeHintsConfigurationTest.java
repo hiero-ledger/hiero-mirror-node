@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 
 import com.hedera.node.app.service.contract.impl.hevm.HederaOperationsRegistry;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hyperledger.besu.evm.EvmSpecVersion;
 import org.hyperledger.besu.evm.MainnetEVMs;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,8 @@ final class RuntimeHintsConfigurationTest {
         assertThat(RuntimeHintsPredicates.reflection().onType(TypeReference.of("com.esaulpaugh.headlong.abi.Single[]")))
                 .accepts(hints);
         assertThat(RuntimeHintsPredicates.reflection().onType(ContractCallResponse.class))
+                .accepts(hints);
+        assertThat(RuntimeHintsPredicates.reflection().onType(StateOverride.class))
                 .accepts(hints);
     }
 

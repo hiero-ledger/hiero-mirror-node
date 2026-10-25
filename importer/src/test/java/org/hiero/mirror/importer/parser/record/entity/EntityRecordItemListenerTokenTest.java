@@ -1186,6 +1186,48 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                         tokenCreate.getTransactionBody().getTokenCreation().getTreasury()));
     }
 
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            false, '', ''
+            false, ' ', ' '
+            true, '',
+            true, ' ',
+            """)
+    void tokenUpdateWithEmptyOrBlankMemo(boolean fromPrecompile, String memo, String expectedOrNoChange) {
+        // given
+        final var tokenCreate = recordItemBuilder.tokenCreate().build();
+        final var tokenId = tokenCreate.getTransactionRecord().getReceipt().getTokenID();
+        final var tokenUpdate = recordItemBuilder
+                .tokenUpdate()
+                .transactionBody(b -> b.setToken(tokenId).setMemo(StringValue.of(memo)))
+                .record(r -> {
+                    if (fromPrecompile) {
+                        r.setContractCallResult(ContractFunctionResult.newBuilder()
+                                .setContractID(systemEntity
+                                        .hederaTokenServiceContract()
+                                        .toContractID())
+                                .build());
+                    }
+                })
+                .build();
+
+        // when
+        parseRecordItemsAndCommit(List.of(tokenCreate, tokenUpdate));
+
+        // then
+        final var expectedMemo = expectedOrNoChange != null
+                ? expectedOrNoChange
+                : tokenCreate.getTransactionBody().getTokenCreation().getMemo();
+        final var expectedTokenId = EntityId.of(tokenId).getId();
+        assertThat(entityRepository.findById(expectedTokenId))
+                .get()
+                .returns(expectedTokenId, Entity::getId)
+                .returns(expectedMemo, Entity::getMemo)
+                .returns(tokenUpdate.getConsensusTimestamp(), Entity::getTimestampLower)
+                .returns(TOKEN, Entity::getType);
+        assertThat(tokenRepository.findAll()).hasSize(1).first().returns(expectedTokenId, Token::getTokenId);
+    }
+
     @Test
     void tokenPause() {
         createAndAssociateToken(
@@ -1577,6 +1619,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .balance(0L)
                 .balanceTimestamp(updateTimestamp)
                 .createdTimestamp(tokenCreateRecordItem.getConsensusTimestamp())
+                .freezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE)
+                .kycStatus(TokenKycStatusEnum.NOT_APPLICABLE)
                 .timestampRange(Range.atLeast(tokenCreateRecordItem.getConsensusTimestamp()))
                 .tokenId(tokenId.getId())
                 .build();
@@ -1587,11 +1631,12 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .balance(2L)
                 .balanceTimestamp(updateTimestamp)
                 .createdTimestamp(newTreasuryAssociationTimestamp)
-                .timestampRange(Range.atLeast(newTreasuryAssociationTimestamp))
+                .freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
+                .kycStatus(TokenKycStatusEnum.GRANTED)
+                .timestampRange(Range.atLeast(updateTimestamp))
                 .tokenId(tokenId.getId())
                 .build();
         assertThat(tokenAccountRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("freezeStatus", "kycStatus")
                 .containsExactlyInAnyOrder(tokenAccountOldTreasury, tokenAccountNewTreasury);
     }
 

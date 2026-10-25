@@ -56,12 +56,12 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
                     limit 1
                     ), base as (
                         select tb.balance
-                        from token_balance as tb, balance_timestamp as bt
+                        from token_balance as tb
                         where
                             token_id = ?1 and
                             account_id = ?2 and
-                            tb.consensus_timestamp > bt.consensus_timestamp - 2678400000000000 and
-                            tb.consensus_timestamp <= bt.consensus_timestamp
+                            tb.consensus_timestamp > (select consensus_timestamp from balance_timestamp) - 2678400000000000 and
+                            tb.consensus_timestamp <= (select consensus_timestamp from balance_timestamp)
                         order by tb.consensus_timestamp desc
                         limit 1
                     ), change as (

@@ -854,9 +854,10 @@ class EntityRecordItemListenerFileTest extends AbstractEntityRecordItemListenerT
     private void assertFailedFileTransaction(TransactionBody transactionBody, TransactionRecord txnRecord) {
         org.hiero.mirror.common.domain.transaction.Transaction transaction =
                 getDbTransaction(txnRecord.getConsensusTimestamp());
-        assertAll(() -> assertTransactionAndRecord(transactionBody, txnRecord), () -> assertThat(
-                        transaction.getEntityId())
-                .isEqualTo(EntityId.of(txnRecord.getReceipt().getFileID())));
+        assertAll(
+                () -> assertTransactionAndRecord(transactionBody, txnRecord),
+                () -> assertThat(transaction.getEntityId())
+                        .isEqualTo(EntityId.of(txnRecord.getReceipt().getFileID())));
     }
 
     private void assertFileEntity(FileCreateTransactionBody expected, Timestamp consensusTimestamp) {

@@ -93,9 +93,12 @@ public class StartupProbe {
 
         try {
             log.info("Submitting a message to the network");
-            var transactionIdMessage = executeTransaction(client, stopwatch, () -> new TopicMessageSubmitTransaction()
-                            .setTopicId(topicId)
-                            .setMessage("Mirror Node acceptance test"))
+            var transactionIdMessage = executeTransaction(
+                            client,
+                            stopwatch,
+                            () -> new TopicMessageSubmitTransaction()
+                                    .setTopicId(topicId)
+                                    .setMessage("Mirror Node acceptance test"))
                     .transactionId;
 
             executeQuery(client, stopwatch, () -> new TransactionReceiptQuery().setTransactionId(transactionIdMessage));

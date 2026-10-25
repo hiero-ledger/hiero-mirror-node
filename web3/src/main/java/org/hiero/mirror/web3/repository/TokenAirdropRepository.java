@@ -14,7 +14,10 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface TokenAirdropRepository extends CrudRepository<TokenAirdrop, AbstractTokenAirdrop.Id> {
 
-    @Cacheable(cacheNames = CACHE_NAME_TOKEN_AIRDROP, cacheManager = CACHE_MANAGER_TOKEN, unless = "#result == null")
+    @Cacheable(
+            cacheNames = CACHE_NAME_TOKEN_AIRDROP,
+            cacheManager = CACHE_MANAGER_TOKEN,
+            unless = "@spelHelper.isNullOrEmpty(#result)")
     @Query(value = """
                     select *
                     from token_airdrop

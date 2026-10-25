@@ -87,19 +87,21 @@ class ConvertEthereumTransactionValueMigrationTest extends ImporterIntegrationTe
     }
 
     private List<EthereumTransaction> findAllEthereumTransactions() {
-        return jdbcTemplate.query("select * from ethereum_transaction", (rs, index) -> EthereumTransaction.builder()
-                .consensusTimestamp(rs.getLong("consensus_timestamp"))
-                .data(rs.getBytes("data"))
-                .gasLimit(rs.getLong("gas_limit"))
-                .hash(rs.getBytes("hash"))
-                .maxGasAllowance(rs.getLong("max_gas_allowance"))
-                .nonce(rs.getLong("nonce"))
-                .payerAccountId(rs.getLong("payer_account_id"))
-                .signatureR(rs.getBytes("signature_r"))
-                .signatureS(rs.getBytes("signature_s"))
-                .type(rs.getInt("type"))
-                .value(rs.getBytes("value"))
-                .build());
+        return jdbcTemplate.query(
+                "select * from ethereum_transaction",
+                (rs, index) -> EthereumTransaction.builder()
+                        .consensusTimestamp(rs.getLong("consensus_timestamp"))
+                        .data(rs.getBytes("data"))
+                        .gasLimit(rs.getLong("gas_limit"))
+                        .hash(rs.getBytes("hash"))
+                        .maxGasAllowance(rs.getLong("max_gas_allowance"))
+                        .nonce(rs.getLong("nonce"))
+                        .payerAccountId(rs.getLong("payer_account_id"))
+                        .signatureR(rs.getBytes("signature_r"))
+                        .signatureS(rs.getBytes("signature_s"))
+                        .type(rs.getInt("type"))
+                        .value(rs.getBytes("value"))
+                        .build());
     }
 
     private void persistEthereumTransactions(List<EthereumTransaction> transactions) {

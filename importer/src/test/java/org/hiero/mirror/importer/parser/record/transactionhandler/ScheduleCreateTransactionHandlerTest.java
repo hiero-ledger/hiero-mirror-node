@@ -80,13 +80,14 @@ final class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHand
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onEntity(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(timestamp, Entity::getCreatedTimestamp)
-                .returns(false, Entity::getDeleted)
-                .satisfies(e -> assertThat(e.getMemo()).isNotEmpty())
-                .satisfies(e -> assertThat(e.getKey()).isNotEmpty())
-                .returns(timestamp, Entity::getTimestampLower)));
+        verify(entityListener, times(1))
+                .onEntity(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(timestamp, Entity::getCreatedTimestamp)
+                        .returns(false, Entity::getDeleted)
+                        .satisfies(e -> assertThat(e.getMemo()).isNotEmpty())
+                        .satisfies(e -> assertThat(e.getKey()).isNotEmpty())
+                        .returns(timestamp, Entity::getTimestampLower)));
         verify(entityListener, never()).onSchedule(any());
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
@@ -111,23 +112,25 @@ final class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHand
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onEntity(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(timestamp, Entity::getCreatedTimestamp)
-                .returns(false, Entity::getDeleted)
-                .satisfies(e -> assertThat(e.getMemo()).isNotEmpty())
-                .satisfies(e -> assertThat(e.getKey()).isNotEmpty())
-                .returns(timestamp, Entity::getTimestampLower)));
-        verify(entityListener, times(1)).onSchedule(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(timestamp, Schedule::getConsensusTimestamp)
-                .returns(recordItem.getPayerAccountId(), Schedule::getCreatorAccountId)
-                .returns(null, Schedule::getExecutedTimestamp)
-                .satisfies(s -> assertThat(s.getExpirationTime()).isPositive())
-                .returns(schedulePayerAccountId, Schedule::getPayerAccountId)
-                .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
-                .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
-                .returns(true, Schedule::isWaitForExpiry)));
+        verify(entityListener, times(1))
+                .onEntity(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(timestamp, Entity::getCreatedTimestamp)
+                        .returns(false, Entity::getDeleted)
+                        .satisfies(e -> assertThat(e.getMemo()).isNotEmpty())
+                        .satisfies(e -> assertThat(e.getKey()).isNotEmpty())
+                        .returns(timestamp, Entity::getTimestampLower)));
+        verify(entityListener, times(1))
+                .onSchedule(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(timestamp, Schedule::getConsensusTimestamp)
+                        .returns(recordItem.getPayerAccountId(), Schedule::getCreatorAccountId)
+                        .returns(null, Schedule::getExecutedTimestamp)
+                        .satisfies(s -> assertThat(s.getExpirationTime()).isPositive())
+                        .returns(schedulePayerAccountId, Schedule::getPayerAccountId)
+                        .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
+                        .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
+                        .returns(true, Schedule::isWaitForExpiry)));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(
                         getExpectedEntityTransactions(recordItem, transaction, schedulePayerAccountId));
@@ -153,23 +156,25 @@ final class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHand
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onEntity(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(timestamp, Entity::getCreatedTimestamp)
-                .returns(false, Entity::getDeleted)
-                .satisfies(e -> assertThat(e.getMemo()).isNotEmpty())
-                .satisfies(e -> assertThat(e.getKey()).isNotEmpty())
-                .returns(timestamp, Entity::getTimestampLower)));
-        verify(entityListener, times(1)).onSchedule(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(timestamp, Schedule::getConsensusTimestamp)
-                .returns(recordItem.getPayerAccountId(), Schedule::getCreatorAccountId)
-                .returns(null, Schedule::getExecutedTimestamp)
-                .returns(null, Schedule::getExpirationTime)
-                .returns(payerAccountId, Schedule::getPayerAccountId)
-                .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
-                .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
-                .returns(false, Schedule::isWaitForExpiry)));
+        verify(entityListener, times(1))
+                .onEntity(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(timestamp, Entity::getCreatedTimestamp)
+                        .returns(false, Entity::getDeleted)
+                        .satisfies(e -> assertThat(e.getMemo()).isNotEmpty())
+                        .satisfies(e -> assertThat(e.getKey()).isNotEmpty())
+                        .returns(timestamp, Entity::getTimestampLower)));
+        verify(entityListener, times(1))
+                .onSchedule(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(timestamp, Schedule::getConsensusTimestamp)
+                        .returns(recordItem.getPayerAccountId(), Schedule::getCreatorAccountId)
+                        .returns(null, Schedule::getExecutedTimestamp)
+                        .returns(null, Schedule::getExpirationTime)
+                        .returns(payerAccountId, Schedule::getPayerAccountId)
+                        .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
+                        .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
+                        .returns(false, Schedule::isWaitForExpiry)));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(
                         getExpectedEntityTransactions(recordItem, transaction, payerAccountId));
@@ -211,15 +216,16 @@ final class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHand
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onSchedule(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(timestamp, Schedule::getConsensusTimestamp)
-                .returns(senderIdAsEntityId, Schedule::getCreatorAccountId)
-                .returns(null, Schedule::getExecutedTimestamp)
-                .satisfies(s -> assertThat(s.getExpirationTime()).isPositive())
-                .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
-                .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
-                .returns(true, Schedule::isWaitForExpiry)));
+        verify(entityListener, times(1))
+                .onSchedule(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(timestamp, Schedule::getConsensusTimestamp)
+                        .returns(senderIdAsEntityId, Schedule::getCreatorAccountId)
+                        .returns(null, Schedule::getExecutedTimestamp)
+                        .satisfies(s -> assertThat(s.getExpirationTime()).isPositive())
+                        .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
+                        .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
+                        .returns(true, Schedule::isWaitForExpiry)));
     }
 
     @Test
@@ -255,15 +261,16 @@ final class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHand
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onSchedule(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(timestamp, Schedule::getConsensusTimestamp)
-                .returns(payerId, Schedule::getCreatorAccountId)
-                .returns(null, Schedule::getExecutedTimestamp)
-                .satisfies(s -> assertThat(s.getExpirationTime()).isPositive())
-                .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
-                .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
-                .returns(true, Schedule::isWaitForExpiry)));
+        verify(entityListener, times(1))
+                .onSchedule(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(timestamp, Schedule::getConsensusTimestamp)
+                        .returns(payerId, Schedule::getCreatorAccountId)
+                        .returns(null, Schedule::getExecutedTimestamp)
+                        .satisfies(s -> assertThat(s.getExpirationTime()).isPositive())
+                        .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
+                        .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
+                        .returns(true, Schedule::isWaitForExpiry)));
     }
 
     @Test
@@ -284,10 +291,11 @@ final class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHand
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onSchedule(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(recordItem.getPayerAccountId(), Schedule::getCreatorAccountId)
-                .returns(recordItem.getPayerAccountId(), Schedule::getPayerAccountId)));
+        verify(entityListener, times(1))
+                .onSchedule(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(recordItem.getPayerAccountId(), Schedule::getCreatorAccountId)
+                        .returns(recordItem.getPayerAccountId(), Schedule::getPayerAccountId)));
     }
 
     @Test
@@ -319,15 +327,16 @@ final class ScheduleCreateTransactionHandlerTest extends AbstractTransactionHand
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener, times(1)).onSchedule(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(timestamp, Schedule::getConsensusTimestamp)
-                .returns(payerId, Schedule::getCreatorAccountId)
-                .returns(null, Schedule::getExecutedTimestamp)
-                .satisfies(s -> assertThat(s.getExpirationTime()).isPositive())
-                .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
-                .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
-                .returns(true, Schedule::isWaitForExpiry)));
+        verify(entityListener, times(1))
+                .onSchedule(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(timestamp, Schedule::getConsensusTimestamp)
+                        .returns(payerId, Schedule::getCreatorAccountId)
+                        .returns(null, Schedule::getExecutedTimestamp)
+                        .satisfies(s -> assertThat(s.getExpirationTime()).isPositive())
+                        .satisfies(s -> assertThat(s.getScheduleId()).isNotNull())
+                        .satisfies(s -> assertThat(s.getTransactionBody()).isNotEmpty())
+                        .returns(true, Schedule::isWaitForExpiry)));
     }
 
     private Transaction getTransaction(final EntityId payerId, final Long timestamp) {

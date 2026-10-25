@@ -580,8 +580,9 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // Then
         verifyOpcodesResponse(opcodesResponse, opcodeContext, Address.fromHexString(contract.getContractAddress()));
-        opcodesResponse.getOpcodes().forEach(opcode -> assertThat(opcode.getGasCost())
-                .isNotNull());
+        opcodesResponse
+                .getOpcodes()
+                .forEach(opcode -> assertThat(opcode.getGasCost()).isNotNull());
     }
 
     @ParameterizedTest
@@ -973,12 +974,14 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
             final boolean persistTransaction) {
         final var validStartNs = consensusTimestamp - 1;
 
-        final var transactionBuilder = domainBuilder.transaction().customize(transaction -> transaction
-                .consensusTimestamp(consensusTimestamp)
-                .entityId(contractEntityId)
-                .payerAccountId(senderEntityId)
-                .type(transactionType.getProtoId())
-                .validStartNs(validStartNs));
+        final var transactionBuilder = domainBuilder
+                .transaction()
+                .customize(transaction -> transaction
+                        .consensusTimestamp(consensusTimestamp)
+                        .entityId(contractEntityId)
+                        .payerAccountId(senderEntityId)
+                        .type(transactionType.getProtoId())
+                        .validStartNs(validStartNs));
 
         return persistTransaction ? transactionBuilder.persist() : transactionBuilder.get();
     }
@@ -1093,14 +1096,16 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
             final Transaction transaction,
             final boolean persistContractResult,
             final long value) {
-        final var contractResultBuilder = domainBuilder.contractResult().customize(contractResult -> contractResult
-                .amount(value > 0 ? value : ZERO_AMOUNT)
-                .consensusTimestamp(consensusTimestamp)
-                .contractId(contractEntityId.getId())
-                .functionParameters(callData)
-                .gasLimit(TRANSACTION_GAS_LIMIT)
-                .senderId(senderEntityId)
-                .transactionHash(transaction.getTransactionHash()));
+        final var contractResultBuilder = domainBuilder
+                .contractResult()
+                .customize(contractResult -> contractResult
+                        .amount(value > 0 ? value : ZERO_AMOUNT)
+                        .consensusTimestamp(consensusTimestamp)
+                        .contractId(contractEntityId.getId())
+                        .functionParameters(callData)
+                        .gasLimit(TRANSACTION_GAS_LIMIT)
+                        .senderId(senderEntityId)
+                        .transactionHash(transaction.getTransactionHash()));
         return persistContractResult ? contractResultBuilder.persist() : contractResultBuilder.get();
     }
 
@@ -1150,8 +1155,9 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final long consensusTimestamp = createdTimestamp + 1;
 
         contractPersistCustomizable(
-                HEX_PREFIX + DomainUtils.bytesToHex(runtimeBytecode), contractEntityId, e -> e.createdTimestamp(
-                                createdTimestamp)
+                HEX_PREFIX + DomainUtils.bytesToHex(runtimeBytecode),
+                contractEntityId,
+                e -> e.createdTimestamp(createdTimestamp)
                         .balanceTimestamp(createdTimestamp)
                         .deleted(true)
                         .timestampRange(Range.atLeast(deletionTimestamp)));

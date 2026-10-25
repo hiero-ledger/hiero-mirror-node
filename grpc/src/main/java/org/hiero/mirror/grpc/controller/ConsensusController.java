@@ -76,10 +76,15 @@ final class ConsensusController extends ConsensusServiceGrpc.ConsensusServiceImp
         return filter.build();
     }
 
-    // The util class logs an error if the timestamp overflows, so return MAX_VALUE if it's close to max db bigint.
+    // The util class logs an error if the timestamp overflows, so clamp to MAX_VALUE or MIN_VALUE when the seconds are
+    // close enough to the bigint limits that any nanos value could overflow.
     private long convertTimestamp(Timestamp timestamp) {
-        if (timestamp.getSeconds() >= 9223372035L) {
+        final long seconds = timestamp.getSeconds();
+        if (seconds >= 9223372035L) {
             return Long.MAX_VALUE;
+        }
+        if (seconds <= -9223372035L) {
+            return Long.MIN_VALUE;
         }
         return DomainUtils.timestampInNanosMax(timestamp);
     }

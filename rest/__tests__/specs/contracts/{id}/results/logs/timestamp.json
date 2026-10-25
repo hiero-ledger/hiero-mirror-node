@@ -98,7 +98,8 @@
         "transaction_hash": "0x9db63968721fc76815d11b0b97734669bf88ae3810e07c199924553f0548eb99",
         "transaction_index": 2,
         "block_hash": "0xfbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1b",
-        "block_number": 2
+        "block_number": 2,
+        "child": false
       },
       {
         "address": "0xabbcccddddeeeeeefffffff000000068fed9dddd",
@@ -117,7 +118,8 @@
         "transaction_hash": "0x9db63968721fc76815d11b0b97734669bf88ae3810e07c199924553f0548eb98",
         "transaction_index": 1,
         "block_hash": "0xfbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1a",
-        "block_number": 1
+        "block_number": 1,
+        "child": false
       },
       {
         "address": "0xabbcccddddeeeeeefffffff000000068fed9dddd",
@@ -136,7 +138,8 @@
         "transaction_hash": "0x9db63968721fc76815d11b0b97734669bf88ae3810e07c199924553f0548eb98",
         "transaction_index": 1,
         "block_hash": "0xfbd921184e229e2051280d827ba3b31599117af7eafba65dc0e5a998b70c48c0492bf793a150769b1b4fb2c9b7cb4c1a",
-        "block_number": 1
+        "block_number": 1,
+        "child": false
       }
     ],
     "links": {

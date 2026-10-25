@@ -2,8 +2,9 @@
 
 package org.hiero.mirror.web3.repository;
 
-import java.util.Optional;
+import java.util.List;
 import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
+import org.hiero.mirror.web3.repository.projections.ContractTransactionHashLookup;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
@@ -13,7 +14,7 @@ public interface ContractTransactionHashRepository extends CrudRepository<Contra
 
     @Query(
             value = "select * from contract_transaction_hash where hash = ?1 "
-                    + "order by (transaction_result = 22) desc, consensus_timestamp desc limit 1",
+                    + "order by (transaction_result = 22) desc, consensus_timestamp desc",
             nativeQuery = true)
-    Optional<ContractTransactionHash> findByHash(byte[] hash);
+    List<ContractTransactionHashLookup> findAllByHash(byte[] hash);
 }

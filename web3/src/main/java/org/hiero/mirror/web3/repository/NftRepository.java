@@ -15,7 +15,10 @@ import org.springframework.data.repository.CrudRepository;
 public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
 
     @Override
-    @Cacheable(cacheNames = CACHE_NAME_NFT, cacheManager = CACHE_MANAGER_TOKEN, unless = "#result == null")
+    @Cacheable(
+            cacheNames = CACHE_NAME_NFT,
+            cacheManager = CACHE_MANAGER_TOKEN,
+            unless = "@spelHelper.isNullOrEmpty(#result)")
     Optional<Nft> findById(AbstractNft.Id id);
 
     @Query(
@@ -139,8 +142,12 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
                         and deleted is not true
                 )
                 ) as n
-            join entity e on e.id = n.token_id
-            where (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
+            where exists (
+                select 1
+                from entity e
+                where e.id = :tokenId
+                    and (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
+            )
             """, nativeQuery = true)
     Optional<Long> nftBalanceByAccountIdTokenIdAndTimestamp(long accountId, long tokenId, long blockTimestamp);
 

@@ -99,6 +99,23 @@ final class DomainUtilsTest {
                 Arguments.of(new byte[] {0, 1, 2, 0}, new byte[] {1, 2, 0}));
     }
 
+    private static Stream<Arguments> hexQuantities() {
+        return Stream.of(
+                arguments(null, "0x0"),
+                arguments(new byte[0], "0x0"),
+                arguments(new byte[] {0x00}, "0x00"),
+                arguments(new byte[] {0x00, 0x00}, "0x0000"),
+                arguments(new byte[] {0x00, 0x01}, "0x0001"),
+                arguments(new byte[] {0x00, (byte) 0xa5}, "0x00a5"),
+                arguments(new byte[] {0x01}, "0x1"),
+                arguments(new byte[] {0x0a}, "0xa"),
+                arguments(new byte[] {0x10}, "0x10"),
+                arguments(new byte[] {(byte) 0x80}, "0x80"),
+                arguments(new byte[] {(byte) 0xff}, "0xff"),
+                arguments(new byte[] {0x01, 0x27}, "0x127"),
+                arguments(new byte[] {0x04, (byte) 0xa5}, "0x4a5"));
+    }
+
     @Test
     void getPublicKeyWhenNull() {
         assertThat(DomainUtils.getPublicKey(null)).isNull();
@@ -219,8 +236,9 @@ final class DomainUtilsTest {
         var timeNanos = DomainUtils.convertToNanos(seconds, nanos);
         var fromTimeStamp = Instant.ofEpochSecond(0, timeNanos);
 
-        assertAll(() -> assertThat(seconds).isEqualTo(fromTimeStamp.getEpochSecond()), () -> assertThat(nanos)
-                .isEqualTo(fromTimeStamp.getNano()));
+        assertAll(
+                () -> assertThat(seconds).isEqualTo(fromTimeStamp.getEpochSecond()),
+                () -> assertThat(nanos).isEqualTo(fromTimeStamp.getNano()));
     }
 
     @ParameterizedTest(name = "with seconds {0} and nanos {1}")
@@ -325,13 +343,12 @@ final class DomainUtilsTest {
     void parseProtobufSupportedTypes(String type) {
         // given
         final var bytes = TIMESTAMP.toByteArray();
-        final var input =
-                switch (type) {
-                    case "byte[]" -> bytes;
-                    case "ByteString" -> ByteString.copyFrom(bytes);
-                    case "InputStream" -> new ByteArrayInputStream(bytes);
-                    default -> throw new IllegalArgumentException(type);
-                };
+        final var input = switch (type) {
+            case "byte[]" -> bytes;
+            case "ByteString" -> ByteString.copyFrom(bytes);
+            case "InputStream" -> new ByteArrayInputStream(bytes);
+            default -> throw new IllegalArgumentException(type);
+        };
 
         // when
         final var actual = DomainUtils.parseProtobuf(input, Timestamp::parseFrom);
@@ -353,14 +370,13 @@ final class DomainUtilsTest {
     @ValueSource(strings = {"String", "ByteBuffer", "Integer", "List"})
     void parseProtobufUnsupportedType(String type) {
         // given
-        final var input =
-                switch (type) {
-                    case "String" -> "not protobuf";
-                    case "ByteBuffer" -> ByteBuffer.allocate(8);
-                    case "Integer" -> 42;
-                    case "List" -> List.of();
-                    default -> throw new IllegalArgumentException(type);
-                };
+        final var input = switch (type) {
+            case "String" -> "not protobuf";
+            case "ByteBuffer" -> ByteBuffer.allocate(8);
+            case "Integer" -> 42;
+            case "List" -> List.of();
+            default -> throw new IllegalArgumentException(type);
+        };
 
         // when, then
         assertThatThrownBy(() -> DomainUtils.parseProtobuf(input, Timestamp::parseFrom))
@@ -600,6 +616,43 @@ final class DomainUtilsTest {
         assertThat(DomainUtils.bytesToHex(new byte[] {00})).isEqualTo("00");
         assertThat(DomainUtils.bytesToHex(new byte[0])).isEmpty();
         assertThat(DomainUtils.bytesToHex(null)).isNull();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(textBlock = """
+            0x, ''
+            0, ''
+            '', ''
+            0x0, ''
+            0x00, 00
+            0x1, 01
+            1, 01
+            0xa, 0a
+            0xA, 0a
+            A, 0a
+            0x127, 0127
+            127, 0127
+            0x00ab, 00ab
+            00AB, 00ab
+            0x01, 01
+            0x0001, 0001
+            """)
+    void fromHexQuantity(final String hex, final String expectedHex) {
+        assertThat(DomainUtils.fromHexQuantity(hex)).isEqualTo(HexFormat.of().parseHex(expectedHex));
+    }
+
+    @Test
+    void fromHexQuantityInvalid() {
+        assertThatThrownBy(() -> DomainUtils.fromHexQuantity("0xzz")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @ParameterizedTest(name = "{1}")
+    @MethodSource("hexQuantities")
+    void toHexQuantity(final byte[] bytes, final String expected) {
+        assertThat(DomainUtils.toHexQuantity(bytes)).isEqualTo(expected);
+        if (bytes != null) {
+            assertThat(DomainUtils.fromHexQuantity(expected)).isEqualTo(bytes);
+        }
     }
 
     @Test

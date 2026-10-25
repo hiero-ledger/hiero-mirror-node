@@ -4,8 +4,10 @@ package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
 
@@ -35,5 +37,25 @@ class ContractRepositoryTest extends Web3IntegrationTest {
         Contract contract = domainBuilder.contract().persist();
         long id = contract.getId();
         assertThat(contractRepository.findRuntimeBytecode(++id)).isEmpty();
+    }
+
+    @Test
+    void findByIdsAndConsensusTimestamp() {
+        final var entity = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT))
+                .persist();
+        final var contract =
+                domainBuilder.contract().customize(c -> c.id(entity.getId())).persist();
+        final var timestamp = entity.getTimestampLower();
+
+        assertThat(contractRepository.findByIdsAndConsensusTimestamp(List.of(contract.getId()), timestamp))
+                .hasSize(1)
+                .first()
+                .returns(contract.getId(), Contract::getId)
+                .returns(contract.getRuntimeBytecode(), Contract::getRuntimeBytecode);
+
+        assertThat(contractRepository.findByIdsAndConsensusTimestamp(List.of(contract.getId()), timestamp - 1))
+                .isEmpty();
     }
 }

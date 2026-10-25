@@ -71,8 +71,11 @@ public class PublishMetrics {
 
     private TimeGauge newDurationMetric(Tags tags) {
         TimeUnit unit = TimeUnit.NANOSECONDS;
-        return TimeGauge.builder(METRIC_DURATION, tags.getScenario(), unit, s -> s.getElapsed()
-                        .toNanos())
+        return TimeGauge.builder(
+                        METRIC_DURATION,
+                        tags.getScenario(),
+                        unit,
+                        s -> s.getElapsed().toNanos())
                 .description("The amount of time this scenario has been publishing transactions")
                 .tags(tags.common())
                 .register(meterRegistry);

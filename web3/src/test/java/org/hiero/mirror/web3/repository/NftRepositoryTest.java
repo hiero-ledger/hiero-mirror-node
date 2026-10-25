@@ -21,10 +21,11 @@ class NftRepositoryTest extends Web3IntegrationTest {
         final var nft = domainBuilder.nft().persist();
         domainBuilder.entity().customize(e -> e.id(nft.getTokenId())).persist();
 
-        assertThat(nftRepository.findById(nft.getId())).hasValueSatisfying(actual -> assertThat(actual)
-                .returns(nft.getSpender(), Nft::getSpender)
-                .returns(nft.getAccountId(), Nft::getAccountId)
-                .returns(nft.getMetadata(), Nft::getMetadata));
+        assertThat(nftRepository.findById(nft.getId()))
+                .hasValueSatisfying(actual -> assertThat(actual)
+                        .returns(nft.getSpender(), Nft::getSpender)
+                        .returns(nft.getAccountId(), Nft::getAccountId)
+                        .returns(nft.getMetadata(), Nft::getMetadata));
     }
 
     @Test
@@ -35,10 +36,11 @@ class NftRepositoryTest extends Web3IntegrationTest {
                 .customize(e -> e.id(nft.getTokenId()).deleted(true))
                 .persist();
 
-        assertThat(nftRepository.findById(nft.getId())).hasValueSatisfying(actual -> assertThat(actual)
-                .returns(nft.getSpender(), Nft::getSpender)
-                .returns(nft.getAccountId(), Nft::getAccountId)
-                .returns(nft.getMetadata(), Nft::getMetadata));
+        assertThat(nftRepository.findById(nft.getId()))
+                .hasValueSatisfying(actual -> assertThat(actual)
+                        .returns(nft.getSpender(), Nft::getSpender)
+                        .returns(nft.getAccountId(), Nft::getAccountId)
+                        .returns(nft.getMetadata(), Nft::getMetadata));
     }
 
     @Test

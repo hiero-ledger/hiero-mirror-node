@@ -83,38 +83,40 @@ class NftReadableKVStateTest {
     void getNftMappedValuesWithTimestamp() {
         when(contractCallContext.getTimestamp()).thenReturn(timestamp);
         Nft nftDomain = setupNft(timestamp);
-        assertThat(nftReadableKVState.readFromDataSource(NFT_ID)).satisfies(nft -> assertThat(nft)
-                .returns(NFT_ID, com.hedera.hapi.node.state.token.Nft::nftId)
-                .returns(
-                        EntityIdUtils.toAccountId(nftDomain.getAccountId()),
-                        com.hedera.hapi.node.state.token.Nft::ownerId)
-                .returns(
-                        EntityIdUtils.toAccountId(nftDomain.getSpender()),
-                        com.hedera.hapi.node.state.token.Nft::spenderId)
-                .returns(
-                        convertToTimestamp(nftDomain.getCreatedTimestamp()),
-                        com.hedera.hapi.node.state.token.Nft::mintTime)
-                .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
+        assertThat(nftReadableKVState.readFromDataSource(NFT_ID))
+                .satisfies(nft -> assertThat(nft)
+                        .returns(NFT_ID, com.hedera.hapi.node.state.token.Nft::nftId)
+                        .returns(
+                                EntityIdUtils.toAccountId(nftDomain.getAccountId()),
+                                com.hedera.hapi.node.state.token.Nft::ownerId)
+                        .returns(
+                                EntityIdUtils.toAccountId(nftDomain.getSpender()),
+                                com.hedera.hapi.node.state.token.Nft::spenderId)
+                        .returns(
+                                convertToTimestamp(nftDomain.getCreatedTimestamp()),
+                                com.hedera.hapi.node.state.token.Nft::mintTime)
+                        .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
     }
 
     @Test
     void getNftMappedValuesWithTreasuryAsOwner() {
         when(contractCallContext.getTimestamp()).thenReturn(timestamp);
         Nft nftDomain = setupNftWithOwner(timestamp);
-        assertThat(nftReadableKVState.readFromDataSource(NFT_ID)).satisfies(nft -> assertThat(nft)
-                .returns(NFT_ID, com.hedera.hapi.node.state.token.Nft::nftId)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerId)
-                .returns(
-                        EntityIdUtils.toAccountId(nftDomain.getSpender()),
-                        com.hedera.hapi.node.state.token.Nft::spenderId)
-                .returns(
-                        convertToTimestamp(nftDomain.getCreatedTimestamp()),
-                        com.hedera.hapi.node.state.token.Nft::mintTime)
-                .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
+        assertThat(nftReadableKVState.readFromDataSource(NFT_ID))
+                .satisfies(nft -> assertThat(nft)
+                        .returns(NFT_ID, com.hedera.hapi.node.state.token.Nft::nftId)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::ownerId)
+                        .returns(
+                                EntityIdUtils.toAccountId(nftDomain.getSpender()),
+                                com.hedera.hapi.node.state.token.Nft::spenderId)
+                        .returns(
+                                convertToTimestamp(nftDomain.getCreatedTimestamp()),
+                                com.hedera.hapi.node.state.token.Nft::mintTime)
+                        .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
     }
 
     @Test
@@ -141,20 +143,21 @@ class NftReadableKVStateTest {
     void getNftMappedValuesWithoutTimestamp() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         Nft nftDomain = setupNft(Optional.empty());
-        assertThat(nftReadableKVState.readFromDataSource(NFT_ID)).satisfies(nft -> assertThat(nft)
-                .returns(NFT_ID, com.hedera.hapi.node.state.token.Nft::nftId)
-                .returns(
-                        EntityIdUtils.toAccountId(nftDomain.getAccountId()),
-                        com.hedera.hapi.node.state.token.Nft::ownerId)
-                .returns(
-                        EntityIdUtils.toAccountId(nftDomain.getSpender()),
-                        com.hedera.hapi.node.state.token.Nft::spenderId)
-                .returns(
-                        convertToTimestamp(nftDomain.getCreatedTimestamp()),
-                        com.hedera.hapi.node.state.token.Nft::mintTime)
-                .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
+        assertThat(nftReadableKVState.readFromDataSource(NFT_ID))
+                .satisfies(nft -> assertThat(nft)
+                        .returns(NFT_ID, com.hedera.hapi.node.state.token.Nft::nftId)
+                        .returns(
+                                EntityIdUtils.toAccountId(nftDomain.getAccountId()),
+                                com.hedera.hapi.node.state.token.Nft::ownerId)
+                        .returns(
+                                EntityIdUtils.toAccountId(nftDomain.getSpender()),
+                                com.hedera.hapi.node.state.token.Nft::spenderId)
+                        .returns(
+                                convertToTimestamp(nftDomain.getCreatedTimestamp()),
+                                com.hedera.hapi.node.state.token.Nft::mintTime)
+                        .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
     }
 
     @Test
@@ -167,36 +170,38 @@ class NftReadableKVStateTest {
     void getNftMappedValuesMissingSpenderWithoutTimestamp() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         Nft nftDomain = setupNftMissingSpender(Optional.empty());
-        assertThat(nftReadableKVState.readFromDataSource(NFT_ID)).satisfies(nft -> assertThat(nft)
-                .returns(NFT_ID, com.hedera.hapi.node.state.token.Nft::nftId)
-                .returns(
-                        EntityIdUtils.toAccountId(nftDomain.getAccountId()),
-                        com.hedera.hapi.node.state.token.Nft::ownerId)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::spenderId)
-                .returns(
-                        convertToTimestamp(nftDomain.getCreatedTimestamp()),
-                        com.hedera.hapi.node.state.token.Nft::mintTime)
-                .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
+        assertThat(nftReadableKVState.readFromDataSource(NFT_ID))
+                .satisfies(nft -> assertThat(nft)
+                        .returns(NFT_ID, com.hedera.hapi.node.state.token.Nft::nftId)
+                        .returns(
+                                EntityIdUtils.toAccountId(nftDomain.getAccountId()),
+                                com.hedera.hapi.node.state.token.Nft::ownerId)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::spenderId)
+                        .returns(
+                                convertToTimestamp(nftDomain.getCreatedTimestamp()),
+                                com.hedera.hapi.node.state.token.Nft::mintTime)
+                        .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
     }
 
     @Test
     void getNftMappedValuesMissingSpenderWithTimestamp() {
         when(contractCallContext.getTimestamp()).thenReturn(timestamp);
         Nft nftDomain = setupNftMissingSpender(timestamp);
-        assertThat(nftReadableKVState.readFromDataSource(NFT_ID)).satisfies(nft -> assertThat(nft)
-                .returns(NFT_ID, com.hedera.hapi.node.state.token.Nft::nftId)
-                .returns(
-                        EntityIdUtils.toAccountId(nftDomain.getAccountId()),
-                        com.hedera.hapi.node.state.token.Nft::ownerId)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::spenderId)
-                .returns(
-                        convertToTimestamp(nftDomain.getCreatedTimestamp()),
-                        com.hedera.hapi.node.state.token.Nft::mintTime)
-                .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
-                .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
+        assertThat(nftReadableKVState.readFromDataSource(NFT_ID))
+                .satisfies(nft -> assertThat(nft)
+                        .returns(NFT_ID, com.hedera.hapi.node.state.token.Nft::nftId)
+                        .returns(
+                                EntityIdUtils.toAccountId(nftDomain.getAccountId()),
+                                com.hedera.hapi.node.state.token.Nft::ownerId)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::spenderId)
+                        .returns(
+                                convertToTimestamp(nftDomain.getCreatedTimestamp()),
+                                com.hedera.hapi.node.state.token.Nft::mintTime)
+                        .returns(Bytes.wrap(nftDomain.getMetadata()), com.hedera.hapi.node.state.token.Nft::metadata)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::ownerPreviousNftId)
+                        .returns(null, com.hedera.hapi.node.state.token.Nft::ownerNextNftId));
     }
 
     @Test

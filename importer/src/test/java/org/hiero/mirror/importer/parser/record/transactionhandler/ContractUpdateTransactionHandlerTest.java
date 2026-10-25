@@ -198,16 +198,20 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        assertContractUpdate(timestamp, contractId, t -> assertThat(t)
-                .returns(10L, Entity::getAutoRenewAccountId)
-                .satisfies(c -> assertThat(c.getAutoRenewPeriod()).isPositive())
-                .satisfies(c -> assertThat(c.getExpirationTimestamp()).isPositive())
-                .satisfies(c -> assertThat(c.getKey()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
-                .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
-                .satisfies(
-                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse()));
+        assertContractUpdate(
+                timestamp,
+                contractId,
+                t -> assertThat(t)
+                        .returns(10L, Entity::getAutoRenewAccountId)
+                        .satisfies(c -> assertThat(c.getAutoRenewPeriod()).isPositive())
+                        .satisfies(c -> assertThat(c.getExpirationTimestamp()).isPositive())
+                        .satisfies(c -> assertThat(c.getKey()).isNotEmpty())
+                        .satisfies(c ->
+                                assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
+                        .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
+                        .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
+                        .satisfies(c -> assertThat(EntityId.isEmpty(c.getProxyAccountId()))
+                                .isFalse()));
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
     }
 
@@ -234,16 +238,20 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        assertContractUpdate(timestamp, contractId, t -> assertThat(t)
-                .returns(10L, Entity::getAutoRenewAccountId)
-                .satisfies(c -> assertThat(c.getAutoRenewPeriod()).isPositive())
-                .satisfies(c -> assertThat(c.getExpirationTimestamp()).isPositive())
-                .satisfies(c -> assertThat(c.getKey()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
-                .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
-                .satisfies(
-                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse()));
+        assertContractUpdate(
+                timestamp,
+                contractId,
+                t -> assertThat(t)
+                        .returns(10L, Entity::getAutoRenewAccountId)
+                        .satisfies(c -> assertThat(c.getAutoRenewPeriod()).isPositive())
+                        .satisfies(c -> assertThat(c.getExpirationTimestamp()).isPositive())
+                        .satisfies(c -> assertThat(c.getKey()).isNotEmpty())
+                        .satisfies(c ->
+                                assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
+                        .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
+                        .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
+                        .satisfies(c -> assertThat(EntityId.isEmpty(c.getProxyAccountId()))
+                                .isFalse()));
         assertThat(recordItem.getEntityTransactions()).isEmpty();
     }
 
@@ -258,12 +266,15 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .recordItem(r -> r.hapiVersion(new Version(0, minorVersion, 0)))
                 .transactionBody(body -> body.setStakedAccountId(accountId).clearDeclineReward())
                 .build();
-        setupForContractUpdateTransactionTest(withStakedNodeIdSet, t -> assertThat(t)
-                .returns(accountNum, Entity::getStakedAccountId)
-                .returns(null, Entity::getDeclineReward)
-                .returns(-1L, Entity::getStakedNodeId)
-                .returns(
-                        Utility.getEpochDay(withStakedNodeIdSet.getConsensusTimestamp()), Entity::getStakePeriodStart));
+        setupForContractUpdateTransactionTest(
+                withStakedNodeIdSet,
+                t -> assertThat(t)
+                        .returns(accountNum, Entity::getStakedAccountId)
+                        .returns(null, Entity::getDeclineReward)
+                        .returns(-1L, Entity::getStakedNodeId)
+                        .returns(
+                                Utility.getEpochDay(withStakedNodeIdSet.getConsensusTimestamp()),
+                                Entity::getStakePeriodStart));
     }
 
     @ParameterizedTest
@@ -276,14 +287,17 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                         .clearStakedAccountId()
                         .clearStakedNodeId())
                 .build();
-        setupForContractUpdateTransactionTest(withDeclineValueSet, t -> assertThat(t)
-                .returns(declineReward, Entity::getDeclineReward)
-                // since the contract is not being saved in the database,
-                // it does not have the default values of -1 for the staking fields.
-                .returns(null, Entity::getStakedNodeId)
-                .returns(null, Entity::getStakedAccountId)
-                .returns(
-                        Utility.getEpochDay(withDeclineValueSet.getConsensusTimestamp()), Entity::getStakePeriodStart));
+        setupForContractUpdateTransactionTest(
+                withDeclineValueSet,
+                t -> assertThat(t)
+                        .returns(declineReward, Entity::getDeclineReward)
+                        // since the contract is not being saved in the database,
+                        // it does not have the default values of -1 for the staking fields.
+                        .returns(null, Entity::getStakedNodeId)
+                        .returns(null, Entity::getStakedAccountId)
+                        .returns(
+                                Utility.getEpochDay(withDeclineValueSet.getConsensusTimestamp()),
+                                Entity::getStakePeriodStart));
     }
 
     @ParameterizedTest
@@ -294,12 +308,15 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .recordItem(r -> r.hapiVersion(new Version(0, 28, 0)))
                 .transactionBody(body -> body.setStakedNodeId(nodeId))
                 .build();
-        setupForContractUpdateTransactionTest(withStakedNodeIdSet, t -> assertThat(t)
-                .returns(nodeId, Entity::getStakedNodeId)
-                .returns(0L, Entity::getStakedAccountId)
-                .returns(true, Entity::getDeclineReward)
-                .returns(
-                        Utility.getEpochDay(withStakedNodeIdSet.getConsensusTimestamp()), Entity::getStakePeriodStart));
+        setupForContractUpdateTransactionTest(
+                withStakedNodeIdSet,
+                t -> assertThat(t)
+                        .returns(nodeId, Entity::getStakedNodeId)
+                        .returns(0L, Entity::getStakedAccountId)
+                        .returns(true, Entity::getDeclineReward)
+                        .returns(
+                                Utility.getEpochDay(withStakedNodeIdSet.getConsensusTimestamp()),
+                                Entity::getStakePeriodStart));
     }
 
     @Test
@@ -319,11 +336,14 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
         var aliasAccountId = EntityId.of(10L);
         when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.of(aliasAccountId));
         transactionHandler.updateTransaction(transaction, withStakedNodeIdSet);
-        assertContractUpdate(timestamp, contractId, t -> assertThat(t)
-                .returns(null, Entity::getDeclineReward)
-                .returns(null, Entity::getStakedAccountId)
-                .returns(null, Entity::getStakedNodeId)
-                .returns(null, Entity::getStakePeriodStart));
+        assertContractUpdate(
+                timestamp,
+                contractId,
+                t -> assertThat(t)
+                        .returns(null, Entity::getDeclineReward)
+                        .returns(null, Entity::getStakedAccountId)
+                        .returns(null, Entity::getStakedNodeId)
+                        .returns(null, Entity::getStakePeriodStart));
     }
 
     @Test
@@ -351,16 +371,20 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        assertContractUpdate(timestamp, contractId, t -> assertThat(t)
-                .returns(plainAccountId.getId(), Entity::getAutoRenewAccountId)
-                .satisfies(c -> assertThat(c.getAutoRenewPeriod()).isPositive())
-                .satisfies(c -> assertThat(c.getExpirationTimestamp()).isPositive())
-                .satisfies(c -> assertThat(c.getKey()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
-                .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
-                .satisfies(
-                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse()));
+        assertContractUpdate(
+                timestamp,
+                contractId,
+                t -> assertThat(t)
+                        .returns(plainAccountId.getId(), Entity::getAutoRenewAccountId)
+                        .satisfies(c -> assertThat(c.getAutoRenewPeriod()).isPositive())
+                        .satisfies(c -> assertThat(c.getExpirationTimestamp()).isPositive())
+                        .satisfies(c -> assertThat(c.getKey()).isNotEmpty())
+                        .satisfies(c ->
+                                assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
+                        .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
+                        .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
+                        .satisfies(c -> assertThat(EntityId.isEmpty(c.getProxyAccountId()))
+                                .isFalse()));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(
                         getExpectedEntityTransactions(plainAccountId, recordItem, transaction));
@@ -393,16 +417,20 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
 
         // then
         var expectedAutoRenewAccountId = entityId == null ? null : entityId.getId();
-        assertContractUpdate(timestamp, contractId, t -> assertThat(t)
-                .returns(expectedAutoRenewAccountId, Entity::getAutoRenewAccountId)
-                .satisfies(c -> assertThat(c.getAutoRenewPeriod()).isPositive())
-                .satisfies(c -> assertThat(c.getExpirationTimestamp()).isPositive())
-                .satisfies(c -> assertThat(c.getKey()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
-                .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
-                .satisfies(
-                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse()));
+        assertContractUpdate(
+                timestamp,
+                contractId,
+                t -> assertThat(t)
+                        .returns(expectedAutoRenewAccountId, Entity::getAutoRenewAccountId)
+                        .satisfies(c -> assertThat(c.getAutoRenewPeriod()).isPositive())
+                        .satisfies(c -> assertThat(c.getExpirationTimestamp()).isPositive())
+                        .satisfies(c -> assertThat(c.getKey()).isNotEmpty())
+                        .satisfies(c ->
+                                assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
+                        .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
+                        .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
+                        .satisfies(c -> assertThat(EntityId.isEmpty(c.getProxyAccountId()))
+                                .isFalse()));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(null, recordItem, transaction));
     }
@@ -425,16 +453,20 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
         transactionHandler.updateTransaction(transaction, recordItem);
-        assertContractUpdate(timestamp, contractId, t -> assertThat(t)
-                .returns(0L, Entity::getAutoRenewAccountId)
-                .satisfies(c -> assertThat(c.getAutoRenewPeriod()).isPositive())
-                .satisfies(c -> assertThat(c.getExpirationTimestamp()).isPositive())
-                .satisfies(c -> assertThat(c.getKey()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
-                .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
-                .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
-                .satisfies(
-                        c -> assertThat(EntityId.isEmpty(c.getProxyAccountId())).isFalse()));
+        assertContractUpdate(
+                timestamp,
+                contractId,
+                t -> assertThat(t)
+                        .returns(0L, Entity::getAutoRenewAccountId)
+                        .satisfies(c -> assertThat(c.getAutoRenewPeriod()).isPositive())
+                        .satisfies(c -> assertThat(c.getExpirationTimestamp()).isPositive())
+                        .satisfies(c -> assertThat(c.getKey()).isNotEmpty())
+                        .satisfies(c ->
+                                assertThat(c.getMaxAutomaticTokenAssociations()).isPositive())
+                        .satisfies(c -> assertThat(c.getMemo()).isNotEmpty())
+                        .satisfies(c -> assertThat(c.getPublicKey()).isNotEmpty())
+                        .satisfies(c -> assertThat(EntityId.isEmpty(c.getProxyAccountId()))
+                                .isFalse()));
     }
 
     @SuppressWarnings("deprecation")
@@ -468,14 +500,17 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
         transactionHandler.updateTransaction(transaction, recordItem);
-        assertContractUpdate(timestamp, contractId, t -> assertThat(t)
-                .returns(null, Entity::getAutoRenewPeriod)
-                .returns(null, Entity::getExpirationTimestamp)
-                .returns(null, Entity::getKey)
-                .returns(null, Entity::getMaxAutomaticTokenAssociations)
-                .returns(null, Entity::getMemo)
-                .returns(null, Entity::getProxyAccountId)
-                .returns(null, Entity::getPublicKey));
+        assertContractUpdate(
+                timestamp,
+                contractId,
+                t -> assertThat(t)
+                        .returns(null, Entity::getAutoRenewPeriod)
+                        .returns(null, Entity::getExpirationTimestamp)
+                        .returns(null, Entity::getKey)
+                        .returns(null, Entity::getMaxAutomaticTokenAssociations)
+                        .returns(null, Entity::getMemo)
+                        .returns(null, Entity::getProxyAccountId)
+                        .returns(null, Entity::getPublicKey));
     }
 
     private void assertContractUpdate(long timestamp, EntityId contractId, Consumer<Entity> extraAssert) {

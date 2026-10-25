@@ -265,10 +265,12 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
             final Range<Long> timestampRange, final EntityId treasury, final EntityId owner, final EntityId spender) {
         final var token =
                 nonFungibleTokenPersistHistoricalCustomizable(timestampRange, t -> t.treasuryAccountId(treasury));
-        nftPersistHistoricalCustomizable(timestampRange, n -> n.tokenId(token.getTokenId())
-                .spender(spender.getId())
-                .accountId(owner)
-                .timestampRange(timestampRange));
+        nftPersistHistoricalCustomizable(
+                timestampRange,
+                n -> n.tokenId(token.getTokenId())
+                        .spender(spender.getId())
+                        .accountId(owner)
+                        .timestampRange(timestampRange));
         return token;
     }
 

@@ -2,8 +2,10 @@
 
 package org.hiero.mirror.importer.reader.block.hash;
 
-import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 import static org.hiero.mirror.importer.reader.block.hash.HashUtils.hashLeaf;
+import static org.hiero.mirror.importer.reader.block.hash.ShaMessageDigestFactory.SHA_256_SIZE;
+import static org.hiero.mirror.importer.reader.block.hash.ShaMessageDigestFactory.SHA_384_SIZE;
+import static org.hiero.mirror.importer.reader.block.hash.ShaMessageDigestFactory.createMessageDigest;
 
 import java.security.MessageDigest;
 import java.util.LinkedList;
@@ -21,14 +23,32 @@ import java.util.List;
  */
 final class IncrementalStreamingHasher {
 
-    static final byte[] EMPTY_TREE_HASH = createSha384Digest().digest(new byte[] {0x0});
+    static final byte[] EMPTY_TREE_SHA_256_HASH =
+            createMessageDigest(SHA_256_SIZE).digest(new byte[] {0x0});
+    static final byte[] EMPTY_TREE_SHA_384_HASH =
+            createMessageDigest(SHA_384_SIZE).digest(new byte[] {0x0});
 
     /** The hashing algorithm used for computing the hashes. */
-    private final MessageDigest digest = createSha384Digest();
+    private final MessageDigest digest;
+
+    private final int digestSize;
     /** A list to store intermediate hashes as we build the tree. */
     private final List<byte[]> hashList = new LinkedList<>();
     /** The count of leaves in the tree. */
     private long leafCount;
+
+    public IncrementalStreamingHasher(final int digestSize) {
+        this.digest = ShaMessageDigestFactory.createMessageDigest(digestSize);
+        this.digestSize = digestSize;
+    }
+
+    public static byte[] getEmptyTreeHash(final int digestSize) {
+        return switch (digestSize) {
+            case SHA_256_SIZE -> EMPTY_TREE_SHA_256_HASH;
+            case SHA_384_SIZE -> EMPTY_TREE_SHA_384_HASH;
+            default -> throw new IllegalArgumentException("Unsupported digest size " + digestSize);
+        };
+    }
 
     /**
      * Adds a new leaf to the Merkle tree.
@@ -53,16 +73,14 @@ final class IncrementalStreamingHasher {
      *
      * <p>Time complexity: O(log n) where n is the leaf count.
      *
-     * <p>For an empty tree (no leaves added), this method returns the predefined zero-bytes hash
-     * which is {@code sha384Hash(new byte[]{0x00})}.
+     * <p>For an empty tree (no leaves added), this method returns the predefined zero-bytes hash.
      *
-     * @return the 48-byte SHA-384 Merkle tree root hash, or the zero-bytes hash
-     *         if no leaves have been added
+     * @return the Merkle tree root hash, or the zero-bytes hash if no leaves have been added
      */
     public byte[] computeRootHash() {
         if (hashList.isEmpty()) {
             // This value is precomputed as the hash of an empty tree; therefore it should _not_ be hashed as a leaf
-            return EMPTY_TREE_HASH;
+            return getEmptyTreeHash(digestSize);
         }
 
         if (hashList.size() == 1) {
@@ -81,7 +99,7 @@ final class IncrementalStreamingHasher {
      * Add a pre-hashed node to the Merkle tree. This is needed for a tree of other trees. Where each node at the
      * bottom of this tree is the root hash of another tree.
      *
-     * @param hash the 48-byte SHA-384 hash of the node to add (must already include the prefixing)
+     * @param hash the hash of the node to add (must already include the prefixing)
      */
     public void addNodeByHash(final byte[] hash) {
         hashList.add(hash);

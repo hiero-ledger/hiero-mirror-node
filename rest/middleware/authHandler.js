@@ -9,7 +9,20 @@ import {httpStatusCodes, userLimitLabel} from '../constants.js';
 
 const findUser = (username, password) => {
   const users = config.users || [];
-  return users.find((user) => tsscmp(user.username, username) && tsscmp(user.password, password)) || null;
+  let match = null;
+
+  // Constant-work comparison: evaluate both tsscmp calls for every configured user and
+  // never break early, so the number of HMAC operations is independent of whether the
+  // supplied username matches. Short-circuiting here leaks username validity via timing.
+  for (const user of users) {
+    const usernameMatches = tsscmp(user.username, username);
+    const passwordMatches = tsscmp(user.password, password);
+    if (usernameMatches && passwordMatches) {
+      match = user;
+    }
+  }
+
+  return match;
 };
 
 const authHandler = async (req, res) => {

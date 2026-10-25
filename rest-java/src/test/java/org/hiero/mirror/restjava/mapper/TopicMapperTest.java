@@ -69,8 +69,9 @@ class TopicMapperTest {
                 .returns(
                         Hex.encodeHexString(topic.getSubmitKey()),
                         t -> "1220" + t.getSubmitKey().getKey())
-                .returns(commonMapper.mapTimestamp(topic.getTimestampLower()), t -> t.getTimestamp()
-                        .getFrom())
+                .returns(
+                        commonMapper.mapTimestamp(topic.getTimestampLower()),
+                        t -> t.getTimestamp().getFrom())
                 .returns(null, t -> t.getTimestamp().getTo())
                 .returns(entity.toEntityId().toString(), Topic::getTopicId);
     }

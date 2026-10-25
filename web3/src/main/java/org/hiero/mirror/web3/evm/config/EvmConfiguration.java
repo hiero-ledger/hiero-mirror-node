@@ -31,6 +31,7 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_ENTITY = "entity";
     public static final String CACHE_MANAGER_RECORD_FILE_LATEST = "recordFileLatest";
     public static final String CACHE_MANAGER_RECORD_FILE_EARLIEST = "recordFileEarliest";
+    public static final String CACHE_MANAGER_RECORD_FILE_HASH = "recordFileHash";
     public static final String CACHE_MANAGER_RECORD_FILE_INDEX = "recordFileIndex";
     public static final String CACHE_MANAGER_RECORD_FILE_TIMESTAMP = "recordFileTimestamp";
     public static final String CACHE_MANAGER_SYSTEM_FILE = "systemFile";
@@ -160,6 +161,18 @@ public class EvmConfiguration {
     CacheManager cacheManagerRecordFileTimestamp() {
         final var caffeine = Caffeine.newBuilder()
                 .expireAfterAccess(10, TimeUnit.MINUTES)
+                .maximumSize(10000)
+                .recordStats();
+        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME));
+        caffeineCacheManager.setCaffeine(caffeine);
+        return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_RECORD_FILE_HASH)
+    CacheManager cacheManagerRecordFileHash() {
+        final var caffeine = Caffeine.newBuilder()
+                .expireAfterWrite(10, TimeUnit.MINUTES)
                 .maximumSize(10000)
                 .recordStats();
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();

@@ -11,7 +11,6 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @Validated
 public class OpcodesProperties {
-    private boolean enabled = true;
 
     /**
      * Shared byte budget across all in-flight opcode traces. Each trace reserves the actual heap its captured

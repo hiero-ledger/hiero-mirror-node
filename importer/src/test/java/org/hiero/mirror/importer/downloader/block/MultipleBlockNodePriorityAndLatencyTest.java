@@ -58,10 +58,11 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         subscriber = getBlockNodeSubscriber();
 
         // when, then
-        await().atMost(Duration.ofSeconds(10)).pollDelay(Duration.ofMillis(1)).untilAsserted(() -> assertThatThrownBy(
-                        subscriber::get)
-                .isInstanceOf(NoBlockNodeAvailableException.class)
-                .hasMessage("No block node can provide block 20"));
+        await().atMost(Duration.ofSeconds(10))
+                .pollDelay(Duration.ofMillis(1))
+                .untilAsserted(() -> assertThatThrownBy(subscriber::get)
+                        .isInstanceOf(NoBlockNodeAvailableException.class)
+                        .hasMessage("No block node can provide block 20"));
         assertVerifiedBlockFiles(LongStream.range(0, 20).boxed().toList());
 
         // it's non-deterministic that at exactly which block, based on latency, the scheduler will switch from one
@@ -105,10 +106,11 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         subscriber = getBlockNodeSubscriber();
 
         // when, then
-        await().atMost(Duration.ofSeconds(20)).pollDelay(Duration.ofMillis(1)).untilAsserted(() -> assertThatThrownBy(
-                        subscriber::get)
-                .isInstanceOf(NoBlockNodeAvailableException.class)
-                .hasMessage("No block node can provide block 40"));
+        await().atMost(Duration.ofSeconds(20))
+                .pollDelay(Duration.ofMillis(1))
+                .untilAsserted(() -> assertThatThrownBy(subscriber::get)
+                        .isInstanceOf(NoBlockNodeAvailableException.class)
+                        .hasMessage("No block node can provide block 40"));
         assertVerifiedBlockFiles(LongStream.range(0, 40).boxed().toList());
 
         // the following should happen in order

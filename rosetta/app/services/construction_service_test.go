@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -44,8 +45,15 @@ const (
 )
 
 var (
-	corruptedTransaction    = "0x6767"
-	defaultConfig           = &config.Mirror{Rosetta: config.Config{Network: defaultNetwork, Nodes: defaultNodes}}
+	corruptedTransaction = "0x6767"
+	defaultConfig        = &config.Mirror{Rosetta: config.Config{
+		Feature: config.Feature{
+			ValidateAccountCreateFields:  true,
+			ValidateCryptoTransferFields: true,
+		},
+		Network: defaultNetwork,
+		Nodes:   defaultNodes,
+	}}
 	defaultCryptoAccountId1 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123352))
 	defaultCryptoAccountId2 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123518))
 	defaultCryptoAccountId3 = types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(123532))
@@ -56,6 +64,10 @@ var (
 		"10.0.0.4:50211": hiero.AccountID{Account: 6},
 	}
 	singleNodeConfig = &config.Mirror{Rosetta: config.Config{
+		Feature: config.Feature{
+			ValidateAccountCreateFields:  true,
+			ValidateCryptoTransferFields: true,
+		},
 		Network: defaultNetwork,
 		Nodes: config.NodeMap{
 			"10.0.0.1:50211": hiero.AccountID{Account: 3},
@@ -181,6 +193,28 @@ func networkIdentifier() *rTypes.NetworkIdentifier {
 			Network: "SomeSubNetwork",
 		},
 	}
+}
+
+func accountCreateWithAliasHex(t *testing.T) string {
+	t.Helper()
+
+	tx, err := hiero.NewAccountCreateTransaction().
+		SetTransactionID(hiero.TransactionIDGenerate(hiero.AccountID{Account: 100})).
+		SetKeyWithoutAlias(privateKey.PublicKey()).
+		SetInitialBalance(hiero.HbarFromTinybar(1)).
+		SetAlias("0000000000000000000000000000000000000001").
+		SetNodeAccountIDs([]hiero.AccountID{{Account: 3}}).
+		Freeze()
+	require.NoError(t, err)
+	return transactionHex(t, tx)
+}
+
+func transactionHex(t *testing.T, tx hiero.TransactionInterface) string {
+	t.Helper()
+
+	data, err := hiero.TransactionToBytes(tx)
+	require.NoError(t, err)
+	return tools.SafeAddHexPrefix(hex.EncodeToString(data))
 }
 
 func getConstructionHashRequest(signedTx string) *rTypes.ConstructionHashRequest {
@@ -544,6 +578,49 @@ func TestConstructionMetadataOnline(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestConstructionMetadataDeduplicatesAliases(t *testing.T) {
+	// given
+	accountId := types.NewAccountIdFromEntityId(domain.MustDecodeEntityId(100))
+	mockAccountRepo := &mocks.MockAccountRepository{}
+	mockAccountRepo.
+		On("GetAccountId", defaultContext, mock.MatchedBy(func(accountId types.AccountId) bool {
+			return accountId.String() == aliasStr
+		})).
+		Return(accountId, mocks.NilError).
+		Once()
+	mockTransactionConstructor := &mocks.MockTransactionConstructor{}
+	mockTransactionConstructor.
+		On("GetDefaultMaxTransactionFee", types.OperationTypeCryptoTransfer).
+		Return(types.HbarAmount{Value: 100}, mocks.NilError)
+	randomNodeAccountId := hiero.AccountID{Account: uint64(rand.Intn(100) + 1)}
+	nodes := map[string]hiero.AccountID{"10.0.0.1:50211": randomNodeAccountId}
+	mirrorConfig := &config.Mirror{Rosetta: config.Config{
+		Network: defaultNetwork,
+		Nodes:   nodes,
+	}}
+	request := &rTypes.ConstructionMetadataRequest{
+		NetworkIdentifier: networkIdentifier(),
+		Options: map[string]any{
+			optionKeyAccountAliases: aliasStr + "," + ed25519AliasPrefix + strings.ToUpper(publicKeyStr),
+			optionKeyOperationType:  types.OperationTypeCryptoTransfer,
+		},
+	}
+
+	// when
+	service, _ := newTestConstructionAPIService(
+		mockAccountRepo,
+		onlineBaseService,
+		mirrorConfig,
+		mockTransactionConstructor,
+	)
+	res, err := service.ConstructionMetadata(defaultContext, request)
+
+	// then
+	mockAccountRepo.AssertExpectations(t)
+	assert.Nil(t, err)
+	assert.Equal(t, fmt.Sprintf("%s:%s", aliasStr, accountId), res.Metadata[metadataKeyAccountMap])
+}
+
 func TestConstructionMetadataOffline(t *testing.T) {
 	// given
 	mockTransactionConstructor := &mocks.MockTransactionConstructor{}
@@ -646,6 +723,26 @@ func TestConstructionMetadataFailsWhenInvalidOptions(t *testing.T) {
 				NetworkIdentifier: networkIdentifier(),
 				Options: map[string]any{
 					optionKeyAccountAliases: 1,
+					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
+				},
+			},
+		},
+		{
+			name: "too many account aliases",
+			request: &rTypes.ConstructionMetadataRequest{
+				NetworkIdentifier: networkIdentifier(),
+				Options: map[string]any{
+					optionKeyAccountAliases: strings.Repeat(aliasStr+",", maxAccountAliases) + aliasStr,
+					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
+				},
+			},
+		},
+		{
+			name: "account aliases exceed max length",
+			request: &rTypes.ConstructionMetadataRequest{
+				NetworkIdentifier: networkIdentifier(),
+				Options: map[string]any{
+					optionKeyAccountAliases: strings.Repeat("a", maxAccountAliasesLength+1),
 					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
 				},
 			},
@@ -787,7 +884,7 @@ func TestConstructionParse(t *testing.T) {
 				Metadata:                 tt.metadata,
 			}
 
-			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor())
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor(true, true))
 
 			// when:
 			actual, e := service.ConstructionParse(defaultContext, tt.request)
@@ -816,6 +913,120 @@ func TestConstructionParseThrowsWhenConstructorParseFails(t *testing.T) {
 	assert.Nil(t, res)
 	assert.NotNil(t, e)
 	mockConstructor.AssertExpectations(t)
+}
+
+func TestConstructionParseAccountCreateWithAlias(t *testing.T) {
+	mirrorConfig := *defaultConfig
+	mirrorConfig.Rosetta.Feature.ValidateAccountCreateFields = true
+	service, _ := newTestConstructionAPIService(
+		nil,
+		offlineBaseService,
+		&mirrorConfig,
+		construction.NewTransactionConstructor(
+			mirrorConfig.Rosetta.Feature.ValidateAccountCreateFields,
+			mirrorConfig.Rosetta.Feature.ValidateCryptoTransferFields,
+		),
+	)
+	res, e := service.ConstructionParse(defaultContext, getConstructionParseRequest(accountCreateWithAliasHex(t), false))
+
+	assert.Nil(t, res)
+	assert.Equal(t, errors.ErrInvalidTransaction, e)
+}
+
+func cryptoTransferWithTokenHex(t *testing.T) string {
+	t.Helper()
+
+	tokenID := hiero.TokenID{Token: 100}
+	payer := hiero.AccountID{Account: 100}
+	receiver := hiero.AccountID{Account: 200}
+	tx, err := hiero.NewTransferTransaction().
+		SetTransactionID(hiero.TransactionIDGenerate(payer)).
+		AddHbarTransfer(payer, hiero.HbarFromTinybar(-1)).
+		AddHbarTransfer(receiver, hiero.HbarFromTinybar(1)).
+		AddTokenTransfer(tokenID, payer, -10).
+		AddTokenTransfer(tokenID, receiver, 10).
+		SetNodeAccountIDs([]hiero.AccountID{{Account: 3}}).
+		Freeze()
+	require.NoError(t, err)
+	return transactionHex(t, tx)
+}
+
+func cryptoTransferWithNftHex(t *testing.T) string {
+	t.Helper()
+
+	tokenID := hiero.TokenID{Token: 100}
+	payer := hiero.AccountID{Account: 100}
+	receiver := hiero.AccountID{Account: 200}
+	tx, err := hiero.NewTransferTransaction().
+		SetTransactionID(hiero.TransactionIDGenerate(payer)).
+		AddHbarTransfer(payer, hiero.HbarFromTinybar(-1)).
+		AddHbarTransfer(receiver, hiero.HbarFromTinybar(1)).
+		AddNftTransfer(tokenID.Nft(1), payer, receiver).
+		SetNodeAccountIDs([]hiero.AccountID{{Account: 3}}).
+		Freeze()
+	require.NoError(t, err)
+	return transactionHex(t, tx)
+}
+
+func TestConstructionParseCryptoTransferWithTokenTransfers(t *testing.T) {
+	service, _ := newTestConstructionAPIService(
+		nil,
+		offlineBaseService,
+		defaultConfig,
+		construction.NewTransactionConstructor(true, true),
+	)
+	res, e := service.ConstructionParse(defaultContext, getConstructionParseRequest(cryptoTransferWithTokenHex(t), false))
+
+	assert.Nil(t, res)
+	assert.Equal(t, errors.ErrInvalidTransaction, e)
+}
+
+func TestConstructionCombineRejectsCryptoTransferWithTokenOrNftTransfers(t *testing.T) {
+	tests := []struct {
+		name        string
+		transaction string
+	}{
+		{name: "token transfers", transaction: cryptoTransferWithTokenHex(t)},
+		{name: "nft transfers", transaction: cryptoTransferWithNftHex(t)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+			request := getConstructionCombineRequest()
+			request.UnsignedTransaction = tt.transaction
+
+			res, e := service.ConstructionCombine(defaultContext, request)
+
+			assert.Nil(t, res)
+			assert.Equal(t, errors.ErrInvalidTransaction, e)
+		})
+	}
+}
+
+func TestConstructionSubmitRejectsCryptoTransferWithTokenOrNftTransfers(t *testing.T) {
+	tests := []struct {
+		name        string
+		transaction string
+	}{
+		{name: "token transfers", transaction: cryptoTransferWithTokenHex(t)},
+		{name: "nft transfers", transaction: cryptoTransferWithNftHex(t)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+			request := &rTypes.ConstructionSubmitRequest{
+				NetworkIdentifier: networkIdentifier(),
+				SignedTransaction: tt.transaction,
+			}
+
+			res, e := service.ConstructionSubmit(defaultContext, request)
+
+			assert.Nil(t, res)
+			assert.Equal(t, errors.ErrInvalidTransaction, e)
+		})
+	}
 }
 
 func TestConstructionParseThrowsWhenDecodeStringFails(t *testing.T) {
@@ -1004,6 +1215,18 @@ func TestConstructionPayloadsAliasError(t *testing.T) {
 			name:     "invalid account id",
 			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: fmt.Sprintf("%s:abc", aliasStr)}),
 		},
+		{
+			name:     "account map entry missing separator",
+			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: aliasStr}),
+		},
+		{
+			name:     "matching prefix without separator",
+			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: aliasStr + ",other:0.0.100"}),
+		},
+		{
+			name:     "account map entry with extra separator",
+			metadata: addMetadataNodeAccountId(metadata{metadataKeyAccountMap: fmt.Sprintf("%s:%s:0.0.100", aliasStr, aliasStr)}),
+		},
 	}
 
 	for _, tt := range tests {
@@ -1173,7 +1396,7 @@ func TestConstructionPayloadsInvalidRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
 			request := getPayloadsRequest(operations, tt.customize)
-			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor())
+			service, _ := newTestConstructionAPIService(nil, onlineBaseService, defaultConfig, construction.NewTransactionConstructor(true, true))
 
 			// when
 			response, err := service.ConstructionPayloads(defaultContext, request)

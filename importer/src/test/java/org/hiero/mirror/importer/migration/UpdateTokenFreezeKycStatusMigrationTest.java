@@ -184,26 +184,28 @@ class UpdateTokenFreezeKycStatusMigrationTest extends ImporterIntegrationTest {
     }
 
     private List<PostMigrationToken> postFindAll() {
-        return jdbcOperations.query("SELECT * FROM token", (rs, index) -> PostMigrationToken.builder()
-                .createdTimestamp(rs.getLong("created_timestamp"))
-                .decimals(rs.getInt("decimals"))
-                .freezeDefault(rs.getBoolean("freeze_default"))
-                .freezeKey(rs.getBytes("freeze_key"))
-                .freezeStatus(TokenFreezeStatusEnum.values()[rs.getInt("freeze_status")])
-                .initialSupply(rs.getLong("initial_supply"))
-                .kycKey(rs.getBytes("kyc_key"))
-                .kycStatus(TokenKycStatusEnum.values()[rs.getInt("kyc_status")])
-                .maxSupply(rs.getLong("max_supply"))
-                .name(rs.getString("name"))
-                .pauseStatus(TokenPauseStatusEnum.valueOf(rs.getString("pause_status")))
-                .supplyType(TokenSupplyTypeEnum.valueOf(rs.getString("supply_type")))
-                .symbol(rs.getString("symbol"))
-                .timestampRange(PostgreSQLGuavaRangeType.longRange(rs.getString("timestamp_range")))
-                .tokenId(rs.getLong("token_id"))
-                .totalSupply(rs.getLong("total_supply"))
-                .treasuryAccountId(EntityId.of(rs.getLong("treasury_account_id")))
-                .type(TokenTypeEnum.valueOf(rs.getString("type")))
-                .build());
+        return jdbcOperations.query(
+                "SELECT * FROM token",
+                (rs, index) -> PostMigrationToken.builder()
+                        .createdTimestamp(rs.getLong("created_timestamp"))
+                        .decimals(rs.getInt("decimals"))
+                        .freezeDefault(rs.getBoolean("freeze_default"))
+                        .freezeKey(rs.getBytes("freeze_key"))
+                        .freezeStatus(TokenFreezeStatusEnum.values()[rs.getInt("freeze_status")])
+                        .initialSupply(rs.getLong("initial_supply"))
+                        .kycKey(rs.getBytes("kyc_key"))
+                        .kycStatus(TokenKycStatusEnum.values()[rs.getInt("kyc_status")])
+                        .maxSupply(rs.getLong("max_supply"))
+                        .name(rs.getString("name"))
+                        .pauseStatus(TokenPauseStatusEnum.valueOf(rs.getString("pause_status")))
+                        .supplyType(TokenSupplyTypeEnum.valueOf(rs.getString("supply_type")))
+                        .symbol(rs.getString("symbol"))
+                        .timestampRange(PostgreSQLGuavaRangeType.longRange(rs.getString("timestamp_range")))
+                        .tokenId(rs.getLong("token_id"))
+                        .totalSupply(rs.getLong("total_supply"))
+                        .treasuryAccountId(EntityId.of(rs.getLong("treasury_account_id")))
+                        .type(TokenTypeEnum.valueOf(rs.getString("type")))
+                        .build());
     }
 
     @Builder(toBuilder = true)

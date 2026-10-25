@@ -4,6 +4,11 @@ package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED_VALUE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.DUPLICATE_TRANSACTION_VALUE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_GAS_VALUE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE_VALUE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS_VALUE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.collection;
@@ -13,6 +18,8 @@ import static org.hiero.mirror.web3.state.Utils.convertToInstant;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
@@ -35,18 +42,24 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.repository.ContractResultRepository;
+import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
+import org.hiero.mirror.web3.repository.projections.ContractTransactionHashLookup;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
@@ -86,6 +99,12 @@ class TransactionExecutionServiceTest {
     private AliasesReadableKVState aliasesReadableKVState;
 
     @Mock
+    private ContractResultRepository contractResultRepository;
+
+    @Mock
+    private ContractTransactionHashRepository contractTransactionHashRepository;
+
+    @Mock
     private OpcodeActionTracer opcodeActionTracer;
 
     @Mock
@@ -114,6 +133,8 @@ class TransactionExecutionServiceTest {
                 accountReadableKVState,
                 aliasesReadableKVState,
                 commonProperties,
+                contractResultRepository,
+                contractTransactionHashRepository,
                 evmProperties,
                 opcodeActionTracer,
                 mirrorOperationActionTracer,
@@ -741,6 +762,116 @@ class TransactionExecutionServiceTest {
             assertThatThrownBy(() -> transactionExecutionService.execute(params, DEFAULT_GAS))
                     .isInstanceOf(MirrorEvmTransactionException.class)
                     .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
+        }
+    }
+
+    @Nested
+    @MockitoSettings(strictness = Strictness.LENIENT)
+    class ResolveContractTransactionHash {
+
+        private static final DomainBuilder DOMAIN_BUILDER = new DomainBuilder();
+
+        @Test
+        void prefersGenuineExecutionOverLaterFailure() {
+            final var hash = DOMAIN_BUILDER.bytes(32);
+            final var executed = lookup(1L, DOMAIN_BUILDER.entityId().getId(), CONTRACT_REVERT_EXECUTED_VALUE);
+            final var failure = lookup(2L, 0L, INSUFFICIENT_PAYER_BALANCE_VALUE);
+            when(contractTransactionHashRepository.findAllByHash(hash)).thenReturn(List.of(failure, executed));
+            when(contractResultRepository.findLatestExecutedTimestamp(any(), any()))
+                    .thenReturn(Optional.of(1L));
+
+            assertThat(resolve(hash).getConsensusTimestamp()).isEqualTo(1L);
+        }
+
+        @Test
+        void prefersFailedContractCreateOverLaterFailure() {
+            final var hash = DOMAIN_BUILDER.bytes(32);
+            final var failedCreate = lookup(1L, 0L, CONTRACT_REVERT_EXECUTED_VALUE);
+            final var failure = lookup(2L, 0L, INSUFFICIENT_PAYER_BALANCE_VALUE);
+            when(contractTransactionHashRepository.findAllByHash(hash)).thenReturn(List.of(failure, failedCreate));
+            when(contractResultRepository.findLatestExecutedTimestamp(any(), any()))
+                    .thenReturn(Optional.of(1L));
+
+            assertThat(resolve(hash).getConsensusTimestamp()).isEqualTo(1L);
+        }
+
+        @Test
+        void prefersSuccessWithoutCheckingExecution() {
+            final var hash = DOMAIN_BUILDER.bytes(32);
+            final long contractId = DOMAIN_BUILDER.entityId().getId();
+            final var success = lookup(1L, contractId, SUCCESS_VALUE);
+            final var laterRevert = lookup(2L, contractId, CONTRACT_REVERT_EXECUTED_VALUE);
+            when(contractTransactionHashRepository.findAllByHash(hash)).thenReturn(List.of(success, laterRevert));
+
+            assertThat(resolve(hash).getConsensusTimestamp()).isEqualTo(1L);
+            verify(contractResultRepository, never()).findLatestExecutedTimestamp(any(), any());
+        }
+
+        @Test
+        void fallsBackToLatestWhenNothingExecuted() {
+            final var hash = DOMAIN_BUILDER.bytes(32);
+            final var insufficientGas = lookup(1L, 0L, INSUFFICIENT_GAS_VALUE);
+            final var duplicate = lookup(2L, 0L, DUPLICATE_TRANSACTION_VALUE);
+            when(contractTransactionHashRepository.findAllByHash(hash)).thenReturn(List.of(duplicate, insufficientGas));
+
+            assertThat(resolve(hash).getConsensusTimestamp()).isEqualTo(2L);
+        }
+
+        @Test
+        void treatsNullTransactionResultAsNonSuccessful() {
+            final var hash = DOMAIN_BUILDER.bytes(32);
+            final var nullResult = new ContractTransactionHashLookupRecord(
+                    2L, 0L, DOMAIN_BUILDER.entityId().getId(), null);
+            final var other = lookup(1L, 0L, INSUFFICIENT_PAYER_BALANCE_VALUE);
+            when(contractTransactionHashRepository.findAllByHash(hash)).thenReturn(List.of(nullResult, other));
+
+            assertThat(resolve(hash).getConsensusTimestamp()).isEqualTo(2L);
+        }
+
+        @Test
+        void throwsWhenHashIsUnknown() {
+            final var hash = DOMAIN_BUILDER.bytes(32);
+            when(contractTransactionHashRepository.findAllByHash(hash)).thenReturn(List.of());
+            final var parameter = new TransactionHashParameter(org.apache.tuweni.bytes.Bytes.of(hash));
+
+            assertThatThrownBy(() -> transactionExecutionService.resolveContractTransactionHash(parameter))
+                    .isInstanceOf(EntityNotFoundException.class)
+                    .hasMessage("Contract transaction hash not found: " + parameter);
+        }
+
+        private ContractTransactionHashLookup resolve(final byte[] hash) {
+            return transactionExecutionService.resolveContractTransactionHash(
+                    new TransactionHashParameter(org.apache.tuweni.bytes.Bytes.of(hash)));
+        }
+
+        private ContractTransactionHashLookupRecord lookup(
+                final long consensusTimestamp, final long entityId, final int transactionResult) {
+            return new ContractTransactionHashLookupRecord(
+                    consensusTimestamp, entityId, DOMAIN_BUILDER.entityId().getId(), transactionResult);
+        }
+
+        private record ContractTransactionHashLookupRecord(
+                long consensusTimestamp, long entityId, long payerAccountId, Integer transactionResult)
+                implements ContractTransactionHashLookup {
+            @Override
+            public long getConsensusTimestamp() {
+                return consensusTimestamp;
+            }
+
+            @Override
+            public long getEntityId() {
+                return entityId;
+            }
+
+            @Override
+            public long getPayerAccountId() {
+                return payerAccountId;
+            }
+
+            @Override
+            public Integer getTransactionResult() {
+                return transactionResult;
+            }
         }
     }
 }

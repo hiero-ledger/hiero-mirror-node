@@ -5,6 +5,7 @@ package org.hiero.mirror.grpc.util;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.grpc.util.ProtoUtil.DB_ERROR;
 import static org.hiero.mirror.grpc.util.ProtoUtil.OVERFLOW_ERROR;
+import static org.hiero.mirror.grpc.util.ProtoUtil.SCHEDULER_CAPACITY;
 import static org.hiero.mirror.grpc.util.ProtoUtil.UNKNOWN_ERROR;
 
 import com.google.protobuf.ByteString;
@@ -14,10 +15,13 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
+import org.hiero.mirror.grpc.exception.SubscriptionLimitException;
+import org.hiero.mirror.grpc.exception.SubscriptionTimeoutException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,16 +31,6 @@ import org.springframework.dao.QueryTimeoutException;
 import reactor.core.Exceptions;
 
 class ProtoUtilTest {
-
-    @DisplayName("Convert Timestamp to Instant")
-    @ParameterizedTest(name = "with {0}s and {1}ns")
-    @CsvSource({"0, 0", "0, 999999999", "10, 0", "31556889864403199, 999999999", "-31557014167219200, 0"})
-    void fromTimestamp(long seconds, int nanos) {
-        Instant instant = Instant.ofEpochSecond(seconds, nanos);
-        Timestamp timestamp =
-                Timestamp.newBuilder().setSeconds(seconds).setNanos(nanos).build();
-        assertThat(ProtoUtil.fromTimestamp(timestamp)).isEqualTo(instant);
-    }
 
     @Test
     void toStatusRuntimeException() {
@@ -50,6 +44,9 @@ class ProtoUtilTest {
         assertException(new EntityNotFoundException(entityId), Status.NOT_FOUND, "0.0.1 does not exist");
         assertException(new NonTransientDataAccessResourceException(message), Status.UNAVAILABLE, DB_ERROR);
         assertException(new QueryTimeoutException(message), Status.RESOURCE_EXHAUSTED, DB_ERROR);
+        assertException(new RejectedExecutionException(message), Status.RESOURCE_EXHAUSTED, SCHEDULER_CAPACITY);
+        assertException(new SubscriptionLimitException(message), Status.RESOURCE_EXHAUSTED, message);
+        assertException(new SubscriptionTimeoutException(message), Status.DEADLINE_EXCEEDED, message);
         assertException(new TimeoutException(message), Status.RESOURCE_EXHAUSTED, DB_ERROR);
         assertException(new RuntimeException(message), Status.UNKNOWN, UNKNOWN_ERROR);
     }

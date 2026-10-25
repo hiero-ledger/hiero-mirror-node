@@ -804,8 +804,7 @@ public final class RecordItemBuilder {
 
     public Builder<LedgerIdPublicationTransactionBody.Builder> ledgerIdPublication() {
         final var builder = LedgerIdPublicationTransactionBody.newBuilder()
-                .setHistoryProofVerificationKey(bytes(64))
-                .setLedgerId(bytes(32))
+                .setLedgerId(bytes(64))
                 .addNodeContributions(LedgerIdNodeContribution.newBuilder()
                         .setHistoryProofKey(bytes(64))
                         .setNodeId(id())

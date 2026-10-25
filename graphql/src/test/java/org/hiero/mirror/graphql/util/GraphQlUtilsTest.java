@@ -99,9 +99,10 @@ class GraphQlUtilsTest {
     @ParameterizedTest
     void decodeEvmAddress(String evmAddress, int expectedLength, long output) {
         var decodedEvmAddress = GraphQlUtils.decodeEvmAddress(evmAddress);
-        assertThat(decodedEvmAddress).hasSize(expectedLength).satisfies(e -> assertThat(
-                        output > 0 ? new BigInteger(e).longValue() : output)
-                .isEqualTo(output));
+        assertThat(decodedEvmAddress)
+                .hasSize(expectedLength)
+                .satisfies(e -> assertThat(output > 0 ? new BigInteger(e).longValue() : output)
+                        .isEqualTo(output));
     }
 
     @NullAndEmptySource

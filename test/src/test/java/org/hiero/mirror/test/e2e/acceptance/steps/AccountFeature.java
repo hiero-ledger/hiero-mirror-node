@@ -244,8 +244,10 @@ public class AccountFeature extends AbstractFeature {
                 .amount(-transferAmount)
                 .isApproval(true);
         var transactions = mirrorTransactionsResponse.getTransactions();
-        assertThat(transactions).hasSize(1).first().satisfies(t -> assertThat(t.getTransfers())
-                .contains(expectedCryptoTransfer));
+        assertThat(transactions)
+                .hasSize(1)
+                .first()
+                .satisfies(t -> assertThat(t.getTransfers()).contains(expectedCryptoTransfer));
     }
 
     @When("I delete the crypto allowance for {string}")
@@ -377,8 +379,9 @@ public class AccountFeature extends AbstractFeature {
     @When("I stake the account {string} to node {long}")
     public void stakeAccountToNode(String accountName, long nodeId) {
         senderAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
-        networkTransactionResponse =
-                accountClient.updateAccount(senderAccountId, x -> x.setStakedAccountId(senderAccountId.getAccountId())
+        networkTransactionResponse = accountClient.updateAccount(
+                senderAccountId,
+                x -> x.setStakedAccountId(senderAccountId.getAccountId())
                         .setStakedNodeId(nodeId)
                         .setDeclineStakingReward(false));
         assertThat(networkTransactionResponse)

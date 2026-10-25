@@ -48,6 +48,8 @@ public class MirrorNodeProperties {
     @Validated
     public static class RestProperties {
 
+        private static final int HTTPS_PORT = 443;
+
         @NotBlank
         private String host;
 
@@ -55,9 +57,26 @@ public class MirrorNodeProperties {
         @Max(65535)
         private int port = 443;
 
+        @NotNull
+        private TlsMode tls = TlsMode.AUTO;
+
         public String getBaseUrl() {
-            String scheme = port == 443 ? "https://" : "http://";
+            final var scheme = isSecure() ? "https://" : "http://";
             return scheme + host + ":" + port + "/api/v1";
+        }
+
+        public boolean isSecure() {
+            return switch (tls) {
+                case AUTO -> port == HTTPS_PORT;
+                case DISABLED -> false;
+                case ENABLED -> true;
+            };
+        }
+
+        public enum TlsMode {
+            AUTO, // Use TLS only if the port is 443
+            DISABLED,
+            ENABLED
         }
     }
 }

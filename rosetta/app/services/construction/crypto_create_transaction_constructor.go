@@ -9,8 +9,11 @@ import (
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
+	"github.com/hiero-ledger/hiero-sdk-go/v2/proto/services"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type cryptoCreate struct {
@@ -26,6 +29,7 @@ type cryptoCreate struct {
 
 type cryptoCreateTransactionConstructor struct {
 	commonTransactionConstructor
+	validateAccountCreateFields bool
 }
 
 func (c *cryptoCreateTransactionConstructor) Construct(
@@ -112,6 +116,12 @@ func (c *cryptoCreateTransactionConstructor) Parse(_ context.Context, transactio
 		metadata["proxy_account_id"] = cryptoCreateTransaction.GetProxyAccountID().String()
 	}
 
+	if c.validateAccountCreateFields {
+		if rErr := validateSupportedAccountCreateFields(cryptoCreateTransaction); rErr != nil {
+			return nil, nil, rErr
+		}
+	}
+
 	return types.OperationSlice{operation}, []types.AccountId{payer}, nil
 }
 
@@ -157,11 +167,101 @@ func (c *cryptoCreateTransactionConstructor) preprocess(operations types.Operati
 	return cryptoCreate, &operation.AccountId, nil
 }
 
-func newCryptoCreateTransactionConstructor() transactionConstructorWithType {
+// Fields this API already returns from an account create. Any other populated protobuf field is rejected.
+var allowedCryptoCreateFields = map[protoreflect.Name]struct{}{
+	"autoRenewPeriod":                  {},
+	"initialBalance":                   {},
+	"key":                              {},
+	"max_automatic_token_associations": {},
+	"memo":                             {},
+	"proxyAccountID":                   {},
+}
+
+func validateSupportedAccountCreateFields(tx hiero.AccountCreateTransaction) *rTypes.Error {
+	// A frozen transaction has signed body bytes, so every populated protobuf field can be checked
+	// against the allowlist. An unfrozen transaction has no body yet; only the public SDK getters
+	// can be checked, and they do not expose fields such as shard, realm, or delegation address.
+	if tx.IsFrozen() {
+		return validateFrozenAccountCreateFields(tx)
+	}
+
+	if field := unsupportedAccountCreateSDKField(tx); field != "" {
+		log.Errorf("Account create field %s is not supported", field)
+		return errors.ErrInvalidTransaction
+	}
+
+	return nil
+}
+
+func validateFrozenAccountCreateFields(tx hiero.AccountCreateTransaction) *rTypes.Error {
+	body := &services.TransactionBody{}
+	if err := proto.Unmarshal(tx.GetSignedTransactionBodyBytes(0), body); err != nil {
+		log.Errorf("Failed to read the signed account create body: %s", err)
+		return errors.ErrInvalidTransaction
+	}
+
+	create := body.GetCryptoCreateAccount()
+	if create == nil {
+		log.Error("Stored account create transaction body is not a crypto create")
+		return errors.ErrInvalidTransaction
+	}
+
+	if field, ok := unsupportedCryptoCreateField(create); ok {
+		log.Errorf("Account create field %s is not supported", field)
+		return errors.ErrInvalidTransaction
+	}
+
+	return nil
+}
+
+func unsupportedCryptoCreateField(body *services.CryptoCreateTransactionBody) (string, bool) {
+	var unsupported string
+	body.ProtoReflect().Range(func(field protoreflect.FieldDescriptor, _ protoreflect.Value) bool {
+		if _, allowed := allowedCryptoCreateFields[field.Name()]; !allowed {
+			unsupported = string(field.Name())
+			return false
+		}
+		return true
+	})
+	if unsupported != "" {
+		return unsupported, true
+	}
+	if len(body.ProtoReflect().GetUnknown()) > 0 {
+		return "unknown", true
+	}
+
+	return "", false
+}
+
+func unsupportedAccountCreateSDKField(tx hiero.AccountCreateTransaction) string {
+	if len(tx.GetAlias()) > 0 {
+		return "alias"
+	}
+	if !isZeroAccountId(tx.GetStakedAccountID()) {
+		return "staked_account_id"
+	}
+	if tx.GetStakedNodeID() != 0 {
+		return "staked_node_id"
+	}
+	if tx.GetDeclineStakingReward() {
+		return "decline_reward"
+	}
+	if tx.GetReceiverSignatureRequired() {
+		return "receiver_sig_required"
+	}
+	if len(tx.GetHooks()) > 0 {
+		return "hook_creation_details"
+	}
+
+	return ""
+}
+
+func newCryptoCreateTransactionConstructor(validateAccountCreateFields bool) transactionConstructorWithType {
 	return &cryptoCreateTransactionConstructor{
 		commonTransactionConstructor: newCommonTransactionConstructor(
 			hiero.NewAccountCreateTransaction(),
 			types.OperationTypeCryptoCreateAccount,
 		),
+		validateAccountCreateFields: validateAccountCreateFields,
 	}
 }

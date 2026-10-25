@@ -10,7 +10,7 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
-import org.hiero.mirror.web3.repository.RecordFileRepository;
+import org.hiero.mirror.web3.service.RecordFileService;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.frame.BlockValues;
@@ -27,7 +27,7 @@ import org.hyperledger.besu.evm.operation.BlockHashOperation;
 class MirrorBlockHashOperation extends BlockHashOperation {
 
     private final EvmProperties evmProperties;
-    private final RecordFileRepository recordFileRepository;
+    private final RecordFileService recordFileService;
 
     /**
      * Instantiates a new Block hash operation.
@@ -35,10 +35,10 @@ class MirrorBlockHashOperation extends BlockHashOperation {
      * @param gasCalculator the gas calculator
      */
     MirrorBlockHashOperation(
-            GasCalculator gasCalculator, EvmProperties evmProperties, RecordFileRepository recordFileRepository) {
+            GasCalculator gasCalculator, EvmProperties evmProperties, RecordFileService recordFileService) {
         super(gasCalculator);
         this.evmProperties = evmProperties;
-        this.recordFileRepository = recordFileRepository;
+        this.recordFileService = recordFileService;
     }
 
     @Override
@@ -76,7 +76,7 @@ class MirrorBlockHashOperation extends BlockHashOperation {
     }
 
     private Hash getBlockHash(long blockNumber) {
-        final var recordFile = recordFileRepository.findByIndex(blockNumber);
+        final var recordFile = recordFileService.findByIndex(blockNumber);
         return recordFile.map(this::getBlockHash).orElse(Hash.ZERO);
     }
 

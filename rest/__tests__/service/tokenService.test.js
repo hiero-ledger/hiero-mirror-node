@@ -98,6 +98,49 @@ describe('getQuery', () => {
   });
 });
 
+describe('getTokenAccounts', () => {
+  const query = {conditions: [], inConditions: [], order: 'asc', ownerAccountId: 1000, limit: 25};
+
+  test.each([
+    [0, 0, 2, 1, 0, 0], // Treasury statuses on a token without keys
+    [0, 0, 1, 2, 0, 0], // NOT_APPLICABLE also overrides restrictive relationship statuses
+    [0, 2, 2, 1, 0, 1], // Only freeze is not applicable
+    [1, 0, 2, 1, 2, 0], // Only KYC is not applicable
+    [1, 2, 2, 1, 2, 1], // Explicit treasury statuses override applicable defaults
+    [2, 2, 1, 2, 1, 2], // Explicit restrictions remain in effect
+    [1, 2, null, null, 1, 2], // Null relationship statuses use token defaults
+    [0, 0, null, null, 0, 0],
+  ])(
+    'token statuses %s/%s, relationship statuses %s/%s resolve to %s/%s',
+    async (tokenFreeze, tokenKyc, freeze, kyc, expectedFreeze, expectedKyc) => {
+      await integrationDomainOps.loadTokens([
+        {token_id: 300, decimals: 3, freeze_status: tokenFreeze, kyc_status: tokenKyc},
+      ]);
+      await integrationDomainOps.loadTokenAccounts([
+        {account_id: 1000, token_id: 300, balance: 7, freeze_status: freeze, kyc_status: kyc},
+      ]);
+
+      const relationships = await TokenService.getTokenAccounts(query);
+      expect(relationships).toHaveLength(1);
+      expect(relationships[0]).toMatchObject({
+        balance: 7,
+        decimals: 3,
+        freezeStatus: expectedFreeze,
+        kycStatus: expectedKyc,
+      });
+      // The cached token must give the same status precedence.
+      await expect(TokenService.getTokenAccounts(query)).resolves.toEqual(relationships);
+    }
+  );
+
+  test('missing token preserves explicit relationship statuses', async () => {
+    await integrationDomainOps.loadTokenAccounts([{account_id: 1000, token_id: 300, freeze_status: 2, kyc_status: 1}]);
+    const relationships = await TokenService.getTokenAccounts(query);
+    expect(relationships).toHaveLength(1);
+    expect(relationships[0]).toMatchObject({freezeStatus: 2, kycStatus: 1});
+  });
+});
+
 describe('getCachedTokens', () => {
   const tokenId300 = EntityId.parseString('300');
   const tokenId400 = EntityId.parseString('400');

@@ -419,11 +419,14 @@ traefik:
             labelSelector:
               matchLabels:
                 app.kubernetes.io/name: traefik
+  dashboard:
+    enabled: true
+    password: ""  # Default to a randomly generated password
+    username: admin
   deployment:
     kind: DaemonSet
   enabled: true
-  globalArguments:
-    - --api.insecure=true
+  globalArguments: []
   logs:
     access:
       enabled: true
@@ -469,9 +472,10 @@ zfs:
     enabled: false
   autoGrow:
     growPercent: 10
+    headroomGb: 20
     intervalSeconds: 120
-    maxStepGb: 50
-    thresholdPercent: 80
+    maxStepGb: 200
+    thresholdPercent: 90
   coordinator:
     initialDiskSize: 300GB
   enabled: false

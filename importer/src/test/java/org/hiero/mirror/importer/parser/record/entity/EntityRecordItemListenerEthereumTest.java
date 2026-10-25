@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.entity;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1;
 import static org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionTestUtility.RAW_TX_TYPE_1_CALL_DATA;
@@ -13,12 +14,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
+import com.hedera.services.stream.proto.ContractBytecode;
+import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
+import java.nio.file.Path;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +53,12 @@ import org.springframework.data.util.Version;
 
 @RequiredArgsConstructor
 class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListenerTest {
+    private static final long GAS_LIMIT = 5_750_000L;
+    private static final long GAS_PRICE_TINYBARS = 50L;
     private static final Version HAPI_VERSION_0_46_0 = new Version(0, 46, 0);
+    private static final long INITIAL_BALANCE_TINYBARS = 10_000_000L;
+    private static final long MAX_GAS_ALLOWANCE_TINYBARS = 10_000_000_000L;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final long SIGNER_NONCE = 10L;
 
     private final ContractTransactionRepository contractTransactionRepository;
@@ -64,6 +76,38 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
     @BeforeEach
     void before() {
         entityProperties.getPersist().setEthereumTransactions(true);
+    }
+
+    /**
+     * A legacy Ethereum contract create whose raw transaction carries the Parent contract creation bytecode. The
+     * bytecode sidecar leaves initcode empty because it is already in the calldata.
+     */
+    @Test
+    void ethereumContractCreatePersistsRuntimeAndInitBytecode() throws Exception {
+        final var artifact = parentArtifact();
+        final var initcode = hexBytecode(artifact.get("bytecode").asText());
+        final var runtimeBytecode = hexBytecode(artifact.get("deployedBytecode").asText());
+        final var contractId = recordItemBuilder.contractId();
+
+        final var parent = recordItemBuilder
+                .ethereumTransaction(true)
+                .transactionBody(body -> body.clearCallData()
+                        .setEthereumData(ByteString.copyFrom(legacyContractCreate(initcode)))
+                        .setMaxGasAllowance(MAX_GAS_ALLOWANCE_TINYBARS))
+                .record(record -> record.getReceiptBuilder().setContractID(contractId))
+                .sidecarRecords(sidecars -> sidecars.add(TransactionSidecarRecord.newBuilder()
+                        .setBytecode(ContractBytecode.newBuilder()
+                                .setContractId(contractId)
+                                .setInitcode(ByteString.EMPTY))))
+                .build();
+
+        final var child = childContractCreate(contractId, parent, runtimeBytecode);
+        parseRecordItemsAndCommit(List.of(parent, child));
+
+        final var contract =
+                contractRepository.findById(EntityId.of(contractId).getId()).orElseThrow();
+        assertThat(contract.getInitcode()).isEqualTo(initcode);
+        assertThat(contract.getRuntimeBytecode()).isEqualTo(runtimeBytecode);
     }
 
     @ValueSource(booleans = {true, false})
@@ -342,5 +386,59 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
             var ethereumNonce = entityRepository.findById(sender.getId()).get().getEthereumNonce();
             assertThat(ethereumNonce).isEqualTo(expectedNonce);
         }
+    }
+
+    private RecordItem childContractCreate(
+            final ContractID contractId, final RecordItem parent, final byte[] runtimeBytecode) {
+        return recordItemBuilder
+                .contractCreate(contractId)
+                .transactionBody(body -> body.clearFileID().clearInitcode())
+                .record(record -> record.setParentConsensusTimestamp(
+                        parent.getTransactionRecord().getConsensusTimestamp()))
+                .recordItem(item -> item.parent(parent).previous(parent))
+                .sidecarRecords(sidecars -> {
+                    for (final var sidecar : sidecars) {
+                        if (sidecar.hasBytecode()) {
+                            sidecar.getBytecodeBuilder()
+                                    .setContractId(contractId)
+                                    .setInitcode(ByteString.EMPTY)
+                                    .setRuntimeBytecode(ByteString.copyFrom(runtimeBytecode));
+                        }
+                    }
+                })
+                .build();
+    }
+
+    private static byte[] hexBytecode(final String hex) {
+        final var payload = hex.startsWith("0x") ? hex.substring(2) : hex;
+        return HexFormat.of().parseHex(payload);
+    }
+
+    /**
+     * Same shape as {@code EthereumClient.createContract}: legacy transaction, empty {@code to}, value from the Parent
+     * contract initial balance, and creation bytecode as call data.
+     */
+    private static byte[] legacyContractCreate(final byte[] callData) {
+        final var gasPrice = GAS_PRICE_TINYBARS * WEIBARS_TO_TINYBARS;
+        final var value = INITIAL_BALANCE_TINYBARS * WEIBARS_TO_TINYBARS;
+        return RLPEncoder.list(
+                Integers.toBytes(0),
+                Integers.toBytes(gasPrice),
+                Integers.toBytes(GAS_LIMIT),
+                new byte[0],
+                Integers.toBytes(value),
+                callData,
+                HexFormat.of().parseHex("0277"),
+                HexFormat.of().parseHex("f9fbff985d374be4a55f296915002eec11ac96f1ce2df183adf992baa9390b2f"),
+                HexFormat.of().parseHex("0c1e867cc960d9c74ec2e6a662b7908ec4c8cc9f3091e886bcefbeb2290fb792"));
+    }
+
+    private static JsonNode parentArtifact() throws Exception {
+        final var path = Path.of("").toAbsolutePath();
+        var artifact = path.resolve("../test/src/test/resources/solidity/artifacts/contracts/Parent.sol/Parent.json");
+        if (!artifact.toFile().isFile()) {
+            artifact = path.resolve("test/src/test/resources/solidity/artifacts/contracts/Parent.sol/Parent.json");
+        }
+        return OBJECT_MAPPER.readTree(artifact.toFile());
     }
 }

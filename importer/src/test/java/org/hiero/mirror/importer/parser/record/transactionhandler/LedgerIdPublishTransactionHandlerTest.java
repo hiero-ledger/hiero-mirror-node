@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.google.common.collect.Range;
 import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -54,12 +55,12 @@ final class LedgerIdPublishTransactionHandlerTest extends AbstractTransactionHan
                         .weight(n.getWeight())
                         .build())
                 .toList();
-        verify(entityListener).onLedger(assertArg(ledger -> assertThat(ledger)
-                .returns(recordItem.getConsensusTimestamp(), Ledger::getConsensusTimestamp)
-                .returns(toBytes(body.getHistoryProofVerificationKey()), Ledger::getHistoryProofVerificationKey)
-                .returns(toBytes(body.getLedgerId()), Ledger::getLedgerId)
-                .extracting(Ledger::getNodeContributions, LIST)
-                .containsExactlyInAnyOrderElementsOf(expectedNodeContributions)));
+        verify(entityListener)
+                .onLedger(assertArg(ledger -> assertThat(ledger)
+                        .returns(Range.atLeast(recordItem.getConsensusTimestamp()), Ledger::getTimestampRange)
+                        .returns(toBytes(body.getLedgerId()), Ledger::getLedgerId)
+                        .extracting(Ledger::getNodeContributions, LIST)
+                        .containsExactlyInAnyOrderElementsOf(expectedNodeContributions)));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }

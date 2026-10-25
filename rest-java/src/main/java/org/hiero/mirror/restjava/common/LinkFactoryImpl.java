@@ -43,6 +43,10 @@ final class LinkFactoryImpl implements LinkFactory {
 
     private static final Links DEFAULT_LINKS = new Links();
 
+    // Exclusive slot bounds past the 32-byte domain edge; nothing can follow, so omit the next link
+    private static final String MAX_SLOT_EXCLUSIVE = "gt:0x" + "f".repeat(64);
+    private static final String MIN_SLOT_EXCLUSIVE = "lt:0x" + "0".repeat(64);
+
     private final Map<Method, Set<String>> allowedQueryParamsCache = new ConcurrentHashMap<>();
 
     private static RangeOperator getOperator(Direction order, boolean exclusive) {
@@ -114,6 +118,10 @@ final class LinkFactoryImpl implements LinkFactory {
             var normalized = value.toLowerCase();
 
             try {
+                if (normalized.equals(MAX_SLOT_EXCLUSIVE) || normalized.equals(MIN_SLOT_EXCLUSIVE)) {
+                    return true;
+                }
+
                 // Extract the numeric value and update bounds
                 if (normalized.startsWith("gt:")) {
                     long val = Long.parseLong(value.substring(3)) + 1; // gt:4 → gte:5

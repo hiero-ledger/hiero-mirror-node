@@ -79,12 +79,14 @@ final class ContractTransformerTest extends AbstractTransformerTest {
     };
 
     private static final Consumer<TransactionRecord.Builder> EXPLICIT_CONTRACT_RESULT_CUSTOMIZER =
-            b -> contractResultBuilder(b).ifPresent(builder -> builder.clearAmount()
-                    // createdContractIDs is deprecated and no longer used, plus it's hard and sometimes impossible for
-                    // mirrornode to reconstruct it from block stream
-                    .clearCreatedContractIDs()
-                    .clearFunctionParameters()
-                    .clearGas());
+            b -> contractResultBuilder(b)
+                    .ifPresent(builder -> builder.clearAmount()
+                            // createdContractIDs is deprecated and no longer used, plus it's hard and sometimes
+                            // impossible for
+                            // mirrornode to reconstruct it from block stream
+                            .clearCreatedContractIDs()
+                            .clearFunctionParameters()
+                            .clearGas());
 
     private static Optional<ContractFunctionResult.Builder> contractResultBuilder(
             TransactionRecord.Builder recordBuilder) {

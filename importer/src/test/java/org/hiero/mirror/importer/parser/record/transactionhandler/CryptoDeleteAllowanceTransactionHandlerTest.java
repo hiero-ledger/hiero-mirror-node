@@ -125,16 +125,17 @@ class CryptoDeleteAllowanceTransactionHandlerTest extends AbstractTransactionHan
     }
 
     private void assertAllowances(long timestamp) {
-        verify(entityListener, times(4)).onNft(assertArg(t -> assertThat(t)
-                .isNotNull()
-                .returns(null, Nft::getAccountId)
-                .returns(null, Nft::getCreatedTimestamp)
-                .returns(null, Nft::getDelegatingSpender)
-                .returns(null, Nft::getDeleted)
-                .returns(null, Nft::getMetadata)
-                .satisfies(n -> assertThat(n.getId().getSerialNumber()).isPositive())
-                .returns(null, Nft::getSpender)
-                .returns(Range.atLeast(timestamp), Nft::getTimestampRange)));
+        verify(entityListener, times(4))
+                .onNft(assertArg(t -> assertThat(t)
+                        .isNotNull()
+                        .returns(null, Nft::getAccountId)
+                        .returns(null, Nft::getCreatedTimestamp)
+                        .returns(null, Nft::getDelegatingSpender)
+                        .returns(null, Nft::getDeleted)
+                        .returns(null, Nft::getMetadata)
+                        .satisfies(n -> assertThat(n.getId().getSerialNumber()).isPositive())
+                        .returns(null, Nft::getSpender)
+                        .returns(Range.atLeast(timestamp), Nft::getTimestampRange)));
     }
 
     private Map<Long, EntityTransaction> getExpectedEntityTransactions(RecordItem recordItem, Transaction transaction) {

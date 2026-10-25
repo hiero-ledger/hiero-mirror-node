@@ -713,8 +713,9 @@ class SyntheticCryptoTransferApprovalMigrationTest extends ImporterIntegrationTe
 
     private Entity persistEntity(Long currentContractNum, Long pastContractNum) {
         var timestamp = getTimestampWithinBoundary();
-        var builder = domainBuilder.entity().customize(e -> e.key(getThresholdKey(currentContractNum))
-                .timestampRange(Range.atLeast(timestamp)));
+        var builder = domainBuilder
+                .entity()
+                .customize(e -> e.key(getThresholdKey(currentContractNum)).timestampRange(Range.atLeast(timestamp)));
         var currentEntity = builder.persist();
         if (pastContractNum != null) {
             var range = currentEntity.getTimestampRange();

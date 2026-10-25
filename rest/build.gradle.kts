@@ -27,3 +27,8 @@ tasks.register<NpmTask>("testRestJava") {
     val testPathPattern = testFiles.joinToString("|")
     args = listOf("test", "--testPathPattern", testPathPattern)
 }
+
+tasks.clean {
+    delete(layout.projectDirectory.dir("buildDist"))
+    delete(layout.projectDirectory.dir("gen"))
+}

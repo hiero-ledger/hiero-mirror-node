@@ -56,6 +56,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
             cr.amount,
             cr.bloom,
             cr.call_result,
+            cr.child,
             cr.consensus_timestamp,
             cr.contract_id,
             cr.created_contract_ids,
@@ -95,6 +96,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.amount,
         cr.bloom,
         cr.call_result,
+        cr.child,
         cr.consensus_timestamp,
         cr.contract_id,
         cr.created_contract_ids,
@@ -134,6 +136,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.amount,
         cr.bloom,
         cr.call_result,
+        cr.child,
         cr.consensus_timestamp,
         cr.contract_id,
         cr.created_contract_ids,
@@ -174,6 +177,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.amount,
         cr.bloom,
         cr.call_result,
+        cr.child,
         cr.consensus_timestamp,
         cr.contract_id,
         cr.created_contract_ids,
@@ -213,6 +217,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
     const expected = `
       with synth_raw as (
         select distinct on (cl.consensus_timestamp)
+          cl.child,
           cl.consensus_timestamp,
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id
@@ -228,6 +233,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       )
       select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
+        synth_raw.child,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
         null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
@@ -253,6 +259,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
     const expected = `
       with synth_raw as (
         select distinct on (cl.consensus_timestamp)
+          cl.child,
           cl.consensus_timestamp,
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id
@@ -269,6 +276,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       )
       select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
+        synth_raw.child,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
         null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
@@ -561,7 +569,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
     assertSqlQueryEqual(
       query,
       `with entity as (select evm_address, id from entity)
-      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+      select cl.bloom, cl.child, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,
              evm_address
       from contract_log cl
@@ -602,7 +610,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
     assertSqlQueryEqual(
       query,
       `with entity as (select evm_address, id from entity)
-      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+      select cl.bloom, cl.child, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,evm_address
       from contract_log cl
       left join entity e on id = contract_id
@@ -634,7 +642,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
       query,
       `(
         with entity as (select evm_address, id from entity)
-        select cl.bloom,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
+        select cl.bloom,cl.child,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
           cl.topic1,cl.topic2,cl.topic3,cl.transaction_hash,cl.transaction_index,evm_address
         from contract_log cl
         left join entity e on id = contract_id
@@ -643,7 +651,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
         limit $5
       ) union (
         with entity as (select evm_address, id from entity)
-        select cl.bloom,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
+        select cl.bloom,cl.child,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
           cl.topic1,cl.topic2,cl.topic3,cl.transaction_hash,cl.transaction_index,evm_address
         from contract_log cl
         left join entity e on id = contract_id
@@ -686,6 +694,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
+          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -714,6 +723,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
+          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -743,6 +753,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
+          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -1161,6 +1172,20 @@ describe('ContractService.getContractResultsByTimestamps tests', () => {
       expected.map((e) => e.consensusTimestamp)
     );
     expect(pickContractResultFields(contractResults)).toIncludeSameMembers(expected);
+  });
+
+  test('child reflects the persisted contract_result.child column', async () => {
+    await integrationDomainOps.loadContractResults([
+      {
+        consensus_timestamp: 3,
+        contract_id: entityId2.num,
+        payer_account_id: entityId5.num,
+        child: true,
+      },
+    ]);
+
+    const contractResults = await ContractService.getContractResultsByTimestamps(3);
+    expect(contractResults[0].child).toBe(true);
   });
 });
 
@@ -2225,6 +2250,131 @@ describe('ContractService.getContractTransactionDetailsByHash negative tests', (
   test('Match the latest non successful transaction', async () => {
     const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
     expect(transactionDetails).toEqual([expectedTransactionDetails[2]]);
+  });
+});
+
+describe('ContractService.getContractTransactionDetailsByHash real execution preferred over stub tests', () => {
+  const ethereumTxHash = '4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392';
+  const ethereumTxHashBuffer = Buffer.from(ethereumTxHash, 'hex');
+  const ethereumTxType = TransactionType.getProtoId('ETHEREUMTRANSACTION');
+  const contractRevertResult = TransactionResult.getProtoId('CONTRACT_REVERT_EXECUTED');
+  const insufficientPayerBalanceResult = TransactionResult.getProtoId('INSUFFICIENT_PAYER_BALANCE');
+
+  // Reverted while executing against a contract at T1, so it consumed gas (non-null gas_consumed).
+  const executedResult = {
+    consensus_timestamp: 1,
+    contract_id: entityId1.num,
+    payer_account_id: entityId10.num,
+    type: ethereumTxType,
+    transaction_result: contractRevertResult,
+    transaction_index: 1,
+    transaction_hash: ethereumTxHash,
+    transaction_nonce: 11,
+    gas_consumed: 500,
+    gasLimit: 1000,
+  };
+
+  // Fails pre-execution, so it consumed no gas (gas_consumed stays null), later at T2.
+  const stubResult = {
+    consensus_timestamp: 2,
+    contract_id: entityId0.num,
+    payer_account_id: entityId9000.num,
+    type: ethereumTxType,
+    transaction_result: insufficientPayerBalanceResult,
+    transaction_index: 1,
+    transaction_hash: ethereumTxHash,
+    transaction_nonce: 0,
+    gasLimit: 1000,
+  };
+
+  test('Prefers the real execution over a later pre-execution failure sharing the hash', async () => {
+    await integrationDomainOps.loadContractResults([executedResult, stubResult]);
+
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([
+      {
+        consensusTimestamp: 1,
+        entityId: entityId1.getEncodedId(),
+        hash: ethereumTxHashBuffer,
+        payerAccountId: entityId10.getEncodedId(),
+        transactionResult: Number.parseInt(contractRevertResult),
+      },
+    ]);
+  });
+
+  test('Prefers a failed contract create (executed, entity 0) over a later failure with the same entity', async () => {
+    // The reviewer's original concern: a failed contract create executed (its constructor reverted) so it has a
+    // non-null gas_consumed, but its entity id is 0 because no contract was created. Keying on gas_consumed rather
+    // than entity id still prefers it over a later failure result that also has entity 0.
+    const failedCreate = {...executedResult, contract_id: entityId0.num};
+    await integrationDomainOps.loadContractResults([failedCreate, stubResult]);
+
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([
+      {
+        consensusTimestamp: 1,
+        entityId: entityId0.getEncodedId(),
+        hash: ethereumTxHashBuffer,
+        payerAccountId: entityId10.getEncodedId(),
+        transactionResult: Number.parseInt(contractRevertResult),
+      },
+    ]);
+  });
+
+  test('Returns the failure result when no genuine execution shares the hash', async () => {
+    // e.g. an ethereum transaction that only ever failed pre-execution (INSUFFICIENT_PAYER_BALANCE). With no
+    // gas_consumed on any candidate, it must still resolve rather than returning nothing.
+    await integrationDomainOps.loadContractResults([stubResult]);
+
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([
+      {
+        consensusTimestamp: 2,
+        entityId: entityId0.getEncodedId(),
+        hash: ethereumTxHashBuffer,
+        payerAccountId: entityId9000.getEncodedId(),
+        transactionResult: Number.parseInt(insufficientPayerBalanceResult),
+      },
+    ]);
+  });
+
+  test('Returns the latest when only pre-execution failures share the hash (INSUFFICIENT_GAS then DUPLICATE_TRANSACTION)', async () => {
+    // Two attempts of the same eth transaction that never executed, so neither has a gas_consumed. With no genuine
+    // execution to prefer, the lookup must still resolve - to the latest - rather than returning nothing.
+    const insufficientGasResult = TransactionResult.getProtoId('INSUFFICIENT_GAS');
+    const duplicateTransactionResult = TransactionResult.getProtoId('DUPLICATE_TRANSACTION');
+    const insufficientGas = {...stubResult, consensus_timestamp: 1, transaction_result: insufficientGasResult};
+    const duplicate = {...stubResult, consensus_timestamp: 2, transaction_result: duplicateTransactionResult};
+    await integrationDomainOps.loadContractResults([insufficientGas, duplicate]);
+
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([
+      {
+        consensusTimestamp: 2,
+        entityId: entityId0.getEncodedId(),
+        hash: ethereumTxHashBuffer,
+        payerAccountId: entityId9000.getEncodedId(),
+        transactionResult: Number.parseInt(duplicateTransactionResult),
+      },
+    ]);
+  });
+
+  test('Prefers the latest genuine execution when several executed share the hash', async () => {
+    // Two genuine executions (non-null gas_consumed) share the hash; the latest by consensus timestamp wins.
+    const earlierExecution = {...executedResult, consensus_timestamp: 1};
+    const laterExecution = {...executedResult, consensus_timestamp: 2, transaction_nonce: 12};
+    await integrationDomainOps.loadContractResults([earlierExecution, laterExecution]);
+
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([
+      {
+        consensusTimestamp: 2,
+        entityId: entityId1.getEncodedId(),
+        hash: ethereumTxHashBuffer,
+        payerAccountId: entityId10.getEncodedId(),
+        transactionResult: Number.parseInt(contractRevertResult),
+      },
+    ]);
   });
 });
 

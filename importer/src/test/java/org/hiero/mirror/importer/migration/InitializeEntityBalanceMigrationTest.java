@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
 import static org.hiero.mirror.common.domain.entity.EntityType.UNKNOWN;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 import static org.mockito.Mockito.mock;
 
 import com.google.common.collect.Range;
@@ -143,8 +144,8 @@ final class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest
                 .recordFile()
                 .customize(r -> {
                     if (wrapped) {
-                        r.wrappedRecordBlockHash(domainBuilder.bytes(48))
-                                .previousWrappedRecordBlockHash(domainBuilder.bytes(48));
+                        r.wrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE))
+                                .previousWrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE));
                     } else {
                         r.version(BlockStreamReader.VERSION);
                     }

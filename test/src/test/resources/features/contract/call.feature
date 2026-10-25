@@ -10,6 +10,7 @@ Feature: eth_call Contract Base Coverage Feature
     Given I ensure token "FUNGIBLE" has been created
     Given I ensure token "NFT" has been created
     Then I call function with IERC721Metadata token "NFT" name
+    Then I call function with IERC721Metadata token "NFT" name and state override
     Then I call function with IERC721Metadata token "NFT" symbol
     Then I call function with IERC721Metadata token NFT totalSupply
     Then I call function with IERC721 token NFT balanceOf owner

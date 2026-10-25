@@ -43,12 +43,14 @@ final class ExchangeRateMapperTest {
         // then
         assertThat(result)
                 .returns(currentRate.getCentEquiv(), n -> n.getCurrentRate().getCentEquivalent())
-                .returns(currentRate.getExpirationTime().getSeconds(), n -> n.getCurrentRate()
-                        .getExpirationTime())
+                .returns(
+                        currentRate.getExpirationTime().getSeconds(),
+                        n -> n.getCurrentRate().getExpirationTime())
                 .returns(currentRate.getHbarEquiv(), n -> n.getCurrentRate().getHbarEquivalent())
                 .returns(nextRate.getCentEquiv(), n -> n.getNextRate().getCentEquivalent())
-                .returns(nextRate.getExpirationTime().getSeconds(), n -> n.getNextRate()
-                        .getExpirationTime())
+                .returns(
+                        nextRate.getExpirationTime().getSeconds(),
+                        n -> n.getNextRate().getExpirationTime())
                 .returns(nextRate.getHbarEquiv(), n -> n.getNextRate().getHbarEquivalent())
                 .returns(
                         commonMapper.mapTimestamp(fileData.getConsensusTimestamp()),

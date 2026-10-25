@@ -33,6 +33,7 @@ class ContractResultViewModel {
     }
     this.bloom = this.#encodeBloom(contractResult.bloom);
     this.call_result = toHexString(contractResult.callResult, true);
+    this.child = !!contractResult.child;
     this.contract_id = contractId.toString();
     this.created_contract_ids = toArray(contractResult.createdContractIds).map((id) => EntityId.parse(id).toString());
     this.error_message = isEmpty(contractResult.errorMessage) ? null : contractResult.errorMessage;

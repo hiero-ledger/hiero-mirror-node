@@ -1063,21 +1063,21 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
             final KeyValueType keyValueType,
             final KeyType keyType,
             final Contract contract) {
-        final Key key =
-                switch (keyValueType) {
-                    case ECDSA_SECPK256K1 -> KEY_WITH_ECDSA_TYPE;
-                    case ED25519 -> KEY_WITH_ED_25519_TYPE;
-                    case CONTRACT_ID -> getKeyWithContractId(contract);
-                    case DELEGATABLE_CONTRACT_ID -> getKeyWithDelegatableContractId(contract);
-                    default -> throw new IllegalArgumentException("Invalid key type");
-                };
+        final Key key = switch (keyValueType) {
+            case ECDSA_SECPK256K1 -> KEY_WITH_ECDSA_TYPE;
+            case ED25519 -> KEY_WITH_ED_25519_TYPE;
+            case CONTRACT_ID -> getKeyWithContractId(contract);
+            case DELEGATABLE_CONTRACT_ID -> getKeyWithDelegatableContractId(contract);
+            default -> throw new IllegalArgumentException("Invalid key type");
+        };
 
         final var tokenEntity = domainBuilder
                 .entity()
                 .customize(e -> e.type(EntityType.TOKEN).key(key.toByteArray()))
                 .persist();
-        final var tokenBuilder = domainBuilder.token().customize(t -> t.tokenId(tokenEntity.getId())
-                .type(tokenType));
+        final var tokenBuilder = domainBuilder
+                .token()
+                .customize(t -> t.tokenId(tokenEntity.getId()).type(tokenType));
 
         switch (keyType) {
             case ADMIN_KEY:

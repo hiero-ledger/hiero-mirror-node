@@ -85,6 +85,9 @@ monitor:
     HIERO_MIRROR_MONITOR_MIRRORNODE_REST_PORT: "80"
     HIERO_MIRROR_MONITOR_MIRRORNODE_RESTJAVA_HOST: "{{ .Release.Name }}-restjava"
     HIERO_MIRROR_MONITOR_MIRRORNODE_RESTJAVA_PORT: "80"
+    # The monitor targets this release's mirror node, whose network is unknown. Set MAINNET, TESTNET or PREVIEWNET to
+    # authenticate consensus nodes against the SDK's bundled address book for that network.
+    HIERO_MIRROR_MONITOR_NETWORK: "OTHER"
 
 nameOverride: mirror
 

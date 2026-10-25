@@ -10,7 +10,9 @@ import org.apache.commons.lang3.StringUtils;
 @Getter
 @JsonFormat(shape = JsonFormat.Shape.NUMBER)
 public enum DigestAlgorithm {
-    SHA_384("SHA-384", 48, 0x58ff811b);
+    SHA_384("SHA-384", 48, 0x58ff811b),
+    // The type for SHA-256 is from the consensus node repo, not in use by the mirror node. Added only for consistency
+    SHA_256("SHA-256", 32, 0x1c15d3fb);
 
     private final String name;
     private final int size;

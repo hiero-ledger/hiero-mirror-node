@@ -26,7 +26,6 @@ import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TraceMemoryBudget;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
-import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
@@ -54,7 +53,6 @@ final class OpcodeServiceImplTest {
         final var ethereumTransactionRepository = mock(EthereumTransactionRepository.class);
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(anyLong(), any()))
                 .thenReturn(Optional.empty());
-        final var contractTransactionHashRepository = mock(ContractTransactionHashRepository.class);
         final var commonEntityAccessor = mock(CommonEntityAccessor.class);
 
         final var meterRegistry = new SimpleMeterRegistry();
@@ -73,7 +71,7 @@ final class OpcodeServiceImplTest {
         final var opcodeService = new OpcodeServiceImpl(
                 recordFileService,
                 contractDebugService,
-                contractTransactionHashRepository,
+                mock(TransactionExecutionService.class),
                 ethereumTransactionRepository,
                 transactionRepository,
                 contractResultRepository,

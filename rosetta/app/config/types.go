@@ -67,7 +67,9 @@ func (db Db) GetDsn() string {
 }
 
 type Feature struct {
-	SubNetworkIdentifier bool `yaml:"subNetworkIdentifier"`
+	SubNetworkIdentifier         bool `yaml:"subNetworkIdentifier"`
+	ValidateAccountCreateFields  bool `yaml:"validateAccountCreateFields"`
+	ValidateCryptoTransferFields bool `yaml:"validateCryptoTransferFields"`
 }
 
 type Http struct {

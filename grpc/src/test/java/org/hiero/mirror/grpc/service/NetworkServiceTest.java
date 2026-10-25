@@ -8,7 +8,9 @@ import static org.hiero.mirror.grpc.service.NetworkServiceImpl.INVALID_FILE_ID;
 
 import jakarta.validation.ConstraintViolationException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
@@ -17,6 +19,8 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
+import org.hiero.mirror.grpc.exception.SubscriptionLimitException;
+import org.hiero.mirror.grpc.exception.SubscriptionTimeoutException;
 import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
 import org.hiero.mirror.grpc.repository.NodeStakeRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -38,16 +42,25 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     private final NetworkService networkService;
     private final NodeStakeRepository nodeStakeRepository;
 
+    private int maxConcurrent;
+    private Duration pageDelay;
     private int pageSize;
+    private Duration timeout;
 
     @BeforeEach
     void setup() {
+        maxConcurrent = addressBookProperties.getMaxConcurrent();
+        pageDelay = addressBookProperties.getPageDelay();
         pageSize = addressBookProperties.getPageSize();
+        timeout = addressBookProperties.getTimeout();
     }
 
     @AfterEach
     void cleanup() {
+        addressBookProperties.setMaxConcurrent(maxConcurrent);
+        addressBookProperties.setPageDelay(pageDelay);
         addressBookProperties.setPageSize(pageSize);
+        addressBookProperties.setTimeout(timeout);
     }
 
     @Test
@@ -63,11 +76,16 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     @Test
     void addressBookNotFound() {
         var fileId = systemEntity.addressBookFile102();
-        var filter = AddressBookFilter.builder().fileId(fileId).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(fileId)
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
 
-        assertThatThrownBy(() -> networkService.getNodes(filter))
-                .isInstanceOf(EntityNotFoundException.class)
-                .hasMessage("%s does not exist".formatted(fileId));
+        StepVerifier.create(networkService.getNodes(filter))
+                .expectErrorSatisfies(error -> assertThat(error)
+                        .isInstanceOf(EntityNotFoundException.class)
+                        .hasMessage("%s does not exist".formatted(fileId)))
+                .verify(Duration.ofSeconds(5L));
     }
 
     @ParameterizedTest
@@ -83,7 +101,10 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     @Test
     void noNodes() {
         AddressBook addressBook = addressBook();
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
 
         StepVerifier.withVirtualTime(() -> networkService.getNodes(filter))
                 .thenAwait(Duration.ofSeconds(10L))
@@ -97,7 +118,10 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         addressBookProperties.setPageSize(2);
         AddressBook addressBook = addressBook();
         AddressBookEntry addressBookEntry = addressBookEntry();
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry);
     }
@@ -108,7 +132,10 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         AddressBook addressBook = addressBook();
         AddressBookEntry addressBookEntry1 = addressBookEntry();
         AddressBookEntry addressBookEntry2 = addressBookEntry();
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2);
     }
@@ -120,9 +147,81 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         AddressBookEntry addressBookEntry1 = addressBookEntry();
         AddressBookEntry addressBookEntry2 = addressBookEntry();
         AddressBookEntry addressBookEntry3 = addressBookEntry();
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
+    }
+
+    @Test
+    void limitSpansMultiplePages() {
+        addressBookProperties.setPageDelay(Duration.ofMillis(10L));
+        addressBookProperties.setPageSize(2);
+        final var addressBook = addressBook();
+        final var entries = new ArrayList<AddressBookEntry>();
+        for (int i = 0; i < 7; i++) {
+            entries.add(addressBookEntry());
+        }
+        final var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(5)
+                .build();
+
+        assertThat(getNodes(filter)).containsExactlyElementsOf(entries.subList(0, 5));
+    }
+
+    @Test
+    void concurrentSubscriptionsLimited() {
+        addressBookProperties.setMaxConcurrent(1);
+        addressBookProperties.setPageDelay(Duration.ofSeconds(30L));
+        addressBookProperties.setPageSize(1);
+        var addressBook = addressBook();
+        addressBookEntry();
+        addressBookEntry();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(2)
+                .build();
+
+        var first = networkService.getNodes(filter);
+        var second = networkService.getNodes(filter);
+        StepVerifier.create(first)
+                .expectNextCount(1)
+                .then(() -> StepVerifier.create(second)
+                        .expectError(SubscriptionLimitException.class)
+                        .verify(Duration.ofSeconds(5L)))
+                .thenCancel()
+                .verify(Duration.ofSeconds(10L));
+
+        var third = networkService.getNodes(filter);
+        StepVerifier.create(third).expectNextCount(1).thenCancel().verify(Duration.ofSeconds(10L));
+    }
+
+    @Test
+    void streamTimesOut() {
+        addressBookProperties.setPageDelay(Duration.ofMillis(20L));
+        addressBookProperties.setPageSize(1);
+        addressBookProperties.setTimeout(Duration.ofMillis(200L));
+        var addressBook = addressBook();
+        for (int i = 0; i < 30; i++) {
+            addressBookEntry();
+        }
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(30)
+                .build();
+        final var received = new AtomicInteger();
+
+        StepVerifier.create(networkService.getNodes(filter))
+                .thenConsumeWhile(entry -> {
+                    received.incrementAndGet();
+                    return true;
+                })
+                .expectError(SubscriptionTimeoutException.class)
+                .verify(Duration.ofSeconds(5L));
+        assertThat(received.get()).isBetween(1, 29);
     }
 
     @Test
@@ -145,7 +244,10 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         AddressBookEntry addressBookEntry1 = addressBookEntry();
         AddressBookEntry addressBookEntry2 = addressBookEntry();
         AddressBookEntry addressBookEntry3 = addressBookEntry();
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
 
@@ -160,7 +262,10 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         var addressBookEntry = addressBookEntry(10L); // Persist stake
         addressBookEntry.setStake(0L); // Now expected
 
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
         assertThat(getNodes(filter)).containsExactly(addressBookEntry);
     }
 
@@ -182,7 +287,10 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         // No node_stake row defined for addressBookEntry3 node ID, so stake expected to be overridden as zero.
         addressBookEntry3.setStake(0L);
 
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
         assertThat(addressBookEntryRepository.findAll())
                 .extracting(AddressBookEntry::getStake)
@@ -199,7 +307,10 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         nodeStake(addressBookEntry.getNodeId(), nodeStakeTableStake);
         addressBookEntry.setStake(nodeStakeTableStake);
 
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
         assertThat(getNodes(filter)).containsExactly(addressBookEntry);
 
         nodeStakeRepository.deleteAll();
@@ -251,7 +362,10 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         var node2AccountId = domainBuilder.entityId();
         createNode(addressBookEntry1.getNodeId(), node1AccountId);
         createNode(addressBookEntry2.getNodeId(), node2AccountId);
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
         var nodes = getNodes(filter);
 
         assertThat(nodes).hasSize(2);
@@ -271,7 +385,10 @@ class NetworkServiceTest extends GrpcIntegrationTest {
                         n.nodeId(entry.getNodeId()).accountId(EntityId.EMPTY).deleted(false))
                 .persist();
 
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
         var result = getNodes(filter);
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().getNodeAccountId()).isEqualTo(originalAccountId);

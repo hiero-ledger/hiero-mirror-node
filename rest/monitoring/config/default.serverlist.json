@@ -12,6 +12,7 @@
   "interval": 60,
   "retry": {
     "maxAttempts": 4,
+    "maxBackoff": 10000,
     "minBackoff": 1000
   },
   "shard": 0,

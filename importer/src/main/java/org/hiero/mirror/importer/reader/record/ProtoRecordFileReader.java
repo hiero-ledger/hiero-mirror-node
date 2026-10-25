@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.reader.record;
 
 import static java.lang.String.format;
-import static org.hiero.mirror.common.util.DomainUtils.MAX_SIZE_FILE;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 
@@ -21,6 +20,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.output.NullOutputStream;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -29,15 +29,19 @@ import org.hiero.mirror.common.domain.transaction.SidecarFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.data.util.Version;
 
 @CustomLog
 @Named
+@RequiredArgsConstructor
 public final class ProtoRecordFileReader implements RecordFileReader {
 
     public static final int VERSION = 6;
+
+    private final CommonDownloaderProperties commonDownloaderProperties;
 
     @Override
     public RecordFile read(StreamFileData streamFileData) {
@@ -217,7 +221,8 @@ public final class ProtoRecordFileReader implements RecordFileReader {
                         format("Expected file %s with version %d, got %d.", filename, VERSION, version));
             }
 
-            return parseProtobuf(dataInputStream, RecordStreamFile::parseFrom, MAX_SIZE_FILE);
+            final int maxSize = (int) commonDownloaderProperties.getMaxSize().toBytes();
+            return parseProtobuf(dataInputStream, RecordStreamFile::parseFrom, maxSize);
         }
     }
 

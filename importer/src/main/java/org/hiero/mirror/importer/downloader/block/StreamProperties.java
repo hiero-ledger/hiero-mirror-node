@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Data;
 import org.hibernate.validator.constraints.time.DurationMin;
+import org.hiero.mirror.common.validator.DataSizeMax;
+import org.hiero.mirror.common.validator.DataSizeMin;
 import org.springframework.boot.convert.DataSizeUnit;
 import org.springframework.util.unit.DataSize;
 import org.springframework.util.unit.DataUnit;
@@ -29,6 +31,8 @@ public final class StreamProperties {
     @Min(1000)
     private int maxBlockItems = 800_000;
 
+    @DataSizeMax(Integer.MAX_VALUE)
+    @DataSizeMin(value = 1L, unit = DataUnit.BYTES)
     @DataSizeUnit(DataUnit.MEGABYTES)
     @NotNull
     private DataSize maxBlockSize = DataSize.ofMegabytes(512);
@@ -36,6 +40,8 @@ public final class StreamProperties {
     @Min(6)
     private int maxDrainAttempts = 32;
 
+    @DataSizeMax(Integer.MAX_VALUE)
+    @DataSizeMin(value = 1L, unit = DataUnit.MEGABYTES)
     @DataSizeUnit(DataUnit.MEGABYTES)
     @NotNull
     private DataSize maxStreamResponseSize = DataSize.ofMegabytes(125);

@@ -2,15 +2,18 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_HEADER;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.BLOCK_HEADER;
+import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import static org.hiero.mirror.importer.downloader.block.scheduler.Scheduler.EARLIEST_AVAILABLE_BLOCK_NUMBER;
 
 import com.google.common.base.Stopwatch;
-import com.hedera.hapi.block.stream.protoc.BlockItem;
+import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import io.grpc.CallOptions;
 import io.grpc.ClientStreamTracer;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
+import io.grpc.protobuf.ProtoUtils;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ClientCalls;
 import io.micrometer.core.instrument.Counter;
@@ -32,12 +35,14 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.block.api.protoc.BlockEnd;
-import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
+import org.hiero.block.internal.protoc.BlockItemSetUnparsed;
+import org.hiero.block.internal.protoc.BlockItemUnparsed;
+import org.hiero.block.internal.protoc.SubscribeStreamResponseUnparsed;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
@@ -60,6 +65,13 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(BlockNode::getProperties);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
+    // The generated subscribeBlockStream method, except that the response is parsed as SubscribeStreamResponseUnparsed
+    // to keep the block items' serialized bytes as received
+    private static final MethodDescriptor<SubscribeStreamRequest, SubscribeStreamResponseUnparsed>
+            SUBSCRIBE_BLOCK_STREAM_METHOD = BlockStreamSubscribeServiceGrpc.getSubscribeBlockStreamMethod().toBuilder(
+                            ProtoUtils.marshaller(SubscribeStreamRequest.getDefaultInstance()),
+                            ProtoUtils.marshaller(SubscribeStreamResponseUnparsed.getDefaultInstance()))
+                    .build();
 
     private final AtomicInteger errors = new AtomicInteger();
     private final Counter errorsMetric;
@@ -162,7 +174,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             @Nullable final Long endBlockNumber,
             final BiFunction<BlockStream, String, Boolean> onBlockStream,
             final Duration timeout) {
-        BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse> grpcCall = null;
+        BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponseUnparsed> grpcCall = null;
 
         try {
             final long effectiveEndBlockNumber = endBlockNumber == null ? -1L : endBlockNumber;
@@ -175,10 +187,10 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                     .build();
             grpcCall = ClientCalls.blockingV2ServerStreamingCall(
                     subscribeStreamChannel,
-                    BlockStreamSubscribeServiceGrpc.getSubscribeBlockStreamMethod(),
+                    SUBSCRIBE_BLOCK_STREAM_METHOD,
                     CallOptions.DEFAULT.withStreamTracerFactory(new UncompressedSizeTracerFactory(uncompressedBytes)),
                     request);
-            SubscribeStreamResponse response;
+            SubscribeStreamResponseUnparsed response;
 
             boolean running = true;
             while (running && (response = grpcCall.read(assembler.timeout(), TimeUnit.MILLISECONDS)) != null) {
@@ -326,7 +338,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
         private final BiFunction<BlockStream, String, Boolean> blockStreamConsumer;
         private final long endBlockNumber;
-        private final List<List<BlockItem>> pending = new ArrayList<>();
+        private final List<List<BlockItemUnparsed>> pending = new ArrayList<>();
         private final Stopwatch stopwatch;
         private final Duration timeout;
         private final AtomicLong uncompressedBytes;
@@ -346,8 +358,8 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             this.uncompressedBytes = uncompressedBytes;
         }
 
-        void onBlockItemSet(final BlockItemSet blockItemSet) {
-            var blockItems = blockItemSet.getBlockItemsList();
+        void onBlockItemSet(final BlockItemSetUnparsed blockItemSet) {
+            final var blockItems = blockItemSet.getBlockItemsList();
             if (blockItems.isEmpty()) {
                 log.warn("Received empty BlockItemSet from block node");
                 return;
@@ -373,7 +385,8 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 return false;
             }
 
-            final var blockHeader = pending.getFirst().getFirst().getBlockHeader();
+            final var blockHeader =
+                    parseProtobuf(pending.getFirst().getFirst().getBlockHeader(), BlockHeader::parseFrom);
             if (blockHeader.getNumber() != blockNumber) {
                 Utility.handleRecoverableError(
                         "Block number mismatch in BlockHeader({}) and EndOfBlock({})",
@@ -382,7 +395,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             }
 
             final long blockCompleteTime = System.currentTimeMillis();
-            final List<BlockItem> block;
+            final List<BlockItemUnparsed> block;
             if (pending.size() == 1) {
                 block = pending.getFirst();
             } else {
@@ -415,7 +428,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             return timeout.toMillis() - stopwatch.elapsed(TimeUnit.MILLISECONDS);
         }
 
-        private void append(final List<BlockItem> blockItems, final BlockItem.ItemCase firstItemCase) {
+        private void append(final List<BlockItemUnparsed> blockItems, final BlockItemUnparsed.ItemCase firstItemCase) {
             if (firstItemCase == BLOCK_HEADER && !pending.isEmpty()) {
                 throw new BlockStreamException(
                         "Received block items of a new block while the previous block is still pending");

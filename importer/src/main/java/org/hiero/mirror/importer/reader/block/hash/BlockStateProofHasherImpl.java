@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.reader.block.hash;
 
-import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
 import com.hedera.hapi.block.stream.protoc.MerklePath;
@@ -11,13 +10,11 @@ import jakarta.inject.Named;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.List;
-import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 
 @Named
 final class BlockStateProofHasherImpl implements BlockStateProofHasher {
 
-    private static final int HASH_LENGTH = DigestAlgorithm.SHA_384.getSize();
     // A StateProof needs at least the timestamp leaf path, the path to the leaf to be proven, and the root path
     private static final int MIN_PATH_COUNT = 3;
     // The sentinel value of MerklePath.next_path_index (UINT32_MAX) marking the root path
@@ -33,7 +30,7 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
         }
 
         final var branches = new Branch[pathCount];
-        final var digest = createSha384Digest();
+        final var digest = ShaMessageDigestFactory.createMessageDigest(currentRootHash.length);
         final var joined = new boolean[pathCount];
         boolean foundRootHash = false;
         int joinedCount = 0;
@@ -132,10 +129,6 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
         byte[] hash = startingHash;
         for (final var sibling : path.getSiblingsList()) {
             final var siblingHash = sibling.getHash();
-            if (siblingHash.size() != HASH_LENGTH) {
-                throw new InvalidStreamFileException(
-                        "Sibling hash length %d != %d".formatted(siblingHash.size(), HASH_LENGTH));
-            }
 
             hash = sibling.getIsLeft()
                     ? HashUtils.hashInternalNode(digest, toBytes(siblingHash), hash)

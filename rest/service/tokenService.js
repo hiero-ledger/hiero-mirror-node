@@ -9,6 +9,25 @@ import {CachedToken, TokenAccount} from '../model';
 import {OrderSpec} from '../sql';
 import {isTestEnv} from '../utils';
 
+// NOT_APPLICABLE has the same id in both the token freeze status and the token kyc status
+const NOT_APPLICABLE = 0;
+
+/**
+ * Gets the freeze status / kyc status of a token account. Returns NOT_APPLICABLE if the token's status is
+ * NOT_APPLICABLE, otherwise the token account's status, falling back to the token's default status if not set.
+ *
+ * @param {number|null} accountStatus - the token account's status
+ * @param {number} tokenStatus - the token's status
+ * @return {number}
+ */
+const getStatus = (accountStatus, tokenStatus) => {
+  if (tokenStatus === NOT_APPLICABLE) {
+    return NOT_APPLICABLE;
+  }
+
+  return accountStatus ?? tokenStatus;
+};
+
 const tokenCache = new quickLru({
   maxSize: config.cache.token.maxSize,
 });
@@ -106,8 +125,9 @@ class TokenService extends BaseService {
       const cachedToken = cachedTokens.get(row.token_id);
       if (cachedToken) {
         row.decimals = cachedToken.decimals;
-        row.freeze_status = row.freeze_status ?? cachedToken.freezeStatus;
-        row.kyc_status = row.kyc_status ?? cachedToken.kycStatus;
+        // A token without the freeze key / kyc key has the corresponding status not applicable to all its accounts
+        row.freeze_status = getStatus(row.freeze_status, cachedToken.freezeStatus);
+        row.kyc_status = getStatus(row.kyc_status, cachedToken.kycStatus);
       }
 
       return new TokenAccount(row);

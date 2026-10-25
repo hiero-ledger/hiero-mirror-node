@@ -30,10 +30,14 @@ import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.config.data.EntitiesConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.SequencedCollection;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -41,10 +45,15 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.repository.ContractResultRepository;
+import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
+import org.hiero.mirror.web3.repository.projections.ContractTransactionHashLookup;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
@@ -65,6 +74,8 @@ public class TransactionExecutionService {
     private final AccountReadableKVState accountReadableKVState;
     private final AliasesReadableKVState aliasesReadableKVState;
     private final CommonProperties commonProperties;
+    private final ContractResultRepository contractResultRepository;
+    private final ContractTransactionHashRepository contractTransactionHashRepository;
     private final EvmProperties evmProperties;
     private final OpcodeActionTracer opcodeActionTracer;
     private final MirrorOperationActionTracer mirrorOperationActionTracer;
@@ -104,6 +115,38 @@ public class TransactionExecutionService {
             result = handleFailedResult(singleTransactionRecords, isContractCreate);
         }
         return result;
+    }
+
+    /**
+     * Selects the result that best represents a hash shared by multiple results. A successful result always wins (the
+     * query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result sharing
+     * the hash by checking which candidates consumed gas (a non-null gas_consumed), falling back to the latest by
+     * consensus timestamp (the query order).
+     */
+    public ContractTransactionHashLookup resolveContractTransactionHash(
+            final TransactionHashParameter transactionHash) {
+        final var candidates = contractTransactionHashRepository.findAllByHash(
+                transactionHash.hash().toArray());
+        if (candidates.isEmpty()) {
+            throw new EntityNotFoundException("Contract transaction hash not found: " + transactionHash);
+        }
+
+        final var first = candidates.getFirst();
+        if (candidates.size() == 1 || Objects.equals(first.getTransactionResult(), ResponseCodeEnum.SUCCESS_VALUE)) {
+            return first;
+        }
+
+        final var candidatesByTimestamp = HashMap.<Long, ContractTransactionHashLookup>newHashMap(candidates.size());
+        final var contractIds = HashSet.<Long>newHashSet(candidates.size());
+        for (final var candidate : candidates) {
+            candidatesByTimestamp.putIfAbsent(candidate.getConsensusTimestamp(), candidate);
+            contractIds.add(candidate.getEntityId());
+        }
+
+        return contractResultRepository
+                .findLatestExecutedTimestamp(candidatesByTimestamp.keySet(), contractIds)
+                .map(candidatesByTimestamp::get)
+                .orElse(first);
     }
 
     private ContractFunctionResult getTransactionResult(

@@ -20,10 +20,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.validator.constraints.time.DurationMin;
+import org.hiero.mirror.common.validator.DataSizeMax;
+import org.hiero.mirror.common.validator.DataSizeMin;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.ImporterProperties.HederaNetwork;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.convert.DataSizeUnit;
+import org.springframework.util.unit.DataSize;
+import org.springframework.util.unit.DataUnit;
 import org.springframework.validation.annotation.Validated;
 
 @Data
@@ -60,8 +65,11 @@ public class CommonDownloaderProperties {
 
     private String gcpProjectId;
 
-    @Min(2L)
-    private long maxSize = 50L * 1024L * 1024L; // 50 MiB
+    @DataSizeMax(Integer.MAX_VALUE)
+    @DataSizeMin(2L)
+    @DataSizeUnit(DataUnit.BYTES) // For backwards compatibility w/ switch to DataSize
+    @NotNull
+    private DataSize maxSize = DataSize.ofMegabytes(100L);
 
     @NotNull
     private String pathPrefix = "";
