@@ -99,6 +99,7 @@ The following parameters can be used to configure a rest-java test:
 | DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER   |         |                                                 |
 | DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_SPENDER |         |                                                 |
 | DEFAULT_HOOK_ID                           |         | The hook id                                     |
+| DEFAULT_NETWORK_FEES_TRANSACTION          |         | Hex-encoded signed transaction for fee estimate |
 | DEFAULT_OWNER_ID                          |         | The owner of a hook                             |
 | DEFAULT_TOPIC_WITH_FEE_ID                 |         | Topic with custom fee id                        |
 | RESTJAVA_TEST_EXCLUDE                     | ^$      | The rest-java test scenarios to exclude         |

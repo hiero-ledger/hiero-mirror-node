@@ -297,6 +297,7 @@ public class DomainBuilder {
     public DomainWrapper<ContractLog, ContractLog.ContractLogBuilder> contractLog() {
         var builder = ContractLog.builder()
                 .bloom(bytes(256))
+                .child(false)
                 .consensusTimestamp(timestamp())
                 .contractId(entityId())
                 .data(bytes(128))
@@ -317,6 +318,7 @@ public class DomainBuilder {
                 .amount(1000L)
                 .bloom(bytes(256))
                 .callResult(bytes(512))
+                .child(false)
                 .consensusTimestamp(timestamp())
                 .contractId(entityId().getId())
                 .createdContractIds(List.of(entityId().getId()))

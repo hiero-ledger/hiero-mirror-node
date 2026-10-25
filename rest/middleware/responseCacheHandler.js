@@ -2,6 +2,7 @@
 
 import Negotiator from 'negotiator';
 import crypto from 'crypto';
+import httpContext from 'express-http-context';
 
 import {Cache} from '../cache';
 import {CachedApiResponse} from '../model';
@@ -13,6 +14,7 @@ import {
   responseBodyLabel,
   responseCacheKeyLabel,
   responseHeadersLabel,
+  userLimitLabel,
 } from '../constants';
 
 const CACHE_CONTROL_HEADER = 'cache-control';
@@ -147,9 +149,14 @@ const shouldCompress = (body) => {
  * Current key format:
  *
  *   path?query - In the future, this will utilize Edwin's request normalizer (9113).
+ *   path?query N - For authenticated users with a custom limit N, since they may receive responses that an
+ *   anonymous caller is not allowed to request. The separator is a literal space, which cannot appear in a
+ *   request-target, so a client cannot forge an authenticated key through the URL.
  */
 const cacheKeyGenerator = (req) => {
-  return crypto.createHash('md5').update(req.originalUrl).digest('hex') + CACHE_KEY_VERSION_SUFFIX;
+  const userLimit = httpContext.get(userLimitLabel);
+  const keySource = userLimit === undefined ? req.originalUrl : `${req.originalUrl} ${userLimit}`;
+  return crypto.createHash('md5').update(keySource).digest('hex') + CACHE_KEY_VERSION_SUFFIX;
 };
 
 const getCacheControlExpiryOrDefault = (headerValue) => {

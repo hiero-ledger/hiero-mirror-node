@@ -7,6 +7,7 @@ describe('ContractLogViewModel', () => {
   const longHexArray = Array(40).fill(0x11).concat(0x12, 0x34, 0x56);
   const defaultContractLog = {
     bloom: Buffer.from([0xa, 0xb]),
+    child: false,
     contractId: '1',
     data: Buffer.from(hexArray),
     consensusTimestamp: '99999999000000000',
@@ -24,6 +25,7 @@ describe('ContractLogViewModel', () => {
   const defaultExpected = {
     address: '0x0000000000000000000000000000000000000001',
     bloom: '0x0a0b',
+    child: false,
     contract_id: '0.0.1',
     data: '0x0000000000000000000000000000000000000000000000000000000000001234',
     index: 6,
@@ -43,6 +45,13 @@ describe('ContractLogViewModel', () => {
 
   test('ContractLogViewModel - default', () => {
     expect(new ContractLogViewModel(defaultContractLog)).toEqual(defaultExpected);
+  });
+
+  test('ContractLogViewModel - child true', () => {
+    expect(new ContractLogViewModel({...defaultContractLog, child: true})).toEqual({
+      ...defaultExpected,
+      child: true,
+    });
   });
 
   test('ContractLogViewModel - long data field', () => {

@@ -20,6 +20,7 @@ class ContractLog {
   static tableName = 'contract_log';
 
   static BLOOM = 'bloom';
+  static CHILD = 'child';
   static CONSENSUS_TIMESTAMP = 'consensus_timestamp';
   static CONTRACT_ID = 'contract_id';
   static DATA = 'data';

@@ -140,6 +140,7 @@
         "gas_price": "0x4a817c80",
         "gas_used": 987,
         "hash": "0x185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "child": false,
         "max_fee_per_gas": "0x59",
         "max_priority_fee_per_gas": "0x33",
         "nonce": 5,

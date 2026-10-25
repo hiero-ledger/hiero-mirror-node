@@ -8,6 +8,7 @@ import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOC
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.SHA_384_BLOCK_STREAMS;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.getSha256BlockStreams;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.toUnparsed;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.EXPECTED_RECORD_FILES;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.readWrappedRecordBlocks;
 import static org.mockito.ArgumentMatchers.any;
@@ -979,7 +980,12 @@ public final class BlockStreamReaderTest {
 
         long blockCompleteTime = System.currentTimeMillis();
         return new BlockStream(
-                block.getItemsList(), blockCompleteTime, bytes, filename, blockCompleteTime - 1000, bytes.length);
+                toUnparsed(block.getItemsList()),
+                blockCompleteTime,
+                bytes,
+                filename,
+                blockCompleteTime - 1000,
+                bytes.length);
     }
 
     @SneakyThrows
