@@ -46,7 +46,7 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-23")
+        api("com.github.luben:zstd-jni:1.5.7-24")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
@@ -64,7 +64,7 @@ dependencies {
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
-        api("io.cucumber:cucumber-bom:7.34.9")
+        api("io.cucumber:cucumber-bom:8.0.4")
         api("io.fabric8:kubernetes-client-bom:8.0.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.16.0")
@@ -89,7 +89,7 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
         api("org.xerial.snappy:snappy-java:1.1.10.12") // Temporary until next Besu
-        api("software.amazon.awssdk:bom:2.56.0")
+        api("software.amazon.awssdk:bom:2.57.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
