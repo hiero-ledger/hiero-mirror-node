@@ -9,6 +9,4 @@ public interface ThrottleManager {
     void throttle(ContractCallRequest request);
 
     void restore(long gas);
-
-    void throttleSimulateRequest(long totalGas);
 }

@@ -3139,16 +3139,18 @@ components:
           type: [integer, string, "null"]
     BlockOverride:
       type: object
-      description: Optional EVM block context override. `number` and `time` cannot be populated simultaneously.
+      description: Optional EVM block context override. `number` and `time` may both be set.
       properties:
         number:
           description: Hexadecimal or decimal block number used as the EVM block.number
           type: [string, "null"]
           example: "0x100"
+          maxLength: 19
         time:
           description: Unix timestamp used as the EVM block.timestamp
           type: [string, "null"]
           example: "0x65f9e0c0"
+          maxLength: 19
     SimulateBlockStateCall:
       type: object
       properties:

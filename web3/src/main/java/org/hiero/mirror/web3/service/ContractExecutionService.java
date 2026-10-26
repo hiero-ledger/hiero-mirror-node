@@ -16,7 +16,6 @@ import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
-import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 
@@ -65,9 +64,7 @@ public class ContractExecutionService extends ContractCallService {
             try {
                 updateGasLimitMetric(params);
 
-                if (!params.getStateOverrides().isEmpty()) {
-                    ctx.setStateOverrides(Utils.toOverrideMap(params.getStateOverrides()));
-                }
+                ctx.applyStateOverrides(params.getStateOverrides());
 
                 Bytes result;
                 if (params.isEstimate()) {

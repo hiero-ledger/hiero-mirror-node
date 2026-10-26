@@ -79,14 +79,6 @@ final class ThrottleManagerImplTest {
     }
 
     @Test
-    void throttleSimulateGasLimit() {
-        throttleManager.throttleSimulateRequest(GAS_PER_SECOND);
-        assertThatThrownBy(() -> throttleManager.throttleSimulateRequest(GAS_PER_SECOND))
-                .isInstanceOf(ThrottleException.class)
-                .hasMessageContaining(GAS_PER_SECOND_LIMIT_EXCEEDED);
-    }
-
-    @Test
     void restore() {
         var request = request();
         throttleManager.throttle(request);

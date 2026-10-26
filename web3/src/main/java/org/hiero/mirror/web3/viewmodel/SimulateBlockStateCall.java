@@ -24,7 +24,7 @@ public class SimulateBlockStateCall {
 
     @NotNull
     @Valid
-    private List<@NotNull SimulateCall> calls = List.of();
+    private List<@NotNull ContractCallRequest> calls = List.of();
 
     @JsonProperty("state_overrides")
     @NotNull

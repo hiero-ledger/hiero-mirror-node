@@ -59,7 +59,6 @@ import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
-import org.hiero.mirror.web3.viewmodel.SimulateCall;
 import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
 import org.hiero.mirror.web3.viewmodel.SimulateLog;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
@@ -828,9 +827,9 @@ final class ContractControllerTest {
     }
 
     private SimulateRequest simulateRequest(int callCount) {
-        final var calls = new ArrayList<SimulateCall>();
+        final var calls = new ArrayList<ContractCallRequest>();
         for (int i = 0; i < callCount; i++) {
-            final var call = new SimulateCall();
+            final var call = new ContractCallRequest();
             call.setTo("0x00000000000000000000000000000000000004e4");
             calls.add(call);
         }
@@ -850,7 +849,8 @@ final class ContractControllerTest {
 
         simulate(request).andExpect(status().isOk()).andExpect(content().string(convert(response)));
 
-        verify(throttleManager).throttleSimulateRequest(15_000_000L);
+        verify(throttleManager)
+                .throttle(request.getBlockStateCalls().getFirst().getCalls().getFirst());
     }
 
     @Test
@@ -860,7 +860,7 @@ final class ContractControllerTest {
 
         simulate(request).andExpect(status().isNotImplemented());
 
-        verify(throttleManager, never()).throttleSimulateRequest(anyLong());
+        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
     }
 
     @Test
@@ -875,7 +875,7 @@ final class ContractControllerTest {
 
         simulate(request).andExpect(status().isBadRequest());
 
-        verify(throttleManager, never()).throttleSimulateRequest(anyLong());
+        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
     }
 
     @Test
@@ -888,7 +888,51 @@ final class ContractControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString(numberErrorString("gas", "less", 15_000_000L))));
 
-        verify(throttleManager, never()).throttleSimulateRequest(anyLong());
+        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
+    }
+
+    @Test
+    void simulateWithOneInvalidCallFailsTheWholeBatch() throws Exception {
+        enableSimulate(true);
+        final var request = simulateRequest(2);
+        request.getBlockStateCalls().getFirst().getCalls().getLast().setFrom("0x12");
+
+        simulate(request).andExpect(status().isBadRequest());
+
+        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
+        verify(contractSimulateService, never()).simulate(any(SimulateRequest.class));
+    }
+
+    @Test
+    void simulateRejectedCallRestoresTheGasOfEarlierCalls() throws Exception {
+        enableSimulate(true);
+        final var request = simulateRequest(2);
+        final var rejectedCall =
+                request.getBlockStateCalls().getFirst().getCalls().getLast();
+        rejectedCall.setGas(2_000_000L);
+        doThrow(new ThrottleException("")).when(throttleManager).throttle(rejectedCall);
+
+        simulate(request).andExpect(status().isTooManyRequests());
+
+        verify(throttleManager).restore(15_000_000L);
+        verify(contractSimulateService, never()).simulate(any(SimulateRequest.class));
+    }
+
+    @Test
+    void simulateAcceptsBlockOverrideWithNumberAndTime() throws Exception {
+        enableSimulate(true);
+        given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(new SimulateResponse(List.of()));
+
+        simulate("""
+                {
+                    "block_state_calls": [
+                        {
+                            "block_override": {"number": "0x1", "time": "0x2"},
+                            "calls": [{"to": "0x00000000000000000000000000000000000004e4"}]
+                        }
+                    ]
+                }
+                """).andExpect(status().isOk());
     }
 
     @Test
@@ -1022,7 +1066,7 @@ final class ContractControllerTest {
 
         simulate(body).andExpect(status().isBadRequest());
 
-        verify(throttleManager, never()).throttleSimulateRequest(anyLong());
+        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
     }
 
     private static Stream<String> invalidSimulateBodies() {
@@ -1039,8 +1083,6 @@ final class ContractControllerTest {
                 "{\"block_state_calls\": [{\"calls\": []}]}",
                 "{\"block_state_calls\": [{\"calls\": [" + tooManyCalls + "]}]}",
                 "{\"block_state_calls\": [" + tooManyEntries + "]}",
-                "{\"block_state_calls\": [{\"block_override\": {\"number\": \"0x1\", \"time\": \"0x2\"}, \"calls\": ["
-                        + call + "]}]}",
                 "{\"block_state_calls\": [{\"calls\": [" + call + "], \"state_overrides\": [" + tooManyOverrides
                         + "]}]}",
                 "{\"block_state_calls\": [{\"calls\": [" + call

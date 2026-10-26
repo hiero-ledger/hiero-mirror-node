@@ -24,8 +24,8 @@ import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.viewmodel.AccessListEntry;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
+import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
-import org.hiero.mirror.web3.viewmodel.SimulateCall;
 import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
 import org.hiero.mirror.web3.viewmodel.SimulateLog;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
@@ -160,7 +160,7 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         balanceOverride.setBalance(1000L);
         final var overridingEntry = new SimulateBlockStateCall();
         overridingEntry.setStateOverrides(List.of(balanceOverride));
-        final var balanceCall = new SimulateCall();
+        final var balanceCall = new ContractCallRequest();
         balanceCall.setTo(SELF_BALANCE_CONTRACT);
         overridingEntry.setCalls(List.of(balanceCall));
         final var request = new SimulateRequest();
@@ -178,7 +178,7 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         final var reverter = testWeb3jService.deploy(Reverter::deploy);
 
         final var setSlot0 = setSlot0Call(storageContract, 7);
-        final var revertingCall = new SimulateCall();
+        final var revertingCall = new ContractCallRequest();
         revertingCall.setTo(reverter.getContractAddress());
         revertingCall.setData(reverter.send_revertWithString().encodeFunctionCall());
         final var getSlot0 = getSlot0Call(storageContract);
@@ -211,9 +211,9 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
     @Test
     void createWithChildContractThenAnotherCreateSucceeds() {
-        final var nestedCreate = new SimulateCall();
+        final var nestedCreate = new ContractCallRequest();
         nestedCreate.setData(withHexPrefix(TestNestedAddressThis.BINARY));
-        final var followUpCreate = new SimulateCall();
+        final var followUpCreate = new ContractCallRequest();
         followUpCreate.setData(CONSTRUCTOR_ONLY_INIT_CODE);
 
         final var request = requestWithSingleEntry(nestedCreate, followUpCreate);
@@ -473,14 +473,14 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         return stateOverride;
     }
 
-    private static SimulateCall blockNumberCall() {
-        final var call = new SimulateCall();
+    private static ContractCallRequest blockNumberCall() {
+        final var call = new ContractCallRequest();
         call.setTo(BLOCK_NUMBER_CONTRACT);
         return call;
     }
 
-    private static SimulateCall valueCall(final String from, final String to) {
-        final var call = new SimulateCall();
+    private static ContractCallRequest valueCall(final String from, final String to) {
+        final var call = new ContractCallRequest();
         call.setFrom(from);
         call.setTo(to);
         call.setValue(2L);
@@ -502,8 +502,8 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         return addressOrTopic.substring(addressOrTopic.length() - 40).toLowerCase();
     }
 
-    private static SimulateCall loggingCreateCall() {
-        final var call = new SimulateCall();
+    private static ContractCallRequest loggingCreateCall() {
+        final var call = new ContractCallRequest();
         call.setData(CONSTRUCTOR_LOGGING_INIT_CODE);
         return call;
     }
@@ -517,23 +517,23 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         return result.logs().getFirst();
     }
 
-    private SimulateCall transferCall(final Entity sender, final Entity receiver) {
-        final var call = new SimulateCall();
+    private ContractCallRequest transferCall(final Entity sender, final Entity receiver) {
+        final var call = new ContractCallRequest();
         call.setFrom(getAliasAddressFromEntity(sender).toHexString());
         call.setTo(getAliasAddressFromEntity(receiver).toHexString());
         call.setValue(1000L);
         return call;
     }
 
-    private SimulateCall setSlot0Call(final StorageContract contract, final long value) {
-        final var call = new SimulateCall();
+    private ContractCallRequest setSlot0Call(final StorageContract contract, final long value) {
+        final var call = new ContractCallRequest();
         call.setTo(contract.getContractAddress());
         call.setData(contract.send_setSlot0(BigInteger.valueOf(value)).encodeFunctionCall());
         return call;
     }
 
-    private SimulateCall getSlot0Call(final StorageContract contract) {
-        final var call = new SimulateCall();
+    private ContractCallRequest getSlot0Call(final StorageContract contract) {
+        final var call = new ContractCallRequest();
         call.setTo(contract.getContractAddress());
         call.setData(contract.call_slot0().encodeFunctionCall());
         call.setFrom(Address.ZERO.toHexString());
@@ -558,12 +558,12 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         return hex.startsWith("0x") ? hex : "0x" + hex;
     }
 
-    private SimulateRequest requestWithSingleEntry(final SimulateCall... calls) {
+    private SimulateRequest requestWithSingleEntry(final ContractCallRequest... calls) {
         return requestWithEntries(List.of(calls));
     }
 
     @SafeVarargs
-    private SimulateRequest requestWithEntries(final List<SimulateCall>... entryCalls) {
+    private SimulateRequest requestWithEntries(final List<ContractCallRequest>... entryCalls) {
         final var entries = new ArrayList<SimulateBlockStateCall>(entryCalls.length);
         for (final var calls : entryCalls) {
             final var entry = new SimulateBlockStateCall();

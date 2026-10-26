@@ -25,6 +25,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.CapturedTransf
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.viewmodel.AccessListEntry;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
@@ -220,8 +221,8 @@ public class ContractCallContext {
     }
 
     /**
-     * Applies HIP-1485 {@code block_override}. A set {@code number} becomes EVM {@code block.number}; a set {@code time}
-     * becomes EVM {@code block.timestamp}.
+     * Applies HIP-1485 {@code block_override}. A set {@code number} becomes EVM {@code block.number} and a set
+     * {@code time} becomes EVM {@code block.timestamp}. Both may be set.
      */
     public void applyBlockOverride(final @Nullable BlockOverride override) {
         if (override == null) {
@@ -237,6 +238,18 @@ public class ContractCallContext {
         } catch (NumberFormatException e) {
             throw new InvalidParametersException("Invalid block_override: " + e.getMessage());
         }
+    }
+
+    public void applyStateOverrides(final List<StateOverride> overrides) {
+        if (overrides == null || overrides.isEmpty()) {
+            this.stateOverrides = null;
+            return;
+        }
+        final var addressToAccounts = new HashMap<Bytes, StateOverride>(overrides.size());
+        for (final var stateOverride : overrides) {
+            addressToAccounts.put(Bytes.wrap(Utils.parseHex(stateOverride.getAddress())), stateOverride);
+        }
+        this.stateOverrides = addressToAccounts;
     }
 
     public long evmBlockNumber(final long fallback) {

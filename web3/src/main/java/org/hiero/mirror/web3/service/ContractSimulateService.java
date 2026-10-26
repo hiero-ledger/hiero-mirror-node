@@ -20,7 +20,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +43,7 @@ import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
-import org.hiero.mirror.web3.viewmodel.SimulateCall;
+import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
 import org.hiero.mirror.web3.viewmodel.SimulateLog;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
@@ -97,14 +96,13 @@ public class ContractSimulateService extends ContractCallService {
         final var remainingGas = new AtomicLong(request.totalGas());
         try {
             return new SimulateResponse(runSimulation(request, remainingGas));
-        } catch (RuntimeException e) {
+        } catch (final RuntimeException e) {
             throttleManager.restore(remainingGas.get());
             throw e;
         }
     }
 
-    // The address's long-zero number and the numbers of committed accounts aliased by it.
-    private long accessListGas(final SimulateCall call) {
+    private long accessListGas(final ContractCallRequest call) {
         final var accessList = call.getAccessList();
         if (accessList == null || accessList.isEmpty()) {
             return 0L;
@@ -116,6 +114,7 @@ public class ContractSimulateService extends ContractCallService {
         return gasCalculator.accessListGasCost(accessList.size(), storageKeys);
     }
 
+    // The address's long-zero number and the numbers of committed accounts aliased by it.
     private Set<Long> accountNums(final Map<Object, Object> accounts, final Bytes address) {
         final var accountNums = new HashSet<Long>();
         final var longZeroId = DomainUtils.fromEvmAddress(address.toByteArray());
@@ -135,14 +134,18 @@ public class ContractSimulateService extends ContractCallService {
     }
 
     // Overrides also replace the state committed by earlier entries, which is read before them.
-    private void applyStateOverrides(final ContractCallContext context, final List<StateOverride> overrides) {
-        final var overridesByAddress = Utils.toOverrideMap(overrides);
-        context.getStateOverrides().putAll(overridesByAddress);
+    private void applyStateOverrides(
+            final ContractCallContext context,
+            final List<StateOverride> activeOverrides,
+            final List<StateOverride> overrides) {
+        activeOverrides.addAll(overrides);
+        context.applyStateOverrides(activeOverrides);
 
         final var accounts = context.getCommittedCacheState(AccountReadableKVState.STATE_ID);
-        for (final var entry : overridesByAddress.entrySet()) {
-            final var address = entry.getKey();
-            final var stateOverride = entry.getValue();
+        for (final var override : overrides) {
+            final var address = Bytes.wrap(Utils.parseHex(override.getAddress()));
+            // The last override of an address wins, as in the context's map.
+            final var stateOverride = context.getStateOverrides().get(address);
             final var accountNums = accountNums(accounts, address);
 
             // Other committed account changes are kept.
@@ -317,7 +320,7 @@ public class ContractSimulateService extends ContractCallService {
         return ContractCallContext.run(context -> {
             context.setApi(SIMULATE);
             context.setTraceTransfers(request.isTraceTransfers());
-            context.setStateOverrides(new HashMap<>());
+            final var activeOverrides = new ArrayList<StateOverride>();
             final var results = new ArrayList<SimulateCallResult>();
             // Seeds the synthetic transaction hash; transaction_index resets per entry and would collide.
             long requestCallIndex = 0;
@@ -332,7 +335,7 @@ public class ContractSimulateService extends ContractCallService {
                 context.setBlockOverrideTimeNanos(null);
                 context.applyBlockOverride(blockCall.getBlockOverride());
                 blockNumber = context.getBlockOverrideNumber();
-                applyStateOverrides(context, blockCall.getStateOverrides());
+                applyStateOverrides(context, activeOverrides, blockCall.getStateOverrides());
                 // Rebuilds the block singletons for this entry's header.
                 for (final var blockStateId : List.of(BLOCKS_STATE_ID, BLOCK_STREAM_INFO_STATE_ID)) {
                     context.getReadCacheState(blockStateId).clear();
@@ -358,7 +361,7 @@ public class ContractSimulateService extends ContractCallService {
                                 params, context, block, accessListGas, logIndex, transactionIndex, requestCallIndex);
                         results.add(callResult);
                         logIndex += callResult.logs().size();
-                    } catch (MirrorEvmTransactionException e) {
+                    } catch (final MirrorEvmTransactionException e) {
                         final var partialResult = e.getResult();
                         results.add(new SimulateCallResult(
                                 Utils.toHex(partialResult != null ? partialResult.gasUsed() + accessListGas : 0L),
@@ -387,7 +390,7 @@ public class ContractSimulateService extends ContractCallService {
     }
 
     private ContractExecutionParameters toExecutionParameters(
-            final BlockType block, final SimulateCall call, final long accessListGas) {
+            final BlockType block, final ContractCallRequest call, final long accessListGas) {
         final var sender = call.getFrom() != null ? Address.fromHexString(call.getFrom()) : Address.ZERO;
         final var receiver = StringUtils.isNotEmpty(call.getTo()) ? Address.fromHexString(call.getTo()) : Address.ZERO;
         final var data = call.getData() != null ? call.getData() : HEX_PREFIX;

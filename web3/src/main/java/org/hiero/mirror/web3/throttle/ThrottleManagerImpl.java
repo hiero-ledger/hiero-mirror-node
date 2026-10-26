@@ -52,13 +52,6 @@ final class ThrottleManagerImpl implements ThrottleManager {
         }
     }
 
-    @Override
-    public void throttleSimulateRequest(long totalGas) {
-        if (!gasLimitBucket.tryConsume(throttleProperties.scaleGas(totalGas))) {
-            throw new ThrottleException(GAS_PER_SECOND_LIMIT_EXCEEDED);
-        }
-    }
-
     private void action(RequestProperties filter, ContractCallRequest request) {
         switch (filter.getAction()) {
             case LOG -> log.info("{}", request);

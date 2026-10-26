@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
+import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.ContractSimulateService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
@@ -118,9 +119,11 @@ class ContractController {
         if (hasStateOverrides(request) && !web3Properties.isEnableStateOverrides()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
         }
-        validateSimulateMaxGasLimit(request);
+        for (final var blockCall : request.getBlockStateCalls()) {
+            blockCall.getCalls().forEach(this::validateContractMaxGasLimit);
+        }
 
-        throttleManager.throttleSimulateRequest(request.totalGas());
+        throttleSimulateRequest(request);
         return contractSimulateService.simulate(request);
     }
 
@@ -133,14 +136,19 @@ class ContractController {
         return false;
     }
 
-    private void validateSimulateMaxGasLimit(SimulateRequest request) {
-        for (final var blockCall : request.getBlockStateCalls()) {
-            for (final var call : blockCall.getCalls()) {
-                if (call.getGas() > evmProperties.getMaxGasLimit()) {
-                    throw new InvalidParametersException(
-                            "gas field must be less than or equal to %d".formatted(evmProperties.getMaxGasLimit()));
+    // Each call is throttled like an eth_call. A rejected call restores the gas taken by the calls before it.
+    private void throttleSimulateRequest(SimulateRequest request) {
+        long throttledGas = 0L;
+        try {
+            for (final var blockCall : request.getBlockStateCalls()) {
+                for (final var call : blockCall.getCalls()) {
+                    throttleManager.throttle(call);
+                    throttledGas += call.getGas();
                 }
             }
+        } catch (final ThrottleException e) {
+            throttleManager.restore(throttledGas);
+            throw e;
         }
     }
 }
