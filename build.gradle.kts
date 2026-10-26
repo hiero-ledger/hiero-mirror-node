@@ -18,9 +18,9 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "26.2.0")
-    set("blockNodeVersion", "0.44.2")
+    set("blockNodeVersion", "0.44.3")
     set("consensusNodeVersion", "0.78.2")
-    set("hederaCryptographyVersion", "3.22.0")
+    set("hederaCryptographyVersion", "3.23.0")
     set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
     set("jetty.version", "12.1.13") // Temporary until next Spring Boot
