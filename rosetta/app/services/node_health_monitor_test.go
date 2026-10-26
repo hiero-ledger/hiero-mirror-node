@@ -4,8 +4,9 @@ package services
 
 import (
 	"context"
-	"errors"
+	"crypto/ed25519"
 	"fmt"
+	"maps"
 	"net"
 	"slices"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/config"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/proto/services"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	pkgErrors "github.com/pkg/errors"
@@ -22,24 +24,33 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 const testMaxConcurrency = 20
 
 var (
-	errNodeDown = status.Error(codes.Unavailable, "node is down")
-	node3       = hiero.AccountID{Account: 3}
-	node4       = hiero.AccountID{Account: 4}
-	node5       = hiero.AccountID{Account: 5}
+	errNodeDown          = status.Error(codes.Unavailable, "node is down")
+	errPayerNotFound     = hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPayerAccountNotFound}
+	node3                = hiero.AccountID{Account: 3}
+	node4                = hiero.AccountID{Account: 4}
+	node5                = hiero.AccountID{Account: 5}
+	testNodeHealthConfig = config.NodeHealth{
+		Enabled:        true,
+		Frequency:      time.Hour,
+		MaxConcurrency: testMaxConcurrency,
+		ProbeCooldown:  time.Hour,
+		Timeout:        2 * time.Second,
+	}
 )
 
-// concurrencyTracker records the most pings in flight at once.
+// concurrencyTracker records the most checks in flight at once.
 type concurrencyTracker struct {
 	inFlight atomic.Int32
 	max      atomic.Int32
 }
 
-func (c *concurrencyTracker) track(ping func(node hiero.AccountID) error) func(node hiero.AccountID) error {
+func (c *concurrencyTracker) track(check func(node hiero.AccountID) error) func(node hiero.AccountID) error {
 	return func(node hiero.AccountID) error {
 		inFlight := c.inFlight.Add(1)
 		defer c.inFlight.Add(-1)
@@ -48,18 +59,19 @@ func (c *concurrencyTracker) track(ping func(node hiero.AccountID) error) func(n
 				break
 			}
 		}
-		return ping(node)
+		return check(node)
 	}
 }
 
-// mockConsensusNode is an in-process consensus node. It answers account info queries and crypto transfers with the
-// configured precheck status, or fails them with gRPC status UNAVAILABLE while it's down.
+// mockConsensusNode is an in-process consensus node answering crypto transfers with the configured precheck status.
 type mockConsensusNode struct {
 	services.UnimplementedCryptoServiceServer
-	address  string
-	down     atomic.Bool
-	precheck atomic.Int32
-	requests atomic.Int32
+	address     string
+	delay       atomic.Int64
+	down        atomic.Bool
+	precheck    atomic.Int32
+	requests    atomic.Int32
+	transaction atomic.Pointer[services.Transaction]
 }
 
 func newMockConsensusNode(t *testing.T) *mockConsensusNode {
@@ -75,36 +87,67 @@ func newMockConsensusNode(t *testing.T) *mockConsensusNode {
 }
 
 func (n *mockConsensusNode) CryptoTransfer(
-	context.Context,
-	*services.Transaction,
+	ctx context.Context,
+	transaction *services.Transaction,
 ) (*services.TransactionResponse, error) {
-	if err := n.receive(); err != nil {
-		return nil, err
+	n.requests.Add(1)
+	n.transaction.Store(transaction)
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-time.After(time.Duration(n.delay.Load())):
+	}
+
+	if n.down.Load() {
+		return nil, errNodeDown
 	}
 
 	return &services.TransactionResponse{NodeTransactionPrecheckCode: services.ResponseCodeEnum(n.precheck.Load())}, nil
 }
 
-func (n *mockConsensusNode) GetAccountInfo(context.Context, *services.Query) (*services.Response, error) {
-	if err := n.receive(); err != nil {
-		return nil, err
-	}
-
-	header := &services.ResponseHeader{
-		NodeTransactionPrecheckCode: services.ResponseCodeEnum(n.precheck.Load()),
-		ResponseType:                services.ResponseType_COST_ANSWER,
-	}
-	return &services.Response{
-		Response: &services.Response_CryptoGetInfo{CryptoGetInfo: &services.CryptoGetInfoResponse{Header: header}},
-	}, nil
-}
-
-func (n *mockConsensusNode) receive() error {
-	n.requests.Add(1)
-	if n.down.Load() {
+// checkNodes returns a check that the healthy nodes pass and the others fail.
+func checkNodes(healthy ...hiero.AccountID) func(node hiero.AccountID) error {
+	return func(node hiero.AccountID) error {
+		if slices.Contains(healthy, node) {
+			return errPayerNotFound
+		}
 		return errNodeDown
 	}
-	return nil
+}
+
+// countChecks counts the calls to the check.
+func countChecks(count *atomic.Int32, check func(node hiero.AccountID) error) func(node hiero.AccountID) error {
+	return func(node hiero.AccountID) error {
+		count.Add(1)
+		return check(node)
+	}
+}
+
+// gateChecks returns a check the passing nodes pass right away and the others fail once the gate opens.
+func gateChecks(t *testing.T, passing ...hiero.AccountID) (func(node hiero.AccountID) error, func()) {
+	gate := make(chan struct{})
+	open := sync.OnceFunc(func() { close(gate) })
+	t.Cleanup(open)
+	return func(node hiero.AccountID) error {
+		if slices.Contains(passing, node) {
+			return errPayerNotFound
+		}
+		<-gate
+		return errNodeDown
+	}, open
+}
+
+func isUnhealthy(m *nodeHealthMonitor, node hiero.AccountID) bool {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	_, ok := m.unhealthyNodes[node.String()]
+	return ok
+}
+
+func markAllUnhealthy(m *nodeHealthMonitor) {
+	for _, node := range getNetworkNodes(m.client) {
+		m.markUnhealthy(node, errNodeDown)
+	}
 }
 
 func newTestClient(t *testing.T, network map[string]hiero.AccountID) *hiero.Client {
@@ -115,61 +158,190 @@ func newTestClient(t *testing.T, network map[string]hiero.AccountID) *hiero.Clie
 	return client
 }
 
-// newTestNodeHealthMonitor creates a monitor for nodes 0.0.3, 0.0.4 and 0.0.5 that never contacts them.
+// newTestNodeHealthMonitor creates a monitor, not started, for nodes 0.0.3, 0.0.4 and 0.0.5.
 func newTestNodeHealthMonitor(
 	t *testing.T,
 	cfg config.NodeHealth,
-	ping func(node hiero.AccountID) error,
+	check func(node hiero.AccountID) error,
 ) *nodeHealthMonitor {
 	client := newTestClient(t, map[string]hiero.AccountID{
 		"10.0.0.1:50211": node3,
 		"10.0.0.2:50211": node4,
 		"10.0.0.3:50211": node5,
 	})
-	return newNodeHealthMonitor(client, cfg, ping)
+	return newNodeHealthMonitor(t.Context(), client, cfg, check)
 }
 
-func pingNodes(healthy ...hiero.AccountID) func(node hiero.AccountID) error {
-	return func(node hiero.AccountID) error {
-		if slices.Contains(healthy, node) {
-			return nil
-		}
-		return errNodeDown
+func TestGetHealthyNode(t *testing.T) {
+	m := newTestNodeHealthMonitor(t, testNodeHealthConfig, checkNodes())
+	m.markUnhealthy(node4, errNodeDown)
+
+	picked := make(map[hiero.AccountID]int)
+	for range 100 {
+		node, rErr := m.GetHealthyNode(t.Context())
+		require.Nil(t, rErr)
+		picked[node]++
+	}
+
+	assert.ElementsMatch(t, []hiero.AccountID{node3, node5}, slices.Collect(maps.Keys(picked)))
+}
+
+func TestGetHealthyNodeDeduplicatesNodeAddresses(t *testing.T) {
+	client := newTestClient(t, map[string]hiero.AccountID{
+		"10.0.0.1:50211": node3,
+		"10.0.0.1:50212": node3,
+		"10.0.0.2:50211": node4,
+	})
+	m := newNodeHealthMonitor(t.Context(), client, testNodeHealthConfig, checkNodes())
+	m.markUnhealthy(node4, errNodeDown)
+
+	nodes, _ := m.getHealthyNodes()
+
+	assert.Equal(t, []hiero.AccountID{node3}, nodes)
+}
+
+func TestGetHealthyNodeWhenAllUnhealthy(t *testing.T) {
+	var checks atomic.Int32
+	m := newTestNodeHealthMonitor(t, testNodeHealthConfig, countChecks(&checks, checkNodes(node4)))
+	markAllUnhealthy(m)
+
+	node, rErr := m.GetHealthyNode(t.Context())
+
+	assert.Nil(t, rErr)
+	assert.Equal(t, node4, node)
+	assert.False(t, isUnhealthy(m, node4))
+	assert.True(t, isUnhealthy(m, node3))
+	assert.True(t, isUnhealthy(m, node5))
+	assert.Eventually(t, func() bool { return checks.Load() == 3 }, time.Second, 10*time.Millisecond)
+}
+
+func TestGetHealthyNodeReturnsFirstRecoveredNode(t *testing.T) {
+	// given node 3 recovers while the checks of nodes 4 and 5 hang
+	check, _ := gateChecks(t, node3)
+	m := newTestNodeHealthMonitor(t, testNodeHealthConfig, check)
+	markAllUnhealthy(m)
+
+	// when
+	node, rErr := m.GetHealthyNode(t.Context())
+
+	// then
+	assert.Nil(t, rErr)
+	assert.Equal(t, node3, node)
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	assert.NotNil(t, m.roundDone)
+}
+
+func TestGetHealthyNodeWhenNoneRecovers(t *testing.T) {
+	var checks atomic.Int32
+	m := newTestNodeHealthMonitor(t, testNodeHealthConfig, countChecks(&checks, checkNodes()))
+	markAllUnhealthy(m)
+
+	node, rErr := m.GetHealthyNode(t.Context())
+
+	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
+	assert.Equal(t, hiero.AccountID{}, node)
+	assert.Equal(t, int32(3), checks.Load())
+}
+
+func TestGetHealthyNodeCoolsDown(t *testing.T) {
+	// given
+	var checks atomic.Int32
+	cfg := testNodeHealthConfig
+	cfg.ProbeCooldown = 200 * time.Millisecond
+	m := newTestNodeHealthMonitor(t, cfg, countChecks(&checks, checkNodes()))
+	markAllUnhealthy(m)
+	_, rErr := m.GetHealthyNode(t.Context())
+	require.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
+	require.Equal(t, int32(3), checks.Load())
+
+	// then it fails fast within the cool-down
+	_, rErr = m.GetHealthyNode(t.Context())
+	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
+	assert.Equal(t, int32(3), checks.Load())
+
+	// then it checks the nodes again after the cool-down
+	time.Sleep(cfg.ProbeCooldown)
+	_, rErr = m.GetHealthyNode(t.Context())
+	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
+	assert.Equal(t, int32(6), checks.Load())
+}
+
+func TestGetHealthyNodeWhenContextDone(t *testing.T) {
+	check, _ := gateChecks(t)
+	m := newTestNodeHealthMonitor(t, testNodeHealthConfig, check)
+	markAllUnhealthy(m)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	node, rErr := m.GetHealthyNode(ctx)
+
+	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
+	assert.Equal(t, hiero.AccountID{}, node)
+}
+
+func TestGetHealthyNodeWhenDisabled(t *testing.T) {
+	// given a node the SDK put into backoff, which the SDK doesn't list as healthy
+	consensusNode := newMockConsensusNode(t)
+	consensusNode.down.Store(true)
+	client := newTestClient(t, map[string]hiero.AccountID{
+		consensusNode.address: node3,
+		"10.0.0.1:50211":      node4,
+		"10.0.0.1:50212":      node4,
+	})
+	_, err := hiero.NewTransferTransaction().
+		SetNodeAccountIDs([]hiero.AccountID{node3}).
+		SetTransactionID(hiero.TransactionIDGenerate(hiero.AccountID{Account: 2})).
+		Execute(client)
+	require.Error(t, err)
+	monitor, err := NewNodeHealthMonitor(t.Context(), client, &config.Mirror{}, true)
+	require.NoError(t, err)
+
+	// when
+	nodes := getSdkHealthyNodes(client)
+	node, rErr := monitor.GetHealthyNode(t.Context())
+
+	// then
+	assert.Equal(t, []hiero.AccountID{node4}, nodes)
+	assert.Nil(t, rErr)
+	assert.Equal(t, node4, node)
+}
+
+func TestReportSubmitError(t *testing.T) {
+	tests := []struct {
+		name      string
+		enabled   bool
+		err       error
+		unhealthy bool
+	}{
+		{name: "node error", enabled: true, err: errNodeDown, unhealthy: true},
+		{
+			name:    "user error",
+			enabled: true,
+			err:     hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInsufficientPayerBalance},
+		},
+		{name: "disabled", err: errNodeDown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newTestNodeHealthMonitor(t, testNodeHealthConfig, checkNodes())
+			m.enabled = tt.enabled
+
+			m.RecordSubmitError(node3, tt.err)
+
+			assert.Equal(t, tt.unhealthy, isUnhealthy(m, node3))
+		})
 	}
 }
 
-func isUnhealthy(m *nodeHealthMonitor, node hiero.AccountID) bool {
-	return len(m.FilterHealthy([]hiero.AccountID{node})) == 0
-}
+func TestMarkHealthyIgnoresCheckStartedBeforeLatestFailure(t *testing.T) {
+	m := newTestNodeHealthMonitor(t, testNodeHealthConfig, checkNodes())
+	checkStartedAt := time.Now().Add(-time.Second)
+	m.markUnhealthy(node3, errNodeDown)
 
-func TestFilterHealthy(t *testing.T) {
-	allNodes := []hiero.AccountID{node3, node4, node5}
-	m := newTestNodeHealthMonitor(t, config.NodeHealth{MaxConcurrency: testMaxConcurrency}, pingNodes())
-
-	// When no unhealthy nodes
-	assert.Equal(t, allNodes, m.FilterHealthy(allNodes))
-
-	// When node 4 is unhealthy
-	m.MarkUnhealthy(node4)
-	assert.Equal(t, []hiero.AccountID{node3, node5}, m.FilterHealthy(allNodes))
-
-	// When all nodes are unhealthy
-	m.MarkUnhealthy(node3)
-	m.MarkUnhealthy(node5)
-	assert.Empty(t, m.FilterHealthy(allNodes))
-
-	// When node 3 is marked healthy again
-	m.markHealthy(node3, time.Now())
-	assert.Equal(t, []hiero.AccountID{node3}, m.FilterHealthy(allNodes))
-}
-
-func TestMarkHealthyIgnoresPingStartedBeforeLatestFailure(t *testing.T) {
-	m := newTestNodeHealthMonitor(t, config.NodeHealth{MaxConcurrency: testMaxConcurrency}, pingNodes())
-	pingStartedAt := time.Now().Add(-time.Second)
-	m.MarkUnhealthy(node3)
-
-	// A ping started before the failure doesn't vouch for the node
-	m.markHealthy(node3, pingStartedAt)
+	// A check started before the failure doesn't vouch for the node
+	m.markHealthy(node3, checkStartedAt)
 	assert.True(t, isUnhealthy(m, node3))
 
 	m.markHealthy(node3, time.Now())
@@ -177,19 +349,19 @@ func TestMarkHealthyIgnoresPingStartedBeforeLatestFailure(t *testing.T) {
 }
 
 func TestMarkUnhealthyRecordsLatestFailure(t *testing.T) {
-	m := newTestNodeHealthMonitor(t, config.NodeHealth{MaxConcurrency: testMaxConcurrency}, pingNodes())
-	m.unhealthyNodes[node3.String()] = unhealthyNode{failedAt: time.Now().Add(-time.Minute), id: node3}
-	pingStartedAt := time.Now().Add(-time.Second)
+	m := newTestNodeHealthMonitor(t, testNodeHealthConfig, checkNodes())
+	m.unhealthyNodes[node3.String()] = time.Now().Add(-time.Minute)
+	checkStartedAt := time.Now().Add(-time.Second)
 
-	// The node fails again while the ping is in flight
-	m.MarkUnhealthy(node3)
-	m.markHealthy(node3, pingStartedAt)
+	// The node fails again while the check is in flight
+	m.markUnhealthy(node3, errNodeDown)
+	m.markHealthy(node3, checkStartedAt)
 
 	assert.True(t, isUnhealthy(m, node3))
 }
 
-func TestPingAllNodes(t *testing.T) {
-	// given nodes 3 and 4 marked unhealthy, and nodes 5 and 6 healthy
+func TestCheckAllNodes(t *testing.T) {
+	// given
 	node6 := hiero.AccountID{Account: 6}
 	client := newTestClient(t, map[string]hiero.AccountID{
 		"10.0.0.1:50211": node3,
@@ -197,505 +369,376 @@ func TestPingAllNodes(t *testing.T) {
 		"10.0.0.3:50211": node5,
 		"10.0.0.4:50211": node6,
 	})
-	var pings atomic.Int32
-	ping := func(node hiero.AccountID) error {
-		pings.Add(1)
-		return pingNodes(node3, node5)(node)
-	}
-	m := newNodeHealthMonitor(client, config.NodeHealth{MaxConcurrency: testMaxConcurrency}, ping)
-	m.MarkUnhealthy(node3)
-	m.MarkUnhealthy(node4)
+	var checks atomic.Int32
+	m := newNodeHealthMonitor(t.Context(), client, testNodeHealthConfig, countChecks(&checks, checkNodes(node3, node5)))
+	m.markUnhealthy(node3, errNodeDown)
+	m.markUnhealthy(node4, errNodeDown)
 
 	// when
-	m.pingAllNodes(context.Background())
+	m.checkAllNodes()
 
-	// then every node is pinged: node 3 recovered, node 4 is still down, node 5 is still up and node 6 went down
-	assert.Equal(t, int32(4), pings.Load())
+	// then
+	assert.Equal(t, int32(4), checks.Load())
 	assert.False(t, isUnhealthy(m, node3))
 	assert.True(t, isUnhealthy(m, node4))
 	assert.False(t, isUnhealthy(m, node5))
 	assert.True(t, isUnhealthy(m, node6))
 }
 
-func TestPingAllNodesForgetsNodesNotInNetwork(t *testing.T) {
-	var pings atomic.Int32
-	ping := func(hiero.AccountID) error {
-		pings.Add(1)
-		return errNodeDown
-	}
-	m := newTestNodeHealthMonitor(t, config.NodeHealth{MaxConcurrency: testMaxConcurrency}, ping)
+func TestCheckAllNodesForgetsNodesNotInNetwork(t *testing.T) {
+	var checks atomic.Int32
+	m := newTestNodeHealthMonitor(t, testNodeHealthConfig, countChecks(&checks, checkNodes()))
 	staleNode := hiero.AccountID{Account: 999}
-	m.MarkUnhealthy(staleNode)
+	m.markUnhealthy(staleNode, errNodeDown)
 
-	m.pingAllNodes(context.Background())
+	m.checkAllNodes()
 
-	// Only the 3 nodes in the network are pinged
-	assert.Equal(t, int32(3), pings.Load())
+	assert.Equal(t, int32(3), checks.Load())
 	assert.NotContains(t, m.unhealthyNodes, staleNode.String())
 }
 
-func TestPingAllNodesLimitsConcurrency(t *testing.T) {
-	// given 6 nodes and 2 ping slots
+func TestCheckAllNodesLimitsConcurrency(t *testing.T) {
+	// given
 	network := make(map[string]hiero.AccountID)
 	for i := range 6 {
 		network[fmt.Sprintf("10.0.0.%d:50211", i+1)] = hiero.AccountID{Account: uint64(3 + i)}
 	}
-	var pings atomic.Int32
+	var checks atomic.Int32
 	var tracker concurrencyTracker
-	ping := tracker.track(func(hiero.AccountID) error {
-		pings.Add(1)
+	check := tracker.track(func(hiero.AccountID) error {
+		checks.Add(1)
 		time.Sleep(20 * time.Millisecond)
 		return errNodeDown
 	})
-	m := newNodeHealthMonitor(newTestClient(t, network), config.NodeHealth{MaxConcurrency: 2}, ping)
+	cfg := testNodeHealthConfig
+	cfg.MaxConcurrency = 2
+	m := newNodeHealthMonitor(t.Context(), newTestClient(t, network), cfg, check)
 
 	// when
-	m.pingAllNodes(context.Background())
+	m.checkAllNodes()
 
-	// then every node is pinged, at most 2 at a time
-	assert.Equal(t, int32(len(network)), pings.Load())
+	// then
+	assert.Equal(t, int32(len(network)), checks.Load())
 	assert.Equal(t, int32(2), tracker.max.Load())
 }
 
-func TestIsReachable(t *testing.T) {
-	tests := []struct {
-		name     string
-		err      error
-		expected bool
-	}{
-		{name: "answered", expected: true},
-		{
-			name:     "invalid account",
-			err:      hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidAccountID},
-			expected: true,
-		},
-		{name: "busy", err: hiero.ErrHederaPreCheckStatus{Status: hiero.StatusBusy}},
-		{
-			name: "wrapped platform not active",
-			err:  pkgErrors.Wrapf(hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformNotActive}, "retry 1/1"),
-		},
-		{name: "unavailable", err: errNodeDown},
-		{name: "in sdk backoff", err: errors.New("unknown error occurred after max attempts")},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, isReachable(tt.err))
-		})
-	}
-}
-
-func TestProbeSuccess(t *testing.T) {
-	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: 500 * time.Millisecond}
-	m := newTestNodeHealthMonitor(t, cfg, pingNodes(node4))
-	m.MarkUnhealthy(node3)
-	m.MarkUnhealthy(node4)
-
-	recovered, ok := m.Probe(context.Background(), []hiero.AccountID{node3, node4})
-
-	assert.True(t, ok)
-	assert.Equal(t, node4, recovered)
-	assert.True(t, isUnhealthy(m, node3))
-	assert.False(t, isUnhealthy(m, node4))
-}
-
-func TestProbeReleasesEveryNodeThatAnswers(t *testing.T) {
-	// given pings that answer only once all of them are in flight
-	var started atomic.Int32
-	release := make(chan struct{})
-	ping := func(node hiero.AccountID) error {
-		started.Add(1)
-		<-release
-		return pingNodes(node3, node4)(node)
-	}
-	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: 5 * time.Second}
-	m := newTestNodeHealthMonitor(t, cfg, ping)
-	candidates := []hiero.AccountID{node3, node4, node5}
-	for _, node := range candidates {
-		m.MarkUnhealthy(node)
-	}
-
-	// when
-	results := make(chan probeResult, 1)
-	go func() {
-		recovered, ok := m.Probe(context.Background(), candidates)
-		results <- probeResult{node: recovered, ok: ok}
-	}()
-	require.Eventually(t, func() bool { return started.Load() == 3 }, time.Second, time.Millisecond)
-	close(release)
-	result := <-results
-
-	// then both nodes that answered are healthy, not just the one returned
-	assert.True(t, result.ok)
-	assert.Contains(t, []hiero.AccountID{node3, node4}, result.node)
-	assert.Eventually(t, func() bool {
-		return !isUnhealthy(m, node3) && !isUnhealthy(m, node4)
-	}, time.Second, 10*time.Millisecond)
-	assert.True(t, isUnhealthy(m, node5))
-}
-
-func TestProbeStopsStartingPingsOnceOneAnswers(t *testing.T) {
-	// given one ping slot, and node 3 answering while the other nodes don't until released
-	var pinged sync.Map
-	release := make(chan struct{})
-	ping := func(node hiero.AccountID) error {
-		pinged.Store(node, true)
-		if node == node3 {
-			return nil
-		}
-
-		<-release
-		return errNodeDown
-	}
-	m := newTestNodeHealthMonitor(t, config.NodeHealth{MaxConcurrency: 1, Timeout: 5 * time.Second}, ping)
-	candidates := []hiero.AccountID{node3, node4, node5}
-	for _, node := range candidates {
-		m.MarkUnhealthy(node)
-	}
-
-	// when
-	recovered, ok := m.Probe(context.Background(), candidates)
-	close(release)
-
-	// then node 5 is never pinged, although node 4 may have started before the probe returned
-	assert.True(t, ok)
-	assert.Equal(t, node3, recovered)
-	assert.Never(t, func() bool {
-		_, node5Pinged := pinged.Load(node5)
-		return node5Pinged
-	}, 100*time.Millisecond, 10*time.Millisecond)
-}
-
-func TestProbeWaitsForPingSlotsWithinTimeout(t *testing.T) {
-	// given a round of pings holding the only ping slot
-	var pings atomic.Int32
-	release := make(chan struct{})
-	ping := func(hiero.AccountID) error {
-		pings.Add(1)
-		<-release
-		return errNodeDown
-	}
-	m := newTestNodeHealthMonitor(t, config.NodeHealth{MaxConcurrency: 1, Timeout: 50 * time.Millisecond}, ping)
-	pinged := make(chan struct{})
-	go func() {
-		m.pingAllNodes(context.Background())
-		close(pinged)
-	}()
-	require.Eventually(t, func() bool { return pings.Load() == 1 }, time.Second, time.Millisecond)
-	m.MarkUnhealthy(node4)
-
-	// when
-	recovered, ok := m.Probe(context.Background(), []hiero.AccountID{node4})
-
-	// then the probe gives up at its timeout without pinging
-	assert.False(t, ok)
-	assert.Equal(t, hiero.AccountID{}, recovered)
-	assert.Equal(t, int32(1), pings.Load())
-	close(release)
-	select {
-	case <-pinged:
-	case <-time.After(time.Second):
-		t.Fatal("round of pings didn't finish")
-	}
-}
-
-func TestProbeAllFail(t *testing.T) {
-	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: 500 * time.Millisecond}
-	m := newTestNodeHealthMonitor(t, cfg, pingNodes())
-	m.MarkUnhealthy(node3)
-	m.MarkUnhealthy(node4)
-
-	recovered, ok := m.Probe(context.Background(), []hiero.AccountID{node3, node4})
-
-	assert.False(t, ok)
-	assert.Equal(t, hiero.AccountID{}, recovered)
-}
-
-func TestProbeTimeout(t *testing.T) {
-	release := make(chan struct{})
-	t.Cleanup(func() { close(release) })
-	ping := func(hiero.AccountID) error {
-		<-release
-		return nil
-	}
-	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: 50 * time.Millisecond}
-	m := newTestNodeHealthMonitor(t, cfg, ping)
-	m.MarkUnhealthy(node3)
-
-	recovered, ok := m.Probe(context.Background(), []hiero.AccountID{node3})
-
-	assert.False(t, ok)
-	assert.Equal(t, hiero.AccountID{}, recovered)
-}
-
-func TestProbeReturnsWhenContextDone(t *testing.T) {
-	release := make(chan struct{})
-	t.Cleanup(func() { close(release) })
-	ping := func(hiero.AccountID) error {
-		<-release
-		return nil
-	}
-	m := newTestNodeHealthMonitor(t, config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: time.Minute}, ping)
-	m.MarkUnhealthy(node3)
-	ctx, cancel := context.WithCancel(context.Background())
+func TestCheckAllNodesWhenContextDone(t *testing.T) {
+	var checks atomic.Int32
+	client := newTestClient(t, map[string]hiero.AccountID{"10.0.0.1:50211": node3})
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
+	m := newNodeHealthMonitor(ctx, client, testNodeHealthConfig, countChecks(&checks, checkNodes()))
 
-	recovered, ok := m.Probe(ctx, []hiero.AccountID{node3})
+	m.checkAllNodes()
 
-	assert.False(t, ok)
-	assert.Equal(t, hiero.AccountID{}, recovered)
+	assert.Zero(t, checks.Load())
 }
 
-func TestProbeSharesOneRoundOfPings(t *testing.T) {
-	const callers = 5
-	var pings atomic.Int32
-	release := make(chan struct{})
-	ping := func(node hiero.AccountID) error {
-		pings.Add(1)
-		<-release
-		return pingNodes(node4)(node)
-	}
-	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: 5 * time.Second}
-	m := newTestNodeHealthMonitor(t, cfg, ping)
-	candidates := []hiero.AccountID{node3, node4}
-	m.MarkUnhealthy(node3)
-	m.MarkUnhealthy(node4)
+func TestStartRoundJoinsRoundInProgress(t *testing.T) {
+	var checks atomic.Int32
+	check, open := gateChecks(t)
+	m := newTestNodeHealthMonitor(t, testNodeHealthConfig, countChecks(&checks, check))
 
-	results := make(chan hiero.AccountID, callers)
-	var ready, done sync.WaitGroup
-	for range callers {
-		ready.Add(1)
-		done.Go(func() {
-			ready.Done()
-			if recovered, ok := m.Probe(context.Background(), candidates); ok {
-				results <- recovered
-			}
-		})
-	}
+	roundDone := m.startRound(true)
+	assert.Equal(t, roundDone, m.startRound(false))
+	assert.Equal(t, roundDone, m.startRound(true))
 
-	// Release the pings only once every caller is waiting on the round in flight
-	ready.Wait()
-	assert.Eventually(t, func() bool { return pings.Load() == int32(len(candidates)) }, time.Second, time.Millisecond)
-	time.Sleep(50 * time.Millisecond)
-	close(release)
-	done.Wait()
-	close(results)
-
-	assert.Equal(t, int32(len(candidates)), pings.Load())
-	var recovered []hiero.AccountID
-	for node := range results {
-		recovered = append(recovered, node)
-	}
-	assert.Equal(t, slices.Repeat([]hiero.AccountID{node4}, callers), recovered)
+	open()
+	<-roundDone
+	assert.Equal(t, int32(3), checks.Load())
 }
 
-func TestProbeWithEmptyCandidates(t *testing.T) {
-	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: 500 * time.Millisecond}
-	m := newTestNodeHealthMonitor(t, cfg, pingNodes(node3))
-	m.MarkUnhealthy(node3)
+func TestStartRoundCoolsDown(t *testing.T) {
+	var checks atomic.Int32
+	m := newTestNodeHealthMonitor(t, testNodeHealthConfig, countChecks(&checks, checkNodes()))
+	<-m.startRound(true)
 
-	recovered, ok := m.Probe(context.Background(), nil)
-	assert.False(t, ok)
-	assert.Equal(t, hiero.AccountID{}, recovered)
-
-	recovered, ok = m.Probe(context.Background(), []hiero.AccountID{})
-	assert.False(t, ok)
-	assert.Equal(t, hiero.AccountID{}, recovered)
+	// Within the cool-down, only a forced round starts
+	assert.Nil(t, m.startRound(false))
+	<-m.startRound(true)
+	assert.Equal(t, int32(6), checks.Load())
 }
 
-func TestProbeCoolsDownAfterFindingNoNode(t *testing.T) {
-	// given a probe that found no node
-	var pings atomic.Int32
-	ping := func(hiero.AccountID) error {
-		pings.Add(1)
-		return errNodeDown
-	}
-	cfg := config.NodeHealth{
-		MaxConcurrency: testMaxConcurrency,
-		ProbeCooldown:  time.Minute,
-		Timeout:        time.Second,
-	}
-	m := newTestNodeHealthMonitor(t, cfg, ping)
-	candidates := []hiero.AccountID{node3, node4}
-	for _, node := range candidates {
-		m.MarkUnhealthy(node)
-	}
-	_, ok := m.Probe(context.Background(), candidates)
-	require.False(t, ok)
-	require.Equal(t, int32(2), pings.Load())
-
-	// when probing again within the cool-down
-	recovered, ok := m.Probe(context.Background(), candidates)
-
-	// then it fails fast without pinging
-	assert.False(t, ok)
-	assert.Equal(t, hiero.AccountID{}, recovered)
-	assert.Equal(t, int32(2), pings.Load())
-}
-
-func TestProbeAfterCooldown(t *testing.T) {
-	// given a probe that found no node, after which node 4 recovers
-	var node4Up atomic.Bool
-	ping := func(node hiero.AccountID) error {
-		if node == node4 && node4Up.Load() {
-			return nil
-		}
-		return errNodeDown
-	}
-	cfg := config.NodeHealth{
-		MaxConcurrency: testMaxConcurrency,
-		ProbeCooldown:  50 * time.Millisecond,
-		Timeout:        time.Second,
-	}
-	m := newTestNodeHealthMonitor(t, cfg, ping)
-	candidates := []hiero.AccountID{node3, node4}
-	for _, node := range candidates {
-		m.MarkUnhealthy(node)
-	}
-	_, ok := m.Probe(context.Background(), candidates)
-	require.False(t, ok)
-	node4Up.Store(true)
-
-	// then once the cool-down elapses, the probe pings again and finds node 4
-	assert.Eventually(t, func() bool {
-		recovered, ok := m.Probe(context.Background(), candidates)
-		return ok && recovered == node4
-	}, time.Second, 10*time.Millisecond)
-}
-
-func TestProbeSuccessDoesNotCoolDown(t *testing.T) {
-	// given a probe that found node 3
-	var pings atomic.Int32
-	ping := func(node hiero.AccountID) error {
-		pings.Add(1)
-		return pingNodes(node3)(node)
-	}
-	cfg := config.NodeHealth{
-		MaxConcurrency: testMaxConcurrency,
-		ProbeCooldown:  time.Minute,
-		Timeout:        time.Second,
-	}
-	m := newTestNodeHealthMonitor(t, cfg, ping)
-	m.MarkUnhealthy(node3)
-	_, ok := m.Probe(context.Background(), []hiero.AccountID{node3})
-	require.True(t, ok)
-
-	// when node 3 fails again right away
-	m.MarkUnhealthy(node3)
-	recovered, ok := m.Probe(context.Background(), []hiero.AccountID{node3})
-
-	// then the probe pings it again
-	assert.True(t, ok)
-	assert.Equal(t, node3, recovered)
-	assert.Equal(t, int32(2), pings.Load())
-}
-
-func TestStartPingsEveryNodeRightAway(t *testing.T) {
-	// given a frequency so long that no tick happens during the test
-	var pings atomic.Int32
-	ping := func(node hiero.AccountID) error {
-		pings.Add(1)
-		return pingNodes(node3, node4)(node)
-	}
-	cfg := config.NodeHealth{Frequency: time.Hour, MaxConcurrency: testMaxConcurrency}
-	m := newTestNodeHealthMonitor(t, cfg, ping)
+func TestStartChecksEveryNodeRightAway(t *testing.T) {
+	// given
+	var checks atomic.Int32
+	m := newTestNodeHealthMonitor(t, testNodeHealthConfig, countChecks(&checks, checkNodes(node3, node4)))
 
 	// when
-	m.Start(t.Context())
+	m.start()
 
-	// then the first round pings every node, and node 5, which doesn't answer, is marked unhealthy
+	// then
 	assert.Eventually(t, func() bool {
-		return pings.Load() == 3 && isUnhealthy(m, node5)
+		return checks.Load() == 3 && isUnhealthy(m, node5)
 	}, time.Second, 10*time.Millisecond)
 	assert.False(t, isUnhealthy(m, node3))
 	assert.False(t, isUnhealthy(m, node4))
 }
 
 func TestStartAndStopGracefully(t *testing.T) {
-	var pings atomic.Int32
-	ping := func(hiero.AccountID) error {
-		pings.Add(1)
-		return errNodeDown
-	}
-	cfg := config.NodeHealth{Frequency: 50 * time.Millisecond, MaxConcurrency: testMaxConcurrency}
-	m := newTestNodeHealthMonitor(t, cfg, ping)
+	var checks atomic.Int32
+	cfg := testNodeHealthConfig
+	cfg.Frequency = 50 * time.Millisecond
+	client := newTestClient(t, map[string]hiero.AccountID{"10.0.0.1:50211": node3})
+	ctx, cancel := context.WithCancel(t.Context())
+	m := newNodeHealthMonitor(ctx, client, cfg, countChecks(&checks, checkNodes()))
+	m.start()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	m.Start(ctx)
-
-	// Wait for more than the first round
 	assert.Eventually(t, func() bool {
-		return pings.Load() > 3
+		return checks.Load() > 1
 	}, time.Second, 10*time.Millisecond)
 
 	cancel()
 
-	// Wait a moment and confirm it stopped
 	time.Sleep(100 * time.Millisecond)
-	snapshot := pings.Load()
+	snapshot := checks.Load()
 	time.Sleep(100 * time.Millisecond)
-	assert.Equal(t, snapshot, pings.Load())
+	assert.Equal(t, snapshot, checks.Load())
 }
 
-func TestNewNodeHealthMonitorCapsSdkBackoff(t *testing.T) {
-	client := newTestClient(t, map[string]hiero.AccountID{"10.0.0.1:50211": node3})
-
-	cfg := config.NodeHealth{Frequency: 10 * time.Second, MaxConcurrency: testMaxConcurrency, Timeout: 2 * time.Second}
-	NewNodeHealthMonitor(client, cfg)
-
-	assert.Equal(t, 5*time.Second, client.GetNodeMaxBackoff())
-	assert.Equal(t, 5*time.Second, client.GetNodeMaxReadmitPeriod())
-}
-
-func TestPingReachesNodeOnceSdkBackoffElapses(t *testing.T) {
-	// given an unhealthy node that failed and so is in SDK backoff, capped at 100ms
+func TestNewNodeHealthMonitor(t *testing.T) {
+	// given
 	consensusNode := newMockConsensusNode(t)
+	consensusNode.precheck.Store(int32(services.ResponseCodeEnum_PAYER_ACCOUNT_NOT_FOUND))
+	node := hiero.AccountID{Shard: 1, Realm: 2, Account: 3}
+	client := newTestClient(t, map[string]hiero.AccountID{consensusNode.address: node})
+	mirrorConfig := &config.Mirror{
+		Common:  config.CommonConfig{Realm: 2, Shard: 1},
+		Rosetta: config.Config{NodeHealth: testNodeHealthConfig},
+	}
+
+	// when
+	monitor, err := NewNodeHealthMonitor(t.Context(), client, mirrorConfig, true)
+
+	// then
+	require.NoError(t, err)
+	m := monitor.(*nodeHealthMonitor)
+	assert.True(t, m.enabled)
+	assert.Equal(t, testNodeHealthConfig.Frequency/2, client.GetNodeMaxBackoff())
+	require.Eventually(t, func() bool {
+		return consensusNode.requests.Load() == 1
+	}, 5*time.Second, 10*time.Millisecond)
+	assert.Equal(t, hiero.AccountID{Shard: 1, Realm: 2, Account: healthCheckPayerNum}, getPayer(t, consensusNode))
+	assert.False(t, isUnhealthy(m, node))
+}
+
+func TestNewNodeHealthMonitorWhenDisabled(t *testing.T) {
+	sdkDefaults := newTestClient(t, map[string]hiero.AccountID{"10.0.0.1:50211": node3})
+	tests := []struct {
+		name    string
+		enabled bool
+		online  bool
+	}{
+		{name: "disabled", online: true},
+		{name: "offline", enabled: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newTestClient(t, map[string]hiero.AccountID{"10.0.0.1:50211": node3})
+			nodeHealth := testNodeHealthConfig
+			nodeHealth.Enabled = tt.enabled
+			mirrorConfig := &config.Mirror{Rosetta: config.Config{NodeHealth: nodeHealth}}
+
+			monitor, err := NewNodeHealthMonitor(t.Context(), client, mirrorConfig, tt.online)
+
+			require.NoError(t, err)
+			assert.False(t, monitor.(*nodeHealthMonitor).enabled)
+			assert.Equal(t, sdkDefaults.GetNodeMaxBackoff(), client.GetNodeMaxBackoff())
+		})
+	}
+}
+
+func TestHealthCheck(t *testing.T) {
+	tests := []struct {
+		name     string
+		down     bool
+		precheck services.ResponseCodeEnum
+		healthy  bool
+	}{
+		{name: "payer not found", precheck: services.ResponseCodeEnum_PAYER_ACCOUNT_NOT_FOUND, healthy: true},
+		{name: "down", down: true},
+		{name: "ok", precheck: services.ResponseCodeEnum_OK},
+		{name: "busy", precheck: services.ResponseCodeEnum_BUSY},
+		{name: "platform not active", precheck: services.ResponseCodeEnum_PLATFORM_NOT_ACTIVE},
+		{name: "invalid node account", precheck: services.ResponseCodeEnum_INVALID_NODE_ACCOUNT},
+		{name: "invalid transaction start", precheck: services.ResponseCodeEnum_INVALID_TRANSACTION_START},
+		{name: "transaction expired", precheck: services.ResponseCodeEnum_TRANSACTION_EXPIRED},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			consensusNode := newMockConsensusNode(t)
+			consensusNode.down.Store(tt.down)
+			consensusNode.precheck.Store(int32(tt.precheck))
+			client := newTestClient(t, map[string]hiero.AccountID{consensusNode.address: node3})
+			key, err := hiero.PrivateKeyGenerateEd25519()
+			require.NoError(t, err)
+			payer := hiero.AccountID{Account: healthCheckPayerNum}
+			m := newNodeHealthMonitor(t.Context(), client, testNodeHealthConfig, newHealthCheck(client, payer, key, time.Second))
+			m.markUnhealthy(node3, errNodeDown)
+
+			// when
+			m.checkAllNodes()
+
+			// then
+			assert.Equal(t, !tt.healthy, isUnhealthy(m, node3))
+			require.Equal(t, int32(1), consensusNode.requests.Load())
+			signedTransaction := getSignedTransaction(t, consensusNode)
+			body := services.TransactionBody{}
+			require.NoError(t, proto.Unmarshal(signedTransaction.BodyBytes, &body))
+			assert.Equal(t, payer, getPayer(t, consensusNode))
+			assert.Equal(t, uint64(3), uint64(body.GetNodeAccountID().GetAccountNum()))
+			require.NotNil(t, body.GetCryptoTransfer())
+			assert.Empty(t, body.GetCryptoTransfer().GetTransfers().GetAccountAmounts())
+			assert.Empty(t, body.GetCryptoTransfer().GetTokenTransfers())
+			sigPairs := signedTransaction.GetSigMap().GetSigPair()
+			require.Len(t, sigPairs, 1)
+			assert.Equal(t, key.PublicKey().BytesRaw(), sigPairs[0].GetPubKeyPrefix())
+			assert.True(t, ed25519.Verify(key.PublicKey().BytesRaw(), signedTransaction.BodyBytes, sigPairs[0].GetEd25519()))
+		})
+	}
+}
+
+func TestHealthCheckTimesOut(t *testing.T) {
+	// given
+	consensusNode := newMockConsensusNode(t)
+	consensusNode.delay.Store(int64(5 * time.Second))
 	client := newTestClient(t, map[string]hiero.AccountID{consensusNode.address: node3})
-	cfg := config.NodeHealth{Frequency: 200 * time.Millisecond, MaxConcurrency: testMaxConcurrency}
-	m := NewNodeHealthMonitor(client, cfg).(*nodeHealthMonitor)
+	key, err := hiero.PrivateKeyGenerateEd25519()
+	require.NoError(t, err)
+	check := newHealthCheck(client, hiero.AccountID{Account: healthCheckPayerNum}, key, 100*time.Millisecond)
+
+	// when
+	startedAt := time.Now()
+	err = check(node3)
+
+	// then
+	assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
+	assert.Less(t, time.Since(startedAt), time.Second)
+}
+
+func TestHealthCheckReachesNodeOnceSdkBackoffElapses(t *testing.T) {
+	// given a node in SDK backoff
+	consensusNode := newMockConsensusNode(t)
 	consensusNode.down.Store(true)
-	require.Error(t, client.Ping(node3))
-	m.MarkUnhealthy(node3)
+	consensusNode.precheck.Store(int32(services.ResponseCodeEnum_PAYER_ACCOUNT_NOT_FOUND))
+	client := newTestClient(t, map[string]hiero.AccountID{consensusNode.address: node3})
+	client.SetNodeMaxBackoff(100 * time.Millisecond)
+	key, err := hiero.PrivateKeyGenerateEd25519()
+	require.NoError(t, err)
+	check := newHealthCheck(client, hiero.AccountID{Account: healthCheckPayerNum}, key, time.Second)
+	m := newNodeHealthMonitor(t.Context(), client, testNodeHealthConfig, check)
+	m.checkAllNodes()
+	require.True(t, isUnhealthy(m, node3))
 	consensusNode.down.Store(false)
 
-	// when the SDK backoff hasn't elapsed, the ping doesn't reach the node
-	m.pingAllNodes(context.Background())
+	// when the SDK backoff hasn't elapsed, the check doesn't reach the node
+	m.checkAllNodes()
 	assert.Equal(t, int32(1), consensusNode.requests.Load())
 	assert.True(t, isUnhealthy(m, node3))
 
-	// then the next ping after the backoff reaches the node and releases it
+	// then the next check after the backoff reaches the node
 	assert.Eventually(t, func() bool {
-		m.pingAllNodes(context.Background())
+		m.checkAllNodes()
 		return !isUnhealthy(m, node3)
 	}, 2*time.Second, 10*time.Millisecond)
 	assert.Equal(t, int32(2), consensusNode.requests.Load())
 }
 
-func TestPingTreatsPrecheckAnswerAsReachable(t *testing.T) {
+func TestIsHealthy(t *testing.T) {
 	tests := []struct {
-		name      string
-		precheck  services.ResponseCodeEnum
-		unhealthy bool
+		name     string
+		err      error
+		expected bool
 	}{
-		{name: "ok", precheck: services.ResponseCodeEnum_OK},
-		{name: "invalid account", precheck: services.ResponseCodeEnum_INVALID_ACCOUNT_ID},
-		{name: "busy", precheck: services.ResponseCodeEnum_BUSY, unhealthy: true},
-		{name: "platform not active", precheck: services.ResponseCodeEnum_PLATFORM_NOT_ACTIVE, unhealthy: true},
+		{name: "payer not found", err: errPayerNotFound, expected: true},
+		{name: "wrapped payer not found", err: pkgErrors.Wrapf(errPayerNotFound, "retry 1/1"), expected: true},
+		{name: "accepted"},
+		{name: "busy", err: hiero.ErrHederaPreCheckStatus{Status: hiero.StatusBusy}},
+		{
+			name: "wrapped platform not active",
+			err:  pkgErrors.Wrapf(hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformNotActive}, "retry 1/1"),
+		},
+		{name: "invalid signature", err: hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidSignature}},
+		{name: "unavailable", err: errNodeDown},
+		{name: "in sdk backoff", err: fmt.Errorf("unknown error occurred after max attempts")},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			consensusNode := newMockConsensusNode(t)
-			consensusNode.precheck.Store(int32(tt.precheck))
-			client := newTestClient(t, map[string]hiero.AccountID{consensusNode.address: node3})
-			cfg := config.NodeHealth{Frequency: 10 * time.Second, MaxConcurrency: testMaxConcurrency, Timeout: 2 * time.Second}
-			m := NewNodeHealthMonitor(client, cfg).(*nodeHealthMonitor)
-			m.MarkUnhealthy(node3)
-
-			m.pingAllNodes(context.Background())
-
-			assert.Equal(t, int32(1), consensusNode.requests.Load())
-			assert.Equal(t, tt.unhealthy, isUnhealthy(m, node3))
+			assert.Equal(t, tt.expected, isHealthy(tt.err))
 		})
 	}
+}
+
+func TestIsNodeError(t *testing.T) {
+	busy := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusBusy}
+	insufficientPayerBalance := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInsufficientPayerBalance}
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{name: "nil"},
+		{name: "insufficient payer balance", err: insufficientPayerBalance},
+		{name: "invalid signature", err: hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidSignature}},
+		{name: "busy", err: busy, expected: true},
+		{
+			name:     "platform not active",
+			err:      hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformNotActive},
+			expected: true,
+		},
+		{
+			name:     "platform transaction not created",
+			err:      hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformTransactionNotCreated},
+			expected: true,
+		},
+		{
+			name:     "invalid node account",
+			err:      hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidNodeAccount},
+			expected: true,
+		},
+		// The SDK wraps the status of the last attempt when it gives up retrying
+		{name: "wrapped busy", err: pkgErrors.Wrapf(busy, "retry %d/%d", 1, 1), expected: true},
+		{name: "wrapped user error", err: pkgErrors.Wrapf(insufficientPayerBalance, "retry %d/%d", 1, 1)},
+		{
+			name:     "unavailable",
+			err:      pkgErrors.Wrapf(status.Error(codes.Unavailable, "connection refused"), "retry %d/%d", 1, 1),
+			expected: true,
+		},
+		{name: "deadline exceeded", err: status.Error(codes.DeadlineExceeded, "timeout"), expected: true},
+		{name: "resource exhausted", err: status.Error(codes.ResourceExhausted, "dial timeout"), expected: true},
+		{name: "internal", err: status.Error(codes.Internal, "stream reset"), expected: true},
+		{name: "invalid argument", err: status.Error(codes.InvalidArgument, "bad request")},
+		// Errors the SDK raises before contacting the node
+		{name: "unknown node", err: hiero.ErrInvalidNodeAccountIDSet{NodeAccountID: nodeAccountId}},
+		{name: "batch key", err: fmt.Errorf("cannot execute batchified transaction outside of BatchTransaction")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isNodeError(tt.err))
+		})
+	}
+}
+
+func getPayer(t *testing.T, consensusNode *mockConsensusNode) hiero.AccountID {
+	body := services.TransactionBody{}
+	require.NoError(t, proto.Unmarshal(getSignedTransaction(t, consensusNode).BodyBytes, &body))
+	payer := body.GetTransactionID().GetAccountID()
+	return hiero.AccountID{
+		Shard:   uint64(payer.GetShardNum()),
+		Realm:   uint64(payer.GetRealmNum()),
+		Account: uint64(payer.GetAccountNum()),
+	}
+}
+
+func getSignedTransaction(t *testing.T, consensusNode *mockConsensusNode) *services.SignedTransaction {
+	transaction := consensusNode.transaction.Load()
+	require.NotNil(t, transaction)
+	signedTransaction := &services.SignedTransaction{}
+	require.NoError(t, proto.Unmarshal(transaction.GetSignedTransactionBytes(), signedTransaction))
+	return signedTransaction
 }

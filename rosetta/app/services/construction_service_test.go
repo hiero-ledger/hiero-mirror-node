@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -28,12 +27,9 @@ import (
 	sdkProto "github.com/hiero-ledger/hiero-sdk-go/v2/proto/sdk"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/proto/services"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
-	pkgErrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -1960,86 +1956,9 @@ func newTestOnlineService(t *testing.T, nodes config.NodeMap) *constructionAPISe
 // newTestSubmitService creates a service submitting to node 0.0.4 at the address, with a monitor that isn't started.
 func newTestSubmitService(t *testing.T, address string) (*constructionAPIService, *nodeHealthMonitor) {
 	cs := newTestOnlineService(t, config.NodeMap{address: node4})
-	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency}
-	monitor := newNodeHealthMonitor(cs.sdkClient, cfg, cs.sdkClient.Ping)
+	monitor := newNodeHealthMonitor(t.Context(), cs.sdkClient, testNodeHealthConfig, checkNodes())
 	cs.nodeHealthMonitor = monitor
 	return cs, monitor
-}
-
-func TestGetRandomNodeAccountIdFiltersUnhealthy(t *testing.T) {
-	cs := newTestOnlineService(t, config.NodeMap{"10.0.0.1:50211": node3, "10.0.0.2:50211": node4})
-	monitor := newNodeHealthMonitor(cs.sdkClient, config.NodeHealth{MaxConcurrency: testMaxConcurrency}, pingNodes())
-	monitor.MarkUnhealthy(node4)
-	cs.nodeHealthMonitor = monitor
-
-	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
-
-	assert.Nil(t, rErr)
-	assert.Equal(t, node3, picked)
-}
-
-func TestGetRandomNodeAccountIdAllUnhealthyProbeSucceeds(t *testing.T) {
-	cs := newTestOnlineService(t, config.NodeMap{"10.0.0.1:50211": node3})
-	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: 500 * time.Millisecond}
-	monitor := newNodeHealthMonitor(cs.sdkClient, cfg, pingNodes(node3))
-	monitor.MarkUnhealthy(node3)
-	cs.nodeHealthMonitor = monitor
-
-	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
-
-	assert.Nil(t, rErr)
-	assert.Equal(t, node3, picked)
-	assert.False(t, isUnhealthy(monitor, node3))
-}
-
-func TestGetRandomNodeAccountIdAllUnhealthyProbeFails(t *testing.T) {
-	cs := newTestOnlineService(t, config.NodeMap{"10.0.0.1:50211": node3})
-	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: 100 * time.Millisecond}
-	monitor := newNodeHealthMonitor(cs.sdkClient, cfg, pingNodes())
-	monitor.MarkUnhealthy(node3)
-	cs.nodeHealthMonitor = monitor
-
-	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
-
-	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
-	assert.Equal(t, hiero.AccountID{}, picked)
-}
-
-func TestGetRandomNodeAccountIdAllNodesInActiveSdkBackoffFailsFast(t *testing.T) {
-	// given a node that failed a request, so the SDK has put it into backoff
-	consensusNode := newMockConsensusNode(t)
-	consensusNode.down.Store(true)
-	cs := newTestOnlineService(t, config.NodeMap{consensusNode.address: node3})
-	require.Error(t, cs.sdkClient.Ping(node3))
-
-	var pings atomic.Int32
-	ping := func(hiero.AccountID) error {
-		pings.Add(1)
-		return nil
-	}
-	cfg := config.NodeHealth{MaxConcurrency: testMaxConcurrency, Timeout: time.Second}
-	cs.nodeHealthMonitor = newNodeHealthMonitor(cs.sdkClient, cfg, ping)
-
-	// when
-	picked, rErr := cs.getRandomNodeAccountId(defaultContext)
-
-	// then
-	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
-	assert.Equal(t, hiero.AccountID{}, picked)
-	assert.Zero(t, pings.Load(), "Probe must not be called when SDK has 0 healthy nodes")
-}
-
-func TestGetHealthyNodeAccountIdsDeduplicatesNodeAddresses(t *testing.T) {
-	client := newTestClient(t, map[string]hiero.AccountID{
-		"10.0.0.1:50211": node3,
-		"10.0.0.1:50212": node3,
-		"10.0.0.2:50211": node4,
-	})
-
-	nodeAccountIds, err := getHealthyNodeAccountIds(client)
-
-	assert.NoError(t, err)
-	assert.ElementsMatch(t, []hiero.AccountID{node3, node4}, nodeAccountIds)
 }
 
 func TestNewConstructionAPIServiceConfiguresMonitor(t *testing.T) {
@@ -2048,7 +1967,7 @@ func TestNewConstructionAPIServiceConfiguresMonitor(t *testing.T) {
 		Nodes:   defaultNodes,
 		NodeHealth: config.NodeHealth{
 			Enabled:        true,
-			Frequency:      10 * time.Second,
+			Frequency:      30 * time.Second,
 			MaxConcurrency: testMaxConcurrency,
 			Timeout:        2 * time.Second,
 		},
@@ -2062,9 +1981,8 @@ func TestNewConstructionAPIServiceConfiguresMonitor(t *testing.T) {
 	assert.NoError(t, err)
 	cs := service.(*constructionAPIService)
 
-	assert.NotNil(t, cs.nodeHealthMonitor)
-	assert.Equal(t, 5*time.Second, cs.sdkClient.GetNodeMaxBackoff())
-	assert.Equal(t, 5*time.Second, cs.sdkClient.GetNodeMaxReadmitPeriod())
+	assert.True(t, cs.nodeHealthMonitor.(*nodeHealthMonitor).enabled)
+	assert.Equal(t, 15*time.Second, cs.sdkClient.GetNodeMaxBackoff())
 }
 
 func TestNewConstructionAPIServiceWithoutMonitorKeepsSdkDefaults(t *testing.T) {
@@ -2090,60 +2008,8 @@ func TestNewConstructionAPIServiceWithoutMonitorKeepsSdkDefaults(t *testing.T) {
 
 			assert.NoError(t, err)
 			cs := service.(*constructionAPIService)
-			assert.Nil(t, cs.nodeHealthMonitor)
+			assert.False(t, cs.nodeHealthMonitor.(*nodeHealthMonitor).enabled)
 			assert.Equal(t, sdkDefaults.GetNodeMaxBackoff(), cs.sdkClient.GetNodeMaxBackoff())
-			assert.Equal(t, sdkDefaults.GetNodeMaxReadmitPeriod(), cs.sdkClient.GetNodeMaxReadmitPeriod())
-		})
-	}
-}
-
-func TestIsNodeError(t *testing.T) {
-	busy := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusBusy}
-	insufficientPayerBalance := hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInsufficientPayerBalance}
-	tests := []struct {
-		name     string
-		err      error
-		expected bool
-	}{
-		{name: "nil"},
-		{name: "insufficient payer balance", err: insufficientPayerBalance},
-		{name: "invalid signature", err: hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidSignature}},
-		{name: "busy", err: busy, expected: true},
-		{
-			name:     "platform not active",
-			err:      hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformNotActive},
-			expected: true,
-		},
-		{
-			name:     "platform transaction not created",
-			err:      hiero.ErrHederaPreCheckStatus{Status: hiero.StatusPlatformTransactionNotCreated},
-			expected: true,
-		},
-		{
-			name:     "invalid node account",
-			err:      hiero.ErrHederaPreCheckStatus{Status: hiero.StatusInvalidNodeAccount},
-			expected: true,
-		},
-		// The SDK wraps the status of the last attempt when it gives up retrying
-		{name: "wrapped busy", err: pkgErrors.Wrapf(busy, "retry %d/%d", 1, 1), expected: true},
-		{name: "wrapped user error", err: pkgErrors.Wrapf(insufficientPayerBalance, "retry %d/%d", 1, 1)},
-		{
-			name:     "unavailable",
-			err:      pkgErrors.Wrapf(status.Error(codes.Unavailable, "connection refused"), "retry %d/%d", 1, 1),
-			expected: true,
-		},
-		{name: "deadline exceeded", err: status.Error(codes.DeadlineExceeded, "timeout"), expected: true},
-		{name: "resource exhausted", err: status.Error(codes.ResourceExhausted, "dial timeout"), expected: true},
-		{name: "internal", err: status.Error(codes.Internal, "stream reset"), expected: true},
-		{name: "invalid argument", err: status.Error(codes.InvalidArgument, "bad request")},
-		// Errors the SDK raises before contacting the node
-		{name: "unknown node", err: hiero.ErrInvalidNodeAccountIDSet{NodeAccountID: nodeAccountId}},
-		{name: "batch key", err: fmt.Errorf("cannot execute batchified transaction outside of BatchTransaction")},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, isNodeError(tt.err))
 		})
 	}
 }

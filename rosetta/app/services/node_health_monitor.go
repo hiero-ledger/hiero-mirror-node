@@ -4,167 +4,174 @@ package services
 
 import (
 	"context"
+	"crypto/rand"
 	stdErrors "errors"
-	"maps"
-	"slices"
+	"math/big"
 	"sync"
 	"time"
 
+	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/config"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/persistence/domain"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
-	"golang.org/x/sync/singleflight"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-const probeKey = "probe"
+// healthCheckPayerNum is the HTS system contract, whose number is never assigned to an account.
+const healthCheckPayerNum = 359
 
-// NodeHealthMonitor pings every node each tick. A node that fails a ping or a submission is marked unhealthy until it
-// answers a ping.
+// NodeHealthMonitor tracks the health of the nodes and picks a healthy one to submit a transaction to.
 type NodeHealthMonitor interface {
-	FilterHealthy(nodes []hiero.AccountID) []hiero.AccountID
-	MarkUnhealthy(node hiero.AccountID)
-	Probe(ctx context.Context, candidates []hiero.AccountID) (hiero.AccountID, bool)
-	Start(ctx context.Context)
+	GetHealthyNode(ctx context.Context) (hiero.AccountID, *rTypes.Error)
+	RecordSubmitError(node hiero.AccountID, err error)
 }
 
 type nodeHealthMonitor struct {
+	check          func(node hiero.AccountID) error
 	client         *hiero.Client
+	ctx            context.Context
+	enabled        bool
 	frequency      time.Duration
+	maxConcurrency int64
 	mutex          sync.RWMutex
-	ping           func(node hiero.AccountID) error
-	pingSlots      *semaphore.Weighted
-	probeAfter     time.Time
 	probeCooldown  time.Duration
-	probeGroup     singleflight.Group
-	timeout        time.Duration
-	unhealthyNodes map[string]unhealthyNode
+	recovered      chan struct{} // closed and replaced when a node becomes healthy
+	roundDone      chan struct{} // nil unless a round of health checks is in progress
+	roundStartedAt time.Time
+	unhealthyNodes map[string]time.Time // node to the time of its last failure
 }
 
-type probeResult struct {
-	node hiero.AccountID
-	ok   bool
-}
+// NewNodeHealthMonitor creates a monitor that, when online and enabled, checks the health of every node right away and
+// then every tick. Otherwise, it picks a random node the SDK considers healthy.
+func NewNodeHealthMonitor(
+	ctx context.Context,
+	client *hiero.Client,
+	mirrorConfig *config.Mirror,
+	online bool,
+) (NodeHealthMonitor, error) {
+	nodeHealth := mirrorConfig.Rosetta.NodeHealth
+	if !online || !nodeHealth.Enabled {
+		return &nodeHealthMonitor{client: client}, nil
+	}
 
-type unhealthyNode struct {
-	failedAt time.Time
-	id       hiero.AccountID
-}
+	payer, err := types.NewAccountIdFromEntityId(domain.EntityId{
+		EntityNum: healthCheckPayerNum,
+		RealmNum:  mirrorConfig.Common.Realm,
+		ShardNum:  mirrorConfig.Common.Shard,
+	}).ToSdkAccountId()
+	if err != nil {
+		return nil, err
+	}
 
-// NewNodeHealthMonitor creates a monitor for the nodes of the client. The SDK doesn't send any request to a node in
-// backoff, so the monitor caps the client's per-node backoff at half its ping frequency, which normally gets a node that
-// failed a ping out of backoff by the next tick. It caps the readmission period at the same value, because a node that
-// fails right after the SDK found every node healthy is only listed again a readmission period after that scan.
-func NewNodeHealthMonitor(client *hiero.Client, config config.NodeHealth) NodeHealthMonitor {
-	m := newNodeHealthMonitor(client, config, client.Ping)
-	backoffCap := m.frequency / 2
-	client.SetNodeMaxBackoff(backoffCap)
-	client.SetNodeMaxReadmitPeriod(backoffCap)
-	return m
+	key, err := hiero.PrivateKeyGenerateEd25519()
+	if err != nil {
+		return nil, err
+	}
+
+	m := newNodeHealthMonitor(ctx, client, nodeHealth, newHealthCheck(client, payer, key, nodeHealth.Timeout))
+	// The SDK sends nothing to a node in backoff, so a node that failed a check must be out of it by the next tick
+	client.SetNodeMaxBackoff(nodeHealth.Frequency / 2)
+	m.start()
+	return m, nil
 }
 
 func newNodeHealthMonitor(
+	ctx context.Context,
 	client *hiero.Client,
-	config config.NodeHealth,
-	ping func(node hiero.AccountID) error,
+	nodeHealth config.NodeHealth,
+	check func(node hiero.AccountID) error,
 ) *nodeHealthMonitor {
 	return &nodeHealthMonitor{
+		check:          check,
 		client:         client,
-		frequency:      config.Frequency,
-		ping:           ping,
-		pingSlots:      semaphore.NewWeighted(int64(config.MaxConcurrency)),
-		probeCooldown:  config.ProbeCooldown,
-		timeout:        config.Timeout,
-		unhealthyNodes: make(map[string]unhealthyNode),
+		ctx:            ctx,
+		enabled:        true,
+		frequency:      nodeHealth.Frequency,
+		maxConcurrency: int64(nodeHealth.MaxConcurrency),
+		probeCooldown:  nodeHealth.ProbeCooldown,
+		recovered:      make(chan struct{}),
+		unhealthyNodes: make(map[string]time.Time),
 	}
 }
 
-// FilterHealthy returns the nodes that aren't marked unhealthy.
-func (m *nodeHealthMonitor) FilterHealthy(nodes []hiero.AccountID) []hiero.AccountID {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-
-	if len(m.unhealthyNodes) == 0 {
-		return nodes
+// GetHealthyNode returns a random healthy node. If every node is unhealthy, it returns the first node to recover in a
+// round of health checks, unless the last round started within the cool-down.
+func (m *nodeHealthMonitor) GetHealthyNode(ctx context.Context) (hiero.AccountID, *rTypes.Error) {
+	if !m.enabled {
+		return pickRandomNode(getSdkHealthyNodes(m.client))
 	}
 
-	healthy := make([]hiero.AccountID, 0, len(nodes))
-	for _, node := range nodes {
-		if _, ok := m.unhealthyNodes[node.String()]; !ok {
-			healthy = append(healthy, node)
+	nodes, recovered := m.getHealthyNodes()
+	if len(nodes) != 0 {
+		return pickRandomNode(nodes)
+	}
+
+	roundDone := m.startRound(false)
+	if roundDone == nil {
+		log.Debug("Every node is unhealthy and the last round of health checks started within the cool-down")
+		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
+		case <-roundDone:
+			nodes, _ = m.getHealthyNodes()
+			return pickRandomNode(nodes)
+		case <-recovered:
+			if nodes, recovered = m.getHealthyNodes(); len(nodes) != 0 {
+				return pickRandomNode(nodes)
+			}
 		}
 	}
-	return healthy
 }
 
-// MarkUnhealthy marks the node unhealthy until a ping started after this failure succeeds.
-func (m *nodeHealthMonitor) MarkUnhealthy(node hiero.AccountID) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
-	key := node.String()
-	_, alreadyUnhealthy := m.unhealthyNodes[key]
-	m.unhealthyNodes[key] = unhealthyNode{failedAt: time.Now(), id: node}
-	if alreadyUnhealthy {
+// RecordSubmitError marks the node unhealthy if the submission failed because of the node.
+func (m *nodeHealthMonitor) RecordSubmitError(node hiero.AccountID, err error) {
+	if !m.enabled || !isNodeError(err) {
 		return
 	}
 
-	log.Warnf("Marked node %s as unhealthy", node)
+	m.markUnhealthy(node, err)
 }
 
-// Probe pings the candidates and returns the first one to answer within the timeout. It stops starting pings once a
-// candidate answers, every ping already in flight that answers still marks its node healthy, and concurrent calls share
-// a single round of pings. After a round finds no node, Probe fails fast without pinging until the cool-down elapses.
-func (m *nodeHealthMonitor) Probe(ctx context.Context, candidates []hiero.AccountID) (hiero.AccountID, bool) {
-	if len(candidates) == 0 {
-		return hiero.AccountID{}, false
+// checkAllNodes checks every node in the address book, at most maxConcurrency at once, and forgets the unhealthy nodes
+// no longer in it.
+func (m *nodeHealthMonitor) checkAllNodes() {
+	network := getNetworkNodes(m.client)
+	m.forgetNodesNotIn(network)
+
+	slots := semaphore.NewWeighted(m.maxConcurrency)
+	var wg sync.WaitGroup
+	for _, node := range network {
+		if slots.Acquire(m.ctx, 1) != nil {
+			break
+		}
+
+		wg.Go(func() {
+			defer slots.Release(1)
+			m.checkNode(node)
+		})
+	}
+	wg.Wait()
+}
+
+func (m *nodeHealthMonitor) checkNode(node hiero.AccountID) {
+	startedAt := time.Now()
+	if err := m.check(node); !isHealthy(err) {
+		m.markUnhealthy(node, err)
+		return
 	}
 
-	results := m.probeGroup.DoChan(probeKey, func() (any, error) {
-		// Rounds never overlap, so probeAfter needs no lock
-		if time.Now().Before(m.probeAfter) {
-			log.Debugf("Skipping probe for another %s, since the last one found no node",
-				time.Until(m.probeAfter).Round(time.Millisecond))
-			return probeResult{}, nil
-		}
-
-		node, ok := m.probe(candidates)
-		if !ok {
-			m.probeAfter = time.Now().Add(m.probeCooldown)
-		}
-		return probeResult{node: node, ok: ok}, nil
-	})
-
-	select {
-	case <-ctx.Done():
-		return hiero.AccountID{}, false
-	case result := <-results:
-		probed := result.Val.(probeResult)
-		return probed.node, probed.ok
-	}
+	m.markHealthy(node, startedAt)
 }
 
-// Start pings every node right away and then every tick, until the context is done.
-func (m *nodeHealthMonitor) Start(ctx context.Context) {
-	go func() {
-		log.Infof("Starting node health monitor with frequency %s", m.frequency)
-		ticker := time.NewTicker(m.frequency)
-		defer ticker.Stop()
-
-		for {
-			m.pingAllNodes(ctx)
-
-			select {
-			case <-ctx.Done():
-				log.Info("Stopping node health monitor")
-				return
-			case <-ticker.C:
-			}
-		}
-	}()
-}
-
-// forgetNodesNotIn forgets the unhealthy nodes that aren't in the network.
 func (m *nodeHealthMonitor) forgetNodesNotIn(network map[string]hiero.AccountID) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -176,98 +183,198 @@ func (m *nodeHealthMonitor) forgetNodesNotIn(network map[string]hiero.AccountID)
 	}
 }
 
-// markHealthy marks the node healthy, unless it failed again after the ping vouching for it started.
-func (m *nodeHealthMonitor) markHealthy(node hiero.AccountID, pingStartedAt time.Time) {
+// getHealthyNodes returns the nodes not marked unhealthy, and a channel closed when another node becomes healthy.
+func (m *nodeHealthMonitor) getHealthyNodes() ([]hiero.AccountID, <-chan struct{}) {
+	network := getNetworkNodes(m.client)
+
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	healthy := make([]hiero.AccountID, 0, len(network))
+	for key, node := range network {
+		if _, ok := m.unhealthyNodes[key]; !ok {
+			healthy = append(healthy, node)
+		}
+	}
+	return healthy, m.recovered
+}
+
+// markHealthy marks the node healthy, unless it failed again after the check vouching for it started.
+func (m *nodeHealthMonitor) markHealthy(node hiero.AccountID, checkStartedAt time.Time) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	key := node.String()
-	unhealthy, ok := m.unhealthyNodes[key]
-	if !ok || unhealthy.failedAt.After(pingStartedAt) {
+	failedAt, ok := m.unhealthyNodes[key]
+	if !ok || failedAt.After(checkStartedAt) {
 		return
 	}
 
 	delete(m.unhealthyNodes, key)
+	close(m.recovered)
+	m.recovered = make(chan struct{})
 	log.Infof("Marked node %s as healthy", node)
 }
 
-// pingAllNodes pings every node in the address book, and forgets the unhealthy nodes no longer in it.
-func (m *nodeHealthMonitor) pingAllNodes(ctx context.Context) {
+// markUnhealthy marks the node unhealthy until a check started after this failure passes.
+func (m *nodeHealthMonitor) markUnhealthy(node hiero.AccountID, reason error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	key := node.String()
+	_, alreadyUnhealthy := m.unhealthyNodes[key]
+	m.unhealthyNodes[key] = time.Now()
+	if alreadyUnhealthy {
+		log.Debugf("Node %s is still unhealthy: %s", node, reason)
+		return
+	}
+
+	log.Warnf("Marked node %s as unhealthy: %s", node, reason)
+}
+
+func (m *nodeHealthMonitor) start() {
+	go func() {
+		log.Infof("Starting node health monitor with frequency %s", m.frequency)
+		ticker := time.NewTicker(m.frequency)
+		defer ticker.Stop()
+
+		for {
+			<-m.startRound(true)
+
+			select {
+			case <-m.ctx.Done():
+				log.Info("Stopping node health monitor")
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+}
+
+// startRound starts a round of health checks, unless one is in progress, and returns a channel closed when it ends.
+// Unless forced, it returns nil within the cool-down of the last round.
+func (m *nodeHealthMonitor) startRound(force bool) <-chan struct{} {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	if m.roundDone != nil {
+		return m.roundDone
+	}
+
+	if !force && time.Since(m.roundStartedAt) < m.probeCooldown {
+		return nil
+	}
+
+	roundDone := make(chan struct{})
+	m.roundDone = roundDone
+	m.roundStartedAt = time.Now()
+	go func() {
+		m.checkAllNodes()
+
+		m.mutex.Lock()
+		m.roundDone = nil
+		m.mutex.Unlock()
+		close(roundDone)
+	}()
+	return roundDone
+}
+
+// getNetworkNodes returns the distinct nodes in the address book, which lists a node once per address.
+func getNetworkNodes(client *hiero.Client) map[string]hiero.AccountID {
 	network := make(map[string]hiero.AccountID)
-	for _, node := range m.client.GetNetwork() {
+	for _, node := range client.GetNetwork() {
 		network[node.String()] = node
 	}
-
-	m.forgetNodesNotIn(network)
-	m.pingNodes(ctx, slices.Collect(maps.Values(network)), nil)
+	return network
 }
 
-// pingNode pings the node, marking it healthy if it answers and unhealthy if it doesn't.
-func (m *nodeHealthMonitor) pingNode(node hiero.AccountID) bool {
-	startedAt := time.Now()
-	err := m.ping(node)
-	if !isReachable(err) {
-		log.Debugf("Node %s didn't answer the ping: %s", node, err)
-		m.MarkUnhealthy(node)
-		return false
+// getSdkHealthyNodes returns the distinct nodes the SDK considers healthy, which it lists once per healthy address.
+func getSdkHealthyNodes(client *hiero.Client) []hiero.AccountID {
+	transaction, err := hiero.NewTransferTransaction().
+		SetTransactionID(hiero.TransactionIDGenerate(hiero.AccountID{Account: 2})).
+		FreezeWith(client)
+	if err != nil {
+		log.Errorf("Failed to get the healthy nodes from the SDK: %s", err)
+		return nil
 	}
 
-	m.markHealthy(node, startedAt)
-	return true
-}
-
-// pingNodes pings the nodes and calls onRecovered, if set, for each one that answers. Every ping holds one of the
-// monitor's ping slots, so across all callers no more than maxConcurrency nodes are pinged at once. It stops starting
-// pings once the context is done and returns when the started ones finish.
-func (m *nodeHealthMonitor) pingNodes(
-	ctx context.Context,
-	nodes []hiero.AccountID,
-	onRecovered func(node hiero.AccountID),
-) {
-	var wg sync.WaitGroup
+	nodes := transaction.GetNodeAccountIDs()
+	distinct := make([]hiero.AccountID, 0, len(nodes))
+	seen := make(map[string]struct{}, len(nodes))
 	for _, node := range nodes {
-		if m.pingSlots.Acquire(ctx, 1) != nil {
-			break
+		key := node.String()
+		if _, ok := seen[key]; ok {
+			continue
 		}
 
-		wg.Go(func() {
-			defer m.pingSlots.Release(1)
-			if m.pingNode(node) && onRecovered != nil {
-				onRecovered(node)
-			}
-		})
+		seen[key] = struct{}{}
+		distinct = append(distinct, node)
 	}
-	wg.Wait()
+	return distinct
 }
 
-func (m *nodeHealthMonitor) probe(candidates []hiero.AccountID) (hiero.AccountID, bool) {
-	// Canceled on return, so no more pings start once a candidate answers or the timeout elapses
-	ctx, cancel := context.WithTimeout(context.Background(), m.timeout)
-	defer cancel()
-
-	// Buffered so pings that answer after the probe returns don't block
-	recovered := make(chan hiero.AccountID, len(candidates))
-	go func() {
-		m.pingNodes(ctx, candidates, func(node hiero.AccountID) { recovered <- node })
-		close(recovered)
-	}()
-
-	select {
-	case node, ok := <-recovered:
-		return node, ok
-	case <-ctx.Done():
-		log.Debugf("No unhealthy node answered the probe within %s", m.timeout)
-		return hiero.AccountID{}, false
-	}
-}
-
-// isReachable reports whether a ping result proves the node is up. Any precheck answer other than a node-level status
-// does, e.g. INVALID_ACCOUNT_ID when the pinged treasury account doesn't exist in the network's shard and realm.
-func isReachable(err error) bool {
-	if err == nil {
-		return true
-	}
-
+// isHealthy reports whether a health check got PAYER_ACCOUNT_NOT_FOUND, which a node only answers with once its
+// readiness, node account, time and throttle checks pass.
+func isHealthy(err error) bool {
 	preCheckErr, ok := stdErrors.AsType[hiero.ErrHederaPreCheckStatus](err)
-	return ok && !isNodeStatus(preCheckErr.Status)
+	return ok && preCheckErr.Status == hiero.StatusPayerAccountNotFound
+}
+
+// isNodeError reports whether a submission failed because of the node rather than the transaction. Errors the SDK
+// raises locally, before contacting the node, don't count, since anyone can submit such a transaction.
+func isNodeError(err error) bool {
+	if preCheckErr, ok := stdErrors.AsType[hiero.ErrHederaPreCheckStatus](err); ok {
+		switch preCheckErr.Status {
+		case hiero.StatusBusy,
+			hiero.StatusInvalidNodeAccount,
+			hiero.StatusPlatformNotActive,
+			hiero.StatusPlatformTransactionNotCreated:
+			return true
+		default:
+			return false
+		}
+	}
+
+	switch status.Code(err) {
+	case codes.DeadlineExceeded, codes.Internal, codes.ResourceExhausted, codes.Unavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// newHealthCheck returns a health check that submits an empty crypto transfer paid by the payer and signed by the key.
+func newHealthCheck(
+	client *hiero.Client,
+	payer hiero.AccountID,
+	key hiero.PrivateKey,
+	timeout time.Duration,
+) func(node hiero.AccountID) error {
+	return func(node hiero.AccountID) error {
+		transaction, err := hiero.NewTransferTransaction().
+			SetGrpcDeadline(&timeout).
+			SetNodeAccountIDs([]hiero.AccountID{node}).
+			SetTransactionID(hiero.TransactionIDGenerate(payer)).
+			FreezeWith(client)
+		if err != nil {
+			return err
+		}
+
+		_, err = transaction.Sign(key).Execute(client)
+		return err
+	}
+}
+
+func pickRandomNode(nodes []hiero.AccountID) (hiero.AccountID, *rTypes.Error) {
+	if len(nodes) == 0 {
+		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
+	}
+
+	index, err := rand.Int(rand.Reader, big.NewInt(int64(len(nodes))))
+	if err != nil {
+		log.Errorf("Failed to get a random number, use 0 instead: %s", err)
+		return nodes[0], nil
+	}
+
+	return nodes[index.Int64()], nil
 }
