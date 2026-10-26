@@ -95,7 +95,26 @@ dependencies {
     }
 }
 
-allprojects { apply(plugin = "jacoco") }
+allprojects {
+    apply(plugin = "jacoco")
+
+    // Temporary until the state changes diffing protobuf is released. Built by JitPack from
+    // https://github.com/xin-hedera/hiero-consensus-node/tree/state-changes-diffing-jitpack
+    repositories {
+        exclusiveContent {
+            forRepository { maven { url = uri("https://jitpack.io") } }
+            filter { includeGroup("com.github.xin-hedera") }
+        }
+    }
+    configurations.configureEach {
+        resolutionStrategy.dependencySubstitution {
+            val commit = "10c608ce6de6843d5c908d30e66a041ea8c64c21"
+            substitute(module("com.hedera.hashgraph:hedera-protobuf-java-api"))
+                .using(module("com.github.xin-hedera:hiero-consensus-node:$commit"))
+                .because("Needs unreleased state changes diffing protobuf (#14441)")
+        }
+    }
+}
 
 idea {
     module {

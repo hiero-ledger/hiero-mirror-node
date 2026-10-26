@@ -65,21 +65,23 @@ final class StateChangeContextTest {
     @Test
     void accounts() {
         // given
-        var accountId1 = getAccountId();
-        var accountId2 = getAccountId();
-        var accountId3 = getAccountId();
-        var stateChanges = StateChanges.newBuilder()
-                .addStateChanges(accountMapUpdateChange(accountId1))
-                .addStateChanges(accountMapUpdateChange(accountId2))
+        final var accountId1 = getAccountId();
+        final var account1Alias = alias();
+        final var accountId2 = getAccountId();
+        final var account2Alias = alias();
+        final var accountId3 = getAccountId();
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(accountMapUpdateChange(accountId1, account1Alias))
+                .addStateChanges(accountMapUpdateChange(accountId2, account2Alias))
                 .addStateChanges(otherMapUpdateChange())
                 .build();
 
         // when
-        var context = new StateChangeContext(List.of(stateChanges));
+        final var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        assertThat(context.getAccount(accountId1)).get().returns(accountId1, Account::getAccountId);
-        assertThat(context.getAccount(accountId2)).get().returns(accountId2, Account::getAccountId);
+        assertThat(context.getAccount(accountId1)).get().returns(account1Alias, Account::getAlias);
+        assertThat(context.getAccount(accountId2)).get().returns(account2Alias, Account::getAlias);
         assertThat(context.getAccount(accountId3)).isEmpty();
     }
 
@@ -420,12 +422,12 @@ final class StateChangeContextTest {
         var token1StateChange = MapUpdateChange.newBuilder()
                 .setKey(MapChangeKey.newBuilder().setTokenIdKey(tokenId1))
                 .setValue(MapChangeValue.newBuilder()
-                        .setTokenValue(Token.newBuilder().setTokenId(tokenId1).setTotalSupply(3000L)))
+                        .setTokenValue(Token.newBuilder().setTotalSupply(3000L)))
                 .build();
         var token2StateChange = MapUpdateChange.newBuilder()
                 .setKey(MapChangeKey.newBuilder().setTokenIdKey(tokenId2))
                 .setValue(MapChangeValue.newBuilder()
-                        .setTokenValue(Token.newBuilder().setTokenId(tokenId2).setTotalSupply(5000L)))
+                        .setTokenValue(Token.newBuilder().setTotalSupply(5000L)))
                 .build();
         var template = StateChange.newBuilder().setStateId(STATE_ID_TOKENS_VALUE);
         var stateChanges = StateChanges.newBuilder()
@@ -457,8 +459,7 @@ final class StateChangeContextTest {
         // topic1 has no messages
         var topic1StateChange = MapUpdateChange.newBuilder()
                 .setKey(MapChangeKey.newBuilder().setTopicIdKey(topicId1))
-                .setValue(MapChangeValue.newBuilder()
-                        .setTopicValue(Topic.newBuilder().setTopicId(topicId1)))
+                .setValue(MapChangeValue.newBuilder().setTopicValue(Topic.newBuilder()))
                 .build();
         var topic2RunningHash = DomainUtils.fromBytes(CommonUtils.nextBytes(48));
         var topic2StateChange = MapUpdateChange.newBuilder()
@@ -466,8 +467,7 @@ final class StateChangeContextTest {
                 .setValue(MapChangeValue.newBuilder()
                         .setTopicValue(Topic.newBuilder()
                                 .setRunningHash(topic2RunningHash)
-                                .setSequenceNumber(2)
-                                .setTopicId(topicId2)))
+                                .setSequenceNumber(2)))
                 .build();
         var template = StateChange.newBuilder().setStateId(STATE_ID_TOPICS_VALUE);
         var stateChanges = StateChanges.newBuilder()
@@ -513,15 +513,14 @@ final class StateChangeContextTest {
         return accountMapUpdateChange(accountId, ByteString.EMPTY);
     }
 
+    // The account value omits the account id, as in a partial update, so it must be read from the key
     private StateChange accountMapUpdateChange(AccountID accountId, ByteString alias) {
         return StateChange.newBuilder()
                 .setStateId(STATE_ID_ACCOUNTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
                         .setValue(MapChangeValue.newBuilder()
-                                .setAccountValue(Account.newBuilder()
-                                        .setAccountId(accountId)
-                                        .setAlias(alias)))
+                                .setAccountValue(Account.newBuilder().setAlias(alias)))
                         .build())
                 .build();
     }
@@ -531,11 +530,8 @@ final class StateChangeContextTest {
     }
 
     private StateChange contractMapUpdateChange(AccountID accountId, ByteString evmAddress) {
-        var account = Account.newBuilder()
-                .setAccountId(accountId)
-                .setAlias(evmAddress)
-                .setSmartContract(true)
-                .build();
+        var account =
+                Account.newBuilder().setAlias(evmAddress).setSmartContract(true).build();
         return StateChange.newBuilder()
                 .setStateId(STATE_ID_ACCOUNTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()

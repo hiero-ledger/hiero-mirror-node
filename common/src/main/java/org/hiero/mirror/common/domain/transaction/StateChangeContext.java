@@ -213,29 +213,31 @@ public final class StateChangeContext {
         });
     }
 
-    private void processAccountStateChange(MapUpdateChange mapUpdate) {
-        if (!mapUpdate.getValue().hasAccountValue()) {
+    private void processAccountStateChange(final MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasAccountIdKey() || !mapUpdate.getValue().hasAccountValue()) {
             return;
         }
 
+        // Read the entity id from the key, since the value of a partial update only has the changed fields
+        final var accountId = mapUpdate.getKey().getAccountIdKey();
         final var account = mapUpdate.getValue().getAccountValue();
-        accounts.putIfAbsent(account.getAccountId(), account);
+        accounts.putIfAbsent(accountId, account);
 
-        if (!account.getAlias().equals(ByteString.EMPTY)) {
-            final var accountId = account.getAccountId();
-            final var alias = account.getAlias();
+        final var alias = account.getAlias();
+        if (alias.isEmpty()) {
+            return;
+        }
 
-            if (account.getSmartContract()) {
-                contractIds.put(
-                        alias,
-                        ContractID.newBuilder()
-                                .setShardNum(accountId.getShardNum())
-                                .setRealmNum(accountId.getRealmNum())
-                                .setContractNum(accountId.getAccountNum())
-                                .build());
-            } else {
-                accountIds.put(alias, accountId);
-            }
+        if (account.getSmartContract()) {
+            contractIds.put(
+                    alias,
+                    ContractID.newBuilder()
+                            .setShardNum(accountId.getShardNum())
+                            .setRealmNum(accountId.getRealmNum())
+                            .setContractNum(accountId.getAccountNum())
+                            .build());
+        } else {
+            accountIds.put(alias, accountId);
         }
     }
 
@@ -327,18 +329,27 @@ public final class StateChangeContext {
         registeredNodeIds.add(mapUpdate.getKey().getEntityNumberKey().getValue());
     }
 
-    private void processTokenStateChange(MapUpdateChange mapUpdate) {
-        var token = mapUpdate.getValue().getTokenValue();
-        tokenIds.add(token.getTokenId());
-        tokenTotalSupplies.put(token.getTokenId(), token.getTotalSupply());
+    private void processTokenStateChange(final MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasTokenIdKey()) {
+            return;
+        }
+
+        final var tokenId = mapUpdate.getKey().getTokenIdKey();
+        tokenIds.add(tokenId);
+        tokenTotalSupplies.put(tokenId, mapUpdate.getValue().getTokenValue().getTotalSupply());
     }
 
-    private void processTopicStateChange(MapUpdateChange mapUpdate) {
-        var topic = mapUpdate.getValue().getTopicValue();
-        topicIds.add(topic.getTopicId());
+    private void processTopicStateChange(final MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasTopicIdKey()) {
+            return;
+        }
+
+        final var topicId = mapUpdate.getKey().getTopicIdKey();
+        topicIds.add(topicId);
+        final var topic = mapUpdate.getValue().getTopicValue();
         if (topic.getSequenceNumber() != 0) {
             topicState.put(
-                    topic.getTopicId(),
+                    topicId,
                     TopicMessage.builder()
                             .runningHash(DomainUtils.toBytes(topic.getRunningHash()))
                             .sequenceNumber(topic.getSequenceNumber())
