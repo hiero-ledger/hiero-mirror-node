@@ -21,15 +21,11 @@ extra.apply {
     set("blockNodeVersion", "0.44.3")
     set("consensusNodeVersion", "0.78.2")
     set("hederaCryptographyVersion", "3.23.0")
-    set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
-    set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
-    set("jetty.version", "12.1.13") // Temporary until next Spring Boot
+    set("jackson-bom.version", "3.2.4") // Temporary until next Spring Boot
+    set("jackson-2-bom.version", "2.22.4") // Temporary until next Spring Boot
     set("jooq.version", "3.21.9") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("netty.version", "4.2.18.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "24.22.1")
-    set("postgresql.version", "42.7.14") // Temporary until next Spring Boot
-    set("tomcat.version", "11.0.27") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
@@ -64,7 +60,7 @@ dependencies {
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
-        api("io.cucumber:cucumber-bom:8.0.4")
+        api("io.cucumber:cucumber-bom:7.34.9")
         api("io.fabric8:kubernetes-client-bom:8.0.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.3.0")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.16.0")
