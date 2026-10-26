@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block.simulator;
 
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.rootHash;
 
 import com.hedera.hapi.block.stream.input.protoc.EventHeader;
 import com.hedera.hapi.block.stream.input.protoc.RoundHeader;
@@ -20,10 +21,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
-import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 import org.hiero.mirror.importer.util.Utility;
 
 public final class BlockGenerator {
@@ -60,11 +59,8 @@ public final class BlockGenerator {
         return blocks;
     }
 
-    @SneakyThrows
     private void calculateBlockRootHash(BlockItemSet block) {
-        var blockRootHashDigest = new BlockRootHashDigest();
-        block.getBlockItemsList().forEach(blockRootHashDigest::addBlockItem);
-        previousBlockRootHash = blockRootHashDigest.digest();
+        previousBlockRootHash = rootHash(block.getBlockItemsList());
     }
 
     private BlockRecord next() {

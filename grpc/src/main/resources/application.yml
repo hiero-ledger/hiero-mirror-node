@@ -79,11 +79,16 @@ spring:
           max-size: 1024B
         metadata:
           max-size: 2048B
-      keep-alive:
-        max-idle: 10m
+      keepalive:
+        connection:
+          grace-period: 30s
+          max-age: 1d
+          max-idle-time: 1m
         permit:
           time: 90s
+          without-calls: false
         time: 5m
+        timeout: 20s
       port: ${hiero.mirror.grpc.port}
   jpa:
     database: PostgreSQL

@@ -26,6 +26,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -46,6 +47,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
@@ -166,7 +170,9 @@ final class NodeSupplierTest {
                 .expectNext(node)
                 .expectComplete()
                 .verify(WAIT);
-        assertThat(nodeSupplier.get()).isEqualTo(node);
+
+        // Nodes are not exposed to publishers before validation
+        assertThat(nodeSupplier.getNodes()).isEmpty();
     }
 
     @Test
@@ -179,8 +185,8 @@ final class NodeSupplierTest {
                 .first()
                 .returns(networkNode.getNodeAccountId(), NodeProperties::getAccountId)
                 .returns(networkNode.getServiceEndpoints().get(0).getIpAddressV4(), NodeProperties::getHost)
-                .returns(50211, NodeProperties::getPort)
-                .satisfies(n -> assertThat(nodeSupplier.get()).isEqualTo(n));
+                .returns(50211, NodeProperties::getPort);
+        assertThat(nodeSupplier.getNodes()).isEmpty();
     }
 
     @Test
@@ -193,8 +199,8 @@ final class NodeSupplierTest {
                 .first()
                 .returns(networkNode.getNodeAccountId(), NodeProperties::getAccountId)
                 .returns(networkNode.getServiceEndpoints().get(0).getIpAddressV4(), NodeProperties::getHost)
-                .returns(50212, NodeProperties::getPort)
-                .satisfies(n -> assertThat(nodeSupplier.get()).isEqualTo(n));
+                .returns(50212, NodeProperties::getPort);
+        assertThat(nodeSupplier.getNodes()).isEmpty();
     }
 
     @Test
@@ -226,6 +232,196 @@ final class NodeSupplierTest {
     }
 
     @Test
+    void refreshAddressBookPreferTls() {
+        monitorProperties.setNodes(Set.of());
+        monitorProperties.setNetwork(HederaNetwork.OTHER);
+        networkNode.setNodeCertHash("0x01");
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+        assertThat(nodeSupplier.refresh().collectList().block())
+                .hasSize(1)
+                .first()
+                .returns(networkNode.getNodeAccountId(), NodeProperties::getAccountId)
+                .returns("01", NodeProperties::getCertHash)
+                .returns(50212, NodeProperties::getPort);
+
+        // Neither endpoint is exposed to publishers before validation
+        assertThat(nodeSupplier.getNodes()).isEmpty();
+    }
+
+    @NullSource
+    @ParameterizedTest
+    @ValueSource(strings = {"", "0x"})
+    void refreshAddressBookPreferTlsNoCertHash(final String certHash) {
+        monitorProperties.setNodes(Set.of());
+        monitorProperties.setNetwork(HederaNetwork.OTHER);
+        networkNode.setNodeCertHash(certHash);
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+        assertThat(nodeSupplier.refresh().collectList().block())
+                .hasSize(1)
+                .first()
+                .returns(50211, NodeProperties::getPort);
+    }
+
+    @Test
+    void refreshAddressBookPreferTlsOnlyPlaintext() {
+        monitorProperties.setNodes(Set.of());
+        monitorProperties.setNetwork(HederaNetwork.OTHER);
+        networkNode.setNodeCertHash("0x01");
+        networkNode.getServiceEndpoints().removeIf(s -> s.getPort() == 50212);
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+        assertThat(nodeSupplier.refresh().collectList().block())
+                .hasSize(1)
+                .first()
+                .returns(50211, NodeProperties::getPort);
+    }
+
+    @Test
+    void refreshAddressBookPreferTlsOnlyTls() {
+        monitorProperties.setNodes(Set.of());
+        monitorProperties.setNetwork(HederaNetwork.OTHER);
+        networkNode.setNodeCertHash("0x01");
+        networkNode.getServiceEndpoints().removeIf(s -> s.getPort() == 50211);
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+        assertThat(nodeSupplier.refresh().collectList().block())
+                .hasSize(1)
+                .first()
+                .returns(50212, NodeProperties::getPort);
+        assertThat(nodeSupplier.getNodes()).isEmpty();
+    }
+
+    @Test
+    void refreshAddressBookPreferTlsValidationDisabled() {
+        monitorProperties.setNodes(Set.of());
+        monitorProperties.setNetwork(HederaNetwork.OTHER);
+        monitorProperties.getNodeValidation().setEnabled(false);
+        networkNode.setNodeCertHash("0x01");
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+        assertThat(nodeSupplier.refresh().collectList().block())
+                .hasSize(1)
+                .first()
+                .returns(50211, NodeProperties::getPort);
+    }
+
+    @Test
+    @Timeout(3)
+    void validateNodePreferTls() {
+        monitorProperties.setNodes(Set.of());
+        monitorProperties.setNetwork(HederaNetwork.OTHER);
+        networkNode.setNodeCertHash("0x01");
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+        final var tlsNode = nodeSupplier.refresh().blockFirst();
+        assertThat(tlsNode).returns(50212, NodeProperties::getPort);
+
+        cryptoServiceStub.addQuery(Mono.just(receipt(SUCCESS)));
+        cryptoServiceStub.addTransaction(Mono.just(response(OK)));
+        assertThat(nodeSupplier.validateNode(tlsNode)).isTrue();
+
+        assertThat(nodeSupplier.getNodes()).containsExactly(tlsNode);
+    }
+
+    @Test
+    @Timeout(3)
+    void validateNodePreferTlsNoDowngrade() throws Exception {
+        final var tlsServerName = "tls";
+        final var tlsCryptoServiceStub = new CryptoServiceStub();
+        final var tlsServer = InProcessServerBuilder.forName(tlsServerName)
+                .addService(tlsCryptoServiceStub)
+                .directExecutor()
+                .build()
+                .start();
+
+        try {
+            monitorProperties.setNodes(Set.of());
+            monitorProperties.setNetwork(HederaNetwork.OTHER);
+            networkNode.setNodeCertHash("0x01");
+            networkNode.getServiceEndpoints().get(1).setIpAddressV4("in-process:" + tlsServerName);
+            when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+            final var tlsNode = nodeSupplier.refresh().blockFirst();
+            assertThat(tlsNode).returns(50212, NodeProperties::getPort);
+
+            // TLS endpoint fails validation and the plaintext endpoint is never contacted
+            tlsCryptoServiceStub.addTransaction(Mono.just(response(FREEZE_UPGRADE_IN_PROGRESS)));
+            assertThat(nodeSupplier.validateNode(tlsNode)).isFalse();
+            assertThat(nodeSupplier.getNodes()).isEmpty();
+        } finally {
+            tlsCryptoServiceStub.verify();
+            tlsServer.shutdownNow();
+            tlsServer.awaitTermination();
+        }
+    }
+
+    @Test
+    void refreshAddressBookPinned() {
+        monitorProperties.setNodes(Set.of());
+        networkNode.setNodeCertHash("0x01");
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+        final var trustedCertHash = HederaNetwork.TESTNET.getTrustedCertHashes().get(node.getAccountId());
+
+        // The bundled certificate hash replaces the one from the REST response
+        assertThat(nodeSupplier.refresh().collectList().block())
+                .singleElement()
+                .returns(node.getAccountId(), NodeProperties::getAccountId)
+                .returns(50212, NodeProperties::getPort)
+                .returns(trustedCertHash, NodeProperties::getCertHash);
+    }
+
+    @Test
+    void refreshAddressBookPinnedUnknownNode() {
+        monitorProperties.setNodes(Set.of());
+        networkNode.setNodeAccountId("0.0.999");
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+
+        // The unknown account is rejected, leaving only the SDK's bundled network nodes
+        final var nodes = nodeSupplier.refresh().collectList().block();
+        assertPinnedNetworkNodes(nodes);
+        assertThat(nodes)
+                .noneMatch(
+                        n -> n.getAccountId().equals("0.0.999") || n.getHost().startsWith("in-process:"));
+    }
+
+    @Test
+    void refreshAddressBookPinnedOnlyPlaintext() {
+        monitorProperties.setNodes(Set.of());
+        networkNode.setNodeCertHash("0x01");
+        networkNode.getServiceEndpoints().removeIf(s -> s.getPort() == 50212);
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+
+        // A node advertised without a TLS endpoint is rejected instead of being used over plaintext
+        final var nodes = nodeSupplier.refresh().collectList().block();
+        assertPinnedNetworkNodes(nodes);
+        assertThat(nodes)
+                .noneMatch(
+                        n -> n.getAccountId().equals("0.0.999") || n.getHost().startsWith("in-process:"));
+    }
+
+    @Test
+    void validateNodePinnedTlsFails() {
+        monitorProperties.setNodes(Set.of());
+        networkNode.setNodeCertHash("0x01");
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+        final var tlsNode = nodeSupplier.refresh().blockFirst();
+
+        // TLS fails and the plaintext endpoint is not used for a pinned node
+        cryptoServiceStub.addTransaction(Mono.just(response(FREEZE_UPGRADE_IN_PROGRESS)));
+        assertThat(nodeSupplier.validateNode(tlsNode)).isFalse();
+        assertThat(nodeSupplier.getNodes()).isEmpty();
+    }
+
+    @Test
+    void refreshAddressBookPinnedNotAppliedWhenPlaintext() {
+        monitorProperties.setNodes(Set.of());
+        monitorProperties.getNodeValidation().setTls(TlsMode.PLAINTEXT);
+        networkNode.setNodeAccountId("0.0.999");
+        when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
+
+        // An explicit insecure mode keeps the previous behaviour
+        assertThat(nodeSupplier.refresh().collectList().block())
+                .singleElement()
+                .returns("0.0.999", NodeProperties::getAccountId)
+                .returns(50211, NodeProperties::getPort);
+    }
+
+    @Test
     void maxNodes() {
         monitorProperties.setNodes(Set.of());
         monitorProperties.getNodeValidation().setTls(TlsMode.PLAINTEXT);
@@ -253,8 +449,8 @@ final class NodeSupplierTest {
                 .hasSize(1)
                 .first()
                 .returns(networkNode.getNodeAccountId(), NodeProperties::getAccountId)
-                .returns(networkNode.getServiceEndpoints().get(0).getIpAddressV4(), NodeProperties::getHost)
-                .satisfies(n -> assertThat(nodeSupplier.get()).isEqualTo(n));
+                .returns(networkNode.getServiceEndpoints().get(0).getIpAddressV4(), NodeProperties::getHost);
+        assertThat(nodeSupplier.getNodes()).isEmpty();
     }
 
     @Test
@@ -262,22 +458,38 @@ final class NodeSupplierTest {
         monitorProperties.setNodes(Set.of());
         networkNode.getServiceEndpoints().clear();
         when(restApiClient.getNodes()).thenReturn(Flux.just(networkNode));
-        StepVerifier.withVirtualTime(() -> nodeSupplier.refresh())
-                .thenAwait(WAIT)
-                .expectNextSequence(monitorProperties.getNetwork().getNodes())
-                .expectComplete()
-                .verify(WAIT);
+        assertPinnedNetworkNodes(nodeSupplier.refresh().collectList().block());
     }
 
     @Test
     void refreshWithNetwork() {
         monitorProperties.setNodes(Set.of());
         monitorProperties.getNodeValidation().setRetrieveAddressBook(false);
-        StepVerifier.withVirtualTime(() -> nodeSupplier.refresh())
-                .thenAwait(WAIT)
-                .expectNextSequence(monitorProperties.getNetwork().getNodes())
-                .expectComplete()
-                .verify(WAIT);
+        assertPinnedNetworkNodes(nodeSupplier.refresh().collectList().block());
+    }
+
+    @Test
+    void refreshWithNetworkPlaintext() {
+        monitorProperties.setNodes(Set.of());
+        monitorProperties.getNodeValidation().setRetrieveAddressBook(false);
+        monitorProperties.getNodeValidation().setTls(TlsMode.PLAINTEXT);
+        assertThat(nodeSupplier.refresh().collectList().block())
+                .hasSize(HederaNetwork.TESTNET.getTrustedCertHashes().size())
+                .allSatisfy(n -> assertThat(n)
+                        .returns(50211, NodeProperties::getPort)
+                        .extracting(NodeProperties::getHost)
+                        .asString()
+                        .doesNotContain(":"));
+    }
+
+    @Test
+    void refreshWithNetworkMaxEndpointsPerNode() {
+        monitorProperties.setNodes(Set.of());
+        monitorProperties.getNodeValidation().setRetrieveAddressBook(false);
+        monitorProperties.getNodeValidation().setMaxEndpointsPerNode(2);
+        assertThat(nodeSupplier.refresh().collectList().block())
+                .hasSize(2 * HederaNetwork.TESTNET.getTrustedCertHashes().size())
+                .allSatisfy(n -> assertThat(n).returns(50212, NodeProperties::getPort));
     }
 
     @Test
@@ -344,11 +556,35 @@ final class NodeSupplierTest {
     }
 
     @Test
+    void getNodesSameInstanceUntilChanged() {
+        monitorProperties.getNodeValidation().setEnabled(false);
+        nodeSupplier.validateNode(node);
+        final var snapshot = nodeSupplier.getNodes();
+        nodeSupplier.validateNode(node);
+        assertThat(nodeSupplier.getNodes()).isSameAs(snapshot).containsExactly(node);
+    }
+
+    @Test
     @Timeout(3)
     void validationSucceeds() {
         cryptoServiceStub.addQuery(Mono.just(receipt(SUCCESS)));
         cryptoServiceStub.addTransaction(Mono.just(response(OK)));
         assertThat(nodeSupplier.validateNode(node)).isTrue();
+    }
+
+    private void assertPinnedNetworkNodes(final List<NodeProperties> nodes) {
+        // Every SDK fallback node is a TLS endpoint carrying its bundled hash, with host and port kept separate
+        final var trustedCertHashes = HederaNetwork.TESTNET.getTrustedCertHashes();
+        assertThat(nodes)
+                .hasSize(trustedCertHashes.size())
+                .allSatisfy(n -> assertThat(n)
+                        .returns(50212, NodeProperties::getPort)
+                        .returns(trustedCertHashes.get(n.getAccountId()), NodeProperties::getCertHash)
+                        .extracting(NodeProperties::getHost)
+                        .asString()
+                        .doesNotContain(":"))
+                .extracting(NodeProperties::getAccountId)
+                .doesNotHaveDuplicates();
     }
 
     private Response receipt(ResponseCodeEnum responseCode) {

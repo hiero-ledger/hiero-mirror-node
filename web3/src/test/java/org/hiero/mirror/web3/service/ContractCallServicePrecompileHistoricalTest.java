@@ -894,14 +894,13 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
             final AbstractContractCallServiceTest.KeyType keyType,
             final Contract contract,
             final Range<Long> historicalRange) {
-        final Key key =
-                switch (keyValueType) {
-                    case ECDSA_SECPK256K1 -> KEY_WITH_ECDSA_TYPE;
-                    case ED25519 -> KEY_WITH_ED_25519_TYPE;
-                    case CONTRACT_ID -> getKeyWithContractId(contract);
-                    case DELEGATABLE_CONTRACT_ID -> getKeyWithDelegatableContractId(contract);
-                    default -> throw new IllegalArgumentException("Invalid key type");
-                };
+        final Key key = switch (keyValueType) {
+            case ECDSA_SECPK256K1 -> KEY_WITH_ECDSA_TYPE;
+            case ED25519 -> KEY_WITH_ED_25519_TYPE;
+            case CONTRACT_ID -> getKeyWithContractId(contract);
+            case DELEGATABLE_CONTRACT_ID -> getKeyWithDelegatableContractId(contract);
+            default -> throw new IllegalArgumentException("Invalid key type");
+        };
 
         final var tokenEntity = domainBuilder
                 .entity()

@@ -2585,6 +2585,11 @@ components:
           description: The hex encoded chain_id of the wrapped ethereum transaction
           type: [string, "null"]
           example: "0x127"
+        child:
+          description: >-
+            Whether the transaction was executed as part of another transaction's EVM execution (e.g. a system contract
+            call or a call dispatched by a hook).
+          type: boolean
         contract_id:
           $ref: "#/components/schemas/EntityId"
         created_contract_ids:
@@ -2783,6 +2788,11 @@ components:
           allOf:
             - $ref: "#/components/schemas/Bloom"
             - description: The hex encoded bloom filter of the contract log
+        child:
+          description: >-
+            Whether the transaction that emitted this log was executed as part of another transaction's EVM execution
+            (e.g. a system contract call or a call dispatched by a hook).
+          type: boolean
         contract_id:
           $ref: "#/components/schemas/EntityId"
         data:
@@ -2847,6 +2857,15 @@ components:
           format: binary
           type: [string, "null"]
     ContractResultStateChanges:
+      description: >-
+        EVM storage-slot changes recorded for the contract execution. This
+        reflects only writes to EVM storage slots. Operations that mutate
+        native ledger state through the Hedera system contracts (for example
+        HTS token association, mint, burn, or key updates) do not write to EVM
+        storage slots, so a successful system-contract call can return an empty
+        `state_changes` array. The authoritative result of such a call is its
+        response code and the affected entity's own record (for example
+        `/api/v1/tokens/{id}`), not this field.
       type: array
       items:
         $ref: "#/components/schemas/ContractResultStateChange"

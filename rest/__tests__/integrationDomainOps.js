@@ -1226,6 +1226,7 @@ const contractResultDefaults = {
   amount: 0,
   bloom: null,
   call_result: null,
+  child: false,
   consensus_timestamp: 1234510001,
   contract_id: 0,
   created_contract_ids: [],
@@ -1285,6 +1286,7 @@ const addContractResult = async (contractResultInput) => {
 
 const contractLogDefaults = {
   bloom: '0x0123',
+  child: false,
   consensus_timestamp: 1234510001,
   contract_id: 1,
   data: '0x0123',

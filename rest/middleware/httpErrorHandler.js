@@ -53,7 +53,7 @@ const handleError = async (err, req, res, next) => {
     );
   }
 
-  res.set(clusterIdHeader, config.clusterId);
+  res.set(clusterIdHeader, config.common.clusterId);
   res.status(statusCode.code).json(errorMessageFormat(errorMessage));
 };
 

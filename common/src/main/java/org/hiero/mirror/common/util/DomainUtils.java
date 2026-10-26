@@ -57,8 +57,7 @@ public class DomainUtils {
     public static final long TINYBARS_IN_ONE_HBAR = 100_000_000L;
 
     // These should match the default values in PBJ and CN so MN doesn't reject protobuf that CN accepts.
-    public static final int MAX_DEPTH = 128;
-    public static final int MAX_SIZE_FILE = 32 * 1024 * 1024;
+    public static final int MAX_DEPTH = 50;
     public static final int MAX_SIZE_ITEM = 2 * 1024 * 1024;
 
     private static final long MAX_SYSTEM_ENTITY_NUM = 999;
@@ -386,14 +385,13 @@ public class DomainUtils {
      * @return the parsed protobuf message
      */
     public static <T> T parseProtobuf(Object protobufBytes, ThrowingFunction<CodedInputStream, T> parser, int maxSize) {
-        final var codedInputStream =
-                switch (protobufBytes) {
-                    case null -> ByteString.EMPTY.newCodedInput();
-                    case byte[] bytes -> CodedInputStream.newInstance(bytes);
-                    case ByteString bytes -> bytes.newCodedInput();
-                    case InputStream inputStream -> CodedInputStream.newInstance(inputStream);
-                    default -> throw new IllegalStateException("Unexpected type: " + protobufBytes.getClass());
-                };
+        final var codedInputStream = switch (protobufBytes) {
+            case null -> ByteString.EMPTY.newCodedInput();
+            case byte[] bytes -> CodedInputStream.newInstance(bytes);
+            case ByteString bytes -> bytes.newCodedInput();
+            case InputStream inputStream -> CodedInputStream.newInstance(inputStream);
+            default -> throw new IllegalStateException("Unexpected type: " + protobufBytes.getClass());
+        };
 
         codedInputStream.setRecursionLimit(MAX_DEPTH);
         codedInputStream.setSizeLimit(maxSize);

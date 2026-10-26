@@ -51,6 +51,6 @@ tasks.compileJava {
             "-Amapstruct.defaultComponentModel=jakarta",
             "-Amapstruct.defaultInjectionStrategy=constructor",
             "-Amapstruct.disableBuilders=true",
-        )
+        ),
     )
 }

@@ -54,22 +54,22 @@ type cryptoTransferTransactionConstructorSuite struct {
 }
 
 func (suite *cryptoTransferTransactionConstructorSuite) TestNewTransactionConstructor() {
-	h := newCryptoTransferTransactionConstructor()
+	h := newCryptoTransferTransactionConstructor(true)
 	assert.NotNil(suite.T(), h)
 }
 
 func (suite *cryptoTransferTransactionConstructorSuite) TestGetDefaultMaxTransactionFee() {
-	h := newCryptoTransferTransactionConstructor()
+	h := newCryptoTransferTransactionConstructor(true)
 	assert.Equal(suite.T(), types.HbarAmount{Value: 1_00000000}, h.GetDefaultMaxTransactionFee())
 }
 
 func (suite *cryptoTransferTransactionConstructorSuite) TestGetOperationType() {
-	h := newCryptoTransferTransactionConstructor()
+	h := newCryptoTransferTransactionConstructor(true)
 	assert.Equal(suite.T(), types.OperationTypeCryptoTransfer, h.GetOperationType())
 }
 
 func (suite *cryptoTransferTransactionConstructorSuite) TestGetSdkTransactionType() {
-	h := newCryptoTransferTransactionConstructor()
+	h := newCryptoTransferTransactionConstructor(true)
 	assert.Equal(suite.T(), "TransferTransaction", h.GetSdkTransactionType())
 }
 
@@ -92,7 +92,7 @@ func (suite *cryptoTransferTransactionConstructorSuite) TestConstruct() {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			// given
 			operations := suite.makeOperations(tt.transfers)
-			h := newCryptoTransferTransactionConstructor()
+			h := newCryptoTransferTransactionConstructor(true)
 
 			// when
 			tx, signers, err := h.Construct(defaultContext, operations)
@@ -125,9 +125,10 @@ func (suite *cryptoTransferTransactionConstructorSuite) TestParse() {
 	}
 
 	var tests = []struct {
-		name           string
-		getTransaction func() hiero.TransactionInterface
-		expectError    bool
+		name                string
+		getTransaction      func() hiero.TransactionInterface
+		expectError         bool
+		skipFieldValidation bool
 	}{
 		{
 			name:           "Success",
@@ -157,12 +158,50 @@ func (suite *cryptoTransferTransactionConstructorSuite) TestParse() {
 			},
 			expectError: true,
 		},
+		{
+			name: "TokenTransfers",
+			getTransaction: func() hiero.TransactionInterface {
+				tokenID := hiero.TokenID{Token: 100}
+				return *hiero.NewTransferTransaction().
+					AddHbarTransfer(sdkAccountIdA, hiero.HbarFromTinybar(-15)).
+					AddHbarTransfer(sdkAccountIdB, hiero.HbarFromTinybar(15)).
+					AddTokenTransfer(tokenID, sdkAccountIdA, -10).
+					AddTokenTransfer(tokenID, sdkAccountIdB, 10).
+					SetTransactionID(hiero.TransactionIDGenerate(sdkAccountIdA))
+			},
+			expectError: true,
+		},
+		{
+			name: "NftTransfers",
+			getTransaction: func() hiero.TransactionInterface {
+				tokenID := hiero.TokenID{Token: 100}
+				return *hiero.NewTransferTransaction().
+					AddHbarTransfer(sdkAccountIdA, hiero.HbarFromTinybar(-15)).
+					AddHbarTransfer(sdkAccountIdB, hiero.HbarFromTinybar(15)).
+					AddNftTransfer(tokenID.Nft(1), sdkAccountIdA, sdkAccountIdB).
+					SetTransactionID(hiero.TransactionIDGenerate(sdkAccountIdA))
+			},
+			expectError: true,
+		},
+		{
+			name: "TokenTransfersIgnoredWhenValidationDisabled",
+			getTransaction: func() hiero.TransactionInterface {
+				tokenID := hiero.TokenID{Token: 100}
+				return *hiero.NewTransferTransaction().
+					AddHbarTransfer(sdkAccountIdA, hiero.HbarFromTinybar(-15)).
+					AddHbarTransfer(sdkAccountIdB, hiero.HbarFromTinybar(15)).
+					AddTokenTransfer(tokenID, sdkAccountIdA, -10).
+					AddTokenTransfer(tokenID, sdkAccountIdB, 10).
+					SetTransactionID(hiero.TransactionIDGenerate(sdkAccountIdA))
+			},
+			skipFieldValidation: true,
+		},
 	}
 
 	for _, tt := range tests {
 		suite.T().Run(tt.name, func(t *testing.T) {
 			// given
-			h := newCryptoTransferTransactionConstructor()
+			h := newCryptoTransferTransactionConstructor(!tt.skipFieldValidation)
 			tx := tt.getTransaction()
 
 			// when
@@ -296,7 +335,7 @@ func (suite *cryptoTransferTransactionConstructorSuite) TestPreprocess() {
 				operations = suite.makeOperations(tt.transfers)
 			}
 
-			h := newCryptoTransferTransactionConstructor()
+			h := newCryptoTransferTransactionConstructor(true)
 
 			// when
 			signers, err := h.Preprocess(defaultContext, operations)

@@ -31,8 +31,12 @@ public interface TokenAccountRepository extends CrudRepository<TokenAccount, Abs
                       ta.balance,
                       ta.balance_timestamp,
                       ta.created_timestamp,
-                      coalesce(ta.freeze_status, t.freeze_status) as freeze_status,
-                      coalesce(ta.kyc_status, t.kyc_status) as kyc_status,
+                      case when t.freeze_status = 0 then t.freeze_status
+                           else coalesce(ta.freeze_status, t.freeze_status)
+                      end as freeze_status,
+                      case when t.kyc_status = 0 then t.kyc_status
+                           else coalesce(ta.kyc_status, t.kyc_status)
+                      end as kyc_status,
                       ta.timestamp_range,
                       ta.token_id
                     from token_account as ta
@@ -101,8 +105,12 @@ public interface TokenAccountRepository extends CrudRepository<TokenAccount, Abs
                       ta.balance,
                       ta.balance_timestamp,
                       ta.created_timestamp,
-                      coalesce(ta.freeze_status, t.freeze_status) as freeze_status,
-                      coalesce(ta.kyc_status, t.kyc_status) as kyc_status,
+                      case when t.freeze_status = 0 then t.freeze_status
+                           else coalesce(ta.freeze_status, t.freeze_status)
+                      end as freeze_status,
+                      case when t.kyc_status = 0 then t.kyc_status
+                           else coalesce(ta.kyc_status, t.kyc_status)
+                      end as kyc_status,
                       ta.timestamp_range,
                       ta.token_id
                     from (

@@ -3,6 +3,13 @@
 name: Test native images
 
 on:
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+    paths:
+      - ".github/workflows/test-native-images.yml"
+      - "buildSrc/src/main/kotlin/spring-conventions.gradle.kts"
   push:
     tags:
       - "v*"
@@ -47,7 +54,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: audit
 
@@ -86,10 +93,10 @@ jobs:
       matrix:
         stream-type:
           - RECORD
-          - BLOCK
+          # - BLOCK # leave it disabled until new wraps library compatible CN / BN release
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: audit
 

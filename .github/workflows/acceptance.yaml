@@ -10,7 +10,13 @@ on:
     paths:
       - ".github/actions/run-e2e/**"
       - ".github/workflows/acceptance.yaml"
+      - "grpc/Dockerfile"
+      - "importer/Dockerfile"
+      - "monitor/Dockerfile"
+      - "rest/Dockerfile"
+      - "rest-java/Dockerfile"
       - "test/**"
+      - "web3/Dockerfile"
   push:
     branches:
       - "main"
@@ -44,10 +50,10 @@ jobs:
       matrix:
         stream-type:
           - RECORD
-          - BLOCK
+          # - BLOCK # leave it disabled until new wraps library compatible CN / BN release
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: audit
 

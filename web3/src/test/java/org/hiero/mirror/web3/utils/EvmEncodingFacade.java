@@ -55,12 +55,11 @@ public class EvmEncodingFacade {
         }
 
         private Bytes build() {
-            final var result =
-                    switch (functionType) {
-                        case ERC_NAME -> Tuple.from(name);
-                        case ERC_SYMBOL -> Tuple.from(symbol);
-                        default -> Tuple.from(true);
-                    };
+            final var result = switch (functionType) {
+                case ERC_NAME -> Tuple.from(name);
+                case ERC_SYMBOL -> Tuple.from(symbol);
+                default -> Tuple.from(true);
+            };
 
             return Bytes.wrap(tupleType.encode(result).array());
         }

@@ -18,6 +18,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
+import org.hiero.mirror.grpc.service.AddressBookProperties;
 import org.hiero.mirror.grpc.service.NetworkService;
 import org.hiero.mirror.grpc.util.GrpcFlowControlSubscriber;
 import org.hiero.mirror.grpc.util.ProtoUtil;
@@ -29,6 +30,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 final class NetworkController extends NetworkServiceGrpc.NetworkServiceImplBase {
 
+    private final AddressBookProperties addressBookProperties;
     private final NetworkService networkService;
 
     @Override
@@ -46,8 +48,20 @@ final class NetworkController extends NetworkServiceGrpc.NetworkServiceImplBase 
                 .subscribe(new GrpcFlowControlSubscriber<>(serverCallStreamObserver));
     }
 
+    private int resolveLimit(final int requestedLimit) {
+        if (requestedLimit < 0) {
+            throw new IllegalArgumentException("limit: must be greater than or equal to 0");
+        }
+
+        final int maxLimit = addressBookProperties.getMaxLimit();
+        if (requestedLimit == 0) {
+            return maxLimit;
+        }
+        return Math.min(requestedLimit, maxLimit);
+    }
+
     private AddressBookFilter toFilter(final AddressBookQuery query) {
-        final var filter = AddressBookFilter.builder().limit(query.getLimit());
+        final var filter = AddressBookFilter.builder().limit(resolveLimit(query.getLimit()));
 
         if (query.hasFileId()) {
             filter.fileId(EntityId.of(query.getFileId()));

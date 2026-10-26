@@ -32,16 +32,6 @@ import reactor.core.Exceptions;
 
 class ProtoUtilTest {
 
-    @DisplayName("Convert Timestamp to Instant")
-    @ParameterizedTest(name = "with {0}s and {1}ns")
-    @CsvSource({"0, 0", "0, 999999999", "10, 0", "31556889864403199, 999999999", "-31557014167219200, 0"})
-    void fromTimestamp(long seconds, int nanos) {
-        Instant instant = Instant.ofEpochSecond(seconds, nanos);
-        Timestamp timestamp =
-                Timestamp.newBuilder().setSeconds(seconds).setNanos(nanos).build();
-        assertThat(ProtoUtil.fromTimestamp(timestamp)).isEqualTo(instant);
-    }
-
     @Test
     void toStatusRuntimeException() {
         var entityId = EntityId.of(1L);

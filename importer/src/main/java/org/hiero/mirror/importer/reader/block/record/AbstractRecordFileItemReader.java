@@ -225,19 +225,18 @@ abstract class AbstractRecordFileItemReader implements RecordFileItemReader {
             return true;
         }
 
-        final int type =
-                switch (record.getSidecarRecordsCase()) {
-                    case ACTIONS -> SidecarType.CONTRACT_ACTION_VALUE;
-                    case BYTECODE -> SidecarType.CONTRACT_BYTECODE_VALUE;
-                    case STATE_CHANGES -> SidecarType.CONTRACT_STATE_CHANGE_VALUE;
-                    default -> {
-                        Utility.handleRecoverableError(
-                                "Unknown sidecar transaction record type at {}: {}",
-                                record.getConsensusTimestamp(),
-                                record.getSidecarRecordsCase());
-                        yield SidecarType.SIDECAR_TYPE_UNKNOWN_VALUE;
-                    }
-                };
+        final int type = switch (record.getSidecarRecordsCase()) {
+            case ACTIONS -> SidecarType.CONTRACT_ACTION_VALUE;
+            case BYTECODE -> SidecarType.CONTRACT_BYTECODE_VALUE;
+            case STATE_CHANGES -> SidecarType.CONTRACT_STATE_CHANGE_VALUE;
+            default -> {
+                Utility.handleRecoverableError(
+                        "Unknown sidecar transaction record type at {}: {}",
+                        record.getConsensusTimestamp(),
+                        record.getSidecarRecordsCase());
+                yield SidecarType.SIDECAR_TYPE_UNKNOWN_VALUE;
+            }
+        };
         return acceptedTypes.contains(type);
     }
 

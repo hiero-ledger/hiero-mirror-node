@@ -30,6 +30,7 @@ class AccountBalanceLineParserV2Test {
                 "'0,0,123,700,CggKAxjsBxCEBwoHCgMY7QcQGQoKCgMY7gcQwKilBAoICgMY8gcQhAcKBwoDGPMHEBkKCgoDGPQHEMCopQQ';false;"
                         + "0;123;700;1004=900,1005=25,1006=9000000,1010=900,1011=25,1012=9000000",
                 "'0,0,123,700,';false;" + "0;123;700;;",
+                "'0,0,2147483648,700,';false;0;2147483648;700;;",
                 "'0,0,123,700,CggKAxjsBxCEBwoHCgMY7QcQGQoKCgMY7gcQwKilBAoICgMY8gcQhAcKBwoDGPMHEBkKCgo';true;;;;",
                 "' 0,0,123,700,CggKAxjsBxCEBwoHCgMY7QcQGQoKCgMY7gcQwKilBAoICgMY8gcQhAcKBwoDGPMHEBkKCgoDGPQHEMCopQQ';"
                         + "false;0;123;700;1004=900,1005=25,1006=9000000,1010=900,1011=25,1012=9000000",
@@ -56,6 +57,9 @@ class AccountBalanceLineParserV2Test {
                 "'0,-1,123,700,';true;;;;",
                 "'0,0,-1,700,';true;;;;",
                 "'0,0,123,-1,';true;;;;",
+                "'0,65536,123,700,';true;;;;",
+                "'0,0,274877906944,700,';true;;;;",
+                "'0,65535,274877906944,700,';true;;;;",
                 "'foobar';true;;;;",
                 "'';true;;;;",
                 ";true;;;;"
@@ -112,6 +116,19 @@ class AccountBalanceLineParserV2Test {
                 parser.parse(line, TIMESTAMP);
             });
         }
+    }
+
+    @Test
+    void parseInvalidWhenTokenIdOutOfRange() {
+        final var tokenBalances = com.hederahashgraph.api.proto.java.TokenBalances.newBuilder()
+                .addTokenBalances(com.hederahashgraph.api.proto.java.TokenBalance.newBuilder()
+                        .setTokenId(com.hederahashgraph.api.proto.java.TokenID.newBuilder()
+                                .setRealmNum(65536)
+                                .setTokenNum(5))
+                        .setBalance(10))
+                .build();
+        final var line = "0,0,123,700," + java.util.Base64.getEncoder().encodeToString(tokenBalances.toByteArray());
+        assertThrows(InvalidDatasetException.class, () -> parser.parse(line, TIMESTAMP));
     }
 
     @Test

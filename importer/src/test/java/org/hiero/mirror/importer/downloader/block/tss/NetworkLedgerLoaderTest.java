@@ -11,6 +11,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.tss.legacy.LedgerIdNodeContribution;
 import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
@@ -227,16 +228,16 @@ final class NetworkLedgerLoaderTest {
     private void assertFixtureLedgerLoaded() {
         var ledger = capturedLedger();
         assertThat(ledger.getLedgerId()).isNotEmpty();
-        assertThat(ledger.getHistoryProofVerificationKey()).isNotEmpty();
         assertThat(ledger.getNodeContributions()).isNotEmpty();
+        assertThat(ledger.getTimestampRange()).isEqualTo(Range.atLeast(0L));
     }
 
     private void assertLedgerMatches(LedgerIdPublicationTransactionBody body) {
         var ledger = capturedLedger();
         assertThat(ledger).isNotNull();
         assertThat(ledger.getLedgerId()).isEqualTo(toBytes(body.getLedgerId()));
-        assertThat(ledger.getHistoryProofVerificationKey()).isEqualTo(toBytes(body.getHistoryProofVerificationKey()));
         assertThat(ledger.getNodeContributions()).hasSize(body.getNodeContributionsCount());
+        assertThat(ledger.getTimestampRange()).isEqualTo(Range.atLeast(0L));
 
         var nc = body.getNodeContributions(0);
         assertThat(ledger.getNodeContributions())

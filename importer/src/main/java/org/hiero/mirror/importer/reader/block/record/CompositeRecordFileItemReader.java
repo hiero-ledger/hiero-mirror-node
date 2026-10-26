@@ -22,13 +22,12 @@ public final class CompositeRecordFileItemReader implements RecordFileItemReader
 
     @Override
     public RecordFile read(final RecordFileItem recordFileItem, final int version) {
-        final var reader =
-                switch (version) {
-                    case 2 -> readerV2;
-                    case 5 -> readerV5;
-                    case 6 -> readerV6;
-                    default -> throw new UnsupportedOperationException("Unsupported record file version " + version);
-                };
+        final var reader = switch (version) {
+            case 2 -> readerV2;
+            case 5 -> readerV5;
+            case 6 -> readerV6;
+            default -> throw new UnsupportedOperationException("Unsupported record file version " + version);
+        };
 
         return reader.read(recordFileItem, version);
     }

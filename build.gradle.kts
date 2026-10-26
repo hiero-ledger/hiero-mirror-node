@@ -19,16 +19,17 @@ plugins {
 extra.apply {
     set("besuVersion", "26.2.0")
     set("blockNodeVersion", "0.44.2")
-    set("consensusNodeVersion", "0.78.1-rc.1")
-    set("hederaCryptographyVersion", "3.15.0")
+    set("consensusNodeVersion", "0.78.2")
+    set("hederaCryptographyVersion", "3.22.0")
     set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
+    set("jetty.version", "12.1.13") // Temporary until next Spring Boot
     set("jooq.version", "3.21.9") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("netty.version", "4.2.18.Final") // Temporary until next Spring Boot
-    set("nodeJsVersion", "24.21.0")
+    set("nodeJsVersion", "24.22.1")
     set("postgresql.version", "42.7.14") // Temporary until next Spring Boot
-    set("tomcat.version", "11.0.26") // Temporary until next Spring Boot
+    set("tomcat.version", "11.0.27") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
@@ -45,7 +46,7 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-22")
+        api("com.github.luben:zstd-jni:1.5.7-23")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
@@ -59,7 +60,7 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.2")
-        api("com.hedera.hashgraph:sdk:2.78.0")
+        api("com.hedera.hashgraph:sdk:2.79.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.22.0")
@@ -87,8 +88,8 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.0.0")
-        api("org.xerial.snappy:snappy-java:1.1.10.11") // Temporary until next Besu
-        api("software.amazon.awssdk:bom:2.55.12")
+        api("org.xerial.snappy:snappy-java:1.1.10.12") // Temporary until next Besu
+        api("software.amazon.awssdk:bom:2.56.0")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

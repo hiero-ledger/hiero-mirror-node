@@ -12,6 +12,10 @@
     "tokens": [
       {
         "token_id": "0.0.1500",
+        "freeze_key": [1, 1],
+        "freeze_status": 2,
+        "kyc_key": [1, 1],
+        "kyc_status": 2,
         "symbol": "ORIGINALRDKSE",
         "created_timestamp": "1234567890000000002",
         "decimals": 10,
@@ -19,6 +23,10 @@
       },
       {
         "token_id": "0.0.2500",
+        "freeze_key": [1, 1],
+        "freeze_status": 2,
+        "kyc_key": [1, 1],
+        "kyc_status": 2,
         "symbol": "HEDERACOIN",
         "created_timestamp": "1234567890000000004",
         "decimals": 20,

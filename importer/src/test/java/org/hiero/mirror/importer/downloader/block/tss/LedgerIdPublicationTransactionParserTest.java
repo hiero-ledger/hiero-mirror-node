@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
+import com.google.common.collect.Range;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
@@ -16,17 +17,17 @@ final class LedgerIdPublicationTransactionParserTest {
     @Test
     void parse() {
         // given
-        var recordItemBuilder = new RecordItemBuilder();
-        var recordItem = recordItemBuilder.ledgerIdPublication().build();
-        var body = recordItem.getTransactionBody().getLedgerIdPublication();
-        long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var parser = new LedgerIdPublicationTransactionParser();
+        final var recordItemBuilder = new RecordItemBuilder();
+        final var recordItem = recordItemBuilder.ledgerIdPublication().build();
+        final var body = recordItem.getTransactionBody().getLedgerIdPublication();
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var parser = new LedgerIdPublicationTransactionParser();
 
         // when
-        var ledger = parser.parse(consensusTimestamp, body);
+        final var ledger = parser.parse(consensusTimestamp, body);
 
         // then
-        var expectedNodeContributions = body.getNodeContributionsList().stream()
+        final var expectedNodeContributions = body.getNodeContributionsList().stream()
                 .map(n -> LedgerNodeContribution.builder()
                         .historyProofKey(toBytes(n.getHistoryProofKey()))
                         .nodeId(n.getNodeId())
@@ -34,9 +35,8 @@ final class LedgerIdPublicationTransactionParserTest {
                         .build())
                 .toList();
         assertThat(ledger)
-                .returns(recordItem.getConsensusTimestamp(), Ledger::getConsensusTimestamp)
-                .returns(toBytes(body.getHistoryProofVerificationKey()), Ledger::getHistoryProofVerificationKey)
                 .returns(toBytes(body.getLedgerId()), Ledger::getLedgerId)
+                .returns(Range.atLeast(consensusTimestamp), Ledger::getTimestampRange)
                 .extracting(Ledger::getNodeContributions, LIST)
                 .containsExactlyInAnyOrderElementsOf(expectedNodeContributions);
     }

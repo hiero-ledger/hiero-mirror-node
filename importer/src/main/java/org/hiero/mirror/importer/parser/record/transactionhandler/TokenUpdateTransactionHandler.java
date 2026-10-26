@@ -5,19 +5,25 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_49_0;
 
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.Token;
+import org.hiero.mirror.common.domain.token.TokenAccount;
+import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.util.Utility;
+import org.jspecify.annotations.Nullable;
 
 @CustomLog
 @Named
@@ -66,12 +72,85 @@ final class TokenUpdateTransactionHandler extends AbstractEntityCrudTransactionH
         }
 
         if (transactionBody.hasMemo()) {
-            entity.setMemo(transactionBody.getMemo().getValue());
+            final var memo = transactionBody.getMemo().getValue();
+            if (!recordItem.hasContractResult() || !memo.isBlank()) {
+                // A blank (empty or only spaces) memo update from precompile should not change the token's memo
+                entity.setMemo(memo);
+            }
         }
 
         entity.setType(EntityType.TOKEN);
         entityListener.onEntity(entity);
         updateToken(entity, recordItem);
+    }
+
+    /**
+     * Owns every automatic association of the token update, including when the CRUD guard skips the token update.
+     * FAIL_INVALID errata can contain committed associations, but their bodies must not be used to infer treasury
+     * changes.
+     */
+    @Override
+    protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
+        if (!entityProperties.getPersist().isTokens()
+                || (!recordItem.isSuccessful()
+                        && recordItem.getTransactionStatus() != ResponseCodeEnum.FAIL_INVALID_VALUE)) {
+            return;
+        }
+
+        var treasuryRelationship = createTreasuryRelationship(transaction, recordItem);
+        final long timestamp = recordItem.getConsensusTimestamp();
+        for (final var association : recordItem.getTransactionRecord().getAutomaticTokenAssociationsList()) {
+            // Consensus nodes always populate automatic associations with numeric account ids
+            final var accountId = EntityId.of(association.getAccountId());
+            final var tokenId = EntityId.of(association.getTokenId());
+            final TokenAccount relationship;
+            if (treasuryRelationship != null
+                    && treasuryRelationship.getAccountId() == accountId.getId()
+                    && treasuryRelationship.getTokenId() == tokenId.getId()) {
+                relationship = treasuryRelationship;
+                treasuryRelationship = null;
+            } else {
+                relationship = new TokenAccount();
+                relationship.setAccountId(accountId.getId());
+                relationship.setTokenId(tokenId.getId());
+                relationship.setAssociated(true);
+                relationship.setTimestampLower(timestamp);
+            }
+            relationship.setAutomaticAssociation(true);
+            relationship.setCreatedTimestamp(timestamp);
+            relationship.setBalanceTimestamp(timestamp);
+            entityListener.onTokenAccount(relationship);
+            recordItem.addEntityId(accountId);
+            recordItem.addEntityId(tokenId);
+        }
+
+        if (treasuryRelationship != null) {
+            entityListener.onTokenAccount(treasuryRelationship);
+        }
+    }
+
+    private @Nullable TokenAccount createTreasuryRelationship(Transaction transaction, RecordItem recordItem) {
+        if (!recordItem.isSuccessful() || EntityId.isEmpty(transaction.getEntityId())) {
+            return null;
+        }
+
+        final var treasury =
+                EntityId.of(recordItem.getTransactionBody().getTokenUpdate().getTreasury());
+        if (EntityId.isEmpty(treasury)) {
+            return null;
+        }
+
+        // Consensus nodes unfreeze the new treasury if the token has a freeze key, and grant it KYC if the token has a
+        // KYC key. Both statuses are set regardless of the keys, since readers show NOT_APPLICABLE for a token without
+        // the key, and a token can't get a freeze key or a KYC key after its creation.
+        final var relationship = new TokenAccount();
+        relationship.setAccountId(treasury.getId());
+        relationship.setAssociated(true);
+        relationship.setFreezeStatus(TokenFreezeStatusEnum.UNFROZEN);
+        relationship.setKycStatus(TokenKycStatusEnum.GRANTED);
+        relationship.setTimestampLower(recordItem.getConsensusTimestamp());
+        relationship.setTokenId(transaction.getEntityId().getId());
+        return relationship;
     }
 
     private void updateToken(Entity entity, RecordItem recordItem) {

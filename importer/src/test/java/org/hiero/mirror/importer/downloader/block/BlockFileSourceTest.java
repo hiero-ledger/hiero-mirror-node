@@ -10,7 +10,10 @@ import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 import static org.hiero.mirror.importer.TestUtils.generateRandomByteArray;
 import static org.hiero.mirror.importer.TestUtils.zstd;
 import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_SHA_256_BLOCK_FILES;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.getSha256BlockStreams;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.toUnparsed;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.withUnknownField;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.assertArg;
@@ -26,6 +29,12 @@ import static org.mockito.Mockito.when;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import com.google.protobuf.ByteString;
+import com.hedera.hapi.block.stream.output.protoc.BlockFooter;
+import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
+import com.hedera.hapi.block.stream.protoc.BlockItem;
+import com.hedera.hapi.block.stream.protoc.BlockProof;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.net.URI;
@@ -39,6 +48,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.gaul.s3proxy.S3Proxy;
+import org.hiero.block.internal.protoc.BlockUnparsed;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -61,6 +71,7 @@ import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReaderImpl;
 import org.hiero.mirror.importer.reader.block.InitialStateReader;
+import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.hiero.mirror.importer.reader.block.record.CompositeRecordFileItemReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -236,6 +247,54 @@ final class BlockFileSourceTest {
         assertThatThrownBy(() -> blockFileSource.get())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Failed to discover network folder for 'previewnet'");
+    }
+
+    @SneakyThrows
+    @Test
+    void getWithUnknownField() {
+        // given a block whose block header has an unknown field ahead of its known fields, as if produced with a newer
+        // version of the protobuf definitions
+        final var blockHeader = BlockItem.newBuilder()
+                .setBlockHeader(BlockHeader.newBuilder()
+                        .setBlockTimestamp(
+                                Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond()))
+                        .setNumber(0L))
+                .build();
+        final var hash = ByteString.copyFrom(new byte[BLOCK_STREAM_HASH_SIZE]);
+        final var blockFooter = BlockItem.newBuilder()
+                .setBlockFooter(BlockFooter.newBuilder()
+                        .setPreviousBlockRootHash(hash)
+                        .setRootHashOfAllBlockHashesTree(hash)
+                        .setStartOfBlockStateRootHash(hash))
+                .build();
+        final var blockProof = BlockItem.newBuilder()
+                .setBlockProof(BlockProof.getDefaultInstance())
+                .build();
+        final var block = BlockUnparsed.newBuilder()
+                .addBlockItems(withUnknownField(blockHeader))
+                .addBlockItems(toUnparsed(blockFooter))
+                .addBlockItems(toUnparsed(blockProof))
+                .build();
+        final var bucketFilename = StreamType.BLOCK.toBucketFilename(BlockFile.getFilename(0L, true));
+        FileUtils.writeByteArrayToFile(
+                fileCopier.getTo().resolve(bucketFilename).toFile(), zstd(block.toByteArray()));
+        doNothing().when(blockStreamVerifier).verify(any());
+
+        final byte[] blockHeaderBytes = block.getBlockItems(0).toByteArray();
+        assertThat(blockHeaderBytes)
+                .isNotEqualTo(BlockItem.parseFrom(blockHeaderBytes).toByteArray());
+        final var digest = new BlockRootHashDigest();
+        block.getBlockItemsList().forEach(digest::addBlockItem);
+        final byte[] expectedHash =
+                digest.digest(blockHeader.getBlockHeader().getBlockTimestamp(), blockFooter.getBlockFooter());
+
+        // when
+        blockFileSource.get();
+
+        // then the block root hash is calculated from the block items' bytes as read from the file
+        verify(blockStreamVerifier)
+                .verify(assertArg(b ->
+                        assertThat(b).returns(0L, BlockFile::getIndex).returns(expectedHash, BlockFile::getRawHash)));
     }
 
     @ParameterizedTest(name = "startBlockNumber={0}")
