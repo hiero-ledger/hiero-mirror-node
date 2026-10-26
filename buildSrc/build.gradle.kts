@@ -8,10 +8,10 @@ dependencies {
     // Temporary until all plugins upgrade
     constraints {
         add("implementation", "com.fasterxml.jackson.core:jackson-databind") {
-            version { require("2.22.3") }
+            version { require("2.22.4") }
         }
         add("implementation", "tools.jackson.core:jackson-databind") {
-            version { require("3.2.3") }
+            version { require("3.2.4") }
         }
         add("implementation", "org.apache.ant:ant") {
             version { require("1.10.18") }
@@ -38,15 +38,15 @@ dependencies {
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.1")
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.cyclonedx:cyclonedx-gradle-plugin:3.5.1")
-    implementation("org.flywaydb:flyway-database-postgresql:13.10.0")
-    implementation("org.graalvm.buildtools:native-gradle-plugin:1.1.14")
+    implementation("org.flywaydb:flyway-database-postgresql:13.11.1")
+    implementation("org.graalvm.buildtools:native-gradle-plugin:1.1.16")
     implementation("org.gradle:test-retry-gradle-plugin:1.6.6")
     implementation("org.jooq:jooq-codegen-gradle:$jooqVersion")
     implementation("org.jooq:jooq-meta:$jooqVersion")
     implementation("org.jooq:jooq-postgres-extensions:${jooqVersion}")
     implementation("org.openapitools:openapi-generator-gradle-plugin:7.26.0")
     implementation("org.owasp:dependency-check-gradle:13.0.0")
-    implementation("org.springframework.boot:spring-boot-gradle-plugin:4.1.1")
+    implementation("org.springframework.boot:spring-boot-gradle-plugin:4.1.2")
     implementation("org.testcontainers:testcontainers-postgresql:2.0.5")
     implementation("org.web3j:web3j-gradle-plugin:5.0.2")
 }
