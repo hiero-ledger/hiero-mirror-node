@@ -72,6 +72,7 @@ import org.hiero.mirror.web3.web3j.generated.ERCTestContract;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
 import org.hiero.mirror.web3.web3j.generated.State;
 import org.hiero.mirror.web3.web3j.generated.StorageContract;
+import org.hiero.mirror.web3.web3j.generated.StorageRefund;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -795,6 +796,44 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {774_021L, 1_000_000L})
+    void estimateGasForStorageRefundIsSufficientForFreshCall(long gasLimit) {
+        // Given: two delegatecalls clear non-zero slots, earning a substantial storage refund.
+        transactionExecutorFactory.get();
+        final var contract = testWeb3jService.deploy(StorageRefund::deploy);
+        final var receiver = Address.fromHexString(contract.getContractAddress());
+        final var contractId =
+                DomainUtils.fromEvmAddress(receiver.getBytes().toArrayUnsafe()).getId();
+        for (int slot = 0; slot < 100; ++slot) {
+            final var slotKey =
+                    DomainUtils.leftPadBytes(BigInteger.valueOf(slot).toByteArray(), 32);
+            domainBuilder
+                    .contractState()
+                    .customize(s -> s.contractId(contractId).slot(slotKey).value(BigInteger.ONE.toByteArray()))
+                    .persist();
+        }
+        final var data = contract.send_clearAll().encodeFunctionCall();
+        final var expectedResult = HEX_PREFIX + "0".repeat(62) + "64";
+
+        // When: estimation runs its own probes; the subsequent call starts with a fresh context.
+        final var estimate = contractExecutionParametersBuilder(
+                        BlockType.LATEST, data, Address.ZERO, receiver, ETH_ESTIMATE_GAS, 0L)
+                .gas(gasLimit)
+                .build();
+        final var estimatedGas = longValueOf.applyAsLong(contractExecutionService.processCall(estimate));
+        final var estimatedGasCall = contractExecutionParametersBuilder(
+                        BlockType.LATEST, data, Address.ZERO, receiver, ETH_CALL, 0L)
+                .gas(estimatedGas)
+                .build();
+
+        // Then: the estimated limit is sufficient to execute against the original storage in a fresh call.
+        assertThat(estimatedGas).isPositive().isLessThanOrEqualTo(gasLimit);
+        final var freshExecution =
+                assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(estimatedGasCall));
+        assertThat(freshExecution.result()).isEqualTo(expectedResult);
     }
 
     @Test

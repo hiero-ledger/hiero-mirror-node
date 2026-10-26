@@ -330,7 +330,8 @@ load_block_verdicts() {
   verdict="$(jq -r --arg index "${index}" '.[$index] // "unknown"' "${verdicts}")"
 }
 
-# Recognize a parent-to-current timestamp update within the same storage slot and byte position.
+# Recognize a parent-to-current timestamp update at the same byte position within one contract.
+# Oracle ring buffers may read the latest observation and write the next one in a different slot.
 # This is a conservative heuristic for per-block oracle/TWAP guards, not proof of control flow.
 check_dependencies() {
   local result_json="$1" block index hash detail has_writes current previous current_hex previous_hex
@@ -360,12 +361,22 @@ check_dependencies() {
   printf -v previous_hex '%08x' "${previous}"
   verdict="$(jq -r --arg current "${current_hex}" --arg previous "${previous_hex}" '
     def word: ascii_downcase | sub("^0x"; "") | ("0" * 64 + .)[-64:];
-    if $current != $previous and any(.state_changes[] | select(.value_written != null);
-      (.value_read | word) as $read | (.value_written | word) as $written
-      | any(range(0; 65 - ($current | length); 2); . as $offset
-          | $read[$offset:$offset + ($previous | length)] == $previous
-            and $written[$offset:$offset + ($current | length)] == $current))
-    then "dependent" else "independent" end
+    def timestamp_keys($timestamp; $value):
+      (if (.contract_id // "") != "" then .contract_id else (.address // "" | ascii_downcase) end) as $contract
+      | select($contract != "")
+      | ($value | word) as $word
+      | range(0; 65 - ($timestamp | length); 2) as $offset
+      | select($word[$offset:$offset + ($timestamp | length)] == $timestamp)
+      | [$contract, $offset] | tojson;
+    if $current == $previous then "independent"
+    else
+      # Index reads once; each write probes by contract and byte offset, regardless of slot.
+      (reduce (.state_changes[] | timestamp_keys($previous; .value_read)) as $key ({}; .[$key] = true)) as $reads
+      | if any(.state_changes[]
+          | select(.value_written != null and ((.value_read | word) != (.value_written | word)))
+          | timestamp_keys($current; .value_written); $reads[.] // false)
+        then "dependent" else "independent" end
+    end
   ' "${detail}")"
 }
 
@@ -420,6 +431,7 @@ check_result() {
       ' <<<"${result_json}")"
     fi
     if is_accurate "${estimated}" "${consumed}" "${pre_refund}"; then
+      processed=$((processed + 1))
       passed=$((passed + 1))
       return 0
     fi
@@ -451,6 +463,7 @@ check_result() {
     return 0
   fi
 
+  processed=$((processed + 1))
   has_failure=true
 }
 
@@ -498,7 +511,6 @@ while ((processed < RESULTS_COUNT)); do
       break
     fi
     check_result "${result_json}"
-    processed=$((processed + 1))
     sleep "${SLEEP_SECONDS}"
   done < <(jq -c '.results[]' <<<"${page_json}")
 
