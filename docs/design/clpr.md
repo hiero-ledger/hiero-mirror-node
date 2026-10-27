@@ -1044,15 +1044,19 @@ New `JpaRepository`-based repositories:
 
 ## REST API Implementation
 
-Scoped to exactly five read APIs, following existing `rest-java` conventions (paginated, filterable):
+Scoped to seven read APIs, following existing `rest-java` conventions (paginated, filterable):
 
 1. Channels
 2. Messages per channel
 3. Pending channels
 4. Pending connectors
 5. Connectors
+6. Ledger configuration
+7. Endpoint manifest
 
-Ledger configuration and endpoint manifest read endpoints are explicitly **not** in scope for this iteration.
+Ledger configuration and endpoint manifest change rarely (admin-updated or reconciled, not per-transaction), so both
+APIs are simple paginated lists over their append-only tables, newest first by default — no filters beyond
+`timestamp`, since neither table has any other queryable dimension worth exposing yet.
 
 ### 1. Channels API
 
@@ -1386,6 +1390,104 @@ Response format:
 - `/api/v1/clpr/connectors?channel.id=eq:0x1a2b3c...&deleted=false` — Get only still-registered Connectors on a
   Channel
 
+### 6. Ledger Configuration API
+
+```
+GET /api/v1/clpr/ledger-configuration
+```
+
+Plain, undistributed table (see [Database Schema Design](#database-schema-design)) — no shard-locality or
+partition-pruning concerns. Newest row (highest `consensus_timestamp`) is the current configuration; `limit=1` with
+the default `order=desc` is how a client fetches "the current config." Older rows are prior configurations, kept
+since the table is append-only.
+
+Response format:
+
+```json
+{
+  "ledger_configurations": [
+    {
+      "protocol_version": 1,
+      "chain_id": "eip155:1",
+      "service_address": "0x000000000000000000000000000000000000016e",
+      "initial_trust_anchor": "0x3344...",
+      "initial_trust_anchor_id": "0x9f8e...",
+      "throttles": {
+        "max_messages_per_bundle": 1000,
+        "max_message_payload_bytes": 65536,
+        "max_gas_per_message": 15000000,
+        "max_queue_depth": 10000,
+        "max_sync_bytes": 4194304,
+        "max_local_endpoints": 39,
+        "max_peer_endpoints": 39
+      },
+      "consensus_timestamp": "1726874345.123456789"
+    }
+  ],
+  "links": {
+    "next": "/api/v1/clpr/ledger-configuration?timestamp=lt:1726874345.123456789&limit=1"
+  }
+}
+```
+
+#### Query Parameters
+
+| Parameter   | Type    | Description                              | Default | Validation                                   |
+| ----------- | ------- | ---------------------------------------- | ------- | -------------------------------------------- |
+| `timestamp` | string  | Filter/paginate by `consensus_timestamp` | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:` |
+| `limit`     | integer | Maximum number of rows to return         | `25`    | Must be between 1 and 100                    |
+| `order`     | string  | Sort order for results                   | `desc`  | Must be either `asc` or `desc`               |
+
+**Examples:**
+
+- `/api/v1/clpr/ledger-configuration?limit=1` — Get the current configuration
+- `/api/v1/clpr/ledger-configuration` — Get configuration history, newest first
+
+### 7. Endpoint Manifest API
+
+```
+GET /api/v1/clpr/endpoint-manifest
+```
+
+Same shape and reasoning as [Ledger Configuration](#6-ledger-configuration-api): plain, undistributed, append-only
+table; `limit=1` with the default `order=desc` fetches the current manifest.
+
+Response format:
+
+```json
+{
+  "endpoint_manifests": [
+    {
+      "version": 3,
+      "service_address": "0x000000000000000000000000000000000000016e",
+      "endpoints": [
+        {
+          "service_endpoint": { "ip_address": "10.0.0.5", "port": 50211 },
+          "account_id": "0.0.3"
+        }
+      ],
+      "consensus_timestamp": "1726874345.123456789"
+    }
+  ],
+  "links": {
+    "next": "/api/v1/clpr/endpoint-manifest?timestamp=lt:1726874345.123456789&limit=1"
+  }
+}
+```
+
+#### Query Parameters
+
+| Parameter   | Type    | Description                              | Default | Validation                                   |
+| ----------- | ------- | ---------------------------------------- | ------- | -------------------------------------------- |
+| `timestamp` | string  | Filter/paginate by `consensus_timestamp` | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:` |
+| `limit`     | integer | Maximum number of rows to return         | `25`    | Must be between 1 and 100                    |
+| `order`     | string  | Sort order for results                   | `desc`  | Must be either `asc` or `desc`               |
+
+**Examples:**
+
+- `/api/v1/clpr/endpoint-manifest?limit=1` — Get the current manifest
+- `/api/v1/clpr/endpoint-manifest` — Get manifest history, newest first
+
 ## Consensus-Node Assumptions
 
 Raised with and clarified by the consensus-node/HIP-1535 team, found while tracing CLPR state back to where it's
@@ -1456,8 +1558,9 @@ Feature: CLPR Channel and Connector Lifecycle
 
 ### 4. k6 Tests
 
-Add all five REST read endpoints from [REST API Implementation](#rest-api-implementation) to the k6 test suite:
-Channels, Messages per Channel, Pending Channels, Pending Connectors, and Connectors.
+Add all seven REST read endpoints from [REST API Implementation](#rest-api-implementation) to the k6 test suite:
+Channels, Messages per Channel, Pending Channels, Pending Connectors, Connectors, Ledger Configuration, and
+Endpoint Manifest.
 
 Staging environment needs, to exercise every endpoint variant:
 
@@ -1622,9 +1725,9 @@ depend on the [Consensus-Node Assumptions](#consensus-node-assumptions) above.
    plus `ClprUpdateLedgerConfigurationTransformer` for the immutable `chain_id`/`protocol_version` fields, plus
    `ClprMaintenanceTransactionHandler`/`ClprMaintenanceTransformer` for both singletons' first row and the endpoint
    manifest's ongoing reconciliation updates.
-6. **REST API: the five read endpoints scoped in [REST API Implementation](#rest-api-implementation)** — Channels,
-   Messages per channel, Pending channels, Pending connectors, and Connectors — including k6
-   test coverage for each (see [k6 Tests](#4-k6-tests)).
+6. **REST API: the seven read endpoints scoped in [REST API Implementation](#rest-api-implementation)** — Channels,
+   Messages per channel, Pending channels, Pending connectors, Connectors, Ledger configuration, and Endpoint
+   manifest — including k6 test coverage for each (see [k6 Tests](#4-k6-tests)).
 7. **Acceptance tests for the CLPR Channel/Connector lifecycle**, gated on a working verifier and a
    CLPR-enabled test network being available to the acceptance suite.
 8. **Monitor support** for synthetic CLPR transaction generation and 10k+ TPS load testing — see
