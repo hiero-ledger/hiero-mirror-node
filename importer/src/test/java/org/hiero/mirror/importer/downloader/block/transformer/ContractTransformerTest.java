@@ -161,6 +161,46 @@ final class ContractTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
+    void contractCallWithChildSystemContractCall() {
+        // given
+        final var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
+        final var parentConsensusTimestamp =
+                parentRecordItem.getTransactionRecord().getConsensusTimestamp();
+        // consensus node doesn't set the contract id in the receipt of a child dispatched by a system contract
+        final var childContractCallResult = htsPrecompileContractCallResult();
+        final var childRecordItem = recordItemBuilder
+                .contractCall(htsSystemContractId())
+                .transactionBodyWrapper(b -> b.getTransactionIDBuilder().setNonce(1))
+                .receipt(Builder::clearContractID)
+                .record(r -> r.setContractCallResult(childContractCallResult)
+                        .setParentConsensusTimestamp(parentConsensusTimestamp))
+                .sidecarRecords(List::clear)
+                .recordItem(r -> r.transactionIndex(1))
+                .customize(this::finalize)
+                .build();
+        final var parent =
+                blockTransactionBuilder.contractCall(parentRecordItem, false).build();
+        final var child = blockTransactionBuilder
+                .contractCall(childRecordItem, true)
+                .previous(parent)
+                .stateChanges(List::clear)
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(parent, child)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(
+                recordFile, blockFile, items -> assertRecordItems(items, List.of(parentRecordItem, childRecordItem)));
+    }
+
+    @Test
     void contractCallStorageValueWrittenAbsent() {
         // given
         final var valueRead = recordItemBuilder.nonZeroBytes(8);
@@ -614,7 +654,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .addNewPendingAirdrops(fungiblePendingAirdropRecord(1200, receiver1, sender, tokenId1))
                         .addNewPendingAirdrops(fungiblePendingAirdropRecord(900, receiver1, sender, tokenId2)))
                 .recordItem(r -> r.transactionIndex(1))
-                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         // cancels pending airdrop <receiver1, sender, tokenId1>
@@ -628,7 +667,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(r -> r.setContractCallResult(childPrecompileContractCallResult)
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .recordItem(r -> r.transactionIndex(2))
-                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         // airdrop again to accumulate the amount for <receiver1, sender, tokenId2>
@@ -649,7 +687,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .clearNewPendingAirdrops()
                         .addNewPendingAirdrops(fungiblePendingAirdropRecord(1200, receiver1, sender, tokenId2)))
                 .recordItem(r -> r.transactionIndex(3))
-                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var builders = List.of(
@@ -715,7 +752,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(r -> r.setContractCallResult(childPrecompileContractCallResult)
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .recordItem(r -> r.transactionIndex(1))
-                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var tokenId2 =
@@ -726,7 +762,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(r -> r.setContractCallResult(childPrecompileContractCallResult)
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .recordItem(r -> r.transactionIndex(2))
-                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var tokenId3 =
@@ -738,7 +773,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .receipt(r -> r.setNewTotalSupply(1000))
                 .recordItem(r -> r.transactionIndex(3))
-                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var token2BurnRecordItem = recordItemBuilder
@@ -748,7 +782,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .receipt(r -> r.setNewTotalSupply(800))
                 .recordItem(r -> r.transactionIndex(4))
-                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var token2WipeRecordItem = recordItemBuilder
@@ -758,7 +791,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .receipt(r -> r.setNewTotalSupply(500))
                 .recordItem(r -> r.transactionIndex(5))
-                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var token1DeleteRecordItem = recordItemBuilder
@@ -767,7 +799,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(r -> r.setContractCallResult(childPrecompileContractCallResult)
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .recordItem(r -> r.transactionIndex(6))
-                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var builders = List.of(

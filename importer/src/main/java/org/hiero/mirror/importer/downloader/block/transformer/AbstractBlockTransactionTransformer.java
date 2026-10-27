@@ -101,6 +101,20 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
     }
 
     /**
+     * Whether consensus node sets the contract id of the EVM transaction result in the receipt. For a contract call,
+     * only when it's top level, an inner batch transaction, or a hook execution, and uses gas.
+     */
+    protected boolean hasReceiptContractId(
+            final BlockTransaction blockTransaction, final EvmTransactionResult evmTransactionResult) {
+        final var transactionBody = blockTransaction.getTransactionBody();
+        if (!transactionBody.hasContractCall() || evmTransactionResult.getGasUsed() == 0) {
+            return false;
+        }
+
+        return transactionBody.getTransactionID().getNonce() == 0 || evmTransactionResult.hasExecutedHookId();
+    }
+
+    /**
      * Resolves the slot and the value written of a slot read by its index. When the value written is absent because
      * the slot has no net change in the transactional unit, the value read is the value written.
      */
@@ -172,7 +186,9 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
         if (evmTransactionResult.hasContractId()) {
             contractResultbuilder.setContractID(evmTransactionResult.getContractId());
-            transactionRecordBuilder.getReceiptBuilder().setContractID(evmTransactionResult.getContractId());
+            if (hasReceiptContractId(blockTransaction, evmTransactionResult)) {
+                transactionRecordBuilder.getReceiptBuilder().setContractID(evmTransactionResult.getContractId());
+            }
         }
 
         if (evmTransactionResult.hasSenderId()) {
