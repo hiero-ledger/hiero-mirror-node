@@ -15,8 +15,8 @@ abstract class AbstractTokenTransformer extends AbstractBlockTransactionTransfor
             final RecordItem.RecordItemBuilder recordItemBuilder,
             final StateChangeContext stateChangeContext,
             final TokenID tokenId) {
-        if (stateChangeContext.isTokenTotalSupplyUnknown(tokenId)) {
-            recordItemBuilder.tokenTotalSupplyUnknown(true);
+        if (stateChangeContext.isTokenTotalSupplyAbsent(tokenId)) {
+            recordItemBuilder.tokenTotalSupplyAbsent(true);
             return;
         }
 
@@ -25,7 +25,7 @@ abstract class AbstractTokenTransformer extends AbstractBlockTransactionTransfor
             Utility.handleRecoverableError(
                     "Token {} total supply not found in state changes at {}", tokenId, consensusTimestamp);
             // Don't let the parser overwrite the persisted total supply with the receipt's default of 0
-            recordItemBuilder.tokenTotalSupplyUnknown(true);
+            recordItemBuilder.tokenTotalSupplyAbsent(true);
             return;
         }
 

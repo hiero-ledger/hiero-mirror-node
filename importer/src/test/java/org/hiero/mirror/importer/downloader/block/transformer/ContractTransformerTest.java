@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_STORAGE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapDeleteChange;
@@ -151,6 +152,38 @@ final class ContractTransformerTest extends AbstractTransformerTest {
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void contractCallStorageValueWrittenAbsent() {
+        // given
+        final var valueRead = recordItemBuilder.nonZeroBytes(8);
+        final var contractStateChanges = ContractStateChanges.newBuilder()
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(recordItemBuilder.contractId())
+                        .addStorageChanges(StorageChange.newBuilder()
+                                .setSlot(recordItemBuilder.slot())
+                                .setValueRead(valueRead)
+                                .setValueWritten(BytesValue.of(valueRead))))
+                .build();
+        final var expectedRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(
+                        records -> customizeSidecarRecords(records, true, b -> b.setStateChanges(contractStateChanges)))
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction = blockTransactionBuilder
+                .contractCall(expectedRecordItem, false)
+                .stateChanges(ContractTransformerTest::omitStorageValuesWritten)
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
@@ -969,6 +1002,70 @@ final class ContractTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
+    void contractCallInBatchStorageValueWrittenAbsent() {
+        // given
+        final var contractId = recordItemBuilder.contractId();
+        final var slot = recordItemBuilder.slot();
+        final var valueRead = recordItemBuilder.nonZeroBytes(8);
+        // The slot is written without a net change in the batch, so its partial state change omits the value
+        final var storageChange = contractStorageMapUpdateChange(contractId, slot, valueRead).toBuilder();
+        storageChange
+                .getMapUpdateBuilder()
+                .setPartial(true)
+                .getValueBuilder()
+                .getSlotValueValueBuilder()
+                .clearValue();
+        final var stateChanges =
+                StateChanges.newBuilder().addStateChanges(storageChange).build();
+        final var atomicBatchRecordItem =
+                recordItemBuilder.atomicBatch().customize(this::finalize).build();
+        final var atomicBatchBlockTransaction = blockTransactionBuilder
+                .atomicBatch(atomicBatchRecordItem)
+                .stateChanges(s -> s.add(stateChanges))
+                .build();
+        final var contractStateChanges = ContractStateChanges.newBuilder()
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(contractId)
+                        .addStorageChanges(StorageChange.newBuilder()
+                                .setSlot(slot)
+                                .setValueRead(valueRead)
+                                .setValueWritten(BytesValue.of(valueRead))))
+                .build();
+        final var contractCallRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.setParentConsensusTimestamp(
+                        atomicBatchRecordItem.getTransactionRecord().getConsensusTimestamp()))
+                .sidecarRecords(
+                        records -> customizeSidecarRecords(records, true, b -> b.setStateChanges(contractStateChanges)))
+                .recordItem(r -> r.transactionIndex(1))
+                .customize(this::finalize)
+                .build();
+        final var innerBlockTransaction = blockTransactionBuilder
+                .contractCall(contractCallRecordItem, true)
+                .previous(atomicBatchBlockTransaction)
+                .traceData(traceDataList -> updateEvmTraceData(
+                        traceDataList,
+                        b -> b.addContractSlotUsages(ContractSlotUsage.newBuilder()
+                                .setContractId(contractId)
+                                .setWrittenSlotKeys(WrittenSlotKeys.newBuilder().addKeys(slot))
+                                .addSlotReads(SlotRead.newBuilder().setIndex(0).setReadValue(valueRead)))))
+                .build();
+        final var blockFile = blockFileBuilder
+                .items(List.of(atomicBatchBlockTransaction, innerBlockTransaction))
+                .build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(
+                recordFile,
+                blockFile,
+                items -> assertRecordItems(items, List.of(atomicBatchRecordItem, contractCallRecordItem)));
+    }
+
+    @Test
     void multipleHookExecutionChildTransactions() {
         // given
         // A parent transaction (e.g., CryptoTransfer) with 3 hook execution children
@@ -1321,6 +1418,30 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                                 .setAccountPendingAirdropValue(AccountPendingAirdrop.newBuilder()
                                         .setPendingAirdropValue(pendingAirdropRecord.getPendingAirdropValue()))))
                 .build();
+    }
+
+    // Make every storage update partial without the value, as if each slot is written without a net change
+    private static void omitStorageValuesWritten(final List<StateChanges> stateChangesList) {
+        final var updated = new ArrayList<StateChanges>();
+        for (final var stateChanges : stateChangesList) {
+            final var builder = stateChanges.toBuilder();
+            for (final var stateChange : builder.getStateChangesBuilderList()) {
+                if (stateChange.getStateId() == STATE_ID_STORAGE_VALUE
+                        && stateChange.hasMapUpdate()
+                        && !stateChange.getMapUpdate().getIdentical()) {
+                    stateChange
+                            .getMapUpdateBuilder()
+                            .setPartial(true)
+                            .getValueBuilder()
+                            .getSlotValueValueBuilder()
+                            .clearValue();
+                }
+            }
+            updated.add(builder.build());
+        }
+
+        stateChangesList.clear();
+        stateChangesList.addAll(updated);
     }
 
     private void updateEvmTraceData(

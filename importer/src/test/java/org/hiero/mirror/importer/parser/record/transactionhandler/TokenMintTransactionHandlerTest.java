@@ -130,11 +130,11 @@ class TokenMintTransactionHandlerTest extends AbstractTransactionHandlerTest {
     }
 
     @Test
-    void updateTransactionTokenTotalSupplyUnknown() {
+    void updateTransactionTokenTotalSupplyAbsent() {
         // Given
         var recordItem = recordItemBuilder
                 .tokenMint(NON_FUNGIBLE_UNIQUE)
-                .recordItem(r -> r.tokenTotalSupplyUnknown(true))
+                .recordItem(r -> r.tokenTotalSupplyAbsent(true))
                 .build();
         var transaction = domainBuilder.transaction().get();
         int expectedNfts = recordItem.getTransactionBody().getTokenMint().getMetadataCount();

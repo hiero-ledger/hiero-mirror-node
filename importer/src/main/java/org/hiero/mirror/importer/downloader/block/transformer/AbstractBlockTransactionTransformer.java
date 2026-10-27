@@ -100,23 +100,42 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                 .orElse(null);
     }
 
+    /**
+     * Resolves the slot and the value written of a slot read by its index. When the value written is absent because
+     * the slot has no net change in the transactional unit, the value read is the value written.
+     */
     private SlotValue resolveIndexedSlotValue(
-            BlockTransaction blockTransaction, ContractSlotId slotId, int index, List<ByteString> writtenSlotKeys) {
+            final BlockTransaction blockTransaction,
+            final ContractSlotId slotId,
+            final int index,
+            final List<ByteString> writtenSlotKeys,
+            final ByteString valueRead) {
         if (index < 0) {
             return null;
         }
 
+        final var stateChangeContext = blockTransaction.getStateChangeContext();
         if (!writtenSlotKeys.isEmpty()) {
             // key is explicitly stored in the writtenSlotKeys list
             if (index >= writtenSlotKeys.size()) {
                 return null;
             }
             final var contractSlotKey = normalize(new ContractSlotKey(slotId, writtenSlotKeys.get(index)));
-            return new SlotValue(contractSlotKey.key(), blockTransaction.getValueWritten(contractSlotKey));
-        } else {
-            // implicit, get it from statechanges
-            return blockTransaction.getStateChangeContext().getContractStorageChange(slotId, index);
+            final var valueWritten = blockTransaction.getValueWritten(contractSlotKey);
+            if (valueWritten == null && stateChangeContext.isContractStorageValueWrittenAbsent(contractSlotKey)) {
+                return new SlotValue(contractSlotKey.key(), BytesValue.of(valueRead));
+            }
+
+            return new SlotValue(contractSlotKey.key(), valueWritten);
         }
+
+        // implicit, get it from statechanges
+        final var slotValue = stateChangeContext.getContractStorageChange(slotId, index);
+        if (slotValue != null && slotValue.valueWritten() == null) {
+            return new SlotValue(slotValue.slot(), BytesValue.of(valueRead));
+        }
+
+        return slotValue;
     }
 
     private void transformEvmTraceData(
@@ -312,7 +331,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             var storageChangeBuilder = StorageChange.newBuilder().setValueRead(valueRead);
             if (slotRead.getIdentifierCase() == SlotRead.IdentifierCase.INDEX) {
                 int index = slotRead.getIndex();
-                var slotValue = resolveIndexedSlotValue(blockTransaction, slotId, index, writtenSlotKeys);
+                var slotValue = resolveIndexedSlotValue(blockTransaction, slotId, index, writtenSlotKeys, valueRead);
                 if (slotValue != null) {
                     slot = slotValue.slot();
                     if (slotValue.valueWritten() != null) {

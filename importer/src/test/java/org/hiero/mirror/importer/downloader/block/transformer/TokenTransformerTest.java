@@ -178,12 +178,12 @@ class TokenTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void tokenBurnTotalSupplyUnknown() {
+    void tokenBurnTotalSupplyAbsent() {
         // given
         var expectedRecordItem = recordItemBuilder
                 .tokenBurn()
                 .receipt(TransactionReceipt.Builder::clearNewTotalSupply)
-                .customize(b -> b.recordItem(r -> r.tokenTotalSupplyUnknown(true)))
+                .customize(b -> b.recordItem(r -> r.tokenTotalSupplyAbsent(true)))
                 .customize(this::finalize)
                 .build();
         // the token's state change is partial without total supply, since the unit's net change is zero
@@ -219,7 +219,7 @@ class TokenTransformerTest extends AbstractTransformerTest {
         var expectedRecordItem = recordItemBuilder
                 .tokenBurn()
                 .receipt(TransactionReceipt.Builder::clearNewTotalSupply)
-                .customize(b -> b.recordItem(r -> r.tokenTotalSupplyUnknown(true)))
+                .customize(b -> b.recordItem(r -> r.tokenTotalSupplyAbsent(true)))
                 .customize(this::finalize)
                 .build();
         // the token's state change is missing, a recoverable error is logged instead of failing the block

@@ -191,7 +191,7 @@ final class CryptoTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void cryptoUpdateDelegationAddressEthereumNonceUnknown() {
+    void cryptoUpdateDelegationAddressEthereumNonceAbsent() {
         // given
         var delegationAddress = ByteString.copyFrom(Hex.decode("a94f5374fce5edbc8e2a8697c15331677e6ebf0b"));
         var expectedRecordItem = recordItemBuilder

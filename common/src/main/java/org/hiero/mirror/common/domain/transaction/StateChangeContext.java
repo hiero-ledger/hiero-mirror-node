@@ -51,13 +51,14 @@ public final class StateChangeContext {
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
     private final Map<ContractSlotKey, BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractSlotId, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
+    private final Set<ContractSlotKey> contractStorageSlotsWithAbsentValue = new HashSet<>();
     private final List<Long> nodeIds = new ArrayList<>();
     private final List<FileID> fileIds = new ArrayList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
     private final List<Long> registeredNodeIds = new ArrayList<>();
     private final List<TokenID> tokenIds = new ArrayList<>();
     private final Map<TokenID, Long> tokenTotalSupplies = new HashMap<>();
-    private final Set<TokenID> tokensWithUnknownTotalSupply = new HashSet<>();
+    private final Set<TokenID> tokensWithAbsentTotalSupply = new HashSet<>();
     private final List<TopicID> topicIds = new ArrayList<>();
     private final Map<TopicID, TopicMessage> topicState = new HashMap<>();
 
@@ -123,7 +124,7 @@ public final class StateChangeContext {
     }
 
     /**
-     * Get the id of the contract with the EVM address, or null if unknown or the contract is created in this transactional
+     * Get the id of the contract with the EVM address, or null if absent or the contract is created in this transactional
      * unit, since the state changes only have the final state and the address may be reused after a delete.
      */
     public @Nullable ContractID getContractId(final ByteString evmAddress) {
@@ -173,11 +174,19 @@ public final class StateChangeContext {
     }
 
     /**
-     * Whether the token's total supply is unknown, i.e., it's omitted from a partial state change because the net change
+     * Whether the value written to the storage slot is absent, i.e., it's omitted from a partial state change because
+     * the slot has no net change in the transactional unit.
+     */
+    public boolean isContractStorageValueWrittenAbsent(final ContractSlotKey slotKey) {
+        return contractStorageSlotsWithAbsentValue.contains(normalize(slotKey));
+    }
+
+    /**
+     * Whether the token's total supply is absent, i.e., it's omitted from a partial state change because the net change
      * of the transactional unit is zero.
      */
-    public boolean isTokenTotalSupplyUnknown(final TokenID tokenId) {
-        return tokensWithUnknownTotalSupply.contains(tokenId);
+    public boolean isTokenTotalSupplyAbsent(final TokenID tokenId) {
+        return tokensWithAbsentTotalSupply.contains(tokenId);
     }
 
     /**
@@ -230,6 +239,17 @@ public final class StateChangeContext {
         return field.isRepeated() ? value.getRepeatedFieldCount(field) > 0 : value.hasField(field);
     }
 
+    /**
+     * Get the value written to a storage slot, or null if it's omitted from a partial state change, i.e., the slot is
+     * written without a net change in the transactional unit.
+     */
+    private static @Nullable BytesValue getValueWritten(final MapUpdateChange mapUpdate) {
+        final var slotValue = mapUpdate.getValue().getSlotValueValue();
+        return isPresent(mapUpdate, slotValue, com.hederahashgraph.api.proto.java.SlotValue.VALUE_FIELD_NUMBER)
+                ? BytesValue.of(slotValue.getValue())
+                : null;
+    }
+
     private void processAccountStateChange(final MapUpdateChange mapUpdate) {
         if (!mapUpdate.getKey().hasAccountIdKey() || !mapUpdate.getValue().hasAccountValue()) {
             return;
@@ -277,12 +297,10 @@ public final class StateChangeContext {
             return;
         }
 
-        requireFullValue(mapUpdate);
         var slotKey = mapUpdate.getKey().getSlotKeyKey();
         final var slotId = ContractSlotId.of(slotKey.getContractID(), null);
         final var contractSlotKey = new ContractSlotKey(slotId, slotKey.getKey());
-        var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
-        processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
+        processContractStorageChange(contractSlotKey, getValueWritten(mapUpdate));
     }
 
     private void processHookStorageChange(MapUpdateChange mapUpdate) {
@@ -290,18 +308,20 @@ public final class StateChangeContext {
             return;
         }
 
-        requireFullValue(mapUpdate);
-        var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
         final var evmHookSlotKey = mapUpdate.getKey().getEvmHookSlotKey();
         final var slotId = ContractSlotId.of(null, evmHookSlotKey.getHookId());
         final var contractSlotKey = new ContractSlotKey(slotId, evmHookSlotKey.getKey());
-        processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
+        processContractStorageChange(contractSlotKey, getValueWritten(mapUpdate));
     }
 
-    private void processContractStorageChange(ContractSlotKey slotKey, BytesValue valueWritten) {
+    private void processContractStorageChange(ContractSlotKey slotKey, @Nullable BytesValue valueWritten) {
         slotKey = normalize(slotKey);
-        final var trimmed = DomainUtils.trim(valueWritten);
-        contractStorageChanges.put(slotKey, trimmed);
+        final var trimmed = valueWritten != null ? DomainUtils.trim(valueWritten) : null;
+        if (trimmed != null) {
+            contractStorageChanges.put(slotKey, trimmed);
+        } else {
+            contractStorageSlotsWithAbsentValue.add(slotKey);
+        }
 
         contractStorageChangesIndexed
                 .computeIfAbsent(slotKey.slotId(), _ -> new ArrayList<>())
@@ -360,7 +380,7 @@ public final class StateChangeContext {
         if (isPresent(mapUpdate, token, Token.TOTAL_SUPPLY_FIELD_NUMBER)) {
             tokenTotalSupplies.put(tokenId, token.getTotalSupply());
         } else {
-            tokensWithUnknownTotalSupply.add(tokenId);
+            tokensWithAbsentTotalSupply.add(tokenId);
         }
     }
 
@@ -385,13 +405,7 @@ public final class StateChangeContext {
     }
 
     /**
-     * Contract and hook storage updates are always full by design, so a partial one can't be read as the value written.
+     * A storage slot and the value written to it, or null if the value is absent.
      */
-    private static void requireFullValue(final MapUpdateChange mapUpdate) {
-        if (mapUpdate.getPartial()) {
-            throw new IllegalStateException("Unexpected partial storage state change for key " + mapUpdate.getKey());
-        }
-    }
-
-    public record SlotValue(ByteString slot, BytesValue valueWritten) {}
+    public record SlotValue(ByteString slot, @Nullable BytesValue valueWritten) {}
 }

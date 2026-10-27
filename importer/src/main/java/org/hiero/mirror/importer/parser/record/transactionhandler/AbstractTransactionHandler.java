@@ -31,12 +31,12 @@ abstract class AbstractTransactionHandler implements TransactionHandler {
     protected void updateEntity(Transaction transaction, RecordItem recordItem) {}
 
     /**
-     * Updates the token's total supply from the receipt, unless the block stream left it unknown because the
+     * Updates the token's total supply from the receipt, unless the block stream left it absent because the
      * transactional unit didn't change it in net, in which case the persisted total supply is already correct.
      */
     protected static void updateTokenTotalSupply(
             final EntityListener entityListener, final RecordItem recordItem, final EntityId tokenId) {
-        if (recordItem.isTokenTotalSupplyUnknown()) {
+        if (recordItem.isTokenTotalSupplyAbsent()) {
             return;
         }
 

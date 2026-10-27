@@ -13,7 +13,6 @@ import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_I
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOPICS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.transaction.StateChangeContext.EMPTY_CONTEXT;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.bytes;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapDeleteChange;
@@ -39,6 +38,7 @@ import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.NewStateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
+import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
 import com.hedera.hapi.platform.state.legacy.NodeId;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -47,6 +47,7 @@ import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.CustomFee;
 import com.hederahashgraph.api.proto.java.File;
+import com.hederahashgraph.api.proto.java.HookId;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.Node;
@@ -162,8 +163,8 @@ final class StateChangeContextTest {
         final var accountAddress = evmAddress();
         final var partialContract = getAccountId();
         final var partialContractAddress = evmAddress();
-        final var partialUnknown = getAccountId();
-        final var partialUnknownAddress = evmAddress();
+        final var partialSmartContractAbsent = getAccountId();
+        final var partialSmartContractAbsentAddress = evmAddress();
         final var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(accountMapUpdateChange(
                         contract, Account.newBuilder().setAlias(contractAddress).setSmartContract(true)))
@@ -177,7 +178,7 @@ final class StateChangeContextTest {
                         partialContract,
                         Account.newBuilder().setAlias(partialContractAddress).setSmartContract(true)))
                 .addStateChanges(partialAccountMapUpdateChange(
-                        partialUnknown, Account.newBuilder().setAlias(partialUnknownAddress)))
+                        partialSmartContractAbsent, Account.newBuilder().setAlias(partialSmartContractAbsentAddress)))
                 .addStateChanges(StateChange.newBuilder()
                         .setStateId(STATE_ID_BYTECODE_VALUE)
                         .setMapUpdate(MapUpdateChange.newBuilder()
@@ -195,7 +196,7 @@ final class StateChangeContextTest {
         // The address may be reused within the transactional unit after a delete
         assertThat(context.getContractId(createdAddress)).isNull();
         assertThat(context.getContractId(accountAddress)).isNull();
-        assertThat(context.getContractId(partialUnknownAddress)).isNull();
+        assertThat(context.getContractId(partialSmartContractAbsentAddress)).isNull();
         assertThat(context.getContractId(ByteString.EMPTY)).isNull();
         assertThat(context.getContractId(evmAddress())).isNull();
     }
@@ -547,7 +548,7 @@ final class StateChangeContextTest {
                 .isTrue();
         assertThat(StateChangeContext.isPresent(partial, token, Token.CUSTOM_FEES_FIELD_NUMBER))
                 .isTrue();
-        // a cleared field is known to have the default value
+        // a cleared field is present with the default value
         assertThat(StateChangeContext.isPresent(partial, account, Account.MEMO_FIELD_NUMBER))
                 .isTrue();
         // absent fields are unchanged
@@ -604,17 +605,42 @@ final class StateChangeContextTest {
     @ValueSource(booleans = {true, false})
     void partialStorage(final boolean hook) {
         // given
-        final var stateChange = hook
-                ? hookStorageMapUpdateChange(getEvmHookSlotKey(1L, bytes(32)), bytes(32))
-                : contractStorageMapUpdateChange(getContractId(), bytes(32), bytes(32));
-        final var builder = stateChange.toBuilder();
-        builder.getMapUpdateBuilder().setPartial(true);
-        final var stateChanges =
-                StateChanges.newBuilder().addStateChanges(builder).build();
+        final var contractId = getContractId();
+        final var hookId = getEvmHookSlotKey(1L, word()).getHookId();
+        final var changedSlot = word();
+        final var changedValue = word();
+        final var unchangedSlot = word();
+        final var changed = storageMapUpdateChange(hook, contractId, hookId, changedSlot, changedValue);
+        changed.getMapUpdateBuilder().setPartial(true);
+        // A slot written without a net change in the transactional unit has an empty partial state change
+        final var unchanged = storageMapUpdateChange(hook, contractId, hookId, unchangedSlot, word());
+        unchanged
+                .getMapUpdateBuilder()
+                .setPartial(true)
+                .getValueBuilder()
+                .getSlotValueValueBuilder()
+                .clearValue();
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(changed)
+                .addStateChanges(unchanged)
+                .build();
+        final var slotId = hook ? ContractSlotId.of(null, hookId) : ContractSlotId.of(contractId, null);
+        final var changedSlotKey = new ContractSlotKey(slotId, changedSlot);
+        final var unchangedSlotKey = new ContractSlotKey(slotId, unchangedSlot);
 
-        // when, then
-        assertThatThrownBy(() -> new StateChangeContext(List.of(stateChanges)))
-                .isInstanceOf(IllegalStateException.class);
+        // when
+        final var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getContractStorageValueWritten(changedSlotKey)).isEqualTo(BytesValue.of(changedValue));
+        assertThat(context.isContractStorageValueWrittenAbsent(changedSlotKey)).isFalse();
+        assertThat(context.getContractStorageValueWritten(unchangedSlotKey)).isNull();
+        assertThat(context.isContractStorageValueWrittenAbsent(unchangedSlotKey))
+                .isTrue();
+        assertThat(context.getContractStorageChange(slotId, 0))
+                .isEqualTo(new StateChangeContext.SlotValue(changedSlot, BytesValue.of(changedValue)));
+        assertThat(context.getContractStorageChange(slotId, 1))
+                .isEqualTo(new StateChangeContext.SlotValue(unchangedSlot, null));
     }
 
     @Test
@@ -636,11 +662,11 @@ final class StateChangeContextTest {
         final var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        assertThat(context.isTokenTotalSupplyUnknown(supplyChanged)).isFalse();
+        assertThat(context.isTokenTotalSupplyAbsent(supplyChanged)).isFalse();
         assertThat(context.trackTokenTotalSupply(supplyChanged, 100L)).isEqualTo(3000L);
-        assertThat(context.isTokenTotalSupplyUnknown(supplyCleared)).isFalse();
+        assertThat(context.isTokenTotalSupplyAbsent(supplyCleared)).isFalse();
         assertThat(context.trackTokenTotalSupply(supplyCleared, 100L)).isEqualTo(0L);
-        assertThat(context.isTokenTotalSupplyUnknown(supplyUnchanged)).isTrue();
+        assertThat(context.isTokenTotalSupplyAbsent(supplyUnchanged)).isTrue();
         assertThat(context.trackTokenTotalSupply(supplyUnchanged, 100L)).isNull();
         assertThat(Arrays.asList(context.getNewTokenId(), context.getNewTokenId(), context.getNewTokenId()))
                 .doesNotContainNull();
@@ -670,6 +696,25 @@ final class StateChangeContextTest {
 
     private ByteString alias() {
         return DomainUtils.fromBytes(CommonUtils.nextBytes(34));
+    }
+
+    private StateChange.Builder storageMapUpdateChange(
+            final boolean hook,
+            final ContractID contractId,
+            final HookId hookId,
+            final ByteString slot,
+            final ByteString value) {
+        final var hookSlotKey =
+                EvmHookSlotKey.newBuilder().setHookId(hookId).setKey(slot).build();
+        final var stateChange = hook
+                ? hookStorageMapUpdateChange(hookSlotKey, value)
+                : contractStorageMapUpdateChange(contractId, slot, value);
+        return stateChange.toBuilder();
+    }
+
+    // A 32-byte word without a leading zero byte, so it's unchanged by normalization
+    private ByteString word() {
+        return DomainUtils.fromBytes(Bytes.concat(new byte[] {1}, CommonUtils.nextBytes(31)));
     }
 
     private ByteString evmAddress() {

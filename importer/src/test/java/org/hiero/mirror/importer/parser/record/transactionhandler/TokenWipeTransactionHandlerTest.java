@@ -105,11 +105,11 @@ class TokenWipeTransactionHandlerTest extends AbstractTransactionHandlerTest {
     }
 
     @Test
-    void updateTransactionTokenTotalSupplyUnknown() {
+    void updateTransactionTokenTotalSupplyAbsent() {
         // Given
         var recordItem = recordItemBuilder
                 .tokenWipe(NON_FUNGIBLE_UNIQUE)
-                .recordItem(r -> r.tokenTotalSupplyUnknown(true))
+                .recordItem(r -> r.tokenTotalSupplyAbsent(true))
                 .build();
         var protoAccountId = recordItem.getTransactionBody().getTokenWipe().getAccount();
         when(entityIdService.lookup(protoAccountId)).thenReturn(Optional.of(EntityId.of(protoAccountId)));

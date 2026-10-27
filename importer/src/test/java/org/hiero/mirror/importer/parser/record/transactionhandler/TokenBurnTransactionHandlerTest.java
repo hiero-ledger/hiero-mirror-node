@@ -68,11 +68,11 @@ class TokenBurnTransactionHandlerTest extends AbstractTransactionHandlerTest {
     }
 
     @Test
-    void updateTransactionTokenTotalSupplyUnknown() {
+    void updateTransactionTokenTotalSupplyAbsent() {
         // Given
         var recordItem = recordItemBuilder
                 .tokenBurn()
-                .recordItem(r -> r.tokenTotalSupplyUnknown(true))
+                .recordItem(r -> r.tokenTotalSupplyAbsent(true))
                 .build();
         var transaction = domainBuilder.transaction().get();
 
