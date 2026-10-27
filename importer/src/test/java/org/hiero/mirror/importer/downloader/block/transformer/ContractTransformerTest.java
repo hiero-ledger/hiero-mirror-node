@@ -13,6 +13,7 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.co
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
+import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
@@ -48,6 +49,7 @@ import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionReceipt.Builder;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -56,11 +58,12 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.commons.collections4.ListUtils;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.junit.jupiter.api.Disabled;
+import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -69,9 +72,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 @SuppressWarnings("deprecation")
 final class ContractTransformerTest extends AbstractTransformerTest {
-
-    private static final ContractID HTS_PRECOMPILE_ADDRESS =
-            ContractID.newBuilder().setContractNum(0x167).build();
 
     private static final Consumer<TransactionRecord.Builder> ETHEREUM_RECORD_CUSTOMIZER = b -> {
         // calculated in parser
@@ -88,6 +88,9 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                             .clearCreatedContractIDs()
                             .clearFunctionParameters()
                             .clearGas());
+
+    @Resource
+    private SystemEntity systemEntity;
 
     private static Optional<ContractFunctionResult.Builder> contractResultBuilder(
             TransactionRecord.Builder recordBuilder) {
@@ -549,7 +552,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
-    @Disabled("Fix and enable when EvmTraceData is fully supported")
     @Test
     void contractCallWithHTSPrecompileAndTrackPendingFungibleAirdropAmount() {
         // given
@@ -560,8 +562,12 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var receiver1 = recordItemBuilder.accountId();
         var receiver2 = recordItemBuilder.accountId();
         var sender = recordItemBuilder.accountId();
-        var contractCallRecordItem =
-                recordItemBuilder.contractCall().customize(this::finalize).build();
+        var contractCallRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
         var parentConsensusTimestamp =
                 contractCallRecordItem.getTransactionRecord().getConsensusTimestamp();
         // use the same precompile contract call result to work around the complexity to get the matching one
@@ -608,6 +614,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .addNewPendingAirdrops(fungiblePendingAirdropRecord(1200, receiver1, sender, tokenId1))
                         .addNewPendingAirdrops(fungiblePendingAirdropRecord(900, receiver1, sender, tokenId2)))
                 .recordItem(r -> r.transactionIndex(1))
+                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         // cancels pending airdrop <receiver1, sender, tokenId1>
@@ -621,6 +628,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(r -> r.setContractCallResult(childPrecompileContractCallResult)
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .recordItem(r -> r.transactionIndex(2))
+                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         // airdrop again to accumulate the amount for <receiver1, sender, tokenId2>
@@ -641,6 +649,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .clearNewPendingAirdrops()
                         .addNewPendingAirdrops(fungiblePendingAirdropRecord(1200, receiver1, sender, tokenId2)))
                 .recordItem(r -> r.transactionIndex(3))
+                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var builders = List.of(
@@ -686,13 +695,16 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         });
     }
 
-    @Disabled("Fix and enable when EvmTraceData is fully supported")
     @Test
     void contractCallWithHTSPrecompileAndTrackTotalSupply() {
         // given
         var tokenId1 = recordItemBuilder.tokenId(); // a token created before contract call
-        var contractCallRecordItem =
-                recordItemBuilder.contractCall().customize(this::finalize).build();
+        var contractCallRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
         var parentConsensusTimestamp =
                 contractCallRecordItem.getTransactionRecord().getConsensusTimestamp();
         // use the same precompile contract call result to work around the complexity to get the matching one
@@ -703,6 +715,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(r -> r.setContractCallResult(childPrecompileContractCallResult)
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .recordItem(r -> r.transactionIndex(1))
+                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var tokenId2 =
@@ -713,7 +726,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(r -> r.setContractCallResult(childPrecompileContractCallResult)
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .recordItem(r -> r.transactionIndex(2))
-                .receipt(r -> r.setNewTotalSupply(1000))
+                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var tokenId3 =
@@ -725,6 +738,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .receipt(r -> r.setNewTotalSupply(1000))
                 .recordItem(r -> r.transactionIndex(3))
+                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var token2BurnRecordItem = recordItemBuilder
@@ -734,6 +748,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .receipt(r -> r.setNewTotalSupply(800))
                 .recordItem(r -> r.transactionIndex(4))
+                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var token2WipeRecordItem = recordItemBuilder
@@ -743,6 +758,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .receipt(r -> r.setNewTotalSupply(500))
                 .recordItem(r -> r.transactionIndex(5))
+                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var token1DeleteRecordItem = recordItemBuilder
@@ -751,6 +767,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(r -> r.setContractCallResult(childPrecompileContractCallResult)
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .recordItem(r -> r.transactionIndex(6))
+                .receipt(r -> r.setContractID(htsSystemContractId()))
                 .customize(this::finalize)
                 .build();
         var builders = List.of(
@@ -1285,8 +1302,8 @@ final class ContractTransformerTest extends AbstractTransformerTest {
 
     private Map<TransactionCase, TransactionOutput> callContractOutput(ContractFunctionResult contractFunctionResult) {
         var output = TransactionOutput.newBuilder()
-                //
-                // .setContractCall(CallContractOutput.newBuilder().setContractCallResult(contractFunctionResult))
+                .setContractCall(CallContractOutput.newBuilder()
+                        .setEvmTransactionResult(BlockTransactionBuilder.fromContractResult(contractFunctionResult)))
                 .build();
         return Map.of(TransactionCase.CONTRACT_CALL, output);
     }
@@ -1327,8 +1344,21 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .build();
     }
 
+    private ContractID htsSystemContractId() {
+        return systemEntity.hederaTokenServiceContract().toContractID();
+    }
+
     private ContractFunctionResult htsPrecompileContractCallResult() {
-        return recordItemBuilder.contractFunctionResult(HTS_PRECOMPILE_ADDRESS).build();
+        // only the fields externalized in EvmTransactionResult, the rest is not reconstructable from the block stream
+        return recordItemBuilder
+                .contractFunctionResult(htsSystemContractId())
+                .clearAmount()
+                .clearBloom()
+                .clearCreatedContractIDs()
+                .clearFunctionParameters()
+                .clearGas()
+                .clearLogInfo()
+                .build();
     }
 
     private void simpleContractStateChanges(TransactionSidecarRecord.Builder builder) {

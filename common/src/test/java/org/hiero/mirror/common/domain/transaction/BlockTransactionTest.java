@@ -26,10 +26,17 @@ import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
+import com.hedera.hapi.block.stream.trace.protoc.ContractSlotUsage;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
+import com.hedera.hapi.block.stream.trace.protoc.SlotRead;
 import com.hedera.hapi.block.stream.trace.protoc.SubmitMessageTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
+import com.hedera.hapi.block.stream.trace.protoc.WrittenSlotKeys;
+import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
 import com.hederahashgraph.api.proto.java.ConsensusSubmitMessageTransactionBody;
+import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.EvmTransactionResult;
+import com.hederahashgraph.api.proto.java.HookId;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
@@ -54,8 +61,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 final class BlockTransactionTest {
+
+    private static final ContractID HOOK_SYSTEM_CONTRACT_ID =
+            ContractID.newBuilder().setContractNum(365L).build();
 
     @SneakyThrows
     private static Stream<Arguments> provideTransactionHashTestArguments() {
@@ -554,6 +565,60 @@ final class BlockTransactionTest {
         assertThat(inner3.getValueWritten(slotKey)).returns(contractBSlot2Value, BytesValue::getValue);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void getValueWrittenAbsentUsesFirstValueRead(final boolean hook) {
+        // given batch [100 -> 50, 50 -> 100], so the slot has no net change in the transactional unit
+        final var contractId = hook ? HOOK_SYSTEM_CONTRACT_ID : getContractId();
+        final var hookId = getEvmHookSlotKey(1L, ByteString.EMPTY).getHookId();
+        final var slot = ByteString.copyFrom(new byte[] {1}).concat(bytes(23));
+        final var slotPadded = ByteString.copyFrom(new byte[8]).concat(slot);
+        final var originalValue = ByteString.copyFrom(new byte[] {100});
+        final var intermediateValue = ByteString.copyFrom(new byte[] {50});
+        final var slotKey = new ContractSlotKey(ContractSlotId.of(contractId, hookId), slot);
+        final var stateChange = hook
+                ? hookStorageMapUpdateChange(
+                        EvmHookSlotKey.newBuilder()
+                                .setHookId(hookId)
+                                .setKey(slotPadded)
+                                .build(),
+                        originalValue)
+                : contractStorageMapUpdateChange(contractId, slotPadded, originalValue);
+        final var partial = stateChange.toBuilder();
+        partial.getMapUpdateBuilder()
+                .setPartial(true)
+                .getValueBuilder()
+                .getSlotValueValueBuilder()
+                .clearValue();
+
+        // a transaction in a preceding transactional unit reading the slot
+        final var unrelatedValue = ByteString.copyFrom(new byte[] {7});
+        final var unrelated = evmTransaction(null, null, contractId, hookId, slotPadded, unrelatedValue, true);
+        final var parent = defaultBuilder()
+                .previous(unrelated)
+                .stateChanges(List.of(
+                        StateChanges.newBuilder().addStateChanges(partial).build()))
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(unrelated.getTransactionResult().getConsensusTimestamp()))
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+        final var inner1 = evmTransaction(parent, parent, contractId, hookId, slotPadded, originalValue, false);
+        final var inner2 = evmTransaction(inner1, parent, contractId, hookId, slotPadded, intermediateValue, true);
+        // the transformer processes inner2 first and records its reads
+        inner2.setContractStorageReads(Map.of(slotKey, intermediateValue));
+        if (hook) {
+            inner1.setNextSibling(inner2);
+        } else {
+            inner1.setNextInBatch(inner2);
+        }
+
+        // when, then
+        assertThat(inner2.getValueWritten(slotKey)).returns(originalValue, BytesValue::getValue);
+        assertThat(inner1.getValueWritten(slotKey)).returns(intermediateValue, BytesValue::getValue);
+    }
+
     @Test
     void allTraceData() {
         // given
@@ -602,6 +667,52 @@ final class BlockTransactionTest {
                 .traceData(Collections.emptyList())
                 .transactionOutputs(Collections.emptyMap())
                 .transactionResult(TransactionResult.getDefaultInstance());
+    }
+
+    /**
+     * Create a transaction writing the slot, with the slot read by index if written by key otherwise.
+     */
+    private BlockTransaction evmTransaction(
+            final BlockTransaction previous,
+            final BlockTransaction parent,
+            final ContractID contractId,
+            final HookId hookId,
+            final ByteString slot,
+            final ByteString valueRead,
+            final boolean byIndex) {
+        final var slotRead = byIndex
+                ? SlotRead.newBuilder().setIndex(0).setReadValue(valueRead)
+                : SlotRead.newBuilder().setKey(slot).setReadValue(valueRead);
+        final var slotUsage =
+                ContractSlotUsage.newBuilder().setContractId(contractId).addSlotReads(slotRead);
+        if (byIndex) {
+            slotUsage.setWrittenSlotKeys(WrittenSlotKeys.newBuilder().addKeys(slot));
+        }
+
+        final var consensusTimestamp = previous != null
+                ? nextTick(previous.getTransactionResult().getConsensusTimestamp())
+                : Timestamp.newBuilder().setSeconds(12345L).build();
+        final var transactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(consensusTimestamp)
+                .setStatus(ResponseCodeEnum.SUCCESS);
+        if (parent != null) {
+            transactionResult.setParentConsensusTimestamp(
+                    parent.getTransactionResult().getConsensusTimestamp());
+        }
+
+        final var output = TransactionOutput.newBuilder()
+                .setContractCall(CallContractOutput.newBuilder()
+                        .setEvmTransactionResult(
+                                EvmTransactionResult.newBuilder().setExecutedHookId(hookId)))
+                .build();
+        return defaultBuilder()
+                .previous(previous)
+                .traceData(List.of(TraceData.newBuilder()
+                        .setEvmTraceData(EvmTraceData.newBuilder().addContractSlotUsages(slotUsage))
+                        .build()))
+                .transactionOutputs(Map.of(TransactionCase.CONTRACT_CALL, output))
+                .transactionResult(transactionResult.build())
+                .build();
     }
 
     private Timestamp nextTick(Timestamp previous) {

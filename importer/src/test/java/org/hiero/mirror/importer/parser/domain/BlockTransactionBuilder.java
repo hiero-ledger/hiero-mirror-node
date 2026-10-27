@@ -169,7 +169,7 @@ public class BlockTransactionBuilder {
         return StateChanges.newBuilder().addAllStateChanges(changes).build();
     }
 
-    private static EvmTransactionResult fromContractResult(ContractFunctionResult contractResult) {
+    public static EvmTransactionResult fromContractResult(ContractFunctionResult contractResult) {
         var builder = EvmTransactionResult.newBuilder()
                 .setErrorMessage(contractResult.getErrorMessage())
                 .setGasUsed(contractResult.getGasUsed())
