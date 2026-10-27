@@ -32,6 +32,7 @@ import ContractTransaction from '../model/contractTransaction';
 import {RecordFileService} from './index';
 const {default: defaultLimit} = getResponseLimit();
 const contractLogsFields = `${ContractLog.getFullName(ContractLog.BLOOM)},
+${ContractLog.getFullName(ContractLog.CHILD)},
 ${ContractLog.getFullName(ContractLog.CONTRACT_ID)},
 ${ContractLog.getFullName(ContractLog.CONSENSUS_TIMESTAMP)},
 ${ContractLog.getFullName(ContractLog.DATA)},
@@ -48,6 +49,7 @@ ${ContractLog.getFullName(ContractLog.TRANSACTION_INDEX)}
 const contractResultsFields = `${ContractResult.getFullName(ContractResult.AMOUNT)},
 ${ContractResult.getFullName(ContractResult.BLOOM)},
 ${ContractResult.getFullName(ContractResult.CALL_RESULT)},
+${ContractResult.getFullName(ContractResult.CHILD)},
 ${ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP)},
 ${ContractResult.getFullName(ContractResult.CONTRACT_ID)},
 ${ContractResult.getFullName(ContractResult.CREATED_CONTRACT_IDS)},
@@ -295,6 +297,7 @@ class ContractService extends BaseService {
     const query = `
       with synth_raw as (
         select distinct on (${clAlias}${ContractLog.CONSENSUS_TIMESTAMP})
+          ${clAlias}${ContractLog.CHILD},
           ${clAlias}${ContractLog.CONSENSUS_TIMESTAMP},
           coalesce(${clAlias}${ContractLog.ROOT_CONTRACT_ID}, ${clAlias}${ContractLog.CONTRACT_ID}) as ${
       ContractResult.CONTRACT_ID
@@ -318,6 +321,7 @@ class ContractService extends BaseService {
         null::bigint as ${ContractResult.AMOUNT},
         null::bytea as ${ContractResult.BLOOM},
         null::bytea as ${ContractResult.CALL_RESULT},
+        synth_raw.${ContractResult.CHILD},
         synth_raw.${ContractResult.CONSENSUS_TIMESTAMP},
         synth_raw.${ContractResult.CONTRACT_ID},
         null::bigint[] as ${ContractResult.CREATED_CONTRACT_IDS},

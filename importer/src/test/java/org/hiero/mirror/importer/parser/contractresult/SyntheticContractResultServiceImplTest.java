@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.parser.contractresult;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -11,6 +12,7 @@ import com.hederahashgraph.api.proto.java.TokenType;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
@@ -20,6 +22,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -31,6 +35,9 @@ class SyntheticContractResultServiceImplTest {
 
     @Mock
     private EntityListener entityListener;
+
+    @Captor
+    private ArgumentCaptor<ContractResult> contractResultCaptor;
 
     private SyntheticContractResultService syntheticContractResultService;
 
@@ -59,7 +66,18 @@ class SyntheticContractResultServiceImplTest {
     @DisplayName("Should be able to create valid synthetic contract result")
     void createValid() {
         syntheticContractResultService.create(new TransferContractResult(recordItem, entityTokenId, senderId));
-        verify(entityListener, times(1)).onContractResult(any());
+        verify(entityListener, times(1)).onContractResult(contractResultCaptor.capture());
+        assertThat(contractResultCaptor.getValue().isChild()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Should set child true when the underlying transaction shares another EVM transaction")
+    void createValidChild() {
+        recordItem.setEvmChild(true);
+
+        syntheticContractResultService.create(new TransferContractResult(recordItem, entityTokenId, senderId));
+        verify(entityListener, times(1)).onContractResult(contractResultCaptor.capture());
+        assertThat(contractResultCaptor.getValue().isChild()).isTrue();
     }
 
     @Test

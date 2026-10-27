@@ -14,7 +14,7 @@ import {NotFoundError} from '../errors';
 import {JSONStringify} from '../utils';
 
 const {
-  clusterId,
+  common: {clusterId},
   log: {sampleRate},
   response: {headers},
 } = config;

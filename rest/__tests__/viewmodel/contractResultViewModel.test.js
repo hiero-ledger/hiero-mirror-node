@@ -23,6 +23,7 @@ describe('ContractResultViewModel', () => {
     amount: 10,
     bloom: '0x01020304',
     call_result: '0x0a0b0c0d',
+    child: false,
     contract_id: '0.0.1500',
     created_contract_ids: ['0.0.1501', '0.0.1502'],
     error_message: 'unknown error',
@@ -37,6 +38,13 @@ describe('ContractResultViewModel', () => {
 
   test('default', () => {
     expect(new ContractResultViewModel(defaultContractResult)).toEqual(defaultExpected);
+  });
+
+  test('child true', () => {
+    expect(new ContractResultViewModel({...defaultContractResult, child: true})).toEqual({
+      ...defaultExpected,
+      child: true,
+    });
   });
 
   test('pads short authorization address, r, and s', () => {

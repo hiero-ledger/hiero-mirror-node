@@ -242,9 +242,11 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         final var parent = recordItem.getParent();
         if (contractRelatedParent != null) {
             // Effects of a contract call share its index, or none if the call itself didn't claim one
+            recordItem.setEvmChild(true);
             recordItem.setEvmTransactionIndex(contractRelatedParent.getEvmTransactionIndex());
         } else if (parent != null && isEvmTransactionType(parent)) {
             // A failed EVM call's record can lack a ContractFunctionResult while its effects still have one
+            recordItem.setEvmChild(true);
             recordItem.setEvmTransactionIndex(parent.getEvmTransactionIndex());
         } else if (hasPositiveGasUsed(recordItem)) {
             recordItem.claimEvmTransactionIndex();
@@ -256,6 +258,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         final var transactionRecord = recordItem.getTransactionRecord();
         final var contractResult = recordItem.getContractResult();
         if (!transactionRecord.hasParentConsensusTimestamp()
+                || transactionRecord.getTransactionID().getNonce() == 0
                 || contractResult == null
                 || contractResult.getContractID().getContractNum() == RecordItem.HOOK_CONTRACT_NUM) {
             return null;
