@@ -397,11 +397,11 @@ the one shard that `channel_id` hashes to, without touching any other shard.
 
 Colocation only solves _which shard_ a query hits, though — it says nothing about _which time partition within that
 shard_. `clpr_message` is time-partitioned by `consensus_timestamp` (for the reasons in
-[Performance Considerations](#2-performance-considerations)), and a query filtered only by `channel_id`/`message_id`
+[Performance Considerations](#2-performance-considerations)), and a query filtered only by `channel_id`/`connector_id`
 still can't be pruned to one partition without a timestamp bound. So `clpr_message` needs both: colocation (shard
 pruning) _and_ a timestamp bound (partition pruning) — they're independent mechanisms solving two different
-dimensions, not alternatives to each other. The REST layer supplies the latter by requiring `timestamp` alongside
-any `message.id` filter (see [REST API Implementation](#rest-api-implementation)).
+dimensions, not alternatives to each other. The REST layer supplies the latter by requiring `timestamp` on every
+Messages per Channel query (see [REST API Implementation](#rest-api-implementation)).
 
 **`clpr_message` is time-partitioned by `consensus_timestamp` in both `v1` and `v2`.** Message volume grows with
 total network lifetime, not with sharding, so a `v1` (non-Citus) deployment accumulates the same unbounded growth
@@ -411,7 +411,7 @@ has a Citus helper; `v1` does not) and `v2`'s additional `create_distributed_tab
 
 Postgres requires a partitioned table's primary key (if any) to include the partition column. Rather than include
 `consensus_timestamp` in `clpr_message`'s primary key, this design drops the primary key entirely in both profiles
-— the replacement indexes that cover the dropped PK's lookup role are explained after the SQL.
+— `clpr_message__channel_id_timestamp` covers every lookup this table needs instead, explained after the SQL.
 
 #### `v1`
 
@@ -440,13 +440,10 @@ create table if not exists clpr_message
 create index if not exists clpr_message__channel_id_timestamp
     on clpr_message (channel_id, consensus_timestamp);
 
-create index if not exists clpr_message__channel_id_message_id
-    on clpr_message (channel_id, message_id);
-
 -- Partial index: only DATA messages ever have a non-null connector_id, so Response and Control rows (the other
 -- two thirds of the table) never enter this index at all.
 create index if not exists clpr_message__connector_id
-    on clpr_message (connector_id, message_id)
+    on clpr_message (connector_id, consensus_timestamp)
     where connector_id is not null;
 
 create or replace procedure partition_clpr_message() as
@@ -506,13 +503,10 @@ create table if not exists clpr_message
 create index if not exists clpr_message__channel_id_timestamp
     on clpr_message (channel_id, consensus_timestamp);
 
-create index if not exists clpr_message__channel_id_message_id
-    on clpr_message (channel_id, message_id);
-
 -- Partial index: only DATA messages ever have a non-null connector_id, so Response and Control rows (the other
 -- two thirds of the table) never enter this index at all.
 create index if not exists clpr_message__connector_id
-    on clpr_message (connector_id, message_id)
+    on clpr_message (connector_id, consensus_timestamp)
     where connector_id is not null;
 
 select create_distributed_table('clpr_message', 'channel_id', colocate_with => 'clpr_channel');
@@ -559,16 +553,14 @@ lands, the importer reads `connector_id` from there the same way it already does
 `connector_id` stays `null` for Response rows, the same as Control rows.
 
 The `connector_id` index supports [Messages per Channel](#2-messages-per-channel-api)'s `connector.id`-filtered,
-`message.id`-ordered lookup — safe to paginate this way since a Connector is bound to exactly one Channel
-(`connector_id` is derived as `keccak256(channelId || publicKey || salt)`), so its messages share that Channel's
-monotonic `message_id` sequence. `Messages per Channel` is always shard-local, since `channelId` is a required path
-param; `Connectors` and `Channels` are shard-local only when filtered by `channel.id`, scatter-gather otherwise (see
-[Connectors API](#5-connectors-api)/[Channels API](#1-channels-api)) — `chain_id` isn't filterable at all for now,
-so it never factors into this (see [Channels API](#1-channels-api) for why). Being
+`timestamp`-ordered lookup, the same sort key every other Messages per Channel query uses — there's no separate
+`message_id` ordering to keep consistent with it. `Messages per Channel` is always shard-local, since `channelId` is
+a required path param; `Connectors` and `Channels` are shard-local only when filtered by `channel.id`,
+scatter-gather otherwise (see [Connectors API](#5-connectors-api)/[Channels API](#1-channels-api)) — `chain_id`
+isn't filterable at all for now, so it never factors into this (see [Channels API](#1-channels-api) for why). Being
 shard-local doesn't make a query partition-local for free, though — colocation and time-partitioning are
-independent dimensions (see above). Once the REST layer's required `timestamp` bound prunes to the right partition,
-`clpr_message__channel_id_message_id` — the replacement for the primary key dropped above — finds the exact
-row within it.
+independent dimensions (see above). The REST layer's required `timestamp` bound is what prunes every Messages per
+Channel query to the right partition, regardless of which other filter is also applied.
 
 > **Distribution strategy.** `channel_id` and `connector_id` are protocol-level 32-byte values with no numeric
 > entity id. Since `channel_id` is the root of the natural parent-child relationship (Connectors and Messages both
@@ -1171,6 +1163,14 @@ by that column in `v2`); `connector.id` is an optional filter on top of it. When
 the consensus-node change described in [Database Schema Design](#database-schema-design) lands; Control permanently,
 since it has no Connector association at all).
 
+`timestamp` is required on every query: `clpr_message` is time-partitioned by `consensus_timestamp`, and neither
+`channel_id` nor `connector_id` is the partition column, so no other filter can prune partitions on its own (see
+[Message Queue](#4-message-queue-append-only)). There's no `message.id` filter — `message_id` is returned
+on every row but isn't queryable, since multiple messages dispatched by one bundle share the same
+`consensus_timestamp` and `message_id` would be the only way to tiebreak between them; pagination instead relies on
+`timestamp` plus `limit` alone, which means a page boundary landing inside such a group can skip or repeat rows in
+it (bounded by `clpr_ledger_configuration.max_messages_per_bundle`).
+
 Response format:
 
 ```json
@@ -1192,7 +1192,7 @@ Response format:
     }
   ],
   "links": {
-    "next": "/api/v1/clpr/channels/0x1a2b3c.../messages?message.id=lt:5&timestamp=lt:1726874345.123456789&limit=1"
+    "next": "/api/v1/clpr/channels/0x1a2b3c.../messages?timestamp=lt:1726874345.123456789&limit=1"
   }
 }
 ```
@@ -1206,31 +1206,25 @@ Payload bytes (`message_data`) are returned opaque/hex-encoded per the [Non-Goal
 
 #### Query Parameters
 
-| Parameter      | Type    | Description                                                                                                                                                                                                           | Default | Validation                                                                                                                                                                                                                                  |
-| -------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `message.id`   | integer | Filter/paginate by `message_id` — secondary sort key, tiebreaking rows that share one `consensus_timestamp` (e.g. multiple messages from one bundle, see [Performance Considerations](#2-performance-considerations)) | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; positive integer; **requires** `timestamp` to also be supplied, so the query always prunes directly to the right `clpr_message` partition (see [Message Queue](#4-message-queue-append-only)) |
-| `connector.id` | string  | Filter by `connector_id`                                                                                                                                                                                              | none    | Supports `eq:` only — `connector_id` is opaque and non-sequential, so it isn't used for pagination; only `DATA` messages can ever match, since Response and Control rows have `connector_id = null` (see above)                             |
-| `timestamp`    | string  | Filter/paginate by `consensus_timestamp` — primary sort/pagination key, served directly by `clpr_message__channel_id_timestamp`                                                                                       | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (following this codebase's `maxTransactionsTimestampRangeNs`-style convention, e.g. 30 days)                                         |
-| `type`         | string  | Filter by message type                                                                                                                                                                                                | none    | One of `DATA`, `RESPONSE`, `CONTROL`; **requires** `timestamp` to also be supplied (see below)                                                                                                                                              |
-| `limit`        | integer | Maximum number of messages to return                                                                                                                                                                                  | `25`    | Must be between 1 and 100                                                                                                                                                                                                                   |
-| `order`        | string  | Sort order for results                                                                                                                                                                                                | `desc`  | Must be either `asc` or `desc`                                                                                                                                                                                                              |
+| Parameter      | Type    | Description                                                                                                                  | Default      | Validation                                                                                                                                                                                                      |
+| -------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connector.id` | string  | Filter by `connector_id`                                                                                                     | none         | Supports `eq:` only — `connector_id` is opaque and non-sequential, so it isn't used for pagination; only `DATA` messages can ever match, since Response and Control rows have `connector_id = null` (see above) |
+| `timestamp`    | string  | Filter/paginate by `consensus_timestamp` — sole sort/pagination key, served directly by `clpr_message__channel_id_timestamp` | **required** | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (following this codebase's `maxTransactionsTimestampRangeNs`-style convention, e.g. 30 days)             |
+| `type`         | string  | Filter by message type                                                                                                       | none         | One of `DATA`, `RESPONSE`, `CONTROL`                                                                                                                                                                            |
+| `limit`        | integer | Maximum number of messages to return                                                                                         | `25`         | Must be between 1 and 100                                                                                                                                                                                       |
+| `order`        | string  | Sort order for results                                                                                                       | `desc`       | Must be either `asc` or `desc`                                                                                                                                                                                  |
 
-With no filters, `channel_id` alone already lets Postgres take the latest `limit` rows for this Channel directly off
-`clpr_message__channel_id_timestamp`, without touching partitions it doesn't need — the same `ORDER BY ... LIMIT`
-behavior any indexed column gets (`message_id` breaks ties — see its Query Parameters row above). `connector.id`
-pins the query to `clpr_message__connector_id` instead — a direct,
-selective point lookup with the same property, needing no `timestamp` bound of its own. `type` is different: it's
-low-cardinality (3 values, no index of its own), so filtering by it without a bound could force scanning back
-through many unrelated rows — and many partitions — to accumulate `limit` matches, especially for the rarer
-`CONTROL` type. That's why `type` specifically requires `timestamp` alongside it (any `message.id` filter already
-requires one too); a plain fetch, or a `connector.id`-filtered fetch, doesn't need either.
+`type` is low-cardinality (3 values, no index of its own), so it's always paired with the required `timestamp`
+bound — filtering by it without one could otherwise force scanning back through many unrelated rows to accumulate
+`limit` matches, especially for the rarer `CONTROL` type. `connector.id` doesn't have that problem — it pins the
+query to `clpr_message__connector_id`, a direct, selective point lookup — but still requires `timestamp` like every
+other filter here, for partition pruning (see above).
 
 **Examples:**
 
-- `/api/v1/clpr/channels/0x1a2b3c.../messages` — Get all messages on a Channel, newest first
+- `/api/v1/clpr/channels/0x1a2b3c.../messages?timestamp=lt:1726874345.000000000&limit=10` — Get the 10 newest messages on a Channel before a given time
 - `/api/v1/clpr/channels/0x1a2b3c.../messages?type=eq:DATA&timestamp=lt:1726874345.000000000&limit=10` — Get first 10 Data messages before a given time
-- `/api/v1/clpr/channels/0x1a2b3c.../messages?message.id=lt:5&timestamp=lt:1726874345.000000000&limit=5` — Get 5 messages with id less than 5
-- `/api/v1/clpr/channels/0x1a2b3c.../messages?connector.id=eq:0x4d5e6f...` — Get all messages handled by a specific Connector, newest first
+- `/api/v1/clpr/channels/0x1a2b3c.../messages?connector.id=eq:0x4d5e6f...&timestamp=lt:1726874345.000000000` — Get all messages handled by a specific Connector before a given time
 - `/api/v1/clpr/channels/0x1a2b3c.../messages?connector.id=eq:0x4d5e6f...&timestamp=gte:1726874345.000000000&limit=10` — Get 10 of a Connector's messages within a bounded time window
 
 ### 3. Pending Channels API
@@ -1583,9 +1577,9 @@ needs new code.
 
 ### 2. Scalability Requirements
 
-- `clpr_message` must support efficient pagination by `(channel_id, message_id)` for Channels that accumulate a
-  large message history — via time-partitioning plus the REST layer's required `timestamp` bound, not an unbounded
-  partition scan (see [Message Queue](#4-message-queue-append-only)).
+- `clpr_message` must support efficient pagination by `(channel_id, consensus_timestamp)` for Channels that
+  accumulate a large message history — via time-partitioning plus the REST layer's required `timestamp` bound, not
+  an unbounded partition scan (see [Message Queue](#4-message-queue-append-only)).
 - Per the Citus (`v2`) distribution strategy in [Database Schema Design](#database-schema-design), `Messages per
 Channel` (`channelId` is a required path param) is always shard-local. `Connectors` and `Channels` are
   shard-local only when filtered by `channel.id` (see [Connectors API](#5-connectors-api)/
