@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
+
 import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.AccountID;
 import jakarta.inject.Named;
@@ -115,15 +117,13 @@ class CryptoApproveAllowanceTransactionHandler extends AbstractTransactionHandle
                 continue;
             }
 
-            var spenderId = entityIdService.lookup(nftApproval.getSpender()).orElse(EntityId.EMPTY);
-            var tokenId = EntityId.of(nftApproval.getTokenId());
-            boolean hasApprovedForAll = nftApproval.hasApprovedForAll();
-            parseNftApproveForAll(
-                    recordItem, nftAllowanceState, nftApproval, ownerAccountId, spenderId, tokenId, hasApprovedForAll);
-
             var delegatingSpenderId =
                     entityIdService.lookup(nftApproval.getDelegatingSpender()).orElse(EntityId.EMPTY);
             var delegatingSpender = EntityId.isEmpty(delegatingSpenderId) ? null : delegatingSpenderId.getId();
+            var spenderId = entityIdService.lookup(nftApproval.getSpender()).orElse(EntityId.EMPTY);
+            var tokenId = EntityId.of(nftApproval.getTokenId());
+
+            parseNftApproveForAll(recordItem, nftAllowanceState, nftApproval, ownerAccountId, spenderId, tokenId);
             for (var serialNumber : nftApproval.getSerialNumbersList()) {
                 // services allows the same serial number of a nft token appears in multiple nft allowances to
                 // different spenders. The last spender will be granted such allowance.
@@ -138,7 +138,7 @@ class CryptoApproveAllowanceTransactionHandler extends AbstractTransactionHandle
 
                 if (nftSerialAllowanceState.putIfAbsent(nft.getId(), nft) == null) {
                     entityListener.onNft(nft);
-                    if (!hasApprovedForAll) {
+                    if (!nftApproval.hasApprovedForAll()) {
                         syntheticContractLogService.create(new ApproveAllowanceIndexedContractLog(
                                 recordItem, tokenId, ownerAccountId, spenderId, serialNumber));
                     }
@@ -158,9 +158,13 @@ class CryptoApproveAllowanceTransactionHandler extends AbstractTransactionHandle
             com.hederahashgraph.api.proto.java.NftAllowance nftApproval,
             EntityId ownerAccountId,
             EntityId spender,
-            EntityId tokenId,
-            boolean hasApprovedForAll) {
-        if (!hasApprovedForAll) {
+            EntityId tokenId) {
+        // Since HAPI 0.77.0, consensus nodes ignore approvedForAll=false in a delegated nft allowance. A delegating
+        // spender can only approve individual serials and can't change the owner's approved for all allowances
+        if (!nftApproval.hasApprovedForAll()
+                || (!nftApproval.getApprovedForAll().getValue()
+                        && nftApproval.hasDelegatingSpender()
+                        && recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_77_0))) {
             return;
         }
 
