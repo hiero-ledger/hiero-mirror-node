@@ -24,12 +24,6 @@ public class ClprMessagesRequest {
     int limit = 25;
 
     @Builder.Default
-    long messageIdLowerBound = 0L;
-
-    @Builder.Default
-    long messageIdUpperBound = Long.MAX_VALUE;
-
-    @Builder.Default
     Sort.Direction order = Direction.DESC;
 
     @Builder.Default

@@ -853,6 +853,9 @@ final class ClprControllerTest extends ControllerTest {
     @Nested
     final class MessagesEndpointTest extends EndpointTest {
 
+        // consensus timestamps in these tests are small, so use a lower bound of one nanosecond
+        private static final String TIMESTAMP_FILTER = "timestamp=gte:0.000000001";
+
         private final byte[] channelId = new byte[32];
 
         @Override
@@ -863,14 +866,15 @@ final class ClprControllerTest extends ControllerTest {
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
             persistChannel(0L);
-            return uriSpec.uri("");
+            return uriSpec.uri("?" + TIMESTAMP_FILTER);
         }
 
         @Test
         void empty() {
             persistChannel(0L);
 
-            final var actual = restClient.get().uri("").retrieve().body(ClprMessagesResponse.class);
+            final var actual =
+                    restClient.get().uri("?" + TIMESTAMP_FILTER).retrieve().body(ClprMessagesResponse.class);
 
             assertThat(actual.getMessages()).isEmpty();
             assertThat(actual.getLinks().getNext()).isNull();
@@ -879,7 +883,8 @@ final class ClprControllerTest extends ControllerTest {
         @Test
         void cacheControl() {
             persistChannel(0L);
-            final var response = restClient.get().uri("").retrieve().toBodilessEntity();
+            final var response =
+                    restClient.get().uri("?" + TIMESTAMP_FILTER).retrieve().toBodilessEntity();
 
             // Based on application.yml response headers configuration
             assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
@@ -892,8 +897,9 @@ final class ClprControllerTest extends ControllerTest {
 
             final var actual = restClient
                     .get()
-                    .uri(b ->
-                            b.replacePath("/api/v1/clpr/channels/{id}/messages").build("cd".repeat(32)))
+                    .uri(b -> b.replacePath("/api/v1/clpr/channels/{id}/messages")
+                            .query(TIMESTAMP_FILTER)
+                            .build("cd".repeat(32)))
                     .retrieve()
                     .body(ClprMessagesResponse.class);
 
@@ -901,13 +907,14 @@ final class ClprControllerTest extends ControllerTest {
         }
 
         @Test
-        void defaultOrderIsDescendingWithTiebreak() {
+        void defaultOrderIsDescending() {
             persistChannel(0L);
             final var message1 = persist(100L, 1L);
-            final var message2 = persist(100L, 2L);
+            final var message2 = persist(150L, 2L);
             final var message3 = persist(200L, 3L);
 
-            final var actual = restClient.get().uri("").retrieve().body(ClprMessagesResponse.class);
+            final var actual =
+                    restClient.get().uri("?" + TIMESTAMP_FILTER).retrieve().body(ClprMessagesResponse.class);
 
             assertThat(ids(actual.getMessages()))
                     .containsExactly(message3.getMessageId(), message2.getMessageId(), message1.getMessageId());
@@ -917,9 +924,13 @@ final class ClprControllerTest extends ControllerTest {
         void ascendingOrder() {
             persistChannel(0L);
             final var message1 = persist(100L, 1L);
-            final var message2 = persist(100L, 2L);
+            final var message2 = persist(200L, 2L);
 
-            final var actual = restClient.get().uri("?order=asc").retrieve().body(ClprMessagesResponse.class);
+            final var actual = restClient
+                    .get()
+                    .uri("?order=asc&" + TIMESTAMP_FILTER)
+                    .retrieve()
+                    .body(ClprMessagesResponse.class);
 
             assertThat(ids(actual.getMessages())).containsExactly(message1.getMessageId(), message2.getMessageId());
         }
@@ -931,7 +942,11 @@ final class ClprControllerTest extends ControllerTest {
             persist(200L, 5L);
             persist(300L, 6L);
 
-            final var actual = restClient.get().uri("?order=asc").retrieve().body(ClprMessagesResponse.class);
+            final var actual = restClient
+                    .get()
+                    .uri("?order=asc&" + TIMESTAMP_FILTER)
+                    .retrieve()
+                    .body(ClprMessagesResponse.class);
 
             assertThat(actual.getMessages())
                     .extracting(m -> m.getMessageId(), m -> m.getAcknowledged())
@@ -946,7 +961,8 @@ final class ClprControllerTest extends ControllerTest {
                     .customize(m -> m.channelId(channelId).messageData(new byte[] {(byte) 0xde, (byte) 0xad}))
                     .persist();
 
-            final var actual = restClient.get().uri("").retrieve().body(ClprMessagesResponse.class);
+            final var actual =
+                    restClient.get().uri("?" + TIMESTAMP_FILTER).retrieve().body(ClprMessagesResponse.class);
 
             assertThat(actual.getMessages()).singleElement().satisfies(m -> {
                 assertThat(m.getMessageId()).isEqualTo(message.getMessageId());
@@ -960,7 +976,8 @@ final class ClprControllerTest extends ControllerTest {
             final var message = persist(100L, 1L);
             persistFor(domainBuilder.bytes(32), 200L, 2L);
 
-            final var actual = restClient.get().uri("").retrieve().body(ClprMessagesResponse.class);
+            final var actual =
+                    restClient.get().uri("?" + TIMESTAMP_FILTER).retrieve().body(ClprMessagesResponse.class);
 
             assertThat(ids(actual.getMessages())).containsExactly(message.getMessageId());
         }
@@ -974,8 +991,11 @@ final class ClprControllerTest extends ControllerTest {
             persist(200L, 2L); // other connector
             final var id = format.formatted(HexFormat.of().formatHex(connectorId));
 
-            final var actual =
-                    restClient.get().uri("?connector.id={id}", id).retrieve().body(ClprMessagesResponse.class);
+            final var actual = restClient
+                    .get()
+                    .uri("?connector.id={id}&" + TIMESTAMP_FILTER, id)
+                    .retrieve()
+                    .body(ClprMessagesResponse.class);
 
             assertThat(ids(actual.getMessages())).containsExactly(message.getMessageId());
         }
@@ -1012,75 +1032,68 @@ final class ClprControllerTest extends ControllerTest {
         }
 
         @Test
-        void messageIdWithTimestamp() {
-            persistChannel(0L);
-            persist(1_000_000_000L, 1L);
-            final var message2 = persist(1_000_000_000L, 2L);
-            persist(1_000_000_000L, 3L);
-
-            final var actual = restClient
-                    .get()
-                    .uri("?timestamp=eq:1.000000000&message.id=lt:3&message.id=gt:1")
-                    .retrieve()
-                    .body(ClprMessagesResponse.class);
-
-            assertThat(ids(actual.getMessages())).containsExactly(message2.getMessageId());
-        }
-
-        @Test
         void limitAndNextLink() {
             persistChannel(0L);
             persist(1_000_000_000L, 1L);
             final var message2 = persist(2_000_000_000L, 2L);
-            persist(2_000_000_000L, 3L);
+            persist(3_000_000_000L, 3L);
 
-            final var actual = restClient.get().uri("?limit=2").retrieve().body(ClprMessagesResponse.class);
+            final var actual = restClient
+                    .get()
+                    .uri("?limit=2&" + TIMESTAMP_FILTER)
+                    .retrieve()
+                    .body(ClprMessagesResponse.class);
 
             assertThat(actual.getMessages()).hasSize(2);
-            assertThat(queryParams(actual.getLinks().getNext()))
-                    .containsEntry("limit", List.of("2"))
-                    .containsEntry("message.id", List.of("lt:" + message2.getMessageId()))
-                    .containsEntry(
-                            "timestamp", List.of("lte:" + DomainUtils.toTimestamp(message2.getConsensusTimestamp())));
+            final var params = queryParams(actual.getLinks().getNext());
+            assertThat(params).containsEntry("limit", List.of("2"));
+            assertThat(params.get("timestamp"))
+                    .contains("lt:" + DomainUtils.toTimestamp(message2.getConsensusTimestamp()));
+            assertThat(params).doesNotContainKey("message.id");
         }
 
         @Test
         void nextLinkAscending() {
             persistChannel(0L);
             persist(1_000_000_000L, 1L);
-            final var message2 = persist(1_000_000_000L, 2L);
-            persist(2_000_000_000L, 3L);
+            final var message2 = persist(2_000_000_000L, 2L);
+            persist(3_000_000_000L, 3L);
 
-            final var actual =
-                    restClient.get().uri("?limit=2&order=asc").retrieve().body(ClprMessagesResponse.class);
+            final var actual = restClient
+                    .get()
+                    .uri("?limit=2&order=asc&" + TIMESTAMP_FILTER)
+                    .retrieve()
+                    .body(ClprMessagesResponse.class);
 
-            assertThat(queryParams(actual.getLinks().getNext()))
-                    .containsEntry("message.id", List.of("gt:" + message2.getMessageId()))
-                    .containsEntry("order", List.of("asc"))
-                    .containsEntry(
-                            "timestamp", List.of("gte:" + DomainUtils.toTimestamp(message2.getConsensusTimestamp())));
+            final var params = queryParams(actual.getLinks().getNext());
+            assertThat(params).containsEntry("order", List.of("asc"));
+            assertThat(params.get("timestamp"))
+                    .contains("gt:" + DomainUtils.toTimestamp(message2.getConsensusTimestamp()));
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"?message.id=gt:1", "?message.id=eq:1", "?message.id=gt:1&message.id=lt:9"})
-        void messageIdRequiresTimestamp(String query) {
+        @ValueSource(strings = {"", "?type=DATA", "?limit=5&order=asc"})
+        void timestampRequired(String query) {
             persistChannel(0L);
 
             validateError(
                     () -> restClient.get().uri(query).retrieve().toBodilessEntity(),
                     HttpClientErrorException.BadRequest.class,
-                    "timestamp is required when filtering by message.id");
+                    "timestamp is required");
         }
 
-        @ParameterizedTest
-        @ValueSource(strings = {"DATA", "RESPONSE", "CONTROL"})
-        void typeRequiresTimestamp(String type) {
+        @Test
+        void connectorIdRequiresTimestamp() {
             persistChannel(0L);
 
             validateError(
-                    () -> restClient.get().uri("?type={type}", type).retrieve().toBodilessEntity(),
+                    () -> restClient
+                            .get()
+                            .uri("?connector.id={id}", "ab".repeat(32))
+                            .retrieve()
+                            .toBodilessEntity(),
                     HttpClientErrorException.BadRequest.class,
-                    "timestamp is required when filtering by type");
+                    "timestamp is required");
         }
 
         @Test
@@ -1106,9 +1119,6 @@ final class ClprControllerTest extends ControllerTest {
                     "?type=INVALID&timestamp=gte:1",
                     "?connector.id=abc",
                     "?connector.id=gt:0x00",
-                    "?message.id=abc&timestamp=gte:1",
-                    "?message.id=gt:1&message.id=lt:9&message.id=lt:10&timestamp=gte:1",
-                    "?message.id=gt:5&message.id=lt:2&timestamp=gte:1",
                     "?timestamp=ne:1",
                     "?timestamp=abc",
                     "?timestamp=gte:5&timestamp=lte:4",

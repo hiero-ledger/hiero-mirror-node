@@ -567,12 +567,11 @@ paths:
   /api/v1/clpr/channels/{channelId}/messages:
     get:
       summary: List CLPR messages for a channel
-      description: Returns the messages in a CLPR (HIP-1535) channel's queue, paginated and sorted by consensus timestamp then message id. The message.id and type filters require timestamp. Combined timestamp ranges are capped.
+      description: Returns the messages in a CLPR (HIP-1535) channel's queue, paginated and sorted by consensus timestamp. The timestamp parameter is required because messages are time-partitioned. Combined timestamp ranges are capped.
       operationId: getClprChannelMessages
       parameters:
         - $ref: "#/components/parameters/clprChannelIdPathParam"
         - $ref: "#/components/parameters/clprConnectorIdQueryParam"
-        - $ref: "#/components/parameters/clprMessageIdQueryParam"
         - $ref: "#/components/parameters/clprMessageTypeQueryParam"
         - $ref: "#/components/parameters/limitQueryParam"
         - $ref: "#/components/parameters/orderQueryParamDesc"
@@ -5439,21 +5438,9 @@ components:
       schema:
         type: string
         pattern: "^(0x)?[0-9a-fA-F]{64}$"
-    clprMessageIdQueryParam:
-      name: message.id
-      description: The message id with an optional comparison operator. Requires timestamp.
-      in: query
-      explode: true
-      example: "lt:5"
-      schema:
-        type: array
-        items:
-          type: string
-          pattern: '^((eq|gt|gte|lt|lte):)?\d{1,19}$'
-        maxItems: 2
     clprMessageTypeQueryParam:
       name: type
-      description: Filter messages by type. Requires timestamp.
+      description: Filter messages by type.
       in: query
       example: DATA
       schema:

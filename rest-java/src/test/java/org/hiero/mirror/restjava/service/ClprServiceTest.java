@@ -505,8 +505,10 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
         final var message1 = persistMessage(channel.getChannelId(), 100L, 1L);
         final var message2 = persistMessage(channel.getChannelId(), 200L, 2L);
         persistMessage(domainBuilder.bytes(32), 150L, 3L); // other channel
-        final var request =
-                ClprMessagesRequest.builder().channelId(channel.getChannelId()).build();
+        final var request = ClprMessagesRequest.builder()
+                .channelId(channel.getChannelId())
+                .timestampLowerBound(1L)
+                .build();
 
         // when
         final var actual = service.getMessages(request);
@@ -521,15 +523,17 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     void getMessagesUnknownChannel() {
         // given
         persistMessage(domainBuilder.bytes(32), 100L, 1L);
-        final var request =
-                ClprMessagesRequest.builder().channelId(new byte[32]).build();
+        final var request = ClprMessagesRequest.builder()
+                .channelId(new byte[32])
+                .timestampLowerBound(1L)
+                .build();
 
         // when / then
         assertThat(service.getMessages(request)).isEmpty();
     }
 
     @Test
-    void getMessagesByConnectorIdDoesNotRequireTimestamp() {
+    void getMessagesByConnectorId() {
         // given
         final var channel = persistChannelWithAcked(0L);
         final var connectorId = domainBuilder.bytes(32);
@@ -538,6 +542,7 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
         final var request = ClprMessagesRequest.builder()
                 .channelId(channel.getChannelId())
                 .connectorId(connectorId)
+                .timestampLowerBound(1L)
                 .build();
 
         // when / then
@@ -545,45 +550,36 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void getMessagesMessageIdWithoutTimestamp() {
+    void getMessagesTimestampRequired() {
         // given
         final var channel = persistChannelWithAcked(0L);
-        final var request = ClprMessagesRequest.builder()
-                .channelId(channel.getChannelId())
-                .messageIdLowerBound(2L)
-                .build();
-
-        // when / then
-        assertThatThrownBy(() -> service.getMessages(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("timestamp is required when filtering by message.id");
-    }
-
-    @Test
-    void getMessagesTypeWithoutTimestamp() {
-        // given
-        final var channel = persistChannelWithAcked(0L);
-        final var request = ClprMessagesRequest.builder()
+        final var request =
+                ClprMessagesRequest.builder().channelId(channel.getChannelId()).build();
+        final var withType = ClprMessagesRequest.builder()
                 .channelId(channel.getChannelId())
                 .type(ClprMessageType.CONTROL)
                 .build();
+        final var withConnector = ClprMessagesRequest.builder()
+                .channelId(channel.getChannelId())
+                .connectorId(new byte[32])
+                .build();
 
         // when / then
-        assertThatThrownBy(() -> service.getMessages(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("timestamp is required when filtering by type");
+        for (final var invalid : List.of(request, withType, withConnector)) {
+            assertThatThrownBy(() -> service.getMessages(invalid))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("timestamp is required");
+        }
     }
 
     @Test
-    void getMessagesMessageIdAndTypeWithTimestamp() {
+    void getMessagesByTypeWithTimestamp() {
         // given
         final var channel = persistChannelWithAcked(0L);
-        persistMessage(channel.getChannelId(), null, 100L, 1L, ClprMessageType.CONTROL);
         final var expected = persistMessage(channel.getChannelId(), null, 100L, 2L, ClprMessageType.CONTROL);
         persistMessage(channel.getChannelId(), 100L, 3L); // DATA
         final var request = ClprMessagesRequest.builder()
                 .channelId(channel.getChannelId())
-                .messageIdLowerBound(2L)
                 .timestampLowerBound(100L)
                 .timestampUpperBound(100L)
                 .type(ClprMessageType.CONTROL)

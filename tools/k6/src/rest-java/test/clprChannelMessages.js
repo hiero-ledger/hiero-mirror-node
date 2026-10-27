@@ -8,7 +8,7 @@ import {clprMessages} from '../libex/constants.js';
 const urlTag = '/clpr/channels/{channelId}/messages';
 
 const getUrl = (testParameters) =>
-  `/clpr/channels/${testParameters['DEFAULT_CLPR_CHANNEL_ID']}/messages?limit=${testParameters['DEFAULT_LIMIT']}`;
+  `/clpr/channels/${testParameters['DEFAULT_CLPR_CHANNEL_ID']}/messages?limit=${testParameters['DEFAULT_LIMIT']}&timestamp=gte:1`;
 
 const {options, run, setup} = new RestJavaTestScenarioBuilder()
   .name('clprChannelMessages') // use unique scenario name among all tests

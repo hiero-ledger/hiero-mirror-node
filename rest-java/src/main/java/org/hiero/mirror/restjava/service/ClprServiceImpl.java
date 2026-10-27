@@ -118,54 +118,27 @@ final class ClprServiceImpl implements ClprService {
 
     @Override
     public List<ClprMessageDto> getMessages(final ClprMessagesRequest request) {
-        final long timestampLowerBound = request.getTimestampLowerBound();
-        final long timestampUpperBound = request.getTimestampUpperBound();
-        final long messageIdLowerBound = request.getMessageIdLowerBound();
-        final long messageIdUpperBound = request.getMessageIdUpperBound();
-        validateRange(timestampLowerBound, timestampUpperBound);
-        if (messageIdLowerBound > messageIdUpperBound) {
-            throw new IllegalArgumentException("Invalid range provided for message.id");
+        final long lowerBound = request.getTimestampLowerBound();
+        final long upperBound = request.getTimestampUpperBound();
+        validateRange(lowerBound, upperBound);
+
+        // clpr_message is time-partitioned by consensus_timestamp and no other filter can prune partitions, so a
+        // timestamp bound is always required
+        if (lowerBound <= 0L && upperBound == Long.MAX_VALUE) {
+            throw new IllegalArgumentException("timestamp is required");
         }
 
-        // Without a timestamp bound the query can't be pruned to the right clpr_message partition(s). connector.id is
-        // served by its own selective index, so it doesn't need one.
-        final boolean timestampFiltered = timestampLowerBound > 0L || timestampUpperBound < Long.MAX_VALUE;
-        if (!timestampFiltered) {
-            if (messageIdLowerBound > 0L || messageIdUpperBound < Long.MAX_VALUE) {
-                throw new IllegalArgumentException("timestamp is required when filtering by message.id");
-            }
-
-            if (request.getType() != null) {
-                throw new IllegalArgumentException("timestamp is required when filtering by type");
-            }
-        }
-
-        validateWindow(timestampLowerBound, timestampUpperBound);
+        validateWindow(lowerBound, upperBound);
 
         final var channelId = request.getChannelId();
-        final var sort = Sort.by(
-                request.getOrder(), CLPR_MESSAGE.CONSENSUS_TIMESTAMP.getName(), CLPR_MESSAGE.MESSAGE_ID.getName());
+        final var sort = Sort.by(request.getOrder(), CLPR_MESSAGE.CONSENSUS_TIMESTAMP.getName());
         final var page = PageRequest.of(0, request.getLimit(), sort);
         final var type = request.getType() == null ? null : request.getType().name();
         final var connectorId = request.getConnectorId();
         return connectorId == null
-                ? messageRepository.findByChannelId(
-                        channelId,
-                        timestampLowerBound,
-                        timestampUpperBound,
-                        messageIdLowerBound,
-                        messageIdUpperBound,
-                        type,
-                        page)
+                ? messageRepository.findByChannelId(channelId, lowerBound, upperBound, type, page)
                 : messageRepository.findByChannelIdAndConnectorId(
-                        channelId,
-                        connectorId,
-                        timestampLowerBound,
-                        timestampUpperBound,
-                        messageIdLowerBound,
-                        messageIdUpperBound,
-                        type,
-                        page);
+                        channelId, connectorId, lowerBound, upperBound, type, page);
     }
 
     @Override

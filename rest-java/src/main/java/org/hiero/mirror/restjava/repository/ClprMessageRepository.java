@@ -13,9 +13,8 @@ import org.springframework.data.repository.CrudRepository;
 /**
  * Every query is filtered by {@code channel_id}, the distribution column in {@code v2}, so it routes to a single
  * shard. The join to {@code clpr_channel} is on that same column, so it stays on that shard too. {@code clpr_message}
- * is also time-partitioned by {@code consensus_timestamp}, so the plain timestamp range is repeated alongside the
- * compound {@code (consensus_timestamp, message_id)} range to allow partition pruning. Callers should sort by
- * {@code consensus_timestamp} then {@code message_id}.
+ * is also time-partitioned by {@code consensus_timestamp}, so every query needs a timestamp range to allow partition
+ * pruning. {@code consensus_timestamp} is the sole sort key; messages dispatched by one bundle share a timestamp.
  * <p>
  * The select order must match the {@link ClprMessageDto} record components, which are mapped by position.
  */
@@ -40,8 +39,6 @@ public interface ClprMessageRepository extends CrudRepository<ClprMessage, ClprM
             where m.channel_id = :channelId
             and m.consensus_timestamp >= :timestampLowerBound
             and m.consensus_timestamp <= :timestampUpperBound
-            and (m.consensus_timestamp, m.message_id) >= (:timestampLowerBound, :messageIdLowerBound)
-            and (m.consensus_timestamp, m.message_id) <= (:timestampUpperBound, :messageIdUpperBound)
             and (cast(:type as clpr_message_type) is null or m.message_type = cast(:type as clpr_message_type))
             """, nativeQuery = true)
     @SuppressWarnings("java:S107")
@@ -49,14 +46,12 @@ public interface ClprMessageRepository extends CrudRepository<ClprMessage, ClprM
             byte[] channelId,
             long timestampLowerBound,
             long timestampUpperBound,
-            long messageIdLowerBound,
-            long messageIdUpperBound,
             @Nullable String type,
             Pageable pageable);
 
     /**
-     * Served by the partial clpr_message__connector_id index, which only holds DATA messages, so it needs no timestamp
-     * bound of its own.
+     * Served by the partial clpr_message__connector_id index, which only holds DATA messages and is ordered by
+     * consensus_timestamp.
      */
     @Query(value = """
             select
@@ -78,8 +73,6 @@ public interface ClprMessageRepository extends CrudRepository<ClprMessage, ClprM
             and m.channel_id = :channelId
             and m.consensus_timestamp >= :timestampLowerBound
             and m.consensus_timestamp <= :timestampUpperBound
-            and (m.consensus_timestamp, m.message_id) >= (:timestampLowerBound, :messageIdLowerBound)
-            and (m.consensus_timestamp, m.message_id) <= (:timestampUpperBound, :messageIdUpperBound)
             and (cast(:type as clpr_message_type) is null or m.message_type = cast(:type as clpr_message_type))
             """, nativeQuery = true)
     @SuppressWarnings("java:S107")
@@ -88,8 +81,6 @@ public interface ClprMessageRepository extends CrudRepository<ClprMessage, ClprM
             byte[] connectorId,
             long timestampLowerBound,
             long timestampUpperBound,
-            long messageIdLowerBound,
-            long messageIdUpperBound,
             @Nullable String type,
             Pageable pageable);
 }

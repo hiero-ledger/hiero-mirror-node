@@ -151,25 +151,6 @@ final class ClprMessageRepositoryTest extends RestJavaIntegrationTest {
         assertThat(ids(actual)).containsExactlyElementsOf(ids(expected));
     }
 
-    @ParameterizedTest
-    @EnumSource(Direction.class)
-    void findAllTiebreaksByMessageId(Direction order) {
-        // given
-        final var message1 = persist(100L, 1L);
-        final var message2 = persist(100L, 2L);
-        final var message3 = persist(100L, 3L);
-        final var later = persist(200L, 4L);
-        final var expected = order.isAscending()
-                ? List.of(message1, message2, message3, later)
-                : List.of(later, message3, message2, message1);
-
-        // when
-        final var actual = find(request().order(order).build());
-
-        // then
-        assertThat(ids(actual)).containsExactlyElementsOf(ids(expected));
-    }
-
     @Test
     void findAllLimit() {
         // given
@@ -253,46 +234,6 @@ final class ClprMessageRepositoryTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void findAllCompoundBoundDescending() {
-        // given a cursor of timestamp=lte:100 and message.id=lt:3, i.e. the next page after (100, 3)
-        final var earlier = persist(50L, 9L);
-        final var message1 = persist(100L, 1L);
-        final var message2 = persist(100L, 2L);
-        persist(100L, 3L);
-        persist(200L, 4L);
-        final var request =
-                request().messageIdUpperBound(2L).timestampUpperBound(100L).build();
-
-        // when
-        final var actual = find(request);
-
-        // then
-        assertThat(ids(actual))
-                .containsExactly(message2.getMessageId(), message1.getMessageId(), earlier.getMessageId());
-    }
-
-    @Test
-    void findAllCompoundBoundAscending() {
-        // given a cursor of timestamp=gte:100 and message.id=gt:1, i.e. the next page after (100, 1)
-        persist(50L, 9L);
-        persist(100L, 1L);
-        final var message2 = persist(100L, 2L);
-        final var message3 = persist(100L, 3L);
-        final var later = persist(200L, 4L);
-        final var request = request()
-                .messageIdLowerBound(2L)
-                .order(Direction.ASC)
-                .timestampLowerBound(100L)
-                .build();
-
-        // when
-        final var actual = find(request);
-
-        // then
-        assertThat(ids(actual)).containsExactly(message2.getMessageId(), message3.getMessageId(), later.getMessageId());
-    }
-
-    @Test
     void findAllCombinedFilters() {
         // given
         final var connectorId = domainBuilder.bytes(32);
@@ -328,8 +269,7 @@ final class ClprMessageRepositoryTest extends RestJavaIntegrationTest {
     }
 
     private List<ClprMessageDto> find(ClprMessagesRequest request) {
-        final var sort = Sort.by(
-                request.getOrder(), CLPR_MESSAGE.CONSENSUS_TIMESTAMP.getName(), CLPR_MESSAGE.MESSAGE_ID.getName());
+        final var sort = Sort.by(request.getOrder(), CLPR_MESSAGE.CONSENSUS_TIMESTAMP.getName());
         final var page = PageRequest.of(0, request.getLimit(), sort);
         final var type = request.getType() == null ? null : request.getType().name();
         final var connectorId = request.getConnectorId();
@@ -338,8 +278,6 @@ final class ClprMessageRepositoryTest extends RestJavaIntegrationTest {
                     request.getChannelId(),
                     request.getTimestampLowerBound(),
                     request.getTimestampUpperBound(),
-                    request.getMessageIdLowerBound(),
-                    request.getMessageIdUpperBound(),
                     type,
                     page);
         }
@@ -349,8 +287,6 @@ final class ClprMessageRepositoryTest extends RestJavaIntegrationTest {
                 connectorId,
                 request.getTimestampLowerBound(),
                 request.getTimestampUpperBound(),
-                request.getMessageIdLowerBound(),
-                request.getMessageIdUpperBound(),
                 type,
                 page);
     }

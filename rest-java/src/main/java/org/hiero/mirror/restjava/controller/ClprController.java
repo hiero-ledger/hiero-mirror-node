@@ -8,7 +8,6 @@ import static org.hiero.mirror.restjava.common.Constants.CONNECTOR_ID;
 import static org.hiero.mirror.restjava.common.Constants.DEFAULT_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.DELETED;
 import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
-import static org.hiero.mirror.restjava.common.Constants.MESSAGE_ID;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
 import com.google.common.collect.ImmutableSortedMap;
@@ -43,7 +42,6 @@ import org.hiero.mirror.restjava.mapper.ClprConnectorMapper;
 import org.hiero.mirror.restjava.mapper.ClprMessageMapper;
 import org.hiero.mirror.restjava.mapper.ClprPendingChannelMapper;
 import org.hiero.mirror.restjava.mapper.ClprPendingConnectorMapper;
-import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.hiero.mirror.restjava.parameter.RangeParameter;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.ClprService;
@@ -78,13 +76,10 @@ final class ClprController {
     private static final Function<ClprConnector, Map<String, String>> CONNECTOR_EXTRACTOR =
             connector -> ImmutableSortedMap.of(TIMESTAMP, connector.getCreatedTimestamp());
 
-    // Messages sharing a consensus timestamp are tiebroken by message_id, so both are needed to resume a page
+    // The consensus timestamp is the sole sort and pagination key. Messages dispatched by one bundle share it, so a
+    // page boundary inside such a group can skip or repeat rows
     private static final Function<ClprMessage, Map<String, String>> MESSAGE_EXTRACTOR =
-            message -> ImmutableSortedMap.of(
-                    TIMESTAMP,
-                    message.getTimestamp(),
-                    MESSAGE_ID,
-                    message.getMessageId().toString());
+            message -> ImmutableSortedMap.of(TIMESTAMP, message.getTimestamp());
 
     // A pending channel's created_timestamp is the consensus timestamp of its registering transaction, so it's unique
     private static final Function<ClprPendingChannel, Map<String, String>> PENDING_CHANNEL_EXTRACTOR =
@@ -208,17 +203,15 @@ final class ClprController {
                     @Nullable
                     String connectorId,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
-            @RequestParam(name = MESSAGE_ID, required = false, defaultValue = "") @Size(max = 2)
-                    NumberRangeParameter[] messageIds,
             @RequestParam(defaultValue = "desc") Sort.Direction order,
             @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
                     TimestampParameter[] timestamps,
             @RequestParam(required = false) @Nullable ClprMessageType type) {
 
-        final var request = clprMessagesRequest(channelId, connectorId, limit, messageIds, order, timestamps, type);
+        final var request = clprMessagesRequest(channelId, connectorId, limit, order, timestamps, type);
         final var messages = messageMapper.map(service.getMessages(request));
 
-        final var sort = Sort.by(order, TIMESTAMP, MESSAGE_ID);
+        final var sort = Sort.by(order, TIMESTAMP);
         final var pageable = PageRequest.of(0, limit, sort);
         final var links = linkFactory.create(messages, pageable, MESSAGE_EXTRACTOR);
 
@@ -284,17 +277,13 @@ final class ClprController {
             String channelId,
             @Nullable String connectorId,
             int limit,
-            NumberRangeParameter[] messageIds,
             Sort.Direction order,
             TimestampParameter[] timestamps,
             @Nullable ClprMessageType type) {
         final var timestampBounds = bounds(timestamps);
-        final var messageIdBounds = bounds(messageIds);
         final var builder = ClprMessagesRequest.builder()
                 .channelId(toBytes(channelId))
                 .limit(limit)
-                .messageIdLowerBound(messageIdBounds.lower())
-                .messageIdUpperBound(messageIdBounds.upper())
                 .order(order)
                 .timestampLowerBound(timestampBounds.lower())
                 .timestampUpperBound(timestampBounds.upper());

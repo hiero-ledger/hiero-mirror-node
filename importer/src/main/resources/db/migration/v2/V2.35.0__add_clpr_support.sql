@@ -183,8 +183,8 @@ create table if not exists clpr_endpoint_manifest
 );
 
 -- Message queue (append-only). Primary key omitted: a partitioned table's primary key must include the partition
--- column, and consensus_timestamp isn't part of this table's natural identity; clpr_message__channel_id_message_id
--- below covers that lookup instead.
+-- column, and consensus_timestamp isn't part of this table's natural identity; clpr_message__channel_id_timestamp
+-- below covers every lookup instead.
 
 create table if not exists clpr_message
 (
@@ -205,12 +205,9 @@ create table if not exists clpr_message
 create index if not exists clpr_message__channel_id_timestamp
     on clpr_message (channel_id, consensus_timestamp);
 
-create index if not exists clpr_message__channel_id_message_id
-    on clpr_message (channel_id, message_id);
-
 -- Partial index: only DATA messages have a non-null connector_id
 create index if not exists clpr_message__connector_id
-    on clpr_message (connector_id, message_id)
+    on clpr_message (connector_id, consensus_timestamp)
     where connector_id is not null;
 
 select create_distributed_table('clpr_message', 'channel_id', colocate_with => 'clpr_channel');
