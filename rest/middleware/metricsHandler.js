@@ -61,7 +61,11 @@ const initMetrics = () => {
     responseSizeBuckets = [100, 250, 500, 1000],
   } = config.metrics.config;
 
-  exporter = new PrometheusExporter({preventServerStart: true});
+  exporter = new PrometheusExporter({
+    host: process.env.OTEL_EXPORTER_PROMETHEUS_HOST || '0.0.0.0',
+    port: Number(process.env.OTEL_EXPORTER_PROMETHEUS_PORT) || 9464,
+    preventServerStart: true,
+  });
   const meterProvider = new MeterProvider({readers: [exporter]});
   const meter = meterProvider.getMeter('mirror-rest');
 
