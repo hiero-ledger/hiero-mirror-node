@@ -19,10 +19,11 @@ final class TokenBurnTransformer extends AbstractTokenTransformer {
         var tokenId = body.getToken();
         long amount = body.getAmount() + body.getSerialNumbersCount();
         updateTotalSupply(
+                amount,
+                blockTransaction.getConsensusTimestamp(),
                 blockTransactionTransformation.recordItemBuilder(),
                 blockTransaction.getStateChangeContext(),
-                tokenId,
-                amount);
+                tokenId);
     }
 
     @Override

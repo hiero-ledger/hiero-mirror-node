@@ -13,6 +13,7 @@ import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_I
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOPICS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.transaction.StateChangeContext.EMPTY_CONTEXT;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.bytes;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapDeleteChange;
@@ -43,22 +44,26 @@ import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
-import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.CustomFee;
 import com.hederahashgraph.api.proto.java.File;
+import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.Node;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.RegisteredNode;
 import com.hederahashgraph.api.proto.java.Token;
+import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Topic;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.LongStream;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.CommonUtils;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 final class StateChangeContextTest {
 
@@ -80,74 +85,39 @@ final class StateChangeContextTest {
         final var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        assertThat(context.getAccount(accountId1)).get().returns(account1Alias, Account::getAlias);
-        assertThat(context.getAccount(accountId2)).get().returns(account2Alias, Account::getAlias);
-        assertThat(context.getAccount(accountId3)).isEmpty();
+        assertThat(context.getAccountAlias(accountId1)).isEqualTo(account1Alias);
+        assertThat(context.getAccountAlias(accountId2)).isEqualTo(account2Alias);
+        assertThat(context.getAccountAlias(accountId3)).isNull();
+        assertThat(context.getAccountEthereumNonce(accountId1)).isZero();
+        assertThat(context.getAccountEthereumNonce(accountId3)).isNull();
     }
 
     @Test
-    void accountId() {
+    void accountsPartial() {
         // given
-        final var accountId1 = getAccountId();
-        final var account1Alias = alias();
-        final var accountId2 = getAccountId();
-        final var contractId = getAccountId();
-        final var evmAddress = evmAddress();
+        final var nonceChanged = getAccountId();
+        final var nonceCleared = getAccountId();
+        final var aliasChanged = getAccountId();
+        final var aliasChangedAlias = alias();
         final var stateChanges = StateChanges.newBuilder()
-                .addStateChanges(accountMapUpdateChange(accountId1, account1Alias))
-                .addStateChanges(accountMapUpdateChange(accountId2))
-                .addStateChanges(contractMapUpdateChange(contractId, evmAddress))
-                .addStateChanges(otherMapUpdateChange())
+                .addStateChanges(partialAccountMapUpdateChange(
+                        nonceChanged, Account.newBuilder().setEthereumNonce(5)))
+                .addStateChanges(partialAccountMapUpdateChange(
+                        nonceCleared, Account.newBuilder(), Account.ETHEREUM_NONCE_FIELD_NUMBER))
+                .addStateChanges(partialAccountMapUpdateChange(
+                        aliasChanged, Account.newBuilder().setAlias(aliasChangedAlias)))
                 .build();
 
         // when
         final var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        assertThat(context.getAccountId(account1Alias)).contains(accountId1);
-        assertThat(context.getAccountId(evmAddress)).isEmpty();
-        assertThat(context.getContractId(evmAddress))
-                .contains(ContractID.newBuilder()
-                        .setShardNum(contractId.getShardNum())
-                        .setRealmNum(contractId.getRealmNum())
-                        .setContractNum(contractId.getAccountNum())
-                        .build());
-    }
-
-    @Test
-    void contractId() {
-        // given
-        var contractId1 = getAccountId();
-        var evmAddress1 = evmAddress();
-        var contractId2 = getAccountId();
-        var evmAddress2 = evmAddress();
-        var contractId3 = getAccountId();
-        var stateChanges = StateChanges.newBuilder()
-                .addStateChanges(accountMapUpdateChange())
-                .addStateChanges(contractMapUpdateChange(contractId1, evmAddress1))
-                .addStateChanges(contractMapUpdateChange(contractId2, evmAddress2))
-                .addStateChanges(contractMapUpdateChange(contractId3, ByteString.EMPTY))
-                .addStateChanges(otherMapUpdateChange())
-                .addStateChanges(rosterStateChange())
-                .build();
-
-        // when
-        var context = new StateChangeContext(List.of(stateChanges));
-
-        // then
-        assertThat(context.getContractId(evmAddress1))
-                .get()
-                .returns(contractId1.getShardNum(), ContractID::getShardNum)
-                .returns(contractId1.getRealmNum(), ContractID::getRealmNum)
-                .returns(contractId1.getAccountNum(), ContractID::getContractNum)
-                .returns(false, ContractID::hasEvmAddress);
-        assertThat(context.getContractId(evmAddress2))
-                .get()
-                .returns(contractId2.getShardNum(), ContractID::getShardNum)
-                .returns(contractId2.getRealmNum(), ContractID::getRealmNum)
-                .returns(contractId2.getAccountNum(), ContractID::getContractNum)
-                .returns(false, ContractID::hasEvmAddress);
-        assertThat(context.getContractId(evmAddress())).isEmpty();
+        assertThat(context.getAccountAlias(nonceChanged)).isNull();
+        assertThat(context.getAccountEthereumNonce(nonceChanged)).isEqualTo(5L);
+        assertThat(context.getAccountAlias(nonceCleared)).isNull();
+        assertThat(context.getAccountEthereumNonce(nonceCleared)).isZero();
+        assertThat(context.getAccountAlias(aliasChanged)).isEqualTo(aliasChangedAlias);
+        assertThat(context.getAccountEthereumNonce(aliasChanged)).isNull();
     }
 
     @Test
@@ -168,8 +138,8 @@ final class StateChangeContextTest {
         var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        assertThat(context.getContractBytecode(contractId)).contains(bytecode);
-        assertThat(context.getContractBytecode(getContractId())).isEmpty();
+        assertThat(context.getContractBytecode(contractId)).isEqualTo(bytecode);
+        assertThat(context.getContractBytecode(getContractId())).isNull();
     }
 
     @Test
@@ -259,15 +229,14 @@ final class StateChangeContextTest {
 
     @Test
     void emptyContext() {
-        assertThat(EMPTY_CONTEXT.getContractId(evmAddress())).isEmpty();
-        assertThat(EMPTY_CONTEXT.getNewFileId()).isEmpty();
-        assertThat(EMPTY_CONTEXT.getNewNodeId()).isEmpty();
-        assertThat(EMPTY_CONTEXT.getNewTokenId()).isEmpty();
-        assertThat(EMPTY_CONTEXT.getNewTopicId()).isEmpty();
-        assertThat(EMPTY_CONTEXT.getTopicMessage(getTopicId())).isEmpty();
+        assertThat(EMPTY_CONTEXT.getNewFileId()).isNull();
+        assertThat(EMPTY_CONTEXT.getNewNodeId()).isNull();
+        assertThat(EMPTY_CONTEXT.getNewTokenId()).isNull();
+        assertThat(EMPTY_CONTEXT.getNewTopicId()).isNull();
+        assertThat(EMPTY_CONTEXT.getTopicMessage(getTopicId())).isNull();
         assertThat(EMPTY_CONTEXT.trackPendingFungibleAirdrop(getPendingAirdropId(), 10))
-                .isEmpty();
-        assertThat(EMPTY_CONTEXT.trackTokenTotalSupply(getTokenId(), 10)).isEmpty();
+                .isNull();
+        assertThat(EMPTY_CONTEXT.trackTokenTotalSupply(getTokenId(), 10)).isNull();
     }
 
     @Test
@@ -295,10 +264,10 @@ final class StateChangeContextTest {
 
         // when
         var context = new StateChangeContext(List.of(stateChanges));
-        var actual = List.of(context.getNewFileId(), context.getNewFileId(), context.getNewFileId());
+        var actual = Arrays.asList(context.getNewFileId(), context.getNewFileId(), context.getNewFileId());
 
         // then
-        assertThat(actual).containsExactly(Optional.of(fileId2), Optional.of(fileId1), Optional.empty());
+        assertThat(actual).containsExactly(fileId2, fileId1, null);
     }
 
     @Test
@@ -327,10 +296,10 @@ final class StateChangeContextTest {
 
         // when
         var context = new StateChangeContext(List.of(stateChanges));
-        var actual = List.of(context.getNewNodeId(), context.getNewNodeId(), context.getNewNodeId());
+        var actual = Arrays.asList(context.getNewNodeId(), context.getNewNodeId(), context.getNewNodeId());
 
         // then
-        assertThat(actual).containsExactly(Optional.of(3L), Optional.of(2L), Optional.empty());
+        assertThat(actual).containsExactly(3L, 2L, null);
     }
 
     @Test
@@ -364,15 +333,15 @@ final class StateChangeContextTest {
         // - at T2, airdropped 2000 and the amount should be 2000
         // - at T1, airdropped 500, however there is no record in state (likely it's cancelled between T1 and T2),
         //   so should get an empty optional
-        var actual = List.of(
+        var actual = Arrays.asList(
                 context.trackPendingFungibleAirdrop(pendingAirdropId, 1000L),
                 context.trackPendingFungibleAirdrop(pendingAirdropId, 2000L),
                 context.trackPendingFungibleAirdrop(pendingAirdropId, 500L));
 
         // then
-        assertThat(actual).containsExactly(Optional.of(3000L), Optional.of(2000L), Optional.empty());
+        assertThat(actual).containsExactly(3000L, 2000L, null);
         assertThat(context.trackPendingFungibleAirdrop(getPendingAirdropId(), 200L))
-                .isEmpty();
+                .isNull();
     }
 
     @Test
@@ -407,11 +376,11 @@ final class StateChangeContextTest {
 
         // when
         final var context = new StateChangeContext(List.of(stateChanges));
-        final var actual = List.of(
+        final var actual = Arrays.asList(
                 context.getNewRegisteredNodeId(), context.getNewRegisteredNodeId(), context.getNewRegisteredNodeId());
 
         // then
-        assertThat(actual).containsExactly(Optional.of(2L), Optional.of(1L), Optional.empty());
+        assertThat(actual).containsExactly(2L, 1L, null);
     }
 
     @Test
@@ -437,18 +406,18 @@ final class StateChangeContextTest {
 
         // when
         var context = new StateChangeContext(List.of(stateChanges));
-        var newTokenIds = List.of(context.getNewTokenId(), context.getNewTokenId(), context.getNewTokenId());
-        var token1TotalSupplies =
-                List.of(context.trackTokenTotalSupply(tokenId1, 1000L), context.trackTokenTotalSupply(tokenId1, -500L));
-        var token2TotalSupplies =
-                List.of(context.trackTokenTotalSupply(tokenId2, -2000L), context.trackTokenTotalSupply(tokenId2, 800L));
+        var newTokenIds = Arrays.asList(context.getNewTokenId(), context.getNewTokenId(), context.getNewTokenId());
+        var token1TotalSupplies = Arrays.asList(
+                context.trackTokenTotalSupply(tokenId1, 1000L), context.trackTokenTotalSupply(tokenId1, -500L));
+        var token2TotalSupplies = Arrays.asList(
+                context.trackTokenTotalSupply(tokenId2, -2000L), context.trackTokenTotalSupply(tokenId2, 800L));
         var otherTokenTotalSupplies = context.trackTokenTotalSupply(getTokenId(), 100L);
 
         // then
-        assertThat(newTokenIds).containsExactly(Optional.of(tokenId2), Optional.of(tokenId1), Optional.empty());
-        assertThat(token1TotalSupplies).containsExactly(Optional.of(3000L), Optional.of(4000L));
-        assertThat(token2TotalSupplies).containsExactly(Optional.of(5000L), Optional.of(3000L));
-        assertThat(otherTokenTotalSupplies).isEmpty();
+        assertThat(newTokenIds).containsExactly(tokenId2, tokenId1, null);
+        assertThat(token1TotalSupplies).containsExactly(3000L, 4000L);
+        assertThat(token2TotalSupplies).containsExactly(5000L, 3000L);
+        assertThat(otherTokenTotalSupplies).isNull();
     }
 
     @Test
@@ -477,28 +446,171 @@ final class StateChangeContextTest {
 
         // when
         var context = new StateChangeContext(List.of(stateChanges));
-        var topicIds = List.of(context.getNewTopicId(), context.getNewTopicId(), context.getNewTopicId());
+        var topicIds = Arrays.asList(context.getNewTopicId(), context.getNewTopicId(), context.getNewTopicId());
         var topic1Message = context.getTopicMessage(topicId1);
-        var topic2Messages = List.of(context.getTopicMessage(topicId2), context.getTopicMessage(topicId2));
+        var topic2Messages = Arrays.asList(context.getTopicMessage(topicId2), context.getTopicMessage(topicId2));
 
         // then
-        var expectedTopic2Messages = List.of(
-                Optional.of(TopicMessage.builder()
+        var expectedTopic2Messages = Arrays.asList(
+                TopicMessage.builder()
                         .runningHash(DomainUtils.toBytes(topic2RunningHash))
                         .sequenceNumber(2L)
-                        .build()),
-                Optional.<TopicMessage>empty());
-        assertThat(topicIds).containsExactly(Optional.of(topicId2), Optional.of(topicId1), Optional.empty());
-        assertThat(topic1Message).isEmpty();
+                        .build(),
+                null);
+        assertThat(topicIds).containsExactly(topicId2, topicId1, null);
+        assertThat(topic1Message).isNull();
         assertThat(topic2Messages).containsExactlyElementsOf(expectedTopic2Messages);
+    }
+
+    @Test
+    void isPresent() {
+        final var full = MapUpdateChange.getDefaultInstance();
+        final var partial = MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .addClearedFields(Account.MEMO_FIELD_NUMBER)
+                .build();
+        final var account = Account.newBuilder()
+                .setKey(Key.getDefaultInstance())
+                .setStakedNodeId(0)
+                .setEthereumNonce(1)
+                .build();
+        final var token =
+                Token.newBuilder().addCustomFees(CustomFee.getDefaultInstance()).build();
+
+        assertThat(StateChangeContext.isPresent(full, Account.getDefaultInstance(), Account.ALIAS_FIELD_NUMBER))
+                .isTrue();
+        // an empty message, a oneof member with the default value, and a non-default scalar are present
+        assertThat(StateChangeContext.isPresent(partial, account, Account.KEY_FIELD_NUMBER))
+                .isTrue();
+        assertThat(StateChangeContext.isPresent(partial, account, Account.STAKED_NODE_ID_FIELD_NUMBER))
+                .isTrue();
+        assertThat(StateChangeContext.isPresent(partial, account, Account.ETHEREUM_NONCE_FIELD_NUMBER))
+                .isTrue();
+        assertThat(StateChangeContext.isPresent(partial, token, Token.CUSTOM_FEES_FIELD_NUMBER))
+                .isTrue();
+        // a cleared field is known to have the default value
+        assertThat(StateChangeContext.isPresent(partial, account, Account.MEMO_FIELD_NUMBER))
+                .isTrue();
+        // absent fields are unchanged
+        assertThat(StateChangeContext.isPresent(partial, account, Account.ALIAS_FIELD_NUMBER))
+                .isFalse();
+        assertThat(StateChangeContext.isPresent(partial, Token.getDefaultInstance(), Token.CUSTOM_FEES_FIELD_NUMBER))
+                .isFalse();
+        assertThat(StateChangeContext.isPresent(partial, account, 9999)).isFalse();
+    }
+
+    @Test
+    void partialContractBytecode() {
+        // given
+        final var contractId = getContractId();
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_BYTECODE_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setContractIdKey(contractId))
+                                .setValue(MapChangeValue.newBuilder().setBytecodeValue(Bytecode.newBuilder()))
+                                .setPartial(true)))
+                .build();
+
+        // when
+        final var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getContractBytecode(contractId)).isNull();
+    }
+
+    @Test
+    void partialPendingFungibleAirdrop() {
+        // given
+        final var pendingAirdropId = getPendingAirdropId();
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_PENDING_AIRDROPS_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setPendingAirdropIdKey(pendingAirdropId))
+                                .setValue(MapChangeValue.newBuilder()
+                                        .setAccountPendingAirdropValue(AccountPendingAirdrop.newBuilder()
+                                                .setNextAirdrop(getPendingAirdropId())))
+                                .setPartial(true)))
+                .build();
+
+        // when
+        final var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.trackPendingFungibleAirdrop(pendingAirdropId, 100L)).isNull();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void partialStorage(final boolean hook) {
+        // given
+        final var stateChange = hook
+                ? hookStorageMapUpdateChange(getEvmHookSlotKey(1L, bytes(32)), bytes(32))
+                : contractStorageMapUpdateChange(getContractId(), bytes(32), bytes(32));
+        final var builder = stateChange.toBuilder();
+        builder.getMapUpdateBuilder().setPartial(true);
+        final var stateChanges =
+                StateChanges.newBuilder().addStateChanges(builder).build();
+
+        // when, then
+        assertThatThrownBy(() -> new StateChangeContext(List.of(stateChanges)))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void partialToken() {
+        // given
+        final var supplyChanged = getTokenId();
+        final var supplyCleared = getTokenId();
+        final var supplyUnchanged = getTokenId();
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(partialTokenStateChange(
+                        supplyChanged, Token.newBuilder().setTotalSupply(3000L)))
+                .addStateChanges(
+                        partialTokenStateChange(supplyCleared, Token.newBuilder(), Token.TOTAL_SUPPLY_FIELD_NUMBER))
+                .addStateChanges(partialTokenStateChange(
+                        supplyUnchanged, Token.newBuilder().setMemo("memo")))
+                .build();
+
+        // when
+        final var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.isTokenTotalSupplyUnknown(supplyChanged)).isFalse();
+        assertThat(context.trackTokenTotalSupply(supplyChanged, 100L)).isEqualTo(3000L);
+        assertThat(context.isTokenTotalSupplyUnknown(supplyCleared)).isFalse();
+        assertThat(context.trackTokenTotalSupply(supplyCleared, 100L)).isEqualTo(0L);
+        assertThat(context.isTokenTotalSupplyUnknown(supplyUnchanged)).isTrue();
+        assertThat(context.trackTokenTotalSupply(supplyUnchanged, 100L)).isNull();
+        assertThat(Arrays.asList(context.getNewTokenId(), context.getNewTokenId(), context.getNewTokenId()))
+                .doesNotContainNull();
+    }
+
+    @Test
+    void partialTopic() {
+        // given
+        final var topicId = getTopicId();
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_TOPICS_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setTopicIdKey(topicId))
+                                .setValue(MapChangeValue.newBuilder()
+                                        .setTopicValue(Topic.newBuilder().setSequenceNumber(2)))
+                                .setPartial(true)))
+                .build();
+
+        // when
+        final var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getNewTopicId()).isEqualTo(topicId);
+        assertThat(context.getTopicMessage(topicId)).isNull();
     }
 
     private ByteString alias() {
         return DomainUtils.fromBytes(CommonUtils.nextBytes(34));
-    }
-
-    private ByteString evmAddress() {
-        return DomainUtils.fromBytes(CommonUtils.nextBytes(20));
     }
 
     private PendingAirdropId getPendingAirdropId() {
@@ -507,10 +619,6 @@ final class StateChangeContextTest {
                 .setSenderId(getAccountId())
                 .setFungibleTokenType(getTokenId())
                 .build();
-    }
-
-    private StateChange accountMapUpdateChange(AccountID accountId) {
-        return accountMapUpdateChange(accountId, ByteString.EMPTY);
     }
 
     // The account value omits the account id, as in a partial update, so it must be read from the key
@@ -525,19 +633,27 @@ final class StateChangeContextTest {
                 .build();
     }
 
-    private StateChange accountMapUpdateChange() {
-        return accountMapUpdateChange(getAccountId());
-    }
-
-    private StateChange contractMapUpdateChange(AccountID accountId, ByteString evmAddress) {
-        var account =
-                Account.newBuilder().setAlias(evmAddress).setSmartContract(true).build();
+    private StateChange partialAccountMapUpdateChange(
+            final AccountID accountId, final Account.Builder account, final Integer... clearedFields) {
         return StateChange.newBuilder()
                 .setStateId(STATE_ID_ACCOUNTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
                         .setValue(MapChangeValue.newBuilder().setAccountValue(account))
-                        .build())
+                        .setPartial(true)
+                        .addAllClearedFields(List.of(clearedFields)))
+                .build();
+    }
+
+    private StateChange partialTokenStateChange(
+            final TokenID tokenId, final Token.Builder token, final Integer... clearedFields) {
+        return StateChange.newBuilder()
+                .setStateId(STATE_ID_TOKENS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setTokenIdKey(tokenId))
+                        .setValue(MapChangeValue.newBuilder().setTokenValue(token))
+                        .setPartial(true)
+                        .addAllClearedFields(List.of(clearedFields)))
                 .build();
     }
 

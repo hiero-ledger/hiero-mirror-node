@@ -47,7 +47,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
-import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
@@ -301,8 +300,7 @@ final class BlockTransactionTest {
         // when, then
         assertThat(child.getStateChangeContext())
                 .isSameAs(parent.getStateChangeContext())
-                .extracting(StateChangeContext::getNewTokenId, InstanceOfAssertFactories.optional(TokenID.class))
-                .contains(tokenId);
+                .returns(tokenId, StateChangeContext::getNewTokenId);
         assertThat(failed.getStateChangeContext()).isSameAs(EMPTY_CONTEXT);
     }
 

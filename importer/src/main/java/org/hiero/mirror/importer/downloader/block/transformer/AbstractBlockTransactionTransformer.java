@@ -18,7 +18,6 @@ import com.hedera.services.stream.proto.ContractStateChange;
 import com.hedera.services.stream.proto.ContractStateChanges;
 import com.hedera.services.stream.proto.StorageChange;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
-import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -172,12 +171,10 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                     .setRealmNum(contractId.getRealmNum())
                     .setAccountNum(contractId.getContractNum())
                     .build();
-            blockTransaction
-                    .getStateChangeContext()
-                    .getAccount(accountId)
-                    .map(Account::getAlias)
-                    .filter(a -> a != ByteString.EMPTY)
-                    .ifPresent(evmAddress -> contractResultbuilder.setEvmAddress(BytesValue.of(evmAddress)));
+            final var evmAddress = blockTransaction.getStateChangeContext().getAccountAlias(accountId);
+            if (evmAddress != null && !evmAddress.isEmpty()) {
+                contractResultbuilder.setEvmAddress(BytesValue.of(evmAddress));
+            }
         }
 
         if (evmTransactionResult.hasInternalCallContext()) {
@@ -259,30 +256,30 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             return;
         }
 
-        blockTransaction.getStateChangeContext().getContractBytecode(contractId).ifPresent(runtimeBytecode -> {
-            var contractBytecode =
-                    ContractBytecode.newBuilder().setContractId(contractId).setRuntimeBytecode(runtimeBytecode);
-            if (evmTraceData != null && evmTraceData.hasExecutedInitcode()) {
-                var executedInitcode = evmTraceData.getExecutedInitcode();
-                var initcodeCase = executedInitcode.getInitcodeCase();
-                switch (initcodeCase) {
-                    case EXPLICIT_INITCODE -> contractBytecode.setInitcode(executedInitcode.getExplicitInitcode());
-                    case INITCODE_BOOKENDS ->
-                        contractBytecode.setInitcode(
-                                asInitcode(executedInitcode.getInitcodeBookends(), runtimeBytecode));
-                    default ->
-                        Utility.handleRecoverableError(
-                                "Unknown initcode case {} at {}",
-                                initcodeCase,
-                                blockTransaction.getConsensusTimestamp());
-                }
-            }
+        final var runtimeBytecode = blockTransaction.getStateChangeContext().getContractBytecode(contractId);
+        if (runtimeBytecode == null) {
+            return;
+        }
 
-            sidecarRecords.add(TransactionSidecarRecord.newBuilder()
-                    .setConsensusTimestamp(consnsusTimestamp)
-                    .setBytecode(contractBytecode)
-                    .build());
-        });
+        var contractBytecode =
+                ContractBytecode.newBuilder().setContractId(contractId).setRuntimeBytecode(runtimeBytecode);
+        if (evmTraceData != null && evmTraceData.hasExecutedInitcode()) {
+            var executedInitcode = evmTraceData.getExecutedInitcode();
+            var initcodeCase = executedInitcode.getInitcodeCase();
+            switch (initcodeCase) {
+                case EXPLICIT_INITCODE -> contractBytecode.setInitcode(executedInitcode.getExplicitInitcode());
+                case INITCODE_BOOKENDS ->
+                    contractBytecode.setInitcode(asInitcode(executedInitcode.getInitcodeBookends(), runtimeBytecode));
+                default ->
+                    Utility.handleRecoverableError(
+                            "Unknown initcode case {} at {}", initcodeCase, blockTransaction.getConsensusTimestamp());
+            }
+        }
+
+        sidecarRecords.add(TransactionSidecarRecord.newBuilder()
+                .setConsensusTimestamp(consnsusTimestamp)
+                .setBytecode(contractBytecode)
+                .build());
     }
 
     private void transformContractSlotUsage(

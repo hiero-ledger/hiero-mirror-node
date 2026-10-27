@@ -2,10 +2,13 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenType;
+import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -69,6 +72,73 @@ class TokenTransformerTest extends AbstractTransformerTest {
                 recordItemBuilder.tokenBurn().customize(this::finalize).build();
         var blockTransaction =
                 blockTransactionBuilder.tokenBurn(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void tokenBurnTotalSupplyUnknown() {
+        // given
+        var expectedRecordItem = recordItemBuilder
+                .tokenBurn()
+                .receipt(TransactionReceipt.Builder::clearNewTotalSupply)
+                .customize(b -> b.recordItem(r -> r.tokenTotalSupplyUnknown(true)))
+                .customize(this::finalize)
+                .build();
+        // the token's state change is partial without total supply, since the unit's net change is zero
+        var blockTransaction = blockTransactionBuilder
+                .tokenBurn(expectedRecordItem)
+                .stateChanges(stateChangesList -> stateChangesList.replaceAll(stateChanges -> {
+                    var builder = stateChanges.toBuilder();
+                    for (var stateChange : builder.getStateChangesBuilderList()) {
+                        if (stateChange.getStateId() == STATE_ID_TOKENS_VALUE) {
+                            stateChange
+                                    .getMapUpdateBuilder()
+                                    .setPartial(true)
+                                    .getValueBuilder()
+                                    .getTokenValueBuilder()
+                                    .clearTotalSupply();
+                        }
+                    }
+                    return builder.build();
+                }))
+                .build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void tokenBurnTotalSupplyMissing() {
+        // given
+        var expectedRecordItem = recordItemBuilder
+                .tokenBurn()
+                .receipt(TransactionReceipt.Builder::clearNewTotalSupply)
+                .customize(b -> b.recordItem(r -> r.tokenTotalSupplyUnknown(true)))
+                .customize(this::finalize)
+                .build();
+        // the token's state change is missing, a recoverable error is logged instead of failing the block
+        var blockTransaction = blockTransactionBuilder
+                .tokenBurn(expectedRecordItem)
+                .stateChanges(stateChangesList -> stateChangesList.replaceAll(stateChanges -> {
+                    var builder = StateChanges.newBuilder().setConsensusTimestamp(stateChanges.getConsensusTimestamp());
+                    for (var stateChange : stateChanges.getStateChangesList()) {
+                        if (stateChange.getStateId() != STATE_ID_TOKENS_VALUE) {
+                            builder.addStateChanges(stateChange);
+                        }
+                    }
+                    return builder.build();
+                }))
+                .build();
         var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when

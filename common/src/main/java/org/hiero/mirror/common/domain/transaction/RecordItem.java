@@ -78,6 +78,8 @@ public class RecordItem implements StreamItem {
     private final RecordItem previous;
     private final SignatureMap signatureMap;
     private final boolean successful;
+    // Set when a block stream omits the token total supply, the receipt's newTotalSupply is then not populated
+    private final boolean tokenTotalSupplyUnknown;
     private final Transaction transaction;
     private final TransactionBody transactionBody;
     private final int transactionIndex;

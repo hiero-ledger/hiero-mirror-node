@@ -3,6 +3,8 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -63,6 +65,23 @@ class TokenBurnTransactionHandlerTest extends AbstractTransactionHandlerTest {
                 .returns(transaction.getEntityId().getId(), AbstractNft::getTokenId);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void updateTransactionTokenTotalSupplyUnknown() {
+        // Given
+        var recordItem = recordItemBuilder
+                .tokenBurn()
+                .recordItem(r -> r.tokenTotalSupplyUnknown(true))
+                .build();
+        var transaction = domainBuilder.transaction().get();
+
+        // When
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // Then
+        verify(entityListener, never()).onToken(any());
+        verify(entityListener).onNft(any());
     }
 
     @Test

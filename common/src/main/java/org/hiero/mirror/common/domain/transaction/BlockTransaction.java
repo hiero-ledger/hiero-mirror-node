@@ -145,7 +145,7 @@ public class BlockTransaction implements StreamItem {
         }
 
         if (topicMessage.get() == null) {
-            topicMessage.set(getStateChangeContext().getTopicMessage(topicId).orElse(null));
+            topicMessage.set(getStateChangeContext().getTopicMessage(topicId));
         }
 
         return topicMessage.get();

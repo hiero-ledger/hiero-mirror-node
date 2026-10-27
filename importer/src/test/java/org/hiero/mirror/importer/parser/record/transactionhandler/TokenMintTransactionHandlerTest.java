@@ -6,6 +6,7 @@ import static com.hederahashgraph.api.proto.java.TokenType.FUNGIBLE_COMMON;
 import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -126,6 +127,24 @@ class TokenMintTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void updateTransactionTokenTotalSupplyUnknown() {
+        // Given
+        var recordItem = recordItemBuilder
+                .tokenMint(NON_FUNGIBLE_UNIQUE)
+                .recordItem(r -> r.tokenTotalSupplyUnknown(true))
+                .build();
+        var transaction = domainBuilder.transaction().get();
+        int expectedNfts = recordItem.getTransactionBody().getTokenMint().getMetadataCount();
+
+        // When
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // Then
+        verify(entityListener, never()).onToken(any());
+        verify(entityListener, times(expectedNfts)).onNft(any());
     }
 
     @Test

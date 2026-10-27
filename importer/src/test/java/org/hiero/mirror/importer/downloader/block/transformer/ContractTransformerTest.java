@@ -110,10 +110,20 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .setEvmAddress(recordItemBuilder.evmAddress().getValue())
                 .build();
 
+        // The receipt contract id is left for the parser to resolve when the body has a non long-zero EVM address
         return Stream.of(
-                Arguments.of("plain", contractId, contractId),
-                Arguments.of("encoded evm address", encoded, contractId),
-                Arguments.of("create2 evm address", create2EvmAddress, contractId));
+                Arguments.of("plain", contractId, contractId, true),
+                Arguments.of("encoded evm address", encoded, contractId, true),
+                Arguments.of("create2 evm address", create2EvmAddress, contractId, false));
+    }
+
+    private static void setReceiptContractId(
+            final Builder receipt, final ContractID contractId, final boolean inReceipt) {
+        if (inReceipt) {
+            receipt.setContractID(contractId);
+        } else {
+            receipt.clearContractID();
+        }
     }
 
     @Test
@@ -295,16 +305,16 @@ final class ContractTransformerTest extends AbstractTransformerTest {
 
     @MethodSource("provideContractIds")
     @ParameterizedTest(name = "delete contract with {0} contract id")
-    void contractDelete(String type, ContractID contractIdInBody, ContractID contractIdInReceipt) {
+    void contractDelete(String type, ContractID contractIdInBody, ContractID contractId, boolean inReceipt) {
         // given
         var expectedRecordItem = recordItemBuilder
                 .contractDelete()
                 .transactionBody(b -> b.setContractID(contractIdInBody))
-                .receipt(r -> r.setContractID(contractIdInReceipt))
+                .receipt(r -> setReceiptContractId(r, contractId, inReceipt))
                 .customize(this::finalize)
                 .build();
         var blockTransaction = blockTransactionBuilder
-                .contractDeleteOrUpdate(expectedRecordItem)
+                .contractDeleteOrUpdate(expectedRecordItem, contractId)
                 .build();
         var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
@@ -338,16 +348,16 @@ final class ContractTransformerTest extends AbstractTransformerTest {
 
     @MethodSource("provideContractIds")
     @ParameterizedTest(name = "update contract with {0} contract id")
-    void contractUpdate(String type, ContractID contractIdInBody, ContractID contractIdInReceipt) {
+    void contractUpdate(String type, ContractID contractIdInBody, ContractID contractId, boolean inReceipt) {
         // given
         var expectedRecordItem = recordItemBuilder
                 .contractUpdate()
                 .transactionBody(b -> b.setContractID(contractIdInBody))
-                .receipt(r -> r.setContractID(contractIdInReceipt))
+                .receipt(r -> setReceiptContractId(r, contractId, inReceipt))
                 .customize(this::finalize)
                 .build();
         var blockTransaction = blockTransactionBuilder
-                .contractDeleteOrUpdate(expectedRecordItem)
+                .contractDeleteOrUpdate(expectedRecordItem, contractId)
                 .build();
         var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 

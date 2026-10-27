@@ -5,6 +5,8 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static com.hederahashgraph.api.proto.java.TokenType.FUNGIBLE_COMMON;
 import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -100,6 +102,25 @@ class TokenWipeTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction, accountId));
+    }
+
+    @Test
+    void updateTransactionTokenTotalSupplyUnknown() {
+        // Given
+        var recordItem = recordItemBuilder
+                .tokenWipe(NON_FUNGIBLE_UNIQUE)
+                .recordItem(r -> r.tokenTotalSupplyUnknown(true))
+                .build();
+        var protoAccountId = recordItem.getTransactionBody().getTokenWipe().getAccount();
+        when(entityIdService.lookup(protoAccountId)).thenReturn(Optional.of(EntityId.of(protoAccountId)));
+        var transaction = domainBuilder.transaction().get();
+
+        // When
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // Then
+        verify(entityListener, never()).onToken(any());
+        verify(entityListener).onNft(any());
     }
 
     @Test
