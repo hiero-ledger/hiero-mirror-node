@@ -13,6 +13,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -31,6 +32,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.transaction.support.TransactionOperations;
@@ -197,6 +199,83 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
         // then
         assertThat(tokenAccountRepository.findAll()).containsExactly(dissociated);
         assertThat(findHistory(TokenAccountHistory.class)).isEmpty();
+    }
+
+    @Test
+    void migrateExceedsParameterLimit() {
+        // given
+        final var tokenId = treasuryChange(true);
+        final long firstTimestamp = CHANGE_TIMESTAMP + 5;
+        final long lastTimestamp = firstTimestamp + 65_535;
+        final var current = tokenAccount(tokenId, 5L, TokenFreezeStatusEnum.FROZEN, TokenKycStatusEnum.REVOKED);
+        final var associatedHistory = toHistory(current);
+        associatedHistory.setTimestampRange(Range.closedOpen(5L, firstTimestamp));
+        tokenAccountHistoryRepository.save(associatedHistory);
+        current.setTimestampRange(Range.atLeast(lastTimestamp));
+        tokenAccountRepository.save(current);
+
+        // Unchanged statuses require the transaction type to distinguish repeated freezes from a KYC revocation.
+        // There are 65,536 subsequent snapshots, including the current row, exceeding the JDBC parameter limit.
+        final var params = new MapSqlParameterSource()
+                .addValue("accountId", current.getAccountId())
+                .addValue("first", firstTimestamp)
+                .addValue("freezeType", TransactionType.TOKENFREEZE.getProtoId())
+                .addValue("last", lastTimestamp)
+                .addValue("revokeType", TransactionType.TOKENREVOKEKYC.getProtoId())
+                .addValue("success", ResponseCodeEnum.SUCCESS_VALUE)
+                .addValue("tokenId", tokenId);
+        namedParameterJdbcOperations.update("""
+                insert into token_account_history (
+                  account_id, associated, automatic_association, balance, balance_timestamp, created_timestamp,
+                  freeze_status, kyc_status, timestamp_range, token_id
+                )
+                select account_id, associated, automatic_association, balance, balance_timestamp, created_timestamp,
+                       freeze_status, kyc_status, int8range(ts, ts + 1), token_id
+                from token_account cross join generate_series(:first, :last - 1) ts
+                where account_id = :accountId and token_id = :tokenId
+                """, params);
+        namedParameterJdbcOperations.update("""
+                insert into transaction (consensus_timestamp, payer_account_id, result, type, valid_start_ns)
+                select ts, :accountId, :success, case when ts = :last then :revokeType else :freezeType end, ts
+                from generate_series(:first, :last) ts
+                """, params);
+
+        // when
+        migration.doMigrate();
+
+        // then
+        assertThat(tokenAccountRepository.findAll()).containsExactly(current);
+        final var history = findHistory(TokenAccountHistory.class);
+        assertThat(history).hasSize(65_537);
+        assertThat(history)
+                .filteredOn(t -> t.getTimestampLower() < firstTimestamp)
+                .extracting(
+                        TokenAccountHistory::getTimestampRange,
+                        TokenAccountHistory::getFreezeStatus,
+                        TokenAccountHistory::getKycStatus)
+                .containsExactlyInAnyOrder(
+                        tuple(
+                                Range.closedOpen(5L, CHANGE_TIMESTAMP),
+                                TokenFreezeStatusEnum.FROZEN,
+                                TokenKycStatusEnum.REVOKED),
+                        tuple(
+                                Range.closedOpen(CHANGE_TIMESTAMP, firstTimestamp),
+                                TokenFreezeStatusEnum.UNFROZEN,
+                                TokenKycStatusEnum.GRANTED));
+        assertThat(history)
+                .filteredOn(t -> t.getTimestampLower() >= firstTimestamp)
+                .hasSize(65_535)
+                .allSatisfy(t -> {
+                    assertThat(t.getFreezeStatus()).isEqualTo(TokenFreezeStatusEnum.FROZEN);
+                    assertThat(t.getKycStatus()).isEqualTo(TokenKycStatusEnum.GRANTED);
+                });
+
+        // when run again
+        migration.doMigrate();
+
+        // then nothing changes
+        assertThat(tokenAccountRepository.findAll()).containsExactly(current);
+        assertThat(findHistory(TokenAccountHistory.class)).containsExactlyElementsOf(history);
     }
 
     @Test

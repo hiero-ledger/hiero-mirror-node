@@ -94,7 +94,8 @@ final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJav
     private static final String SELECT_TRANSACTION_TYPES = """
             select consensus_timestamp, type
             from transaction
-            where consensus_timestamp in (:timestamps)
+            where consensus_timestamp = any(:timestamps::bigint[])
+              and consensus_timestamp between :minTimestamp and :maxTimestamp
             """;
 
     private static final String SELECT_TREASURY_CHANGES = """
@@ -281,12 +282,17 @@ final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJav
             return Map.of();
         }
 
-        final var timestamps =
-                snapshots.stream().map(TokenAccountSnapshot::timestampLower).toList();
+        final var timestamps = new Long[snapshots.size()];
+        for (int i = 0; i < timestamps.length; i++) {
+            timestamps[i] = snapshots.get(i).timestampLower();
+        }
+
+        final var params = new MapSqlParameterSource("timestamps", timestamps)
+                .addValue("minTimestamp", timestamps[0])
+                .addValue("maxTimestamp", timestamps[timestamps.length - 1]);
         final var transactionTypes = new HashMap<Long, Integer>();
-        jdbcOperations.query(
-                SELECT_TRANSACTION_TYPES, new MapSqlParameterSource("timestamps", timestamps), (RowCallbackHandler)
-                        rs -> transactionTypes.put(rs.getLong("consensus_timestamp"), rs.getInt("type")));
+        jdbcOperations.query(SELECT_TRANSACTION_TYPES, params, (RowCallbackHandler)
+                rs -> transactionTypes.put(rs.getLong("consensus_timestamp"), rs.getInt("type")));
         return transactionTypes;
     }
 
