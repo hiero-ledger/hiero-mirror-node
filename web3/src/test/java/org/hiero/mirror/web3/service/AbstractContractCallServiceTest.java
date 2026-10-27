@@ -72,7 +72,6 @@ import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
-import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.TestWeb3jService;
 import org.hiero.mirror.web3.web3j.TestWeb3jService.Web3jTestConfiguration;
 import org.hyperledger.besu.datatypes.Address;
@@ -328,11 +327,22 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Address senderAddress,
             final long value,
             final CallType callType) {
+        return getContractExecutionParameters(
+                dataHex, receiverAddress, senderAddress, value, callType, TRANSACTION_GAS_LIMIT);
+    }
+
+    protected ContractExecutionParameters getContractExecutionParameters(
+            final String dataHex,
+            final Address receiverAddress,
+            final Address senderAddress,
+            final long value,
+            final CallType callType,
+            final long gas) {
         return ContractExecutionParameters.builder()
-                .block(BlockType.LATEST)
+                .block(testWeb3jService.getBlockType())
                 .callData(hexToBytes(dataHex))
                 .callType(callType)
-                .gas(TRANSACTION_GAS_LIMIT)
+                .gas(gas)
                 .gasPrice(0L)
                 .isEstimate(callType == ETH_ESTIMATE_GAS)
                 .isStatic(false)

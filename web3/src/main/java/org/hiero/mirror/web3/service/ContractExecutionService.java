@@ -15,6 +15,7 @@ import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
@@ -108,7 +109,8 @@ public class ContractExecutionService extends ContractCallService {
      * that would prevent the estimation from succeeding.
      * <p>
      * 2. Finally, if the first step is successful, a binary search is initiated. The lower bound of the search is the
-     * gas used in the first step, while the upper bound is the inputted gas parameter.
+     * gas used in the first step, while the upper bound is the inputted gas parameter. A 5% safety margin is added
+     * to the successful limit, independently of storage refunds.
      */
     private Bytes estimateGas(final ContractExecutionParameters params, final ContractCallContext context) {
         final var processingResult = callContract(params, context);
@@ -120,6 +122,14 @@ public class ContractExecutionService extends ContractCallService {
                 gas -> doProcessCall(params, gas, true),
                 gasUsedByInitialCall,
                 params.getGas());
+
+        if (estimatedGas > evmProperties.getMaxGasLimit()) {
+            throw new MirrorEvmTransactionException(
+                    ResponseCodeEnum.MAX_GAS_LIMIT_EXCEEDED.name(),
+                    "Gas estimate exceeds the maximum gas limit",
+                    "0x",
+                    processingResult);
+        }
 
         return Bytes.ofUnsignedLong(estimatedGas);
     }

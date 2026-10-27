@@ -38,6 +38,7 @@ import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.Range;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
@@ -405,6 +406,30 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     }
 
     @Test
+    void estimateGasRejectsSafetyMarginAboveMaximumGasLimit() {
+        final var sender = accountEntityWithEvmAddressAndSufficientBalancePersist();
+        final var receiver = accountEntityWithEvmAddressPersist();
+        final var estimate = contractExecutionParametersBuilder(
+                        BlockType.LATEST,
+                        HEX_PREFIX,
+                        toAddress(sender.toEntityId()),
+                        getAliasAddressFromEntity(receiver),
+                        ETH_ESTIMATE_GAS,
+                        7L)
+                .gas(21_000L)
+                .build();
+        final var originalMaxGasLimit = evmProperties.getMaxGasLimit();
+        try {
+            evmProperties.setMaxGasLimit(21_000L);
+            assertThatThrownBy(() -> contractExecutionService.processCall(estimate))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessage(ResponseCodeEnum.MAX_GAS_LIMIT_EXCEEDED.name());
+        } finally {
+            evmProperties.setMaxGasLimit(originalMaxGasLimit);
+        }
+    }
+
+    @Test
     void balanceCallToNonSystemAccount() throws Exception {
         // Given
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
@@ -736,31 +761,43 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var senderAddress = getAliasAddressFromEntity(sender);
         final var block = BlockType.of(Long.toString(blockNumber));
 
-        persistExchangeRate(HBAR_EQUIV, HISTORICAL_CENT_EQUIV, historicalHourStartNanos);
         transactionExecutorFactory.get();
-        exchangeRateUpdater.refresh(Instant.now());
-        final long firstGasEstimationAtBlockRate = hollowCreationGas(senderAddress, block);
-
-        // The test method's call context times SQL out after 4 seconds, and the estimate above uses that up.
-        ContractCallContext.run(ctx -> {
-            persistExchangeRate(HBAR_EQUIV, LATEST_CENT_EQUIV, currentHourStartNanos);
-            exchangeRateUpdater.refresh(Instant.now());
-            return null;
-        });
         final var exchangeRateManagers = transactionExecutorFactory.getExchangeRateManagers();
-        assertThat(exchangeRateManagers.isEmpty()).isFalse();
-        for (final var exchangeRateManager : exchangeRateManagers) {
-            assertThat(exchangeRateManager.exchangeRates().currentRateOrThrow().centEquiv())
-                    .isEqualTo(LATEST_CENT_EQUIV);
+        final var originalRates = exchangeRateManagers.stream()
+                .map(manager -> ExchangeRateSet.PROTOBUF.toBytes(manager.exchangeRates()))
+                .toList();
+        try {
+            persistExchangeRate(HBAR_EQUIV, HISTORICAL_CENT_EQUIV, historicalHourStartNanos);
+            exchangeRateUpdater.refresh(Instant.now());
+            final long firstGasEstimationAtBlockRate = hollowCreationGas(senderAddress, block);
+
+            // The test method's call context times SQL out after 4 seconds, and the estimate above uses that up.
+            ContractCallContext.run(ctx -> {
+                persistExchangeRate(HBAR_EQUIV, LATEST_CENT_EQUIV, currentHourStartNanos);
+                exchangeRateUpdater.refresh(Instant.now());
+                return null;
+            });
+            assertThat(exchangeRateManagers.isEmpty()).isFalse();
+            for (final var exchangeRateManager : exchangeRateManagers) {
+                assertThat(exchangeRateManager
+                                .exchangeRates()
+                                .currentRateOrThrow()
+                                .centEquiv())
+                        .isEqualTo(LATEST_CENT_EQUIV);
+            }
+
+            // When
+            final long secondGasEstimationAtBlockRate = hollowCreationGas(senderAddress, block);
+
+            // Then
+            assertThat(secondGasEstimationAtBlockRate)
+                    .as("historical hollow-creation gas must use the exchange rate file at the block")
+                    .isCloseTo(firstGasEstimationAtBlockRate, offset(1L));
+        } finally {
+            for (int i = 0; i < exchangeRateManagers.size(); i++) {
+                exchangeRateManagers.get(i).systemUpdate(originalRates.get(i));
+            }
         }
-
-        // When
-        final long secondGasEstimationAtBlockRate = hollowCreationGas(senderAddress, block);
-
-        // Then
-        assertThat(secondGasEstimationAtBlockRate)
-                .as("historical hollow-creation gas must use the exchange rate file at the block")
-                .isCloseTo(firstGasEstimationAtBlockRate, offset(1L));
     }
 
     /**
@@ -829,8 +866,17 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .gas(estimatedGas)
                 .build();
 
-        // Then: the estimated limit is sufficient to execute against the original storage in a fresh call.
-        assertThat(estimatedGas).isPositive().isLessThanOrEqualTo(gasLimit);
+        // Then: even after removing the 5% margin, a fresh call must still execute successfully.
+        // This verifies headroom over a sufficient pre-refund limit, including nested-call forwarding costs.
+        final var gasWithoutSafetyMargin = estimatedGas * 20 / 21;
+        final var unpaddedCall = contractExecutionParametersBuilder(
+                        BlockType.LATEST, data, Address.ZERO, receiver, ETH_CALL, 0L)
+                .gas(gasWithoutSafetyMargin)
+                .build();
+        final var unpaddedExecution =
+                assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(unpaddedCall));
+        assertThat(unpaddedExecution.result()).isEqualTo(expectedResult);
+        assertThat(estimatedGas).isGreaterThan(gasWithoutSafetyMargin).isLessThanOrEqualTo(gasLimit);
         final var freshExecution =
                 assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(estimatedGasCall));
         assertThat(freshExecution.result()).isEqualTo(expectedResult);
@@ -856,7 +902,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, senderAddress);
-        final var actualGas = 1413995L;
+        final var actualGas = 1538019L;
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -874,7 +920,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, Address.ZERO);
-        final var actualGas = 1413995L;
+        final var actualGas = 1538019L;
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -1309,7 +1355,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final var result = contractExecutionService.processCall(serviceParameters);
 
             // Then
-            final long expectedGas = 570000L;
+            final long expectedGas = 607854L;
             final long estimatedGas = Long.parseLong(result.substring(2), 16);
             assertThat(isWithinExpectedGasRange(estimatedGas, expectedGas))
                     .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimatedGas, expectedGas)

@@ -19,28 +19,18 @@ public class BinaryGasEstimator {
 
     public long search(
             final ObjIntConsumer<Long> metricUpdater, final LongFunction<EvmTransactionResult> call, long lo, long hi) {
-        final long minAllowedEstimate = (long) Math.ceil(lo * 1.05);
-        if (hi <= minAllowedEstimate) {
-            return minAllowedEstimate;
-        }
-
         long prevGasLimit = lo;
         int iterationsMade = 0;
         long totalGasUsed = 0;
 
-        // Now that we also support gas estimates for precompile calls, the default threshold is too low, since
-        // it does not take into account the minimum threshold of 5% higher estimate than the actual gas used.
-        // The default value is working with some calls but that is not the case for precompile calls which have higher
-        // gas consumption.
-        // Configurable tolerance of 10% over 5% is used, since the algorithm fails when using 5%, producing too narrow
-        // threshold. Adjust via estimateGasIterationThresholdPercent value.
+        // Limit search precision separately from the safety margin applied to the successful upper bound below.
         final long estimateIterationThreshold = (long) (lo * properties.getEstimateGasIterationThresholdPercent());
 
         final var contractCallContext = ContractCallContext.get();
-        while (lo + 1 < hi && iterationsMade < properties.getMaxGasEstimateRetriesCount()) {
+        while (lo < hi - 1 && iterationsMade < properties.getMaxGasEstimateRetriesCount()) {
             contractCallContext.reset();
 
-            final long mid = (hi + lo) / 2;
+            final long mid = lo + (hi - lo) / 2;
 
             // If modularizedServices is true - we call the safeCall function that handles if an exception is thrown
             final var transactionResult = safeCall(mid, call);
@@ -64,7 +54,9 @@ public class BinaryGasEstimator {
 
         metricUpdater.accept(totalGasUsed, iterationsMade);
 
-        return Math.max(hi, minAllowedEstimate);
+        // Refunds reduce gasUsed, not the gas limit required during execution. Pad the successful limit instead.
+        // Add ceil(hi * 5%) with integer arithmetic and reject overflow rather than returning a smaller limit.
+        return Math.addExact(hi, hi / 20 + (hi % 20 == 0 ? 0 : 1));
     }
 
     // This method is needed because within the modularized services if the contract call fails an exception is thrown

@@ -484,7 +484,8 @@ fi
 
 next_path="/api/v1/contracts/results?limit=${page_limit}&order=desc"
 
-while ((processed < RESULTS_COUNT)); do
+remaining="${RESULTS_COUNT}"
+while ((remaining > 0)); do
   if [[ -z "${next_path}" || "${next_path}" == "null" ]]; then
     break
   fi
@@ -507,14 +508,23 @@ while ((processed < RESULTS_COUNT)); do
   fi
 
   while IFS= read -r result_json; do
-    if ((processed >= RESULTS_COUNT)); then
+    if ((remaining <= 0)); then
       break
     fi
+    remaining=$((remaining - 1))
     check_result "${result_json}"
     sleep "${SLEEP_SECONDS}"
   done < <(jq -c '.results[]' <<<"${page_json}")
 
-  next_path="$(jq -r '.links.next // empty' <<<"${page_json}")"
+  ((remaining > 0)) || break
+  # Request only the remaining sample budget on the final page.
+  next_path="$(jq -r --argjson limit "$((remaining < LIMIT ? remaining : LIMIT))" '
+    .links.next // empty
+    | if test("[?&]limit=") then
+        sub("(?<prefix>[?&]limit=)[0-9]+"; "\(.prefix)\($limit)")
+      else . + (if contains("?") then "&" else "?" end) + "limit=\($limit)"
+      end
+  ' <<<"${page_json}")"
 done
 
 summary="processed=${processed} passed=${passed}"

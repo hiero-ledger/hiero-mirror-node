@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.service.utils;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
 
@@ -38,8 +39,8 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
     @CsvSource({
         "23850, 100000, 6",
         "35000, 15_000_000, 14",
-        "55555, 58333, 1",
-        "77777, 81666, 1",
+        "55555, 58333, 2",
+        "77777, 81666, 2",
         "1_000_000, 1_000_000_000, 20",
         "21000, 15_000_000, 14",
         "21000, 50_000_000, 15",
@@ -50,7 +51,9 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
         final var regularCall = binaryGasEstimator.search(
                 (a, b) -> iterations.addAndGet(b), unused -> createTxnResult(low, true), low, high);
 
-        assertThat(regularCall).as("result must not go out of bounds").isBetween(low, high);
+        assertThat(regularCall)
+                .as("result must not exceed the successful input limit plus its safety margin")
+                .isBetween(low, high + high / 20 + (high % 20 == 0 ? 0 : 1));
 
         assertThat(regularCall)
                 .as("result must be within the 20% range of the initial gasUsed(low param)")
@@ -74,7 +77,9 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
         final var callResult = binaryGasEstimator.search(
                 (a, b) -> iterations.addAndGet(b), unused -> createTxnResult(low, failEverySecondCall()), low, high);
 
-        assertThat(callResult).as("result must not go out of bounds").isBetween(low, high);
+        assertThat(callResult)
+                .as("result must not exceed the successful input limit plus its safety margin")
+                .isBetween(low, high + high / 20 + (high % 20 == 0 ? 0 : 1));
         assertThat(iterations.get())
                 .as("iteration limit")
                 .isLessThanOrEqualTo(properties.getMaxGasEstimateRetriesCount());
@@ -93,7 +98,7 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
          * whether the condition in BinaryGasEstimator keeps the iteration under this 20 threshold.
          */
         final var low = 0;
-        final var high = Long.MAX_VALUE;
+        final var high = Long.MAX_VALUE / 2;
         binaryGasEstimator.search((a, b) -> iterations.addAndGet(b), unused -> createTxnResult(0, false), low, high);
 
         assertThat(iterations.get())
@@ -101,19 +106,32 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
                 .isLessThanOrEqualTo(properties.getMaxGasEstimateRetriesCount());
     }
 
-    @Test
-    void searchReturnsHiWhenPreRefundGasExceedsTwentyPercentAboveInitialGasUsed() {
-        final long postRefundGasUsed = 77_426L;
-        final long preRefundGasNeeded = 96_782L;
-        final long high = 111_784L;
-
+    @ParameterizedTest
+    @CsvSource({
+        "50000, 62500, 70000, 65625",
+        "54427, 68033, 200000, 71435",
+        "63735, 79668, 200000, 83652",
+        "77426, 96782, 111784, 101622"
+    })
+    void searchAddsSafetyMarginToPreRefundGas(
+            long postRefundGasUsed, long preRefundGasNeeded, long high, long minimumEstimate) {
         final long estimated = binaryGasEstimator.search(
                 (_, b) -> iterations.addAndGet(b),
                 gasLimit -> createTxnResult(postRefundGasUsed, gasLimit >= preRefundGasNeeded),
                 postRefundGasUsed,
                 high);
 
-        assertThat(estimated).isGreaterThanOrEqualTo(preRefundGasNeeded).isLessThanOrEqualTo(high);
+        assertThat(estimated).isGreaterThanOrEqualTo(minimumEstimate);
+        assertThat(estimated * 20 / 21)
+                .as("the estimate with its safety margin removed must still cover pre-refund execution")
+                .isGreaterThanOrEqualTo(preRefundGasNeeded);
+    }
+
+    @Test
+    void searchRejectsSafetyMarginOverflow() {
+        assertThatThrownBy(() -> binaryGasEstimator.search(
+                        (_, _) -> {}, _ -> createTxnResult(Long.MAX_VALUE, true), Long.MAX_VALUE, Long.MAX_VALUE))
+                .isInstanceOf(ArithmeticException.class);
     }
 
     @ParameterizedTest
