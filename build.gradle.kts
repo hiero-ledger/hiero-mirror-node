@@ -12,7 +12,6 @@ plugins {
     id("com.github.node-gradle.node")
     id("idea")
     id("java-platform")
-    id("snykcode-extension")
 }
 
 // Can't use typed variable syntax due to Dependabot limitations
