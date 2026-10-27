@@ -3,10 +3,15 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.data.util.Predicates.negate;
 
@@ -18,6 +23,7 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.hiero.mirror.common.domain.entity.CryptoAllowance;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -30,17 +36,19 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.parser.contractlog.ApproveForAllAllowanceContractLog;
 import org.hiero.mirror.importer.parser.contractresult.SyntheticContractResultService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
+import org.springframework.data.util.Version;
 
-class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Mock
-    protected SyntheticContractResultService syntheticContractResultService;
+    private SyntheticContractResultService syntheticContractResultService;
 
     private long consensusTimestamp;
     private CryptoAllowance expectedCryptoAllowance;
@@ -116,6 +124,104 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
     @Override
     protected EntityType getExpectedEntityIdType() {
         return null;
+    }
+
+    @Test
+    void updateTransactionDelegatedApprovedForAllFalseIgnored() {
+        // given
+        final var delegatingSpender = recordItemBuilder.accountId();
+        final var recordItem = nftAllowanceRecordItem(
+                HAPI_VERSION_0_77_0,
+                b -> b.setApprovedForAll(BoolValue.of(false))
+                        .setDelegatingSpender(delegatingSpender)
+                        .addSerialNumbers(expectedNft.getId().getSerialNumber()));
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(consensusTimestamp))
+                .get();
+        final var delegatingSpenderId = EntityId.of(delegatingSpender);
+        when(entityIdService.lookup(delegatingSpender)).thenReturn(Optional.of(delegatingSpenderId));
+        expectedNft.setDelegatingSpender(delegatingSpenderId.getId());
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener).onNft(assertArg(t -> assertEquals(expectedNft, t)));
+        verify(entityListener, never()).onNftAllowance(any());
+        // The per-serial approval log is skipped whenever approvedForAll is set, a separate issue
+        verifyNoInteractions(syntheticContractLogService);
+    }
+
+    @Test
+    void updateTransactionDelegatedApprovedForAllFalsePreHapi77() {
+        // given
+        final var delegatingSpender = recordItemBuilder.accountId();
+        final var recordItem = nftAllowanceRecordItem(
+                new Version(0, 76, 0),
+                b -> b.setApprovedForAll(BoolValue.of(false))
+                        .setDelegatingSpender(delegatingSpender)
+                        .addSerialNumbers(expectedNft.getId().getSerialNumber()));
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(consensusTimestamp))
+                .get();
+        final var delegatingSpenderId = EntityId.of(delegatingSpender);
+        when(entityIdService.lookup(delegatingSpender)).thenReturn(Optional.of(delegatingSpenderId));
+        expectedNft.setDelegatingSpender(delegatingSpenderId.getId());
+        expectedNftAllowance.setApprovedForAll(false);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener).onNft(assertArg(t -> assertEquals(expectedNft, t)));
+        verify(entityListener).onNftAllowance(assertArg(t -> assertEquals(expectedNftAllowance, t)));
+        verify(syntheticContractLogService).create(isA(ApproveForAllAllowanceContractLog.class));
+        verifyNoMoreInteractions(syntheticContractLogService);
+    }
+
+    @Test
+    void updateTransactionDelegatingSpenderZeroApprovedForAllTrue() {
+        // given a delegating spender 0.0.0, which consensus nodes treat as absent, so it's the owner's grant
+        final var recordItem = nftAllowanceRecordItem(
+                HAPI_VERSION_0_77_0,
+                b -> b.setApprovedForAll(BoolValue.of(true))
+                        .setDelegatingSpender(AccountID.newBuilder().setAccountNum(0)));
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(consensusTimestamp))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener, never()).onNft(any());
+        verify(entityListener).onNftAllowance(assertArg(t -> assertEquals(expectedNftAllowance, t)));
+        verify(syntheticContractLogService).create(isA(ApproveForAllAllowanceContractLog.class));
+        verifyNoMoreInteractions(syntheticContractLogService);
+    }
+
+    @Test
+    void updateTransactionOwnerRevokesApprovedForAll() {
+        // given
+        final var recordItem =
+                nftAllowanceRecordItem(HAPI_VERSION_0_77_0, b -> b.setApprovedForAll(BoolValue.of(false)));
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(consensusTimestamp))
+                .get();
+        expectedNftAllowance.setApprovedForAll(false);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener, never()).onNft(any());
+        verify(entityListener).onNftAllowance(assertArg(t -> assertEquals(expectedNftAllowance, t)));
+        verify(syntheticContractLogService).create(isA(ApproveForAllAllowanceContractLog.class));
+        verifyNoMoreInteractions(syntheticContractLogService);
     }
 
     @Test
@@ -382,6 +488,23 @@ class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransactionHa
                         .filter(negate(Objects::isNull))
                         .map(EntityId::of));
         return getExpectedEntityTransactions(recordItem, transaction, entityIds.toArray(EntityId[]::new));
+    }
+
+    private RecordItem nftAllowanceRecordItem(
+            final Version hapiVersion,
+            final Consumer<com.hederahashgraph.api.proto.java.NftAllowance.Builder> customizer) {
+        final var nftAllowance = com.hederahashgraph.api.proto.java.NftAllowance.newBuilder()
+                .setOwner(expectedNft.getAccountId().toAccountID())
+                .setSpender(EntityId.of(expectedNft.getSpender()).toAccountID())
+                .setTokenId(EntityId.of(expectedNft.getTokenId()).toTokenID());
+        customizer.accept(nftAllowance);
+        return recordItemBuilder
+                .cryptoApproveAllowance()
+                .transactionBody(b -> b.clear().addNftAllowances(nftAllowance))
+                .transactionBodyWrapper(this::setTransactionPayer)
+                .record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(consensusTimestamp)))
+                .recordItem(r -> r.hapiVersion(hapiVersion))
+                .build();
     }
 
     private void setTransactionPayer(TransactionBody.Builder builder) {
