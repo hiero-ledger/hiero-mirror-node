@@ -32,7 +32,6 @@ dependencies {
     implementation("com.gorylenko.gradle-git-properties:gradle-git-properties:4.0.1")
     implementation("com.gradleup.shadow:shadow-gradle-plugin:9.6.1")
     implementation("com.graphql-java-generator:graphql-gradle-plugin3:4.0.2")
-    implementation("gradle.plugin.io.snyk.gradle.plugin:snyk:0.7.0")
     implementation("io.freefair.gradle:lombok-plugin:9.8.2")
     implementation("io.spring.gradle:dependency-management-plugin:1.1.7")
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.1")
