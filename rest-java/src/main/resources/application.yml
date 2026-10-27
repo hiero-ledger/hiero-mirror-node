@@ -20,6 +20,16 @@ hiero:
           path:
             # Override inherited defaults and define additional headers for individual controller request mappings.
             # "[]" around the path preserves special characters. Multiple header name/value pairs may be defined per path.
+            # CLPR channels, connectors and pending commitments change infrequently. Messages use the default since they
+            # are appended continuously.
+            "[/api/v1/clpr/channels]":
+              "Cache-Control": "public, max-age=5"
+            "[/api/v1/clpr/channels/pending]":
+              "Cache-Control": "public, max-age=5"
+            "[/api/v1/clpr/connectors]":
+              "Cache-Control": "public, max-age=5"
+            "[/api/v1/clpr/connectors/pending]":
+              "Cache-Control": "public, max-age=5"
             "[/api/v1/topics/{id}]":
               "Cache-Control": "public, max-age=5"
             "[/api/v1/network/stake]":

@@ -6,21 +6,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
+import com.google.common.collect.Range;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
 import org.hiero.mirror.rest.model.ClprConnectorsResponse;
 import org.hiero.mirror.rest.model.ClprMessagesResponse;
+import org.hiero.mirror.rest.model.ClprPendingChannelsResponse;
+import org.hiero.mirror.rest.model.ClprPendingConnectorsResponse;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
 import org.hiero.mirror.restjava.mapper.ClprConnectorMapper;
+import org.hiero.mirror.restjava.mapper.ClprPendingChannelMapper;
+import org.hiero.mirror.restjava.mapper.ClprPendingConnectorMapper;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -37,6 +44,8 @@ final class ClprControllerTest extends ControllerTest {
 
     private final ClprConnectorMapper connectorMapper;
     private final ClprChannelMapper mapper;
+    private final ClprPendingChannelMapper pendingChannelMapper;
+    private final ClprPendingConnectorMapper pendingConnectorMapper;
 
     @DisplayName("GET /api/v1/clpr/channels")
     @Nested
@@ -53,6 +62,15 @@ final class ClprControllerTest extends ControllerTest {
 
             assertThat(actual.getChannels()).isEmpty();
             assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void cacheControl() {
+            final var response = restClient.get().uri("").retrieve().toBodilessEntity();
+
+            // Based on application.yml response headers configuration
+            assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
+            assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=5");
         }
 
         @Test
@@ -225,17 +243,43 @@ final class ClprControllerTest extends ControllerTest {
         }
 
         @Test
-        void channelIdAllowsRangeWiderThanMax() {
-            final var channel = persist(2_000_000_000L, ClprChannelStatus.ACTIVE);
-            final var id = HexFormat.of().formatHex(channel.getChannelId());
+        void channelIdWithTimestampReturnsHistoricalState() {
+            final var current = domainBuilder
+                    .clprChannel()
+                    .customize(c -> c.status(ClprChannelStatus.CLOSED).timestampRange(Range.atLeast(200L)))
+                    .persist();
+            final var history = domainBuilder
+                    .clprChannelHistory()
+                    .customize(c -> c.channelId(current.getChannelId())
+                            .status(ClprChannelStatus.ACTIVE)
+                            .timestampRange(Range.closedOpen(100L, 200L)))
+                    .persist();
+            final var id = HexFormat.of().formatHex(current.getChannelId());
 
             final var actual = restClient
                     .get()
-                    .uri("?channel.id={id}&timestamp=gte:1&timestamp=lte:99999999", id)
+                    .uri("?channel.id={id}&timestamp=eq:0.000000150", id)
                     .retrieve()
                     .body(ClprChannelsResponse.class);
 
-            assertThat(actual.getChannels()).containsExactlyElementsOf(mapper.map(List.of(channel)));
+            assertThat(actual.getChannels())
+                    .singleElement()
+                    .extracting(c -> c.getStatus())
+                    .isEqualTo(org.hiero.mirror.rest.model.ClprChannelStatus.ACTIVE);
+            assertThat(history.getStatus()).isEqualTo(ClprChannelStatus.ACTIVE);
+        }
+
+        @Test
+        void channelIdWithTimestampRequiresEq() {
+            final var id = HexFormat.of().formatHex(new byte[32]);
+            validateError(
+                    () -> restClient
+                            .get()
+                            .uri("?channel.id={id}&timestamp=gte:1", id)
+                            .retrieve()
+                            .toBodilessEntity(),
+                    HttpClientErrorException.BadRequest.class,
+                    "timestamp must use the eq operator when filtering by channel.id");
         }
 
         @Test
@@ -319,6 +363,15 @@ final class ClprControllerTest extends ControllerTest {
 
             assertThat(actual.getConnectors()).isEmpty();
             assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void cacheControl() {
+            final var response = restClient.get().uri("").retrieve().toBodilessEntity();
+
+            // Based on application.yml response headers configuration
+            assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
+            assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=5");
         }
 
         @Test
@@ -436,6 +489,34 @@ final class ClprControllerTest extends ControllerTest {
         }
 
         @Test
+        void channelIdAndConnectorIdWithTimestampReturnsHistoricalState() {
+            final var current = domainBuilder
+                    .clprConnector()
+                    .customize(c -> c.slashCount(2L).timestampRange(Range.atLeast(200L)))
+                    .persist();
+            domainBuilder
+                    .clprConnectorHistory()
+                    .customize(c -> c.channelId(current.getChannelId())
+                            .connectorId(current.getConnectorId())
+                            .slashCount(1L)
+                            .timestampRange(Range.closedOpen(100L, 200L)))
+                    .persist();
+
+            final var actual = restClient
+                    .get()
+                    .uri(
+                            "?channel.id={c}&connector.id={k}&timestamp=eq:0.000000150",
+                            HexFormat.of().formatHex(current.getChannelId()),
+                            HexFormat.of().formatHex(current.getConnectorId()))
+                    .retrieve()
+                    .body(ClprConnectorsResponse.class);
+
+            assertThat(actual.getConnectors())
+                    .singleElement()
+                    .satisfies(c -> assertThat(c.getSlashCount()).isEqualTo(1L));
+        }
+
+        @Test
         void timestampEq() {
             final var channelId = domainBuilder.bytes(32);
             persistDeleted(1_000_000_000L, false, channelId);
@@ -489,17 +570,16 @@ final class ClprControllerTest extends ControllerTest {
         }
 
         @Test
-        void channelIdAllowsRangeWiderThanMax() {
-            final var connector = persist(2_000_000_000L);
-            final var id = HexFormat.of().formatHex(connector.getChannelId());
-
-            final var actual = restClient
-                    .get()
-                    .uri("?channel.id={id}&timestamp=gte:1&timestamp=lte:99999999", id)
-                    .retrieve()
-                    .body(ClprConnectorsResponse.class);
-
-            assertThat(actual.getConnectors()).containsExactlyElementsOf(connectorMapper.map(List.of(connector)));
+        void timestampRangeExceedsMax() {
+            final var id = HexFormat.of().formatHex(new byte[32]);
+            validateError(
+                    () -> restClient
+                            .get()
+                            .uri("?channel.id={id}&timestamp=gte:1&timestamp=lte:99999999", id)
+                            .retrieve()
+                            .toBodilessEntity(),
+                    HttpClientErrorException.BadRequest.class,
+                    "Timestamp range by the lower and upper bounds must not exceed PT720H");
         }
 
         @ParameterizedTest
@@ -568,6 +648,207 @@ final class ClprControllerTest extends ControllerTest {
         }
     }
 
+    @DisplayName("GET /api/v1/clpr/channels/pending")
+    @Nested
+    final class PendingChannelsEndpointTest extends EndpointTest {
+
+        @Override
+        protected String getUrl() {
+            return "clpr/channels/pending";
+        }
+
+        @Test
+        void empty() {
+            final var actual = restClient.get().uri("").retrieve().body(ClprPendingChannelsResponse.class);
+
+            assertThat(actual.getPendingChannels()).isEmpty();
+            assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void cacheControl() {
+            final var response = restClient.get().uri("").retrieve().toBodilessEntity();
+
+            // Based on application.yml response headers configuration
+            assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
+            assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=5");
+        }
+
+        @Test
+        void onlyOpenCommitments() {
+            final var open1 = persist(100L, false, null);
+            persist(150L, false, 160L); // completed
+            persist(175L, true, null); // deleted
+            final var open2 = persist(200L, false, null);
+
+            final var actual = restClient.get().uri("").retrieve().body(ClprPendingChannelsResponse.class);
+
+            assertThat(actual.getPendingChannels())
+                    .containsExactlyElementsOf(pendingChannelMapper.map(List.of(open2, open1)));
+            assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void ascendingOrder() {
+            final var open1 = persist(100L, false, null);
+            final var open2 = persist(200L, false, null);
+
+            final var actual = restClient.get().uri("?order=asc").retrieve().body(ClprPendingChannelsResponse.class);
+
+            assertThat(actual.getPendingChannels())
+                    .containsExactlyElementsOf(pendingChannelMapper.map(List.of(open1, open2)));
+        }
+
+        @Test
+        void timestampRange() {
+            persist(1_000_000_000L, false, null);
+            final var open2 = persist(2_000_000_000L, false, null);
+            persist(3_000_000_000L, false, null);
+
+            final var actual = restClient
+                    .get()
+                    .uri("?timestamp=gte:2.000000000&timestamp=lt:3")
+                    .retrieve()
+                    .body(ClprPendingChannelsResponse.class);
+
+            assertThat(actual.getPendingChannels()).containsExactlyElementsOf(pendingChannelMapper.map(List.of(open2)));
+        }
+
+        @Test
+        void nextLink() {
+            persist(1_000_000_000L, false, null);
+            final var open2 = persist(2_000_000_000L, false, null);
+
+            final var actual = restClient.get().uri("?limit=1").retrieve().body(ClprPendingChannelsResponse.class);
+
+            assertThat(actual.getPendingChannels()).hasSize(1);
+            assertThat(queryParams(actual.getLinks().getNext()))
+                    .containsEntry("timestamp", List.of("lt:" + DomainUtils.toTimestamp(open2.getCreatedTimestamp())));
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"?limit=0", "?limit=101", "?order=foo", "?timestamp=abc"})
+        void invalidParameter(String query) {
+            assertThatThrownBy(() -> restClient.get().uri(query).retrieve().toBodilessEntity())
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        }
+
+        private Map<String, List<String>> queryParams(String link) {
+            return UriComponentsBuilder.fromUriString(link).build().getQueryParams();
+        }
+
+        private ClprChannelPendingCommitment persist(
+                long createdTimestamp, boolean deleted, @Nullable Long completedTimestamp) {
+            return domainBuilder
+                    .clprChannelPendingCommitment()
+                    .customize(c -> c.completedTimestamp(completedTimestamp)
+                            .createdTimestamp(createdTimestamp)
+                            .deleted(deleted))
+                    .persist();
+        }
+    }
+
+    @DisplayName("GET /api/v1/clpr/connectors/pending")
+    @Nested
+    final class PendingConnectorsEndpointTest extends EndpointTest {
+
+        @Override
+        protected String getUrl() {
+            return "clpr/connectors/pending";
+        }
+
+        @Test
+        void empty() {
+            final var actual = restClient.get().uri("").retrieve().body(ClprPendingConnectorsResponse.class);
+
+            assertThat(actual.getPendingConnectors()).isEmpty();
+            assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void cacheControl() {
+            final var response = restClient.get().uri("").retrieve().toBodilessEntity();
+
+            // Based on application.yml response headers configuration
+            assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
+            assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=5");
+        }
+
+        @Test
+        void onlyOpenCommitments() {
+            final var open1 = persist(100L, false, null);
+            persist(150L, false, 160L); // completed
+            persist(175L, true, null); // deleted
+            final var open2 = persist(200L, false, null);
+
+            final var actual = restClient.get().uri("").retrieve().body(ClprPendingConnectorsResponse.class);
+
+            assertThat(actual.getPendingConnectors())
+                    .containsExactlyElementsOf(pendingConnectorMapper.map(List.of(open2, open1)));
+            assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void ascendingOrder() {
+            final var open1 = persist(100L, false, null);
+            final var open2 = persist(200L, false, null);
+
+            final var actual = restClient.get().uri("?order=asc").retrieve().body(ClprPendingConnectorsResponse.class);
+
+            assertThat(actual.getPendingConnectors())
+                    .containsExactlyElementsOf(pendingConnectorMapper.map(List.of(open1, open2)));
+        }
+
+        @Test
+        void timestampRange() {
+            persist(1_000_000_000L, false, null);
+            final var open2 = persist(2_000_000_000L, false, null);
+            persist(3_000_000_000L, false, null);
+
+            final var actual = restClient
+                    .get()
+                    .uri("?timestamp=gte:2.000000000&timestamp=lt:3")
+                    .retrieve()
+                    .body(ClprPendingConnectorsResponse.class);
+
+            assertThat(actual.getPendingConnectors())
+                    .containsExactlyElementsOf(pendingConnectorMapper.map(List.of(open2)));
+        }
+
+        @Test
+        void nextLink() {
+            persist(1_000_000_000L, false, null);
+            final var open2 = persist(2_000_000_000L, false, null);
+
+            final var actual = restClient.get().uri("?limit=1").retrieve().body(ClprPendingConnectorsResponse.class);
+
+            assertThat(actual.getPendingConnectors()).hasSize(1);
+            assertThat(queryParams(actual.getLinks().getNext()))
+                    .containsEntry("timestamp", List.of("lt:" + DomainUtils.toTimestamp(open2.getCreatedTimestamp())));
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"?limit=0", "?limit=101", "?order=foo", "?timestamp=abc"})
+        void invalidParameter(String query) {
+            assertThatThrownBy(() -> restClient.get().uri(query).retrieve().toBodilessEntity())
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        }
+
+        private Map<String, List<String>> queryParams(String link) {
+            return UriComponentsBuilder.fromUriString(link).build().getQueryParams();
+        }
+
+        private ClprConnectorPendingCommitment persist(
+                long createdTimestamp, boolean deleted, @Nullable Long completedTimestamp) {
+            return domainBuilder
+                    .clprConnectorPendingCommitment()
+                    .customize(c -> c.completedTimestamp(completedTimestamp)
+                            .createdTimestamp(createdTimestamp)
+                            .deleted(deleted))
+                    .persist();
+        }
+    }
+
     @DisplayName("GET /api/v1/clpr/channels/{channelId}/messages")
     @Nested
     final class MessagesEndpointTest extends EndpointTest {
@@ -593,6 +874,16 @@ final class ClprControllerTest extends ControllerTest {
 
             assertThat(actual.getMessages()).isEmpty();
             assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void cacheControl() {
+            persistChannel(0L);
+            final var response = restClient.get().uri("").retrieve().toBodilessEntity();
+
+            // Based on application.yml response headers configuration
+            assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
+            assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=1");
         }
 
         @Test

@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprConnector.CLPR_CONNECTOR;
 
+import com.google.common.collect.Range;
 import java.util.List;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
@@ -68,6 +69,35 @@ final class ClprConnectorRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(actual).containsExactly(active, removed);
+    }
+
+    @Test
+    void findByChannelIdAndConnectorIdAndTimestamp() {
+        // given
+        final var current = domainBuilder
+                .clprConnector()
+                .customize(c -> c.deleted(true).timestampRange(Range.atLeast(200L)))
+                .persist();
+        domainBuilder
+                .clprConnectorHistory()
+                .customize(c -> c.channelId(current.getChannelId())
+                        .connectorId(current.getConnectorId())
+                        .deleted(false)
+                        .timestampRange(Range.closedOpen(100L, 200L)))
+                .persist();
+        final var channelId = current.getChannelId();
+        final var connectorId = current.getConnectorId();
+
+        // when / then
+        assertThat(repository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, 150L, null))
+                .extracting(ClprConnector::getDeleted)
+                .containsExactly(false);
+        assertThat(repository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, 200L, true))
+                .containsExactly(current);
+        assertThat(repository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, 150L, true))
+                .isEmpty();
+        assertThat(repository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, 99L, null))
+                .isEmpty();
     }
 
     @ParameterizedTest

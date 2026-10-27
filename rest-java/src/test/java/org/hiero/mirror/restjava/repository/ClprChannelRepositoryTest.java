@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprChannel.CLPR_CHANNEL;
 
+import com.google.common.collect.Range;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
@@ -132,6 +133,31 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(actual).containsExactlyElementsOf(expected);
+    }
+
+    @Test
+    void findByChannelIdAndTimestamp() {
+        // given
+        final var current = domainBuilder
+                .clprChannel()
+                .customize(c -> c.status(ClprChannelStatus.CLOSED).timestampRange(Range.atLeast(200L)))
+                .persist();
+        domainBuilder
+                .clprChannelHistory()
+                .customize(c -> c.channelId(current.getChannelId())
+                        .status(ClprChannelStatus.ACTIVE)
+                        .timestampRange(Range.closedOpen(100L, 200L)))
+                .persist();
+        persist(150L, ClprChannelStatus.ACTIVE); // other channel
+
+        // when / then
+        final var id = current.getChannelId();
+        assertThat(repository.findByChannelIdAndTimestamp(id, 150L, null))
+                .extracting(ClprChannel::getStatus)
+                .containsExactly(ClprChannelStatus.ACTIVE);
+        assertThat(repository.findByChannelIdAndTimestamp(id, 200L, "CLOSED")).containsExactly(current);
+        assertThat(repository.findByChannelIdAndTimestamp(id, 200L, "ACTIVE")).isEmpty();
+        assertThat(repository.findByChannelIdAndTimestamp(id, 99L, null)).isEmpty();
     }
 
     @Test

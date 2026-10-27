@@ -28,14 +28,21 @@ import org.hiero.mirror.rest.model.ClprConnector;
 import org.hiero.mirror.rest.model.ClprConnectorsResponse;
 import org.hiero.mirror.rest.model.ClprMessage;
 import org.hiero.mirror.rest.model.ClprMessagesResponse;
+import org.hiero.mirror.rest.model.ClprPendingChannel;
+import org.hiero.mirror.rest.model.ClprPendingChannelsResponse;
+import org.hiero.mirror.rest.model.ClprPendingConnector;
+import org.hiero.mirror.rest.model.ClprPendingConnectorsResponse;
 import org.hiero.mirror.restjava.common.LinkFactory;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
+import org.hiero.mirror.restjava.dto.ClprPendingRequest;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
 import org.hiero.mirror.restjava.mapper.ClprConnectorMapper;
 import org.hiero.mirror.restjava.mapper.ClprMessageMapper;
+import org.hiero.mirror.restjava.mapper.ClprPendingChannelMapper;
+import org.hiero.mirror.restjava.mapper.ClprPendingConnectorMapper;
 import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.hiero.mirror.restjava.parameter.RangeParameter;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
@@ -79,10 +86,20 @@ final class ClprController {
                     MESSAGE_ID,
                     message.getMessageId().toString());
 
+    // A pending channel's created_timestamp is the consensus timestamp of its registering transaction, so it's unique
+    private static final Function<ClprPendingChannel, Map<String, String>> PENDING_CHANNEL_EXTRACTOR =
+            pendingChannel -> ImmutableSortedMap.of(TIMESTAMP, pendingChannel.getCreatedTimestamp());
+
+    // Likewise, a pending connector's created_timestamp is unique
+    private static final Function<ClprPendingConnector, Map<String, String>> PENDING_CONNECTOR_EXTRACTOR =
+            pendingConnector -> ImmutableSortedMap.of(TIMESTAMP, pendingConnector.getCreatedTimestamp());
+
     private final ClprChannelMapper channelMapper;
     private final ClprConnectorMapper connectorMapper;
     private final LinkFactory linkFactory;
     private final ClprMessageMapper messageMapper;
+    private final ClprPendingChannelMapper pendingChannelMapper;
+    private final ClprPendingConnectorMapper pendingConnectorMapper;
     private final ClprService service;
 
     @GetMapping("/channels")
@@ -105,6 +122,56 @@ final class ClprController {
         final var links = linkFactory.create(channels, pageable, CHANNEL_EXTRACTOR);
 
         return new ClprChannelsResponse().channels(channels).links(links);
+    }
+
+    @GetMapping("/channels/pending")
+    ClprPendingChannelsResponse getPendingChannels(
+            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
+            @RequestParam(defaultValue = "desc") Sort.Direction order,
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
+                    TimestampParameter[] timestamps) {
+
+        final var bounds = bounds(timestamps);
+        final var request = ClprPendingRequest.builder()
+                .limit(limit)
+                .lowerBound(bounds.lower())
+                .order(order)
+                .upperBound(bounds.upper())
+                .build();
+        final var pendingChannels = pendingChannelMapper.map(service.getPendingChannels(request));
+
+        final var sort = Sort.by(order, TIMESTAMP);
+        final var pageable = PageRequest.of(0, limit, sort);
+        final var links = linkFactory.create(pendingChannels, pageable, PENDING_CHANNEL_EXTRACTOR);
+
+        return new ClprPendingChannelsResponse()
+                .pendingChannels(pendingChannels)
+                .links(links);
+    }
+
+    @GetMapping("/connectors/pending")
+    ClprPendingConnectorsResponse getPendingConnectors(
+            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
+            @RequestParam(defaultValue = "desc") Sort.Direction order,
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
+                    TimestampParameter[] timestamps) {
+
+        final var bounds = bounds(timestamps);
+        final var request = ClprPendingRequest.builder()
+                .limit(limit)
+                .lowerBound(bounds.lower())
+                .order(order)
+                .upperBound(bounds.upper())
+                .build();
+        final var pendingConnectors = pendingConnectorMapper.map(service.getPendingConnectors(request));
+
+        final var sort = Sort.by(order, TIMESTAMP);
+        final var pageable = PageRequest.of(0, limit, sort);
+        final var links = linkFactory.create(pendingConnectors, pageable, PENDING_CONNECTOR_EXTRACTOR);
+
+        return new ClprPendingConnectorsResponse()
+                .pendingConnectors(pendingConnectors)
+                .links(links);
     }
 
     @GetMapping("/connectors")

@@ -59,9 +59,15 @@ import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.clpr.AbstractClprChannel;
+import org.hiero.mirror.common.domain.clpr.AbstractClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorHistory;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
@@ -274,9 +280,22 @@ public class DomainBuilder {
     }
 
     public DomainWrapper<ClprChannel, ClprChannel.ClprChannelBuilder<?, ?>> clprChannel() {
+        final var builder = ClprChannel.builder();
+        populateClprChannel(builder);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprChannelHistory, ClprChannelHistory.ClprChannelHistoryBuilder<?, ?>> clprChannelHistory() {
+        final var builder = ClprChannelHistory.builder();
+        populateClprChannel(builder);
+        final long timestamp = builder.build().getCreatedTimestamp();
+        builder.timestampRange(Range.closedOpen(timestamp, timestamp + 10));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    private void populateClprChannel(final AbstractClprChannel.AbstractClprChannelBuilder<?, ?> builder) {
         final long timestamp = timestamp();
-        final var builder = ClprChannel.builder()
-                .ackedMessageId(number())
+        builder.ackedMessageId(number())
                 .chainId("eip155:" + number())
                 .channelContext(bytes(32))
                 .channelId(bytes(32))
@@ -312,13 +331,52 @@ public class DomainBuilder {
                 .trustAnchorId(bytes(32))
                 .verifierContractId(entityId())
                 .verifierFingerprint(bytes(32));
+    }
+
+    public DomainWrapper<
+                    ClprChannelPendingCommitment,
+                    ClprChannelPendingCommitment.ClprChannelPendingCommitmentBuilder<?, ?>>
+            clprChannelPendingCommitment() {
+        final long timestamp = timestamp();
+        final var builder = ClprChannelPendingCommitment.builder()
+                .createdTimestamp(timestamp)
+                .deleted(false)
+                .ownershipCommitment(bytes(32))
+                .timestampRange(Range.atLeast(timestamp));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<
+                    ClprConnectorPendingCommitment,
+                    ClprConnectorPendingCommitment.ClprConnectorPendingCommitmentBuilder<?, ?>>
+            clprConnectorPendingCommitment() {
+        final long timestamp = timestamp();
+        final var builder = ClprConnectorPendingCommitment.builder()
+                .commitment(bytes(32))
+                .createdTimestamp(timestamp)
+                .deleted(false)
+                .timestampRange(Range.atLeast(timestamp));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
     public DomainWrapper<ClprConnector, ClprConnector.ClprConnectorBuilder<?, ?>> clprConnector() {
+        final var builder = ClprConnector.builder();
+        populateClprConnector(builder);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprConnectorHistory, ClprConnectorHistory.ClprConnectorHistoryBuilder<?, ?>>
+            clprConnectorHistory() {
+        final var builder = ClprConnectorHistory.builder();
+        populateClprConnector(builder);
+        final long timestamp = builder.build().getCreatedTimestamp();
+        builder.timestampRange(Range.closedOpen(timestamp, timestamp + 10));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    private void populateClprConnector(final AbstractClprConnector.AbstractClprConnectorBuilder<?, ?> builder) {
         final long timestamp = timestamp();
-        final var builder = ClprConnector.builder()
-                .adminKey(key())
+        builder.adminKey(key())
                 .channelId(bytes(32))
                 .connectorContractId(entityId())
                 .connectorId(bytes(32))
@@ -333,7 +391,6 @@ public class DomainBuilder {
                 .slashCount(0L)
                 .stakeRecipientId(entityId())
                 .timestampRange(Range.atLeast(timestamp));
-        return new DomainWrapperImpl<>(builder, builder::build);
     }
 
     public DomainWrapper<ClprMessage, ClprMessage.ClprMessageBuilder> clprMessage() {

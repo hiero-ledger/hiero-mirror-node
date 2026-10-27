@@ -17,6 +17,26 @@ import org.springframework.data.repository.CrudRepository;
 public interface ClprConnectorRepository extends CrudRepository<ClprConnector, AbstractClprConnector.Id> {
 
     /**
+     * Returns the connector's state as of the given timestamp, from the current or the history table. A connector's
+     * timestamp ranges never overlap, so at most one row matches.
+     */
+    @Query(value = """
+            select * from (
+                select * from clpr_connector
+                where channel_id = :channelId and connector_id = :connectorId
+                and timestamp_range @> cast(:timestamp as bigint)
+                union all
+                select * from clpr_connector_history
+                where channel_id = :channelId and connector_id = :connectorId
+                and timestamp_range @> cast(:timestamp as bigint)
+            ) as c
+            where cast(:deleted as boolean) is null or coalesce(c.deleted, false) = :deleted
+            limit 1
+            """, nativeQuery = true)
+    List<ClprConnector> findByChannelIdAndConnectorIdAndTimestamp(
+            byte[] channelId, byte[] connectorId, long timestamp, @Nullable Boolean deleted);
+
+    /**
      * Within a channel, the connector id and deleted filters are cheap filters on top of the channel_id lookup. A
      * connector that was never removed may have deleted unset, so it counts as not deleted.
      */

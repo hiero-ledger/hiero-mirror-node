@@ -525,7 +525,7 @@ paths:
   /api/v1/clpr/channels:
     get:
       summary: List CLPR channels
-      description: Returns a list of CLPR (HIP-1535) channels, paginated and sorted by creation timestamp.
+      description: Returns a list of CLPR (HIP-1535) channels, paginated and sorted by creation timestamp. When channel.id is supplied, timestamp (eq only) returns the channel's state as of that time, from the history table when needed.
       operationId: getClprChannels
       parameters:
         - $ref: "#/components/parameters/clprChannelIdQueryParam"
@@ -540,6 +540,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ClprChannelsResponse"
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
+      tags:
+        - clpr
+  /api/v1/clpr/channels/pending:
+    get:
+      summary: List pending CLPR channels
+      description: Returns the CLPR (HIP-1535) channel commitments that are still open, neither completed nor deleted, paginated and sorted by creation timestamp. The channel id isn't known until the commitment is revealed.
+      operationId: getClprPendingChannels
+      parameters:
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamDesc"
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClprPendingChannelsResponse"
         "400":
           $ref: "#/components/responses/InvalidParameterError"
       tags:
@@ -568,6 +588,26 @@ paths:
           $ref: "#/components/responses/InvalidParameterError"
         "404":
           $ref: "#/components/responses/NotFoundError"
+      tags:
+        - clpr
+  /api/v1/clpr/connectors/pending:
+    get:
+      summary: List pending CLPR connectors
+      description: Returns the CLPR (HIP-1535) connector commitments that are still open, neither completed nor deleted, paginated and sorted by creation timestamp. The channel and connector ids aren't known until the commitment is revealed.
+      operationId: getClprPendingConnectors
+      parameters:
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamDesc"
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClprPendingConnectorsResponse"
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
       tags:
         - clpr
   /api/v1/clpr/connectors:
@@ -2678,6 +2718,60 @@ components:
           type: integer
           format: int32
           example: 50211
+    ClprPendingChannel:
+      type: object
+      required:
+        - created_timestamp
+        - ownership_commitment
+        - status
+      properties:
+        created_timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        ownership_commitment:
+          $ref: "#/components/schemas/ClprHexBytes"
+        status:
+          $ref: "#/components/schemas/ClprPendingCommitmentStatus"
+    ClprPendingChannelsResponse:
+      type: object
+      required:
+        - links
+        - pending_channels
+      properties:
+        links:
+          $ref: "#/components/schemas/Links"
+        pending_channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClprPendingChannel"
+    ClprPendingConnector:
+      type: object
+      required:
+        - commitment
+        - created_timestamp
+        - status
+      properties:
+        commitment:
+          $ref: "#/components/schemas/ClprHexBytes"
+        created_timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        status:
+          $ref: "#/components/schemas/ClprPendingCommitmentStatus"
+    ClprPendingConnectorsResponse:
+      type: object
+      required:
+        - links
+        - pending_connectors
+      properties:
+        links:
+          $ref: "#/components/schemas/Links"
+        pending_connectors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClprPendingConnector"
+    ClprPendingCommitmentStatus:
+      type: string
+      enum: [OPEN]
+      example: OPEN
     ClprSignatureScheme:
       type: string
       enum: [ECDSA_SECP256K1, ED25519]

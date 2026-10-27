@@ -6,11 +6,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
+import com.google.common.collect.Range;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
@@ -18,6 +21,7 @@ import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 import org.hiero.mirror.restjava.dto.ClprMessageDto;
 import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
+import org.hiero.mirror.restjava.dto.ClprPendingRequest;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -167,36 +171,45 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void getChannelsByChannelIdWithTimestamp() {
+    void getChannelsByChannelIdAsOfTimestamp() {
         // given
-        final var channel = persist(100L, ClprChannelStatus.ACTIVE);
-        final var matching = ClprChannelsRequest.builder()
-                .channelId(channel.getChannelId())
-                .upperBound(100L)
-                .build();
-        final var nonMatching = ClprChannelsRequest.builder()
-                .channelId(channel.getChannelId())
-                .lowerBound(101L)
-                .build();
+        final var current = domainBuilder
+                .clprChannel()
+                .customize(c -> c.status(ClprChannelStatus.CLOSED).timestampRange(Range.atLeast(200L)))
+                .persist();
+        final var history = domainBuilder
+                .clprChannelHistory()
+                .customize(c -> c.channelId(current.getChannelId())
+                        .status(ClprChannelStatus.ACTIVE)
+                        .timestampRange(Range.closedOpen(100L, 200L)))
+                .persist();
 
         // when / then
-        assertThat(service.getChannels(matching)).containsExactly(channel);
-        assertThat(service.getChannels(nonMatching)).isEmpty();
+        assertThat(service.getChannels(asOf(current, 100L, null)))
+                .extracting(ClprChannel::getStatus)
+                .containsExactly(history.getStatus());
+        assertThat(service.getChannels(asOf(current, 199L, null)))
+                .extracting(ClprChannel::getStatus)
+                .containsExactly(ClprChannelStatus.ACTIVE);
+        assertThat(service.getChannels(asOf(current, 200L, null))).containsExactly(current);
+        assertThat(service.getChannels(asOf(current, 99L, null))).isEmpty();
+        assertThat(service.getChannels(asOf(current, 150L, ClprChannelStatus.CLOSED)))
+                .isEmpty();
     }
 
     @Test
-    void getChannelsByChannelIdIsNotCappedByMaxRange() {
+    void getChannelsByChannelIdWithTimestampRequiresEq() {
         // given
-        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
-        final var channel = persist(maxRange + 10, ClprChannelStatus.ACTIVE);
         final var request = ClprChannelsRequest.builder()
-                .channelId(channel.getChannelId())
+                .channelId(new byte[32])
                 .lowerBound(1L)
-                .upperBound(maxRange * 2)
+                .upperBound(99L)
                 .build();
 
         // when / then
-        assertThat(service.getChannels(request)).containsExactly(channel);
+        assertThatThrownBy(() -> service.getChannels(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("timestamp must use the eq operator when filtering by channel.id");
     }
 
     @Test
@@ -208,35 +221,6 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
 
         // when / then
         assertThat(service.getChannels(request)).isEmpty();
-    }
-
-    @Test
-    void getChannelsByChannelIdWithStatusAndTimestamp() {
-        // given
-        final var channel = persist(200L, ClprChannelStatus.ACTIVE);
-        persist(200L, ClprChannelStatus.ACTIVE); // other channel
-        final var matching = ClprChannelsRequest.builder()
-                .channelId(channel.getChannelId())
-                .lowerBound(200L)
-                .status(ClprChannelStatus.ACTIVE)
-                .upperBound(200L)
-                .build();
-        final var wrongStatus = ClprChannelsRequest.builder()
-                .channelId(channel.getChannelId())
-                .lowerBound(200L)
-                .status(ClprChannelStatus.CLOSED)
-                .upperBound(200L)
-                .build();
-        final var wrongTimestamp = ClprChannelsRequest.builder()
-                .channelId(channel.getChannelId())
-                .lowerBound(201L)
-                .status(ClprChannelStatus.ACTIVE)
-                .build();
-
-        // when / then
-        assertThat(service.getChannels(matching)).containsExactly(channel);
-        assertThat(service.getChannels(wrongStatus)).isEmpty();
-        assertThat(service.getChannels(wrongTimestamp)).isEmpty();
     }
 
     @Test
@@ -298,6 +282,60 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
+    void getPendingChannels() {
+        // given
+        final var open1 = persistPending(100L, false, null);
+        persistPending(150L, false, 160L); // completed
+        persistPending(175L, true, null); // deleted
+        final var open2 = persistPending(200L, false, null);
+        final var request = ClprPendingRequest.builder().build();
+        final var bounded = ClprPendingRequest.builder().lowerBound(150L).build();
+
+        // when / then
+        assertThat(service.getPendingChannels(request)).containsExactly(open2, open1);
+        assertThat(service.getPendingChannels(bounded)).containsExactly(open2);
+    }
+
+    @Test
+    void getPendingChannelsInvalidTimestampRange() {
+        // given
+        final var request =
+                ClprPendingRequest.builder().lowerBound(10L).upperBound(1L).build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getPendingChannels(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid range provided for timestamp");
+    }
+
+    @Test
+    void getPendingConnectors() {
+        // given
+        final var open1 = persistPendingConnector(100L, false, null);
+        persistPendingConnector(150L, false, 160L); // completed
+        persistPendingConnector(175L, true, null); // deleted
+        final var open2 = persistPendingConnector(200L, false, null);
+        final var request = ClprPendingRequest.builder().build();
+        final var bounded = ClprPendingRequest.builder().lowerBound(150L).build();
+
+        // when / then
+        assertThat(service.getPendingConnectors(request)).containsExactly(open2, open1);
+        assertThat(service.getPendingConnectors(bounded)).containsExactly(open2);
+    }
+
+    @Test
+    void getPendingConnectorsInvalidTimestampRange() {
+        // given
+        final var request =
+                ClprPendingRequest.builder().lowerBound(10L).upperBound(1L).build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getPendingConnectors(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid range provided for timestamp");
+    }
+
+    @Test
     void getConnectors() {
         // given
         final var connector1 = persistConnector(100L);
@@ -317,8 +355,6 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
                 .channelId(connector.getChannelId())
                 .connectorId(connector.getConnectorId())
                 .deleted(false)
-                .lowerBound(200L)
-                .upperBound(200L)
                 .build();
 
         // when / then
@@ -359,11 +395,66 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
                 .channelId(connector.getChannelId())
                 .deleted(false)
                 .lowerBound(1L)
-                .upperBound(Long.MAX_VALUE - 1)
+                .upperBound(1000L)
                 .build();
 
         // when / then
         assertThat(service.getConnectors(request)).containsExactly(connector);
+    }
+
+    @Test
+    void getConnectorsTimestampRangeExceedsMax() {
+        // given
+        final var maxRange = queryProperties.getMaxClprTimestampRange().toNanos();
+        final var request = ClprConnectorsRequest.builder()
+                .channelId(new byte[32])
+                .lowerBound(1L)
+                .upperBound(maxRange + 2)
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getConnectors(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not exceed");
+    }
+
+    @Test
+    void getConnectorsByChannelIdAndConnectorIdAsOfTimestamp() {
+        // given
+        final var current = domainBuilder
+                .clprConnector()
+                .customize(c -> c.slashCount(2L).timestampRange(Range.atLeast(200L)))
+                .persist();
+        domainBuilder
+                .clprConnectorHistory()
+                .customize(c -> c.channelId(current.getChannelId())
+                        .connectorId(current.getConnectorId())
+                        .slashCount(1L)
+                        .timestampRange(Range.closedOpen(100L, 200L)))
+                .persist();
+
+        // when / then
+        assertThat(service.getConnectors(asOf(current, 150L)))
+                .extracting(ClprConnector::getSlashCount)
+                .containsExactly(1L);
+        assertThat(service.getConnectors(asOf(current, 200L))).containsExactly(current);
+        assertThat(service.getConnectors(asOf(current, 99L))).isEmpty();
+    }
+
+    @Test
+    void getConnectorsAsOfTimestampRequiresEq() {
+        // given
+        final var request = ClprConnectorsRequest.builder()
+                .channelId(new byte[32])
+                .connectorId(new byte[32])
+                .lowerBound(1L)
+                .upperBound(99L)
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getConnectors(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("timestamp must use the eq operator when filtering by channel.id and connector.id");
     }
 
     @Test
@@ -584,6 +675,46 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
         return domainBuilder
                 .clprConnector()
                 .customize(c -> c.createdTimestamp(createdTimestamp))
+                .persist();
+    }
+
+    private ClprConnectorsRequest asOf(ClprConnector connector, long timestamp) {
+        return ClprConnectorsRequest.builder()
+                .channelId(connector.getChannelId())
+                .connectorId(connector.getConnectorId())
+                .lowerBound(timestamp)
+                .upperBound(timestamp)
+                .build();
+    }
+
+    private ClprChannelsRequest asOf(ClprChannel channel, long timestamp, @Nullable ClprChannelStatus status) {
+        final var builder = ClprChannelsRequest.builder()
+                .channelId(channel.getChannelId())
+                .lowerBound(timestamp)
+                .upperBound(timestamp);
+        if (status != null) {
+            builder.status(status);
+        }
+        return builder.build();
+    }
+
+    private ClprChannelPendingCommitment persistPending(
+            long createdTimestamp, boolean deleted, @Nullable Long completedTimestamp) {
+        return domainBuilder
+                .clprChannelPendingCommitment()
+                .customize(c -> c.completedTimestamp(completedTimestamp)
+                        .createdTimestamp(createdTimestamp)
+                        .deleted(deleted))
+                .persist();
+    }
+
+    private ClprConnectorPendingCommitment persistPendingConnector(
+            long createdTimestamp, boolean deleted, @Nullable Long completedTimestamp) {
+        return domainBuilder
+                .clprConnectorPendingCommitment()
+                .customize(c -> c.completedTimestamp(completedTimestamp)
+                        .createdTimestamp(createdTimestamp)
+                        .deleted(deleted))
                 .persist();
     }
 

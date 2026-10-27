@@ -98,6 +98,7 @@ The following parameters can be used to configure a rest-java test:
 | DEFAULT_ACCOUNT_ID_AIRDROP_SENDER         |         | The account to be used for outstanding airdrops |
 | DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER   |         |                                                 |
 | DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_SPENDER |         |                                                 |
+| DEFAULT_CLPR_CHANNEL_ID                   |         | The hex channel id for the CLPR messages test   |
 | DEFAULT_HOOK_ID                           |         | The hook id                                     |
 | DEFAULT_OWNER_ID                          |         | The owner of a hook                             |
 | DEFAULT_TOPIC_WITH_FEE_ID                 |         | Topic with custom fee id                        |

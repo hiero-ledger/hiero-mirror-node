@@ -3,19 +3,26 @@
 package org.hiero.mirror.restjava.service;
 
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprChannel.CLPR_CHANNEL;
+import static org.hiero.mirror.restjava.jooq.domain.tables.ClprChannelPendingCommitment.CLPR_CHANNEL_PENDING_COMMITMENT;
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprConnector.CLPR_CONNECTOR;
+import static org.hiero.mirror.restjava.jooq.domain.tables.ClprConnectorPendingCommitment.CLPR_CONNECTOR_PENDING_COMMITMENT;
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprMessage.CLPR_MESSAGE;
 
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 import org.hiero.mirror.restjava.dto.ClprMessageDto;
 import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
+import org.hiero.mirror.restjava.dto.ClprPendingRequest;
+import org.hiero.mirror.restjava.repository.ClprChannelPendingCommitmentRepository;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
+import org.hiero.mirror.restjava.repository.ClprConnectorPendingCommitmentRepository;
 import org.hiero.mirror.restjava.repository.ClprConnectorRepository;
 import org.hiero.mirror.restjava.repository.ClprMessageRepository;
 import org.springframework.data.domain.PageRequest;
@@ -25,7 +32,9 @@ import org.springframework.data.domain.Sort;
 @RequiredArgsConstructor
 final class ClprServiceImpl implements ClprService {
 
+    private final ClprChannelPendingCommitmentRepository channelPendingCommitmentRepository;
     private final ClprChannelRepository channelRepository;
+    private final ClprConnectorPendingCommitmentRepository connectorPendingCommitmentRepository;
     private final ClprConnectorRepository connectorRepository;
     private final ClprMessageRepository messageRepository;
     private final QueryProperties queryProperties;
@@ -36,13 +45,24 @@ final class ClprServiceImpl implements ClprService {
         final long upperBound = request.getUpperBound();
         final var channelId = request.getChannelId();
         validateRange(lowerBound, upperBound);
+        final var status = request.getStatus();
+
+        if (channelId != null && (lowerBound > 0L || upperBound < Long.MAX_VALUE)) {
+            // With channel.id, timestamp means "as of" and only eq is supported
+            if (lowerBound != upperBound) {
+                throw new IllegalArgumentException("timestamp must use the eq operator when filtering by channel.id");
+            }
+
+            return channelRepository.findByChannelIdAndTimestamp(
+                    channelId, lowerBound, status == null ? null : status.name());
+        }
+
         if (channelId == null) {
             validateWindow(lowerBound, upperBound);
         }
 
         final var sort = Sort.by(request.getOrder(), CLPR_CHANNEL.CREATED_TIMESTAMP.getName());
         final var page = PageRequest.of(0, request.getLimit(), sort);
-        final var status = request.getStatus();
 
         if (channelId != null) {
             return status == null
@@ -72,15 +92,28 @@ final class ClprServiceImpl implements ClprService {
                     "channel.id is required when filtering by connector.id, deleted or timestamp");
         }
 
+        final var channelId = request.getChannelId();
+        final var connectorId = request.getConnectorId();
+        if (channelId != null && connectorId != null && timestampFiltered) {
+            // With both ids, timestamp means "as of" and only eq is supported
+            if (lowerBound != upperBound) {
+                throw new IllegalArgumentException(
+                        "timestamp must use the eq operator when filtering by channel.id and connector.id");
+            }
+
+            return connectorRepository.findByChannelIdAndConnectorIdAndTimestamp(
+                    channelId, connectorId, lowerBound, request.getDeleted());
+        }
+
+        validateWindow(lowerBound, upperBound);
         final var sort = Sort.by(request.getOrder(), CLPR_CONNECTOR.CREATED_TIMESTAMP.getName());
         final var page = PageRequest.of(0, request.getLimit(), sort);
-        final var channelId = request.getChannelId();
         if (channelId == null) {
             return connectorRepository.findByCreatedTimestampBetween(lowerBound, upperBound, page);
         }
 
         return connectorRepository.findByChannelId(
-                channelId, lowerBound, upperBound, request.getConnectorId(), request.getDeleted(), page);
+                channelId, lowerBound, upperBound, connectorId, request.getDeleted(), page);
     }
 
     @Override
@@ -133,6 +166,28 @@ final class ClprServiceImpl implements ClprService {
                         messageIdUpperBound,
                         type,
                         page);
+    }
+
+    @Override
+    public List<ClprChannelPendingCommitment> getPendingChannels(final ClprPendingRequest request) {
+        final long lowerBound = request.getLowerBound();
+        final long upperBound = request.getUpperBound();
+        validateRange(lowerBound, upperBound);
+
+        final var sort = Sort.by(request.getOrder(), CLPR_CHANNEL_PENDING_COMMITMENT.CREATED_TIMESTAMP.getName());
+        final var page = PageRequest.of(0, request.getLimit(), sort);
+        return channelPendingCommitmentRepository.findOpenByCreatedTimestampBetween(lowerBound, upperBound, page);
+    }
+
+    @Override
+    public List<ClprConnectorPendingCommitment> getPendingConnectors(final ClprPendingRequest request) {
+        final long lowerBound = request.getLowerBound();
+        final long upperBound = request.getUpperBound();
+        validateRange(lowerBound, upperBound);
+
+        final var sort = Sort.by(request.getOrder(), CLPR_CONNECTOR_PENDING_COMMITMENT.CREATED_TIMESTAMP.getName());
+        final var page = PageRequest.of(0, request.getLimit(), sort);
+        return connectorPendingCommitmentRepository.findOpenByCreatedTimestampBetween(lowerBound, upperBound, page);
     }
 
     private void validateRange(final long lowerBound, final long upperBound) {
