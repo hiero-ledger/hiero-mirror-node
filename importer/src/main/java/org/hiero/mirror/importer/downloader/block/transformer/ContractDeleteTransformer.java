@@ -10,7 +10,8 @@ final class ContractDeleteTransformer extends AbstractContractTransformer {
 
     @Override
     protected void doTransform(final BlockTransactionTransformation blockTransactionTransformation) {
-        if (!blockTransactionTransformation.blockTransaction().isSuccessful()) {
+        final var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
@@ -22,7 +23,7 @@ final class ContractDeleteTransformer extends AbstractContractTransformer {
                 .getTransactionBody()
                 .getContractDeleteInstance()
                 .getContractID();
-        setReceiptContractId(contractId, receiptBuilder);
+        setReceiptContractId(contractId, receiptBuilder, blockTransaction.getStateChangeContext());
     }
 
     @Override

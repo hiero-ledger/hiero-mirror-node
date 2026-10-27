@@ -48,6 +48,7 @@ public final class StateChangeContext {
     private final Map<AccountID, ByteString> accountAliases = new HashMap<>();
     private final Map<AccountID, Long> accountEthereumNonces = new HashMap<>();
     private final Map<ContractID, ByteString> contractBytecodes = new HashMap<>();
+    private final Map<ByteString, ContractID> contractIds = new HashMap<>();
     private final Map<ContractSlotKey, BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractSlotId, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
     private final List<Long> nodeIds = new ArrayList<>();
@@ -119,6 +120,15 @@ public final class StateChangeContext {
 
     public @Nullable ByteString getContractBytecode(final ContractID id) {
         return contractBytecodes.get(id);
+    }
+
+    /**
+     * Get the id of the contract with the EVM address, or null if unknown or the contract is created in this transactional
+     * unit, since the state changes only have the final state and the address may be reused after a delete.
+     */
+    public @Nullable ContractID getContractId(final ByteString evmAddress) {
+        final var contractId = contractIds.get(evmAddress);
+        return contractId == null || contractBytecodes.containsKey(contractId) ? null : contractId;
     }
 
     public @Nullable SlotValue getContractStorageChange(ContractSlotId slotId, int index) {
@@ -228,12 +238,25 @@ public final class StateChangeContext {
         // Read the entity id from the key, since the value of a partial update only has the changed fields
         final var accountId = mapUpdate.getKey().getAccountIdKey();
         final var account = mapUpdate.getValue().getAccountValue();
-        if (isPresent(mapUpdate, account, Account.ALIAS_FIELD_NUMBER)) {
-            accountAliases.putIfAbsent(accountId, account.getAlias());
-        }
-
         if (isPresent(mapUpdate, account, Account.ETHEREUM_NONCE_FIELD_NUMBER)) {
             accountEthereumNonces.putIfAbsent(accountId, account.getEthereumNonce());
+        }
+
+        // A non-empty alias is always present, even in a partial update
+        final var alias = account.getAlias();
+        if (alias.isEmpty()) {
+            return;
+        }
+
+        accountAliases.putIfAbsent(accountId, alias);
+        if (account.getSmartContract()) {
+            contractIds.put(
+                    alias,
+                    ContractID.newBuilder()
+                            .setShardNum(accountId.getShardNum())
+                            .setRealmNum(accountId.getRealmNum())
+                            .setContractNum(accountId.getAccountNum())
+                            .build());
         }
     }
 

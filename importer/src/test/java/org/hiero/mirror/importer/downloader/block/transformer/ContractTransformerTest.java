@@ -101,7 +101,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         return Optional.empty();
     }
 
-    private static Stream<Arguments> provideContractIds() {
+    private static Stream<Arguments> provideContractIds(final boolean create2Resolved) {
         var contractId = recordItemBuilder.contractId();
         var encoded = contractId.toBuilder()
                 .setEvmAddress(DomainUtils.fromBytes(DomainUtils.toEvmAddress(contractId)))
@@ -110,11 +110,20 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .setEvmAddress(recordItemBuilder.evmAddress().getValue())
                 .build();
 
-        // The receipt contract id is left for the parser to resolve when the body has a non long-zero EVM address
+        // An unresolved non long-zero EVM address is left for the parser to resolve
         return Stream.of(
                 Arguments.of("plain", contractId, contractId, true),
                 Arguments.of("encoded evm address", encoded, contractId, true),
-                Arguments.of("create2 evm address", create2EvmAddress, contractId, false));
+                Arguments.of("create2 evm address", create2EvmAddress, contractId, create2Resolved));
+    }
+
+    // Consensus node clears the alias of a deleted contract, so a create2 EVM address can't be resolved
+    private static Stream<Arguments> provideContractIdsForDelete() {
+        return provideContractIds(false);
+    }
+
+    private static Stream<Arguments> provideContractIdsForUpdate() {
+        return provideContractIds(true);
     }
 
     private static void setReceiptContractId(
@@ -303,7 +312,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
-    @MethodSource("provideContractIds")
+    @MethodSource("provideContractIdsForDelete")
     @ParameterizedTest(name = "delete contract with {0} contract id")
     void contractDelete(String type, ContractID contractIdInBody, ContractID contractId, boolean inReceipt) {
         // given
@@ -346,7 +355,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
-    @MethodSource("provideContractIds")
+    @MethodSource("provideContractIdsForUpdate")
     @ParameterizedTest(name = "update contract with {0} contract id")
     void contractUpdate(String type, ContractID contractIdInBody, ContractID contractId, boolean inReceipt) {
         // given

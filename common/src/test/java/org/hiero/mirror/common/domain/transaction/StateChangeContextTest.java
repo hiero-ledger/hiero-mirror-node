@@ -44,6 +44,7 @@ import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.CustomFee;
 import com.hederahashgraph.api.proto.java.File;
 import com.hederahashgraph.api.proto.java.Key;
@@ -75,9 +76,11 @@ final class StateChangeContextTest {
         final var accountId2 = getAccountId();
         final var account2Alias = alias();
         final var accountId3 = getAccountId();
+        final var noAlias = getAccountId();
         final var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(accountMapUpdateChange(accountId1, account1Alias))
                 .addStateChanges(accountMapUpdateChange(accountId2, account2Alias))
+                .addStateChanges(accountMapUpdateChange(noAlias, ByteString.EMPTY))
                 .addStateChanges(otherMapUpdateChange())
                 .build();
 
@@ -88,7 +91,9 @@ final class StateChangeContextTest {
         assertThat(context.getAccountAlias(accountId1)).isEqualTo(account1Alias);
         assertThat(context.getAccountAlias(accountId2)).isEqualTo(account2Alias);
         assertThat(context.getAccountAlias(accountId3)).isNull();
+        assertThat(context.getAccountAlias(noAlias)).isNull();
         assertThat(context.getAccountEthereumNonce(accountId1)).isZero();
+        assertThat(context.getAccountEthereumNonce(noAlias)).isZero();
         assertThat(context.getAccountEthereumNonce(accountId3)).isNull();
     }
 
@@ -99,6 +104,7 @@ final class StateChangeContextTest {
         final var nonceCleared = getAccountId();
         final var aliasChanged = getAccountId();
         final var aliasChangedAlias = alias();
+        final var aliasCleared = getAccountId();
         final var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(partialAccountMapUpdateChange(
                         nonceChanged, Account.newBuilder().setEthereumNonce(5)))
@@ -106,6 +112,8 @@ final class StateChangeContextTest {
                         nonceCleared, Account.newBuilder(), Account.ETHEREUM_NONCE_FIELD_NUMBER))
                 .addStateChanges(partialAccountMapUpdateChange(
                         aliasChanged, Account.newBuilder().setAlias(aliasChangedAlias)))
+                .addStateChanges(
+                        partialAccountMapUpdateChange(aliasCleared, Account.newBuilder(), Account.ALIAS_FIELD_NUMBER))
                 .build();
 
         // when
@@ -118,6 +126,7 @@ final class StateChangeContextTest {
         assertThat(context.getAccountEthereumNonce(nonceCleared)).isZero();
         assertThat(context.getAccountAlias(aliasChanged)).isEqualTo(aliasChangedAlias);
         assertThat(context.getAccountEthereumNonce(aliasChanged)).isNull();
+        assertThat(context.getAccountAlias(aliasCleared)).isNull();
     }
 
     @Test
@@ -140,6 +149,55 @@ final class StateChangeContextTest {
         // then
         assertThat(context.getContractBytecode(contractId)).isEqualTo(bytecode);
         assertThat(context.getContractBytecode(getContractId())).isNull();
+    }
+
+    @Test
+    void contractId() {
+        // given
+        final var contract = getAccountId();
+        final var contractAddress = evmAddress();
+        final var created = getAccountId();
+        final var createdAddress = evmAddress();
+        final var account = getAccountId();
+        final var accountAddress = evmAddress();
+        final var partialContract = getAccountId();
+        final var partialContractAddress = evmAddress();
+        final var partialUnknown = getAccountId();
+        final var partialUnknownAddress = evmAddress();
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(accountMapUpdateChange(
+                        contract, Account.newBuilder().setAlias(contractAddress).setSmartContract(true)))
+                .addStateChanges(accountMapUpdateChange(
+                        created, Account.newBuilder().setAlias(createdAddress).setSmartContract(true)))
+                .addStateChanges(
+                        accountMapUpdateChange(account, Account.newBuilder().setAlias(accountAddress)))
+                .addStateChanges(accountMapUpdateChange(
+                        getAccountId(), Account.newBuilder().setDeleted(true).setSmartContract(true)))
+                .addStateChanges(partialAccountMapUpdateChange(
+                        partialContract,
+                        Account.newBuilder().setAlias(partialContractAddress).setSmartContract(true)))
+                .addStateChanges(partialAccountMapUpdateChange(
+                        partialUnknown, Account.newBuilder().setAlias(partialUnknownAddress)))
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_BYTECODE_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setContractIdKey(toContractId(created)))
+                                .setValue(MapChangeValue.newBuilder()
+                                        .setBytecodeValue(Bytecode.newBuilder().setCode(bytes(128))))))
+                .build();
+
+        // when
+        final var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getContractId(contractAddress)).isEqualTo(toContractId(contract));
+        assertThat(context.getContractId(partialContractAddress)).isEqualTo(toContractId(partialContract));
+        // The address may be reused within the transactional unit after a delete
+        assertThat(context.getContractId(createdAddress)).isNull();
+        assertThat(context.getContractId(accountAddress)).isNull();
+        assertThat(context.getContractId(partialUnknownAddress)).isNull();
+        assertThat(context.getContractId(ByteString.EMPTY)).isNull();
+        assertThat(context.getContractId(evmAddress())).isNull();
     }
 
     @Test
@@ -229,6 +287,7 @@ final class StateChangeContextTest {
 
     @Test
     void emptyContext() {
+        assertThat(EMPTY_CONTEXT.getContractId(evmAddress())).isNull();
         assertThat(EMPTY_CONTEXT.getNewFileId()).isNull();
         assertThat(EMPTY_CONTEXT.getNewNodeId()).isNull();
         assertThat(EMPTY_CONTEXT.getNewTokenId()).isNull();
@@ -613,6 +672,10 @@ final class StateChangeContextTest {
         return DomainUtils.fromBytes(CommonUtils.nextBytes(34));
     }
 
+    private ByteString evmAddress() {
+        return DomainUtils.fromBytes(CommonUtils.nextBytes(20));
+    }
+
     private PendingAirdropId getPendingAirdropId() {
         return PendingAirdropId.newBuilder()
                 .setReceiverId(getAccountId())
@@ -623,12 +686,15 @@ final class StateChangeContextTest {
 
     // The account value omits the account id, as in a partial update, so it must be read from the key
     private StateChange accountMapUpdateChange(AccountID accountId, ByteString alias) {
+        return accountMapUpdateChange(accountId, Account.newBuilder().setAlias(alias));
+    }
+
+    private StateChange accountMapUpdateChange(final AccountID accountId, final Account.Builder account) {
         return StateChange.newBuilder()
                 .setStateId(STATE_ID_ACCOUNTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
-                        .setValue(MapChangeValue.newBuilder()
-                                .setAccountValue(Account.newBuilder().setAlias(alias)))
+                        .setValue(MapChangeValue.newBuilder().setAccountValue(account))
                         .build())
                 .build();
     }
@@ -668,6 +734,14 @@ final class StateChangeContextTest {
         return StateChange.newBuilder()
                 .setStateId(STATE_ID_ROSTER_STATE_VALUE)
                 .setStateAdd(NewStateChange.newBuilder().build())
+                .build();
+    }
+
+    private ContractID toContractId(final AccountID accountId) {
+        return ContractID.newBuilder()
+                .setShardNum(accountId.getShardNum())
+                .setRealmNum(accountId.getRealmNum())
+                .setContractNum(accountId.getAccountNum())
                 .build();
     }
 

@@ -172,7 +172,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                     .setAccountNum(contractId.getContractNum())
                     .build();
             final var evmAddress = blockTransaction.getStateChangeContext().getAccountAlias(accountId);
-            if (evmAddress != null && !evmAddress.isEmpty()) {
+            if (evmAddress != null) {
                 contractResultbuilder.setEvmAddress(BytesValue.of(evmAddress));
             }
         }
