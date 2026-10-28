@@ -7,9 +7,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
@@ -30,8 +32,10 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
@@ -204,6 +208,9 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
     @Test
     void migrateExceedsParameterLimit() {
         // given
+        final var jdbcOperations = spy(namedParameterJdbcOperations);
+        final var batchedMigration = new FixTreasuryChangeTokenAccountStatusMigration(
+                environment, importerProperties, objectProvider(jdbcOperations), objectProvider(transactionOperations));
         final var tokenId = treasuryChange(true);
         final long firstTimestamp = CHANGE_TIMESTAMP + 5;
         final long lastTimestamp = firstTimestamp + 65_535;
@@ -241,9 +248,18 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
                 """, params);
 
         // when
-        migration.doMigrate();
+        batchedMigration.doMigrate();
 
         // then
+        final var queries = ArgumentCaptor.forClass(SqlParameterSource.class);
+        verify(jdbcOperations, atLeastOnce())
+                .query(any(String.class), queries.capture(), any(RowCallbackHandler.class));
+        assertThat(queries.getAllValues()).allSatisfy(query -> {
+            final var timestamps = (Long[]) query.getValue("timestamps");
+            assertThat(timestamps).isNotEmpty().hasSizeLessThanOrEqualTo(10_000);
+            assertThat(query.getValue("minTimestamp")).isEqualTo(timestamps[0]);
+            assertThat(query.getValue("maxTimestamp")).isEqualTo(timestamps[timestamps.length - 1]);
+        });
         assertThat(tokenAccountRepository.findAll()).containsExactly(current);
         final var history = findHistory(TokenAccountHistory.class);
         assertThat(history).hasSize(65_537);
@@ -271,7 +287,7 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
                 });
 
         // when run again
-        migration.doMigrate();
+        batchedMigration.doMigrate();
 
         // then nothing changes
         assertThat(tokenAccountRepository.findAll()).containsExactly(current);
