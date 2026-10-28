@@ -1093,7 +1093,6 @@ Response format:
       "endpoint_manifest": {
         "endpoints": [
           {
-            "account_id": "0.0.3",
             "service_endpoint": { "ip_address": "10.0.0.5", "port": 50211 }
           }
         ],
@@ -1461,7 +1460,6 @@ Response format:
       "consensus_timestamp": "1726874345.123456789",
       "endpoints": [
         {
-          "account_id": "0.0.3",
           "service_endpoint": { "ip_address": "10.0.0.5", "port": 50211 }
         }
       ],
