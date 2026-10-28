@@ -527,7 +527,8 @@ while ((remaining > 0)); do
   ' <<<"${page_json}")"
 done
 
-summary="processed=${processed} passed=${passed}"
+pass_percentage="$(awk -v p="${passed}" -v total="${processed}" 'BEGIN { printf "%.2f", (total > 0 ? 100 * p / total : 0) }')"
+summary="${passed}/${processed} (${pass_percentage}%) passed"
 printf '%s\n' "${summary}"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   printf '%s\n' "${summary}" >> "${GITHUB_STEP_SUMMARY}"

@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.service;
 import static com.hedera.node.app.spi.AppContext.Gossip.UNAVAILABLE_GOSSIP;
 import static com.hedera.node.app.throttle.ThrottleAccumulator.ThrottleType.NOOP_THROTTLE;
 import static com.hedera.node.app.workflows.standalone.TransactionExecutors.DISABLE_THROTTLES_PROPERTY;
-import static com.hedera.node.app.workflows.standalone.TransactionExecutors.MAX_SIGNED_TXN_SIZE_PROPERTY;
 
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.config.BootstrapConfigProviderImpl;
@@ -88,6 +87,9 @@ import org.springframework.scheduling.annotation.Async;
 @RequiredArgsConstructor
 public class TransactionExecutorFactory {
 
+    private static final SimulationVerificationStrategies simulationVerificationStrategies =
+            new SimulationVerificationStrategies();
+    private static final ScopedTracerBinding scopedTracerBinding = new ScopedTracerBinding();
     private final EntityIdFactory entityIdFactory;
     private final EvmProperties evmProperties;
     private final BlockHashOperation mirrorBlockHashOperation;
@@ -139,7 +141,7 @@ public class TransactionExecutorFactory {
         final TransactionExecutor transactionExecutor = (transactionBody, consensusNow, tracers) -> {
             final var dispatch =
                     component.standaloneDispatchFactory().newDispatch(mirrorNodeState, transactionBody, consensusNow);
-            ScopedTracerBinding.INSTANCE.runWhere(
+            scopedTracerBinding.runWhere(
                     List.of(tracers), () -> component.dispatchProcessor().processDispatch(dispatch));
             return dispatch.stack()
                     .buildHandleOutput(consensusNow, exchangeRateManager.exchangeRates())
@@ -151,19 +153,13 @@ public class TransactionExecutorFactory {
 
     @SuppressWarnings("removal")
     private ExecutorComponent newExecutorComponent(final Map<String, String> properties) {
-        final var effectiveProperties = new HashMap<>(properties);
-        final var maxSignedTxnSize = effectiveProperties.remove(MAX_SIGNED_TXN_SIZE_PROPERTY);
-        if (maxSignedTxnSize != null) {
-            effectiveProperties.put("hedera.nodeTransaction.maxBytes", maxSignedTxnSize);
-        }
-
-        final var bootstrapConfigProvider = new BootstrapConfigProviderImpl(effectiveProperties);
+        final var bootstrapConfigProvider = new BootstrapConfigProviderImpl(properties);
         final var bootstrapConfig = bootstrapConfigProvider.getConfiguration();
-        final var configProvider = new ConfigProviderImpl(false, null, effectiveProperties);
+        final var configProvider = new ConfigProviderImpl(false, null, properties);
         final var componentRef = new AtomicReference<ExecutorComponent>();
         final var defaultNodeInfo = new NodeInfoImpl(
                 0, entityIdFactory.newAccountId(3L), 10, List.of(), Bytes.EMPTY, List.of(), false, null);
-        final var disableThrottles = Boolean.parseBoolean(effectiveProperties.get(DISABLE_THROTTLES_PROPERTY));
+        final var disableThrottles = Boolean.parseBoolean(properties.get(DISABLE_THROTTLES_PROPERTY));
         final var metrics = new NoOpMetrics();
 
         final var appContext = new AppContextImpl(
@@ -188,8 +184,8 @@ public class TransactionExecutorFactory {
         final var contractService = new ContractServiceImpl(
                 appContext,
                 metrics,
-                SimulationVerificationStrategies.INSTANCE,
-                ScopedTracerBinding.INSTANCE,
+                simulationVerificationStrategies,
+                scopedTracerBinding,
                 Set.of(mirrorBlockHashOperation));
         final var utilService = new UtilServiceImpl(
                 appContext,
@@ -212,8 +208,6 @@ public class TransactionExecutorFactory {
                 new ConcurrentHashMap<>());
         final var historyService =
                 new HistoryServiceImpl(metrics, ForkJoinPool.commonPool(), appContext, new HistoryLibraryImpl());
-        final var standaloneNetworkInfo = new StandaloneNetworkInfo(configProvider);
-        standaloneNetworkInfo.initFrom(mirrorNodeState);
         final var component = DaggerExecutorComponent.builder()
                 .appContext(appContext)
                 .configProviderImpl(configProvider)
@@ -232,8 +226,8 @@ public class TransactionExecutorFactory {
                 .addressBookService(new AddressBookServiceImpl())
                 .metrics(metrics)
                 .throttleFactory(appContext.throttleFactory())
-                .selfNodeAccountIdManager(
-                        new SelfNodeAccountIdManagerImpl(configProvider, standaloneNetworkInfo, mirrorNodeState))
+                .selfNodeAccountIdManager(new SelfNodeAccountIdManagerImpl(
+                        configProvider, new StandaloneNetworkInfo(configProvider), mirrorNodeState))
                 .build();
         componentRef.set(component);
         return component;
@@ -241,9 +235,7 @@ public class TransactionExecutorFactory {
 
     private record Executor(TransactionExecutor transactionExecutor, ExchangeRateManager exchangeRateManager) {}
 
-    private enum ScopedTracerBinding implements TracerBinding {
-        INSTANCE;
-
+    private static final class ScopedTracerBinding implements TracerBinding {
         private static final ScopedValue<List<ActionSidecarContentTracer>> TRACERS = ScopedValue.newInstance();
 
         @Override

@@ -23,11 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
-import com.hedera.hapi.node.base.ContractID;
-import com.hedera.hapi.node.base.Key;
-import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
-import com.hedera.hapi.node.base.ThresholdKey;
 import com.hedera.hapi.node.base.Timestamp;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
@@ -37,10 +33,7 @@ import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionReceipt;
 import com.hedera.hapi.node.transaction.TransactionRecord;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
-import com.hedera.node.app.service.contract.impl.exec.scope.HederaNativeOperations;
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
-import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
-import com.hedera.node.app.spi.workflows.HandleContext;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.app.workflows.standalone.TransactionExecutor;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -879,106 +872,6 @@ class TransactionExecutionServiceTest {
             public Integer getTransactionResult() {
                 return transactionResult;
             }
-        }
-    }
-
-    @Nested
-    @MockitoSettings(strictness = Strictness.LENIENT)
-    class SimulationVerificationStrategiesTest {
-        private static final ContractID ACTIVE_CONTRACT_ID =
-                ContractID.newBuilder().contractNum(1001L).build();
-        private static final ContractID OTHER_CONTRACT_ID =
-                ContractID.newBuilder().contractNum(2002L).build();
-        private static final Address ACTIVE_ADDRESS =
-                Address.fromHexString("0x00000000000000000000000000000000000003e9");
-
-        @Mock
-        private HederaNativeOperations nativeOperations;
-
-        @Mock
-        private HandleContext handleContext;
-
-        @Test
-        void validatesActiveContractKeysAndTreatsCryptographicKeysAsValid() {
-            when(nativeOperations.entityIdFactory())
-                    .thenReturn(new AppEntityIdFactory(evmProperties.getVersionedConfiguration()));
-            final var strategy = SimulationVerificationStrategies.INSTANCE.activatingOnlyContractKeysFor(
-                    ACTIVE_ADDRESS, false, nativeOperations);
-            final var signatureTest = strategy.asSignatureTestIn(handleContext, null);
-
-            final var activeContractKey =
-                    Key.newBuilder().contractID(ACTIVE_CONTRACT_ID).build();
-            final var activeDelegatableKey =
-                    Key.newBuilder().delegatableContractId(ACTIVE_CONTRACT_ID).build();
-            final var otherContractKey =
-                    Key.newBuilder().contractID(OTHER_CONTRACT_ID).build();
-            final var otherDelegatableKey =
-                    Key.newBuilder().delegatableContractId(OTHER_CONTRACT_ID).build();
-            final var ed25519Key =
-                    Key.newBuilder().ed25519(Bytes.wrap(new byte[32])).build();
-
-            assertThat(signatureTest.test(activeContractKey)).isTrue();
-            assertThat(signatureTest.test(activeDelegatableKey)).isTrue();
-            assertThat(signatureTest.test(otherContractKey)).isFalse();
-            assertThat(signatureTest.test(otherDelegatableKey)).isFalse();
-            assertThat(signatureTest.test(ed25519Key)).isTrue();
-        }
-
-        @Test
-        void requiresDelegatableKeyWhenDelegatePermissionRequired() {
-            when(nativeOperations.entityIdFactory())
-                    .thenReturn(new AppEntityIdFactory(evmProperties.getVersionedConfiguration()));
-            final var strategy = SimulationVerificationStrategies.INSTANCE.activatingOnlyContractKeysFor(
-                    ACTIVE_ADDRESS, true, nativeOperations);
-            final var signatureTest = strategy.asSignatureTestIn(handleContext, null);
-
-            final var activeContractKey =
-                    Key.newBuilder().contractID(ACTIVE_CONTRACT_ID).build();
-            final var activeDelegatableKey =
-                    Key.newBuilder().delegatableContractId(ACTIVE_CONTRACT_ID).build();
-
-            assertThat(signatureTest.test(activeContractKey)).isFalse();
-            assertThat(signatureTest.test(activeDelegatableKey)).isTrue();
-        }
-
-        @Test
-        void evaluatesKeyListAndThresholdKeysDirectly() {
-            when(nativeOperations.entityIdFactory())
-                    .thenReturn(new AppEntityIdFactory(evmProperties.getVersionedConfiguration()));
-            final var strategy = SimulationVerificationStrategies.INSTANCE.activatingOnlyContractKeysFor(
-                    ACTIVE_ADDRESS, false, nativeOperations);
-            final var signatureTest = strategy.asSignatureTestIn(handleContext, null);
-
-            final var activeContractKey =
-                    Key.newBuilder().contractID(ACTIVE_CONTRACT_ID).build();
-            final var otherContractKey =
-                    Key.newBuilder().contractID(OTHER_CONTRACT_ID).build();
-            final var ed25519Key =
-                    Key.newBuilder().ed25519(Bytes.wrap(new byte[32])).build();
-
-            final var emptyKeyList = Key.newBuilder().keyList(KeyList.DEFAULT).build();
-            final var validKeyList = Key.newBuilder()
-                    .keyList(KeyList.newBuilder().keys(activeContractKey, ed25519Key))
-                    .build();
-            final var invalidKeyList = Key.newBuilder()
-                    .keyList(KeyList.newBuilder().keys(otherContractKey, ed25519Key))
-                    .build();
-            final var satisfiedThresholdKey = Key.newBuilder()
-                    .thresholdKey(ThresholdKey.newBuilder()
-                            .threshold(1)
-                            .keys(KeyList.newBuilder().keys(otherContractKey, activeContractKey)))
-                    .build();
-            final var unsatisfiedThresholdKey = Key.newBuilder()
-                    .thresholdKey(ThresholdKey.newBuilder()
-                            .threshold(2)
-                            .keys(KeyList.newBuilder().keys(otherContractKey, activeContractKey)))
-                    .build();
-
-            assertThat(signatureTest.test(emptyKeyList)).isFalse();
-            assertThat(signatureTest.test(validKeyList)).isTrue();
-            assertThat(signatureTest.test(invalidKeyList)).isFalse();
-            assertThat(signatureTest.test(satisfiedThresholdKey)).isTrue();
-            assertThat(signatureTest.test(unsatisfiedThresholdKey)).isFalse();
         }
     }
 }

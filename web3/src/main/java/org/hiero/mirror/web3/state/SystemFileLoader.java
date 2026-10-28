@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.state;
 
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
-import static java.util.Objects.requireNonNull;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_FILE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
@@ -26,7 +25,6 @@ import com.hederahashgraph.api.proto.java.ServiceEndpoint;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,7 +47,6 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
@@ -79,9 +76,6 @@ public final class SystemFileLoader {
             .maxRetries(properties.getMaxFileAttempts() - 1)
             .predicate(e -> e instanceof InvalidFileException)
             .build());
-
-    @Getter(lazy = true, value = AccessLevel.PRIVATE)
-    private final byte[] mockAddressBook = createMockAddressBook();
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final Map<FileID, SystemFile> systemFiles = loadAll();
@@ -128,8 +122,7 @@ public final class SystemFileLoader {
         final var cache = cacheManager.getCache(CACHE_NAME);
 
         if (cache == null) {
-            final var file = loadFromDB(fileId, consensusTimestamp);
-            return file != null ? file : fallbackExchangeRateFile(fileId, consensusTimestamp);
+            return loadFromDB(fileId, consensusTimestamp);
         }
 
         // Try to return the value from the cache
@@ -139,42 +132,13 @@ public final class SystemFileLoader {
         }
 
         // The value was not in cache -> try to load from DB
-        final File result;
-        if (cache instanceof CaffeineCache caffeineCache) {
-            // Coalesce concurrent misses without caching a null result or a substitute historical file.
-            result = (File)
-                    caffeineCache.getNativeCache().get(cacheKey, ignored -> loadFromDB(fileId, cacheKey.timestamp()));
-        } else {
-            result = loadFromDB(fileId, consensusTimestamp);
-            if (result != null) {
-                log.info("Updating cache for key {}", cacheKey);
-                cache.put(cacheKey, result);
-            }
+        var result = loadFromDB(fileId, consensusTimestamp);
+        if (result != null) {
+            log.info("Updating cache for key {}", cacheKey);
+            cache.put(cacheKey, result);
         }
 
-        return result != null ? result : fallbackExchangeRateFile(fileId, consensusTimestamp);
-    }
-
-    // If no exchange-rate file is available from the DB, return the closest cached file by timestamp.
-    private @Nullable File fallbackExchangeRateFile(final FileID fileId, final long timestamp) {
-        if (!exchangeRateFileId.equals(fileId)) {
-            return null;
-        }
-
-        final var genesis = requireNonNull(getSystemFiles().get(fileId)).genesisFile();
-        final var cache = exchangeRatesCacheManager.getCache(CACHE_NAME);
-        if (!(cache instanceof CaffeineCache caffeineCache)) {
-            return genesis;
-        }
-        return caffeineCache.getNativeCache().asMap().entrySet().stream()
-                .filter(entry ->
-                        entry.getKey() instanceof CacheKey key && key.fileId().equals(fileId))
-                .map(entry -> Map.entry((CacheKey) entry.getKey(), (File) entry.getValue()))
-                .min(Comparator.comparingLong((Map.Entry<CacheKey, File> entry) ->
-                                Math.abs(entry.getKey().timestamp() - timestamp))
-                        .thenComparingLong(entry -> entry.getKey().timestamp()))
-                .map(Map.Entry::getValue)
-                .orElse(genesis);
+        return result;
     }
 
     private @Nullable File loadFromDB(FileID fileId, long consensusTimestamp) {
@@ -183,9 +147,7 @@ public final class SystemFileLoader {
             return null;
         }
 
-        final var file = loadWithRetry(fileId, consensusTimestamp, systemFile);
-        // Resolve the genesis fallback against cached historical rates without caching a substitute for this hour.
-        return fileId.equals(exchangeRateFileId) && file == systemFile.genesisFile() ? null : file;
+        return loadWithRetry(fileId, consensusTimestamp, systemFile);
     }
 
     public boolean isSystemFile(final FileID fileId) {
@@ -241,7 +203,7 @@ public final class SystemFileLoader {
 
     private Map<FileID, SystemFile> loadAll() {
         var configuration = properties.getVersionedConfiguration();
-        var addressBookMock = Bytes.wrap(getMockAddressBook());
+        var addressBookMock = Bytes.wrap(createMockAddressBook());
         var files = List.of(
                 new SystemFile(load(systemEntity.addressBookFile101(), addressBookMock), NodeAddressBook.PROTOBUF),
                 new SystemFile(load(systemEntity.addressBookFile102(), addressBookMock), NodeAddressBook.PROTOBUF),

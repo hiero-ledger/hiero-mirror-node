@@ -47,8 +47,8 @@ import org.hiero.mirror.web3.common.ContractCallContext;
  *       timestamps within the current hour. The first two methods use the retained state; the third uses its argument.
  *   <li>Historical files use the shared, configured system-file cache in
  *       {@link org.hiero.mirror.web3.state.SystemFileLoader}. The loader parses files, retries previous file versions,
- *       and falls back to the closest cached exchange-rate file, preferring the earlier hour on a tie, or the genesis
- *       file when no historical file is available. Parsed rate information is not cached separately by this manager.
+ *       and falls back to the genesis file when no valid historical file is available. The selected file, including
+ *       a genesis fallback, is cached. Parsed rate information is not cached separately by this manager.
  *       Loading remains synchronous so the execution's scoped context determines the file timestamp.
  *   <li>The latest immutable rate information is published through a volatile reference so scheduled
  *       {@code ExchangeRateUpdater} calls to {@link #systemUpdate(Bytes)} are visible to concurrent readers.

@@ -56,7 +56,7 @@ public class BinaryGasEstimator {
 
         // Refunds reduce gasUsed, not the gas limit required during execution. Pad the successful limit instead.
         // Add ceil(hi * 5%) with integer arithmetic and reject overflow rather than returning a smaller limit.
-        return Math.addExact(hi, hi / 20 + (hi % 20 == 0 ? 0 : 1));
+        return Math.addExact(hi, Math.ceilDiv(hi, 20));
     }
 
     // This method is needed because within the modularized services if the contract call fails an exception is thrown

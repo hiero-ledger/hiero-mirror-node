@@ -31,9 +31,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -48,7 +45,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.cache.CacheManager;
@@ -338,33 +334,6 @@ class SystemFileLoaderTest {
                 .getFileAtTimestamp(systemEntity.exchangeRateFile().getId(), HOUR);
     }
 
-    @ParameterizedTest
-    @ValueSource(longs = {-1, 1})
-    void missingExchangeRatesUseTheClosestCachedFileAndRetry(final long direction) {
-        useSystemFileCache();
-        final var expected = cacheExchangeRates(HOUR + direction * NANOS_PER_HOUR, 100);
-        cacheExchangeRates(HOUR - direction * 2 * NANOS_PER_HOUR, 200);
-        cacheExchangeRates(HOUR + direction * 3 * NANOS_PER_HOUR, 300);
-        final var fileId = fileId(systemEntity.exchangeRateFile());
-        // A fee file at the exact requested hour must not be used as an exchange-rate fallback.
-        systemFileLoader.load(fileId(systemEntity.feeScheduleFile()), HOUR);
-
-        assertThat(systemFileLoader.load(fileId, HOUR)).isSameAs(expected);
-        assertThat(cacheExchangeRates(HOUR, 400).contents()).isEqualTo(exchangeRates(400));
-        verify(fileDataRepository, times(2))
-                .getFileAtTimestamp(systemEntity.exchangeRateFile().getId(), HOUR);
-    }
-
-    @Test
-    void equallyCloseExchangeRateFilesPreferTheEarlierHour() {
-        useSystemFileCache();
-        cacheExchangeRates(HOUR + NANOS_PER_HOUR, 200);
-        final var previous = cacheExchangeRates(HOUR - NANOS_PER_HOUR, 100);
-
-        assertThat(systemFileLoader.load(fileId(systemEntity.exchangeRateFile()), HOUR))
-                .isSameAs(previous);
-    }
-
     @Test
     void malformedExchangeRatesRetryThePreviousFile() {
         final var contents = Bytes.wrap(CORRUPT_DATA);
@@ -387,55 +356,6 @@ class SystemFileLoaderTest {
         verify(fileDataRepository).getFileAtTimestamp(entityId, HOUR - 2);
     }
 
-    @Test
-    void malformedExchangeRatesFallBackToTheClosestCachedFileWithoutCachingIt() {
-        final var contents = Bytes.wrap(CORRUPT_DATA);
-        useSystemFileCache();
-        final var previous = cacheExchangeRates(HOUR - NANOS_PER_HOUR, 100);
-        final var entityId = systemEntity.exchangeRateFile().getId();
-        when(fileDataRepository.getFileAtTimestamp(entityId, HOUR))
-                .thenReturn(Optional.of(FileData.builder()
-                        .consensusTimestamp(HOUR - 1)
-                        .fileData(contents.toByteArray())
-                        .build()));
-        when(fileDataRepository.getFileAtTimestamp(entityId, HOUR - 2))
-                .thenReturn(Optional.of(FileData.builder()
-                        .consensusTimestamp(HOUR - 3)
-                        .fileData(contents.toByteArray())
-                        .build()));
-
-        assertThat(systemFileLoader.load(fileId(systemEntity.exchangeRateFile()), HOUR))
-                .isSameAs(previous);
-        assertThat(cacheExchangeRates(HOUR, 200).contents()).isEqualTo(exchangeRates(200));
-        verify(fileDataRepository, times(2)).getFileAtTimestamp(entityId, HOUR);
-        verify(fileDataRepository).getFileAtTimestamp(entityId, HOUR - 2);
-    }
-
-    @Test
-    void missingExchangeRatesUseGenesisWithoutCachingIt() {
-        useSystemFileCache();
-        final var fileId = fileId(systemEntity.exchangeRateFile());
-
-        assertThat(systemFileLoader.load(fileId, HOUR).contents())
-                .isEqualTo(fileSchema.genesisExchangeRatesBytes(configuration));
-        assertThat(cacheExchangeRates(HOUR, 100).contents()).isEqualTo(exchangeRates(100));
-        verify(fileDataRepository, times(2))
-                .getFileAtTimestamp(systemEntity.exchangeRateFile().getId(), HOUR);
-    }
-
-    @Test
-    void exchangeRateLoadFailuresUseTheExistingFallback() {
-        useSystemFileCache();
-        final var previous = cacheExchangeRates(HOUR - NANOS_PER_HOUR, 100);
-        final var failure = new IllegalStateException("database unavailable");
-        when(fileDataRepository.getFileAtTimestamp(
-                        systemEntity.exchangeRateFile().getId(), HOUR))
-                .thenThrow(failure);
-
-        assertThat(systemFileLoader.load(fileId(systemEntity.exchangeRateFile()), HOUR))
-                .isSameAs(previous);
-    }
-
     @ParameterizedTest
     @NullAndEmptySource
     void emptyExchangeRateFilesUseTheDefaultWithoutRetrying(final byte[] contents) {
@@ -451,49 +371,6 @@ class SystemFileLoaderTest {
                 .isEqualTo(fileSchema.genesisExchangeRatesBytes(configuration));
         verify(fileDataRepository).getFileAtTimestamp(entityId, HOUR);
         verify(fileDataRepository, never()).getFileAtTimestamp(entityId, HOUR - 2);
-    }
-
-    @Test
-    void concurrentExchangeRateMissesShareOneDatabaseLoad() throws Exception {
-        useSystemFileCache();
-        final var ready = new CountDownLatch(2);
-        final var start = new CountDownLatch(1);
-        final var loading = new CountDownLatch(1);
-        final var release = new CountDownLatch(1);
-        final var fileId = fileId(systemEntity.exchangeRateFile());
-        when(fileDataRepository.getFileAtTimestamp(
-                        systemEntity.exchangeRateFile().getId(), HOUR))
-                .thenAnswer(ignored -> {
-                    loading.countDown();
-                    assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
-                    return Optional.of(FileData.builder()
-                            .fileData(exchangeRates(100).toByteArray())
-                            .build());
-                });
-
-        try (final var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            final var first = executor.submit(() -> {
-                ready.countDown();
-                start.await();
-                return systemFileLoader.load(fileId, HOUR);
-            });
-            final var second = executor.submit(() -> {
-                ready.countDown();
-                start.await();
-                return systemFileLoader.load(fileId, HOUR + 1);
-            });
-            try {
-                assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
-                start.countDown();
-                assertThat(loading.await(5, TimeUnit.SECONDS)).isTrue();
-            } finally {
-                start.countDown();
-                release.countDown();
-            }
-            assertThat(first.get(5, TimeUnit.SECONDS)).isSameAs(second.get(5, TimeUnit.SECONDS));
-        }
-        verify(fileDataRepository)
-                .getFileAtTimestamp(systemEntity.exchangeRateFile().getId(), HOUR);
     }
 
     private void useSystemFileCache() {

@@ -20,8 +20,7 @@ import org.hyperledger.besu.datatypes.Address;
  * caller does not hold an active signature for that contract and switches the debit to an allowance spend
  * ({@code isApproval = true}).
  */
-enum SimulationVerificationStrategies implements VerificationStrategies {
-    INSTANCE;
+final class SimulationVerificationStrategies implements VerificationStrategies {
 
     private static final VerificationStrategies DEFAULT_VERIFICATION_STRATEGIES = new DefaultVerificationStrategies();
 
