@@ -17,8 +17,6 @@ import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
 import static org.hiero.mirror.web3.state.Utils.convertToInstant;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -49,7 +47,6 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -124,9 +121,6 @@ class TransactionExecutionServiceTest {
     private TransactionExecutor transactionExecutor;
 
     @Mock
-    private ExchangeRateUpdater exchangeRateUpdater;
-
-    @Mock
     private TransactionExecutorFactory transactionExecutorFactory;
 
     private TransactionExecutionService transactionExecutionService;
@@ -149,16 +143,11 @@ class TransactionExecutionServiceTest {
                 contractResultRepository,
                 contractTransactionHashRepository,
                 evmProperties,
-                exchangeRateUpdater,
                 opcodeActionTracer,
                 mirrorOperationActionTracer,
                 systemEntity,
                 transactionExecutorFactory);
         when(transactionExecutorFactory.get()).thenReturn(transactionExecutor);
-        lenient().when(exchangeRateUpdater.callAt(anyLong(), any())).thenAnswer(invocation -> {
-            final Supplier<?> action = invocation.getArgument(1);
-            return action.get();
-        });
     }
 
     @ParameterizedTest

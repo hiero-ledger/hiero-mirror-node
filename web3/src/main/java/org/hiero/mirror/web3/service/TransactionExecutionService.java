@@ -38,9 +38,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.SequencedCollection;
-import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -79,7 +77,6 @@ public class TransactionExecutionService {
     private final ContractResultRepository contractResultRepository;
     private final ContractTransactionHashRepository contractTransactionHashRepository;
     private final EvmProperties evmProperties;
-    private final ExchangeRateUpdater exchangeRateUpdater;
     private final OpcodeActionTracer opcodeActionTracer;
     private final MirrorOperationActionTracer mirrorOperationActionTracer;
     private final SystemEntity systemEntity;
@@ -106,11 +103,7 @@ public class TransactionExecutionService {
             transactionBody = buildContractCallTransactionBody(params, gas, consensusTime);
         }
 
-        final Supplier<List<SingleTransactionRecord>> execution =
-                () -> executor.execute(transactionBody, consensusTime, getOperationTracers());
-        final var singleTransactionRecords = blockExchangeRateNanos()
-                .map(nanos -> exchangeRateUpdater.callAt(nanos, execution))
-                .orElseGet(execution);
+        final var singleTransactionRecords = executor.execute(transactionBody, consensusTime, getOperationTracers());
         final var parentTransactionStatus = singleTransactionRecords
                 .getFirst()
                 .transactionRecord()
@@ -256,13 +249,6 @@ public class TransactionExecutionService {
                         .build())
                 .transactionFee(TX_FEE)
                 .build();
-    }
-
-    private Optional<Long> blockExchangeRateNanos() {
-        if (!ContractCallContext.isInitialized()) {
-            return Optional.empty();
-        }
-        return ContractCallContext.get().getTimestampForSystemFiles();
     }
 
     private Instant getConsensusTimeFromContext() {

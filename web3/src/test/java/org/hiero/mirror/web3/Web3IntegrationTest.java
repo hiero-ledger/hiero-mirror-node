@@ -2,8 +2,16 @@
 
 package org.hiero.mirror.web3;
 
+import com.hedera.node.app.fees.ExchangeRateManagerTestSupport;
 import org.hiero.mirror.common.config.CommonIntegrationTest;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(ContextExtension.class)
-public abstract class Web3IntegrationTest extends CommonIntegrationTest {}
+public abstract class Web3IntegrationTest extends CommonIntegrationTest {
+
+    @Override
+    protected void reset() {
+        super.reset();
+        ExchangeRateManagerTestSupport.clearHistoricalRates();
+    }
+}

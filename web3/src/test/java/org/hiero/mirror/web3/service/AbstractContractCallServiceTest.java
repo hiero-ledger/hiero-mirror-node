@@ -27,6 +27,7 @@ import com.hedera.cryptography.libsecp256k1.Libsecp256k1;
 import com.hedera.hapi.node.base.TimestampSeconds;
 import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
+import com.hedera.node.app.fees.ExchangeRateManagerTestSupport;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.swirlds.state.State;
@@ -939,6 +940,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                         .transactionType(FILECREATE.getProtoId()))
                 .persist();
         resetCacheManager(exchangeRatesCacheManager);
+        ExchangeRateManagerTestSupport.clearHistoricalRates();
     }
 
     protected EntityId getEntityId(final String address) {

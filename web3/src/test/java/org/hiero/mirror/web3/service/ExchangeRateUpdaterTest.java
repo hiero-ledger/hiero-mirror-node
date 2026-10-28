@@ -23,7 +23,6 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
@@ -124,6 +123,7 @@ class ExchangeRateUpdaterTest {
 
     @Test
     void missingFileLeavesRatesUnchanged() {
+        when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
         final var initialRates = exchangeRateManager.exchangeRates();
         when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(null);
 
@@ -134,6 +134,7 @@ class ExchangeRateUpdaterTest {
 
     @Test
     void ignoresUnparseableFile() {
+        when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
         final var initialRates = exchangeRateManager.exchangeRates();
         final var garbage = File.newBuilder()
                 .fileId(exchangeRateFileId)
@@ -190,38 +191,28 @@ class ExchangeRateUpdaterTest {
     }
 
     @Test
-    void callAtAppliesHistoricalRatesThenRestoresPrevious() {
-        final var initialRates = exchangeRateManager.exchangeRates();
-        final var historicalRates = rates(120_000, Instant.parse("2100-01-01T00:00:00Z"));
-        final var renewedRates = rates(130_000, Instant.parse("2100-01-02T00:00:00Z"));
-        final var seen = new AtomicReference<ExchangeRateSet>();
+    void scheduledRefreshRetriesInvalidRatesWithFutureExpiration() {
+        final var expiry = Instant.now().plus(Duration.ofHours(1));
+        final var validRates = rates(120_000, expiry);
+        final var invalidRates = validRates
+                .copyBuilder()
+                .nextRate(rate(120_000, expiry).copyBuilder().centEquiv(0).build())
+                .build();
         when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
-        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(file(historicalRates));
+        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(file(invalidRates), file(validRates));
 
-        final var result = exchangeRateUpdater.callAt(1L, () -> {
-            seen.set(exchangeRateManager.exchangeRates());
-            return "ok";
-        });
-
-        assertThat(result).isEqualTo("ok");
-        assertThat(seen.get()).isEqualTo(historicalRates);
-        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(initialRates);
-
-        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(file(renewedRates));
         exchangeRateUpdater.refresh();
-        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(renewedRates);
+        exchangeRateUpdater.refresh();
+
+        verify(systemFileLoader, times(2)).load(eq(exchangeRateFileId), anyLong());
+        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(validRates);
     }
 
     @Test
-    void callAtKeepsCurrentRatesWhenHistoricalFileIsMissing() {
-        final var initialRates = exchangeRateManager.exchangeRates();
-        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(null);
+    void skipsDatabaseWhenNoExecutorsExist() {
+        exchangeRateUpdater.refresh();
 
-        final var result = exchangeRateUpdater.callAt(1L, () -> exchangeRateManager.exchangeRates());
-
-        assertThat(result).isEqualTo(initialRates);
-        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(initialRates);
-        verify(transactionExecutorFactory, never()).getExchangeRateManagers();
+        verify(systemFileLoader, never()).load(any(), anyLong());
     }
 
     private ExchangeRateManager newExchangeRateManager(final ExchangeRateSet initialRates) {

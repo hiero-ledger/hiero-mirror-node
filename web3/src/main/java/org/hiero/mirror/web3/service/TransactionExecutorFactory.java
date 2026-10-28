@@ -71,6 +71,27 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 
+/**
+ * Creates and reuses Mirror Node standalone transaction executors using custom contract-key verification.
+ *
+ * <p>Upstream {@link com.hedera.node.app.workflows.standalone.TransactionExecutors} hard-codes
+ * {@code NOOP_VERIFICATION_STRATEGIES} when constructing {@link ContractServiceImpl} and exposes no option to replace
+ * it. This factory copies upstream's {@code newExecutorComponent()} configuration providers, application context,
+ * service construction, and Dagger wiring so it can inject {@link SimulationVerificationStrategies} into the contract
+ * service. The copied setup and executor initialization must stay aligned with the pinned consensus-node dependency.
+ *
+ * <p>The custom strategy delegates {@code CONTRACT_ID} and {@code DELEGATABLE_CONTRACT_ID} checks to
+ * {@link DefaultVerificationStrategies}, including keys nested in key lists and thresholds, while accepting
+ * cryptographic keys for simulation. This allows HTS transfers to select an allowance spend when the calling contract
+ * cannot authorize the debited account through its contract key. The standalone dispatch's upstream no-op key verifier
+ * is unchanged; these executors remain intended for simulation.
+ *
+ * <p>Additional mirror customizations are executor reuse by EVM version with asynchronous startup initialization,
+ * scoped tracer bindings, and the mirror block-hash operation. Each executor's {@link ExchangeRateManager} is retained
+ * for latest-rate refresh by {@link ExchangeRateUpdater}; historical rate selection is handled by the manager override.
+ *
+ * @see com.hedera.node.app.workflows.standalone.TransactionExecutors
+ */
 @Named
 @RequiredArgsConstructor
 public class TransactionExecutorFactory {
