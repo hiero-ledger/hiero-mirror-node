@@ -1084,51 +1084,51 @@ Response format:
 {
   "channels": [
     {
-      "channel_id": "0x1a2b3c...",
-      "chain_id": "eip155:1",
-      "status": "ACTIVE",
-      "ownership_commitment": "0x7ab3f1...",
-      "public_key": "0x04a1b2c3...",
-      "signature": "0x9f8e7d6c...",
-      "signature_scheme": "ED25519",
-      "config_proof_bytes": "0x1122...",
-      "endpoint_manifest_proof_bytes": "0x3344...",
-      "verifier_contract_id": "0.0.456",
-      "verifier_fingerprint": "0x55aabb...",
-      "trust_anchor": "0x3344...",
-      "trust_anchor_id": "0x9f8e...",
-      "channel_context": "0x1a2b3c...0000016e",
-      "next_message_id": 48,
       "acked_message_id": 47,
-      "sent_running_hash": "0xaa11...",
-      "received_message_id": 52,
-      "received_running_hash": "0xbb22...",
-      "last_config_timestamp": "1726874345.123456789",
-      "peer_config_timestamp": "1726874300.000000000",
-      "peer_throttles": {
-        "max_messages_per_bundle": 100,
-        "max_message_payload_bytes": 8192,
-        "max_gas_per_message": 15000000,
-        "max_queue_depth": 1000,
-        "max_sync_bytes": 4194304,
-        "max_local_endpoints": 39,
-        "max_peer_endpoints": 39
-      },
+      "chain_id": "eip155:1",
+      "channel_context": "0x1a2b3c...0000016e",
+      "channel_id": "0x1a2b3c...",
+      "config_proof_bytes": "0x1122...",
+      "created_timestamp": "1726874200.000000000",
       "endpoint_manifest": {
-        "version": 3,
         "endpoints": [
           {
-            "service_endpoint": { "ip_address": "10.0.0.5", "port": 50211 },
-            "account_id": "0.0.3"
+            "account_id": "0.0.3",
+            "service_endpoint": { "ip_address": "10.0.0.5", "port": 50211 }
           }
-        ]
+        ],
+        "version": 3
       },
+      "endpoint_manifest_proof_bytes": "0x3344...",
       "endpoint_manifest_version": 3,
-      "created_timestamp": "1726874200.000000000",
+      "last_config_timestamp": "1726874345.123456789",
+      "next_message_id": 48,
+      "ownership_commitment": "0x7ab3f1...",
+      "peer_config_timestamp": "1726874300.000000000",
+      "peer_throttles": {
+        "max_gas_per_message": 15000000,
+        "max_local_endpoints": 39,
+        "max_message_payload_bytes": 8192,
+        "max_messages_per_bundle": 100,
+        "max_peer_endpoints": 39,
+        "max_queue_depth": 1000,
+        "max_sync_bytes": 4194304
+      },
+      "public_key": "0x04a1b2c3...",
+      "received_message_id": 52,
+      "received_running_hash": "0xbb22...",
+      "sent_running_hash": "0xaa11...",
+      "signature": "0x9f8e7d6c...",
+      "signature_scheme": "ED25519",
+      "status": "ACTIVE",
       "timestamp": {
         "from": "1726874345.123456789",
         "to": null
-      }
+      },
+      "trust_anchor": "0x3344...",
+      "trust_anchor_id": "0x9f8e...",
+      "verifier_contract_id": "0.0.456",
+      "verifier_fingerprint": "0x55aabb..."
     }
   ],
   "links": {
@@ -1181,18 +1181,18 @@ Response format:
 {
   "messages": [
     {
-      "message_id": 5,
+      "acknowledged": false,
       "channel_id": "0x1a2b3c...",
       "connector_id": "0x4d5e6f...",
-      "type": "DATA",
-      "sender": "0x4d5e6f...",
-      "target_application": "0x7788...",
       "message_data": "0xdeadbeef",
+      "message_id": 5,
       "reply_status": null,
       "reply_to_message_id": null,
       "running_hash": "0xaa11...",
-      "acknowledged": false,
-      "timestamp": "1726874345.123456789"
+      "sender": "0x4d5e6f...",
+      "target_application": "0x7788...",
+      "timestamp": "1726874345.123456789",
+      "type": "DATA"
     }
   ],
   "links": {
@@ -1251,9 +1251,9 @@ Response format:
 {
   "pending_channels": [
     {
+      "created_timestamp": "1726874345.123456789",
       "ownership_commitment": "0x7ab3f1...",
-      "status": "OPEN",
-      "created_timestamp": "1726874345.123456789"
+      "status": "OPEN"
     }
   ],
   "links": {
@@ -1296,8 +1296,8 @@ Response format:
   "pending_connectors": [
     {
       "commitment": "0x9c2e4a...",
-      "status": "OPEN",
-      "created_timestamp": "1726874345.123456789"
+      "created_timestamp": "1726874345.123456789",
+      "status": "OPEN"
     }
   ],
   "links": {
@@ -1339,23 +1339,23 @@ Response format:
 {
   "connectors": [
     {
-      "connector_id": "0x4d5e6f...",
-      "channel_id": "0x1a2b3c...",
-      "connector_contract_id": "0.0.789",
       "admin_key": {
         "_type": "ED25519",
         "key": "302a300506032b6570032100e5b2…"
       },
-      "locked_stake": "100000000",
+      "channel_id": "0x1a2b3c...",
+      "connector_contract_id": "0.0.789",
+      "connector_id": "0x4d5e6f...",
+      "created_timestamp": "1726874345.123456789",
+      "deleted": false,
       "in_flight_message_count": 2,
+      "locked_stake": "100000000",
+      "public_key": "0x04a1b2c3...",
+      "salt": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "signature": "0x9f8e7d6c...",
+      "signature_scheme": "ED25519",
       "slash_count": 0,
       "stake_recipient_id": null,
-      "deleted": false,
-      "public_key": "0x04a1b2c3...",
-      "signature_scheme": "ED25519",
-      "signature": "0x9f8e7d6c...",
-      "salt": "0x0000000000000000000000000000000000000000000000000000000000000001",
-      "created_timestamp": "1726874345.123456789",
       "timestamp": {
         "from": "1726874345.123456789",
         "to": null
@@ -1407,21 +1407,21 @@ Response format:
 {
   "ledger_configurations": [
     {
-      "protocol_version": 1,
       "chain_id": "eip155:1",
-      "service_address": "0x000000000000000000000000000000000000016e",
+      "consensus_timestamp": "1726874345.123456789",
       "initial_trust_anchor": "0x3344...",
       "initial_trust_anchor_id": "0x9f8e...",
+      "protocol_version": 1,
+      "service_address": "0x000000000000000000000000000000000000016e",
       "throttles": {
-        "max_messages_per_bundle": 1000,
-        "max_message_payload_bytes": 65536,
         "max_gas_per_message": 15000000,
-        "max_queue_depth": 10000,
-        "max_sync_bytes": 4194304,
         "max_local_endpoints": 39,
-        "max_peer_endpoints": 39
-      },
-      "consensus_timestamp": "1726874345.123456789"
+        "max_message_payload_bytes": 65536,
+        "max_messages_per_bundle": 1000,
+        "max_peer_endpoints": 39,
+        "max_queue_depth": 10000,
+        "max_sync_bytes": 4194304
+      }
     }
   ],
   "links": {
@@ -1458,15 +1458,15 @@ Response format:
 {
   "endpoint_manifests": [
     {
-      "version": 3,
-      "service_address": "0x000000000000000000000000000000000000016e",
+      "consensus_timestamp": "1726874345.123456789",
       "endpoints": [
         {
-          "service_endpoint": { "ip_address": "10.0.0.5", "port": 50211 },
-          "account_id": "0.0.3"
+          "account_id": "0.0.3",
+          "service_endpoint": { "ip_address": "10.0.0.5", "port": 50211 }
         }
       ],
-      "consensus_timestamp": "1726874345.123456789"
+      "service_address": "0x000000000000000000000000000000000000016e",
+      "version": 3
     }
   ],
   "links": {
