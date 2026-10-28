@@ -256,7 +256,7 @@ class FixTreasuryChangeTokenAccountStatusMigrationTest extends ImporterIntegrati
                 .query(any(String.class), queries.capture(), any(RowCallbackHandler.class));
         assertThat(queries.getAllValues()).allSatisfy(query -> {
             final var timestamps = (Long[]) query.getValue("timestamps");
-            assertThat(timestamps).isNotEmpty().hasSizeLessThanOrEqualTo(10_000);
+            assertThat(timestamps).isNotEmpty().hasSizeLessThanOrEqualTo(200);
             assertThat(query.getValue("minTimestamp")).isEqualTo(timestamps[0]);
             assertThat(query.getValue("maxTimestamp")).isEqualTo(timestamps[timestamps.length - 1]);
         });

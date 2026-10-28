@@ -32,7 +32,7 @@ import org.springframework.transaction.support.TransactionOperations;
 @Named
 final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJavaMigration {
 
-    private static final int BATCH_SIZE = 10_000;
+    private static final int BATCH_SIZE = 200;
 
     private static final String CURRENT_TABLE = "token_account";
 
