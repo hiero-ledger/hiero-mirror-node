@@ -84,4 +84,5 @@ jobs:
           DEFAULT_GRACEFUL_STOP: "1s"
           DEFAULT_VUS: 2
           RUN_OPCODE_TESTS: "true"
+          RUN_PRESTATE_TESTS: "true"
         uses: ./.github/actions/k6
