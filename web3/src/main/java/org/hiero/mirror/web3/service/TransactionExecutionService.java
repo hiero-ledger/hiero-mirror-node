@@ -127,7 +127,7 @@ public class TransactionExecutionService {
     /**
      * Selects the result that best represents a hash shared by multiple results. A successful result always wins (the
      * query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result sharing
-     * the hash by checking which candidates consumed gas (a non-null gas_consumed), falling back to the latest by
+     * the hash by checking which candidates consumed gas (a positive gas_consumed), falling back to the latest by
      * consensus timestamp (the query order).
      */
     public ContractTransactionHashLookup resolveContractTransactionHash(
