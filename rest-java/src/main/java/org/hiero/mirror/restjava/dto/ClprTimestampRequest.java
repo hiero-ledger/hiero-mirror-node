@@ -11,7 +11,7 @@ import org.springframework.data.domain.Sort.Direction;
 @Builder
 @NullMarked
 @Value
-public class ClprPendingRequest {
+public class ClprTimestampRequest {
 
     @Builder.Default
     int limit = 25;

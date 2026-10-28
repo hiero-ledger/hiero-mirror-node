@@ -21,7 +21,7 @@ import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 import org.hiero.mirror.restjava.dto.ClprMessageDto;
 import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
-import org.hiero.mirror.restjava.dto.ClprPendingRequest;
+import org.hiero.mirror.restjava.dto.ClprTimestampRequest;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -288,8 +288,8 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
         persistPending(150L, false, 160L); // completed
         persistPending(175L, true, null); // deleted
         final var open2 = persistPending(200L, false, null);
-        final var request = ClprPendingRequest.builder().build();
-        final var bounded = ClprPendingRequest.builder().lowerBound(150L).build();
+        final var request = ClprTimestampRequest.builder().build();
+        final var bounded = ClprTimestampRequest.builder().lowerBound(150L).build();
 
         // when / then
         assertThat(service.getPendingChannels(request)).containsExactly(open2, open1);
@@ -300,7 +300,7 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     void getPendingChannelsInvalidTimestampRange() {
         // given
         final var request =
-                ClprPendingRequest.builder().lowerBound(10L).upperBound(1L).build();
+                ClprTimestampRequest.builder().lowerBound(10L).upperBound(1L).build();
 
         // when / then
         assertThatThrownBy(() -> service.getPendingChannels(request))
@@ -315,8 +315,8 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
         persistPendingConnector(150L, false, 160L); // completed
         persistPendingConnector(175L, true, null); // deleted
         final var open2 = persistPendingConnector(200L, false, null);
-        final var request = ClprPendingRequest.builder().build();
-        final var bounded = ClprPendingRequest.builder().lowerBound(150L).build();
+        final var request = ClprTimestampRequest.builder().build();
+        final var bounded = ClprTimestampRequest.builder().lowerBound(150L).build();
 
         // when / then
         assertThat(service.getPendingConnectors(request)).containsExactly(open2, open1);
@@ -327,10 +327,66 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     void getPendingConnectorsInvalidTimestampRange() {
         // given
         final var request =
-                ClprPendingRequest.builder().lowerBound(10L).upperBound(1L).build();
+                ClprTimestampRequest.builder().lowerBound(10L).upperBound(1L).build();
 
         // when / then
         assertThatThrownBy(() -> service.getPendingConnectors(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid range provided for timestamp");
+    }
+
+    @Test
+    void getLedgerConfigurations() {
+        // given
+        final var config1 = domainBuilder
+                .clprLedgerConfiguration()
+                .customize(c -> c.consensusTimestamp(100L))
+                .persist();
+        final var config2 = domainBuilder
+                .clprLedgerConfiguration()
+                .customize(c -> c.consensusTimestamp(200L))
+                .persist();
+        final var all = ClprTimestampRequest.builder().build();
+        final var bounded = ClprTimestampRequest.builder().lowerBound(150L).build();
+        final var ascending =
+                ClprTimestampRequest.builder().order(Direction.ASC).build();
+
+        // when / then
+        assertThat(service.getLedgerConfigurations(all)).containsExactly(config2, config1);
+        assertThat(service.getLedgerConfigurations(bounded)).containsExactly(config2);
+        assertThat(service.getLedgerConfigurations(ascending)).containsExactly(config1, config2);
+    }
+
+    @Test
+    void getEndpointManifests() {
+        // given
+        final var manifest1 = domainBuilder
+                .clprEndpointManifest()
+                .customize(m -> m.consensusTimestamp(100L))
+                .persist();
+        final var manifest2 = domainBuilder
+                .clprEndpointManifest()
+                .customize(m -> m.consensusTimestamp(200L))
+                .persist();
+        final var all = ClprTimestampRequest.builder().build();
+        final var bounded = ClprTimestampRequest.builder().upperBound(150L).build();
+
+        // when / then
+        assertThat(service.getEndpointManifests(all)).containsExactly(manifest2, manifest1);
+        assertThat(service.getEndpointManifests(bounded)).containsExactly(manifest1);
+    }
+
+    @Test
+    void getLedgerConfigurationsAndEndpointManifestsInvalidTimestampRange() {
+        // given
+        final var request =
+                ClprTimestampRequest.builder().lowerBound(10L).upperBound(1L).build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getLedgerConfigurations(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid range provided for timestamp");
+        assertThatThrownBy(() -> service.getEndpointManifests(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid range provided for timestamp");
     }

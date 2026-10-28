@@ -25,6 +25,10 @@ import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
 import org.hiero.mirror.rest.model.ClprConnector;
 import org.hiero.mirror.rest.model.ClprConnectorsResponse;
+import org.hiero.mirror.rest.model.ClprEndpointManifestEntry;
+import org.hiero.mirror.rest.model.ClprEndpointManifestsResponse;
+import org.hiero.mirror.rest.model.ClprLedgerConfiguration;
+import org.hiero.mirror.rest.model.ClprLedgerConfigurationsResponse;
 import org.hiero.mirror.rest.model.ClprMessage;
 import org.hiero.mirror.rest.model.ClprMessagesResponse;
 import org.hiero.mirror.rest.model.ClprPendingChannel;
@@ -36,9 +40,11 @@ import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
-import org.hiero.mirror.restjava.dto.ClprPendingRequest;
+import org.hiero.mirror.restjava.dto.ClprTimestampRequest;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
 import org.hiero.mirror.restjava.mapper.ClprConnectorMapper;
+import org.hiero.mirror.restjava.mapper.ClprEndpointManifestMapper;
+import org.hiero.mirror.restjava.mapper.ClprLedgerConfigurationMapper;
 import org.hiero.mirror.restjava.mapper.ClprMessageMapper;
 import org.hiero.mirror.restjava.mapper.ClprPendingChannelMapper;
 import org.hiero.mirror.restjava.mapper.ClprPendingConnectorMapper;
@@ -76,6 +82,13 @@ final class ClprController {
     private static final Function<ClprConnector, Map<String, String>> CONNECTOR_EXTRACTOR =
             connector -> ImmutableSortedMap.of(TIMESTAMP, connector.getCreatedTimestamp());
 
+    // consensus_timestamp is the primary key of the append-only endpoint manifest and ledger configuration tables
+    private static final Function<ClprEndpointManifestEntry, Map<String, String>> ENDPOINT_MANIFEST_EXTRACTOR =
+            manifest -> ImmutableSortedMap.of(TIMESTAMP, manifest.getConsensusTimestamp());
+
+    private static final Function<ClprLedgerConfiguration, Map<String, String>> LEDGER_CONFIGURATION_EXTRACTOR =
+            configuration -> ImmutableSortedMap.of(TIMESTAMP, configuration.getConsensusTimestamp());
+
     // The consensus timestamp is the sole sort and pagination key. Messages dispatched by one bundle share it, so a
     // page boundary inside such a group can skip or repeat rows
     private static final Function<ClprMessage, Map<String, String>> MESSAGE_EXTRACTOR =
@@ -91,6 +104,8 @@ final class ClprController {
 
     private final ClprChannelMapper channelMapper;
     private final ClprConnectorMapper connectorMapper;
+    private final ClprEndpointManifestMapper endpointManifestMapper;
+    private final ClprLedgerConfigurationMapper ledgerConfigurationMapper;
     private final LinkFactory linkFactory;
     private final ClprMessageMapper messageMapper;
     private final ClprPendingChannelMapper pendingChannelMapper;
@@ -119,6 +134,42 @@ final class ClprController {
         return new ClprChannelsResponse().channels(channels).links(links);
     }
 
+    @GetMapping("/endpoint-manifest")
+    ClprEndpointManifestsResponse getEndpointManifests(
+            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
+            @RequestParam(defaultValue = "desc") Sort.Direction order,
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
+                    TimestampParameter[] timestamps) {
+
+        final var request = timestampRequest(limit, order, timestamps);
+        final var manifests = endpointManifestMapper.map(service.getEndpointManifests(request));
+
+        final var sort = Sort.by(order, TIMESTAMP);
+        final var pageable = PageRequest.of(0, limit, sort);
+        final var links = linkFactory.create(manifests, pageable, ENDPOINT_MANIFEST_EXTRACTOR);
+
+        return new ClprEndpointManifestsResponse().endpointManifests(manifests).links(links);
+    }
+
+    @GetMapping("/ledger-configuration")
+    ClprLedgerConfigurationsResponse getLedgerConfigurations(
+            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
+            @RequestParam(defaultValue = "desc") Sort.Direction order,
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
+                    TimestampParameter[] timestamps) {
+
+        final var request = timestampRequest(limit, order, timestamps);
+        final var configurations = ledgerConfigurationMapper.map(service.getLedgerConfigurations(request));
+
+        final var sort = Sort.by(order, TIMESTAMP);
+        final var pageable = PageRequest.of(0, limit, sort);
+        final var links = linkFactory.create(configurations, pageable, LEDGER_CONFIGURATION_EXTRACTOR);
+
+        return new ClprLedgerConfigurationsResponse()
+                .ledgerConfigurations(configurations)
+                .links(links);
+    }
+
     @GetMapping("/channels/pending")
     ClprPendingChannelsResponse getPendingChannels(
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
@@ -126,13 +177,7 @@ final class ClprController {
             @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
                     TimestampParameter[] timestamps) {
 
-        final var bounds = bounds(timestamps);
-        final var request = ClprPendingRequest.builder()
-                .limit(limit)
-                .lowerBound(bounds.lower())
-                .order(order)
-                .upperBound(bounds.upper())
-                .build();
+        final var request = timestampRequest(limit, order, timestamps);
         final var pendingChannels = pendingChannelMapper.map(service.getPendingChannels(request));
 
         final var sort = Sort.by(order, TIMESTAMP);
@@ -151,13 +196,7 @@ final class ClprController {
             @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
                     TimestampParameter[] timestamps) {
 
-        final var bounds = bounds(timestamps);
-        final var request = ClprPendingRequest.builder()
-                .limit(limit)
-                .lowerBound(bounds.lower())
-                .order(order)
-                .upperBound(bounds.upper())
-                .build();
+        final var request = timestampRequest(limit, order, timestamps);
         final var pendingConnectors = pendingConnectorMapper.map(service.getPendingConnectors(request));
 
         final var sort = Sort.by(order, TIMESTAMP);
@@ -317,6 +356,16 @@ final class ClprController {
         }
 
         return new Bounds(lowerBound, upperBound);
+    }
+
+    private ClprTimestampRequest timestampRequest(int limit, Sort.Direction order, TimestampParameter[] timestamps) {
+        final var bounds = bounds(timestamps);
+        return ClprTimestampRequest.builder()
+                .limit(limit)
+                .lowerBound(bounds.lower())
+                .order(order)
+                .upperBound(bounds.upper())
+                .build();
     }
 
     private static byte[] toBytes(String id) {

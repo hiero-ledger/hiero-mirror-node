@@ -6,6 +6,8 @@ import static org.hiero.mirror.restjava.jooq.domain.tables.ClprChannel.CLPR_CHAN
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprChannelPendingCommitment.CLPR_CHANNEL_PENDING_COMMITMENT;
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprConnector.CLPR_CONNECTOR;
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprConnectorPendingCommitment.CLPR_CONNECTOR_PENDING_COMMITMENT;
+import static org.hiero.mirror.restjava.jooq.domain.tables.ClprEndpointManifest.CLPR_ENDPOINT_MANIFEST;
+import static org.hiero.mirror.restjava.jooq.domain.tables.ClprLedgerConfiguration.CLPR_LEDGER_CONFIGURATION;
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprMessage.CLPR_MESSAGE;
 
 import jakarta.inject.Named;
@@ -15,15 +17,19 @@ import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 import org.hiero.mirror.restjava.dto.ClprMessageDto;
 import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
-import org.hiero.mirror.restjava.dto.ClprPendingRequest;
+import org.hiero.mirror.restjava.dto.ClprTimestampRequest;
 import org.hiero.mirror.restjava.repository.ClprChannelPendingCommitmentRepository;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
 import org.hiero.mirror.restjava.repository.ClprConnectorPendingCommitmentRepository;
 import org.hiero.mirror.restjava.repository.ClprConnectorRepository;
+import org.hiero.mirror.restjava.repository.ClprEndpointManifestRepository;
+import org.hiero.mirror.restjava.repository.ClprLedgerConfigurationRepository;
 import org.hiero.mirror.restjava.repository.ClprMessageRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -36,6 +42,8 @@ final class ClprServiceImpl implements ClprService {
     private final ClprChannelRepository channelRepository;
     private final ClprConnectorPendingCommitmentRepository connectorPendingCommitmentRepository;
     private final ClprConnectorRepository connectorRepository;
+    private final ClprEndpointManifestRepository endpointManifestRepository;
+    private final ClprLedgerConfigurationRepository ledgerConfigurationRepository;
     private final ClprMessageRepository messageRepository;
     private final QueryProperties queryProperties;
 
@@ -117,6 +125,28 @@ final class ClprServiceImpl implements ClprService {
     }
 
     @Override
+    public List<ClprEndpointManifest> getEndpointManifests(final ClprTimestampRequest request) {
+        final long lowerBound = request.getLowerBound();
+        final long upperBound = request.getUpperBound();
+        validateRange(lowerBound, upperBound);
+
+        final var sort = Sort.by(request.getOrder(), CLPR_ENDPOINT_MANIFEST.CONSENSUS_TIMESTAMP.getName());
+        final var page = PageRequest.of(0, request.getLimit(), sort);
+        return endpointManifestRepository.findByConsensusTimestampBetween(lowerBound, upperBound, page);
+    }
+
+    @Override
+    public List<ClprLedgerConfiguration> getLedgerConfigurations(final ClprTimestampRequest request) {
+        final long lowerBound = request.getLowerBound();
+        final long upperBound = request.getUpperBound();
+        validateRange(lowerBound, upperBound);
+
+        final var sort = Sort.by(request.getOrder(), CLPR_LEDGER_CONFIGURATION.CONSENSUS_TIMESTAMP.getName());
+        final var page = PageRequest.of(0, request.getLimit(), sort);
+        return ledgerConfigurationRepository.findByConsensusTimestampBetween(lowerBound, upperBound, page);
+    }
+
+    @Override
     public List<ClprMessageDto> getMessages(final ClprMessagesRequest request) {
         final long lowerBound = request.getTimestampLowerBound();
         final long upperBound = request.getTimestampUpperBound();
@@ -142,7 +172,7 @@ final class ClprServiceImpl implements ClprService {
     }
 
     @Override
-    public List<ClprChannelPendingCommitment> getPendingChannels(final ClprPendingRequest request) {
+    public List<ClprChannelPendingCommitment> getPendingChannels(final ClprTimestampRequest request) {
         final long lowerBound = request.getLowerBound();
         final long upperBound = request.getUpperBound();
         validateRange(lowerBound, upperBound);
@@ -153,7 +183,7 @@ final class ClprServiceImpl implements ClprService {
     }
 
     @Override
-    public List<ClprConnectorPendingCommitment> getPendingConnectors(final ClprPendingRequest request) {
+    public List<ClprConnectorPendingCommitment> getPendingConnectors(final ClprTimestampRequest request) {
         final long lowerBound = request.getLowerBound();
         final long upperBound = request.getUpperBound();
         validateRange(lowerBound, upperBound);

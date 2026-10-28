@@ -589,6 +589,46 @@ paths:
           $ref: "#/components/responses/NotFoundError"
       tags:
         - clpr
+  /api/v1/clpr/endpoint-manifest:
+    get:
+      summary: List CLPR endpoint manifests
+      description: Returns the CLPR (HIP-1535) endpoint manifests, paginated and sorted by consensus timestamp. The newest row is the current manifest.
+      operationId: getClprEndpointManifests
+      parameters:
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamDesc"
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClprEndpointManifestsResponse"
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
+      tags:
+        - clpr
+  /api/v1/clpr/ledger-configuration:
+    get:
+      summary: List CLPR ledger configurations
+      description: Returns the CLPR (HIP-1535) ledger configurations, paginated and sorted by consensus timestamp. The newest row is the current configuration.
+      operationId: getClprLedgerConfigurations
+      parameters:
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamDesc"
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClprLedgerConfigurationsResponse"
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
+      tags:
+        - clpr
   /api/v1/clpr/connectors/pending:
     get:
       summary: List pending CLPR connectors
@@ -2588,8 +2628,6 @@ components:
     ClprEndpoint:
       type: object
       properties:
-        account_id:
-          $ref: "#/components/schemas/ClprHexBytes"
         service_endpoint:
           $ref: "#/components/schemas/ClprServiceEndpoint"
         tls_certificate:
@@ -2608,11 +2646,79 @@ components:
           type: integer
           format: int64
           example: 3
+    ClprEndpointManifestEntry:
+      type: object
+      required:
+        - consensus_timestamp
+        - endpoints
+        - version
+      properties:
+        consensus_timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        endpoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClprEndpoint"
+        service_address:
+          $ref: "#/components/schemas/ClprHexBytes"
+        version:
+          type: integer
+          format: int64
+          example: 3
+    ClprEndpointManifestsResponse:
+      type: object
+      required:
+        - endpoint_manifests
+        - links
+      properties:
+        endpoint_manifests:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClprEndpointManifestEntry"
+        links:
+          $ref: "#/components/schemas/Links"
     ClprHexBytes:
       description: A hex encoded byte array with a 0x prefix
       type: [string, "null"]
       example: "0x1a2b3c"
       pattern: "^0x[0-9a-fA-F]*$"
+    ClprLedgerConfiguration:
+      type: object
+      required:
+        - chain_id
+        - consensus_timestamp
+        - protocol_version
+        - throttles
+      properties:
+        chain_id:
+          type: string
+          example: "eip155:1"
+        consensus_timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        initial_trust_anchor:
+          $ref: "#/components/schemas/ClprHexBytes"
+        initial_trust_anchor_id:
+          $ref: "#/components/schemas/ClprHexBytes"
+        protocol_version:
+          type: integer
+          format: int64
+          example: 1
+        service_address:
+          $ref: "#/components/schemas/ClprHexBytes"
+        throttles:
+          $ref: "#/components/schemas/ClprPeerThrottles"
+    ClprLedgerConfigurationsResponse:
+      type: object
+      required:
+        - ledger_configurations
+        - links
+      properties:
+        ledger_configurations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClprLedgerConfiguration"
+        links:
+          $ref: "#/components/schemas/Links"
     ClprMessage:
       type: object
       required:

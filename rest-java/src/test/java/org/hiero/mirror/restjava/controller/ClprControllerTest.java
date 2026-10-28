@@ -16,16 +16,22 @@ import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
 import org.hiero.mirror.rest.model.ClprConnectorsResponse;
+import org.hiero.mirror.rest.model.ClprEndpointManifestsResponse;
+import org.hiero.mirror.rest.model.ClprLedgerConfigurationsResponse;
 import org.hiero.mirror.rest.model.ClprMessagesResponse;
 import org.hiero.mirror.rest.model.ClprPendingChannelsResponse;
 import org.hiero.mirror.rest.model.ClprPendingConnectorsResponse;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
 import org.hiero.mirror.restjava.mapper.ClprConnectorMapper;
+import org.hiero.mirror.restjava.mapper.ClprEndpointManifestMapper;
+import org.hiero.mirror.restjava.mapper.ClprLedgerConfigurationMapper;
 import org.hiero.mirror.restjava.mapper.ClprPendingChannelMapper;
 import org.hiero.mirror.restjava.mapper.ClprPendingConnectorMapper;
 import org.jspecify.annotations.Nullable;
@@ -44,6 +50,8 @@ final class ClprControllerTest extends ControllerTest {
 
     private final ClprConnectorMapper connectorMapper;
     private final ClprChannelMapper mapper;
+    private final ClprEndpointManifestMapper endpointManifestMapper;
+    private final ClprLedgerConfigurationMapper ledgerConfigurationMapper;
     private final ClprPendingChannelMapper pendingChannelMapper;
     private final ClprPendingConnectorMapper pendingConnectorMapper;
 
@@ -845,6 +853,199 @@ final class ClprControllerTest extends ControllerTest {
                     .customize(c -> c.completedTimestamp(completedTimestamp)
                             .createdTimestamp(createdTimestamp)
                             .deleted(deleted))
+                    .persist();
+        }
+    }
+
+    @DisplayName("GET /api/v1/clpr/ledger-configuration")
+    @Nested
+    final class LedgerConfigurationEndpointTest extends EndpointTest {
+
+        @Override
+        protected String getUrl() {
+            return "clpr/ledger-configuration";
+        }
+
+        @Test
+        void empty() {
+            final var actual = restClient.get().uri("").retrieve().body(ClprLedgerConfigurationsResponse.class);
+
+            assertThat(actual.getLedgerConfigurations()).isEmpty();
+            assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void cacheControl() {
+            final var response = restClient.get().uri("").retrieve().toBodilessEntity();
+
+            // Based on application.yml response headers configuration
+            assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
+            assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=60");
+        }
+
+        @Test
+        void defaultOrderIsDescending() {
+            final var row1 = persist(100L);
+            final var row2 = persist(200L);
+
+            final var actual = restClient.get().uri("").retrieve().body(ClprLedgerConfigurationsResponse.class);
+
+            assertThat(actual.getLedgerConfigurations())
+                    .containsExactlyElementsOf(ledgerConfigurationMapper.map(List.of(row2, row1)));
+            assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void ascendingOrder() {
+            final var row1 = persist(100L);
+            final var row2 = persist(200L);
+
+            final var actual =
+                    restClient.get().uri("?order=asc").retrieve().body(ClprLedgerConfigurationsResponse.class);
+
+            assertThat(actual.getLedgerConfigurations())
+                    .containsExactlyElementsOf(ledgerConfigurationMapper.map(List.of(row1, row2)));
+        }
+
+        @Test
+        void timestampRange() {
+            persist(1_000_000_000L);
+            final var row2 = persist(2_000_000_000L);
+            persist(3_000_000_000L);
+
+            final var actual = restClient
+                    .get()
+                    .uri("?timestamp=gte:2.000000000&timestamp=lt:3")
+                    .retrieve()
+                    .body(ClprLedgerConfigurationsResponse.class);
+
+            assertThat(actual.getLedgerConfigurations())
+                    .containsExactlyElementsOf(ledgerConfigurationMapper.map(List.of(row2)));
+        }
+
+        @Test
+        void nextLink() {
+            persist(1_000_000_000L);
+            final var row2 = persist(2_000_000_000L);
+
+            final var actual = restClient.get().uri("?limit=1").retrieve().body(ClprLedgerConfigurationsResponse.class);
+
+            assertThat(actual.getLedgerConfigurations()).hasSize(1);
+            assertThat(UriComponentsBuilder.fromUriString(actual.getLinks().getNext())
+                            .build()
+                            .getQueryParams())
+                    .containsEntry("timestamp", List.of("lt:" + DomainUtils.toTimestamp(row2.getConsensusTimestamp())));
+        }
+
+        @ParameterizedTest
+        @ValueSource(
+                strings = {"?limit=0", "?limit=101", "?order=foo", "?timestamp=abc", "?timestamp=gte:5&timestamp=lte:4"
+                })
+        void invalidParameter(String query) {
+            assertThatThrownBy(() -> restClient.get().uri(query).retrieve().toBodilessEntity())
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        }
+
+        private ClprLedgerConfiguration persist(long consensusTimestamp) {
+            return domainBuilder
+                    .clprLedgerConfiguration()
+                    .customize(r -> r.consensusTimestamp(consensusTimestamp))
+                    .persist();
+        }
+    }
+
+    @DisplayName("GET /api/v1/clpr/endpoint-manifest")
+    @Nested
+    final class EndpointManifestEndpointTest extends EndpointTest {
+
+        @Override
+        protected String getUrl() {
+            return "clpr/endpoint-manifest";
+        }
+
+        @Test
+        void empty() {
+            final var actual = restClient.get().uri("").retrieve().body(ClprEndpointManifestsResponse.class);
+
+            assertThat(actual.getEndpointManifests()).isEmpty();
+            assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void cacheControl() {
+            final var response = restClient.get().uri("").retrieve().toBodilessEntity();
+
+            // Based on application.yml response headers configuration
+            assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
+            assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=60");
+        }
+
+        @Test
+        void defaultOrderIsDescending() {
+            final var row1 = persist(100L);
+            final var row2 = persist(200L);
+
+            final var actual = restClient.get().uri("").retrieve().body(ClprEndpointManifestsResponse.class);
+
+            assertThat(actual.getEndpointManifests())
+                    .containsExactlyElementsOf(endpointManifestMapper.map(List.of(row2, row1)));
+            assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void ascendingOrder() {
+            final var row1 = persist(100L);
+            final var row2 = persist(200L);
+
+            final var actual = restClient.get().uri("?order=asc").retrieve().body(ClprEndpointManifestsResponse.class);
+
+            assertThat(actual.getEndpointManifests())
+                    .containsExactlyElementsOf(endpointManifestMapper.map(List.of(row1, row2)));
+        }
+
+        @Test
+        void timestampRange() {
+            persist(1_000_000_000L);
+            final var row2 = persist(2_000_000_000L);
+            persist(3_000_000_000L);
+
+            final var actual = restClient
+                    .get()
+                    .uri("?timestamp=gte:2.000000000&timestamp=lt:3")
+                    .retrieve()
+                    .body(ClprEndpointManifestsResponse.class);
+
+            assertThat(actual.getEndpointManifests())
+                    .containsExactlyElementsOf(endpointManifestMapper.map(List.of(row2)));
+        }
+
+        @Test
+        void nextLink() {
+            persist(1_000_000_000L);
+            final var row2 = persist(2_000_000_000L);
+
+            final var actual = restClient.get().uri("?limit=1").retrieve().body(ClprEndpointManifestsResponse.class);
+
+            assertThat(actual.getEndpointManifests()).hasSize(1);
+            assertThat(UriComponentsBuilder.fromUriString(actual.getLinks().getNext())
+                            .build()
+                            .getQueryParams())
+                    .containsEntry("timestamp", List.of("lt:" + DomainUtils.toTimestamp(row2.getConsensusTimestamp())));
+        }
+
+        @ParameterizedTest
+        @ValueSource(
+                strings = {"?limit=0", "?limit=101", "?order=foo", "?timestamp=abc", "?timestamp=gte:5&timestamp=lte:4"
+                })
+        void invalidParameter(String query) {
+            assertThatThrownBy(() -> restClient.get().uri(query).retrieve().toBodilessEntity())
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        }
+
+        private ClprEndpointManifest persist(long consensusTimestamp) {
+            return domainBuilder
+                    .clprEndpointManifest()
+                    .customize(r -> r.consensusTimestamp(consensusTimestamp))
                     .persist();
         }
     }

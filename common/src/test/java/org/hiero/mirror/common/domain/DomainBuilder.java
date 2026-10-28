@@ -69,6 +69,8 @@ import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorHistory;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
@@ -391,6 +393,39 @@ public class DomainBuilder {
                 .slashCount(0L)
                 .stakeRecipientId(entityId())
                 .timestampRange(Range.atLeast(timestamp));
+    }
+
+    public DomainWrapper<ClprEndpointManifest, ClprEndpointManifest.ClprEndpointManifestBuilder>
+            clprEndpointManifest() {
+        final var builder = ClprEndpointManifest.builder()
+                .consensusTimestamp(timestamp())
+                .endpoints(List.of(ClprEndpoint.builder()
+                        .accountId(bytes(8))
+                        .serviceEndpoint(new ClprServiceEndpoint("10.0.0.5", 50211))
+                        .tlsCertificate(bytes(32))
+                        .build()))
+                .serviceAddress(bytes(20))
+                .version(3L);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprLedgerConfiguration, ClprLedgerConfiguration.ClprLedgerConfigurationBuilder>
+            clprLedgerConfiguration() {
+        final var builder = ClprLedgerConfiguration.builder()
+                .chainId("eip155:" + number())
+                .consensusTimestamp(timestamp())
+                .initialTrustAnchor(bytes(32))
+                .initialTrustAnchorId(bytes(32))
+                .maxGasPerMessage(15_000_000L)
+                .maxLocalEndpoints(39L)
+                .maxMessagePayloadBytes(65_536L)
+                .maxMessagesPerBundle(1000L)
+                .maxPeerEndpoints(39L)
+                .maxQueueDepth(10_000L)
+                .maxSyncBytes(4_194_304L)
+                .protocolVersion(1L)
+                .serviceAddress(bytes(20));
+        return new DomainWrapperImpl<>(builder, builder::build);
     }
 
     public DomainWrapper<ClprMessage, ClprMessage.ClprMessageBuilder> clprMessage() {

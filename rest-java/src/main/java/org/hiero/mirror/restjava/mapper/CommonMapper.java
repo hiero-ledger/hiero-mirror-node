@@ -33,6 +33,7 @@ public interface CommonMapper {
             .setKeyList(KeyList.getDefaultInstance())
             .build()
             .toByteArray();
+    String QUALIFIER_HEX = "hex";
     String QUALIFIER_TIMESTAMP = "timestamp";
     String QUALIFIER_TIMESTAMP_RANGE = "timestampRange";
     int NANO_DIGITS = 9;
@@ -60,6 +61,15 @@ public interface CommonMapper {
 
     default String mapEntityId(EntityId source) {
         return source != null ? source.toString() : null;
+    }
+
+    /**
+     * Like the REST API's toHexString(value, true) without a pad length, doesn't left-pad to 32 bytes, for values that
+     * are arbitrary length opaque bytes or shorter fixed-length values such as a 20-byte address.
+     */
+    @Named(QUALIFIER_HEX)
+    default String mapHex(byte[] source) {
+        return source == null ? null : DomainUtils.HEX_PREFIX + DomainUtils.bytesToHex(source);
     }
 
     default Key mapKey(byte[] source) {
