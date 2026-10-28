@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.web3.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.state.Utils.parseHex;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -127,7 +128,7 @@ public class ContractExecutionService extends ContractCallService {
             throw new MirrorEvmTransactionException(
                     ResponseCodeEnum.MAX_GAS_LIMIT_EXCEEDED.name(),
                     "Gas estimate exceeds the maximum gas limit",
-                    "0x",
+                    HEX_PREFIX,
                     processingResult);
         }
 

@@ -902,9 +902,8 @@ class TransactionExecutionServiceTest {
         void validatesActiveContractKeysAndTreatsCryptographicKeysAsValid() {
             when(nativeOperations.entityIdFactory())
                     .thenReturn(new AppEntityIdFactory(evmProperties.getVersionedConfiguration()));
-            final var strategy =
-                    TransactionExecutorFactory.SimulationVerificationStrategies.INSTANCE.activatingOnlyContractKeysFor(
-                            ACTIVE_ADDRESS, false, nativeOperations);
+            final var strategy = SimulationVerificationStrategies.INSTANCE.activatingOnlyContractKeysFor(
+                    ACTIVE_ADDRESS, false, nativeOperations);
             final var signatureTest = strategy.asSignatureTestIn(handleContext, null);
 
             final var activeContractKey =
@@ -929,9 +928,8 @@ class TransactionExecutionServiceTest {
         void requiresDelegatableKeyWhenDelegatePermissionRequired() {
             when(nativeOperations.entityIdFactory())
                     .thenReturn(new AppEntityIdFactory(evmProperties.getVersionedConfiguration()));
-            final var strategy =
-                    TransactionExecutorFactory.SimulationVerificationStrategies.INSTANCE.activatingOnlyContractKeysFor(
-                            ACTIVE_ADDRESS, true, nativeOperations);
+            final var strategy = SimulationVerificationStrategies.INSTANCE.activatingOnlyContractKeysFor(
+                    ACTIVE_ADDRESS, true, nativeOperations);
             final var signatureTest = strategy.asSignatureTestIn(handleContext, null);
 
             final var activeContractKey =
@@ -947,9 +945,8 @@ class TransactionExecutionServiceTest {
         void evaluatesKeyListAndThresholdKeysDirectly() {
             when(nativeOperations.entityIdFactory())
                     .thenReturn(new AppEntityIdFactory(evmProperties.getVersionedConfiguration()));
-            final var strategy =
-                    TransactionExecutorFactory.SimulationVerificationStrategies.INSTANCE.activatingOnlyContractKeysFor(
-                            ACTIVE_ADDRESS, false, nativeOperations);
+            final var strategy = SimulationVerificationStrategies.INSTANCE.activatingOnlyContractKeysFor(
+                    ACTIVE_ADDRESS, false, nativeOperations);
             final var signatureTest = strategy.asSignatureTestIn(handleContext, null);
 
             final var activeContractKey =

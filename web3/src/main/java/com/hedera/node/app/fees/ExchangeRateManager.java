@@ -5,8 +5,6 @@ package com.hedera.node.app.fees;
 import static java.math.BigInteger.valueOf;
 import static java.util.Objects.requireNonNull;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
@@ -27,7 +25,6 @@ import com.swirlds.state.State;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.math.BigInteger;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.stream.LongStream;
 import javax.inject.Inject;
@@ -48,13 +45,11 @@ import org.hiero.mirror.web3.common.ContractCallContext;
  *       {@link #exchangeRates()}, {@link #activeRate(Instant)}, and {@link #exchangeRateInfo(State)} select historical
  *       rates whenever {@link ContractCallContext#getTimestampForSystemFiles()} supplies a timestamp, including
  *       timestamps within the current hour. The first two methods use the retained state; the third uses its argument.
- *   <li>Historical {@link ExchangeRateInfo} values are shared across all production managers in one cache, keyed by
- *       the system-file timestamp rounded down to the hour. Entries expire five minutes after insertion, regardless
- *       of reads, and the cache holds at most 1000 entries. Concurrent misses for the same hour share one load.
- *   <li>Cache misses load and validate the exchange-rate file through the mirror state and its
- *       {@link org.hiero.mirror.web3.state.SystemFileLoader}. Loading remains synchronous on the calling thread so the
- *       execution's scoped context determines the file timestamp. Missing, malformed, or invalid historical files
- *       fall back to the manager's latest valid rates without caching that fallback; other load failures propagate.
+ *   <li>Historical files use the shared, configured system-file cache in
+ *       {@link org.hiero.mirror.web3.state.SystemFileLoader}. The loader parses files, retries previous file versions,
+ *       and falls back to the closest cached exchange-rate file, preferring the earlier hour on a tie, or the genesis
+ *       file when no historical file is available. Parsed rate information is not cached separately by this manager.
+ *       Loading remains synchronous so the execution's scoped context determines the file timestamp.
  *   <li>The latest immutable rate information is published through a volatile reference so scheduled
  *       {@code ExchangeRateUpdater} calls to {@link #systemUpdate(Bytes)} are visible to concurrent readers.
  *       Historical reads never replace the latest rates or modify midnight rates, and require no restore operation.
@@ -62,8 +57,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
  *
  * <p>Without an explicit system-file timestamp, {@code exchangeRates()} and {@code activeRate(Instant)} use the
  * latest published rates, while {@code exchangeRateInfo(State)} retains upstream's uncached read from the supplied
- * state. A package-private constructor accepts an isolated cache for tests; the public injected constructor always
- * uses the shared cache.
+ * state.
  *
  * <p>The upstream public API, update authorization and intraday limits, midnight-rate updates, and fee-conversion
  * arithmetic are preserved. Historical loads reuse upstream's mandatory-field and positive-rate validation.
@@ -78,26 +72,14 @@ public final class ExchangeRateManager {
     private static final BigInteger ONE_HUNDRED = BigInteger.valueOf(100);
     private static final BigInteger LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE);
 
-    private static final long NANOS_PER_HOUR = 3_600_000_000_000L;
-    static final Cache<Long, ExchangeRateInfo> HISTORICAL_RATES = Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofMinutes(5))
-            .maximumSize(1000)
-            .build();
-
     private final ConfigProvider configProvider;
-    private final Cache<Long, ExchangeRateInfo> historicalRates;
     private volatile ExchangeRateInfo currentExchangeRateInfo;
     private State state;
     private ExchangeRateSet midnightRates;
 
     @Inject
     public ExchangeRateManager(@NonNull final ConfigProvider configProvider) {
-        this(configProvider, HISTORICAL_RATES);
-    }
-
-    ExchangeRateManager(final ConfigProvider configProvider, final Cache<Long, ExchangeRateInfo> historicalRates) {
         this.configProvider = requireNonNull(configProvider, "configProvider must not be null");
-        this.historicalRates = requireNonNull(historicalRates);
     }
 
     public void init(
@@ -156,7 +138,6 @@ public final class ExchangeRateManager {
     }
 
     private static ExchangeRateSet parseExchangeRates(final Bytes bytes) {
-        // Parse the exchange rate file. If we cannot parse it, we just continue with whatever our previous rate was.
         final ExchangeRateSet proposedRates;
         try {
             proposedRates = ExchangeRateSet.PROTOBUF.parseStrict(bytes.toReadableSequentialData());
@@ -164,15 +145,13 @@ public final class ExchangeRateManager {
             throw new HandleException(ResponseCodeEnum.INVALID_EXCHANGE_RATE_FILE);
         }
 
-        // Validate mandatory fields
         if (!(proposedRates.hasCurrentRate()
                 && proposedRates.currentRateOrThrow().hasExpirationTime()
                 && proposedRates.hasNextRate())) {
             throw new HandleException(ResponseCodeEnum.INVALID_EXCHANGE_RATE_FILE);
         }
 
-        // Reject degenerate rates: a non-positive hbarEquiv/centEquiv would make fee conversion divide by
-        // zero (see getAFromB) or yield a nonsensical price, so such a rate must never become the live rate.
+        // Non-positive equivalents would make fee conversion divide by zero or yield a nonsensical price.
         final var current = proposedRates.currentRateOrThrow();
         final var next = proposedRates.nextRateOrThrow();
         if (current.hbarEquiv() <= 0 || current.centEquiv() <= 0 || next.hbarEquiv() <= 0 || next.centEquiv() <= 0) {
@@ -242,7 +221,7 @@ public final class ExchangeRateManager {
         if (ContractCallContext.isInitialized()) {
             final var timestamp = ContractCallContext.get().getTimestampForSystemFiles();
             if (timestamp.isPresent()) {
-                return historicalExchangeRateInfo(state, timestamp.get());
+                return historicalExchangeRateInfo(state);
             }
         }
         final var bytes = exchangeRateFileContents(state);
@@ -260,30 +239,19 @@ public final class ExchangeRateManager {
         if (state != null && ContractCallContext.isInitialized()) {
             final var timestamp = ContractCallContext.get().getTimestampForSystemFiles();
             if (timestamp.isPresent()) {
-                return historicalExchangeRateInfo(state, timestamp.get());
+                return historicalExchangeRateInfo(state);
             }
         }
         return currentExchangeRateInfo;
     }
 
-    private ExchangeRateInfo historicalExchangeRateInfo(final State state, final long timestamp) {
-        final Long hour = timestamp / NANOS_PER_HOUR * NANOS_PER_HOUR;
-        // Avoid allocating a capturing loader on cache hits. Caffeine coalesces concurrent loads of the same hour.
-        var info = historicalRates.getIfPresent(hour);
-        if (info == null) {
-            info = historicalRates.get(hour, ignored -> loadHistoricalExchangeRateInfo(state));
-        }
-        // Never cache the latest rates as a substitute for a missing or invalid historical file.
-        return info != null ? info : currentExchangeRateInfo;
-    }
-
-    private @Nullable ExchangeRateInfo loadHistoricalExchangeRateInfo(final State state) {
+    private ExchangeRateInfo historicalExchangeRateInfo(final State state) {
         final var bytes = exchangeRateFileContents(state);
         try {
             return new ExchangeRateInfoImpl(parseExchangeRates(bytes));
         } catch (final HandleException e) {
             log.warn("Ignoring invalid historical exchange rates: {}", e.getStatus());
-            return null;
+            return currentExchangeRateInfo;
         }
     }
 

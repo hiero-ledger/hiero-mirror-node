@@ -12,8 +12,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
@@ -23,19 +21,16 @@ import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.file.FileService;
-import com.hedera.node.app.spi.fees.ExchangeRateInfo;
 import com.hedera.node.app.spi.workflows.HandleException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.state.State;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableStates;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -47,7 +42,6 @@ import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.viewmodel.BlockType;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -55,7 +49,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class ExchangeRateManagerTest {
 
-    private static final long NANOS_PER_HOUR = Duration.ofHours(1).toNanos();
     private static final long HOUR = Instant.parse("2026-10-14T10:00:00Z").getEpochSecond() * 1_000_000_000L;
     private static final ExchangeRateSet LATEST_RATES = rates(300);
     private static final ExchangeRateSet HISTORICAL_RATES = rates(100);
@@ -63,30 +56,17 @@ class ExchangeRateManagerTest {
     private final State state = mock(State.class);
     private final ReadableStates states = mock(ReadableStates.class);
     private final ReadableKVState<FileID, File> files = mock();
-    private final AtomicLong ticker = new AtomicLong();
     private final ConfigProviderImpl configProvider =
             new ConfigProviderImpl(false, null, new EvmProperties().getTransactionProperties());
 
-    private Cache<Long, ExchangeRateInfo> cache;
     private ExchangeRateManager manager;
 
     @BeforeEach
     void setup() {
-        ExchangeRateManagerTestSupport.clearHistoricalRates();
-        cache = Caffeine.newBuilder()
-                .expireAfterWrite(Duration.ofMinutes(5))
-                .maximumSize(1000)
-                .ticker(ticker::get)
-                .build();
-        manager = new ExchangeRateManager(configProvider, cache);
+        manager = new ExchangeRateManager(configProvider);
         manager.init(state, ExchangeRateSet.PROTOBUF.toBytes(LATEST_RATES), LATEST_RATES);
         when(state.getReadableStates(FileService.NAME)).thenReturn(states);
         when(states.<FileID, File>get(FILES_STATE_ID)).thenReturn(files);
-    }
-
-    @AfterEach
-    void cleanup() {
-        ExchangeRateManagerTestSupport.clearHistoricalRates();
     }
 
     @Test
@@ -105,18 +85,18 @@ class ExchangeRateManagerTest {
     }
 
     @Test
-    void allHistoricalAccessorsUseOneParsedRate() {
+    void allHistoricalAccessorsUseStateRates() {
         when(files.get(any())).thenReturn(file(HISTORICAL_RATES));
 
         historical(HOUR, () -> {
             assertThat(manager.exchangeRates()).isEqualTo(HISTORICAL_RATES);
             assertThat(manager.activeRate(Instant.EPOCH)).isEqualTo(HISTORICAL_RATES.currentRate());
             assertThat(manager.getTinybarsFromTinycents(100, Instant.EPOCH)).isEqualTo(30_000);
-            assertThat(manager.exchangeRateInfo(state)).isSameAs(cache.getIfPresent(HOUR));
+            assertThat(manager.exchangeRateInfo(state).exchangeRates()).isEqualTo(HISTORICAL_RATES);
             return null;
         });
 
-        verify(files).get(any());
+        verify(files, times(4)).get(any());
         assertThat(manager.exchangeRates()).isEqualTo(LATEST_RATES);
     }
 
@@ -145,31 +125,12 @@ class ExchangeRateManagerTest {
     }
 
     @Test
-    void defaultManagersShareRatesForTimestampsInTheSameHour() {
-        final var first = new ExchangeRateManager(configProvider);
-        final var second = new ExchangeRateManager(configProvider);
-        first.init(state, ExchangeRateSet.PROTOBUF.toBytes(LATEST_RATES), LATEST_RATES);
-        second.init(state, ExchangeRateSet.PROTOBUF.toBytes(LATEST_RATES), LATEST_RATES);
-        when(files.get(any())).thenReturn(file(HISTORICAL_RATES));
-
-        final var info = historical(HOUR, () -> first.exchangeRateInfo(state));
-        assertThat(historical(HOUR + 1, () -> second.exchangeRateInfo(state))).isSameAs(info);
-
-        verify(files).get(any());
-        final var globalCache = ExchangeRateManager.HISTORICAL_RATES;
-        assertThat(globalCache.policy().expireAfterWrite().orElseThrow().getExpiresAfter())
-                .isEqualTo(Duration.ofMinutes(5));
-        assertThat(globalCache.policy().eviction().orElseThrow().getMaximum()).isEqualTo(1000);
-    }
-
-    @Test
     void hourBoundaryUsesTheAdjustedSystemFileTimestamp() {
         when(files.get(any())).thenReturn(file(HISTORICAL_RATES), file(LATEST_RATES));
 
         assertThat(historical(HOUR - 1, manager::exchangeRates)).isEqualTo(HISTORICAL_RATES);
         assertThat(historical(HOUR, manager::exchangeRates)).isEqualTo(LATEST_RATES);
 
-        assertThat(cache.asMap()).containsOnlyKeys(HOUR - NANOS_PER_HOUR, HOUR);
         verify(files, times(2)).get(any());
     }
 
@@ -187,7 +148,6 @@ class ExchangeRateManagerTest {
                     0,
                     new OpcodesProperties()));
             assertThat(manager.exchangeRates()).isEqualTo(HISTORICAL_RATES);
-            assertThat(cache.asMap()).containsOnlyKeys(HOUR);
             return null;
         });
     }
@@ -200,37 +160,12 @@ class ExchangeRateManagerTest {
         assertThat(historical(recentTimestamp, manager::exchangeRates)).isEqualTo(HISTORICAL_RATES);
     }
 
-    @Test
-    void cacheExpiresFiveMinutesAfterWriteDespiteReads() {
-        when(files.get(any())).thenReturn(file(HISTORICAL_RATES), file(LATEST_RATES));
-        assertThat(historical(HOUR, manager::exchangeRates)).isEqualTo(HISTORICAL_RATES);
-
-        ticker.addAndGet(Duration.ofMinutes(5).minusNanos(1).toNanos());
-        assertThat(historical(HOUR, manager::exchangeRates)).isEqualTo(HISTORICAL_RATES);
-        ticker.incrementAndGet();
-        assertThat(historical(HOUR, manager::exchangeRates)).isEqualTo(LATEST_RATES);
-
-        verify(files, times(2)).get(any());
-    }
-
-    @Test
-    void cacheIsBoundedToOneThousandHours() {
-        when(files.get(any())).thenReturn(file(HISTORICAL_RATES));
-        for (var hour = 0; hour < 1001; ++hour) {
-            historical(HOUR + hour * NANOS_PER_HOUR, manager::exchangeRates);
-        }
-        cache.cleanUp();
-
-        assertThat(cache.estimatedSize()).isLessThanOrEqualTo(1000);
-    }
-
     @ParameterizedTest
     @MethodSource("invalidFiles")
     void invalidHistoricalFilesFallBackWithoutCachingAndCanBeRetried(final Bytes contents) {
         when(files.get(any())).thenReturn(File.newBuilder().contents(contents).build(), file(HISTORICAL_RATES));
 
         assertThat(historical(HOUR, manager::exchangeRates)).isEqualTo(LATEST_RATES);
-        assertThat(cache.estimatedSize()).isZero();
         assertThat(historical(HOUR, manager::exchangeRates)).isEqualTo(HISTORICAL_RATES);
         verify(files, times(2)).get(any());
     }
@@ -241,7 +176,6 @@ class ExchangeRateManagerTest {
 
         assertThat(historical(HOUR, () -> manager.exchangeRateInfo(state)).exchangeRates())
                 .isEqualTo(LATEST_RATES);
-        assertThat(cache.estimatedSize()).isZero();
         assertThat(historical(HOUR, () -> manager.exchangeRateInfo(state)).exchangeRates())
                 .isEqualTo(HISTORICAL_RATES);
     }
@@ -252,7 +186,6 @@ class ExchangeRateManagerTest {
         when(files.get(any())).thenThrow(failure);
 
         assertThatThrownBy(() -> historical(HOUR, manager::exchangeRates)).isSameAs(failure);
-        assertThat(cache.estimatedSize()).isZero();
     }
 
     @ParameterizedTest
@@ -268,43 +201,6 @@ class ExchangeRateManagerTest {
 
         assertThat(manager.exchangeRateInfo(state).exchangeRates()).isEqualTo(HISTORICAL_RATES);
         assertThat(manager.exchangeRates()).isEqualTo(LATEST_RATES);
-        assertThat(cache.estimatedSize()).isZero();
-    }
-
-    @Test
-    void concurrentMissesForTheSameHourShareOneLoad() throws Exception {
-        final var ready = new CountDownLatch(2);
-        final var start = new CountDownLatch(1);
-        final var loading = new CountDownLatch(1);
-        final var release = new CountDownLatch(1);
-        when(files.get(any())).thenAnswer(ignored -> {
-            loading.countDown();
-            assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
-            return file(HISTORICAL_RATES);
-        });
-
-        try (final var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            final var first = executor.submit(() -> {
-                ready.countDown();
-                start.await();
-                return historical(HOUR, () -> manager.exchangeRateInfo(state));
-            });
-            final var second = executor.submit(() -> {
-                ready.countDown();
-                start.await();
-                return historical(HOUR + 1, () -> manager.exchangeRateInfo(state));
-            });
-            try {
-                assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
-                start.countDown();
-                assertThat(loading.await(5, TimeUnit.SECONDS)).isTrue();
-            } finally {
-                start.countDown();
-                release.countDown();
-            }
-            assertThat(first.get(5, TimeUnit.SECONDS)).isSameAs(second.get(5, TimeUnit.SECONDS));
-        }
-        verify(files).get(any());
     }
 
     @Test
@@ -324,14 +220,14 @@ class ExchangeRateManagerTest {
                 final var before = manager.exchangeRates();
                 ready.countDown();
                 await(refreshed);
-                assertThat(manager.exchangeRates()).isSameAs(before);
+                assertThat(manager.exchangeRates()).isEqualTo(before);
                 return before;
             }));
             final var second = executor.submit(() -> historical(HOUR, () -> {
                 final var before = manager.exchangeRates();
                 ready.countDown();
                 await(refreshed);
-                assertThat(manager.exchangeRates()).isSameAs(before);
+                assertThat(manager.exchangeRates()).isEqualTo(before);
                 return before;
             }));
             try {
@@ -344,7 +240,7 @@ class ExchangeRateManagerTest {
             assertThat(second.get(5, TimeUnit.SECONDS)).isEqualTo(otherHistoricalRates);
         }
         assertThat(manager.exchangeRates()).isEqualTo(refreshedRates);
-        verify(files, times(2)).get(any());
+        verify(files, times(4)).get(any());
     }
 
     private static void await(final CountDownLatch latch) {
