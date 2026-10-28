@@ -119,17 +119,16 @@ separate ingestion path for CLPR:
      which actually changed (`ClprMaintenanceTransactions.perform` only includes a singleton if its value changed),
      so the mirror-node handler for it must check for each independently rather than assume a fixed shape.
 
-```
-Consensus node (CLPR Service)
-  → block stream (TransactionResult/Output + StateChanges: clpr_channel_value, clpr_connector_value,
-    clpr_message_value/_key, clpr_ledger_configuration_value, clpr_endpoint_manifest_value)
-  → importer block-to-record transformation (ClprXxxTransformer reads StateChangeContext, populates new
-    CLPR-specific fields on RecordItem — there is no existing TransactionRecord/sidecar slot for this data)
-  → importer TransactionHandlers (read the new RecordItem fields) + EntityListener
-  → PostgreSQL (clpr_channel_pending_commitment/_history, clpr_channel/_history,
-    clpr_connector_pending_commitment/_history, clpr_connector/_history, clpr_ledger_configuration,
-    clpr_endpoint_manifest, clpr_message)
-  → rest-java (read APIs)
+```mermaid
+flowchart TD
+    A["Consensus node (CLPR Service)"]
+    B["Block stream (TransactionResult/Output + StateChanges):<br/>clpr_channel_value, clpr_connector_value,<br/>clpr_message_value/_key, clpr_ledger_configuration_value,<br/>clpr_endpoint_manifest_value"]
+    C["Importer block-to-record transformation<br/>(ClprXxxTransformer reads StateChangeContext, populates new<br/>CLPR-specific fields on RecordItem — there is no existing<br/>TransactionRecord/sidecar slot for this data)"]
+    D["Importer TransactionHandlers<br/>(read the new RecordItem fields) + EntityListener"]
+    E["PostgreSQL:<br/>clpr_channel_pending_commitment/_history, clpr_channel/_history,<br/>clpr_connector_pending_commitment/_history, clpr_connector/_history,<br/>clpr_ledger_configuration, clpr_endpoint_manifest, clpr_message"]
+    F["rest-java (read APIs)"]
+
+    A --> B --> C --> D --> E --> F
 ```
 
 This diagram covers the nine transaction-anchored cases (the eight in point 1, plus `ClprMaintenance`), plus
@@ -334,9 +333,6 @@ create table if not exists clpr_connector
 create index if not exists clpr_connector__channel_id_created_timestamp
     on clpr_connector (channel_id, created_timestamp);
 
-create index if not exists clpr_connector__created_timestamp
-    on clpr_connector (created_timestamp);
-
 create table if not exists clpr_connector_history
 (
     like clpr_connector including defaults
@@ -349,11 +345,11 @@ select create_distributed_table('clpr_connector', 'channel_id', colocate_with =>
 select create_distributed_table('clpr_connector_history', 'channel_id', colocate_with => 'clpr_connector');
 ```
 
-[Connectors](#5-connectors-api) requires `channel.id` whenever `connector.id`, `deleted`, or `timestamp` is also
-supplied, so `clpr_connector` carries an index for each remaining case: `clpr_connector__channel_id_created_timestamp`
-(`channel.id` supplied — shard-local in `v2`) and `clpr_connector__created_timestamp` (no filters at all —
-scatter-gather). A `connector.id` lookup always pairs with `channel.id`, resolving via the `(channel_id,
-connector_id)` primary key, so no separate index on `connector_id` is needed.
+`channelId` is a required path param on [Connectors](#5-connectors-api), same as
+[Messages per Channel](#2-messages-per-channel-api), so every query is shard-local in `v2` —
+`clpr_connector__channel_id_created_timestamp` serves all of them. A `connector.id` lookup pairs with that same
+`channel_id`, resolving via the `(channel_id, connector_id)` primary key, so no separate index on `connector_id` is
+needed.
 
 ### 3. Ledger Configuration and Endpoint Manifest
 
@@ -392,7 +388,7 @@ create table if not exists clpr_endpoint_manifest
 ### 4. Message Queue (Append-Only)
 
 `clpr_channel`, `clpr_connector`, and `clpr_message` all stay colocated by `channel_id`. This keeps `Messages
-per Channel` and `Connectors` (when filtered by `channel.id`) shard-local: Citus can route both straight to
+per Channel` and `Connectors` (both require `channelId` in the path) shard-local: Citus can route both straight to
 the one shard that `channel_id` hashes to, without touching any other shard.
 
 Colocation only solves _which shard_ a query hits, though — it says nothing about _which time partition within that
@@ -554,10 +550,10 @@ lands, the importer reads `connector_id` from there the same way it already does
 
 The `connector_id` index supports [Messages per Channel](#2-messages-per-channel-api)'s `connector.id`-filtered,
 `timestamp`-ordered lookup, the same sort key every other Messages per Channel query uses — there's no separate
-`message_id` ordering to keep consistent with it. `Messages per Channel` is always shard-local, since `channelId` is
-a required path param; `Connectors` and `Channels` are shard-local only when filtered by `channel.id`,
-scatter-gather otherwise (see [Connectors API](#5-connectors-api)/[Channels API](#1-channels-api)) — `chain_id`
-isn't filterable at all for now, so it never factors into this (see [Channels API](#1-channels-api) for why). Being
+`message_id` ordering to keep consistent with it. `Messages per Channel` and `Connectors` are always shard-local,
+since both require `channelId` in the path; `Channels` is shard-local only when filtered by `channel.id`,
+scatter-gather otherwise (see [Channels API](#1-channels-api)) — `chain_id` isn't filterable at all for now, so it
+never factors into this (see [Channels API](#1-channels-api) for why). Being
 shard-local doesn't make a query partition-local for free, though — colocation and time-partitioning are
 independent dimensions (see above). The REST layer's required `timestamp` bound is what prunes every Messages per
 Channel query to the right partition, regardless of which other filter is also applied.
@@ -1321,16 +1317,15 @@ Response format:
 ### 5. Connectors API
 
 ```
-GET /api/v1/clpr/connectors
+GET /api/v1/clpr/channels/{channelId}/connectors
 ```
 
-`channel.id` is optional only when no other filter is supplied, returning a scatter-gathered listing across every
-Channel. If `connector.id`, `deleted`, or `timestamp` is also supplied, `channel.id` becomes mandatory, to keep the
-query shard-local in `v2` (see [Database Schema Design](#database-schema-design)).
+`channelId` is required in the path, keeping every query shard-local via `channel_id` (same as
+[Messages per Channel](#2-messages-per-channel-api)) — there's no cross-Channel listing.
 
-When `channel.id` and `connector.id` are both supplied — together they're this table's primary key — `timestamp`
-means "as of" instead of "filter/paginate", built the same way as [Channels](#1-channels-api) above. Without both
-ids, `timestamp` keeps its list meaning below.
+When `connector.id` is also supplied — together with `channelId` they're this table's primary key — `timestamp`
+means "as of" instead of "filter/paginate", built the same way as [Channels](#1-channels-api) above. Without
+`connector.id`, `timestamp` keeps its list meaning below.
 
 Response format:
 
@@ -1362,32 +1357,27 @@ Response format:
     }
   ],
   "links": {
-    "next": "/api/v1/clpr/connectors?channel.id=eq:0x1a2b3c...&timestamp=lt:1726874345.123456789&limit=1"
+    "next": "/api/v1/clpr/channels/0x1a2b3c.../connectors?timestamp=lt:1726874345.123456789&limit=1"
   }
 }
 ```
 
 #### Query Parameters
 
-| Parameter      | Type    | Description                                                                                                                                          | Default | Validation                                                                                                                                      |
-| -------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `channel.id`   | string  | Filter by `channel_id`                                                                                                                               | none    | Supports `eq:` only; omit to list Connectors across every Channel; required whenever `connector.id`, `deleted`, or `timestamp` is also supplied |
-| `connector.id` | string  | Filter by `connector_id`                                                                                                                             | none    | Supports `eq:` only; requires `channel.id`                                                                                                      |
-| `deleted`      | boolean | Filter by removal status (deregistered or banned)                                                                                                    | none    | Supports `true`/`false`; omit to return both removed and still-registered Connectors; requires `channel.id`                                     |
-| `timestamp`    | string  | Filter/paginate by `created_timestamp`; with `channel.id` and `connector.id`, instead reconstruct that Connector's state as of this time (see above) | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (e.g. 30 days); requires `channel.id`    |
-| `limit`        | integer | Maximum number of Connectors to return                                                                                                               | `25`    | Must be between 1 and 100                                                                                                                       |
-| `order`        | string  | Sort order for results                                                                                                                               | `desc`  | Must be either `asc` or `desc`                                                                                                                  |
+| Parameter      | Type    | Description                                                                                                                         | Default | Validation                                                                                                            |
+| -------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------- |
+| `connector.id` | string  | Filter by `connector_id`                                                                                                            | none    | Supports `eq:` only                                                                                                   |
+| `timestamp`    | string  | Filter/paginate by `created_timestamp`; with `connector.id`, instead reconstruct that Connector's state as of this time (see above) | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (e.g. 30 days) |
+| `limit`        | integer | Maximum number of Connectors to return                                                                                              | `25`    | Must be between 1 and 100                                                                                             |
+| `order`        | string  | Sort order for results                                                                                                              | `desc`  | Must be either `asc` or `desc`                                                                                        |
 
 **Examples:**
 
-- `/api/v1/clpr/connectors?limit=10` — Get the 10 newest Connectors across every Channel (scatter-gathers in `v2`)
-- `/api/v1/clpr/connectors?channel.id=eq:0x1a2b3c...` — Get all Connectors on a Channel, newest first
-- `/api/v1/clpr/connectors?channel.id=eq:0x1a2b3c...&limit=10` — Get first 10 Connectors on a Channel
-- `/api/v1/clpr/connectors?channel.id=eq:0x1a2b3c...&connector.id=eq:0x4d5e6f...` — Get a specific Connector by id
-- `/api/v1/clpr/connectors?channel.id=eq:0x1a2b3c...&connector.id=eq:0x4d5e6f...&timestamp=eq:1726874300.000000000`
-  — Get that Connector's state as of a past consensus timestamp
-- `/api/v1/clpr/connectors?channel.id=eq:0x1a2b3c...&deleted=false` — Get only still-registered Connectors on a
-  Channel
+- `/api/v1/clpr/channels/0x1a2b3c.../connectors` — Get all Connectors on a Channel, newest first
+- `/api/v1/clpr/channels/0x1a2b3c.../connectors?limit=10` — Get first 10 Connectors on a Channel
+- `/api/v1/clpr/channels/0x1a2b3c.../connectors?connector.id=eq:0x4d5e6f...` — Get a specific Connector by id
+- `/api/v1/clpr/channels/0x1a2b3c.../connectors?connector.id=eq:0x4d5e6f...&timestamp=eq:1726874300.000000000` — Get
+  that Connector's state as of a past consensus timestamp
 
 ### 6. Ledger Configuration API
 
@@ -1682,10 +1672,10 @@ needs new code.
   accumulate a large message history — via time-partitioning plus the REST layer's required `timestamp` bound, not
   an unbounded partition scan (see [Message Queue](#4-message-queue-append-only)).
 - Per the Citus (`v2`) distribution strategy in [Database Schema Design](#database-schema-design), `Messages per
-Channel` (`channelId` is a required path param) is always shard-local. `Connectors` and `Channels` are
-  shard-local only when filtered by `channel.id` (see [Connectors API](#5-connectors-api)/
-  [Channels API](#1-channels-api)); `chain.id` isn't queryable yet, so filtering `Channels` by peer chain remains
-  out of scope until that's revisited (see [Channels API](#1-channels-api)).
+Channel` and `Connectors` (both require `channelId` in the path) are always shard-local. `Channels` is
+  shard-local only when filtered by `channel.id` (see [Channels API](#1-channels-api)); `chain.id` isn't queryable
+  yet, so filtering `Channels` by peer chain remains out of scope until that's revisited (see
+  [Channels API](#1-channels-api)).
 
 ### 3. Reliability Requirements
 
