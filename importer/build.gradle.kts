@@ -59,10 +59,12 @@ dependencies {
     testImplementation("org.apache.commons:commons-math3")
     testImplementation("org.awaitility:awaitility")
     testImplementation("org.gaul:s3proxy") {
+        exclude(group = "com.azure")
         exclude(group = "com.github.openstack4j.core")
         exclude(group = "com.github.openstack4j.core.connectors")
         exclude(group = "com.google.cloud")
         exclude(group = "io.opentelemetry")
+        exclude(group = "org.apache.sshd")
     }
     testImplementation("org.junit.platform:junit-platform-launcher")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")

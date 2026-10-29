@@ -162,8 +162,6 @@ build
 **/.kotlin/
 
 # Security
-.dccache
-snyk
 **/secret.*
 
 rest/report.*

@@ -220,7 +220,8 @@ class ContractService extends BaseService {
                  ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc`;
 
   // Given candidate consensus timestamps and their contract ids, returns the latest one whose result consumed gas
-  // (non-null gas_consumed), i.e. that actually executed, picking the latest when several executed.
+  // (positive gas_consumed), i.e. that actually executed, picking the latest when several executed. A pre-execution
+  // failure such as WRONG_NONCE can still have a function result, so its gas_consumed is 0 rather than null.
   // contract_id is the citus distribution column of contract_result and equals contract_transaction_hash.entity_id
   // (see ContractResult.toContractTransactionHash), so constraining on it lets citus prune shards instead of scanning
   // every one.
@@ -228,7 +229,7 @@ class ContractService extends BaseService {
         from ${ContractResult.tableName}
         where ${ContractResult.CONSENSUS_TIMESTAMP} = any($1)
           and ${ContractResult.CONTRACT_ID} = any($2)
-          and ${ContractResult.GAS_CONSUMED} is not null
+          and ${ContractResult.GAS_CONSUMED} > 0
         order by ${ContractResult.CONSENSUS_TIMESTAMP} desc
         limit 1`;
 
@@ -522,7 +523,7 @@ class ContractService extends BaseService {
   /**
    * Selects the row that best represents a transaction hash shared by multiple results. A successful result always
    * wins (the query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result
-   * sharing the hash by checking which candidates consumed gas (non-null gas_consumed), falling back to the latest by
+   * sharing the hash by checking which candidates consumed gas (positive gas_consumed), falling back to the latest by
    * consensus timestamp (the input order).
    */
   async pickPreferredContractTransactionHash(rows) {

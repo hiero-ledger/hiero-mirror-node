@@ -2302,6 +2302,23 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
     ]);
   });
 
+  test('Prefers the real execution over a later WRONG_NONCE duplicate with zero gas_consumed', async () => {
+    const wrongNonceResult = TransactionResult.getProtoId('WRONG_NONCE');
+    const wrongNonce = {...stubResult, transaction_result: wrongNonceResult, gas_consumed: 0, gas_used: 0};
+    await integrationDomainOps.loadContractResults([executedResult, wrongNonce]);
+
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([
+      {
+        consensusTimestamp: 1,
+        entityId: entityId1.getEncodedId(),
+        hash: ethereumTxHashBuffer,
+        payerAccountId: entityId10.getEncodedId(),
+        transactionResult: Number.parseInt(contractRevertResult),
+      },
+    ]);
+  });
+
   test('Prefers a failed contract create (executed, entity 0) over a later failure with the same entity', async () => {
     // The reviewer's original concern: a failed contract create executed (its constructor reverted) so it has a
     // non-null gas_consumed, but its entity id is 0 because no contract was created. Keying on gas_consumed rather

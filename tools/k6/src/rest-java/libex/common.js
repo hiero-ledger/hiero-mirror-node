@@ -7,6 +7,14 @@ import {TestScenarioBuilder} from '../../lib/common.js';
 
 const isSuccess = (response) => response.status >= 200 && response.status < 300;
 
+const fromHex = (hex) => {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes.buffer;
+};
+
 const isValidListResponse = (response, listName) => {
   if (!isSuccess(response)) {
     return false;
@@ -36,4 +44,4 @@ class RestJavaTestScenarioBuilder extends TestScenarioBuilder {
   }
 }
 
-export {isValidListResponse, isSuccess, RestJavaTestScenarioBuilder};
+export {fromHex, isValidListResponse, isSuccess, RestJavaTestScenarioBuilder};
