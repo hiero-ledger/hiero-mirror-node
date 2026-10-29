@@ -17,7 +17,11 @@ import com.hedera.hashgraph.sdk.MirrorNodeContractEstimateGasQuery;
 import com.hedera.hashgraph.sdk.SubscriptionHandle;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.TopicMessageQuery;
+import com.hedera.hashgraph.sdk.Transaction;
+import com.hedera.hashgraph.sdk.TransactionId;
 import jakarta.inject.Named;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -52,6 +56,8 @@ import org.hiero.mirror.rest.model.ContractResultsResponse;
 import org.hiero.mirror.rest.model.ContractStateResponse;
 import org.hiero.mirror.rest.model.ContractsResponse;
 import org.hiero.mirror.rest.model.CryptoAllowancesResponse;
+import org.hiero.mirror.rest.model.FeeEstimateMode;
+import org.hiero.mirror.rest.model.FeeEstimateResponse;
 import org.hiero.mirror.rest.model.HooksResponse;
 import org.hiero.mirror.rest.model.HooksStorageResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
@@ -91,6 +97,7 @@ import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.core.retry.Retryable;
+import org.springframework.http.MediaType;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestClient;
 
@@ -401,6 +408,106 @@ public class MirrorNodeClient {
     public NetworkFeesResponse getNetworkFees() {
         String feesEndpoint = "/network/fees";
         return callRestJavaEndpoint(feesEndpoint, NetworkFeesResponse.class);
+    }
+
+    public FeeEstimateResponse estimateFees(byte[] transaction) {
+        return estimateFees(transaction, FeeEstimateMode.INTRINSIC);
+    }
+
+    /**
+     * Estimates the fee of a HAPI transaction using the REST Java {@code POST /api/v1/network/fees} endpoint. The
+     * high volume throttle is left at the endpoint default.
+     *
+     * @param transaction a single protobuf encoded HAPI {@code Transaction}, as submitted to the network
+     * @param mode whether to estimate solely from the transaction's inherent properties or also from network state
+     * @return the estimated fee, in tinycents
+     */
+    public FeeEstimateResponse estimateFees(final byte[] transaction, final FeeEstimateMode mode) {
+        log.debug("Estimating fees in {} mode", mode);
+        // Not retried: a missing or not yet ready fee estimation endpoint must not delay the actual HAPI call
+        return restJavaClient
+                .post()
+                .uri("/network/fees?mode={mode}", mode)
+                .contentType(MediaType.APPLICATION_PROTOBUF)
+                .body(transaction)
+                .retrieve()
+                .body(FeeEstimateResponse.class);
+    }
+
+    @SneakyThrows
+    public FeeEstimateResponse estimateFees(final Transaction<?> transaction) {
+        return estimateFees(transaction, FeeEstimateMode.INTRINSIC);
+    }
+
+    /**
+     * Estimates the fee of a frozen and signed SDK transaction. The transaction bytes submitted to the network are
+     * signed lazily, so callers should sign the transaction first for the signature count to be reflected in the
+     * estimate. The high volume throttle is left at the endpoint default.
+     *
+     * @param transaction the frozen SDK transaction, signed as it will be when submitted to the network
+     * @param mode whether to estimate solely from the transaction's inherent properties or also from network state
+     * @return the estimated fee, in tinycents
+     */
+    @SneakyThrows
+    public FeeEstimateResponse estimateFees(final Transaction<?> transaction, final FeeEstimateMode mode) {
+        final var transactionList = com.hedera.hashgraph.sdk.proto.TransactionList.parseFrom(transaction.toBytes());
+        if (transactionList.getTransactionListCount() == 0) {
+            throw new IllegalArgumentException("Transaction has no signed transaction bytes to estimate fees for");
+        }
+
+        // The endpoint expects a single Transaction, while the SDK serializes a TransactionList with one entry per
+        // node or chunk. The entries only differ in node account ID, which does not affect the fee.
+        final var singleTransaction = transactionList.getTransactionList(0).toByteArray();
+        return estimateFees(singleTransaction, mode);
+    }
+
+    /**
+     * Verifies that the fee actually charged for a transaction, as reported by the mirror node, is within the given
+     * tolerance of a fee estimate previously obtained from {@link #estimateFees}. The estimate is in tinycents and is
+     * converted to tinybars using the current exchange rate, e.g. {@code tinybars = tinycents * hbarEquiv /
+     * centEquiv}, since one hbar is \(10^8\) tinybars and one cent is \(10^8\) tinycents.
+     *
+     * @param transactionId the ID of the executed transaction
+     * @param estimate the fee estimate obtained before the transaction was executed
+     * @param tolerancePercent the maximum allowed deviation between the charged and estimated fee, in percent
+     */
+    public void verifyFeeEstimate(
+            final TransactionId transactionId, final FeeEstimateResponse estimate, final double tolerancePercent) {
+        if (estimate == null || estimate.getTotal() == null || estimate.getTotal() <= 0) {
+            log.debug("Skipping fee verification for {} since the estimate has no total", transactionId);
+            return;
+        }
+
+        final var currentRate = getExchangeRates().getCurrentRate();
+        if (currentRate == null
+                || currentRate.getCentEquivalent() == null
+                || currentRate.getCentEquivalent() == 0
+                || currentRate.getHbarEquivalent() == null) {
+            log.warn("Skipping fee verification for {} since no usable exchange rate is available", transactionId);
+            return;
+        }
+
+        final long expectedTinybars = BigDecimal.valueOf(estimate.getTotal())
+                .multiply(BigDecimal.valueOf(currentRate.getHbarEquivalent().longValue()))
+                .divide(BigDecimal.valueOf(currentRate.getCentEquivalent().longValue()), 0, RoundingMode.HALF_UP)
+                .longValue();
+        final var transactions =
+                getTransactions(toRestTransactionId(transactionId)).getTransactions();
+        assertThat(transactions).as("Transactions for %s", transactionId).isNotEmpty();
+
+        final var actualTinybars = transactions.getFirst().getChargedTxFee();
+        assertThat(actualTinybars).as("Charged fee for %s", transactionId).isNotNull();
+
+        final double deviationPercent =
+                expectedTinybars == 0 ? 0.0 : Math.abs(actualTinybars - expectedTinybars) * 100.0 / expectedTinybars;
+        log.info(
+                "Fee estimate for {}: estimated {} tinycents ({} tinybars), charged {} tinybars, deviation {}%",
+                transactionId, estimate.getTotal(), expectedTinybars, actualTinybars, deviationPercent);
+        assertThat(deviationPercent)
+                .as(
+                        "Charged fee of %d tinybars for %s deviates from the estimated fee of %d tinybars",
+                        actualTinybars, transactionId, expectedTinybars)
+                .isLessThanOrEqualTo(tolerancePercent);
     }
 
     public NetworkSupplyResponse getNetworkSupply() {
@@ -783,6 +890,13 @@ public class MirrorNodeClient {
         }
 
         return uri.substring(URL_PREFIX.length());
+    }
+
+    private String toRestTransactionId(final TransactionId transactionId) {
+        // Interim format until mirror node supports checksum, in the form 0.0.x-seconds-nanos
+        final var accountId = transactionId.accountId.toString().split("-")[0];
+        final var nanos = StringUtils.leftPad(String.valueOf(transactionId.validStart.getNano()), 9, '0');
+        return accountId + "-" + transactionId.validStart.getEpochSecond() + "-" + nanos;
     }
 
     private boolean computeHasPartialState() {

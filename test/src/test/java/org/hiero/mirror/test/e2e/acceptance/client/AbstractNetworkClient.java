@@ -6,7 +6,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.base.Stopwatch;
 import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.hashgraph.sdk.BatchTransaction;
 import com.hedera.hashgraph.sdk.Client;
+import com.hedera.hashgraph.sdk.ContractCreateTransaction;
+import com.hedera.hashgraph.sdk.ContractExecuteTransaction;
+import com.hedera.hashgraph.sdk.EthereumTransaction;
 import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.PrivateKey;
@@ -23,6 +27,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -30,6 +35,7 @@ import java.util.function.Supplier;
 import lombok.Data;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.rest.model.FeeEstimateResponse;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
@@ -48,6 +54,9 @@ abstract class AbstractNetworkClient implements Cleanable {
     protected final SDKClient sdkClient;
     protected final RetryTemplate retryTemplate;
     protected final AcceptanceTestProperties acceptanceTestProperties;
+
+    /** Fee estimates obtained before execution, keyed by transaction ID, pending verification of the charged fee. */
+    private final Map<TransactionId, FeeEstimateResponse> pendingFeeEstimates = new ConcurrentHashMap<>();
 
     public AbstractNetworkClient(
             SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
@@ -128,9 +137,16 @@ abstract class AbstractNetworkClient implements Cleanable {
             }
         }
 
+        // Estimate the fee against the mirror node before submitting the transaction, to verify it afterwards
+        final var feeEstimate = estimateFee(transaction);
+
         try {
             var transactionResponse = retryTemplate.execute(() -> transaction.execute(client));
             var transactionId = transactionResponse.transactionId;
+
+            if (feeEstimate != null) {
+                pendingFeeEstimates.put(transactionId, feeEstimate);
+            }
 
             if (log.isDebugEnabled()) {
                 var publicKeys = getSignatures(transaction);
@@ -156,6 +172,61 @@ abstract class AbstractNetworkClient implements Cleanable {
         } catch (Exception e) {
             return Map.of();
         }
+    }
+
+    /**
+     * Estimates the fee of the transaction about to be executed against the mirror node's REST Java fee estimation
+     * endpoint, if fee estimation is enabled. Returns {@code null} when verification should be skipped, either because
+     * it is disabled, the transaction type is not comparable to the estimate, or the mirror node could not estimate
+     * the fee. A failed estimate never prevents the transaction itself from being executed.
+     */
+    private FeeEstimateResponse estimateFee(final Transaction<?> transaction) {
+        final var feeEstimation =
+                acceptanceTestProperties.getRestJavaProperties().getFeeEstimation();
+        if (!feeEstimation.isEnabled() || isFeeEstimationUnsupported(transaction)) {
+            return null;
+        }
+
+        try {
+            transaction.freezeWith(client);
+
+            // Mirror the SDK, which signs with the operator on execute only when the operator is the payer
+            final var operatorId = client.getOperatorAccountId();
+            if (operatorId != null && operatorId.equals(transaction.getTransactionId().accountId)) {
+                transaction.signWithOperator(client);
+            }
+
+            final var estimate = sdkClient.getMirrorNodeClient().estimateFees(transaction, feeEstimation.getMode());
+            if (estimate == null || estimate.getTotal() == null || estimate.getTotal() <= 0) {
+                log.info(
+                        "Skipping fee verification for {} since it has no estimable fee",
+                        transaction.getClass().getSimpleName());
+                return null;
+            }
+
+            log.info(
+                    "Estimated fee for {} {}: {} tinycents in {} mode",
+                    transaction.getClass().getSimpleName(),
+                    transaction.getTransactionId(),
+                    estimate.getTotal(),
+                    feeEstimation.getMode());
+            return estimate;
+        } catch (Exception e) {
+            log.warn(
+                    "Unable to estimate fees for {}, skipping fee verification: {}",
+                    transaction.getClass().getSimpleName(),
+                    e.getMessage());
+            return null;
+        }
+    }
+
+    private boolean isFeeEstimationUnsupported(final Transaction<?> transaction) {
+        // Contract fees are paid in gas, which the fee estimation endpoint does not price, and the charged fee of a
+        // batch is the sum of its inner transactions rather than the fee of the batch transaction itself
+        return transaction instanceof BatchTransaction
+                || transaction instanceof ContractCreateTransaction
+                || transaction instanceof ContractExecuteTransaction
+                || transaction instanceof EthereumTransaction;
     }
 
     public TransactionId executeTransaction(Transaction<?> transaction, KeyList keyList) {
@@ -191,8 +262,22 @@ abstract class AbstractNetworkClient implements Cleanable {
         var receipt = executeQuery(() -> query);
         log.debug("Transaction receipt: {}", receipt);
 
+        final var feeEstimate = pendingFeeEstimates.remove(transactionId);
+
         if (receipt.status != Status.SUCCESS) {
             throw new NetworkException("Transaction was unsuccessful: " + receipt, receipt.status);
+        }
+
+        if (feeEstimate != null) {
+            sdkClient
+                    .getMirrorNodeClient()
+                    .verifyFeeEstimate(
+                            transactionId,
+                            feeEstimate,
+                            acceptanceTestProperties
+                                    .getRestJavaProperties()
+                                    .getFeeEstimation()
+                                    .getTolerancePercent());
         }
 
         return receipt;
