@@ -400,8 +400,6 @@ testkube:
         K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
       web3:
         K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
-        RUN_OPCODE_TESTS: "true"
-        RUN_PRESTATE_TESTS: "true"
     delay: 600s  # Delay duration between test suite steps. This needs to be at least 600s to match the pgbouncer server
                  # connection idle timeout, so that connections will be freed up for the next set of tests
     extraExecutionRequestVariables: {}
