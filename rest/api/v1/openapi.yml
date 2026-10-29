@@ -528,7 +528,7 @@ paths:
       description:
         "Simulates contract calls and returns one call-action tree per transaction, in bundle order. One bundle with
         one transaction maps to debug_traceCall. Multiple bundles, or a bundle with multiple transactions, map to
-        debug_traceCallMany. block, state_override, timeout, and transaction_index apply to the whole request.
+        debug_traceCallMany. block, state_overrides, timeout, and transaction_index apply to the whole request.
         only_top_call applies to every transaction. When true, each transaction returns only its root call and omits
         nested actions. Each bundle has its own transactions and block_override.
         Transactions share state for the whole request: later bundles keep earlier state changes. The request state
@@ -2501,7 +2501,7 @@ components:
       type: object
       description:
         One debug_traceCallMany bundle. Transactions execute sequentially and share this bundle's block_override.
-        State changes persist into later bundles. The request block and state_override list apply instead of the same
+        State changes persist into later bundles. The request block and state_overrides list apply instead of the same
         fields on each transaction. estimate is rejected.
       required:
         - transactions
@@ -2526,7 +2526,7 @@ components:
       type: object
       description:
         A debug_traceCallMany request. A single bundle containing a single transaction is treated like a debug_traceCall.
-        block, state_override, timeout, and transaction_index apply to every bundle. only_top_call applies to every
+        block, state_overrides, timeout, and transaction_index apply to every bundle. only_top_call applies to every
         transaction. When true, each transaction returns only its root call and omits nested actions. State changes
         persist from one bundle to the next within this request only. The request is limited to an 8 MiB JSON
         document, 100000 JSON tokens, and 4800000 aggregate calldata and storage/code override characters.
@@ -2566,7 +2566,7 @@ components:
           example: 5
           format: int32
           type: [integer, "null"]
-        state_override:
+        state_overrides:
           description: Per-account state overrides applied to every bundle. Requires state overrides to be enabled.
           items:
             $ref: "#/components/schemas/StateOverride"

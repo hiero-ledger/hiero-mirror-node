@@ -48,7 +48,7 @@ import org.web3j.protocol.core.RemoteFunctionCall;
  */
 class ContractDebugServiceTraceCommitTest extends AbstractContractCallServiceOpcodeTracerTest {
 
-    private static final Duration TIMEOUT = Duration.ofSeconds(60);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final long TREASURY_BALANCE = 1_000L;
 
     private Entity receiverEntity;

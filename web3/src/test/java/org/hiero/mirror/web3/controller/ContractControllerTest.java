@@ -1135,8 +1135,8 @@ final class ContractControllerTest {
             strings = {
                 "{\"bundles\":[null]}",
                 "{\"bundles\":[{\"transactions\":[null]}]}",
-                "{\"bundles\":[{\"transactions\":[{}]}],\"state_override\":[null]}",
-                "{\"bundles\":[{\"transactions\":[{}]}],\"state_override\":[{\"address\":\"0x0000000000000000000000000000000000000001\",\"state\":[null]}]}"
+                "{\"bundles\":[{\"transactions\":[{}]}],\"state_overrides\":[null]}",
+                "{\"bundles\":[{\"transactions\":[{}]}],\"state_overrides\":[{\"address\":\"0x0000000000000000000000000000000000000001\",\"state\":[null]}]}"
             })
     void actionsCallRejectsNullElements(final String body) throws Exception {
         enableActionsApi();

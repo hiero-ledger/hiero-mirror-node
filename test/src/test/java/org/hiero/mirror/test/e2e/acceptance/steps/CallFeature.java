@@ -266,7 +266,8 @@ public class CallFeature extends AbstractFeature {
             var response = callContract(request);
             assertThat(response.getResultAsText()).isEqualTo(tokenNameEnum.getSymbol() + "_name");
         } catch (HttpClientErrorException.BadRequest badRequest) {
-            // This check is needed to validate that state_override entry is successfully deserialized in a native build
+            // This check is needed to validate that state_overrides entry is successfully deserialized in a native
+            // build
             // image
             assertThat(badRequest.getResponseBodyAsString()).contains("State overrides are not supported");
         }

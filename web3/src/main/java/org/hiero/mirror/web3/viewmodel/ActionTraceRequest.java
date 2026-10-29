@@ -24,8 +24,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * One {@code debug_traceCallMany} request. A single bundle with one transaction is {@code debug_traceCall}.
- * {@code block}, {@code state_override}, {@code timeout}, and {@code transaction_index} apply to every bundle.
- * {@code state_override} is one entry per account. When {@code only_top_call} is true, each transaction returns only
+ * {@code block}, {@code state_overrides}, {@code timeout}, and {@code transaction_index} apply to every bundle.
+ * {@code state_overrides} is one entry per account. When {@code only_top_call} is true, each transaction returns only
  * its root call and omits nested actions. State changes from earlier bundles stay visible to later bundles. Each
  * bundle applies its own {@code block_override}.
  */
@@ -52,7 +52,7 @@ public class ActionTraceRequest {
     @JsonProperty("only_top_call")
     private boolean onlyTopCall;
 
-    @JsonProperty("state_override")
+    @JsonProperty("state_overrides")
     @JsonSetter(nulls = Nulls.SKIP)
     @NotNull
     @Size(max = 10)
