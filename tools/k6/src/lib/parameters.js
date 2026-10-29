@@ -12,6 +12,8 @@ setEnvDefault('DEFAULT_GRACEFUL_STOP', '5s');
 setEnvDefault('DEFAULT_LIMIT', 100);
 setEnvDefault('DEFAULT_SETUP_TIMEOUT', '5m');
 setEnvDefault('DEFAULT_VUS', 10);
+setEnvDefault('RUN_OPCODE_TESTS', 'true');
+setEnvDefault('RUN_PRESTATE_TESTS', 'true');
 __ENV['BASE_URL_PREFIX'] = __ENV['BASE_URL'] + urlPrefix;
 
 const copyEnvParamsFromEnvMap = (propertyList) => {
