@@ -99,7 +99,13 @@ describe('getQuery', () => {
 });
 
 describe('getTokenAccounts', () => {
-  const query = {conditions: [], inConditions: [], order: 'asc', ownerAccountId: 1000, limit: 25};
+  const query = {
+    conditions: [],
+    inConditions: [],
+    order: 'asc',
+    ownerAccountId: EntityId.parseString('1000').getEncodedId(),
+    limit: 25,
+  };
 
   test.each([
     [0, 0, 2, 1, 0, 0], // Treasury statuses on a token without keys
