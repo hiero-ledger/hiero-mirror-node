@@ -31,6 +31,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import lombok.Data;
 import org.hiero.mirror.monitor.HederaNetwork;
@@ -148,6 +149,27 @@ final class NodeSupplierTest {
         nodeSupplier.init();
         Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
         assertThat(nodeSupplier.get()).isEqualTo(node);
+    }
+
+    @Test
+    @Timeout(5)
+    void initRefreshesAfterSuccessfulValidation() {
+        monitorProperties.getNodeValidation().setFrequency(Duration.ofSeconds(1L));
+        cryptoServiceStub
+                .addQuery(Mono.just(receipt(SUCCESS)))
+                .addQuery(Mono.just(receipt(SUCCESS)))
+                .addTransaction(Mono.just(response(OK)))
+                .addTransaction(Mono.just(response(OK)));
+
+        try {
+            nodeSupplier.init();
+            Uninterruptibles.sleepUninterruptibly(1800, TimeUnit.MILLISECONDS);
+
+            assertThat(cryptoServiceStub.getCryptoTransferCount()).hasValueGreaterThanOrEqualTo(2);
+            assertThat(nodeSupplier.get()).isEqualTo(node);
+        } finally {
+            nodeSupplier.destroy();
+        }
     }
 
     @Test
@@ -609,6 +631,7 @@ final class NodeSupplierTest {
     @Data
     private class CryptoServiceStub extends CryptoServiceGrpc.CryptoServiceImplBase {
 
+        private final AtomicInteger cryptoTransferCount = new AtomicInteger();
         private Queue<Mono<Response>> queries = new ConcurrentLinkedQueue<>();
         private Queue<Mono<TransactionResponse>> transactions = new ConcurrentLinkedQueue<>();
 
@@ -625,6 +648,7 @@ final class NodeSupplierTest {
         @Override
         public void cryptoTransfer(Transaction request, StreamObserver<TransactionResponse> responseObserver) {
             log.debug("cryptoTransfer: {}", request);
+            cryptoTransferCount.incrementAndGet();
             send(responseObserver, transactions.poll());
         }
 
