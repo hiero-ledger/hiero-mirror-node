@@ -89,8 +89,8 @@ runs:
         RUN_COMPLEX_TESTS: "false"
         RUN_ESTIMATE_TESTS: "false"
         RUN_MODIFICATION_TESTS: "false"
-        RUN_OPCODE_TESTS: ${{ env.RUN_OPCODE_TESTS || 'false' }}
-        RUN_PRESTATE_TESTS: ${{ env.RUN_PRESTATE_TESTS || 'false' }}
+        RUN_OPCODE_TESTS: ${{ env.RUN_OPCODE_TESTS || 'true' }}
+        RUN_PRESTATE_TESTS: ${{ env.RUN_PRESTATE_TESTS || 'true' }}
         RUN_TRAFFIC_REPLAY: "false"
         RUN_WITH_VARIABLES: "true"
         SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
