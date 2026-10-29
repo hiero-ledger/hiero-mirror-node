@@ -109,8 +109,10 @@ public class TransactionExecutionService {
         final var context = ContractCallContext.get();
         context.setTraceDataBytes(0);
         final var singleTransactionRecords = executor.execute(transactionBody, consensusTime, getOperationTracers());
-        final var maxSerializedTraceDataBytes =
-                configuration.getConfigData(ContractsConfig.class).maxSerializedTraceDataBytes();
+        final var maxSerializedTraceDataBytes = evmProperties
+                .getVersionedConfiguration()
+                .getConfigData(ContractsConfig.class)
+                .maxSerializedTraceDataBytes();
         final var parentTransactionRecord = singleTransactionRecords.getFirst().transactionRecord();
         // The consensus node fails the call with INSUFFICIENT_GAS when its trace data exceeds the limit
         if (context.getTraceDataBytes() > maxSerializedTraceDataBytes) {
