@@ -12,22 +12,14 @@ SLEEP_SECONDS="${SLEEP_SECONDS:-0.3}"
 LIMIT=100
 MAX_PAGE_FETCH_RETRIES=30
 
-processed=0
-checked=0
-passed=0
-failed=0
-skipped=0
-estimate_reverts=0
-api_errors=0
-page_fetch_failures=0
-nonReproducible=0
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "${WORK_DIR}"' EXIT
 
-log() {
-  printf '%s\n' "$*"
-}
+processed=0
+passed=0
+has_failure=false
 
 if ! awk -v t="${TOLERANCE_PERCENT}" -v m="${MIN_TOLERANCE_PERCENT}" 'BEGIN { exit (t > m) ? 0 : 1 }'; then
-  log "TOLERANCE_PERCENT must be greater than ${MIN_TOLERANCE_PERCENT} (got ${TOLERANCE_PERCENT})"
   exit 1
 fi
 
@@ -36,19 +28,14 @@ hex_to_dec() {
   printf '%d' "0x${hex}"
 }
 
-# Canonical hex for equality: optional 0x, case-insensitive, odd nibble padded,
-# leading zeros stripped so 0x1, 0x01, and 0x001 compare equal (empty/0x/0x0 too).
+# Ignore the optional prefix and letter case, preserving every return-data byte.
 normalize_hex() {
   local hex="${1:-}"
   if [[ "${hex}" == [0][xX]* ]]; then
     hex="${hex:2}"
   fi
   hex="$(tr '[:upper:]' '[:lower:]' <<<"${hex}")"
-  if ((${#hex} % 2 == 1)); then
-    hex="0${hex}"
-  fi
-  hex="${hex#"${hex%%[!0]*}"}"
-  printf '%s' "${hex:-0}"
+  printf '%s' "${hex}"
 }
 
 hex_equal() {
@@ -68,6 +55,7 @@ is_reproducible_replay() {
   original_status="$(jq -r '.result // empty' <<<"${result_json}")"
 
   [[ "${http_code}" == "200" ]] \
+    && [[ -n "${expected_result}" && -n "${replay_result}" ]] \
     && hex_equal "${expected_result}" "${replay_result}" \
     && [[ "${original_status}" != "CONTRACT_REVERT_EXECUTED" ]]
 }
@@ -217,88 +205,266 @@ should_skip() {
   return 1
 }
 
-check_result() {
-  local result_json="$1"
-  if should_skip "${result_json}" >/dev/null; then
-    skipped=$((skipped + 1))
+# Loads a response into cache_file. Collections follow links.next and are cached as one array.
+# Unavailable or partial responses leave cache_file empty; jq errors in processing remain fatal.
+load_cached_response() {
+  local key="$1" next="$2" collection="${3:-}" page code
+  local file="${WORK_DIR}/${key}.json"
+  cache_file=""
+  [[ ! -e "${file}.missing" ]] || return 0
+  if [[ -s "${file}" ]]; then
+    cache_file="${file}"
     return 0
   fi
 
-  local request consumed hash
+  : > "${file}.jsonl"
+  while [[ -n "${next}" ]]; do
+    page="${file}.page"
+    if ! code="$(curl -sS -f --retry 3 --retry-all-errors -o "${page}" -w '%{http_code}' \
+      "$(page_url_from_next "${next}")")" \
+      || [[ "${code}" != 200 ]] \
+      || ! jq -e --arg collection "${collection}" '
+        type == "object" and (if $collection == "" then true else (.[$collection] | type == "array") end)
+      ' "${page}" >/dev/null; then
+      touch "${file}.missing"
+      return 0
+    fi
+    if [[ -z "${collection}" ]]; then
+      mv "${page}" "${file}"
+      cache_file="${file}"
+      return 0
+    fi
+    jq -c --arg collection "${collection}" '.[$collection][]' "${page}" >> "${file}.jsonl"
+    next="$(jq -r '.links.next // empty' "${page}")"
+  done
+  jq -cs --arg collection "${collection}" '{($collection): .}' "${file}.jsonl" > "${file}"
+  cache_file="${file}"
+}
+
+load_actions() {
+  cache_file=""
+  [[ "$1" =~ ^0x[0-9a-fA-F]+$ ]] || return 0
+  load_cached_response "$1-actions" "/api/v1/contracts/results/$1/actions?limit=${LIMIT}&order=asc" actions
+}
+
+# Build prefix verdicts once, up to the first disputed transaction in a descending block stream.
+# Later disputes in the same block are earlier transactions and reuse these verdicts and responses.
+load_block_verdicts() {
+  local block="$1" index="$2" listing summary hash detail actions earlier_create
+  local verdicts="${WORK_DIR}/block-${block}-verdicts.json" enriched="${WORK_DIR}/block-${block}-enriched.jsonl"
+  verdict=unknown
+  if [[ -s "${verdicts}" ]]; then
+    verdict="$(jq -r --arg index "${index}" '.[$index] // "unknown"' "${verdicts}")"
+    return 0
+  fi
+
+  load_cached_response "block-${block}-results" "/api/v1/contracts/results?block.number=${block}&limit=${LIMIT}&order=asc" results
+  [[ -n "${cache_file}" ]] || return 0
+  listing="${cache_file}"
+  if ! jq -e --argjson index "${index}" '
+    all(.results[]; .transaction_index | type == "number")
+    and any(.results[]; .transaction_index == $index)
+  ' "${listing}" >/dev/null; then
+    return 0
+  fi
+  earlier_create="$(jq --argjson index "${index}" '
+    any(.results[]; .transaction_index < $index
+      and ((.to == null or .to == "" or .to == "0x") or ((.created_contract_ids // []) | length > 0)))
+  ' "${listing}")"
+  if [[ "${earlier_create}" == true ]]; then
+    verdict=dependent
+    return 0
+  fi
+
+  jq -c --argjson index "${index}" '.results | sort_by(.transaction_index)[] | select(.transaction_index <= $index)' \
+    "${listing}" > "${enriched}.selected"
+  : > "${enriched}"
+  while IFS= read -r summary; do
+    hash="$(jq -r '.hash // empty' <<<"${summary}")"
+    detail=""
+    actions=""
+    if [[ "${hash}" =~ ^0x[0-9a-fA-F]+$ ]]; then
+      load_cached_response "${hash}-detail" "/api/v1/contracts/results/${hash}"
+      detail="${cache_file}"
+      load_actions "${hash}"
+      actions="${cache_file}"
+    fi
+    if [[ -n "${detail}" && -n "${actions}" ]] \
+      && jq -e '.state_changes | type == "array"' "${detail}" >/dev/null; then
+      jq -c --slurpfile detail "${detail}" --slurpfile actions "${actions}" '
+        . + $detail[0] + {transaction_index: .transaction_index, actions: $actions[0].actions, enriched: true}
+      ' <<<"${summary}" >> "${enriched}"
+    else
+      jq -c '. + {enriched: false}' <<<"${summary}" >> "${enriched}"
+    fi
+  done < "${enriched}.selected"
+
+  jq -cs '
+    def creates: (.to == null or .to == "" or .to == "0x") or ((.created_contract_ids // []) | length > 0);
+    def entity: type == "string" and test("^([0-9]+\\.){2}[0-9]+$|^0x[0-9a-f]{40}$");
+    def pairs:
+      [.contract_id, .address], [.contract_id, .to],
+      (.logs[]? | [.contract_id, .address]), (.state_changes[]? | [.contract_id, .address]),
+      (.actions[]? | [.caller, .from], [.recipient, .to]);
+    def entities:
+      [.contract_id, .from, .to, .address, .created_contract_ids[]?,
+       (.logs[]? | .contract_id, .address), (.state_changes[]? | .contract_id, .address),
+       (.actions[]? | .caller, .recipient, .from, .to)]
+      | map(select(type == "string") | ascii_downcase | select(entity)) | unique;
+    # Explicit ID/address associations let aliases and long-zero addresses share an identity.
+    (reduce (.[] | select(.enriched) | pairs | map(if type == "string" then ascii_downcase else . end)
+      | select((.[0] | entity) and (.[1] | entity))) as $pair ({}; .[$pair[1]] = $pair[0])) as $aliases
+    | reduce .[] as $tx ({created: false, incomplete: false, touched: {}, verdicts: {}};
+        . as $previous
+        | ($tx | entities | map($aliases[.] // .)) as $entities
+        | .verdicts[($tx.transaction_index | tostring)] = (
+            if $previous.created or ($tx.enriched and any($entities[]; $previous.touched[.])) then "dependent"
+            elif $previous.incomplete or ($tx.enriched | not) then "unknown"
+            else "independent" end)
+        | .created = (.created or ($tx | creates))
+        | if $tx.enriched then
+            .touched += ($entities | map({(.): true}) | add // {})
+          else .incomplete = true end)
+    | .verdicts
+  ' "${enriched}" > "${verdicts}"
+  verdict="$(jq -r --arg index "${index}" '.[$index] // "unknown"' "${verdicts}")"
+}
+
+# Recognize a parent-to-current timestamp update at the same byte position within one contract.
+# Oracle ring buffers may read the latest observation and write the next one in a different slot.
+# This is a conservative heuristic for per-block oracle/TWAP guards, not proof of control flow.
+check_dependencies() {
+  local result_json="$1" block index hash detail has_writes current previous current_hex previous_hex
+  verdict=unknown
+  block="$(jq -r '.block_number // empty' <<<"${result_json}")"
+  index="$(jq -r '.transaction_index // empty' <<<"${result_json}")"
+  [[ "${block}" =~ ^[0-9]+$ && "${index}" =~ ^[0-9]+$ ]] || return 0
+  load_block_verdicts "${block}" "${index}"
+  [[ "${verdict}" == independent ]] || return 0
+
+  hash="$(jq -r '.hash // empty' <<<"${result_json}")"
+  detail="${WORK_DIR}/${hash}-detail.json"
+  # Calls without storage writes cannot match this timestamp-update pattern.
+  has_writes="$(jq 'any(.state_changes[]; .value_written != null)' "${detail}")"
+  if ((block == 0)) || [[ "${has_writes}" == false ]]; then
+    return 0
+  fi
+  verdict=unknown
+  load_cached_response "block-${block}" "/api/v1/blocks/${block}"
+  [[ -n "${cache_file}" ]] || return 0
+  current="$(jq -r '.timestamp.from // "" | split(".")[0]' "${cache_file}")"
+  load_cached_response "block-$((block - 1))" "/api/v1/blocks/$((block - 1))"
+  [[ -n "${cache_file}" ]] || return 0
+  previous="$(jq -r '.timestamp.from // "" | split(".")[0]' "${cache_file}")"
+  [[ "${current}" =~ ^[0-9]+$ && "${previous}" =~ ^[0-9]+$ ]] || return 0
+  printf -v current_hex '%08x' "${current}"
+  printf -v previous_hex '%08x' "${previous}"
+  verdict="$(jq -r --arg current "${current_hex}" --arg previous "${previous_hex}" '
+    def word: ascii_downcase | sub("^0x"; "") | ("0" * 64 + .)[-64:];
+    def timestamp_keys($timestamp; $value):
+      (if (.contract_id // "") != "" then .contract_id else (.address // "" | ascii_downcase) end) as $contract
+      | select($contract != "")
+      | ($value | word) as $word
+      | range(0; 65 - ($timestamp | length); 2) as $offset
+      | select($word[$offset:$offset + ($timestamp | length)] == $timestamp)
+      | [$contract, $offset] | tojson;
+    if $current == $previous then "independent"
+    else
+      # Index reads once; each write probes by contract and byte offset, regardless of slot.
+      (reduce (.state_changes[] | timestamp_keys($previous; .value_read)) as $key ({}; .[$key] = true)) as $reads
+      | if any(.state_changes[]
+          | select(.value_written != null and ((.value_read | word) != (.value_written | word)))
+          | timestamp_keys($current; .value_written); $reads[.] // false)
+        then "dependent" else "independent" end
+    end
+  ' "${detail}")"
+}
+
+is_accurate() {
+  within_tolerance "$1" "$2" \
+    || { [[ -n "$3" ]] && (($3 > $2)) && within_tolerance "$1" "$3"; }
+}
+
+check_result() {
+  local result_json="$1"
+  if should_skip "${result_json}" >/dev/null; then
+    return 0
+  fi
+
+  local request consumed hash create=false block_number consensus_timestamp
   if ! request="$(build_request "${result_json}")"; then
-    api_errors=$((api_errors + 1))
     return 0
   fi
   hash="$(jq -r '.hash // "unknown"' <<<"${result_json}")"
   consumed="$(jq -r '.gas_used' <<<"${result_json}")"
-  if [[ -z "${consumed}" ]] || ((consumed <= 0)); then
-    skipped=$((skipped + 1))
-    return 0
+  block_number="$(jq -r '.block_number // empty' <<<"${result_json}")"
+  consensus_timestamp="$(jq -r '.timestamp // .consensus_timestamp // empty' <<<"${result_json}")"
+  if is_contract_create "${result_json}"; then
+    create=true
   fi
 
-  local attempt estimated body http_code
-  for attempt in 1 2; do
+  local attempt estimated body http_code result_hex actions sender pre_refund="" round_hour_retried=false
+  for attempt in 1 2 3; do
     post_contracts_call "${request}"
-
     if [[ "${http_code}" != "200" ]]; then
-      if ((attempt == 2)); then
-        break
-      fi
-      # Historical txs often revert on estimate replay (due to state change).
-      # Count those separately; only out-of-tolerance estimates fail the job.
-      if [[ "${http_code}" == "400" ]] && grep -q 'CONTRACT_REVERT_EXECUTED' <<<"${body}"; then
-        estimate_reverts=$((estimate_reverts + 1))
-      else
-        api_errors=$((api_errors + 1))
-      fi
       return 0
     fi
 
-    local result_hex
     result_hex="$(jq -r '.result // empty' <<<"${body}")"
-    if [[ -z "${result_hex}" || "${result_hex}" == "null" ]]; then
-      if ((attempt == 2)); then
-        break
-      fi
-      api_errors=$((api_errors + 1))
+    if [[ ! "${result_hex}" =~ ^0x[0-9a-fA-F]+$ ]]; then
       return 0
     fi
-
     estimated="$(hex_to_dec "${result_hex}")"
 
-    if within_tolerance "${estimated}" "${consumed}"; then
+    if ((attempt == 1)) && [[ "${create}" == false ]] && ! within_tolerance "${estimated}" "${consumed}"; then
+      load_actions "${hash}"
+      actions="${cache_file}"
+      if [[ -z "${actions}" ]] || ! jq -e '
+        .actions[0] | .index == 0 and (.gas_used | type == "number" and . >= 0)
+      ' "${actions}" >/dev/null; then
+        return 0
+      fi
+      pre_refund="$(jq -r --slurpfile actions "${actions}" '
+        ((.function_parameters // "") | sub("^0[xX]"; "")) as $data
+        | 21000 + $actions[0].actions[0].gas_used
+          + ([range(0; ($data | length); 2) | if $data[.:.+2] == "00" then 4 else 16 end] | add // 0)
+      ' <<<"${result_json}")"
+    fi
+    if is_accurate "${estimated}" "${consumed}" "${pre_refund}"; then
+      processed=$((processed + 1))
       passed=$((passed + 1))
       return 0
     fi
 
-    local block_number consensus_timestamp
-    block_number="$(jq -r '.block_number // empty' <<<"${result_json}")"
-    consensus_timestamp="$(jq -r '.consensus_timestamp // empty' <<<"${result_json}")"
-    if ((attempt == 1)) && [[ -n "${block_number}" ]] && is_near_round_hour "${consensus_timestamp}"; then
-      log "Out of tolerance for hash=${hash} at block ${block_number}-1; retrying with block=${block_number}"
+    if ((attempt == 1)) && [[ "${create}" == false ]]; then
+      sender="$(jq -r '.actions[0].from // empty' "${actions}")"
+      if [[ -n "${sender}" ]] && ! hex_equal "${sender}" "$(jq -r '.from // empty' <<<"${result_json}")"; then
+        request="$(jq -c --arg sender "${sender}" '.from = $sender' <<<"${request}")"
+        continue
+      fi
+    fi
+    if [[ "${round_hour_retried}" == false && -n "${block_number}" ]] && is_near_round_hour "${consensus_timestamp}"; then
       request="$(jq -c --arg b "${block_number}" '.block = $b' <<<"${request}")"
+      round_hour_retried=true
       continue
     fi
     break
   done
 
+  check_dependencies "${result_json}"
+  if [[ "${verdict}" != independent ]]; then
+    return 0
+  fi
+
   local replay_request
   replay_request="$(jq -c '.estimate = false' <<<"${request}")"
   post_contracts_call "${replay_request}"
   if ! is_reproducible_replay "${result_json}" "${http_code}" "${body}"; then
-    nonReproducible=$((nonReproducible + 1))
     return 0
   fi
 
-  checked=$((checked + 1))
-
-  failed=$((failed + 1))
-  local pct
-  pct="$(awk -v e="${estimated}" -v c="${consumed}" 'BEGIN {
-    printf "%.2f", ((e - c) * 100.0 / c)
-  }')"
-  log "Out of tolerance for hash=${hash}: estimated=${estimated} gas_used=${consumed} overhead=${pct}% (expected ${MIN_TOLERANCE_PERCENT}-${TOLERANCE_PERCENT}%)"
-  log "request=${request}"
+  processed=$((processed + 1))
+  has_failure=true
 }
 
 page_url_from_next() {
@@ -318,83 +484,58 @@ fi
 
 next_path="/api/v1/contracts/results?limit=${page_limit}&order=desc"
 
-while ((processed < RESULTS_COUNT)); do
+remaining="${RESULTS_COUNT}"
+while ((remaining > 0)); do
   if [[ -z "${next_path}" || "${next_path}" == "null" ]]; then
     break
   fi
 
   page_url="$(page_url_from_next "${next_path}")"
-  if ! page_json="$(curl -sS -f "${page_url}")"; then
-    page_fetch_failures=$((page_fetch_failures + 1))
-    log "Failed to fetch results page (${page_fetch_failures}/${MAX_PAGE_FETCH_RETRIES}): ${page_url}"
-    if ((page_fetch_failures >= MAX_PAGE_FETCH_RETRIES)); then
-      log "Giving up after ${MAX_PAGE_FETCH_RETRIES} consecutive results page fetch failures"
+  for ((page_attempt = 0; page_attempt < MAX_PAGE_FETCH_RETRIES; page_attempt++)); do
+    if page_json="$(curl -sS -f "${page_url}")" \
+      && result_count="$(jq -er '.results | if type == "array" then length else error("missing results array") end' \
+        <<<"${page_json}")"; then
       break
     fi
     sleep "${SLEEP_SECONDS}"
-    continue
+  done
+  if ((page_attempt == MAX_PAGE_FETCH_RETRIES)); then
+    has_failure=true
+    break
   fi
-
-  if ! result_count="$(jq '.results | length' <<<"${page_json}")" || [[ -z "${result_count}" ]]; then
-    page_fetch_failures=$((page_fetch_failures + 1))
-    log "Invalid results page response (${page_fetch_failures}/${MAX_PAGE_FETCH_RETRIES}): ${page_url}"
-    if ((page_fetch_failures >= MAX_PAGE_FETCH_RETRIES)); then
-      log "Giving up after ${MAX_PAGE_FETCH_RETRIES} consecutive results page fetch failures"
-      break
-    fi
-    sleep "${SLEEP_SECONDS}"
-    continue
-  fi
-
-  if [[ "${result_count}" -eq 0 ]]; then
+  if ((result_count == 0)); then
     break
   fi
 
-  page_fetch_failures=0
-
   while IFS= read -r result_json; do
-    if ((processed >= RESULTS_COUNT)); then
+    if ((remaining <= 0)); then
       break
     fi
+    remaining=$((remaining - 1))
     check_result "${result_json}"
-    processed=$((processed + 1))
     sleep "${SLEEP_SECONDS}"
   done < <(jq -c '.results[]' <<<"${page_json}")
 
-  next_path="$(jq -r '.links.next // empty' <<<"${page_json}")"
+  ((remaining > 0)) || break
+  # Request only the remaining sample budget on the final page.
+  next_path="$(jq -r --argjson limit "$((remaining < LIMIT ? remaining : LIMIT))" '
+    .links.next // empty
+    | if test("[?&]limit=") then
+        sub("(?<prefix>[?&]limit=)[0-9]+"; "\(.prefix)\($limit)")
+      else . + (if contains("?") then "&" else "?" end) + "limit=\($limit)"
+      end
+  ' <<<"${page_json}")"
 done
 
-summary="$(cat <<EOF
-  Fetched contract result count: ${processed}
-  Executed validation request count: ${checked}
-  Passed estimation count: ${passed}
-  Out of tolerance estimation count: ${failed}
-  Non reproducible contract results: ${nonReproducible}
-  Skipped request count: ${skipped}
-  Reverted estimate request count: ${estimate_reverts}
-  Errors count outside CONTRACT_REVERT_EXECUTED: ${api_errors}
-EOF
-)"
-log "${summary}"
+pass_percentage="$(awk -v p="${passed}" -v total="${processed}" 'BEGIN { printf "%.2f", (total > 0 ? 100 * p / total : 0) }')"
+summary="${passed}/${processed} (${pass_percentage}%) passed"
+printf '%s\n' "${summary}"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
-  echo "### Summary:" >> $GITHUB_STEP_SUMMARY
   printf '%s\n' "${summary}" >> "${GITHUB_STEP_SUMMARY}"
 fi
 
-if ((page_fetch_failures >= MAX_PAGE_FETCH_RETRIES)); then
-  log "Gas estimate accuracy check failed: results page fetch retries exhausted"
+if [[ "${has_failure}" == true ]] || ((passed == 0)); then
   exit 1
 fi
 
-if ((checked == 0)); then
-  log "Gas estimate accuracy check failed: no estimates were successfully checked (api_errors=${api_errors}, estimate_reverts=${estimate_reverts}, skipped=${skipped})"
-  exit 1
-fi
-
-if ((failed > 0)); then
-  log "Gas estimate accuracy check failed: ${failed} out-of-tolerance estimate(s)"
-  exit 1
-fi
-
-log "Gas estimate accuracy check passed"
 exit 0

@@ -78,9 +78,6 @@ public final class SystemFileLoader {
             .build());
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
-    private final byte[] mockAddressBook = createMockAddressBook();
-
-    @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final Map<FileID, SystemFile> systemFiles = loadAll();
 
     public SystemFileLoader(
@@ -128,20 +125,7 @@ public final class SystemFileLoader {
             return loadFromDB(fileId, consensusTimestamp);
         }
 
-        // Try to return the value from the cache
-        var file = cache.get(cacheKey, File.class);
-        if (file != null) {
-            return file;
-        }
-
-        // The value was not in cache -> try to load from DB
-        var result = loadFromDB(fileId, consensusTimestamp);
-        if (result != null) {
-            log.info("Updating cache for key {}", cacheKey);
-            cache.put(cacheKey, result);
-        }
-
-        return result;
+        return cache.get(cacheKey, () -> loadFromDB(fileId, cacheKey.timestamp()));
     }
 
     private @Nullable File loadFromDB(FileID fileId, long consensusTimestamp) {
@@ -206,7 +190,7 @@ public final class SystemFileLoader {
 
     private Map<FileID, SystemFile> loadAll() {
         var configuration = properties.getVersionedConfiguration();
-        var addressBookMock = Bytes.wrap(getMockAddressBook());
+        var addressBookMock = Bytes.wrap(createMockAddressBook());
         var files = List.of(
                 new SystemFile(load(systemEntity.addressBookFile101(), addressBookMock), NodeAddressBook.PROTOBUF),
                 new SystemFile(load(systemEntity.addressBookFile102(), addressBookMock), NodeAddressBook.PROTOBUF),
