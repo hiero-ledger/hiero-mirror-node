@@ -2112,7 +2112,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         APPROVE_NFT("approveNFTExternal", 729569, MUTABLE),
         APPROVE_ERC("approve", 731632, MUTABLE),
         APPROVE_FUNGIBLE_GET_ALLOWANCE("approveTokenGetAllowance", 733080, MUTABLE),
-        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 840000, MUTABLE),
+        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 911632, MUTABLE),
         APPROVE_NFT_GET_ALLOWANCE("approveTokenGetAllowance", 733127, MUTABLE),
         APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 830000, MUTABLE),
         ASSOCIATE_TOKEN("associateTokenExternal", 729374, MUTABLE),
