@@ -34,6 +34,7 @@ public interface CallServiceParameters {
     enum CallType {
         ETH_CALL,
         ETH_DEBUG_TRACE_TRANSACTION,
-        ETH_ESTIMATE_GAS
+        ETH_ESTIMATE_GAS,
+        ETH_SIMULATE
     }
 }

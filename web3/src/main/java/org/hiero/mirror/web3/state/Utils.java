@@ -158,4 +158,15 @@ public class Utils {
                 .fileNum(entityId.getNum())
                 .build();
     }
+
+    public static String toHex(final long value) {
+        return HEX_PREFIX + Long.toHexString(value);
+    }
+
+    public static String withHexPrefix(final String hex) {
+        if (hex == null) {
+            return null;
+        }
+        return hex.startsWith(HEX_PREFIX) ? hex : HEX_PREFIX + hex;
+    }
 }

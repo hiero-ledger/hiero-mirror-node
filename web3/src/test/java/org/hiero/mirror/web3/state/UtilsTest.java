@@ -196,4 +196,25 @@ class UtilsTest {
     void hexStringToLongRejectsOutOfRange(final String input) {
         assertThatThrownBy(() -> Utils.hexStringToLong(input)).isInstanceOf(NumberFormatException.class);
     }
+
+    @Test
+    void toHex() {
+        assertThat(Utils.toHex(0L)).isEqualTo("0x0");
+        assertThat(Utils.toHex(255L)).isEqualTo("0xff");
+    }
+
+    @Test
+    void withHexPrefixAddsPrefixWhenMissing() {
+        assertThat(Utils.withHexPrefix("ff")).isEqualTo("0xff");
+    }
+
+    @Test
+    void withHexPrefixLeavesExistingPrefixUnchanged() {
+        assertThat(Utils.withHexPrefix("0xff")).isEqualTo("0xff");
+    }
+
+    @Test
+    void withHexPrefixReturnsNullForNull() {
+        assertThat(Utils.withHexPrefix(null)).isNull();
+    }
 }

@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.controller;
 
+import static org.hiero.mirror.web3.ApiEndpointName.SIMULATE;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
@@ -13,11 +14,15 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
+import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
+import org.hiero.mirror.web3.service.ContractSimulateService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
+import org.hiero.mirror.web3.viewmodel.SimulateRequest;
+import org.hiero.mirror.web3.viewmodel.SimulateResponse;
 import org.hyperledger.besu.datatypes.Address;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,6 +38,7 @@ import org.springframework.web.server.ResponseStatusException;
 class ContractController {
 
     private final ContractExecutionService contractExecutionService;
+    private final ContractSimulateService contractSimulateService;
     private final EvmProperties evmProperties;
     private final Web3Properties web3Properties;
     private final ThrottleManager throttleManager;
@@ -101,6 +107,48 @@ class ContractController {
         if (request.getGas() > evmProperties.getMaxGasLimit()) {
             throw new InvalidParametersException(
                     "gas field must be less than or equal to %d".formatted(evmProperties.getMaxGasLimit()));
+        }
+    }
+
+    @PostMapping(value = "/simulate")
+    SimulateResponse simulate(@RequestBody @Valid SimulateRequest request) {
+        // Ordered before throttling: tokens consumed for a rejected request are never restored.
+        if (!web3Properties.getApi(SIMULATE).isEnabled()) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
+        }
+        if (hasStateOverrides(request) && !web3Properties.isEnableStateOverrides()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
+        }
+        for (final var blockCall : request.getBlockStateCalls()) {
+            blockCall.getCalls().forEach(this::validateContractMaxGasLimit);
+        }
+
+        throttleSimulateRequest(request);
+        return contractSimulateService.simulate(request);
+    }
+
+    private boolean hasStateOverrides(SimulateRequest request) {
+        for (final var blockCall : request.getBlockStateCalls()) {
+            if (!blockCall.getStateOverrides().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Each call is throttled like an eth_call. A rejected call restores the gas taken by the calls before it.
+    private void throttleSimulateRequest(SimulateRequest request) {
+        long throttledGas = 0L;
+        try {
+            for (final var blockCall : request.getBlockStateCalls()) {
+                for (final var call : blockCall.getCalls()) {
+                    throttleManager.throttle(call);
+                    throttledGas += call.getGas();
+                }
+            }
+        } catch (final ThrottleException e) {
+            throttleManager.restore(throttledGas);
+            throw e;
         }
     }
 }
