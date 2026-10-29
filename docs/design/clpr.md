@@ -119,20 +119,8 @@ separate ingestion path for CLPR:
      which actually changed (`ClprMaintenanceTransactions.perform` only includes a singleton if its value changed),
      so the mirror-node handler for it must check for each independently rather than assume a fixed shape.
 
-```mermaid
-flowchart TD
-    A["Consensus node (CLPR Service)"]
-    B["Block stream (TransactionResult/Output + StateChanges):<br/>clpr_channel_value, clpr_connector_value,<br/>clpr_message_value/_key, clpr_ledger_configuration_value,<br/>clpr_endpoint_manifest_value"]
-    C["Importer block-to-record transformation<br/>(ClprXxxTransformer reads StateChangeContext, populates new<br/>CLPR-specific fields on RecordItem — there is no existing<br/>TransactionRecord/sidecar slot for this data)"]
-    D["Importer TransactionHandlers<br/>(read the new RecordItem fields) + EntityListener"]
-    E["PostgreSQL:<br/>clpr_channel_pending_commitment/_history, clpr_channel/_history,<br/>clpr_connector_pending_commitment/_history, clpr_connector/_history,<br/>clpr_ledger_configuration, clpr_endpoint_manifest, clpr_message"]
-    F["rest-java (read APIs)"]
-
-    A --> B --> C --> D --> E --> F
-```
-
-This diagram covers the nine transaction-anchored cases (the eight in point 1, plus `ClprMaintenance`), plus
-`sendMessage` (point 5 above) once its `StateChangeContext` extension lands.
+This covers the nine transaction-anchored cases (the eight in point 1, plus `ClprMaintenance`), plus `sendMessage`
+(point 5 above) once its `StateChangeContext` extension lands.
 
 `ClprEndpointPublicationTransactionBody` (field 91) and the `ClprEndpointManifestConstruction` singleton are a
 separate, Hiero-internal concern (explicitly called out as "not part of the cross-ledger CLPR spec" in the proto
@@ -169,12 +157,7 @@ value, so the latest row is simply the one with the highest `consensus_timestamp
 needed. The **message queue** is likewise append-only (each `(channel_id, message_id)` is written once and never
 mutated), so it too is modeled as a single table, not a current/history pair.
 
-Table and column definitions are identical between the `v1` and `v2` (Citus) migrations. For every table except
-`clpr_channel_pending_commitment`/`clpr_connector_pending_commitment`, `clpr_ledger_configuration`, and
-`clpr_endpoint_manifest` (which all stay plain, undistributed tables in both profiles — see the relevant subsections
-below), the `v2` migration additionally runs the `create_distributed_table`
-calls shown at the end of each SQL block; `v1` does not. `clpr_message` also differs in how its partitions get
-created between profiles — see [Message Queue](#4-message-queue-append-only).
+Table and column definitions are identical between the `v1` and `v2` (Citus) migrations.
 
 `channel_id` isn't revealed until `ClprCompleteChannel`, so `clpr_channel` (keyed by `channel_id`) can't hold a row
 for the commit-only phase — `clpr_channel_pending_commitment`, keyed by `ownership_commitment`, covers it instead.
@@ -582,12 +565,6 @@ Channel query to the right partition, regardless of which other filter is also a
 ## Importer Module Changes
 
 ### 1. Domain Models
-
-New domain classes under `common/src/main/java/org/hiero/mirror/common/domain/clpr/`, following the existing
-`AbstractX` / `X` / `XHistory` pattern (`@Upsertable(history = true, skipPartialUpdate = true)` on the abstract
-base; see e.g. `AbstractHook`/`Hook`/`HookHistory`) for the four history-tracked entities, and the plain-`Persistable` pattern
-(see e.g. `NetworkStake`, `CryptoTransfer`) for the three that aren't. Each class below is followed by a field
-sources table showing how its fields relate to the real protos.
 
 #### AbstractClprChannelPendingCommitment.java
 
@@ -1158,9 +1135,7 @@ GET /api/v1/clpr/channels/{channelId}/messages
 
 `channelId` is required in the path, keeping the query shard-local via `channel_id` (`clpr_message` is hash-distributed
 by that column in `v2`); `connector.id` is an optional filter on top of it. When `connector.id` is supplied, only
-`DATA` messages can ever match, since Response and Control Messages both have `connector_id = null` (Response until
-the consensus-node change described in [Database Schema Design](#database-schema-design) lands; Control permanently,
-since it has no Connector association at all).
+`DATA` messages can ever match, since Response and Control Messages both have `connector_id = null`
 
 `timestamp` is required on every query: `clpr_message` is time-partitioned by `consensus_timestamp`, and neither
 `channel_id` nor `connector_id` is the partition column, so no other filter can prune partitions on its own (see
