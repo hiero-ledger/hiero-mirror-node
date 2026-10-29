@@ -17,6 +17,7 @@ import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
 import static org.hiero.mirror.web3.state.Utils.convertToInstant;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -46,11 +47,14 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
@@ -108,6 +112,9 @@ class TransactionExecutionServiceTest {
     private OpcodeActionTracer opcodeActionTracer;
 
     @Mock
+    private ActionTracer actionTracer;
+
+    @Mock
     private MirrorOperationActionTracer mirrorOperationActionTracer;
 
     @Mock
@@ -131,13 +138,14 @@ class TransactionExecutionServiceTest {
         evmProperties = new EvmProperties();
         transactionExecutionService = new TransactionExecutionService(
                 accountReadableKVState,
+                actionTracer,
                 aliasesReadableKVState,
                 commonProperties,
                 contractResultRepository,
                 contractTransactionHashRepository,
                 evmProperties,
-                opcodeActionTracer,
                 mirrorOperationActionTracer,
+                opcodeActionTracer,
                 systemEntity,
                 transactionExecutorFactory);
         when(transactionExecutorFactory.get()).thenReturn(transactionExecutor);
@@ -188,6 +196,80 @@ class TransactionExecutionServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.gasUsed()).isEqualTo(DEFAULT_GAS);
         assertThat(result.functionResult().errorMessage()).isNull();
+        verify(transactionExecutor)
+                .execute(any(TransactionBody.class), any(Instant.class), eq(new ActionSidecarContentTracer[] {
+                    opcodeActionTracer
+                }));
+    }
+
+    @Test
+    void testExecuteUsesActionTracerWhenActionContextPresent() {
+        // Given
+        ContractCallContext.get().setActionContext(new ActionContext());
+
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+
+        when(transactionReceipt.status()).thenReturn(SUCCESS);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+        when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
+        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, Address.ZERO);
+
+        // When
+        var result = transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.gasUsed()).isEqualTo(DEFAULT_GAS);
+        verify(transactionExecutor)
+                .execute(any(TransactionBody.class), any(Instant.class), eq(new ActionSidecarContentTracer[] {
+                    actionTracer
+                }));
+    }
+
+    @Test
+    void testExecuteUsesMirrorOperationTracerByDefault() {
+        // Given
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+
+        when(transactionReceipt.status()).thenReturn(SUCCESS);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+        when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
+        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, Address.ZERO);
+
+        // When
+        var result = transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.gasUsed()).isEqualTo(DEFAULT_GAS);
+        verify(transactionExecutor)
+                .execute(any(TransactionBody.class), any(Instant.class), eq(new ActionSidecarContentTracer[] {
+                    mirrorOperationActionTracer
+                }));
     }
 
     @Test
@@ -207,6 +289,46 @@ class TransactionExecutionServiceTest {
                 .build();
         ContractCallContext.get().setCallServiceParameters(params);
         ContractCallContext.get().setTimestamp(Optional.of(consensusNanos));
+
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+        when(transactionReceipt.status()).thenReturn(SUCCESS);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        final var consensusTime = ArgumentCaptor.forClass(Instant.class);
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), consensusTime.capture(), any(ActionSidecarContentTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+
+        transactionExecutionService.execute(params, DEFAULT_GAS);
+
+        assertThat(consensusTime.getValue()).isEqualTo(convertToInstant(consensusNanos));
+    }
+
+    @Test
+    void executeIgnoresBlockOverrideTimeForConsensusInstant() {
+        final var consensusNanos = 1_786_518_658_483_854_104L;
+        final var params = ContractExecutionParameters.builder()
+                .block(BlockType.of("39156482"))
+                .callData(new byte[0])
+                .callType(CallType.ETH_CALL)
+                .gas(DEFAULT_GAS)
+                .gasPrice(0L)
+                .isEstimate(false)
+                .isStatic(true)
+                .receiver(Address.fromHexString("0x1234"))
+                .sender(Address.ZERO)
+                .value(0)
+                .build();
+        final var ctx = ContractCallContext.get();
+        ctx.setCallServiceParameters(params);
+        ctx.setTimestamp(Optional.of(consensusNanos));
+        ctx.setBlockOverrideTimeNanos(consensusNanos + DomainUtils.NANOS_PER_SECOND * 30);
 
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
         var transactionRecord = mock(TransactionRecord.class);
@@ -447,6 +569,30 @@ class TransactionExecutionServiceTest {
         }
         // Validate no logs were produced
         assertThat(capturedOutput.getOut()).doesNotContain("childTransactionErrors");
+    }
+
+    @Test
+    void executeReturnsFailedResultWhenCollectingActionTrace() {
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+
+        when(transactionReceipt.status()).thenReturn(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(transactionRecord.contractCallResult()).thenReturn(contractFunctionResult);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+
+        ContractCallContext.get().setActionContext(new ActionContext());
+
+        var result =
+                transactionExecutionService.execute(buildServiceParams(false, HEX_PREFIX, Address.ZERO), DEFAULT_GAS);
+
+        assertThat(result).isNotNull();
+        assertThat(result.responseCodeEnum()).isEqualTo(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED);
     }
 
     @SuppressWarnings("unused")

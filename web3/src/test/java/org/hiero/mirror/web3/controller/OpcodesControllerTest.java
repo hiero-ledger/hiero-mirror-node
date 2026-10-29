@@ -406,6 +406,12 @@ class OpcodesControllerTest extends Web3IntegrationTest {
                 .isEqualTo(expectedCallServiceParameters.get().toBuilder().build());
     }
 
+    private void verifyTracerOptionsMatch(final OpcodeContext actual, final OpcodeContext expected) {
+        assertThat(actual.isStack()).isEqualTo(expected.isStack());
+        assertThat(actual.isMemory()).isEqualTo(expected.isMemory());
+        assertThat(actual.isStorage()).isEqualTo(expected.isStorage());
+    }
+
     @ParameterizedTest
     @EnumSource(TransactionProviderEnum.class)
     void callWithContractResultNotFoundExceptionTest(final TransactionProviderEnum providerEnum) throws Exception {

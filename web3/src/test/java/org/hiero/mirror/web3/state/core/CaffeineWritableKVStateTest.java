@@ -81,20 +81,38 @@ final class CaffeineWritableKVStateTest {
     @Test
     void commitFlushesWriteCacheToSharedStore() {
         subject.put(accountID, account);
+        assertThat(ContractCallContext.get().getWriteCacheState(AccountReadableKVState.STATE_ID))
+                .containsEntry(accountID, account);
 
         subject.commit();
 
         assertThat(sharedStore.getIfPresent(accountID)).isEqualTo(account);
+        assertThat(ContractCallContext.get().getWriteCacheState(AccountReadableKVState.STATE_ID))
+                .isEmpty();
     }
 
     @Test
     void commitFlushesRemovalAsTombstone() {
         sharedStore.put(accountID, account); // pre-existing
         subject.remove(accountID);
+        assertThat(ContractCallContext.get().getWriteCacheState(AccountReadableKVState.STATE_ID))
+                .containsEntry(accountID, null);
 
         subject.commit();
 
         assertThat(sharedStore.getIfPresent(accountID)).isSameAs(CaffeineWritableKVState.TOMBSTONE);
+    }
+
+    @Test
+    void resetDiscardsPendingWrites() {
+        subject.put(accountID, account);
+
+        subject.reset();
+
+        assertThat(subject.modifiedKeys()).isEmpty();
+        assertThat(ContractCallContext.get().getWriteCacheState(AccountReadableKVState.STATE_ID))
+                .isEmpty();
+        assertThat(sharedStore.getIfPresent(accountID)).isNull();
     }
 
     @Test

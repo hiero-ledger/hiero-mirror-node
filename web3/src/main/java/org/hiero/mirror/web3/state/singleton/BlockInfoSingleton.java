@@ -28,16 +28,18 @@ final class BlockInfoSingleton implements SingletonState<BlockInfo> {
 
     @Override
     public BlockInfo get() {
-        final var recordFile = ContractCallContext.get().getRecordFile();
-        final var startTimestamp = Utils.convertToTimestamp(recordFile.getConsensusStart());
-        final var endTimestamp = Utils.convertToTimestamp(recordFile.getConsensusEnd());
+        final var context = ContractCallContext.get();
+        final var recordFile = context.getRecordFile();
+        final var startTimestamp = Utils.convertToTimestamp(context.evmBlockTimeNanos(recordFile.getConsensusStart()));
+        final var endTimestamp = Utils.convertToTimestamp(context.evmBlockTimeNanos(recordFile.getConsensusEnd()));
 
         return BlockInfo.newBuilder()
                 .blockHashes(Bytes.EMPTY)
                 .consTimeOfLastHandledTxn(endTimestamp)
                 .firstConsTimeOfCurrentBlock(startTimestamp)
                 .firstConsTimeOfLastBlock(startTimestamp)
-                .lastBlockNumber(recordFile.getIndex() - 1) // Library internally increments last by one for current
+                .lastBlockNumber(context.evmBlockNumber(recordFile.getIndex())
+                        - 1) // Library internally increments last by one for current
                 .migrationRecordsStreamed(true)
                 .build();
     }

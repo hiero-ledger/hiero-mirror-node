@@ -65,4 +65,40 @@ class BlockStreamInfoSingletonTest {
                         .blockEndTime(blockEndTime)
                         .build());
     }
+
+    @Test
+    void getUsesBlockOverrideNumber() {
+        final var recordFile = domainBuilder.recordFile().get();
+        final var context = ContractCallContext.get();
+        context.setBlockSupplier(() -> recordFile);
+        context.setBlockOverrideNumber(99L);
+
+        final var blockTime = convertToTimestamp(recordFile.getConsensusStart());
+        final var blockEndTime = convertToTimestamp(recordFile.getConsensusEnd());
+        assertThat(blockStreamInfoSingleton.get())
+                .isEqualTo(BlockStreamInfo.newBuilder()
+                        .blockNumber(99L)
+                        .blockTime(blockTime)
+                        .lastHandleTime(blockEndTime)
+                        .blockEndTime(blockEndTime)
+                        .build());
+    }
+
+    @Test
+    void getUsesBlockOverrideTime() {
+        final var recordFile = domainBuilder.recordFile().get();
+        final var context = ContractCallContext.get();
+        context.setBlockSupplier(() -> recordFile);
+        final var timeNanos = 1_710_858_432_000_000_000L;
+        context.setBlockOverrideTimeNanos(timeNanos);
+
+        final var overrideTime = convertToTimestamp(timeNanos);
+        assertThat(blockStreamInfoSingleton.get())
+                .isEqualTo(BlockStreamInfo.newBuilder()
+                        .blockNumber(recordFile.getIndex())
+                        .blockTime(overrideTime)
+                        .lastHandleTime(overrideTime)
+                        .blockEndTime(overrideTime)
+                        .build());
+    }
 }
