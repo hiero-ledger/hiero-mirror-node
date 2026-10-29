@@ -86,9 +86,6 @@ public class TransactionExecutionService {
 
     public EvmTransactionResult execute(final CallServiceParameters params, final long estimatedGas) {
         final var isContractCreate = params.getReceiver().getBytes().isZero();
-        final var configuration = evmProperties.getVersionedConfiguration();
-        final var maxLifetime =
-                configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         final var executor = transactionExecutorFactory.get();
 
         final var consensusTime = getConsensusTimeFromContext();
@@ -100,6 +97,10 @@ public class TransactionExecutionService {
                 && debugParams.getEthereumData().length > 0) {
             transactionBody = buildEthereumTransactionBody(debugParams, consensusTime);
         } else if (isContractCreate) {
+            final var maxLifetime = evmProperties
+                    .getVersionedConfiguration()
+                    .getConfigData(EntitiesConfig.class)
+                    .maxLifetime();
             transactionBody = buildContractCreateTransactionBody(params, gas, maxLifetime, consensusTime);
         } else {
             transactionBody = buildContractCallTransactionBody(params, gas, consensusTime);
@@ -135,7 +136,7 @@ public class TransactionExecutionService {
     /**
      * Selects the result that best represents a hash shared by multiple results. A successful result always wins (the
      * query sorts it first). Otherwise the genuine execution is preferred over a pre-execution failure result sharing
-     * the hash by checking which candidates consumed gas (a non-null gas_consumed), falling back to the latest by
+     * the hash by checking which candidates consumed gas (a positive gas_consumed), falling back to the latest by
      * consensus timestamp (the query order).
      */
     public ContractTransactionHashLookup resolveContractTransactionHash(
@@ -203,9 +204,8 @@ public class TransactionExecutionService {
             // case.
             throw new MirrorEvmTransactionException(status, StringUtils.EMPTY, StringUtils.EMPTY);
         } else {
-            final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
-
             if (ContractCallContext.get().getOpcodeContext() == null) {
+                final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
                 var processingResult = new EvmTransactionResult(status, result);
 
                 final var errorMessageHex = processingResult.getErrorMessage().orElse(HEX_PREFIX);
@@ -292,7 +292,7 @@ public class TransactionExecutionService {
      *  the state, to bypass the nonce verification during transaction replay.
      */
     private void patchSenderNonce(final ContractDebugParameters params) {
-        if (params.getSender().getBytes().isZero() && params.getValue() == 0L || !ContractCallContext.isInitialized()) {
+        if (params.getSender().getBytes().isZero() && params.getValue() == 0L) {
             return;
         }
         final long nonce = populateEthTxData(params.getEthereumData()).nonce();
@@ -342,7 +342,7 @@ public class TransactionExecutionService {
 
     private AccountID getSenderAccountIDAsNum(final Address senderAddress) {
         AccountID accountIDNum;
-        if (senderAddress != null && !ConversionUtils.isLongZero(senderAddress)) {
+        if (!ConversionUtils.isLongZero(senderAddress)) {
             // If the address is an alias we need to first check if it exists and get the AccountID as a num.
             accountIDNum = aliasesReadableKVState.get(convertAddressToProtoBytes(senderAddress));
             if (accountIDNum == null) {
