@@ -20,7 +20,7 @@
     "jest": "30.5.2"
   },
   "engines": {
-    "node": ">=24.22.1 <25"
+    "node": ">=24.22.2 <25"
   },
   "homepage": "https://github.com/hiero-ledger/hiero-mirror-node/tree/main/tools/mirror-report",
   "jest": {
