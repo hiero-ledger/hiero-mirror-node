@@ -3,9 +3,12 @@
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.MultiGauge;
+import io.micrometer.core.instrument.Tags;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -23,7 +26,10 @@ import org.jspecify.annotations.Nullable;
 
 abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
 
-    private static final long MAX_CANDIDATE_LATENCY_AGE_MULTIPLIER = 3;
+    static final String LATENCY_METRIC_NAME = "hiero.mirror.importer.block.latency";
+
+    private static final Comparator<SortKey> SORT_KEY_COMPARATOR = Comparator.comparingDouble(SortKey::average)
+            .thenComparing(k -> k.node().getSubscribeStreamName());
 
     protected final LatencyService latencyService;
     protected final SchedulerProperties schedulerProperties;
@@ -32,8 +38,8 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
     protected final AtomicReference<@Nullable BlockNode> current = new AtomicReference<>();
     protected final AtomicLong lastScheduledTime = new AtomicLong(0);
 
-    private final long maxCandidateLatencyAgeMillis;
     private volatile long lastPostProcessingLatency;
+    private final MultiGauge latencyMetric;
 
     AbstractLatencyAwareScheduler(
             final BlockNodeDiscoveryService blockNodeDiscoveryService,
@@ -45,8 +51,10 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
         super(blockNodeDiscoveryService, channelBuilderProvider, meterRegistry, streamProperties);
         this.latencyService = latencyService;
         this.schedulerProperties = schedulerProperties;
-        this.maxCandidateLatencyAgeMillis =
-                latencyService.getFrequency().toMillis() * MAX_CANDIDATE_LATENCY_AGE_MULTIPLIER;
+        this.latencyMetric = MultiGauge.builder(LATENCY_METRIC_NAME)
+                .description("The exponential moving average of a block node's streaming latency")
+                .baseUnit("milliseconds")
+                .register(meterRegistry);
     }
 
     @Override
@@ -87,11 +95,12 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
         }
 
         final double average = latency.getAverage();
+        final long maxLatencyAgeMillis = latencyService.getMaxLatencyAgeMillis();
         final long threshold =
                 schedulerProperties.getRescheduleLatencyThreshold().toMillis();
         for (var candidate : candidates) {
             final var candidateLatency = candidate.getLatency();
-            if (!candidateLatency.isFresh(maxCandidateLatencyAgeMillis)) {
+            if (!candidateLatency.isFresh(maxLatencyAgeMillis)) {
                 // don't reschedule to a candidate based on a measurement that may no longer reflect its condition
                 continue;
             }
@@ -110,6 +119,36 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
 
     protected abstract Iterator<BlockNode> getNodeGroupIterator();
 
+    @Override
+    protected void onNodesChanged(final List<BlockNode> blockNodes) {
+        final var rows = new ArrayList<MultiGauge.Row<?>>(blockNodes.size());
+        for (final var node : blockNodes) {
+            rows.add(MultiGauge.Row.of(
+                    Tags.of("block_node", node.getEndpoint()),
+                    node,
+                    n -> n.getLatency().getMetricValue()));
+        }
+
+        latencyMetric.register(rows, true);
+    }
+
+    /**
+     * Sorts the block nodes by latency, treating a latency sample older than the freshness limit as unmeasured.
+     */
+    protected void sortByLatency(final List<BlockNode> blockNodes) {
+        // Snapshot the averages so a concurrent measurement can't break the sort
+        final long maxLatencyAgeMillis = latencyService.getMaxLatencyAgeMillis();
+        final var sorted = new ArrayList<SortKey>(blockNodes.size());
+        for (final var node : blockNodes) {
+            sorted.add(new SortKey(node, node.getLatency().getAverage(maxLatencyAgeMillis)));
+        }
+
+        sorted.sort(SORT_KEY_COMPARATOR);
+        for (int i = 0; i < sorted.size(); i++) {
+            blockNodes.set(i, sorted.get(i).node());
+        }
+    }
+
     private Collection<BlockNode> getCandidates() {
         final var iter = getNodeGroupIterator();
         final var active = current.get();
@@ -125,4 +164,6 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
 
         return Collections.unmodifiableCollection(candidates);
     }
+
+    private record SortKey(BlockNode node, double average) {}
 }

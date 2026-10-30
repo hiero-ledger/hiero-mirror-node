@@ -63,6 +63,7 @@ abstract class AbstractScheduler implements Scheduler {
     @Override
     public final void close() {
         getOrderedNodes().forEachRemaining(BlockNode::close);
+        onNodesChanged(List.of());
 
         executor.shutdown();
         try {
@@ -107,6 +108,11 @@ abstract class AbstractScheduler implements Scheduler {
     }
 
     protected abstract Iterator<BlockNode> getOrderedNodes();
+
+    /**
+     * Called after the set of block nodes changes, with an empty list when the scheduler closes.
+     */
+    protected void onNodesChanged(final List<BlockNode> blockNodes) {}
 
     protected abstract void setNodes(final List<BlockNode> blockNodes);
 
@@ -167,6 +173,7 @@ abstract class AbstractScheduler implements Scheduler {
         }
 
         setNodes(nodes);
+        onNodesChanged(nodes);
         existing.values().forEach(node -> executor.execute(node::close));
     }
 

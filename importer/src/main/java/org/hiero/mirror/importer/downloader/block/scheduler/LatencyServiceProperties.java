@@ -18,7 +18,7 @@ import org.springframework.validation.annotation.Validated;
 public final class LatencyServiceProperties {
 
     @Min(1)
-    private int backlog = 1;
+    private int backlog = 3;
 
     @DurationMin(seconds = 2)
     @NotNull

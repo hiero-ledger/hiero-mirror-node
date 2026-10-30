@@ -64,7 +64,9 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
             public boolean hasNext() {
                 if (nodeGroupIterator == null || !nodeGroupIterator.hasNext()) {
                     if (groupIter.hasNext()) {
-                        nodeGroupIterator = groupIter.next().sort().getIterator();
+                        final var group = groupIter.next();
+                        sortByLatency(group.getNodes());
+                        nodeGroupIterator = group.getIterator();
                     }
                 }
 
@@ -98,11 +100,6 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
         PriorityGroup(final int priority) {
             this.priority = priority;
             this.nodes = new ArrayList<>();
-        }
-
-        PriorityGroup sort() {
-            nodes.sort(BlockNode.LATENCY_COMPARATOR);
-            return this;
         }
 
         Iterator<BlockNode> getIterator() {

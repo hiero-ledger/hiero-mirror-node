@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.downloader.block.scheduler.AbstractLatencyAwareScheduler.LATENCY_METRIC_NAME;
 import static org.mockito.Mockito.doReturn;
 
 import com.asarkar.grpc.test.Resources;
@@ -81,12 +82,67 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
     }
 
     @Test
+    void getNodeSortsOldLatencyLast(final Resources resources) throws InterruptedException {
+        // given
+        final var blockNodeProperties = List.of(
+                runBlockNodeService(0, resources, withAllBlocks()), runBlockNodeService(0, resources, withAllBlocks()));
+        doReturn(blockNodeProperties).when(blockNodeDiscoveryService).getBlockNodes();
+        doReturn(50L).when(latencyService).getMaxLatencyAgeMillis();
+        scheduler = createScheduler();
+        final var scheduled = scheduler.getNode(0);
+        assertScheduledBlockNode(scheduled, 0L, blockNodeProperties.getFirst());
+
+        // when the candidate's lower latency sample becomes older than the max age
+        getLatencyCandidate().getLatency().record(10);
+        Thread.sleep(100);
+        setLatency(scheduled, 500);
+
+        // then
+        assertScheduledBlockNode(scheduler.getNode(1), 1L, blockNodeProperties.getFirst());
+    }
+
+    @Test
+    void latencyMetric(final Resources resources) {
+        // given
+        final var blockNodeProperties = List.of(
+                runBlockNodeService(0, resources, withAllBlocks()), runBlockNodeService(0, resources, withAllBlocks()));
+        doReturn(blockNodeProperties).when(blockNodeDiscoveryService).getBlockNodes();
+        scheduler = createScheduler();
+
+        // when
+        final var scheduled = scheduler.getNode(0);
+        setLatency(scheduled, 500);
+
+        // then
+        final var endpoint = scheduled.blockNode().getEndpoint();
+        assertThat(meterRegistry.find(LATENCY_METRIC_NAME).gauges()).hasSize(2);
+        assertThat(meterRegistry
+                        .get(LATENCY_METRIC_NAME)
+                        .tag("block_node", endpoint)
+                        .gauge()
+                        .value())
+                .isEqualTo(500.0);
+        assertThat(meterRegistry
+                        .get(LATENCY_METRIC_NAME)
+                        .tag("block_node", getLatencyCandidate().getEndpoint())
+                        .gauge()
+                        .value())
+                .isNaN();
+
+        // when
+        scheduler.close();
+
+        // then
+        assertThat(meterRegistry.find(LATENCY_METRIC_NAME).gauges()).isEmpty();
+    }
+
+    @Test
     void shouldRescheduleIgnoresStaleCandidateLatency(Resources resources) throws InterruptedException {
         // given two nodes in the same group
         final var blockNodeProperties = List.of(
                 runBlockNodeService(0, resources, withAllBlocks()), runBlockNodeService(0, resources, withAllBlocks()));
         doReturn(blockNodeProperties).when(blockNodeDiscoveryService).getBlockNodes();
-        doReturn(Duration.ofMillis(1)).when(latencyService).getFrequency();
+        doReturn(1L).when(latencyService).getMaxLatencyAgeMillis();
         scheduler = createScheduler(Duration.ZERO, Duration.ofMillis(10));
         final var scheduled = scheduler.getNode(0);
         assertScheduledBlockNode(scheduled, 0L, blockNodeProperties.getFirst());
@@ -105,7 +161,6 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
         final var blockNodeProperties = List.of(
                 runBlockNodeService(0, resources, withAllBlocks()), runBlockNodeService(0, resources, withAllBlocks()));
         doReturn(blockNodeProperties).when(blockNodeDiscoveryService).getBlockNodes();
-        doReturn(Duration.ofSeconds(10)).when(latencyService).getFrequency();
         scheduler = createScheduler(Duration.ZERO, Duration.ofMillis(10));
         final var scheduled = scheduler.getNode(0);
         assertScheduledBlockNode(scheduled, 0L, blockNodeProperties.getFirst());
