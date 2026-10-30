@@ -24,7 +24,7 @@ import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 
-public abstract class AbstractOpcodeTracer {
+public abstract class AbstractOpcodeTracer extends AbstractActionTracer {
 
     // Value taken by analyzing a heavy call output
     private static final int HEX_CACHE_MAX_SIZE = 1600;

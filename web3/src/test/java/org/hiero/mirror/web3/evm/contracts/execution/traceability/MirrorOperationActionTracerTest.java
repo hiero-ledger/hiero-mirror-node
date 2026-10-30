@@ -2,22 +2,35 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.INSUFFICIENT_GAS;
+import static com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils.CONFIG_CONTEXT_VARIABLE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.hedera.hapi.streams.ContractActionType;
+import com.hedera.node.app.spi.workflows.HandleException;
+import com.hedera.node.config.data.ContractsConfig;
+import com.swirlds.config.api.Configuration;
+import java.util.ArrayDeque;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.evm.Code;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.frame.MessageFrame.State;
 import org.hyperledger.besu.evm.frame.MessageFrame.Type;
@@ -48,6 +61,7 @@ class MirrorOperationActionTracerTest {
     private static final Operation operation = new BalanceOperation(null);
     private static final Bytes outputData = Bytes.of("outputData".getBytes());
     private static final Bytes returnData = Bytes.of("returnData".getBytes());
+    private static final Configuration CONFIGURATION = new EvmProperties().getVersionedConfiguration();
     private static MockedStatic<ContractCallContext> contextMockedStatic;
 
     @Spy
@@ -60,6 +74,9 @@ class MirrorOperationActionTracerTest {
 
     @Mock
     private MessageFrame messageFrame;
+
+    @Mock
+    private MessageFrame childFrame;
 
     @Mock
     private Entity recipientEntity;
@@ -84,6 +101,12 @@ class MirrorOperationActionTracerTest {
         traceProperties = new TraceProperties();
         mirrorOperationTracer = new MirrorOperationActionTracer(traceProperties, commonEntityAccessor);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
+        lenient().when(messageFrame.getState()).thenReturn(State.CODE_EXECUTING);
+        final var messageFrameStack = new ArrayDeque<>(List.of(childFrame));
+        lenient().when(messageFrame.getMessageFrameStack()).thenReturn(messageFrameStack);
+        lenient().when(childFrame.getMessageFrameStack()).thenReturn(messageFrameStack);
+        lenient().when(childFrame.getContextVariable(CONFIG_CONTEXT_VARIABLE)).thenReturn(CONFIGURATION);
+        lenient().when(childFrame.getInputData()).thenReturn(Bytes.EMPTY);
     }
 
     @Test
@@ -304,5 +327,76 @@ class MirrorOperationActionTracerTest {
 
         // Then
         verify(contractCallContext, never()).setBalanceCall(true);
+    }
+
+    @Test
+    void traceDataBytesCountsInputAndOutput() {
+        // Given
+        given(messageFrame.getInputData()).willReturn(Bytes.of(1, 2, 3, 4));
+        given(messageFrame.getOutputData()).willReturn(Bytes.wrap(new byte[32]));
+
+        // When
+        mirrorOperationTracer.traceOriginAction(messageFrame);
+        given(messageFrame.getState()).willReturn(State.COMPLETED_SUCCESS);
+        mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
+
+        // Then
+        assertThat(contractCallContext.getTraceDataBytes()).isEqualTo(40 + 4 + 32);
+    }
+
+    @Test
+    void traceDataBytesCountsChildCreationInitcode() {
+        // Given
+        final var code = mock(Code.class);
+        given(code.getSize()).willReturn(200);
+        given(childFrame.getType()).willReturn(Type.CONTRACT_CREATION);
+        given(childFrame.getDepth()).willReturn(1);
+        given(childFrame.getCode()).willReturn(code);
+        given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
+
+        // When
+        mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
+
+        // Then
+        assertThat(contractCallContext.getTraceDataBytes()).isEqualTo(40 + 200);
+    }
+
+    @Test
+    void traceDataBytesCountsPrecompileRevertReason() {
+        // Given
+        given(messageFrame.getState()).willReturn(State.REVERT);
+        given(messageFrame.getRevertReason()).willReturn(Optional.of(Bytes.of(1, 2, 3, 4)));
+
+        // When
+        mirrorOperationTracer.tracePrecompileResult(messageFrame, ContractActionType.PRECOMPILE);
+
+        // Then
+        assertThat(contractCallContext.getTraceDataBytes()).isEqualTo(4);
+    }
+
+    @Test
+    void traceDataBytesIgnoresHaltedPrecompileOutput() {
+        // Given
+        given(messageFrame.getState()).willReturn(State.EXCEPTIONAL_HALT);
+
+        // When
+        mirrorOperationTracer.tracePrecompileResult(messageFrame, ContractActionType.PRECOMPILE);
+
+        // Then
+        assertThat(contractCallContext.getTraceDataBytes()).isZero();
+    }
+
+    @Test
+    void traceDataExceedingLimitFailsWithInsufficientGas() {
+        // Given
+        final var maxSerializedTraceDataBytes =
+                CONFIGURATION.getConfigData(ContractsConfig.class).maxSerializedTraceDataBytes();
+        given(messageFrame.getState()).willReturn(State.COMPLETED_SUCCESS);
+        given(messageFrame.getOutputData()).willReturn(Bytes.wrap(new byte[maxSerializedTraceDataBytes + 1]));
+
+        // When / Then
+        assertThatThrownBy(() -> mirrorOperationTracer.tracePostExecution(messageFrame, operationResult))
+                .isInstanceOfSatisfying(
+                        HandleException.class, e -> assertThat(e.getStatus()).isEqualTo(INSUFFICIENT_GAS));
     }
 }

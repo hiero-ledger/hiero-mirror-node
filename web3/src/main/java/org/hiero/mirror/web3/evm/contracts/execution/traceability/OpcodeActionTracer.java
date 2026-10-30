@@ -2,12 +2,7 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
-
-import com.hedera.hapi.streams.CallOperationType;
-import com.hedera.hapi.streams.ContractAction;
 import com.hedera.hapi.streams.ContractActionType;
-import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
 import jakarta.inject.Named;
 import java.util.Collections;
@@ -21,38 +16,23 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
-import org.hyperledger.besu.evm.operation.Operation;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 @Named
 @CustomLog
-public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSidecarContentTracer {
+public class OpcodeActionTracer extends AbstractOpcodeTracer {
 
     @Getter
     private final Map<Address, HederaSystemContract> systemContracts = new ConcurrentHashMap<>();
 
     @Override
-    public void tracePreExecution(@NonNull final MessageFrame frame) {
-        if (frame.getCurrentOperation() != null
-                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
-            ContractCallContext.get().setBalanceCall(true);
-        }
-    }
-
-    @Override
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
+        super.tracePostExecution(frame, operationResult);
+
         final var context = ContractCallContext.get();
-
-        // Reset the balance call flag after BALANCE opcode completes
-        if (frame.getCurrentOperation() != null
-                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
-            context.setBalanceCall(false);
-        }
-
         final var options = context.getOpcodeContext();
 
         // Once the recorded-opcode cap is reached, subsequent opcodes are dropped, so skip the (potentially expensive)
@@ -71,21 +51,6 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
         final var revertReasonBytes = frame.getRevertReason().orElse(null);
         final var reason = revertReasonBytes != null ? revertReasonBytes.toHexString() : null;
         options.addOpcodes(createOpcode(frame, operationResult.getGasCost(), reason, stack, memory, storage));
-    }
-
-    @Override
-    public void tracePerOpcode(MessageFrame frame, long gas, ExceptionalHaltReason halt, Operation op) {
-        // NO-OP
-    }
-
-    @Override
-    public void traceSuspended(MessageFrame parent, MessageFrame child, CallOperationType opCall) {
-        // NO-OP
-    }
-
-    @Override
-    public void traceNotExecuting(MessageFrame child) {
-        // NO-OP
     }
 
     @Override
@@ -110,17 +75,16 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
 
     @Override
     public void traceOriginAction(@NonNull MessageFrame frame) {
+        super.traceOriginAction(frame);
+
         // Setting the initial remaining gas on the start of the initial parent frame
         ContractCallContext.get().getOpcodeContext().setGasRemaining(frame.getRemainingGas());
     }
 
     @Override
-    public void sanitizeTracedActions(@NonNull MessageFrame frame) {
-        // NO-OP
-    }
-
-    @Override
     public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
+        super.tracePrecompileResult(frame, type);
+
         final var context = ContractCallContext.get();
         final var gasCost = context.getOpcodeContext().getGasRemaining() - frame.getRemainingGas();
 
@@ -173,10 +137,5 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
             final MessageFrame frame, final Map<Address, HederaSystemContract> systemContracts) {
         final var recipientAddress = frame.getRecipientAddress();
         return systemContracts.containsKey(recipientAddress);
-    }
-
-    @Override
-    public List<ContractAction> contractActions() {
-        return List.of();
     }
 }
