@@ -10,7 +10,7 @@ dependencies:
     version: 17.0.21
   - name: loki
     condition: loki.enabled
-    version: 6.29.0
+    version: 7.5.0
     repository: https://grafana.github.io/helm-charts
   - condition: prometheus-adapter.enabled
     name: prometheus-adapter
@@ -23,7 +23,7 @@ dependencies:
     version: 70.4.2
   - name: promtail
     condition: promtail.enabled
-    version: 6.16.6
+    version: 6.17.1
     repository: oci://ghcr.io/grafana/helm-charts
   - alias: stackgres
     condition: stackgres.enabled
