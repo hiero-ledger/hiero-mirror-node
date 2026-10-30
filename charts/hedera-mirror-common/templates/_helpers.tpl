@@ -70,3 +70,44 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Validate the ZFS disk performance values and render them as JSON for zfs-manager
+*/}}
+{{- define "hedera-mirror-common.zfsDiskPerformance" -}}
+{{- $disk := .Values.zfs.init.disk -}}
+{{- if not (or (kindIs "invalid" $disk.nodes) (kindIs "map" $disk.nodes)) -}}
+{{- fail "zfs.init.disk.nodes must be a map of node ID to performance values" -}}
+{{- end -}}
+{{- $nodes := $disk.nodes | default dict -}}
+{{- $entries := dict "coordinator" $disk.coordinator "worker" $disk.worker -}}
+{{- range $nodeId, $values := $nodes -}}
+{{- $_ := set $entries (printf "nodes.%s" $nodeId) $values -}}
+{{- end -}}
+{{- range $name, $values := $entries -}}
+{{- if not (or (kindIs "invalid" $values) (kindIs "map" $values)) -}}
+{{- fail (printf "zfs.init.disk.%s must be a map of performance values" $name) -}}
+{{- end -}}
+{{- range $field := list "provisionedIops" "provisionedThroughput" -}}
+{{- $raw := get ($values | default dict) $field -}}
+{{- $value := "" -}}
+{{- if kindIs "string" $raw -}}
+{{- $value = $raw -}}
+{{- else if or (kindIs "float64" $raw) (kindIs "int64" $raw) (kindIs "int" $raw) -}}
+{{- $value = printf "%d" (int64 $raw) -}}
+{{- if ne (float64 $raw) (float64 (int64 $raw)) -}}
+{{- $value = "invalid" -}}
+{{- end -}}
+{{- else if not (kindIs "invalid" $raw) -}}
+{{- $value = "invalid" -}}
+{{- end -}}
+{{- if and $value (not (regexMatch "^[1-9][0-9]*$" $value)) -}}
+{{- fail (printf "zfs.init.disk.%s.%s must be empty or a positive whole number" $name $field) -}}
+{{- end -}}
+{{- if and $value (ne $disk.type "hyperdisk-balanced") -}}
+{{- fail (printf "zfs.init.disk.%s.%s is only supported for disk type hyperdisk-balanced" $name $field) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- pick $disk "coordinator" "nodes" "worker" | toJson -}}
+{{- end -}}
