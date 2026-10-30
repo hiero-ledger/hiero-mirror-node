@@ -3,25 +3,16 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
-import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
-import static org.hyperledger.besu.evm.frame.MessageFrame.Type.CONTRACT_CREATION;
 
-import com.hedera.hapi.streams.CallOperationType;
-import com.hedera.hapi.streams.ContractAction;
-import com.hedera.hapi.streams.ContractActionType;
-import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import jakarta.inject.Named;
-import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
-import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
 import org.jspecify.annotations.NonNull;
@@ -29,36 +20,15 @@ import org.jspecify.annotations.NonNull;
 @Named
 @CustomLog
 @RequiredArgsConstructor
-public class MirrorOperationActionTracer implements ActionSidecarContentTracer {
-
-    // Measured serialized overhead of one contract action
-    private static final int ACTION_BYTES = 40;
+public class MirrorOperationActionTracer extends AbstractActionTracer {
 
     private final TraceProperties traceProperties;
     private final CommonEntityAccessor commonEntityAccessor;
 
     @Override
-    public void tracePreExecution(final @NonNull MessageFrame frame) {
-        if (frame.getCurrentOperation() != null
-                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
-            ContractCallContext.get().setBalanceCall(true);
-        }
-    }
-
-    @Override
     public void tracePostExecution(
             final @NonNull MessageFrame frame, final Operation.@NonNull OperationResult operationResult) {
-        switch (frame.getState()) {
-            case CODE_EXECUTING -> {}
-            case CODE_SUSPENDED -> addActionInput(frame.getMessageFrameStack().peek());
-            default -> addActionResult(frame);
-        }
-
-        // Reset the balance call flag after BALANCE opcode completes
-        if (frame.getCurrentOperation() != null
-                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
-            ContractCallContext.get().setBalanceCall(false);
-        }
+        super.tracePostExecution(frame, operationResult);
 
         if (!traceProperties.isEnabled()) {
             return;
@@ -96,66 +66,5 @@ public class MirrorOperationActionTracer implements ActionSidecarContentTracer {
                 frame.getInputData().toShortHexString(),
                 frame.getOutputData().toShortHexString(),
                 frame.getReturnData().toShortHexString());
-    }
-
-    @Override
-    public void tracePerOpcode(MessageFrame frame, long gas, ExceptionalHaltReason halt, Operation op) {
-        // NO-OP
-    }
-
-    @Override
-    public void traceSuspended(MessageFrame parent, MessageFrame child, CallOperationType opCall) {
-        // NO-OP
-    }
-
-    @Override
-    public void traceNotExecuting(MessageFrame child) {
-        // NO-OP
-    }
-
-    @Override
-    public void traceOriginAction(@NonNull MessageFrame frame) {
-        addActionInput(frame);
-    }
-
-    @Override
-    public void sanitizeTracedActions(@NonNull MessageFrame frame) {
-        // NO-OP
-    }
-
-    @Override
-    public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
-        addActionResult(frame);
-    }
-
-    @Override
-    public List<ContractAction> contractActions() {
-        return List.of();
-    }
-
-    // A child creation also externalizes its initcode as bytecode
-    private static void addActionInput(final MessageFrame frame) {
-        final var initcodeBytes = frame.getType() == CONTRACT_CREATION && frame.getDepth() > 0
-                ? frame.getCode().getSize()
-                : 0;
-        addTraceDataBytes(ACTION_BYTES + frame.getInputData().size() + initcodeBytes);
-    }
-
-    // A halted frame externalizes only its halt reason and may have no output
-    private static void addActionResult(final MessageFrame frame) {
-        addTraceDataBytes(
-                switch (frame.getState()) {
-                    case REVERT ->
-                        frame.getRevertReason()
-                                .map(org.apache.tuweni.bytes.Bytes::size)
-                                .orElse(0);
-                    case EXCEPTIONAL_HALT, COMPLETED_FAILED -> 0;
-                    default -> frame.getOutputData().size();
-                });
-    }
-
-    private static void addTraceDataBytes(final long bytes) {
-        final var context = ContractCallContext.get();
-        context.setTraceDataBytes(context.getTraceDataBytes() + bytes);
     }
 }

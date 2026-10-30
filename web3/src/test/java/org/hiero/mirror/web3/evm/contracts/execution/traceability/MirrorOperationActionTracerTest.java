@@ -2,7 +2,10 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.INSUFFICIENT_GAS;
+import static com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils.CONFIG_CONTEXT_VARIABLE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
@@ -13,6 +16,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.hedera.hapi.streams.ContractActionType;
+import com.hedera.node.app.spi.workflows.HandleException;
+import com.hedera.node.config.data.ContractsConfig;
+import com.swirlds.config.api.Configuration;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +26,7 @@ import java.util.Set;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hyperledger.besu.datatypes.Address;
@@ -54,6 +61,7 @@ class MirrorOperationActionTracerTest {
     private static final Operation operation = new BalanceOperation(null);
     private static final Bytes outputData = Bytes.of("outputData".getBytes());
     private static final Bytes returnData = Bytes.of("returnData".getBytes());
+    private static final Configuration CONFIGURATION = new EvmProperties().getVersionedConfiguration();
     private static MockedStatic<ContractCallContext> contextMockedStatic;
 
     @Spy
@@ -94,7 +102,10 @@ class MirrorOperationActionTracerTest {
         mirrorOperationTracer = new MirrorOperationActionTracer(traceProperties, commonEntityAccessor);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
         lenient().when(messageFrame.getState()).thenReturn(State.CODE_EXECUTING);
-        lenient().when(messageFrame.getMessageFrameStack()).thenReturn(new ArrayDeque<>(List.of(childFrame)));
+        final var messageFrameStack = new ArrayDeque<>(List.of(childFrame));
+        lenient().when(messageFrame.getMessageFrameStack()).thenReturn(messageFrameStack);
+        lenient().when(childFrame.getMessageFrameStack()).thenReturn(messageFrameStack);
+        lenient().when(childFrame.getContextVariable(CONFIG_CONTEXT_VARIABLE)).thenReturn(CONFIGURATION);
         lenient().when(childFrame.getInputData()).thenReturn(Bytes.EMPTY);
     }
 
@@ -373,5 +384,19 @@ class MirrorOperationActionTracerTest {
 
         // Then
         assertThat(contractCallContext.getTraceDataBytes()).isZero();
+    }
+
+    @Test
+    void traceDataExceedingLimitFailsWithInsufficientGas() {
+        // Given
+        final var maxSerializedTraceDataBytes =
+                CONFIGURATION.getConfigData(ContractsConfig.class).maxSerializedTraceDataBytes();
+        given(messageFrame.getState()).willReturn(State.COMPLETED_SUCCESS);
+        given(messageFrame.getOutputData()).willReturn(Bytes.wrap(new byte[maxSerializedTraceDataBytes + 1]));
+
+        // When / Then
+        assertThatThrownBy(() -> mirrorOperationTracer.tracePostExecution(messageFrame, operationResult))
+                .isInstanceOfSatisfying(
+                        HandleException.class, e -> assertThat(e.getStatus()).isEqualTo(INSUFFICIENT_GAS));
     }
 }

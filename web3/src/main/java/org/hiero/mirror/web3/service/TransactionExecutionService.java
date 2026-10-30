@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.service;
 
-import static com.hedera.hapi.node.base.ResponseCodeEnum.INSUFFICIENT_GAS;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.REVERTED_SUCCESS;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
@@ -28,7 +27,6 @@ import com.hedera.hapi.node.transaction.TransactionRecord;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.state.SingleTransactionRecord;
-import com.hedera.node.config.data.ContractsConfig;
 import com.hedera.node.config.data.EntitiesConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
@@ -106,27 +104,12 @@ public class TransactionExecutionService {
             transactionBody = buildContractCallTransactionBody(params, gas, consensusTime);
         }
 
-        final var context = ContractCallContext.get();
-        context.setTraceDataBytes(0);
         final var singleTransactionRecords = executor.execute(transactionBody, consensusTime, getOperationTracers());
-        final var maxSerializedTraceDataBytes = evmProperties
-                .getVersionedConfiguration()
-                .getConfigData(ContractsConfig.class)
-                .maxSerializedTraceDataBytes();
-        final var parentTransactionRecord = singleTransactionRecords.getFirst().transactionRecord();
-        // The consensus node fails the call with INSUFFICIENT_GAS when its trace data exceeds the limit
-        if (context.getTraceDataBytes() > maxSerializedTraceDataBytes) {
-            if (context.getOpcodeContext() == null) {
-                throw new MirrorEvmTransactionException(INSUFFICIENT_GAS, StringUtils.EMPTY, HEX_PREFIX);
-            }
-            // Keep the call details like the consensus node does, so the opcodes are still returned
-            final var functionResult = isContractCreate
-                    ? parentTransactionRecord.contractCreateResult()
-                    : parentTransactionRecord.contractCallResult();
-            return new EvmTransactionResult(INSUFFICIENT_GAS, functionResult);
-        }
-        final var parentTransactionStatus =
-                parentTransactionRecord.receiptOrThrow().status();
+        final var parentTransactionStatus = singleTransactionRecords
+                .getFirst()
+                .transactionRecord()
+                .receiptOrThrow()
+                .status();
         if (parentTransactionStatus == SUCCESS) {
             result = buildSuccessResult(isContractCreate, singleTransactionRecords);
         } else {
@@ -370,7 +353,7 @@ public class TransactionExecutionService {
 
     private ActionSidecarContentTracer[] getOperationTracers() {
         return ContractCallContext.get().getOpcodeContext() != null
-                ? new ActionSidecarContentTracer[] {opcodeActionTracer, mirrorOperationActionTracer}
+                ? new ActionSidecarContentTracer[] {opcodeActionTracer}
                 : new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
     }
 
