@@ -6,12 +6,11 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -32,7 +31,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 /**
  * A latency service to measure a selection of block nodes' streaming latency in background. Each run streams a block
- * from up to backlog + 1 nodes with the oldest latency samples, and checks the block status of the other nodes.
+ * from up to backlog + 1 due nodes with the oldest latency samples.
  */
 @CustomLog
 @Named
@@ -41,7 +40,8 @@ public final class LatencyService implements AutoCloseable {
 
     static final String PROBE_FAILURE_METRIC_NAME = "hiero.mirror.importer.block.latency.probe.failure";
 
-    private static final int MAX_BACKOFF_EXPONENT = 3;
+    private static final Comparator<DueTask> DUE_TASK_COMPARATOR =
+            Comparator.comparingLong(DueTask::lastMeasuredMillis);
     private static final long MIN_FRESHNESS_RUNS = 3;
     private static final int NOT_AVAILABLE_STALE_THRESHOLD = 3;
     private static final int STREAM_FAILURE_STALE_THRESHOLD = 2;
@@ -76,22 +76,24 @@ public final class LatencyService implements AutoCloseable {
 
         // Snapshot the sample times so a concurrent measurement can't break the sort
         final long now = System.currentTimeMillis();
-        final var due = new ArrayList<DueTask>(current.size());
+        final var dueTasks = new ArrayList<DueTask>(current.size());
         for (final var task : current) {
             if (task.isDue(now)) {
-                due.add(new DueTask(task, task.node.getLatency().getLastMeasuredMillis()));
+                dueTasks.add(new DueTask(task, task.node.getLatency().getLastMeasuredMillis()));
             }
         }
 
-        due.sort(Comparator.comparingLong(DueTask::lastMeasuredMillis));
+        dueTasks.sort(DUE_TASK_COMPARATOR);
 
         int budget = latencyServiceProperties.getBacklog() + 1;
-        for (final var dueTask : due) {
+        for (final var dueTask : dueTasks) {
             final var task = dueTask.task();
-            if (budget > 0 && task.lastMeasuredBlockNumber != nextBlockNumber && task.submitProbe()) {
+            if (task.lastMeasuredBlockNumber != nextBlockNumber && task.submitProbe()) {
                 budget--;
-            } else {
-                task.checkStatus(nextBlockNumber);
+            }
+
+            if (budget == 0) {
+                break;
             }
         }
     }
@@ -130,34 +132,31 @@ public final class LatencyService implements AutoCloseable {
             existing.put(task.node, task);
         }
 
+        final long baseDelay = latencyServiceProperties.getFrequency().toMillis();
+        final long maxDelay = latencyServiceProperties.getMaxBackoff().toMillis();
         final var next = new ArrayList<Task>(nodes.size());
         for (final var node : nodes) {
             final var task = existing.remove(node);
-            next.add(task != null ? task : new Task(node));
+            next.add(task != null ? task : new Task(baseDelay, maxDelay, node));
         }
 
-        tasks = List.copyOf(next);
+        tasks = Collections.unmodifiableList(next);
         existing.values().forEach(Task::cancel);
     }
 
     private ThreadPoolExecutor createExecutor() {
-        // a single-thread threadpool executor with a blocking queue to holding the backlog, to schedule 1 running
-        // + backlog pending scheduled tasks
+        // a single-thread threadpool executor with a blocking backlog queue, to schedule 1 running + backlog pending
+        // scheduled tasks
         return new ThreadPoolExecutor(
                 1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(latencyServiceProperties.getBacklog()));
     }
 
     private enum Outcome {
-        AVAILABLE,
         MEASURED,
         NOT_AVAILABLE,
         STREAM_FAILURE,
         STREAM_TIMEOUT,
-        UNREACHABLE;
-
-        boolean isFailure() {
-            return this != AVAILABLE && this != MEASURED;
-        }
+        UNREACHABLE
     }
 
     private record DueTask(Task task, long lastMeasuredMillis) {}
@@ -165,11 +164,13 @@ public final class LatencyService implements AutoCloseable {
     @RequiredArgsConstructor
     private final class Task {
 
+        private final long baseDelay;
+        private final long maxDelay;
         private final BlockNode node;
 
+        private long backoffDelay;
         private volatile boolean busy;
         private volatile boolean cancelled;
-        private int consecutiveFailures;
         private volatile @Nullable Future<?> future;
         private volatile long lastMeasuredBlockNumber = -1;
         private volatile long nextProbeMillis;
@@ -185,13 +186,8 @@ public final class LatencyService implements AutoCloseable {
             }
         }
 
-        void checkStatus(final long blockNumber) {
-            busy = true;
-            node.getBlockStatus(blockNumber).thenAccept(status -> onOutcome(toOutcome(status), null));
-        }
-
         synchronized boolean isBackingOff() {
-            return consecutiveFailures > 1;
+            return backoffDelay > baseDelay;
         }
 
         boolean isDue(final long now) {
@@ -210,9 +206,8 @@ public final class LatencyService implements AutoCloseable {
         }
 
         private void backoff() {
-            final int exponent = Math.min(consecutiveFailures++, MAX_BACKOFF_EXPONENT);
-            final long delay = latencyServiceProperties.getFrequency().toMillis() << exponent;
-            nextProbeMillis = System.currentTimeMillis() + delay;
+            backoffDelay = backoffDelay == 0 ? baseDelay : Math.min(backoffDelay * 2, maxDelay);
+            nextProbeMillis = System.currentTimeMillis() + backoffDelay;
         }
 
         private void markStale(final Outcome outcome, @Nullable final Throwable cause) {
@@ -229,30 +224,22 @@ public final class LatencyService implements AutoCloseable {
         }
 
         private synchronized void onOutcome(final Outcome outcome, @Nullable final Throwable cause) {
-            busy = false;
             if (cancelled) {
                 return;
             }
 
             switch (outcome) {
-                case AVAILABLE -> {
-                    notAvailable = 0;
-                    // A status check can't prove a failed stream works again, only a measurement can
-                    if (streamFailures == 0) {
-                        consecutiveFailures = 0;
-                        nextProbeMillis = 0;
-                    }
-                }
                 case MEASURED -> {
                     if (stale) {
                         log.info("Measured latency of {} again after it was marked stale", node);
                         stale = false;
                     }
 
-                    consecutiveFailures = 0;
+                    backoffDelay = 0;
                     nextProbeMillis = 0;
                     notAvailable = 0;
                     streamFailures = 0;
+                    return;
                 }
                 case NOT_AVAILABLE -> {
                     if (++notAvailable >= NOT_AVAILABLE_STALE_THRESHOLD) {
@@ -276,17 +263,15 @@ public final class LatencyService implements AutoCloseable {
                 }
             }
 
-            if (outcome.isFailure()) {
-                log.debug("Latency probe of {} failed with {}", node, outcome, cause);
-                meterRegistry
-                        .counter(
-                                PROBE_FAILURE_METRIC_NAME,
-                                "block_node",
-                                node.getEndpoint(),
-                                "kind",
-                                outcome.name().toLowerCase(Locale.ROOT))
-                        .increment();
-            }
+            log.debug("Latency probe of {} failed with {}", node, outcome, cause);
+            meterRegistry
+                    .counter(
+                            PROBE_FAILURE_METRIC_NAME,
+                            "block_node",
+                            node.getStatusEndpoint(),
+                            "kind",
+                            outcome.name().toLowerCase())
+                    .increment();
         }
 
         private void probe() {
@@ -297,9 +282,9 @@ public final class LatencyService implements AutoCloseable {
                     return;
                 }
 
-                final var status = node.getBlockStatus(nextBlockNumber).get();
+                final var status = node.getBlockStatus(nextBlockNumber);
                 if (status != BlockStatus.AVAILABLE) {
-                    onOutcome(toOutcome(status), null);
+                    onOutcome(status == BlockStatus.UNREACHABLE ? Outcome.UNREACHABLE : Outcome.NOT_AVAILABLE, null);
                     return;
                 }
 
@@ -307,26 +292,16 @@ public final class LatencyService implements AutoCloseable {
                 node.probeBlock(nextBlockNumber, this::measureLatency, latencyServiceProperties.getTimeout());
                 lastMeasuredBlockNumber = nextBlockNumber;
                 onOutcome(Outcome.MEASURED, null);
-            } catch (final InterruptedException _) {
-                Thread.currentThread().interrupt();
             } catch (final BlockStreamException ex) {
                 // The node reported it has the block but failed to actually stream it
                 final var outcome =
                         ex.getCause() instanceof TimeoutException ? Outcome.STREAM_TIMEOUT : Outcome.STREAM_FAILURE;
                 onOutcome(outcome, ex);
-            } catch (final ExecutionException | RuntimeException ex) {
-                log.warn("Failed to measure latency of {}", node, ex);
+            } catch (final RuntimeException ex) {
+                log.debug("Failed to measure latency of {}", node, ex);
             } finally {
                 busy = false;
             }
-        }
-
-        private static Outcome toOutcome(final BlockStatus status) {
-            return switch (status) {
-                case AVAILABLE -> Outcome.AVAILABLE;
-                case NOT_AVAILABLE -> Outcome.NOT_AVAILABLE;
-                case UNREACHABLE -> Outcome.UNREACHABLE;
-            };
         }
     }
 }

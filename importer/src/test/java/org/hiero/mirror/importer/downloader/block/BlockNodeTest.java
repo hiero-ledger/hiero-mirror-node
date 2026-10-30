@@ -287,6 +287,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
         // when, then
         assertThat(node.getBlockOrEarliest(50)).isEmpty();
+        assertThat(node.isActive()).isFalse();
     }
 
     @ParameterizedTest
@@ -301,7 +302,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockNodeService(resources, () -> serverStatusDetailResponse(20, 100));
 
         // when, then
-        assertThat(node.getBlockStatus(blockNumber)).succeedsWithin(TIMEOUT).isEqualTo(expected);
+        assertThat(node.getBlockStatus(blockNumber)).isEqualTo(expected);
     }
 
     @Test
@@ -310,7 +311,8 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockNodeService(resources, List.of(new StatusException(Status.UNAVAILABLE)));
 
         // when, then
-        assertThat(node.getBlockStatus(50)).succeedsWithin(TIMEOUT).isEqualTo(BlockNode.BlockStatus.UNREACHABLE);
+        assertThat(node.getBlockStatus(50)).isEqualTo(BlockNode.BlockStatus.UNREACHABLE);
+        assertThat(node.isActive()).isTrue();
     }
 
     @Test
@@ -327,7 +329,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         });
 
         // when, then
-        assertThat(node.getBlockStatus(50)).succeedsWithin(TIMEOUT).isEqualTo(BlockNode.BlockStatus.UNREACHABLE);
+        assertThat(node.getBlockStatus(50)).isEqualTo(BlockNode.BlockStatus.UNREACHABLE);
     }
 
     @Test
@@ -609,6 +611,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, Duration.ofMillis(100)))
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(TimeoutException.class);
+        assertThat(node.isActive()).isTrue();
         latch.countDown();
     }
 

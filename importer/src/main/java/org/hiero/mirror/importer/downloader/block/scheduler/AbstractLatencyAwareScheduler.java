@@ -117,14 +117,18 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
         return false;
     }
 
+    protected abstract void doSetNodes(final List<BlockNode> blockNodes);
+
     protected abstract Iterator<BlockNode> getNodeGroupIterator();
 
     @Override
-    protected void onNodesChanged(final List<BlockNode> blockNodes) {
+    protected final void setNodes(final List<BlockNode> blockNodes) {
+        doSetNodes(blockNodes);
+
         final var rows = new ArrayList<MultiGauge.Row<?>>(blockNodes.size());
         for (final var node : blockNodes) {
             rows.add(MultiGauge.Row.of(
-                    Tags.of("block_node", node.getEndpoint()),
+                    Tags.of("block_node", node.getStatusEndpoint()),
                     node,
                     n -> n.getLatency().getMetricValue()));
         }

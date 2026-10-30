@@ -21,10 +21,9 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.awaitility.core.ThrowingRunnable;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.BlockNode.BlockStatus;
@@ -77,12 +76,15 @@ final class LatencyServiceTest {
         await().atMost(WAIT).untilAsserted(() -> verify(blockNode).probeBlock(anyLong(), any(), any()));
         verify(blockNode).getBlockStatus(0L);
 
-        // when schedule again, then the already measured block isn't streamed, only the status is checked
-        await().atMost(WAIT).untilAsserted(() -> {
-            latencyService.schedule();
-            verify(blockNode, times(2)).getBlockStatus(0L);
-        });
-        verify(blockNode).probeBlock(anyLong(), any(), any());
+        // when scheduled again, then the already measured block isn't probed again
+        await().during(Duration.ofMillis(200))
+                .atMost(WAIT)
+                .pollInterval(Duration.ofMillis(10))
+                .untilAsserted(() -> {
+                    latencyService.schedule();
+                    verify(blockNode).getBlockStatus(anyLong());
+                    verify(blockNode).probeBlock(anyLong(), any(), any());
+                });
 
         // when next block advances
         doReturn(1L).when(cutoverService).getNextBlockNumber();
@@ -108,17 +110,17 @@ final class LatencyServiceTest {
         latencyService.setNodes(nodes);
         latencyService.schedule();
 
-        // then the two with the oldest samples stream a block, and the others only check the block status
-        for (final var node : nodes) {
-            await().atMost(WAIT).untilAsserted(() -> verify(node).getBlockStatus(1L));
-        }
-
+        // then the two with the oldest samples stream a block, and the others aren't called
         await().atMost(WAIT).untilAsserted(() -> {
             verify(nodes.get(3)).probeBlock(anyLong(), any(), any());
             verify(nodes.get(2)).probeBlock(anyLong(), any(), any());
         });
-        verify(nodes.get(1), never()).probeBlock(anyLong(), any(), any());
-        verify(nodes.get(0), never()).probeBlock(anyLong(), any(), any());
+        verify(nodes.get(3)).getBlockStatus(1L);
+        verify(nodes.get(2)).getBlockStatus(1L);
+        for (final var node : nodes.subList(0, 2)) {
+            verify(node, never()).getBlockStatus(anyLong());
+            verify(node, never()).probeBlock(anyLong(), any(), any());
+        }
     }
 
     @Test
@@ -127,21 +129,23 @@ final class LatencyServiceTest {
         properties.setFrequency(Duration.ofMillis(10));
         final var blockNode = blockNode(BlockStatus.NOT_AVAILABLE);
         final var latency = blockNode.getLatency();
+        final var statusCalls = new AtomicInteger();
+        doAnswer(_ -> {
+                    statusCalls.incrementAndGet();
+                    return BlockStatus.NOT_AVAILABLE;
+                })
+                .when(blockNode)
+                .getBlockStatus(anyLong());
+        final var staleAfter = new AtomicInteger();
+        doAnswer(_ -> staleAfter.compareAndSet(0, statusCalls.get()))
+                .when(latency)
+                .markStale();
         doReturn(1L).when(cutoverService).getNextBlockNumber();
         latencyService.setNodes(List.of(blockNode));
 
-        // when, then
-        for (int i = 1; i <= 3; i++) {
-            final int count = i;
-            latencyService.schedule();
-            await().atMost(WAIT)
-                    .untilAsserted(() -> verify(blockNode, times(count)).getBlockStatus(1L));
-            await().atMost(WAIT)
-                    .untilAsserted(
-                            () -> assertThat(probeFailures("not_available")).isEqualTo(count));
-            verify(latency, times(count < 3 ? 0 : 1)).markStale();
-        }
-
+        // when, then the third probe without the block marks it stale
+        scheduleUntil(() -> assertThat(staleAfter).hasValue(3));
+        assertThat(probeFailures("not_available")).isGreaterThanOrEqualTo(3);
         verify(blockNode, never()).probeBlock(anyLong(), any(), any());
     }
 
@@ -210,11 +214,11 @@ final class LatencyServiceTest {
         doAnswer(_ -> {
                     final var status = statuses.get(Math.min(callTimes.size(), statuses.size() - 1));
                     callTimes.add(System.currentTimeMillis());
-                    return CompletableFuture.completedFuture(status);
+                    return status;
                 })
                 .when(blockNode)
                 .getBlockStatus(anyLong());
-        // a new block for each probe so the status check isn't skipped after the successful measurement
+        // a new block for each probe so the probe isn't skipped after the successful measurement
         doAnswer(_ -> (long) callTimes.size()).when(cutoverService).getNextBlockNumber();
         latencyService.setNodes(List.of(blockNode));
 
@@ -229,31 +233,29 @@ final class LatencyServiceTest {
     }
 
     @Test
-    void scheduleStatusCheckKeepsStreamBackoff() {
-        // given a node backing off after its stream timed out twice
-        properties.setBacklog(1);
-        properties.setFrequency(Duration.ofMillis(10));
-        final var hanging = blockNode(BlockStatus.AVAILABLE, 1000L);
-        doThrow(new BlockStreamException(new TimeoutException())).when(hanging).probeBlock(anyLong(), any(), any());
-        final var blockNumber = new AtomicLong();
-        doAnswer(_ -> blockNumber.incrementAndGet()).when(cutoverService).getNextBlockNumber();
-        latencyService.setNodes(List.of(hanging));
-        scheduleUntil(() -> assertThat(probeFailures("stream_timeout")).isEqualTo(2));
+    void scheduleCapsBackoffAtMaxBackoff() {
+        // given a node that keeps failing
+        properties.setFrequency(Duration.ofMillis(100));
+        properties.setMaxBackoff(Duration.ofMillis(200));
+        final var blockNode = blockNode(BlockStatus.UNREACHABLE);
+        final var callTimes = new CopyOnWriteArrayList<Long>();
+        doAnswer(_ -> {
+                    callTimes.add(System.currentTimeMillis());
+                    return BlockStatus.UNREACHABLE;
+                })
+                .when(blockNode)
+                .getBlockStatus(anyLong());
+        doReturn(1L).when(cutoverService).getNextBlockNumber();
+        latencyService.setNodes(List.of(blockNode));
 
-        // when nodes with older samples take the stream budget, so the hanging node only gets a status check
-        final var nodes = new ArrayList<BlockNode>();
-        nodes.add(hanging);
-        for (int i = 0; i < 4; i++) {
-            nodes.add(blockNode(BlockStatus.AVAILABLE));
-        }
+        // when
+        scheduleUntil(() -> assertThat(callTimes).hasSizeGreaterThanOrEqualTo(5));
 
-        latencyService.setNodes(nodes);
-        scheduleUntil(() -> verify(hanging, times(3)).getBlockStatus(anyLong()));
-
-        // then it's still backing off, so the freshness window only counts the other 4 nodes
-        verify(hanging, times(2)).probeBlock(anyLong(), any(), any());
-        assertThat(latencyService.getMaxLatencyAgeMillis())
-                .isEqualTo(3 * properties.getFrequency().toMillis());
+        // then the delay doubles once, then stays at maxBackoff instead of 400ms and 800ms
+        assertThat(callTimes.get(1) - callTimes.get(0)).isBetween(90L, 190L);
+        assertThat(callTimes.get(2) - callTimes.get(1)).isBetween(190L, 390L);
+        assertThat(callTimes.get(3) - callTimes.get(2)).isBetween(190L, 390L);
+        assertThat(callTimes.get(4) - callTimes.get(3)).isBetween(190L, 390L);
     }
 
     @Test
@@ -312,6 +314,36 @@ final class LatencyServiceTest {
         assertThat(latencyService.getMaxLatencyAgeMillis()).isEqualTo(4 * frequency);
     }
 
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            1, 4
+            2, 3
+            """)
+    void getMaxLatencyAgeMillisWithFailingNode(final int failures, final long runs) {
+        // given a node whose stream timed out, which only backs off after the second consecutive failure. The
+        // frequency is long enough that no extra probe runs before the assertion passes
+        properties.setBacklog(1);
+        properties.setFrequency(Duration.ofMillis(200));
+        final var hanging = blockNode(BlockStatus.AVAILABLE);
+        doThrow(new BlockStreamException(new TimeoutException())).when(hanging).probeBlock(anyLong(), any(), any());
+        doReturn(1L).when(cutoverService).getNextBlockNumber();
+        latencyService.setNodes(List.of(hanging));
+        scheduleUntil(() -> assertThat(probeFailures("stream_timeout")).isEqualTo(failures));
+
+        // when
+        final var nodes = new ArrayList<BlockNode>();
+        nodes.add(hanging);
+        for (int i = 0; i < 4; i++) {
+            nodes.add(mock(BlockNode.class));
+        }
+
+        latencyService.setNodes(nodes);
+
+        // then with a budget of 2, all 5 nodes take 4 runs, and the 4 other nodes take 3
+        assertThat(latencyService.getMaxLatencyAgeMillis())
+                .isEqualTo(runs * properties.getFrequency().toMillis());
+    }
+
     private BlockNode blockNode(final BlockStatus status) {
         return blockNode(status, 0L);
     }
@@ -321,11 +353,8 @@ final class LatencyServiceTest {
         final var latency = mock(Latency.class);
         lenient().doReturn(lastMeasuredMillis).when(latency).getLastMeasuredMillis();
         lenient().doReturn(latency).when(blockNode).getLatency();
-        lenient().doReturn("localhost:" + lastMeasuredMillis).when(blockNode).getEndpoint();
-        lenient()
-                .doAnswer(_ -> CompletableFuture.completedFuture(status))
-                .when(blockNode)
-                .getBlockStatus(anyLong());
+        lenient().doReturn("localhost:" + lastMeasuredMillis).when(blockNode).getStatusEndpoint();
+        lenient().doReturn(status).when(blockNode).getBlockStatus(anyLong());
         return blockNode;
     }
 

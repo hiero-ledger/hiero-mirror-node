@@ -39,6 +39,17 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
     }
 
     @Override
+    protected void doSetNodes(final List<BlockNode> blockNodes) {
+        final var nodeGroups = new TreeMap<Integer, PriorityGroup>();
+        for (final var blockNode : blockNodes) {
+            final int priority = blockNode.getProperties().getPriority();
+            nodeGroups.computeIfAbsent(priority, PriorityGroup::new).getNodes().add(blockNode);
+        }
+
+        priorityGroups.set(nodeGroups);
+    }
+
+    @Override
     protected Iterator<BlockNode> getNodeGroupIterator() {
         final var blockNode = current.get();
         if (blockNode == null) {
@@ -78,17 +89,6 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
                 return Objects.requireNonNull(nodeGroupIterator).next();
             }
         };
-    }
-
-    @Override
-    protected void setNodes(final List<BlockNode> blockNodes) {
-        final var nodeGroups = new TreeMap<Integer, PriorityGroup>();
-        for (final var blockNode : blockNodes) {
-            final int priority = blockNode.getProperties().getPriority();
-            nodeGroups.computeIfAbsent(priority, PriorityGroup::new).getNodes().add(blockNode);
-        }
-
-        priorityGroups.set(nodeGroups);
     }
 
     @Value

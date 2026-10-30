@@ -17,7 +17,6 @@ import io.grpc.Status;
 import io.grpc.protobuf.ProtoUtils;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ClientCalls;
-import io.grpc.stub.StreamObserver;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
@@ -27,7 +26,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -39,6 +37,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.block.api.protoc.BlockEnd;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
+import org.hiero.block.api.protoc.BlockRange;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusDetailResponse;
 import org.hiero.block.api.protoc.ServerStatusRequest;
@@ -80,7 +79,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private final String name;
 
     @Getter
-    private final String endpoint;
+    private final String statusEndpoint;
 
     @Getter
     private final Latency latency = new Latency();
@@ -111,8 +110,8 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
         final var statusEndpoint = getEndpoint(BlockNodeApi.STATUS, properties.getEndpoints());
         final var subscribeStreamEndpoint = getEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, properties.getEndpoints());
-        endpoint = statusEndpoint.toString();
         statusChannel = buildChannel(channelBuilderProvider, statusEndpoint, streamProperties);
+        this.statusEndpoint = statusEndpoint.toString();
 
         if (subscribeStreamEndpoint == statusEndpoint) {
             subscribeStreamChannel = statusChannel;
@@ -123,9 +122,9 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         errorsMetric = Counter.builder(ERROR_METRIC_NAME)
                 .description("The number of errors that occurred while streaming from a particular block node.")
                 .tag("type", StreamType.BLOCK.toString())
-                .tag("block_node", endpoint)
+                .tag("block_node", this.statusEndpoint)
                 .register(meterRegistry);
-        name = String.format("BlockNode(%s)", endpoint);
+        name = String.format("BlockNode(%s)", this.statusEndpoint);
         subscribeStreamName = String.format("BlockNode(%s)", subscribeStreamEndpoint);
     }
 
@@ -147,10 +146,12 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
      */
     public Optional<Long> getBlockOrEarliest(final long blockNumber) {
         try {
-            final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(statusChannel)
-                    .withDeadlineAfter(streamProperties.getResponseTimeout());
-            final var response = blockNodeService.serverStatusDetail(SERVER_STATUS_REQUEST);
-            return Optional.ofNullable(findBlockOrEarliest(response, blockNumber));
+            final var response = getServerStatusDetail();
+            if (blockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
+                return Optional.ofNullable(findEarliest(response));
+            }
+
+            return hasBlock(response, blockNumber) ? Optional.of(blockNumber) : Optional.empty();
         } catch (final Exception ex) {
             log.error("Failed to get server status detail for {}: {}", this, ex.getMessage());
             onError(isUnreachable(ex));
@@ -159,34 +160,16 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     }
 
     /**
-     * Asynchronously checks whether the block node has the block, telling an unreachable node apart from a missing
-     * block. The returned future never completes exceptionally.
+     * Checks whether the block node has the block, telling an unreachable node apart from a missing block. Unlike
+     * {@link #getBlockOrEarliest}, a failure doesn't count toward deactivating the node.
      */
-    public CompletableFuture<BlockStatus> getBlockStatus(final long blockNumber) {
-        final var result = new CompletableFuture<BlockStatus>();
-        BlockNodeServiceGrpc.newStub(statusChannel)
-                .withDeadlineAfter(streamProperties.getResponseTimeout())
-                .serverStatusDetail(SERVER_STATUS_REQUEST, new StreamObserver<>() {
-                    @Override
-                    public void onCompleted() {
-                        // Completes the result only if the server closed the call without a response
-                        result.complete(BlockStatus.UNREACHABLE);
-                    }
-
-                    @Override
-                    public void onError(final Throwable throwable) {
-                        log.debug("Failed to get server status detail for {}", BlockNode.this, throwable);
-                        result.complete(BlockStatus.UNREACHABLE);
-                    }
-
-                    @Override
-                    public void onNext(final ServerStatusDetailResponse response) {
-                        final boolean available = findBlockOrEarliest(response, blockNumber) != null;
-                        result.complete(available ? BlockStatus.AVAILABLE : BlockStatus.NOT_AVAILABLE);
-                    }
-                });
-
-        return result;
+    public BlockStatus getBlockStatus(final long blockNumber) {
+        try {
+            return hasBlock(getServerStatusDetail(), blockNumber) ? BlockStatus.AVAILABLE : BlockStatus.NOT_AVAILABLE;
+        } catch (final Exception ex) {
+            log.debug("Failed to get server status detail for {}", this, ex);
+            return BlockStatus.UNREACHABLE;
+        }
     }
 
     /**
@@ -241,21 +224,11 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 .build();
     }
 
-    private static @Nullable Long findBlockOrEarliest(
-            final ServerStatusDetailResponse response, final long blockNumber) {
+    private static @Nullable Long findEarliest(final ServerStatusDetailResponse response) {
         Long earliest = null;
         for (final var range : response.getAvailableRangesList()) {
-            final long start = range.getRangeStart();
-            final long end = range.getRangeEnd();
-            if (start < 0 || end < start) {
-                continue;
-            }
-
-            if (blockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
-                // The ranges aren't guaranteed sorted, so scan them all for the minimum
-                earliest = earliest == null ? start : Math.min(earliest, start);
-            } else if (blockNumber >= start && blockNumber <= end) {
-                return blockNumber;
+            if (isValid(range)) {
+                earliest = earliest == null ? range.getRangeStart() : Math.min(earliest, range.getRangeStart());
             }
         }
 
@@ -273,8 +246,29 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         throw new IllegalStateException("Block node doesn't provide %s API".formatted(api));
     }
 
+    private static boolean hasBlock(final ServerStatusDetailResponse response, final long blockNumber) {
+        for (final var range : response.getAvailableRangesList()) {
+            if (isValid(range) && blockNumber >= range.getRangeStart() && blockNumber <= range.getRangeEnd()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static boolean isUnreachable(final Throwable throwable) {
-        return Status.fromThrowable(throwable).getCode() == Status.Code.UNAVAILABLE;
+        final var code = Status.fromThrowable(throwable).getCode();
+        return code == Status.Code.DEADLINE_EXCEEDED || code == Status.Code.UNAVAILABLE;
+    }
+
+    private static boolean isValid(final BlockRange range) {
+        return range.getRangeStart() >= 0 && range.getRangeEnd() >= range.getRangeStart();
+    }
+
+    private ServerStatusDetailResponse getServerStatusDetail() {
+        return BlockNodeServiceGrpc.newBlockingStub(statusChannel)
+                .withDeadlineAfter(streamProperties.getResponseTimeout())
+                .serverStatusDetail(SERVER_STATUS_REQUEST);
     }
 
     /**

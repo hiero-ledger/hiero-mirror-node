@@ -34,6 +34,12 @@ final class LatencyScheduler extends AbstractLatencyAwareScheduler {
     }
 
     @Override
+    protected void doSetNodes(final List<BlockNode> blockNodes) {
+        sortByLatency(blockNodes);
+        nodes.set(blockNodes);
+    }
+
+    @Override
     protected Iterator<BlockNode> getNodeGroupIterator() {
         return Objects.requireNonNull(nodes.get()).iterator();
     }
@@ -43,11 +49,5 @@ final class LatencyScheduler extends AbstractLatencyAwareScheduler {
         final var current = Objects.requireNonNull(nodes.get());
         sortByLatency(current);
         return current.iterator();
-    }
-
-    @Override
-    protected void setNodes(final List<BlockNode> blockNodes) {
-        sortByLatency(blockNodes);
-        nodes.set(blockNodes);
     }
 }
