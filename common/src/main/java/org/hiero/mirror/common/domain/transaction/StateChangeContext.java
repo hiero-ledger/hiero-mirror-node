@@ -6,24 +6,30 @@ import static org.hiero.mirror.common.util.DomainUtils.normalize;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
+import com.google.protobuf.Message;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
+import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.SlotKey;
+import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
+import com.hederahashgraph.api.proto.java.Topic;
 import com.hederahashgraph.api.proto.java.TopicID;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.NullMarked;
@@ -39,18 +45,20 @@ public final class StateChangeContext {
     private static final Comparator<TokenID> TOKEN_ID_COMPARATOR = Comparator.comparing(TokenID::getTokenNum);
     private static final Comparator<TopicID> TOPIC_ID_COMPARATOR = Comparator.comparing(TopicID::getTopicNum);
 
-    private final Map<AccountID, Account> accounts = new HashMap<>();
-    private final Map<ByteString, AccountID> accountIds = new HashMap<>();
+    private final Map<AccountID, ByteString> accountAliases = new HashMap<>();
+    private final Map<AccountID, Long> accountEthereumNonces = new HashMap<>();
     private final Map<ContractID, ByteString> contractBytecodes = new HashMap<>();
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
     private final Map<ContractSlotKey, BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractSlotId, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
+    private final Set<ContractSlotKey> contractStorageSlotsWithAbsentValue = new HashSet<>();
     private final List<Long> nodeIds = new ArrayList<>();
     private final List<FileID> fileIds = new ArrayList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
     private final List<Long> registeredNodeIds = new ArrayList<>();
     private final List<TokenID> tokenIds = new ArrayList<>();
     private final Map<TokenID, Long> tokenTotalSupplies = new HashMap<>();
+    private final Set<TokenID> tokensWithAbsentTotalSupply = new HashSet<>();
     private final List<TopicID> topicIds = new ArrayList<>();
     private final Map<TopicID, TopicMessage> topicState = new HashMap<>();
 
@@ -103,20 +111,25 @@ public final class StateChangeContext {
         topicIds.sort(TOPIC_ID_COMPARATOR);
     }
 
-    public Optional<Account> getAccount(AccountID id) {
-        return Optional.ofNullable(accounts.get(id));
+    public @Nullable ByteString getAccountAlias(final AccountID id) {
+        return accountAliases.get(id);
     }
 
-    public Optional<AccountID> getAccountId(ByteString alias) {
-        return Optional.ofNullable(accountIds.get(alias));
+    public @Nullable Long getAccountEthereumNonce(final AccountID id) {
+        return accountEthereumNonces.get(id);
     }
 
-    public Optional<ByteString> getContractBytecode(ContractID id) {
-        return Optional.ofNullable(contractBytecodes.get(id));
+    public @Nullable ByteString getContractBytecode(final ContractID id) {
+        return contractBytecodes.get(id);
     }
 
-    public Optional<ContractID> getContractId(ByteString evmAddress) {
-        return Optional.ofNullable(contractIds.get(evmAddress));
+    /**
+     * Get the id of the contract with the EVM address, or null if absent or the contract is created in this transactional
+     * unit, since the state changes only have the final state and the address may be reused after a delete.
+     */
+    public @Nullable ContractID getContractId(final ByteString evmAddress) {
+        final var contractId = contractIds.get(evmAddress);
+        return contractId == null || contractBytecodes.containsKey(contractId) ? null : contractId;
     }
 
     public @Nullable SlotValue getContractStorageChange(ContractSlotId slotId, int index) {
@@ -136,48 +149,44 @@ public final class StateChangeContext {
         return contractStorageChanges.get(normalize(slotKey));
     }
 
-    public Optional<FileID> getNewFileId() {
-        if (fileIds.isEmpty()) {
-            return Optional.empty();
-        }
-
-        return Optional.of(fileIds.removeLast());
+    public @Nullable FileID getNewFileId() {
+        return fileIds.isEmpty() ? null : fileIds.removeLast();
     }
 
-    public Optional<Long> getNewNodeId() {
-        if (nodeIds.isEmpty()) {
-            return Optional.empty();
-        }
-
-        return Optional.of(nodeIds.removeLast());
+    public @Nullable Long getNewNodeId() {
+        return nodeIds.isEmpty() ? null : nodeIds.removeLast();
     }
 
-    public Optional<Long> getNewRegisteredNodeId() {
-        if (registeredNodeIds.isEmpty()) {
-            return Optional.empty();
-        }
-
-        return Optional.of(registeredNodeIds.removeLast());
+    public @Nullable Long getNewRegisteredNodeId() {
+        return registeredNodeIds.isEmpty() ? null : registeredNodeIds.removeLast();
     }
 
-    public Optional<TokenID> getNewTokenId() {
-        if (tokenIds.isEmpty()) {
-            return Optional.empty();
-        }
-
-        return Optional.of(tokenIds.removeLast());
+    public @Nullable TokenID getNewTokenId() {
+        return tokenIds.isEmpty() ? null : tokenIds.removeLast();
     }
 
-    public Optional<TopicID> getNewTopicId() {
-        if (topicIds.isEmpty()) {
-            return Optional.empty();
-        }
-
-        return Optional.of(topicIds.removeLast());
+    public @Nullable TopicID getNewTopicId() {
+        return topicIds.isEmpty() ? null : topicIds.removeLast();
     }
 
-    public Optional<TopicMessage> getTopicMessage(TopicID topicId) {
-        return Optional.ofNullable(topicState.remove(topicId));
+    public @Nullable TopicMessage getTopicMessage(final TopicID topicId) {
+        return topicState.remove(topicId);
+    }
+
+    /**
+     * Whether the value written to the storage slot is absent, i.e., it's omitted from a partial state change because
+     * the slot has no net change in the transactional unit.
+     */
+    public boolean isContractStorageValueWrittenAbsent(final ContractSlotKey slotKey) {
+        return contractStorageSlotsWithAbsentValue.contains(normalize(slotKey));
+    }
+
+    /**
+     * Whether the token's total supply is absent, i.e., it's omitted from a partial state change because the net change
+     * of the transactional unit is zero.
+     */
+    public boolean isTokenTotalSupplyAbsent(final TokenID tokenId) {
+        return tokensWithAbsentTotalSupply.contains(tokenId);
     }
 
     /**
@@ -185,17 +194,15 @@ public final class StateChangeContext {
      *
      * @param pendingAirdropId - The pending fungible airdrop id
      * @param change           - The amount of change to track
-     * @return An optional of the pending airdrop's amount
+     * @return The pending airdrop's amount, or null if it's not in state
      */
-    public Optional<Long> trackPendingFungibleAirdrop(PendingAirdropId pendingAirdropId, long change) {
-        return Optional.ofNullable(pendingFungibleAirdrops.remove(pendingAirdropId))
-                .map(amount -> {
-                    if (change < amount) {
-                        pendingFungibleAirdrops.put(pendingAirdropId, amount - change);
-                    }
+    public @Nullable Long trackPendingFungibleAirdrop(final PendingAirdropId pendingAirdropId, final long change) {
+        final var amount = pendingFungibleAirdrops.remove(pendingAirdropId);
+        if (amount != null && change < amount) {
+            pendingFungibleAirdrops.put(pendingAirdropId, amount - change);
+        }
 
-                    return amount;
-                });
+        return amount;
     }
 
     /**
@@ -204,38 +211,72 @@ public final class StateChangeContext {
      * @param tokenId - The token id
      * @param change  - The amount of change to track. Note for transactions which increased the total supply, the value
      *                should be negative; for transactions which reduced the total supply, the value should be positive
-     * @return An optional of the token total supply
+     * @return The token total supply, or null if it's not in state
      */
-    public Optional<Long> trackTokenTotalSupply(TokenID tokenId, long change) {
-        return Optional.ofNullable(tokenTotalSupplies.get(tokenId)).map(totalSupply -> {
+    public @Nullable Long trackTokenTotalSupply(final TokenID tokenId, final long change) {
+        final var totalSupply = tokenTotalSupplies.get(tokenId);
+        if (totalSupply != null) {
             tokenTotalSupplies.put(tokenId, totalSupply + change);
-            return totalSupply;
-        });
+        }
+
+        return totalSupply;
     }
 
-    private void processAccountStateChange(MapUpdateChange mapUpdate) {
-        if (!mapUpdate.getValue().hasAccountValue()) {
+    /**
+     * Whether a field of a state change value is present, i.e., the update is full, or the field is set or cleared in a
+     * partial update. Any other field in a partial update is unchanged, so its value is absent.
+     */
+    static boolean isPresent(final MapUpdateChange mapUpdate, final Message value, final int fieldNumber) {
+        if (!mapUpdate.getPartial() || mapUpdate.getClearedFieldsList().contains(fieldNumber)) {
+            return true;
+        }
+
+        final var field = value.getDescriptorForType().findFieldByNumber(fieldNumber);
+        if (field == null) {
+            return false;
+        }
+
+        return field.isRepeated() ? value.getRepeatedFieldCount(field) > 0 : value.hasField(field);
+    }
+
+    /**
+     * Get the value written to a storage slot, or null if it's omitted from a partial state change, i.e., the slot is
+     * written without a net change in the transactional unit.
+     */
+    private static @Nullable BytesValue getValueWritten(final MapUpdateChange mapUpdate) {
+        final var slotValue = mapUpdate.getValue().getSlotValueValue();
+        return isPresent(mapUpdate, slotValue, com.hederahashgraph.api.proto.java.SlotValue.VALUE_FIELD_NUMBER)
+                ? BytesValue.of(slotValue.getValue())
+                : null;
+    }
+
+    private void processAccountStateChange(final MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasAccountIdKey() || !mapUpdate.getValue().hasAccountValue()) {
             return;
         }
 
+        // Read the entity id from the key, since the value of a partial update only has the changed fields
+        final var accountId = mapUpdate.getKey().getAccountIdKey();
         final var account = mapUpdate.getValue().getAccountValue();
-        accounts.putIfAbsent(account.getAccountId(), account);
+        if (isPresent(mapUpdate, account, Account.ETHEREUM_NONCE_FIELD_NUMBER)) {
+            accountEthereumNonces.putIfAbsent(accountId, account.getEthereumNonce());
+        }
 
-        if (!account.getAlias().equals(ByteString.EMPTY)) {
-            final var accountId = account.getAccountId();
-            final var alias = account.getAlias();
+        // A non-empty alias is always present, even in a partial update
+        final var alias = account.getAlias();
+        if (alias.isEmpty()) {
+            return;
+        }
 
-            if (account.getSmartContract()) {
-                contractIds.put(
-                        alias,
-                        ContractID.newBuilder()
-                                .setShardNum(accountId.getShardNum())
-                                .setRealmNum(accountId.getRealmNum())
-                                .setContractNum(accountId.getAccountNum())
-                                .build());
-            } else {
-                accountIds.put(alias, accountId);
-            }
+        accountAliases.putIfAbsent(accountId, alias);
+        if (account.getSmartContract()) {
+            contractIds.put(
+                    alias,
+                    ContractID.newBuilder()
+                            .setShardNum(accountId.getShardNum())
+                            .setRealmNum(accountId.getRealmNum())
+                            .setContractNum(accountId.getAccountNum())
+                            .build());
         }
     }
 
@@ -246,7 +287,9 @@ public final class StateChangeContext {
 
         var contractId = mapUpdate.getKey().getContractIdKey();
         var bytecode = mapUpdate.getValue().getBytecodeValue();
-        contractBytecodes.put(contractId, bytecode.getCode());
+        if (isPresent(mapUpdate, bytecode, Bytecode.CODE_FIELD_NUMBER)) {
+            contractBytecodes.put(contractId, bytecode.getCode());
+        }
     }
 
     private void processContractStorageChange(MapUpdateChange mapUpdate) {
@@ -257,8 +300,7 @@ public final class StateChangeContext {
         var slotKey = mapUpdate.getKey().getSlotKeyKey();
         final var slotId = ContractSlotId.of(slotKey.getContractID(), null);
         final var contractSlotKey = new ContractSlotKey(slotId, slotKey.getKey());
-        var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
-        processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
+        processContractStorageChange(contractSlotKey, getValueWritten(mapUpdate));
     }
 
     private void processHookStorageChange(MapUpdateChange mapUpdate) {
@@ -266,17 +308,20 @@ public final class StateChangeContext {
             return;
         }
 
-        var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
         final var evmHookSlotKey = mapUpdate.getKey().getEvmHookSlotKey();
         final var slotId = ContractSlotId.of(null, evmHookSlotKey.getHookId());
         final var contractSlotKey = new ContractSlotKey(slotId, evmHookSlotKey.getKey());
-        processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
+        processContractStorageChange(contractSlotKey, getValueWritten(mapUpdate));
     }
 
-    private void processContractStorageChange(ContractSlotKey slotKey, BytesValue valueWritten) {
+    private void processContractStorageChange(ContractSlotKey slotKey, @Nullable BytesValue valueWritten) {
         slotKey = normalize(slotKey);
-        final var trimmed = DomainUtils.trim(valueWritten);
-        contractStorageChanges.put(slotKey, trimmed);
+        final var trimmed = valueWritten != null ? DomainUtils.trim(valueWritten) : null;
+        if (trimmed != null) {
+            contractStorageChanges.put(slotKey, trimmed);
+        } else {
+            contractStorageSlotsWithAbsentValue.add(slotKey);
+        }
 
         contractStorageChangesIndexed
                 .computeIfAbsent(slotKey.slotId(), _ -> new ArrayList<>())
@@ -307,15 +352,12 @@ public final class StateChangeContext {
     }
 
     private void processPendingAirdropStateChange(MapUpdateChange mapUpdate) {
-        var pendingAirdropId = mapUpdate.getKey().getPendingAirdropIdKey();
-        if (pendingAirdropId.hasFungibleTokenType()) {
+        final var pendingAirdropId = mapUpdate.getKey().getPendingAirdropIdKey();
+        final var pendingAirdrop = mapUpdate.getValue().getAccountPendingAirdropValue();
+        if (pendingAirdropId.hasFungibleTokenType()
+                && isPresent(mapUpdate, pendingAirdrop, AccountPendingAirdrop.PENDING_AIRDROP_VALUE_FIELD_NUMBER)) {
             pendingFungibleAirdrops.put(
-                    pendingAirdropId,
-                    mapUpdate
-                            .getValue()
-                            .getAccountPendingAirdropValue()
-                            .getPendingAirdropValue()
-                            .getAmount());
+                    pendingAirdropId, pendingAirdrop.getPendingAirdropValue().getAmount());
         }
     }
 
@@ -327,18 +369,34 @@ public final class StateChangeContext {
         registeredNodeIds.add(mapUpdate.getKey().getEntityNumberKey().getValue());
     }
 
-    private void processTokenStateChange(MapUpdateChange mapUpdate) {
-        var token = mapUpdate.getValue().getTokenValue();
-        tokenIds.add(token.getTokenId());
-        tokenTotalSupplies.put(token.getTokenId(), token.getTotalSupply());
+    private void processTokenStateChange(final MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasTokenIdKey()) {
+            return;
+        }
+
+        final var tokenId = mapUpdate.getKey().getTokenIdKey();
+        tokenIds.add(tokenId);
+        final var token = mapUpdate.getValue().getTokenValue();
+        if (isPresent(mapUpdate, token, Token.TOTAL_SUPPLY_FIELD_NUMBER)) {
+            tokenTotalSupplies.put(tokenId, token.getTotalSupply());
+        } else {
+            tokensWithAbsentTotalSupply.add(tokenId);
+        }
     }
 
-    private void processTopicStateChange(MapUpdateChange mapUpdate) {
-        var topic = mapUpdate.getValue().getTopicValue();
-        topicIds.add(topic.getTopicId());
-        if (topic.getSequenceNumber() != 0) {
+    private void processTopicStateChange(final MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasTopicIdKey()) {
+            return;
+        }
+
+        final var topicId = mapUpdate.getKey().getTopicIdKey();
+        topicIds.add(topicId);
+        final var topic = mapUpdate.getValue().getTopicValue();
+        if (topic.getSequenceNumber() != 0
+                && isPresent(mapUpdate, topic, Topic.RUNNING_HASH_FIELD_NUMBER)
+                && isPresent(mapUpdate, topic, Topic.SEQUENCE_NUMBER_FIELD_NUMBER)) {
             topicState.put(
-                    topic.getTopicId(),
+                    topicId,
                     TopicMessage.builder()
                             .runningHash(DomainUtils.toBytes(topic.getRunningHash()))
                             .sequenceNumber(topic.getSequenceNumber())
@@ -346,5 +404,8 @@ public final class StateChangeContext {
         }
     }
 
-    public record SlotValue(ByteString slot, BytesValue valueWritten) {}
+    /**
+     * A storage slot and the value written to it, or null if the value is absent.
+     */
+    public record SlotValue(ByteString slot, @Nullable BytesValue valueWritten) {}
 }

@@ -16,6 +16,7 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionC
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
+import com.hederahashgraph.api.proto.java.HookId;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.SlotKey;
@@ -43,6 +44,7 @@ import lombok.experimental.NonFinal;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.jspecify.annotations.Nullable;
 import org.springframework.util.CollectionUtils;
 
 @AllArgsConstructor(access = AccessLevel.NONE)
@@ -145,7 +147,7 @@ public class BlockTransaction implements StreamItem {
         }
 
         if (topicMessage.get() == null) {
-            topicMessage.set(getStateChangeContext().getTopicMessage(topicId).orElse(null));
+            topicMessage.set(getStateChangeContext().getTopicMessage(topicId));
         }
 
         return topicMessage.get();
@@ -165,7 +167,8 @@ public class BlockTransaction implements StreamItem {
 
     /**
      * Get value written to the storage slot at {@link SlotKey} by the transaction. Returns the first read value in
-     * subsequent transactions, or the value in statechanges.
+     * subsequent transactions, or the value in statechanges. When the value is absent from statechanges because the
+     * slot has no net change in the transactional unit, returns the value read by the first transaction in the unit.
      *
      * <p>This method checks two possible chains of related transactions:
      * <ul>
@@ -196,7 +199,14 @@ public class BlockTransaction implements StreamItem {
         }
 
         // fall back to statechanges
-        return getStateChangeContext().getContractStorageValueWritten(normalizedSlotKey);
+        final var stateChangeContext = getStateChangeContext();
+        final var valueWritten = stateChangeContext.getContractStorageValueWritten(normalizedSlotKey);
+        if (valueWritten != null || !stateChangeContext.isContractStorageValueWrittenAbsent(normalizedSlotKey)) {
+            return valueWritten;
+        }
+
+        final var firstValueRead = getFirstValueRead(normalizedSlotKey);
+        return firstValueRead != null ? BytesValue.of(firstValueRead) : null;
     }
 
     public Optional<TransactionOutput> getTransactionOutput(final TransactionCase transactionCase) {
@@ -225,6 +235,79 @@ public class BlockTransaction implements StreamItem {
         return !CollectionUtils.isEmpty(stateChanges)
                 ? new StateChangeContext(stateChanges)
                 : StateChangeContext.EMPTY_CONTEXT;
+    }
+
+    private @Nullable HookId getExecutedHookId() {
+        final var output = transactionOutputs.get(TransactionCase.CONTRACT_CALL);
+        if (output == null) {
+            return null;
+        }
+
+        final var evmTransactionResult = output.getContractCall().getEvmTransactionResult();
+        return evmTransactionResult.hasExecutedHookId() ? evmTransactionResult.getExecutedHookId() : null;
+    }
+
+    /**
+     * Get the value read from the storage slot by the first transaction in the transactional unit accessing it, i.e.,
+     * the value of the slot before the unit. Walks back from this transaction since the earlier ones aren't transformed.
+     */
+    private @Nullable ByteString getFirstValueRead(final ContractSlotKey slotKey) {
+        final var root = getRoot();
+        ByteString firstValueRead = null;
+        for (var transaction = this;
+                transaction != null && transaction.getRoot() == root;
+                transaction = transaction.previous) {
+            final var valueRead = transaction.getTracedValueRead(slotKey);
+            if (valueRead != null) {
+                firstValueRead = valueRead;
+            }
+        }
+
+        return firstValueRead;
+    }
+
+    private BlockTransaction getRoot() {
+        return parent != null ? parent.getRoot() : this;
+    }
+
+    private @Nullable ByteString getSlot(final ContractSlotId slotId, final int index, final List<ByteString> keys) {
+        if (!keys.isEmpty()) {
+            return index >= 0 && index < keys.size() ? keys.get(index) : null;
+        }
+
+        final var slotValue = getStateChangeContext().getContractStorageChange(slotId, index);
+        return slotValue != null ? slotValue.slot() : null;
+    }
+
+    /**
+     * Get the value read from the storage slot by this transaction, resolved from its EVM trace data.
+     */
+    private @Nullable ByteString getTracedValueRead(final ContractSlotKey slotKey) {
+        if (evmTraceData == null) {
+            return null;
+        }
+
+        final var executedHookId = getExecutedHookId();
+        for (final var slotUsage : evmTraceData.getContractSlotUsagesList()) {
+            final var slotId = ContractSlotId.of(slotUsage.getContractId(), executedHookId);
+            if (!slotKey.slotId().equals(slotId)) {
+                continue;
+            }
+
+            final var writtenSlotKeys = slotUsage.getWrittenSlotKeys().getKeysList();
+            for (final var slotRead : slotUsage.getSlotReadsList()) {
+                final var slot = switch (slotRead.getIdentifierCase()) {
+                    case INDEX -> getSlot(slotId, slotRead.getIndex(), writtenSlotKeys);
+                    case KEY -> slotRead.getKey();
+                    default -> null;
+                };
+                if (slot != null && normalize(new ContractSlotKey(slotId, slot)).equals(slotKey)) {
+                    return DomainUtils.trim(slotRead.getReadValue());
+                }
+            }
+        }
+
+        return null;
     }
 
     private ByteString getValueRead(final ContractSlotKey slotKey) {

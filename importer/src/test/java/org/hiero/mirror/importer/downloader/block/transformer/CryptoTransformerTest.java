@@ -24,7 +24,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 final class CryptoTransformerTest extends AbstractTransformerTest {
 
@@ -150,18 +149,12 @@ final class CryptoTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void cryptoUpdate(boolean hasAlias) {
+    @Test
+    void cryptoUpdate() {
         // given
         var expectedRecordItem = recordItemBuilder
                 .cryptoUpdate()
-                .transactionBody(b -> {
-                    b.setDelegationAddress(ByteString.EMPTY);
-                    if (hasAlias) {
-                        b.getAccountIDToUpdateBuilder().setAlias(recordItemBuilder.bytes(34));
-                    }
-                })
+                .transactionBody(b -> b.setDelegationAddress(ByteString.EMPTY))
                 .customize(this::finalize)
                 .build();
         final var blockTransaction =
@@ -195,6 +188,39 @@ final class CryptoTransformerTest extends AbstractTransformerTest {
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void cryptoUpdateDelegationAddressEthereumNonceAbsent() {
+        // given
+        var delegationAddress = ByteString.copyFrom(Hex.decode("a94f5374fce5edbc8e2a8697c15331677e6ebf0b"));
+        var expectedRecordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> b.setDelegationAddress(delegationAddress))
+                .customize(this::finalize)
+                .build();
+        // the account's state change is partial without the unchanged ethereum nonce
+        var blockTransaction = blockTransactionBuilder
+                .cryptoUpdate(expectedRecordItem)
+                .stateChanges(stateChangesList -> stateChangesList.replaceAll(stateChanges -> {
+                    var builder = stateChanges.toBuilder();
+                    for (var stateChange : builder.getStateChangesBuilderList()) {
+                        stateChange.getMapUpdateBuilder().setPartial(true);
+                    }
+
+                    return builder.build();
+                }))
+                .build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertThat(items).containsExactly(expectedRecordItem);
+            assertThat(items.getFirst().getAccountEthereumNonce()).isNull();
+        });
     }
 
     @Test

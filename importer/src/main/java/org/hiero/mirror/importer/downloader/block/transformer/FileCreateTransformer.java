@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
@@ -19,8 +21,8 @@ final class FileCreateTransformer extends AbstractBlockTransactionTransformer {
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        receiptBuilder.setFileID(
-                blockTransaction.getStateChangeContext().getNewFileId().orElseThrow());
+        receiptBuilder.setFileID(requireNonNull(
+                blockTransaction.getStateChangeContext().getNewFileId(), "No new file id in state changes"));
     }
 
     @Override

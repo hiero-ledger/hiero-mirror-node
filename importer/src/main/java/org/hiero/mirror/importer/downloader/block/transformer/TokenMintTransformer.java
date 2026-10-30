@@ -32,7 +32,12 @@ final class TokenMintTransformer extends AbstractTokenTransformer {
         var body = blockTransactionTransformation.getTransactionBody().getTokenMint();
         var tokenId = body.getToken();
         long amount = body.getAmount() + body.getMetadataCount();
-        updateTotalSupply(recordItemBuilder, blockTransaction.getStateChangeContext(), tokenId, -amount);
+        updateTotalSupply(
+                -amount,
+                blockTransaction.getConsensusTimestamp(),
+                recordItemBuilder,
+                blockTransaction.getStateChangeContext(),
+                tokenId);
     }
 
     @Override
