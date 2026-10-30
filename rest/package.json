@@ -1,12 +1,12 @@
 {
   "name": "@hiero-ledger/mirror-rest",
-  "version": "0.166.0-SNAPSHOT",
+  "version": "0.167.0-SNAPSHOT",
   "description": "Mirror Node REST API",
   "type": "module",
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">=24.22.1 <25"
+    "node": ">=24.22.2 <25"
   },
   "scripts": {
     "generate-proto-js": "node scripts/generate-proto-js.mjs",
@@ -81,9 +81,8 @@
   },
   "baseUrlPath": "/api/v1",
   "overrides": {
-    "baseline-browser-mapping": "2.11.29",
+    "body-parser": "2.4.0",
     "brace-expansion": "5.0.12",
-    "electron-to-chromium": "1.5.458",
     "fast-uri": "4.2.3",
     "form-data": "4.0.6",
     "glob": "13.0.6",
@@ -91,7 +90,7 @@
       "js-yaml": "5.5.0"
     },
     "js-yaml": "5.5.0",
-    "multer": "2.4.0",
+    "multer": "2.5.0",
     "path-to-regexp": "8.4.2",
     "protobufjs": "8.8.1",
     "proxy-addr": "2.0.8",
@@ -99,7 +98,7 @@
   },
   "bundleDependencies": true,
   "allowScripts": {
-    "@bufbuild/buf@1.74.0": true,
+    "@bufbuild/buf@1.75.0": true,
     "@parcel/watcher@2.6.0": true,
     "@scarf/scarf@1.4.0": true,
     "esbuild@0.28.2": true,

@@ -36,14 +36,13 @@ val platform = imagePlatform.ifBlank { null }
 tasks.bootBuildImage {
     // Use digests for deterministic builds.
     val builderImageDigest =
-        "sha256:b95da27fce97b58037f0c11ae934760c50730da4c9a24976205b53638592eba9" // 0.0.197
+        "sha256:93f09329da5a6e8c2644cf5ea12de165064d72358cc7de5d8bac6d1c886335cf" // 0.0.204
     val nativeImageDigest =
-        "sha256:fb79d75342bda698ef8c29713b3b7b3eb08d2e4e8cf636d4c844d159743eb96b" // 14.13.0
+        "sha256:4049925127996485d9fb1c2741c1788c061e5e5ba8d95ce15aed58f6beda3f3e" // 14.14.2
     val runImageDigest =
-        "sha256:ab5827686b2c57966c84c3bf9c395fffe848175a561a648e45cb75fc797bbd11" // 0.0.143
-    // 2.42.1, bundled in java-native-image 14.13.0, downloads the amd64 Syft CLI on arm64.
+        "sha256:b5aacecc8b049f54f683ff988db2ea0ae9a523873c12b15296ebbd39c6fb115a" // 0.0.153
     val syftDigest =
-        "sha256:016ae7eb467b3f363160aecd52259944f904d530793825c6d1ecea53fe26cba1" // 2.43.2
+        "sha256:756ba4e4ca66d96ba73c79cec7a375b62177ee2bef1a800ab51ce59a047b9e39" // 2.43.4
 
     val env = System.getenv()
     val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
