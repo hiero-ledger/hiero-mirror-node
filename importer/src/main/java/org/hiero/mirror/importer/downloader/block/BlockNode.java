@@ -13,6 +13,7 @@ import io.grpc.ClientStreamTracer;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
+import io.grpc.Status;
 import io.grpc.protobuf.ProtoUtils;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ClientCalls;
@@ -36,7 +37,9 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.block.api.protoc.BlockEnd;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
+import org.hiero.block.api.protoc.BlockRange;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
+import org.hiero.block.api.protoc.ServerStatusDetailResponse;
 import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
@@ -58,9 +61,6 @@ import org.jspecify.annotations.Nullable;
 @NullMarked
 public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
-    public static final Comparator<BlockNode> LATENCY_COMPARATOR =
-            Comparator.comparing(BlockNode::getLatency).thenComparing(b -> b.subscribeStreamName);
-
     static final String ERROR_METRIC_NAME = "hiero.mirror.importer.stream.error";
 
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(BlockNode::getProperties);
@@ -77,6 +77,9 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private final Counter errorsMetric;
     private final BiConsumer<String, BlockingClientCall<?, ?>> grpcBufferDisposer;
     private final String name;
+
+    @Getter
+    private final String statusEndpoint;
 
     @Getter
     private final Latency latency = new Latency();
@@ -108,6 +111,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         final var statusEndpoint = getEndpoint(BlockNodeApi.STATUS, properties.getEndpoints());
         final var subscribeStreamEndpoint = getEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, properties.getEndpoints());
         statusChannel = buildChannel(channelBuilderProvider, statusEndpoint, streamProperties);
+        this.statusEndpoint = statusEndpoint.toString();
 
         if (subscribeStreamEndpoint == statusEndpoint) {
             subscribeStreamChannel = statusChannel;
@@ -118,9 +122,9 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         errorsMetric = Counter.builder(ERROR_METRIC_NAME)
                 .description("The number of errors that occurred while streaming from a particular block node.")
                 .tag("type", StreamType.BLOCK.toString())
-                .tag("block_node", statusEndpoint.toString())
+                .tag("block_node", this.statusEndpoint)
                 .register(meterRegistry);
-        name = String.format("BlockNode(%s)", statusEndpoint);
+        name = String.format("BlockNode(%s)", this.statusEndpoint);
         subscribeStreamName = String.format("BlockNode(%s)", subscribeStreamEndpoint);
     }
 
@@ -142,31 +146,41 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
      */
     public Optional<Long> getBlockOrEarliest(final long blockNumber) {
         try {
-            final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(statusChannel)
-                    .withDeadlineAfter(streamProperties.getResponseTimeout());
-            final var response = blockNodeService.serverStatusDetail(SERVER_STATUS_REQUEST);
-
-            Long earliest = null;
-            for (final var range : response.getAvailableRangesList()) {
-                final long start = range.getRangeStart();
-                final long end = range.getRangeEnd();
-                if (start < 0 || end < start) {
-                    continue;
-                }
-
-                if (blockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
-                    // The ranges aren't guaranteed sorted, so scan them all for the minimum
-                    earliest = earliest == null ? start : Math.min(earliest, start);
-                } else if (blockNumber >= start && blockNumber <= end) {
-                    return Optional.of(blockNumber);
-                }
+            final var response = getServerStatusDetail();
+            if (blockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
+                return Optional.ofNullable(findEarliest(response));
             }
 
-            return Optional.ofNullable(earliest);
+            return hasBlock(response, blockNumber) ? Optional.of(blockNumber) : Optional.empty();
         } catch (final Exception ex) {
-            log.error("Failed to get server status detail for {}", this, ex);
+            log.error("Failed to get server status detail for {}: {}", this, ex.getMessage());
+            onError(isUnreachable(ex));
             return Optional.empty();
         }
+    }
+
+    /**
+     * Checks whether the block node has the block, telling an unreachable node apart from a missing block. Unlike
+     * {@link #getBlockOrEarliest}, a failure doesn't count toward deactivating the node.
+     */
+    public BlockStatus getBlockStatus(final long blockNumber) {
+        try {
+            return hasBlock(getServerStatusDetail(), blockNumber) ? BlockStatus.AVAILABLE : BlockStatus.NOT_AVAILABLE;
+        } catch (final Exception ex) {
+            log.debug("Failed to get server status detail for {}", this, ex);
+            return BlockStatus.UNREACHABLE;
+        }
+    }
+
+    /**
+     * Streams a single block to measure latency. Unlike {@link #streamBlocks}, a failure doesn't count toward
+     * deactivating the node.
+     */
+    public void probeBlock(
+            final long blockNumber,
+            final BiFunction<BlockStream, String, Boolean> onBlockStream,
+            final Duration timeout) {
+        stream(blockNumber, blockNumber, onBlockStream, timeout, false);
     }
 
     public void streamBlocks(
@@ -174,67 +188,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             @Nullable final Long endBlockNumber,
             final BiFunction<BlockStream, String, Boolean> onBlockStream,
             final Duration timeout) {
-        BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponseUnparsed> grpcCall = null;
-
-        try {
-            final long effectiveEndBlockNumber = endBlockNumber == null ? -1L : endBlockNumber;
-            final var uncompressedBytes = new AtomicLong();
-            final var assembler =
-                    new BlockAssembler(onBlockStream, effectiveEndBlockNumber, timeout, uncompressedBytes);
-            final var request = SubscribeStreamRequest.newBuilder()
-                    .setEndBlockNumber(effectiveEndBlockNumber)
-                    .setStartBlockNumber(blockNumber)
-                    .build();
-            grpcCall = ClientCalls.blockingV2ServerStreamingCall(
-                    subscribeStreamChannel,
-                    SUBSCRIBE_BLOCK_STREAM_METHOD,
-                    CallOptions.DEFAULT.withStreamTracerFactory(new UncompressedSizeTracerFactory(uncompressedBytes)),
-                    request);
-            SubscribeStreamResponseUnparsed response;
-
-            boolean running = true;
-            while (running && (response = grpcCall.read(assembler.timeout(), TimeUnit.MILLISECONDS)) != null) {
-                switch (response.getResponseCase()) {
-                    case BLOCK_ITEMS -> assembler.onBlockItemSet(response.getBlockItems());
-                    case END_OF_BLOCK -> {
-                        running = !assembler.onEndOfBlock(response.getEndOfBlock());
-                        if (!running) {
-                            log.debug("Cancelling the subscription");
-                        }
-                    }
-                    case STATUS -> {
-                        final var status = response.getStatus();
-                        if (status == SubscribeStreamResponse.Code.SUCCESS) {
-                            // The server may end the stream gracefully for various reasons, and this shouldn't be
-                            // treated as an error.
-                            log.info("{} ended the subscription with {}", subscribeStreamName, status);
-                            running = false;
-                            break;
-                        }
-
-                        throw new BlockStreamException(
-                                "Received status " + response.getStatus() + " from " + subscribeStreamName);
-                    }
-                    default ->
-                        throw new BlockStreamException(
-                                "Unknown response case " + response.getResponseCase() + " from " + subscribeStreamName);
-                }
-            }
-
-            // Only clear errors when the subscription ends gracefully
-            errors.set(0);
-        } catch (final BlockStreamException ex) {
-            onError();
-            throw ex;
-        } catch (final Exception ex) {
-            onError();
-            throw new BlockStreamException(ex);
-        } finally {
-            if (grpcCall != null) {
-                grpcCall.cancel("unsubscribe", null);
-                grpcBufferDisposer.accept(subscribeStreamName, grpcCall);
-            }
-        }
+        stream(blockNumber, endBlockNumber, onBlockStream, timeout, true);
     }
 
     @Override
@@ -270,6 +224,17 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 .build();
     }
 
+    private static @Nullable Long findEarliest(final ServerStatusDetailResponse response) {
+        Long earliest = null;
+        for (final var range : response.getAvailableRangesList()) {
+            if (isValid(range)) {
+                earliest = earliest == null ? range.getRangeStart() : Math.min(earliest, range.getRangeStart());
+            }
+        }
+
+        return earliest;
+    }
+
     private static BlockNodeProperties.ServiceEndpoint getEndpoint(
             final BlockNodeApi api, final Collection<BlockNodeProperties.ServiceEndpoint> endpoints) {
         for (final var endpoint : endpoints) {
@@ -281,16 +246,47 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         throw new IllegalStateException("Block node doesn't provide %s API".formatted(api));
     }
 
+    private static boolean hasBlock(final ServerStatusDetailResponse response, final long blockNumber) {
+        for (final var range : response.getAvailableRangesList()) {
+            if (isValid(range) && blockNumber >= range.getRangeStart() && blockNumber <= range.getRangeEnd()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean isUnreachable(final Throwable throwable) {
+        final var code = Status.fromThrowable(throwable).getCode();
+        return code == Status.Code.DEADLINE_EXCEEDED || code == Status.Code.UNAVAILABLE;
+    }
+
+    private static boolean isValid(final BlockRange range) {
+        return range.getRangeStart() >= 0 && range.getRangeEnd() >= range.getRangeStart();
+    }
+
+    private ServerStatusDetailResponse getServerStatusDetail() {
+        return BlockNodeServiceGrpc.newBlockingStub(statusChannel)
+                .withDeadlineAfter(streamProperties.getResponseTimeout())
+                .serverStatusDetail(SERVER_STATUS_REQUEST);
+    }
+
     /**
-     * If number of failed connections surpass maxAttempts a readmit time(cooldown period)
-     * is enforced before the specific node can be called again
+     * Counts an error, and deactivates the node until the readmit time when it's unreachable or the errors reach
+     * maxSubscribeAttempts.
      */
-    private void onError() {
+    private void onError(final boolean unreachable) {
         errorsMetric.increment();
-        if (errors.incrementAndGet() >= streamProperties.getMaxSubscribeAttempts()) {
-            active = false;
-            errors.set(0);
-            readmitTime.set(Instant.now().plus(streamProperties.getReadmitDelay()));
+        if (!unreachable && errors.incrementAndGet() < streamProperties.getMaxSubscribeAttempts()) {
+            return;
+        }
+
+        active = false;
+        errors.set(0);
+        readmitTime.set(Instant.now().plus(streamProperties.getReadmitDelay()));
+        if (unreachable) {
+            log.warn("Marking connection to {} as inactive since it's unreachable", this);
+        } else {
             log.warn(
                     "Marking connection to {} as inactive after {} attempts",
                     this,
@@ -311,6 +307,86 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         } catch (final InterruptedException _) {
             channel.shutdownNow();
             Thread.currentThread().interrupt();
+        }
+    }
+
+    private void stream(
+            final long blockNumber,
+            @Nullable final Long endBlockNumber,
+            final BiFunction<BlockStream, String, Boolean> onBlockStream,
+            final Duration timeout,
+            final boolean trackErrors) {
+        BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponseUnparsed> grpcCall = null;
+        boolean responded = false;
+
+        try {
+            final long effectiveEndBlockNumber = endBlockNumber == null ? -1L : endBlockNumber;
+            final var uncompressedBytes = new AtomicLong();
+            final var assembler =
+                    new BlockAssembler(onBlockStream, effectiveEndBlockNumber, timeout, uncompressedBytes);
+            final var request = SubscribeStreamRequest.newBuilder()
+                    .setEndBlockNumber(effectiveEndBlockNumber)
+                    .setStartBlockNumber(blockNumber)
+                    .build();
+            grpcCall = ClientCalls.blockingV2ServerStreamingCall(
+                    subscribeStreamChannel,
+                    SUBSCRIBE_BLOCK_STREAM_METHOD,
+                    CallOptions.DEFAULT.withStreamTracerFactory(new UncompressedSizeTracerFactory(uncompressedBytes)),
+                    request);
+            SubscribeStreamResponseUnparsed response;
+
+            boolean running = true;
+            while (running && (response = grpcCall.read(assembler.timeout(), TimeUnit.MILLISECONDS)) != null) {
+                responded = true;
+                switch (response.getResponseCase()) {
+                    case BLOCK_ITEMS -> assembler.onBlockItemSet(response.getBlockItems());
+                    case END_OF_BLOCK -> {
+                        running = !assembler.onEndOfBlock(response.getEndOfBlock());
+                        if (!running) {
+                            log.debug("Cancelling the subscription");
+                        }
+                    }
+                    case STATUS -> {
+                        final var status = response.getStatus();
+                        if (status == SubscribeStreamResponse.Code.SUCCESS) {
+                            // The server may end the stream gracefully for various reasons, and this shouldn't be
+                            // treated as an error.
+                            log.info("{} ended the subscription with {}", subscribeStreamName, status);
+                            running = false;
+                            break;
+                        }
+
+                        throw new BlockStreamException(
+                                "Received status " + response.getStatus() + " from " + subscribeStreamName);
+                    }
+                    default ->
+                        throw new BlockStreamException(
+                                "Unknown response case " + response.getResponseCase() + " from " + subscribeStreamName);
+                }
+            }
+
+            if (trackErrors) {
+                // Only clear errors when the subscription ends gracefully
+                errors.set(0);
+            }
+        } catch (final BlockStreamException ex) {
+            if (trackErrors) {
+                onError(false);
+            }
+
+            throw ex;
+        } catch (final Exception ex) {
+            if (trackErrors) {
+                // A node that drops the connection mid-stream was reachable, e.g. it may be restarting
+                onError(!responded && isUnreachable(ex));
+            }
+
+            throw new BlockStreamException(ex);
+        } finally {
+            if (grpcCall != null) {
+                grpcCall.cancel("unsubscribe", null);
+                grpcBufferDisposer.accept(subscribeStreamName, grpcCall);
+            }
         }
     }
 
@@ -451,5 +527,11 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                         String.format("Pending block too large: received %d bytes, limit %d", blockSize, maxBlockSize));
             }
         }
+    }
+
+    public enum BlockStatus {
+        AVAILABLE,
+        NOT_AVAILABLE,
+        UNREACHABLE
     }
 }

@@ -7,6 +7,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -64,6 +65,10 @@ abstract class AbstractSchedulerTest {
     void setup() {
         streamProperties = new StreamProperties();
         streamProperties.setShutdownTimeout(Duration.ofMillis(100));
+        lenient()
+                .doReturn(Duration.ofSeconds(30).toMillis())
+                .when(latencyService)
+                .getMaxLatencyAgeMillis();
     }
 
     @Test

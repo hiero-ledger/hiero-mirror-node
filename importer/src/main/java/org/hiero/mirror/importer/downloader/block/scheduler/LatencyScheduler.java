@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
-import static org.hiero.mirror.importer.downloader.block.BlockNode.LATENCY_COMPARATOR;
-
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Collections;
 import java.util.Iterator;
@@ -36,6 +34,12 @@ final class LatencyScheduler extends AbstractLatencyAwareScheduler {
     }
 
     @Override
+    protected void doSetNodes(final List<BlockNode> blockNodes) {
+        sortByLatency(blockNodes);
+        nodes.set(blockNodes);
+    }
+
+    @Override
     protected Iterator<BlockNode> getNodeGroupIterator() {
         return Objects.requireNonNull(nodes.get()).iterator();
     }
@@ -43,13 +47,7 @@ final class LatencyScheduler extends AbstractLatencyAwareScheduler {
     @Override
     protected Iterator<BlockNode> getOrderedNodes() {
         final var current = Objects.requireNonNull(nodes.get());
-        current.sort(LATENCY_COMPARATOR);
+        sortByLatency(current);
         return current.iterator();
-    }
-
-    @Override
-    protected void setNodes(final List<BlockNode> blockNodes) {
-        blockNodes.sort(LATENCY_COMPARATOR);
-        nodes.set(blockNodes);
     }
 }

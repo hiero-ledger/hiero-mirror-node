@@ -63,6 +63,8 @@ abstract class AbstractScheduler implements Scheduler {
     @Override
     public final void close() {
         getOrderedNodes().forEachRemaining(BlockNode::close);
+        // A mutable list since a scheduler may sort it in place
+        setNodes(new ArrayList<>());
 
         executor.shutdown();
         try {
