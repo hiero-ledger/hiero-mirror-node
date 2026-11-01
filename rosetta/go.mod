@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/Code-Hex/go-generics-cache v1.5.1
-	github.com/coinbase/rosetta-sdk-go v0.12.0
+	github.com/coinbase/rosetta-sdk-go v0.12.1
 	github.com/coinbase/rosetta-sdk-go/types v1.7.2
 	github.com/cucumber/godog v0.16.0
 	github.com/go-playground/validator/v10 v10.30.5
