@@ -32,6 +32,7 @@ import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
+import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,11 +59,12 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
     private final RecordFileRepository recordFileRepository;
     private final TssVerifier tssVerifier;
 
+    private CutoverServiceImpl cutoverService;
     private BlockStreamVerifier verifier;
 
     @BeforeEach
     void setup() {
-        final var cutoverService = new CutoverServiceImpl(
+        cutoverService = new CutoverServiceImpl(
                 blockProperties, cutoverProperties, recordDownloaderProperties, recordFileRepository);
         verifier = new BlockStreamVerifier(
                 blockFileTransformer,
@@ -124,6 +126,52 @@ final class BlockStreamVerifierIntegrationTest extends ImporterIntegrationTest {
         assertThatThrownBy(() -> verifier.verify(blockFile))
                 .isInstanceOf(HashMismatchException.class)
                 .hasMessageStartingWith("Previous hash mismatch");
+    }
+
+    @Test
+    void verifyWithWrappedRecordBlockAfterBlock() {
+        // given the last verified file is a block well past the wrapped record file
+        final long lastBlockNumber = 30_000_000L;
+        final var lastBlock = domainBuilder
+                .recordFile()
+                .customize(r -> r.index(lastBlockNumber).version(BlockStreamReader.VERSION))
+                .persist();
+
+        // a genuinely signed historical record file wrapped in a block claiming the next block number and chaining
+        // to the last block via the unsigned footer
+        final long blockNumber = lastBlockNumber + 1;
+        final var blockFile = createBlockFileWithWrb();
+        blockFile.setIndex(blockNumber);
+        blockFile.setName(BlockFile.getFilename(blockNumber, true));
+        blockFile.setPreviousHash(lastBlock.getHash());
+        blockFile.getRecordFile().setIndex(blockNumber);
+
+        // when, then
+        assertThatThrownBy(() -> verifier.verify(blockFile))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage("Wrapped record block %s is not allowed after a block", blockFile.getName());
+        assertThat(cutoverService.getLastRecordFile())
+                .get()
+                .returns(lastBlockNumber, RecordFile::getIndex)
+                .returns(BlockStreamReader.VERSION, RecordFile::getVersion);
+        assertThat(cutoverService.getNextBlockNumber()).isEqualTo(blockNumber);
+    }
+
+    @Test
+    void verifyWithWrappedRecordBlockNumberMismatch() {
+        // given the block header claims a different block number than the signed wrapped record file
+        final var blockFile = createBlockFileWithWrb();
+        final long blockNumber = blockFile.getIndex() + 1;
+        blockFile.setIndex(blockNumber);
+        blockFile.setName(BlockFile.getFilename(blockNumber, true));
+
+        // when, then
+        assertThatThrownBy(() -> verifier.verify(blockFile))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessage(
+                        "Block number mismatch, from block header = %d, from wrapped record file = %d",
+                        blockNumber, blockNumber - 1);
+        assertThat(cutoverService.getLastRecordFile()).isEmpty();
     }
 
     @ParameterizedTest
