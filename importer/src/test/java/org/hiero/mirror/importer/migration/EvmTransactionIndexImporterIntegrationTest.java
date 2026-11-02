@@ -46,6 +46,9 @@ final class EvmTransactionIndexImporterIntegrationTest
     private static final ContractID PRECOMPILE_ID =
             ContractID.newBuilder().setContractNum(359).build();
 
+    private static final ContractID SCHEDULE_SERVICE_ID =
+            ContractID.newBuilder().setContractNum(363).build();
+
     @Getter
     private final FixScheduledAndHookEvmTransactionIndexMigration migration;
 
@@ -255,8 +258,17 @@ final class EvmTransactionIndexImporterIntegrationTest
 
     @Test
     void scheduledCallWithPresetNonceClaimsItsOwnIndex() {
-        // given - executed at expiry, so its effects are parented to the scheduled call itself
-        final var scheduleId = scheduleCreate();
+        // given - scheduled by a contract with the nonce of its ScheduleCreate child and executed at expiry in a later
+        // file, so its effects are parented to the scheduled call itself
+        final var scheduler = add(recordItemBuilder.contractCall(), result(100), 0, null, false);
+        final var scheduleId = recordItemBuilder.scheduleId();
+        add(
+                recordItemBuilder.scheduleCreate().receipt(r -> r.setScheduleID(scheduleId)),
+                scheduleServiceResult(),
+                53,
+                scheduler,
+                false);
+        parse();
         final var scheduledCall = add(scheduled(scheduleId), result(8000000), 53, null, true);
         final var effect = add(recordItemBuilder.cryptoTransfer(), precompileResult(15284), 54, scheduledCall, false);
         final var call = add(recordItemBuilder.contractCall(), result(100), 0, null, false);
@@ -497,6 +509,13 @@ final class EvmTransactionIndexImporterIntegrationTest
         return ContractFunctionResult.newBuilder()
                 .setContractID(PRECOMPILE_ID)
                 .setGasUsed(gasUsed)
+                .build();
+    }
+
+    private static ContractFunctionResult scheduleServiceResult() {
+        return ContractFunctionResult.newBuilder()
+                .setContractID(SCHEDULE_SERVICE_ID)
+                .setGasUsed(100)
                 .build();
     }
 
