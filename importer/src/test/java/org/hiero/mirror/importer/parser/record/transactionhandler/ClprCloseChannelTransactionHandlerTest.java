@@ -15,6 +15,7 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -95,7 +96,7 @@ class ClprCloseChannelTransactionHandlerTest extends AbstractTransactionHandlerT
                 .returns(
                         DomainUtils.toBytes(body.getOwnershipCommitment()),
                         ClprChannelPendingCommitment::getOwnershipCommitment)
-                .returns(true, ClprChannelPendingCommitment::getDeleted)
+                .returns(ClprPendingCommitmentStatus.DELETED, ClprChannelPendingCommitment::getStatus)
                 .returns(
                         Range.atLeast(recordItem.getConsensusTimestamp()),
                         ClprChannelPendingCommitment::getTimestampRange);

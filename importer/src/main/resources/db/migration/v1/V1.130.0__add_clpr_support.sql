@@ -3,6 +3,7 @@
 -- enum/bytea/varchar/jsonb (4-byte), then boolean last (1-byte).
 
 create type clpr_channel_status as enum ('ACTIVE', 'PAUSED', 'CLOSING', 'DRAINED', 'CLOSED');
+create type clpr_pending_commitment_status as enum ('OPEN', 'COMPLETED', 'DELETED');
 create type clpr_signature_scheme as enum ('ECDSA_SECP256K1', 'ED25519');
 create type clpr_message_type as enum ('DATA', 'RESPONSE', 'CONTROL');
 create type clpr_message_reply_status as enum
@@ -12,11 +13,10 @@ create type clpr_message_reply_status as enum
 
 create table if not exists clpr_channel_pending_commitment
 (
-    completed_timestamp   bigint,
-    created_timestamp     bigint     not null,
-    timestamp_range       int8range  not null,
-    ownership_commitment  bytea      not null,
-    deleted               boolean    not null default false,
+    created_timestamp     bigint                           not null,
+    timestamp_range       int8range                        not null,
+    status                clpr_pending_commitment_status   not null default 'OPEN',
+    ownership_commitment  bytea                            not null,
 
     primary key (ownership_commitment)
 );
@@ -24,7 +24,7 @@ create table if not exists clpr_channel_pending_commitment
 -- Partial index backing the Pending Channels API filter
 create index if not exists clpr_channel_pending_commitment__created_timestamp
     on clpr_channel_pending_commitment (created_timestamp)
-    where deleted is false and completed_timestamp is null;
+    where status = 'OPEN';
 
 create table if not exists clpr_channel_pending_commitment_history
 (
@@ -72,8 +72,11 @@ create table if not exists clpr_channel
     primary key (channel_id)
 );
 
-create index if not exists clpr_channel__chain_id
-    on clpr_channel (chain_id, created_timestamp);
+create index if not exists clpr_channel__created_timestamp
+    on clpr_channel (created_timestamp);
+
+create index if not exists clpr_channel__status
+    on clpr_channel (status, created_timestamp);
 
 create table if not exists clpr_channel_history
 (
@@ -87,11 +90,10 @@ create index if not exists clpr_channel_history__timestamp_range
 
 create table if not exists clpr_connector_pending_commitment
 (
-    completed_timestamp  bigint,
-    created_timestamp    bigint     not null,
-    timestamp_range      int8range  not null,
-    commitment           bytea      not null,
-    deleted              boolean    not null default false,
+    created_timestamp  bigint                           not null,
+    timestamp_range    int8range                        not null,
+    status             clpr_pending_commitment_status   not null default 'OPEN',
+    commitment         bytea                            not null,
 
     primary key (commitment)
 );
@@ -99,7 +101,7 @@ create table if not exists clpr_connector_pending_commitment
 -- Partial index backing the Pending Connectors API filter
 create index if not exists clpr_connector_pending_commitment__created_timestamp
     on clpr_connector_pending_commitment (created_timestamp)
-    where deleted is false and completed_timestamp is null;
+    where status = 'OPEN';
 
 create table if not exists clpr_connector_pending_commitment_history
 (
@@ -125,7 +127,7 @@ create table if not exists clpr_connector
     public_key               bytea,
     salt                     bytea,
     signature                bytea,
-    deleted                  boolean,
+    deleted                  boolean     not null default false,
 
     primary key (channel_id, connector_id)
 );
@@ -174,8 +176,8 @@ create table if not exists clpr_endpoint_manifest
 );
 
 -- Message queue (append-only). Primary key omitted: a partitioned table's primary key must include the partition
--- column, and consensus_timestamp isn't part of this table's natural identity; clpr_message__channel_id_message_id
--- below covers that lookup instead.
+-- column, and consensus_timestamp isn't part of this table's natural identity; clpr_message__channel_id_timestamp
+-- below covers every lookup this table needs instead.
 
 create table if not exists clpr_message
 (
@@ -196,12 +198,9 @@ create table if not exists clpr_message
 create index if not exists clpr_message__channel_id_timestamp
     on clpr_message (channel_id, consensus_timestamp);
 
-create index if not exists clpr_message__channel_id_message_id
-    on clpr_message (channel_id, message_id);
-
 -- Partial index: only DATA messages have a non-null connector_id
 create index if not exists clpr_message__connector_id
-    on clpr_message (connector_id, message_id)
+    on clpr_message (connector_id, consensus_timestamp)
     where connector_id is not null;
 
 -- v1 has no Citus create_time_partitions helper, so partitions are created manually, matching the

@@ -6,6 +6,7 @@ import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -40,11 +41,11 @@ class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
 
         long consensusTimestamp = recordItem.getConsensusTimestamp();
 
-        // deleted must be set explicitly: a swept commitment can be legitimately re-registered, and leaving it
-        // unset would let the upsert coalesce preserve the prior sweep's deleted = true
+        // status must be set explicitly: a swept commitment can be legitimately re-registered, and leaving it
+        // unset would let the upsert coalesce preserve the prior sweep's DELETED status
         var commitment = ClprChannelPendingCommitment.builder()
                 .createdTimestamp(consensusTimestamp)
-                .deleted(false)
+                .status(ClprPendingCommitmentStatus.OPEN)
                 .ownershipCommitment(DomainUtils.toBytes(ownershipCommitment))
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();

@@ -15,6 +15,7 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -92,6 +93,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 .returns(2L, ClprConnector::getSlashCount)
                 .returns(5L, ClprConnector::getInFlightMessageCount)
                 .returns(consensusTimestamp, ClprConnector::getCreatedTimestamp)
+                .returns(false, ClprConnector::getDeleted)
                 .returns(DomainUtils.toBytes(body.getPublicKey()), ClprConnector::getPublicKey)
                 .returns(DomainUtils.toBytes(body.getSalt()), ClprConnector::getSalt)
                 .returns(DomainUtils.toBytes(body.getSignature()), ClprConnector::getSignature)
@@ -103,7 +105,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 DomainUtils.toBytes(clprConnectorValue.getConnectorId()), DomainUtils.toBytes(body.getPublicKey()));
         assertThat(commitmentCaptor.getValue())
                 .returns(expectedCommitment, ClprConnectorPendingCommitment::getCommitment)
-                .returns(consensusTimestamp, ClprConnectorPendingCommitment::getCompletedTimestamp)
+                .returns(ClprPendingCommitmentStatus.COMPLETED, ClprConnectorPendingCommitment::getStatus)
                 .returns(timestampRange, ClprConnectorPendingCommitment::getTimestampRange);
 
         assertThat(recordItem.getEntityTransactions())

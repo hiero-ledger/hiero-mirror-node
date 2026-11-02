@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.clpr.AbstractClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
@@ -452,8 +453,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         var pendingCommitment = clprChannelPendingCommitmentRepository
                 .findById(DomainUtils.toBytes(ownershipCommitment))
                 .orElseThrow();
-        assertThat(pendingCommitment.getCompletedTimestamp()).isNotNull();
-        assertThat(pendingCommitment.getDeleted()).isFalse();
+        assertThat(pendingCommitment.getStatus()).isEqualTo(ClprPendingCommitmentStatus.COMPLETED);
 
         var channel =
                 clprChannelRepository.findById(DomainUtils.toBytes(channelId)).orElseThrow();
@@ -512,7 +512,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         var pendingCommitment = clprConnectorPendingCommitmentRepository
                 .findById(DomainUtils.toBytes(commitment))
                 .orElseThrow();
-        assertThat(pendingCommitment.getCompletedTimestamp()).isNotNull();
+        assertThat(pendingCommitment.getStatus()).isEqualTo(ClprPendingCommitmentStatus.COMPLETED);
 
         var connector = clprConnectorRepository
                 .findById(

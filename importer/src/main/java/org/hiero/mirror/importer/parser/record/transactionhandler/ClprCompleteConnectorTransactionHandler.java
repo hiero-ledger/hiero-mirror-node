@@ -7,6 +7,7 @@ import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
@@ -56,6 +57,7 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
                 .slashCount((long) clprConnectorValue.getSlashCount())
                 .inFlightMessageCount(clprConnectorValue.getInFlightMessageCount())
                 .createdTimestamp(consensusTimestamp)
+                .deleted(false)
                 .publicKey(publicKey)
                 .salt(DomainUtils.toBytes(transactionBody.getSalt()))
                 .signature(DomainUtils.toBytes(transactionBody.getSignature()))
@@ -68,7 +70,7 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
         // ClprConnector has no commitment field (unlike Channel), so this must be recomputed, not read off state.
         var commitment = ClprConnectorPendingCommitment.builder()
                 .commitment(SignatureUtils.keccak256(connectorId, publicKey))
-                .completedTimestamp(consensusTimestamp)
+                .status(ClprPendingCommitmentStatus.COMPLETED)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprConnectorPendingCommitment(commitment);

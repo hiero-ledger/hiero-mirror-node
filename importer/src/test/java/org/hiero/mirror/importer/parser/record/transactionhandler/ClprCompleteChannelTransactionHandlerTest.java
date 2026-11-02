@@ -15,6 +15,7 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -108,7 +109,7 @@ class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandl
                 .returns(
                         DomainUtils.toBytes(clprChannelValue.getOwnershipCommitment()),
                         ClprChannelPendingCommitment::getOwnershipCommitment)
-                .returns(consensusTimestamp, ClprChannelPendingCommitment::getCompletedTimestamp);
+                .returns(ClprPendingCommitmentStatus.COMPLETED, ClprChannelPendingCommitment::getStatus);
 
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(

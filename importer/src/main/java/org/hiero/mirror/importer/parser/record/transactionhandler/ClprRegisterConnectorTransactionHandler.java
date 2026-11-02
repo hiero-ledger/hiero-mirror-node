@@ -6,6 +6,7 @@ import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -43,7 +44,7 @@ class ClprRegisterConnectorTransactionHandler extends AbstractTransactionHandler
         var pendingCommitment = ClprConnectorPendingCommitment.builder()
                 .commitment(DomainUtils.toBytes(commitment))
                 .createdTimestamp(consensusTimestamp)
-                .deleted(false)
+                .status(ClprPendingCommitmentStatus.OPEN)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprConnectorPendingCommitment(pendingCommitment);

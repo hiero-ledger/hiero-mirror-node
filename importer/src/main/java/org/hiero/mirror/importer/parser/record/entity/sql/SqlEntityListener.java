@@ -686,11 +686,8 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         if (current.getCreatedTimestamp() == null) {
             current.setCreatedTimestamp(previous.getCreatedTimestamp());
         }
-        if (current.getCompletedTimestamp() == null) {
-            current.setCompletedTimestamp(previous.getCompletedTimestamp());
-        }
-        if (current.getDeleted() == null) {
-            current.setDeleted(previous.getDeleted());
+        if (current.getStatus() == null) {
+            current.setStatus(previous.getStatus());
         }
 
         return current;
@@ -781,11 +778,8 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         if (current.getCreatedTimestamp() == null) {
             current.setCreatedTimestamp(previous.getCreatedTimestamp());
         }
-        if (current.getCompletedTimestamp() == null) {
-            current.setCompletedTimestamp(previous.getCompletedTimestamp());
-        }
-        if (current.getDeleted() == null) {
-            current.setDeleted(previous.getDeleted());
+        if (current.getStatus() == null) {
+            current.setStatus(previous.getStatus());
         }
 
         return current;

@@ -63,6 +63,7 @@ import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
@@ -302,7 +303,7 @@ public class DomainBuilder {
         var createdTimestamp = timestamp();
         var builder = ClprChannelPendingCommitment.builder()
                 .createdTimestamp(createdTimestamp)
-                .deleted(false)
+                .status(ClprPendingCommitmentStatus.OPEN)
                 .ownershipCommitment(bytes(32))
                 .timestampRange(Range.atLeast(createdTimestamp));
         return new DomainWrapperImpl<>(builder, builder::build);

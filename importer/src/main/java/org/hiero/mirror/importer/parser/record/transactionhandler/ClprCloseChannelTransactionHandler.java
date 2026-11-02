@@ -7,6 +7,7 @@ import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -34,11 +35,11 @@ class ClprCloseChannelTransactionHandler extends AbstractTransactionHandler {
         var clprChannelValue = recordItem.getClprChannel();
         if (clprChannelValue == null) {
             // No Channel exists yet for this channel_id -- an admin sweep of an abandoned commitment, not a real
-            // closure; the only branch that ever marks a commitment deleted
+            // closure; the only branch that ever marks a commitment DELETED
             var transactionBody = recordItem.getTransactionBody().getClprCloseChannel();
             var commitment = ClprChannelPendingCommitment.builder()
                     .ownershipCommitment(DomainUtils.toBytes(transactionBody.getOwnershipCommitment()))
-                    .deleted(true)
+                    .status(ClprPendingCommitmentStatus.DELETED)
                     .timestampRange(Range.atLeast(consensusTimestamp))
                     .build();
             entityListener.onClprChannelPendingCommitment(commitment);

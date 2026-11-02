@@ -28,6 +28,7 @@ import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -263,7 +264,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         var register = domainBuilder.clprChannelPendingCommitment().get();
         var complete = ClprChannelPendingCommitment.builder()
                 .ownershipCommitment(register.getOwnershipCommitment())
-                .completedTimestamp(register.getCreatedTimestamp() + 1)
+                .status(ClprPendingCommitmentStatus.COMPLETED)
                 .timestampRange(Range.atLeast(register.getCreatedTimestamp() + 1))
                 .build();
         var mergedComplete = TestUtils.merge(register, complete);
@@ -292,7 +293,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         var register = domainBuilder.clprChannelPendingCommitment().get();
         var sweep = ClprChannelPendingCommitment.builder()
                 .ownershipCommitment(register.getOwnershipCommitment())
-                .deleted(true)
+                .status(ClprPendingCommitmentStatus.DELETED)
                 .timestampRange(Range.atLeast(register.getCreatedTimestamp() + 1))
                 .build();
         var mergedSweep = TestUtils.merge(register, sweep);
@@ -317,11 +318,11 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     @ParameterizedTest
     @ValueSource(ints = {1, 2, 3})
     void onClprChannelPendingCommitmentSweepThenReregister(int commitIndex) {
-        // given -- re-registering after a sweep must discard the sweep's deleted = true rather than carry it forward
+        // given -- re-registering after a sweep must discard the sweep's DELETED status rather than carry it forward
         var register1 = domainBuilder.clprChannelPendingCommitment().get();
         var sweep = ClprChannelPendingCommitment.builder()
                 .ownershipCommitment(register1.getOwnershipCommitment())
-                .deleted(true)
+                .status(ClprPendingCommitmentStatus.DELETED)
                 .timestampRange(Range.atLeast(register1.getCreatedTimestamp() + 1))
                 .build();
         var register2 = domainBuilder
@@ -364,7 +365,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // given -- no corresponding registration ever observed; skipPartialUpdate must drop this silently
         var orphanComplete = ClprChannelPendingCommitment.builder()
                 .ownershipCommitment(domainBuilder.bytes(32))
-                .completedTimestamp(domainBuilder.timestamp())
+                .status(ClprPendingCommitmentStatus.COMPLETED)
                 .timestampRange(domainBuilder.timestampRange())
                 .build();
 

@@ -13,6 +13,7 @@ import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -60,7 +61,7 @@ class ClprRegisterConnectorTransactionHandlerTest extends AbstractTransactionHan
         assertThat(captor.getValue())
                 .returns(DomainUtils.toBytes(commitment), ClprConnectorPendingCommitment::getCommitment)
                 .returns(consensusTimestamp, ClprConnectorPendingCommitment::getCreatedTimestamp)
-                .returns(false, ClprConnectorPendingCommitment::getDeleted)
+                .returns(ClprPendingCommitmentStatus.OPEN, ClprConnectorPendingCommitment::getStatus)
                 .returns(Range.atLeast(consensusTimestamp), ClprConnectorPendingCommitment::getTimestampRange);
     }
 

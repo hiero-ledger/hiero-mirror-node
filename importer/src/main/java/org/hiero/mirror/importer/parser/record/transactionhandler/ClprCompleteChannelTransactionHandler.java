@@ -7,6 +7,7 @@ import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
@@ -65,7 +66,7 @@ class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
         // clprChannel's own ownership_commitment rather than recomputing it.
         var commitment = ClprChannelPendingCommitment.builder()
                 .ownershipCommitment(clprChannel.getOwnershipCommitment())
-                .completedTimestamp(consensusTimestamp)
+                .status(ClprPendingCommitmentStatus.COMPLETED)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprChannelPendingCommitment(commitment);
