@@ -9,12 +9,14 @@ import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.HederaFunctionality;
 import com.hedera.hapi.node.base.NftID;
+import com.hedera.hapi.node.base.PendingAirdropId;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.contract.Bytecode;
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
 import com.hedera.hapi.node.state.file.File;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.hapi.node.state.token.AccountPendingAirdrop;
 import com.hedera.hapi.node.state.token.Nft;
 import com.hedera.hapi.node.state.token.Token;
 import com.hedera.hapi.node.state.token.TokenRelation;
@@ -29,6 +31,7 @@ import com.hedera.node.app.service.contract.impl.state.ContractStateStore;
 import com.hedera.node.app.service.file.FileMetadata;
 import com.hedera.node.app.service.file.ReadableFileStore;
 import com.hedera.node.app.service.token.ReadableAccountStore;
+import com.hedera.node.app.service.token.ReadableAirdropStore;
 import com.hedera.node.app.service.token.ReadableNftStore;
 import com.hedera.node.app.service.token.ReadableTokenRelationStore;
 import com.hedera.node.app.service.token.ReadableTokenStore;
@@ -185,6 +188,23 @@ final class FeeEstimationFeeContext implements FeeContext {
         }
     };
 
+    private static final ReadableAirdropStore EMPTY_AIRDROP_STORE = new ReadableAirdropStore() {
+        @Override
+        public AccountPendingAirdrop get(final PendingAirdropId airdropId) {
+            return null;
+        }
+
+        @Override
+        public boolean exists(final PendingAirdropId airdropId) {
+            return false;
+        }
+
+        @Override
+        public long sizeOfState() {
+            return 0;
+        }
+    };
+
     private final TransactionBody body;
     private final FeeTopicStore topicStore;
     private final int throttleUtilization;
@@ -224,6 +244,9 @@ final class FeeEstimationFeeContext implements FeeContext {
         }
         if (storeInterface == ReadableTokenRelationStore.class) {
             return (T) EMPTY_TOKEN_RELATION_STORE;
+        }
+        if (storeInterface == ReadableAirdropStore.class) {
+            return (T) EMPTY_AIRDROP_STORE;
         }
         throw new UnsupportedOperationException("Store not supported: " + storeInterface.getSimpleName());
     }

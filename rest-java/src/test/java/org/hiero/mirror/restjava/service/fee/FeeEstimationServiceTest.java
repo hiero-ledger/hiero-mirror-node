@@ -113,6 +113,8 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     # token
     TOKENASSOCIATE          , 500000000
     TOKENBURN               , 10000000
+    TOKENCANCELAIRDROP      , 10000000
+    TOKENCLAIMAIRDROP       , 10000000
     TOKENCREATION           , 20700000000
     TOKENDELETION           , 10000000
     TOKENDISSOCIATE         , 500000000
@@ -137,6 +139,23 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                     .as("Fee for %s in %s mode", type, mode)
                     .isEqualTo(expected);
         }
+    }
+
+    @Test
+    void estimatesTokenAirdropFee() {
+        final var pbjTransaction = toPbj(recordItemBuilder
+                .lookup(TransactionType.TOKENAIRDROP)
+                .get()
+                .build()
+                .getTransaction());
+
+        // STATE also charges TOKEN_TRANSFER_BASE for the airdrop's token transfers.
+        assertThat(service.estimateFees(pbjTransaction, FeeEstimateMode.INTRINSIC, 0)
+                        .totalTinycents())
+                .isEqualTo(2_000_000L);
+        assertThat(service.estimateFees(pbjTransaction, FeeEstimateMode.STATE, 0)
+                        .totalTinycents())
+                .isEqualTo(10_000_000L);
     }
 
     @Test

@@ -30,6 +30,8 @@ monitor:
 pinger:
   enabled: false
 restjava:
+  env:
+    HIERO_MIRROR_RESTJAVA_FEE_REFRESHINTERVAL: "5s"
   image:
     repository: mirrornode/hedera-mirror-rest-java
   resources:
@@ -39,6 +41,7 @@ restjava:
 test:
   env:
     HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
+    HIERO_MIRROR_TEST_ACCEPTANCE_RESTJAVA_FEEESTIMATION_ENABLED: "true"
     HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
     HIERO_MIRROR_TEST_ACCEPTANCE_SKIPENTITIESCLEANUP: "true"
   enabled: true
