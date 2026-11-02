@@ -473,6 +473,20 @@ describe('extractContractResultsByIdQuery', () => {
         limit: defaultLimit,
       },
     },
+    {
+      name: 'global endpoint - from range filter disables includeSynthetic',
+      input: {
+        filter: [{key: constants.filterKeys.FROM, operator: gte, value: '1001'}],
+        contractId: undefined,
+      },
+      expected: {
+        conditions: ['cr.sender_id >= $1', 'cr.transaction_nonce = 0'],
+        includeSynthetic: false,
+        params: ['1001'],
+        order: constants.orderFilterValues.DESC,
+        limit: defaultLimit,
+      },
+    },
   ];
 
   [...specs, ...globalSpecs].forEach((spec) => {

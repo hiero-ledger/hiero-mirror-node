@@ -439,11 +439,13 @@ class ContractController extends BaseController {
     const transactionIndexInValues = [];
 
     let blockFilter;
+    let hasFromFilter = false;
     const timestampFilters = [];
 
     for (const filter of filters) {
       switch (filter.key) {
         case filterKeys.FROM:
+          hasFromFilter = true;
           // Evm addresses are not parsed by utils.buildAndValidateFilters, so they are converted to encoded ids here.
           if (EntityId.isValidEvmAddress(filter.value)) {
             filter.value = await EntityService.getEncodedId(filter.value);
@@ -538,11 +540,12 @@ class ContractController extends BaseController {
     }
 
     // Special case: don't include synthetic contract results created from synthetic contract logs when the query is for
-    // a specific contract, a workaround for #14365
+    // a specific contract, a workaround for #14365. Synthetic results have no sender, so any from filter (eq or range)
+    // excludes them.
     const includeSynthetic =
       config.query.syntheticContractResults &&
       (contractId == null || config.query.syntheticContractIdResults) &&
-      contractResultFromInValues.length === 0;
+      !hasFromFilter;
 
     return {
       conditions,
