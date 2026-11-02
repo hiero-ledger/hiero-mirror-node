@@ -54,7 +54,7 @@ dependencies {
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.4")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.2")
         api("com.hedera.hashgraph:sdk:2.79.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
