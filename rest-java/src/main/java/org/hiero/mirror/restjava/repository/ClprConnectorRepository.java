@@ -10,10 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
-/**
- * Queries filtered by {@code channel_id}, the distribution column in {@code v2}, route to a single shard. The other
- * query scatter-gathers across all shards.
- */
+/** Every query is filtered by {@code channel_id}, the distribution column in {@code v2}, so it routes to a single shard. */
 public interface ClprConnectorRepository extends CrudRepository<ClprConnector, AbstractClprConnector.Id> {
 
     /**
@@ -30,36 +27,18 @@ public interface ClprConnectorRepository extends CrudRepository<ClprConnector, A
                 where channel_id = :channelId and connector_id = :connectorId
                 and timestamp_range @> cast(:timestamp as bigint)
             ) as c
-            where cast(:deleted as boolean) is null or coalesce(c.deleted, false) = :deleted
             limit 1
             """, nativeQuery = true)
-    List<ClprConnector> findByChannelIdAndConnectorIdAndTimestamp(
-            byte[] channelId, byte[] connectorId, long timestamp, @Nullable Boolean deleted);
+    List<ClprConnector> findByChannelIdAndConnectorIdAndTimestamp(byte[] channelId, byte[] connectorId, long timestamp);
 
-    /**
-     * Within a channel, the connector id and deleted filters are cheap filters on top of the channel_id lookup. A
-     * connector that was never removed may have deleted unset, so it counts as not deleted.
-     */
+    /** Within a channel, the connector id filter is a cheap filter on top of the channel_id lookup. */
     @Query(value = """
             select * from clpr_connector
             where channel_id = :channelId
             and created_timestamp >= :lowerBound
             and created_timestamp <= :upperBound
             and (cast(:connectorId as bytea) is null or connector_id = :connectorId)
-            and (cast(:deleted as boolean) is null or coalesce(deleted, false) = :deleted)
             """, nativeQuery = true)
     List<ClprConnector> findByChannelId(
-            byte[] channelId,
-            long lowerBound,
-            long upperBound,
-            byte @Nullable [] connectorId,
-            @Nullable Boolean deleted,
-            Pageable pageable);
-
-    @Query(value = """
-            select * from clpr_connector
-            where created_timestamp >= :lowerBound
-            and created_timestamp <= :upperBound
-            """, nativeQuery = true)
-    List<ClprConnector> findByCreatedTimestampBetween(long lowerBound, long upperBound, Pageable pageable);
+            byte[] channelId, long lowerBound, long upperBound, byte @Nullable [] connectorId, Pageable pageable);
 }

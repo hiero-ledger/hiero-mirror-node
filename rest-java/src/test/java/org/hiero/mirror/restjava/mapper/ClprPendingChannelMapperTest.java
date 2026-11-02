@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.rest.model.ClprPendingCommitmentStatus;
+import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.junit.jupiter.api.Test;
 
 final class ClprPendingChannelMapperTest {
@@ -26,6 +26,7 @@ final class ClprPendingChannelMapperTest {
         assertThat(actual.getCreatedTimestamp()).isEqualTo(DomainUtils.toTimestamp(source.getCreatedTimestamp()));
         assertThat(actual.getOwnershipCommitment())
                 .isEqualTo("0x" + java.util.HexFormat.of().formatHex(source.getOwnershipCommitment()));
-        assertThat(actual.getStatus()).isEqualTo(ClprPendingCommitmentStatus.OPEN);
+        assertThat(actual.getStatus()).isEqualTo(ClprChannelStatus.PENDING);
+        assertThat(actual.getChannelId()).isNull();
     }
 }

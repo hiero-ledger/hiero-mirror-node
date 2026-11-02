@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import com.google.common.collect.Range;
+import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
@@ -336,7 +337,7 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void getLedgerConfigurations() {
+    void getLedgerConfiguration() {
         // given
         final var config1 = domainBuilder
                 .clprLedgerConfiguration()
@@ -346,19 +347,27 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
                 .clprLedgerConfiguration()
                 .customize(c -> c.consensusTimestamp(200L))
                 .persist();
-        final var all = ClprTimestampRequest.builder().build();
-        final var bounded = ClprTimestampRequest.builder().lowerBound(150L).build();
-        final var ascending =
-                ClprTimestampRequest.builder().order(Direction.ASC).build();
 
         // when / then
-        assertThat(service.getLedgerConfigurations(all)).containsExactly(config2, config1);
-        assertThat(service.getLedgerConfigurations(bounded)).containsExactly(config2);
-        assertThat(service.getLedgerConfigurations(ascending)).containsExactly(config1, config2);
+        assertThat(service.getLedgerConfiguration(Long.MAX_VALUE)).isEqualTo(config2);
+        assertThat(service.getLedgerConfiguration(200L)).isEqualTo(config2);
+        assertThat(service.getLedgerConfiguration(199L)).isEqualTo(config1);
     }
 
     @Test
-    void getEndpointManifests() {
+    void getLedgerConfigurationNotFound() {
+        // given
+        domainBuilder
+                .clprLedgerConfiguration()
+                .customize(c -> c.consensusTimestamp(100L))
+                .persist();
+
+        // when / then
+        assertThatThrownBy(() -> service.getLedgerConfiguration(99L)).isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void getEndpointManifest() {
         // given
         final var manifest1 = domainBuilder
                 .clprEndpointManifest()
@@ -368,49 +377,46 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
                 .clprEndpointManifest()
                 .customize(m -> m.consensusTimestamp(200L))
                 .persist();
-        final var all = ClprTimestampRequest.builder().build();
-        final var bounded = ClprTimestampRequest.builder().upperBound(150L).build();
 
         // when / then
-        assertThat(service.getEndpointManifests(all)).containsExactly(manifest2, manifest1);
-        assertThat(service.getEndpointManifests(bounded)).containsExactly(manifest1);
+        assertThat(service.getEndpointManifest(Long.MAX_VALUE)).isEqualTo(manifest2);
+        assertThat(service.getEndpointManifest(200L)).isEqualTo(manifest2);
+        assertThat(service.getEndpointManifest(199L)).isEqualTo(manifest1);
     }
 
     @Test
-    void getLedgerConfigurationsAndEndpointManifestsInvalidTimestampRange() {
+    void getEndpointManifestNotFound() {
         // given
-        final var request =
-                ClprTimestampRequest.builder().lowerBound(10L).upperBound(1L).build();
+        domainBuilder
+                .clprEndpointManifest()
+                .customize(m -> m.consensusTimestamp(100L))
+                .persist();
 
         // when / then
-        assertThatThrownBy(() -> service.getLedgerConfigurations(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid range provided for timestamp");
-        assertThatThrownBy(() -> service.getEndpointManifests(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid range provided for timestamp");
+        assertThatThrownBy(() -> service.getEndpointManifest(99L)).isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
     void getConnectors() {
         // given
-        final var connector1 = persistConnector(100L);
-        final var connector2 = persistConnector(200L);
-        final var request = ClprConnectorsRequest.builder().build();
+        final var channelId = domainBuilder.bytes(32);
+        final var connector1 = persistConnector(100L, channelId);
+        final var connector2 = persistConnector(200L, channelId);
+        persistConnector(300L); // other channel
+        final var request = ClprConnectorsRequest.builder().channelId(channelId).build();
 
         // when / then
         assertThat(service.getConnectors(request)).containsExactly(connector2, connector1);
     }
 
     @Test
-    void getConnectorsByFilters() {
+    void getConnectorsByConnectorId() {
         // given
         final var connector = persistConnector(200L);
         persistConnector(200L); // other channel and connector
         final var request = ClprConnectorsRequest.builder()
                 .channelId(connector.getChannelId())
                 .connectorId(connector.getConnectorId())
-                .deleted(false)
                 .build();
 
         // when / then
@@ -421,6 +427,7 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     void getConnectorsInvalidTimestampRange() {
         // given
         final var request = ClprConnectorsRequest.builder()
+                .channelId(new byte[32])
                 .lowerBound(300L)
                 .upperBound(200L)
                 .build();
@@ -432,24 +439,11 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void getConnectorsConnectorIdWithoutChannelId() {
-        // given
-        final var request =
-                ClprConnectorsRequest.builder().connectorId(new byte[32]).build();
-
-        // when / then
-        assertThatThrownBy(() -> service.getConnectors(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("channel.id is required when filtering by connector.id, deleted or timestamp");
-    }
-
-    @Test
-    void getConnectorsByChannelIdWithDeletedAndTimestamp() {
+    void getConnectorsByTimestampRange() {
         // given
         final var connector = persistConnector(200L);
         final var request = ClprConnectorsRequest.builder()
                 .channelId(connector.getChannelId())
-                .deleted(false)
                 .lowerBound(1L)
                 .upperBound(1000L)
                 .build();
@@ -510,48 +504,7 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
         // when / then
         assertThatThrownBy(() -> service.getConnectors(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("timestamp must use the eq operator when filtering by channel.id and connector.id");
-    }
-
-    @Test
-    void getConnectorsDeletedWithoutChannelId() {
-        // given
-        final var request = ClprConnectorsRequest.builder().deleted(true).build();
-
-        // when / then
-        assertThatThrownBy(() -> service.getConnectors(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("channel.id is required when filtering by connector.id, deleted or timestamp");
-    }
-
-    @Test
-    void getConnectorsDeletedWithConnectorIdWithoutChannelId() {
-        // given
-        final var request = ClprConnectorsRequest.builder()
-                .connectorId(new byte[32])
-                .deleted(false)
-                .build();
-
-        // when / then
-        assertThatThrownBy(() -> service.getConnectors(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("channel.id is required when filtering by connector.id, deleted or timestamp");
-    }
-
-    @Test
-    void getConnectorsTimestampWithoutChannelId() {
-        // given
-        final var lowerOnly = ClprConnectorsRequest.builder().lowerBound(1L).build();
-        final var upperOnly = ClprConnectorsRequest.builder().upperBound(100L).build();
-        final var both =
-                ClprConnectorsRequest.builder().lowerBound(1L).upperBound(100L).build();
-
-        // when / then
-        for (final var request : List.of(lowerOnly, upperOnly, both)) {
-            assertThatThrownBy(() -> service.getConnectors(request))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("channel.id is required when filtering by connector.id, deleted or timestamp");
-        }
+                .hasMessage("timestamp must use the eq operator when filtering by connector.id");
     }
 
     @Test
@@ -727,6 +680,13 @@ final class ClprServiceTest extends RestJavaIntegrationTest {
         return domainBuilder
                 .clprConnector()
                 .customize(c -> c.createdTimestamp(createdTimestamp))
+                .persist();
+    }
+
+    private ClprConnector persistConnector(long createdTimestamp, byte[] channelId) {
+        return domainBuilder
+                .clprConnector()
+                .customize(c -> c.channelId(channelId).createdTimestamp(createdTimestamp))
                 .persist();
     }
 

@@ -6,7 +6,6 @@ import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
 import static org.hiero.mirror.restjava.common.Constants.CHANNEL_ID;
 import static org.hiero.mirror.restjava.common.Constants.CONNECTOR_ID;
 import static org.hiero.mirror.restjava.common.Constants.DEFAULT_LIMIT;
-import static org.hiero.mirror.restjava.common.Constants.DELETED;
 import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
@@ -16,23 +15,20 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.rest.model.ClprChannel;
+import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
 import org.hiero.mirror.rest.model.ClprConnector;
 import org.hiero.mirror.rest.model.ClprConnectorsResponse;
 import org.hiero.mirror.rest.model.ClprEndpointManifestEntry;
-import org.hiero.mirror.rest.model.ClprEndpointManifestsResponse;
 import org.hiero.mirror.rest.model.ClprLedgerConfiguration;
-import org.hiero.mirror.rest.model.ClprLedgerConfigurationsResponse;
 import org.hiero.mirror.rest.model.ClprMessage;
 import org.hiero.mirror.rest.model.ClprMessagesResponse;
-import org.hiero.mirror.rest.model.ClprPendingChannel;
-import org.hiero.mirror.rest.model.ClprPendingChannelsResponse;
 import org.hiero.mirror.rest.model.ClprPendingConnector;
 import org.hiero.mirror.rest.model.ClprPendingConnectorsResponse;
 import org.hiero.mirror.restjava.common.LinkFactory;
@@ -67,14 +63,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class ClprController {
 
-    // A 32-byte hex id with an optional eq operator and 0x prefix. Ids are opaque, so no other operator is supported
-    private static final String ID_REGEX = "^(eq:)?(0x)?[0-9a-f]{64}$";
-
-    // A path id has no operator
-    private static final String PATH_ID_REGEX = "^(0x)?[0-9a-f]{64}$";
-
     // created_timestamp is the consensus timestamp of the completing transaction, so it's unique per channel and is
-    // the sole sort and pagination key
+    // the sole sort and pagination key. A pending channel's created_timestamp is the consensus timestamp of its
+    // registering transaction, so it's unique too
     private static final Function<ClprChannel, Map<String, String>> CHANNEL_EXTRACTOR =
             channel -> ImmutableSortedMap.of(TIMESTAMP, channel.getCreatedTimestamp());
 
@@ -82,23 +73,18 @@ final class ClprController {
     private static final Function<ClprConnector, Map<String, String>> CONNECTOR_EXTRACTOR =
             connector -> ImmutableSortedMap.of(TIMESTAMP, connector.getCreatedTimestamp());
 
-    // consensus_timestamp is the primary key of the append-only endpoint manifest and ledger configuration tables
-    private static final Function<ClprEndpointManifestEntry, Map<String, String>> ENDPOINT_MANIFEST_EXTRACTOR =
-            manifest -> ImmutableSortedMap.of(TIMESTAMP, manifest.getConsensusTimestamp());
-
-    private static final Function<ClprLedgerConfiguration, Map<String, String>> LEDGER_CONFIGURATION_EXTRACTOR =
-            configuration -> ImmutableSortedMap.of(TIMESTAMP, configuration.getConsensusTimestamp());
+    // A 32-byte hex id with an optional eq operator and 0x prefix. Ids are opaque, so no other operator is supported
+    private static final String ID_REGEX = "^(eq:)?(0x)?[0-9a-f]{64}$";
 
     // The consensus timestamp is the sole sort and pagination key. Messages dispatched by one bundle share it, so a
     // page boundary inside such a group can skip or repeat rows
     private static final Function<ClprMessage, Map<String, String>> MESSAGE_EXTRACTOR =
             message -> ImmutableSortedMap.of(TIMESTAMP, message.getTimestamp());
 
-    // A pending channel's created_timestamp is the consensus timestamp of its registering transaction, so it's unique
-    private static final Function<ClprPendingChannel, Map<String, String>> PENDING_CHANNEL_EXTRACTOR =
-            pendingChannel -> ImmutableSortedMap.of(TIMESTAMP, pendingChannel.getCreatedTimestamp());
+    // A path id has no operator
+    private static final String PATH_ID_REGEX = "^(0x)?[0-9a-f]{64}$";
 
-    // Likewise, a pending connector's created_timestamp is unique
+    // A pending connector's created_timestamp is the consensus timestamp of its registering transaction, so it's unique
     private static final Function<ClprPendingConnector, Map<String, String>> PENDING_CONNECTOR_EXTRACTOR =
             pendingConnector -> ImmutableSortedMap.of(TIMESTAMP, pendingConnector.getCreatedTimestamp());
 
@@ -124,8 +110,10 @@ final class ClprController {
             @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
                     TimestampParameter[] timestamps) {
 
-        final var request = clprChannelsRequest(channelId, limit, order, status, timestamps);
-        final var channels = channelMapper.map(service.getChannels(request));
+        final var channels = status == ClprChannelStatus.PENDING
+                ? pendingChannels(channelId, limit, order, timestamps)
+                : channelMapper.map(
+                        service.getChannels(clprChannelsRequest(channelId, limit, order, status, timestamps)));
 
         final var sort = Sort.by(order, TIMESTAMP);
         final var pageable = PageRequest.of(0, limit, sort);
@@ -134,97 +122,19 @@ final class ClprController {
         return new ClprChannelsResponse().channels(channels).links(links);
     }
 
-    @GetMapping("/endpoint-manifest")
-    ClprEndpointManifestsResponse getEndpointManifests(
-            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
-            @RequestParam(defaultValue = "desc") Sort.Direction order,
-            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
-                    TimestampParameter[] timestamps) {
-
-        final var request = timestampRequest(limit, order, timestamps);
-        final var manifests = endpointManifestMapper.map(service.getEndpointManifests(request));
-
-        final var sort = Sort.by(order, TIMESTAMP);
-        final var pageable = PageRequest.of(0, limit, sort);
-        final var links = linkFactory.create(manifests, pageable, ENDPOINT_MANIFEST_EXTRACTOR);
-
-        return new ClprEndpointManifestsResponse().endpointManifests(manifests).links(links);
-    }
-
-    @GetMapping("/ledger-configuration")
-    ClprLedgerConfigurationsResponse getLedgerConfigurations(
-            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
-            @RequestParam(defaultValue = "desc") Sort.Direction order,
-            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
-                    TimestampParameter[] timestamps) {
-
-        final var request = timestampRequest(limit, order, timestamps);
-        final var configurations = ledgerConfigurationMapper.map(service.getLedgerConfigurations(request));
-
-        final var sort = Sort.by(order, TIMESTAMP);
-        final var pageable = PageRequest.of(0, limit, sort);
-        final var links = linkFactory.create(configurations, pageable, LEDGER_CONFIGURATION_EXTRACTOR);
-
-        return new ClprLedgerConfigurationsResponse()
-                .ledgerConfigurations(configurations)
-                .links(links);
-    }
-
-    @GetMapping("/channels/pending")
-    ClprPendingChannelsResponse getPendingChannels(
-            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
-            @RequestParam(defaultValue = "desc") Sort.Direction order,
-            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
-                    TimestampParameter[] timestamps) {
-
-        final var request = timestampRequest(limit, order, timestamps);
-        final var pendingChannels = pendingChannelMapper.map(service.getPendingChannels(request));
-
-        final var sort = Sort.by(order, TIMESTAMP);
-        final var pageable = PageRequest.of(0, limit, sort);
-        final var links = linkFactory.create(pendingChannels, pageable, PENDING_CHANNEL_EXTRACTOR);
-
-        return new ClprPendingChannelsResponse()
-                .pendingChannels(pendingChannels)
-                .links(links);
-    }
-
-    @GetMapping("/connectors/pending")
-    ClprPendingConnectorsResponse getPendingConnectors(
-            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
-            @RequestParam(defaultValue = "desc") Sort.Direction order,
-            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
-                    TimestampParameter[] timestamps) {
-
-        final var request = timestampRequest(limit, order, timestamps);
-        final var pendingConnectors = pendingConnectorMapper.map(service.getPendingConnectors(request));
-
-        final var sort = Sort.by(order, TIMESTAMP);
-        final var pageable = PageRequest.of(0, limit, sort);
-        final var links = linkFactory.create(pendingConnectors, pageable, PENDING_CONNECTOR_EXTRACTOR);
-
-        return new ClprPendingConnectorsResponse()
-                .pendingConnectors(pendingConnectors)
-                .links(links);
-    }
-
-    @GetMapping("/connectors")
+    @GetMapping("/channels/{channelId}/connectors")
     ClprConnectorsResponse getConnectors(
-            @RequestParam(name = CHANNEL_ID, required = false)
-                    @Pattern(regexp = ID_REGEX, flags = Pattern.Flag.CASE_INSENSITIVE)
-                    @Nullable
-                    String channelId,
+            @PathVariable @Pattern(regexp = PATH_ID_REGEX, flags = Pattern.Flag.CASE_INSENSITIVE) String channelId,
             @RequestParam(name = CONNECTOR_ID, required = false)
                     @Pattern(regexp = ID_REGEX, flags = Pattern.Flag.CASE_INSENSITIVE)
                     @Nullable
                     String connectorId,
-            @RequestParam(name = DELETED, required = false) @Nullable Boolean deleted,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
             @RequestParam(defaultValue = "desc") Sort.Direction order,
             @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
                     TimestampParameter[] timestamps) {
 
-        final var request = clprConnectorsRequest(channelId, connectorId, deleted, limit, order, timestamps);
+        final var request = clprConnectorsRequest(channelId, connectorId, limit, order, timestamps);
         final var connectors = connectorMapper.map(service.getConnectors(request));
 
         final var sort = Sort.by(order, TIMESTAMP);
@@ -232,6 +142,20 @@ final class ClprController {
         final var links = linkFactory.create(connectors, pageable, CONNECTOR_EXTRACTOR);
 
         return new ClprConnectorsResponse().connectors(connectors).links(links);
+    }
+
+    @GetMapping("/endpoint-manifest")
+    ClprEndpointManifestEntry getEndpointManifest(
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 1)
+                    TimestampParameter[] timestamps) {
+        return endpointManifestMapper.map(service.getEndpointManifest(asOfTimestamp(timestamps)));
+    }
+
+    @GetMapping("/configuration")
+    ClprLedgerConfiguration getLedgerConfiguration(
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 1)
+                    TimestampParameter[] timestamps) {
+        return ledgerConfigurationMapper.map(service.getLedgerConfiguration(asOfTimestamp(timestamps)));
     }
 
     @GetMapping("/channels/{channelId}/messages")
@@ -257,6 +181,60 @@ final class ClprController {
         return new ClprMessagesResponse().messages(messages).links(links);
     }
 
+    @GetMapping("/connectors/pending")
+    ClprPendingConnectorsResponse getPendingConnectors(
+            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
+            @RequestParam(defaultValue = "desc") Sort.Direction order,
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
+                    TimestampParameter[] timestamps) {
+
+        final var request = timestampRequest(limit, order, timestamps);
+        final var pendingConnectors = pendingConnectorMapper.map(service.getPendingConnectors(request));
+
+        final var sort = Sort.by(order, TIMESTAMP);
+        final var pageable = PageRequest.of(0, limit, sort);
+        final var links = linkFactory.create(pendingConnectors, pageable, PENDING_CONNECTOR_EXTRACTOR);
+
+        return new ClprPendingConnectorsResponse()
+                .pendingConnectors(pendingConnectors)
+                .links(links);
+    }
+
+    // The as-of lookups return the row in effect at the timestamp, so only a single eq or lte value makes sense
+    private long asOfTimestamp(final TimestampParameter[] timestamps) {
+        if (timestamps.length == 0) {
+            return Long.MAX_VALUE;
+        }
+
+        final var timestamp = timestamps[0];
+        final var operator = timestamp.operator();
+        if (operator != RangeOperator.EQ && operator != RangeOperator.LTE) {
+            throw new IllegalArgumentException("timestamp only supports the eq and lte operators");
+        }
+
+        return timestamp.value();
+    }
+
+    private Bounds bounds(RangeParameter<Long>[] params) {
+        long lowerBound = 0L; // The most restrictive lower bound (max of all gt/gte/eq)
+        long upperBound = Long.MAX_VALUE; // The most restrictive upper bound (min of all lt/lte/eq)
+
+        for (final var param : params) {
+            final var operator = param.operator();
+            final long value = RangeParameter.toInclusive(operator, param.value());
+            if (operator == RangeOperator.EQ) {
+                lowerBound = Math.max(lowerBound, value);
+                upperBound = Math.min(upperBound, value);
+            } else if (param.hasLowerBound()) {
+                lowerBound = Math.max(lowerBound, value);
+            } else if (param.hasUpperBound()) {
+                upperBound = Math.min(upperBound, value);
+            }
+        }
+
+        return new Bounds(lowerBound, upperBound);
+    }
+
     private ClprChannelsRequest clprChannelsRequest(
             @Nullable String channelId,
             int limit,
@@ -276,36 +254,28 @@ final class ClprController {
         }
 
         if (status != null) {
-            builder.status(status);
+            builder.status(org.hiero.mirror.common.domain.clpr.ClprChannelStatus.valueOf(status.name()));
         }
 
         return builder.build();
     }
 
     private ClprConnectorsRequest clprConnectorsRequest(
-            @Nullable String channelId,
+            String channelId,
             @Nullable String connectorId,
-            @Nullable Boolean deleted,
             int limit,
             Sort.Direction order,
             TimestampParameter[] timestamps) {
         final var bounds = bounds(timestamps);
         final var builder = ClprConnectorsRequest.builder()
+                .channelId(toBytes(channelId))
                 .limit(limit)
                 .lowerBound(bounds.lower())
                 .order(order)
                 .upperBound(bounds.upper());
 
-        if (channelId != null) {
-            builder.channelId(toBytes(channelId));
-        }
-
         if (connectorId != null) {
             builder.connectorId(toBytes(connectorId));
-        }
-
-        if (deleted != null) {
-            builder.deleted(deleted);
         }
 
         return builder.build();
@@ -338,24 +308,15 @@ final class ClprController {
         return builder.build();
     }
 
-    private Bounds bounds(RangeParameter<Long>[] params) {
-        long lowerBound = 0L; // The most restrictive lower bound (max of all gt/gte/eq)
-        long upperBound = Long.MAX_VALUE; // The most restrictive upper bound (min of all lt/lte/eq)
-
-        for (final var param : params) {
-            final var operator = param.operator();
-            final long value = RangeParameter.toInclusive(operator, param.value());
-            if (operator == RangeOperator.EQ) {
-                lowerBound = Math.max(lowerBound, value);
-                upperBound = Math.min(upperBound, value);
-            } else if (param.hasLowerBound()) {
-                lowerBound = Math.max(lowerBound, value);
-            } else if (param.hasUpperBound()) {
-                upperBound = Math.min(upperBound, value);
-            }
+    private List<ClprChannel> pendingChannels(
+            @Nullable String channelId, int limit, Sort.Direction order, TimestampParameter[] timestamps) {
+        // A pending commitment has no channel_id to match
+        if (channelId != null) {
+            throw new IllegalArgumentException("channel.id can't be combined with status PENDING");
         }
 
-        return new Bounds(lowerBound, upperBound);
+        final var request = timestampRequest(limit, order, timestamps);
+        return pendingChannelMapper.map(service.getPendingChannels(request));
     }
 
     private ClprTimestampRequest timestampRequest(int limit, Sort.Direction order, TimestampParameter[] timestamps) {

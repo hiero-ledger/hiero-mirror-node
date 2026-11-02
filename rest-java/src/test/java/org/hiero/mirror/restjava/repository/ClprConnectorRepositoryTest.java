@@ -24,53 +24,6 @@ final class ClprConnectorRepositoryTest extends RestJavaIntegrationTest {
 
     private final ClprConnectorRepository repository;
 
-    @ParameterizedTest
-    @EnumSource(Direction.class)
-    void findByCreatedTimestampBetween(Direction order) {
-        // given
-        persist(100L); // out of range
-        final var connector1 = persist(200L);
-        final var connector2 = persist(300L);
-        final var connector3 = persist(400L);
-        persist(500L); // out of range
-        final var expected = order.isAscending()
-                ? List.of(connector1, connector2, connector3)
-                : List.of(connector3, connector2, connector1);
-
-        // when
-        final var actual = repository.findByCreatedTimestampBetween(200L, 400L, page(order, 10));
-
-        // then
-        assertThat(actual).containsExactlyElementsOf(expected);
-    }
-
-    @Test
-    void findByCreatedTimestampBetweenLimit() {
-        // given
-        persist(100L);
-        final var connector2 = persist(200L);
-        final var connector3 = persist(300L);
-
-        // when
-        final var actual = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, page(Direction.DESC, 2));
-
-        // then
-        assertThat(actual).containsExactly(connector3, connector2);
-    }
-
-    @Test
-    void findByCreatedTimestampBetweenIncludesDeleted() {
-        // given
-        final var active = persist(100L, c -> c.deleted(false));
-        final var removed = persist(200L, c -> c.deleted(true));
-
-        // when
-        final var actual = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, page(Direction.ASC, 10));
-
-        // then
-        assertThat(actual).containsExactly(active, removed);
-    }
-
     @Test
     void findByChannelIdAndConnectorIdAndTimestamp() {
         // given
@@ -89,14 +42,12 @@ final class ClprConnectorRepositoryTest extends RestJavaIntegrationTest {
         final var connectorId = current.getConnectorId();
 
         // when / then
-        assertThat(repository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, 150L, null))
+        assertThat(repository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, 150L))
                 .extracting(ClprConnector::getDeleted)
                 .containsExactly(false);
-        assertThat(repository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, 200L, true))
+        assertThat(repository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, 200L))
                 .containsExactly(current);
-        assertThat(repository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, 150L, true))
-                .isEmpty();
-        assertThat(repository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, 99L, null))
+        assertThat(repository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, 99L))
                 .isEmpty();
     }
 
@@ -111,7 +62,7 @@ final class ClprConnectorRepositoryTest extends RestJavaIntegrationTest {
         final var expected = order.isAscending() ? List.of(connector1, connector2) : List.of(connector2, connector1);
 
         // when
-        final var actual = repository.findByChannelId(channelId, 0L, Long.MAX_VALUE, null, null, page(order, 10));
+        final var actual = repository.findByChannelId(channelId, 0L, Long.MAX_VALUE, null, page(order, 10));
 
         // then
         assertThat(actual).containsExactlyElementsOf(expected);
@@ -127,7 +78,7 @@ final class ClprConnectorRepositoryTest extends RestJavaIntegrationTest {
         persist(400L, c -> c.channelId(channelId));
 
         // when
-        final var actual = repository.findByChannelId(channelId, 200L, 300L, null, null, page(Direction.DESC, 10));
+        final var actual = repository.findByChannelId(channelId, 200L, 300L, null, page(Direction.DESC, 10));
 
         // then
         assertThat(actual).containsExactly(connector3, connector2);
@@ -143,50 +94,15 @@ final class ClprConnectorRepositoryTest extends RestJavaIntegrationTest {
 
         // when
         final var actual = repository.findByChannelId(
-                channelId, 0L, Long.MAX_VALUE, connector.getConnectorId(), null, page(Direction.DESC, 10));
+                channelId, 0L, Long.MAX_VALUE, connector.getConnectorId(), page(Direction.DESC, 10));
 
         // then
         assertThat(actual).containsExactly(connector);
     }
 
     @Test
-    void findByChannelIdAndDeleted() {
-        // given
-        final var channelId = domainBuilder.bytes(32);
-        final var active = persist(100L, c -> c.channelId(channelId).deleted(false));
-        final var neverSet = persist(200L, c -> c.channelId(channelId).deleted(null));
-        final var removed = persist(300L, c -> c.channelId(channelId).deleted(true));
-        final var page = page(Direction.DESC, 10);
-
-        // when / then
-        assertThat(repository.findByChannelId(channelId, 0L, Long.MAX_VALUE, null, true, page))
-                .containsExactly(removed);
-        assertThat(repository.findByChannelId(channelId, 0L, Long.MAX_VALUE, null, false, page))
-                .containsExactly(neverSet, active);
-        assertThat(repository.findByChannelId(channelId, 0L, Long.MAX_VALUE, null, null, page))
-                .containsExactly(removed, neverSet, active);
-    }
-
-    @Test
-    void findByChannelIdCombinedFilters() {
-        // given
-        final var channelId = domainBuilder.bytes(32);
-        final var target = persist(200L, c -> c.channelId(channelId).deleted(true));
-        persist(100L, c -> c.channelId(channelId).deleted(true)); // out of range
-        persist(200L, c -> c.channelId(channelId).deleted(false)); // not deleted
-        persist(200L, c -> c.deleted(true)); // other channel
-
-        // when
-        final var actual = repository.findByChannelId(
-                channelId, 150L, 250L, target.getConnectorId(), true, page(Direction.DESC, 10));
-
-        // then
-        assertThat(actual).containsExactly(target);
-    }
-
-    @Test
     void findByChannelIdEmpty() {
-        assertThat(repository.findByChannelId(new byte[32], 0L, Long.MAX_VALUE, null, null, page(Direction.DESC, 10)))
+        assertThat(repository.findByChannelId(new byte[32], 0L, Long.MAX_VALUE, null, page(Direction.DESC, 10)))
                 .isEmpty();
     }
 

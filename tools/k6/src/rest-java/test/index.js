@@ -12,7 +12,6 @@ import * as clprChannels from './clprChannels.js';
 import * as clprConnectors from './clprConnectors.js';
 import * as clprEndpointManifest from './clprEndpointManifest.js';
 import * as clprLedgerConfiguration from './clprLedgerConfiguration.js';
-import * as clprPendingChannels from './clprPendingChannels.js';
 import * as clprPendingConnectors from './clprPendingConnectors.js';
 import * as networkExchangeRate from './networkExchangeRate.js';
 import * as networkFees from './networkFees.js';
@@ -34,7 +33,6 @@ const tests = {
   clprConnectors,
   clprEndpointManifest,
   clprLedgerConfiguration,
-  clprPendingChannels,
   clprPendingConnectors,
   networkExchangeRate,
   networkFees,

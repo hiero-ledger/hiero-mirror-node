@@ -525,7 +525,7 @@ paths:
   /api/v1/clpr/channels:
     get:
       summary: List CLPR channels
-      description: Returns a list of CLPR (HIP-1535) channels, paginated and sorted by creation timestamp. When channel.id is supplied, timestamp (eq only) returns the channel's state as of that time, from the history table when needed.
+      description: Returns a list of CLPR (HIP-1535) channels, paginated and sorted by creation timestamp. When channel.id is supplied, timestamp (eq only) returns the channel's state as of that time, from the history table when needed. status=PENDING lists the channel commitments that are registered but not yet completed or deleted; the channel id isn't known until the commitment is revealed, so it can't be combined with channel.id.
       operationId: getClprChannels
       parameters:
         - $ref: "#/components/parameters/clprChannelIdQueryParam"
@@ -544,12 +544,14 @@ paths:
           $ref: "#/components/responses/InvalidParameterError"
       tags:
         - clpr
-  /api/v1/clpr/channels/pending:
+  /api/v1/clpr/channels/{channelId}/connectors:
     get:
-      summary: List pending CLPR channels
-      description: Returns the CLPR (HIP-1535) channel commitments that are still open, neither completed nor deleted, paginated and sorted by creation timestamp. The channel id isn't known until the commitment is revealed.
-      operationId: getClprPendingChannels
+      summary: List CLPR connectors for a channel
+      description: Returns the CLPR (HIP-1535) connectors registered under a channel, paginated and sorted by creation timestamp. When connector.id is supplied, timestamp (eq only) returns the connector's state as of that time, from the history table when needed. Combined timestamp ranges are capped.
+      operationId: getClprChannelConnectors
       parameters:
+        - $ref: "#/components/parameters/clprChannelIdPathParam"
+        - $ref: "#/components/parameters/clprConnectorIdQueryParam"
         - $ref: "#/components/parameters/limitQueryParam"
         - $ref: "#/components/parameters/orderQueryParamDesc"
         - $ref: "#/components/parameters/timestampQueryParam"
@@ -559,7 +561,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClprPendingChannelsResponse"
+                $ref: "#/components/schemas/ClprConnectorsResponse"
         "400":
           $ref: "#/components/responses/InvalidParameterError"
       tags:
@@ -589,44 +591,44 @@ paths:
           $ref: "#/components/responses/NotFoundError"
       tags:
         - clpr
-  /api/v1/clpr/endpoint-manifest:
+  /api/v1/clpr/configuration:
     get:
-      summary: List CLPR endpoint manifests
-      description: Returns the CLPR (HIP-1535) endpoint manifests, paginated and sorted by consensus timestamp. The newest row is the current manifest.
-      operationId: getClprEndpointManifests
+      summary: Get the CLPR ledger configuration
+      description: Returns the CLPR (HIP-1535) ledger configuration in effect, which is the latest one or, with timestamp, the latest at or before that time.
+      operationId: getClprLedgerConfiguration
       parameters:
-        - $ref: "#/components/parameters/limitQueryParam"
-        - $ref: "#/components/parameters/orderQueryParamDesc"
-        - $ref: "#/components/parameters/timestampQueryParam"
+        - $ref: "#/components/parameters/clprAsOfTimestampQueryParam"
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClprEndpointManifestsResponse"
+                $ref: "#/components/schemas/ClprLedgerConfiguration"
         "400":
           $ref: "#/components/responses/InvalidParameterError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
       tags:
         - clpr
-  /api/v1/clpr/ledger-configuration:
+  /api/v1/clpr/endpoint-manifest:
     get:
-      summary: List CLPR ledger configurations
-      description: Returns the CLPR (HIP-1535) ledger configurations, paginated and sorted by consensus timestamp. The newest row is the current configuration.
-      operationId: getClprLedgerConfigurations
+      summary: Get the CLPR endpoint manifest
+      description: Returns the CLPR (HIP-1535) endpoint manifest in effect, which is the latest one or, with timestamp, the latest at or before that time.
+      operationId: getClprEndpointManifest
       parameters:
-        - $ref: "#/components/parameters/limitQueryParam"
-        - $ref: "#/components/parameters/orderQueryParamDesc"
-        - $ref: "#/components/parameters/timestampQueryParam"
+        - $ref: "#/components/parameters/clprAsOfTimestampQueryParam"
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ClprLedgerConfigurationsResponse"
+                $ref: "#/components/schemas/ClprEndpointManifestEntry"
         "400":
           $ref: "#/components/responses/InvalidParameterError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
       tags:
         - clpr
   /api/v1/clpr/connectors/pending:
@@ -645,29 +647,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ClprPendingConnectorsResponse"
-        "400":
-          $ref: "#/components/responses/InvalidParameterError"
-      tags:
-        - clpr
-  /api/v1/clpr/connectors:
-    get:
-      summary: List CLPR connectors
-      description: Returns a list of CLPR (HIP-1535) connectors across all channels or a single channel, paginated and sorted by creation timestamp. The connector.id, deleted and timestamp filters require channel.id.
-      operationId: getClprConnectors
-      parameters:
-        - $ref: "#/components/parameters/clprChannelIdQueryParam"
-        - $ref: "#/components/parameters/clprConnectorIdQueryParam"
-        - $ref: "#/components/parameters/clprDeletedQueryParam"
-        - $ref: "#/components/parameters/limitQueryParam"
-        - $ref: "#/components/parameters/orderQueryParamDesc"
-        - $ref: "#/components/parameters/timestampQueryParam"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ClprConnectorsResponse"
         "400":
           $ref: "#/components/responses/InvalidParameterError"
       tags:
@@ -2475,32 +2454,26 @@ components:
     ClprChannel:
       type: object
       required:
-        - acked_message_id
-        - chain_id
         - channel_id
         - created_timestamp
-        - endpoint_manifest_version
-        - next_message_id
         - ownership_commitment
-        - received_message_id
         - status
-        - timestamp
       properties:
         acked_message_id:
-          description: The id of the last outbound message acknowledged by the peer
-          type: integer
+          description: The id of the last outbound message acknowledged by the peer, null for a pending channel
+          type: [integer, "null"]
           format: int64
           example: 47
         chain_id:
-          description: The identifier of the peer chain
-          type: string
+          description: The identifier of the peer chain, null for a pending channel
+          type: [string, "null"]
           example: "eip155:1"
         channel_context:
           $ref: "#/components/schemas/ClprHexBytes"
         channel_id:
           allOf:
             - $ref: "#/components/schemas/ClprHexBytes"
-          description: The 32-byte channel id
+          description: The 32-byte channel id, null for a pending channel
         config_proof_bytes:
           $ref: "#/components/schemas/ClprHexBytes"
         created_timestamp:
@@ -2511,14 +2484,14 @@ components:
           $ref: "#/components/schemas/ClprHexBytes"
         endpoint_manifest_version:
           description: The version of the endpoint manifest
-          type: integer
+          type: [integer, "null"]
           format: int64
           example: 3
         last_config_timestamp:
           $ref: "#/components/schemas/TimestampNullable"
         next_message_id:
-          description: The id the next outbound message will receive
-          type: integer
+          description: The id the next outbound message will receive, null for a pending channel
+          type: [integer, "null"]
           format: int64
           example: 48
         ownership_commitment:
@@ -2530,8 +2503,8 @@ components:
         public_key:
           $ref: "#/components/schemas/ClprHexBytes"
         received_message_id:
-          description: The id of the last inbound message received from the peer
-          type: integer
+          description: The id of the last inbound message received from the peer, null for a pending channel
+          type: [integer, "null"]
           format: int64
           example: 52
         received_running_hash:
@@ -2556,7 +2529,7 @@ components:
           $ref: "#/components/schemas/ClprHexBytes"
     ClprChannelStatus:
       type: string
-      enum: [ACTIVE, PAUSED, CLOSING, DRAINED, CLOSED]
+      enum: [PENDING, ACTIVE, PAUSED, CLOSING, DRAINED, CLOSED]
       example: ACTIVE
     ClprConnector:
       type: object
@@ -2665,18 +2638,6 @@ components:
           type: integer
           format: int64
           example: 3
-    ClprEndpointManifestsResponse:
-      type: object
-      required:
-        - endpoint_manifests
-        - links
-      properties:
-        endpoint_manifests:
-          type: array
-          items:
-            $ref: "#/components/schemas/ClprEndpointManifestEntry"
-        links:
-          $ref: "#/components/schemas/Links"
     ClprHexBytes:
       description: A hex encoded byte array with a 0x prefix
       type: [string, "null"]
@@ -2707,18 +2668,6 @@ components:
           $ref: "#/components/schemas/ClprHexBytes"
         throttles:
           $ref: "#/components/schemas/ClprPeerThrottles"
-    ClprLedgerConfigurationsResponse:
-      type: object
-      required:
-        - ledger_configurations
-        - links
-      properties:
-        ledger_configurations:
-          type: array
-          items:
-            $ref: "#/components/schemas/ClprLedgerConfiguration"
-        links:
-          $ref: "#/components/schemas/Links"
     ClprMessage:
       type: object
       required:
@@ -2823,31 +2772,6 @@ components:
           type: integer
           format: int32
           example: 50211
-    ClprPendingChannel:
-      type: object
-      required:
-        - created_timestamp
-        - ownership_commitment
-        - status
-      properties:
-        created_timestamp:
-          $ref: "#/components/schemas/Timestamp"
-        ownership_commitment:
-          $ref: "#/components/schemas/ClprHexBytes"
-        status:
-          $ref: "#/components/schemas/ClprPendingCommitmentStatus"
-    ClprPendingChannelsResponse:
-      type: object
-      required:
-        - links
-        - pending_channels
-      properties:
-        links:
-          $ref: "#/components/schemas/Links"
-        pending_channels:
-          type: array
-          items:
-            $ref: "#/components/schemas/ClprPendingChannel"
     ClprPendingConnector:
       type: object
       required:
@@ -5527,14 +5451,6 @@ components:
       schema:
         type: string
         pattern: "^((eq):)?(0x)?[0-9a-fA-F]{64}$"
-    clprDeletedQueryParam:
-      name: deleted
-      description: Filter connectors by removal status, either deregistered or banned. Omit to return both.
-      in: query
-      example: "eq:false"
-      schema:
-        type: string
-        pattern: "^((eq):)?(true|false)$"
     clprChannelIdPathParam:
       name: channelId
       description: The 32-byte channel id as a hex string with an optional 0x prefix
@@ -5551,9 +5467,17 @@ components:
       example: DATA
       schema:
         $ref: "#/components/schemas/ClprMessageType"
+    clprAsOfTimestampQueryParam:
+      name: timestamp
+      description: Return the row in effect at this time, i.e. the latest one with a consensus timestamp at or before it. Defaults to the latest. Only the eq and lte operators are supported.
+      in: query
+      example: "lte:1726874345.123456789"
+      schema:
+        type: string
+        pattern: "^((eq|lte):)?\\d{1,10}(\\.\\d{1,9})?$"
     clprChannelStatusQueryParam:
       name: status
-      description: Filter channels by status
+      description: Filter channels by status. PENDING selects commitments that aren't completed or deleted yet.
       in: query
       example: ACTIVE
       schema:

@@ -6,11 +6,10 @@ import static org.hiero.mirror.restjava.jooq.domain.tables.ClprChannel.CLPR_CHAN
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprChannelPendingCommitment.CLPR_CHANNEL_PENDING_COMMITMENT;
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprConnector.CLPR_CONNECTOR;
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprConnectorPendingCommitment.CLPR_CONNECTOR_PENDING_COMMITMENT;
-import static org.hiero.mirror.restjava.jooq.domain.tables.ClprEndpointManifest.CLPR_ENDPOINT_MANIFEST;
-import static org.hiero.mirror.restjava.jooq.domain.tables.ClprLedgerConfiguration.CLPR_LEDGER_CONFIGURATION;
 import static org.hiero.mirror.restjava.jooq.domain.tables.ClprMessage.CLPR_MESSAGE;
 
 import jakarta.inject.Named;
+import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
@@ -91,59 +90,36 @@ final class ClprServiceImpl implements ClprService {
         final long upperBound = request.getUpperBound();
         validateRange(lowerBound, upperBound);
 
-        // Only channel_id routes to a single shard, so any other filter without it would scatter-gather across all
-        // shards. connector_id isn't the distribution column either, so it needs channel.id too.
-        final boolean timestampFiltered = lowerBound > 0L || upperBound < Long.MAX_VALUE;
-        if (request.getChannelId() == null
-                && (request.getConnectorId() != null || request.getDeleted() != null || timestampFiltered)) {
-            throw new IllegalArgumentException(
-                    "channel.id is required when filtering by connector.id, deleted or timestamp");
-        }
-
         final var channelId = request.getChannelId();
         final var connectorId = request.getConnectorId();
-        if (channelId != null && connectorId != null && timestampFiltered) {
-            // With both ids, timestamp means "as of" and only eq is supported
+        final boolean timestampFiltered = lowerBound > 0L || upperBound < Long.MAX_VALUE;
+        if (connectorId != null && timestampFiltered) {
+            // With connector.id, timestamp means "as of" and only eq is supported
             if (lowerBound != upperBound) {
-                throw new IllegalArgumentException(
-                        "timestamp must use the eq operator when filtering by channel.id and connector.id");
+                throw new IllegalArgumentException("timestamp must use the eq operator when filtering by connector.id");
             }
 
-            return connectorRepository.findByChannelIdAndConnectorIdAndTimestamp(
-                    channelId, connectorId, lowerBound, request.getDeleted());
+            return connectorRepository.findByChannelIdAndConnectorIdAndTimestamp(channelId, connectorId, lowerBound);
         }
 
         validateWindow(lowerBound, upperBound);
         final var sort = Sort.by(request.getOrder(), CLPR_CONNECTOR.CREATED_TIMESTAMP.getName());
         final var page = PageRequest.of(0, request.getLimit(), sort);
-        if (channelId == null) {
-            return connectorRepository.findByCreatedTimestampBetween(lowerBound, upperBound, page);
-        }
-
-        return connectorRepository.findByChannelId(
-                channelId, lowerBound, upperBound, connectorId, request.getDeleted(), page);
+        return connectorRepository.findByChannelId(channelId, lowerBound, upperBound, connectorId, page);
     }
 
     @Override
-    public List<ClprEndpointManifest> getEndpointManifests(final ClprTimestampRequest request) {
-        final long lowerBound = request.getLowerBound();
-        final long upperBound = request.getUpperBound();
-        validateRange(lowerBound, upperBound);
-
-        final var sort = Sort.by(request.getOrder(), CLPR_ENDPOINT_MANIFEST.CONSENSUS_TIMESTAMP.getName());
-        final var page = PageRequest.of(0, request.getLimit(), sort);
-        return endpointManifestRepository.findByConsensusTimestampBetween(lowerBound, upperBound, page);
+    public ClprEndpointManifest getEndpointManifest(final long timestamp) {
+        return endpointManifestRepository
+                .findFirstByConsensusTimestampLessThanEqualOrderByConsensusTimestampDesc(timestamp)
+                .orElseThrow(() -> new EntityNotFoundException("No CLPR endpoint manifest found"));
     }
 
     @Override
-    public List<ClprLedgerConfiguration> getLedgerConfigurations(final ClprTimestampRequest request) {
-        final long lowerBound = request.getLowerBound();
-        final long upperBound = request.getUpperBound();
-        validateRange(lowerBound, upperBound);
-
-        final var sort = Sort.by(request.getOrder(), CLPR_LEDGER_CONFIGURATION.CONSENSUS_TIMESTAMP.getName());
-        final var page = PageRequest.of(0, request.getLimit(), sort);
-        return ledgerConfigurationRepository.findByConsensusTimestampBetween(lowerBound, upperBound, page);
+    public ClprLedgerConfiguration getLedgerConfiguration(final long timestamp) {
+        return ledgerConfigurationRepository
+                .findFirstByConsensusTimestampLessThanEqualOrderByConsensusTimestampDesc(timestamp)
+                .orElseThrow(() -> new EntityNotFoundException("No CLPR ledger configuration found"));
     }
 
     @Override

@@ -14,14 +14,10 @@ import org.springframework.data.domain.Sort.Direction;
 @Value
 public class ClprConnectorsRequest {
 
-    @Nullable
     byte[] channelId;
 
     @Nullable
     byte[] connectorId;
-
-    @Nullable
-    Boolean deleted;
 
     @Builder.Default
     int limit = 25;

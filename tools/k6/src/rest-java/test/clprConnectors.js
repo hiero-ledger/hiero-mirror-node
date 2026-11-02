@@ -5,9 +5,10 @@ import http from 'k6/http';
 import {isValidListResponse, RestJavaTestScenarioBuilder} from '../libex/common.js';
 import {clprConnectors} from '../libex/constants.js';
 
-const urlTag = '/clpr/connectors';
+const urlTag = '/clpr/channels/{channelId}/connectors';
 
-const getUrl = (testParameters) => `${urlTag}?limit=${testParameters['DEFAULT_LIMIT']}`;
+const getUrl = (testParameters) =>
+  `/clpr/channels/${testParameters['DEFAULT_CLPR_CHANNEL_ID']}/connectors?limit=${testParameters['DEFAULT_LIMIT']}`;
 
 const {options, run, setup} = new RestJavaTestScenarioBuilder()
   .name('clprConnectors') // use unique scenario name among all tests
@@ -16,6 +17,7 @@ const {options, run, setup} = new RestJavaTestScenarioBuilder()
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;
     return http.get(url);
   })
+  .requiredParameters('DEFAULT_CLPR_CHANNEL_ID')
   .check('CLPR Connectors OK', (r) => isValidListResponse(r, clprConnectors))
   .build();
 

@@ -21,9 +21,9 @@ public interface ClprService {
 
     List<ClprConnector> getConnectors(ClprConnectorsRequest request);
 
-    List<ClprEndpointManifest> getEndpointManifests(ClprTimestampRequest request);
+    ClprEndpointManifest getEndpointManifest(long timestamp);
 
-    List<ClprLedgerConfiguration> getLedgerConfigurations(ClprTimestampRequest request);
+    ClprLedgerConfiguration getLedgerConfiguration(long timestamp);
 
     List<ClprMessageDto> getMessages(ClprMessagesRequest request);
 

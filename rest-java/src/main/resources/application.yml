@@ -24,16 +24,14 @@ hiero:
             # are appended continuously.
             "[/api/v1/clpr/channels]":
               "Cache-Control": "public, max-age=5"
-            "[/api/v1/clpr/channels/pending]":
-              "Cache-Control": "public, max-age=5"
-            "[/api/v1/clpr/connectors]":
+            "[/api/v1/clpr/channels/{channelId}/connectors]":
               "Cache-Control": "public, max-age=5"
             "[/api/v1/clpr/connectors/pending]":
               "Cache-Control": "public, max-age=5"
             # Ledger configuration and endpoint manifest change rarely
             "[/api/v1/clpr/endpoint-manifest]":
               "Cache-Control": "public, max-age=60"
-            "[/api/v1/clpr/ledger-configuration]":
+            "[/api/v1/clpr/configuration]":
               "Cache-Control": "public, max-age=60"
             "[/api/v1/topics/{id}]":
               "Cache-Control": "public, max-age=5"
