@@ -46,9 +46,6 @@ final class EvmTransactionIndexImporterIntegrationTest
     private static final ContractID PRECOMPILE_ID =
             ContractID.newBuilder().setContractNum(359).build();
 
-    private static final ContractID SCHEDULE_SERVICE_ID =
-            ContractID.newBuilder().setContractNum(363).build();
-
     @Getter
     private final FixScheduledAndHookEvmTransactionIndexMigration migration;
 
@@ -512,9 +509,9 @@ final class EvmTransactionIndexImporterIntegrationTest
                 .build();
     }
 
-    private static ContractFunctionResult scheduleServiceResult() {
+    private ContractFunctionResult scheduleServiceResult() {
         return ContractFunctionResult.newBuilder()
-                .setContractID(SCHEDULE_SERVICE_ID)
+                .setContractID(recordItemBuilder.contractId(363))
                 .setGasUsed(100)
                 .build();
     }
