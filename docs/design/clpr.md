@@ -1028,7 +1028,7 @@ Scoped to six read APIs, following existing `rest-java` conventions (paginated a
 
 Ledger configuration and endpoint manifest change rarely (admin-updated or reconciled, not per-transaction). Only
 one of each is in effect at a time, so both APIs return a single object — the latest, or with `timestamp`, the latest
-at or before that time — rather than a paginated list. Neither has any filter beyond `timestamp`, since neither table
+within that range — rather than a paginated list. Neither has any filter beyond `timestamp`, since neither table
 has any other queryable dimension worth exposing yet.
 
 ### 1. Channels API
@@ -1337,9 +1337,9 @@ GET /api/v1/clpr/configuration
 
 Only one ledger configuration is in effect at a time, so this returns a single configuration object.
 Plain, undistributed, append-only table (see [Database Schema Design](#database-schema-design)).
-Without `timestamp`, the latest row (highest `consensus_timestamp`) is returned. With `timestamp`, the latest row with
-`consensus_timestamp <=` that value is returned — the configuration in effect at that time, following this codebase's
-usual convention. Returns `404` if no configuration exists at or before the requested time.
+Without `timestamp`, the latest row (highest `consensus_timestamp`) is returned. With `timestamp`, the latest row
+whose `consensus_timestamp` falls within the requested range is returned, so a single upper bound (`lte:`/`eq:`) gives
+the configuration in effect at that time. Returns `404` if no configuration exists in the range.
 
 Response format:
 
@@ -1365,14 +1365,16 @@ Response format:
 
 #### Query Parameters
 
-| Parameter   | Type   | Description                                                                       | Default | Validation                                                                             |
-| ----------- | ------ | --------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------- |
-| `timestamp` | string | Return the configuration in effect at this time (latest `consensus_timestamp <=`) | latest  | Seconds.nanoseconds format; a single value, optionally with the `lte:` or `eq:` prefix |
+| Parameter   | Type   | Description                                       | Default | Validation                                                                                                                |
+| ----------- | ------ | ------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `timestamp` | string | Return the latest configuration within this range | latest  | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; seconds.nanoseconds format; at most 2 values, which must form a valid range |
 
 **Examples:**
 
 - `/api/v1/clpr/configuration` — Get the current configuration
-- `/api/v1/clpr/configuration?timestamp=1726874300.000000000` — Get the configuration in effect at a past time
+- `/api/v1/clpr/configuration?timestamp=lte:1726874300.000000000` — Get the configuration in effect at a past time
+- `/api/v1/clpr/configuration?timestamp=gte:1726870000.000000000&timestamp=lt:1726874300.000000000` — Get the latest
+  configuration set within a bounded time window
 
 ### 6. Endpoint Manifest API
 
@@ -1381,10 +1383,10 @@ GET /api/v1/clpr/endpoint-manifest
 ```
 
 Only one endpoint manifest is active on the network at a time, so this returns a single manifest object.
-Plain, undistributed, append-only table (see[Database Schema Design](#database-schema-design)).
-Without `timestamp`, the latest row (highest `consensus_timestamp`) is returned. With `timestamp`, the latest row with
-`consensus_timestamp <=` that value is returned — the manifest in effect at that time, following this codebase's usual
-convention. Returns `404` if no manifest exists at or before the requested time.
+Plain, undistributed, append-only table (see [Database Schema Design](#database-schema-design)).
+Without `timestamp`, the latest row (highest `consensus_timestamp`) is returned. With `timestamp`, the latest row
+whose `consensus_timestamp` falls within the requested range is returned, so a single upper bound (`lte:`/`eq:`) gives
+the manifest in effect at that time. Returns `404` if no manifest exists in the range.
 
 Response format:
 
@@ -1403,14 +1405,16 @@ Response format:
 
 #### Query Parameters
 
-| Parameter   | Type   | Description                                                                  | Default | Validation                                                                             |
-| ----------- | ------ | ---------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------- |
-| `timestamp` | string | Return the manifest in effect at this time (latest `consensus_timestamp <=`) | latest  | Seconds.nanoseconds format; a single value, optionally with the `lte:` or `eq:` prefix |
+| Parameter   | Type   | Description                                  | Default | Validation                                                                                                                |
+| ----------- | ------ | -------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `timestamp` | string | Return the latest manifest within this range | latest  | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; seconds.nanoseconds format; at most 2 values, which must form a valid range |
 
 **Examples:**
 
 - `/api/v1/clpr/endpoint-manifest` — Get the current manifest
-- `/api/v1/clpr/endpoint-manifest?timestamp=1726874300.000000000` — Get the manifest in effect at a past time
+- `/api/v1/clpr/endpoint-manifest?timestamp=lte:1726874300.000000000` — Get the manifest in effect at a past time
+- `/api/v1/clpr/endpoint-manifest?timestamp=gte:1726870000.000000000&timestamp=lt:1726874300.000000000` — Get the latest
+  manifest set within a bounded time window
 
 ## Testing Strategy
 
