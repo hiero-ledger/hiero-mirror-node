@@ -10,6 +10,8 @@ Java tooling requires **Java 25** (`sdk install java 25-tem`). The Gradle wrappe
 ./gradlew clean build              # Full build with tests
 ./gradlew clean build -x test      # Build, skip tests
 ./gradlew :importer:build          # Build a single module
+./gradlew spotlessApply            # Apply code formatting (palantirJavaFormat, prettier, ktfmt)
+./gradlew spotlessCheck            # Verify formatting
 ./gradlew test                     # Run all tests
 ./gradlew :common:test             # Tests for one module
 ./gradlew test --tests "*FooTest"            # Single test class
