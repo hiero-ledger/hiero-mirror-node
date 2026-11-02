@@ -19,7 +19,7 @@ extra.apply {
     set("besuVersion", "26.2.0")
     set("blockNodeVersion", "0.44.3")
     set("consensusNodeVersion", "0.78.2")
-    set("hederaCryptographyVersion", "3.23.0")
+    set("hederaCryptographyVersion", "3.24.0")
     set("jackson-bom.version", "3.2.4") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.4") // Temporary until next Spring Boot
     set("jooq.version", "3.21.9") // Must match buildSrc/build.gradle.kts
