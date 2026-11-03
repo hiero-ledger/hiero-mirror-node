@@ -6,10 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.base.Stopwatch;
 import com.hedera.hashgraph.sdk.AccountId;
-import com.hedera.hashgraph.sdk.BatchTransaction;
 import com.hedera.hashgraph.sdk.Client;
 import com.hedera.hashgraph.sdk.ContractCreateTransaction;
-import com.hedera.hashgraph.sdk.ContractExecuteTransaction;
 import com.hedera.hashgraph.sdk.EthereumTransaction;
 import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
@@ -213,12 +211,10 @@ abstract class AbstractNetworkClient implements Cleanable {
     }
 
     private boolean isFeeEstimationUnsupported(final Transaction<?> transaction) {
-        // Contract fees are paid in gas, which the fee estimation endpoint does not price, and the charged fee of a
-        // batch is the sum of its inner transactions rather than the fee of the batch transaction itself. A token
-        // airdrop also charges pending-airdrop and association fees that depend on receiver state.
-        return transaction instanceof BatchTransaction
-                || transaction instanceof ContractCreateTransaction
-                || transaction instanceof ContractExecuteTransaction
+        // Contract create and ethereum transactions charge gas, and an ethereum value transfer can also
+        // charge a hollow-account create. The fee endpoint prices neither. A token airdrop also charges
+        // pending-airdrop and association fees that depend on receiver state.
+        return transaction instanceof ContractCreateTransaction
                 || transaction instanceof EthereumTransaction
                 || transaction instanceof TokenAirdropTransaction;
     }
