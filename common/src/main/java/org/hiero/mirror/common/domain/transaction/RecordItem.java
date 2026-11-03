@@ -45,6 +45,7 @@ import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.util.Version;
 
 @Builder(buildMethodName = "buildInternal")
@@ -71,6 +72,10 @@ public class RecordItem implements StreamItem {
 
     private final Long accountEthereumNonce;
     private final boolean blockstream;
+
+    @Nullable
+    private final ClprRecordContext clprContext;
+
     private final Long congestionPricingMultiplier;
     private final RecordItem hookParent;
     private final RecordItem parent;
@@ -329,11 +334,16 @@ public class RecordItem implements StreamItem {
 
     public static class RecordItemBuilder {
 
+        private ClprRecordContext.ClprRecordContextBuilder clprContextBuilder;
         private TransactionRecord.Builder transactionRecordBuilder;
 
         public RecordItem build() {
             if (transactionRecordBuilder != null) {
                 transactionRecord = transactionRecordBuilder.build();
+            }
+
+            if (clprContextBuilder != null) {
+                clprContext = clprContextBuilder.build();
             }
 
             parseTransaction();
@@ -344,6 +354,15 @@ public class RecordItem implements StreamItem {
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
             return buildInternal();
+        }
+
+        public ClprRecordContext.ClprRecordContextBuilder clprContextBuilder() {
+            if (clprContextBuilder == null) {
+                clprContextBuilder = clprContext != null ? clprContext.toBuilder() : ClprRecordContext.builder();
+                clprContext = null;
+            }
+
+            return clprContextBuilder;
         }
 
         public RecordItemBuilder transactionRecord(TransactionRecord transactionRecord) {
