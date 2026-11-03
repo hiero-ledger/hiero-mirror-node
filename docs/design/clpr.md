@@ -135,18 +135,18 @@ excluded — see [Non-Goals](#non-goals) and [Consensus-Node Assumptions](#conse
 why it exists in the reference proto despite being a Rejected Idea in the HIP text. `ClprEndpointPublication` (127)
 is also undocumented in the HIP text itself, but for a different reason (it's Hiero-internal) — see above.
 
-| #   | `HederaFunctionality`           | `TransactionBody` / `Query` field    | What mirror node must persist                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| --- | ------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 117 | `ClprUpdateLedgerConfiguration` | `clprUpdateLedgerConfiguration` (tx) | Insert a new `clpr_ledger_configuration` row keyed by this transaction's own `consensus_timestamp`, populated from the `clpr_ledger_configuration_value` state change via `ClprUpdateLedgerConfigurationTransformer` — `protocol_version`/`chain_id` are immutable past genesis and always reflect existing state regardless of what's submitted, and `initial_trust_anchor`/`initial_trust_anchor_id` are never on the transaction body at all.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 118 | `ClprRegisterChannel`           | `clprRegisterChannel` (tx)           | Insert a row into `clpr_channel_pending_commitment` keyed by `ownership_commitment`; no `channel_id` is known yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| 119 | `ClprCompleteChannel`           | `clprCompleteChannel` (tx)           | Insert the new `clpr_channel` row in `ACTIVE` status from the `clpr_channel_value` state change (the complete `ClprChannel` object `ClprCompleteChannelHandler` builds — `chain_id`, `status`, `verifier_contract`, `verifier_fingerprint`, `trust_anchor`/`trust_anchor_id`, `channel_context`, `endpoint_manifest`/`endpoint_manifest_version`, `peer_throttles`, `peer_config_timestamp`, and fresh queue-state defaults), populated via the corresponding `ClprCompleteChannelTransformer` — plus `public_key`/`signature`/`signature_scheme`/`config_proof_bytes`/`endpoint_manifest_proof_bytes` directly off this transaction's body, since none of the five exist on real `ClprChannel` state (see [Database Schema Design](#database-schema-design)). Per `ClprCompleteChannelHandler`, the real consensus state leaves `clpr_channel_pending_commitment`'s entry untouched indefinitely (see row 120). The mirror node still recomputes `ownership_commitment` from this transaction's own fields (self-contained, not reliant on consensus state) to upsert `status = 'COMPLETED'` on that row, so `status=PENDING` on the Channels API excludes it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| 120 | `ClprCloseChannel`              | `clprCloseChannel` (tx)              | If no Channel exists yet for the supplied `ownership_commitment` (still pending/abandoned), upsert `status = 'DELETED'` on the `clpr_channel_pending_commitment` row. If a Channel exists, transition its status toward `CLOSING`/`DRAINED`/`CLOSED` — per `ClprCloseChannelHandler`, this path does **not** touch `clpr_channel_pending_commitment` in real consensus state; the mirror node already marked that row `status = 'COMPLETED'` at completion time (see row 119), so there's nothing left to reconcile here.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| 122 | `ClprSubmitBundle`              | `clprSubmitBundle` (tx)              | Append dispatched `ClprMessage`/`ClprControlMessage` entries, and `ClprMessageReply` entries this ledger itself generated answering inbound Data, to `clpr_message` (populated via `ClprSubmitBundleTransformer` from `clpr_message_value`/`clpr_message_key` PUT changes, since payload contents come from the verifier, not the transaction body); `connector_id` is read directly for `ClprMessage` rows, left `null` for `ClprControlMessage` rows, and left `null` for generated `ClprMessageReply` rows too until a consensus-node change makes it available (see [Database Schema Design](#database-schema-design)). A reply confirming this ledger's own earlier outbound Data arrives as a `clpr_message_value` deletion of that Data entry, not a new row (see [Database Schema Design](#database-schema-design)); update `channel.next_message_id` / `received_message_id` / `acked_message_id` / running hashes / status from `clpr_channel_value`, and `connector.in_flight_message_count` / `slash_count` from `clpr_connector_value` for both the sending and receiving Connector. The `clpr_channel` update historizes only when a non-counter field changes (see [Domain Models](#1-domain-models)). Per `ClprSlashingUtils.applySlash` (called from this same handler), a Connector whose `slash_count` crosses `clpr.slashBanThreshold` is banned — removed from state outright, the identical `connectorStore.remove(...)` operation `ClprDeregisterConnector` uses — so a `clpr_connector_value` deletion can arrive via `ClprSubmitBundle` too, not just via `ClprDeregisterConnector`; the mirror node must upsert `deleted = true` for that case the same way (see [Database Schema Design](#database-schema-design)). |
-| 124 | `ClprRegisterConnector`         | `clprRegisterConnector` (tx)         | Insert a row into `clpr_connector_pending_commitment` keyed by `commitment`; no `connector_id` is known yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 125 | `ClprDeregisterConnector`       | `clprDeregisterConnector` (tx)       | Mark the `clpr_connector`/`clpr_connector_history` row `deleted=true` and record `stake_recipient_id` from this transaction's own body. Real consensus state removes the Connector from its map entirely (`ClprDeregisterConnectorHandler`'s `connectorStore.remove(key)`) — `stake_recipient` is never part of `ClprConnector` state, only a one-time transfer destination on the transaction body — so this is a mirror-node-only soft-delete, the same pattern as every other "closed" entity in this design.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 126 | `ClprCompleteConnector`         | `clprCompleteConnector` (tx)         | Upsert `status = 'COMPLETED'` on the matching `clpr_connector_pending_commitment` row (mirror-node-only — real consensus-state removal in `ClprCompleteConnectorHandler` isn't mirrored, see [Database Schema Design](#database-schema-design)) and insert the `clpr_connector` row keyed by `(channel_id, connector_id)`, populated from the `clpr_connector_value` state change via `ClprCompleteConnectorTransformer`, plus `public_key`/`signature_scheme`/`signature`/`salt` directly off this transaction's body, since none of the four exist on real `ClprConnector` state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| 127 | `ClprEndpointPublication`       | `clpr_endpoint_publication` (tx)     | Hiero-internal, node-to-node protocol transaction — **out of scope** for the cross-ledger-facing tables; optionally worth ingesting only if the mirror node wants to expose per-node CLPR endpoint publication history as an operational/debugging aid.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| 129 | `ClprMaintenance`               | `clprMaintenance` (tx)               | System-initiated, no user-submitted body; fires for `GENESIS_INITIALIZATION`/`UPGRADE_INITIALIZATION`/`UPGRADE_ROSTER_RECONCILIATION`/`ENDPOINT_MANIFEST_RECONCILIATION`. Insert a new `clpr_ledger_configuration` row and/or a new `clpr_endpoint_manifest` row, via `ClprMaintenanceTransformer`, depending on whether `clpr_ledger_configuration_value`/`clpr_endpoint_manifest_value` is present on this particular firing — this is the only source for each table's very first row, since `ClprUpdateLedgerConfiguration` is an admin action that presumes a config already exists.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| #   | `HederaFunctionality`           | `TransactionBody` / `Query` field    | What mirror node must persist                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --- | ------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 117 | `ClprUpdateLedgerConfiguration` | `clprUpdateLedgerConfiguration` (tx) | Insert a new `clpr_ledger_configuration` row keyed by this transaction's own `consensus_timestamp`, populated from the `clpr_ledger_configuration_value` state change via `ClprUpdateLedgerConfigurationTransformer` — `protocol_version`/`chain_id` are immutable past genesis and always reflect existing state regardless of what's submitted, and `initial_trust_anchor`/`initial_trust_anchor_id` are never on the transaction body at all.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 118 | `ClprRegisterChannel`           | `clprRegisterChannel` (tx)           | Insert a row into `clpr_channel_pending_commitment` keyed by `ownership_commitment`; no `channel_id` is known yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 119 | `ClprCompleteChannel`           | `clprCompleteChannel` (tx)           | Insert the new `clpr_channel` row in `ACTIVE` status from the `clpr_channel_value` state change (the complete `ClprChannel` object `ClprCompleteChannelHandler` builds — `chain_id`, `status`, `verifier_contract`, `verifier_fingerprint`, `trust_anchor`/`trust_anchor_id`, `channel_context`, `endpoint_manifest`/`endpoint_manifest_version`, `peer_throttles`, `peer_config_timestamp`, and fresh queue-state defaults), populated via the corresponding `ClprCompleteChannelTransformer` — plus `public_key`/`signature`/`signature_scheme`/`config_proof_bytes`/`endpoint_manifest_proof_bytes` directly off this transaction's body, since none of the five exist on real `ClprChannel` state (see [Database Schema Design](#database-schema-design)). Per `ClprCompleteChannelHandler`, the real consensus state leaves `clpr_channel_pending_commitment`'s entry untouched indefinitely (see row 120). The mirror node still recomputes `ownership_commitment` from this transaction's own fields (self-contained, not reliant on consensus state) to upsert `status = 'COMPLETED'` on that row, so `status=PENDING` on the Channels API excludes it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 120 | `ClprCloseChannel`              | `clprCloseChannel` (tx)              | If no Channel exists yet for the supplied `ownership_commitment` (still pending/abandoned), upsert `status = 'DELETED'` on the `clpr_channel_pending_commitment` row. If a Channel exists, transition its status toward `CLOSING`/`DRAINED`/`CLOSED` — per `ClprCloseChannelHandler`, this path does **not** touch `clpr_channel_pending_commitment` in real consensus state; the mirror node already marked that row `status = 'COMPLETED'` at completion time (see row 119), so there's nothing left to reconcile here.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 122 | `ClprSubmitBundle`              | `clprSubmitBundle` (tx)              | Append dispatched `ClprMessage`/`ClprControlMessage` entries, and `ClprMessageReply` entries this ledger itself generated answering inbound Data, to `clpr_message` (populated via `ClprSubmitBundleTransformer` from `clpr_message_value`/`clpr_message_key` PUT changes, since payload contents come from the verifier, not the transaction body); `connector_id` is read directly for `ClprMessage` rows, left `null` for `ClprControlMessage` rows, and left `null` for generated `ClprMessageReply` rows too until a consensus-node change makes it available (see [Database Schema Design](#database-schema-design)). A reply confirming this ledger's own earlier outbound Data arrives as a `clpr_message_value` deletion of that Data entry, not a new row (see [Database Schema Design](#database-schema-design)); update `channel.next_message_id` / `received_message_id` / `acked_message_id` / running hashes / status from `clpr_channel_value`, and `connector.in_flight_message_count` / `slash_count` from `clpr_connector_value` for both the sending and receiving Connector. The `clpr_channel` update historizes only when a non-counter field changes (see [Domain Models](#1-domain-models)). Per `ClprSlashingUtils.applySlash` (called from this same handler), a Connector whose `slash_count` crosses `clpr.slashBanThreshold` is banned — removed from state outright, the identical `connectorStore.remove(...)` operation `ClprDeregisterConnector` uses — so a `clpr_connector_value` deletion can arrive via `ClprSubmitBundle` too, not just via `ClprDeregisterConnector`; the mirror node must upsert `status = 'DELETED'` for that case the same way (see [Database Schema Design](#database-schema-design)). |
+| 124 | `ClprRegisterConnector`         | `clprRegisterConnector` (tx)         | Upsert a `clpr_connector` row in `PENDING` status keyed by `(channel_id, commitment)`, both read off this transaction's body.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 125 | `ClprDeregisterConnector`       | `clprDeregisterConnector` (tx)       | Mark the `clpr_connector`/`clpr_connector_history` row `status = 'DELETED'` and record `stake_recipient_id` from this transaction's own body. Real consensus state removes the Connector from its map entirely (`ClprDeregisterConnectorHandler`'s `connectorStore.remove(key)`) — `stake_recipient` is never part of `ClprConnector` state, only a one-time transfer destination on the transaction body — so this is a mirror-node-only soft-delete, the same pattern as every other "closed" entity in this design.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 126 | `ClprCompleteConnector`         | `clprCompleteConnector` (tx)         | Upsert the existing `PENDING` `clpr_connector` row, located by `(channel_id, commitment)` where `commitment` is recomputed from this transaction's own fields (self-contained, not reliant on consensus state), to `status = 'ACTIVE'`, filling in `connector_id`, `connector_contract_id`, `admin_key`, `locked_stake` and the other Connector fields from the `clpr_connector_value` state change via `ClprCompleteConnectorTransformer`, plus `public_key`/`signature_scheme`/`signature`/`salt` directly off this transaction's body, since none of the four exist on real `ClprConnector` state. Real consensus state removes the commitment on completion (`ClprCompleteConnectorHandler`); there is nothing separate to mirror, since the same row simply changes status.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 127 | `ClprEndpointPublication`       | `clpr_endpoint_publication` (tx)     | Hiero-internal, node-to-node protocol transaction — **out of scope** for the cross-ledger-facing tables; optionally worth ingesting only if the mirror node wants to expose per-node CLPR endpoint publication history as an operational/debugging aid.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 129 | `ClprMaintenance`               | `clprMaintenance` (tx)               | System-initiated, no user-submitted body; fires for `GENESIS_INITIALIZATION`/`UPGRADE_INITIALIZATION`/`UPGRADE_ROSTER_RECONCILIATION`/`ENDPOINT_MANIFEST_RECONCILIATION`. Insert a new `clpr_ledger_configuration` row and/or a new `clpr_endpoint_manifest` row, via `ClprMaintenanceTransformer`, depending on whether `clpr_ledger_configuration_value`/`clpr_endpoint_manifest_value` is present on this particular firing — this is the only source for each table's very first row, since `ClprUpdateLedgerConfiguration` is an admin action that presumes a config already exists.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 ## Database Schema Design
 
@@ -169,11 +169,14 @@ same `ownership_commitment` can legitimately be registered again later — `Clpr
 must therefore explicitly reset `status = 'OPEN'` on every upsert, otherwise `coalesce` preserves the prior
 lifecycle's value.
 
-`clpr_connector_pending_commitment` works the same way, except real consensus state isn't symmetric:
-`ClprCompleteConnectorHandler` removes the Connector's commitment from state immediately on completion, while
-`ClprCompleteChannelHandler` leaves the Channel's commitment in place indefinitely. The mirror node doesn't mirror
-that removal — both sides upsert `status` the same way. There's no abandonment path for Connectors today, so
-`DELETED` stays reserved for schema symmetry with the Channel side.
+`clpr_connector` holds the whole Connector lifecycle in one row, with a single `status` enum
+(`PENDING`/`ACTIVE`/`DELETED`). `ClprRegisterConnectorTransactionBody` carries `channel_id` (see
+[hiero-consensus-node#28034](https://github.com/hiero-ledger/hiero-consensus-node/pull/28034)), but `connector_id`
+isn't known until completion, so the primary key is `(channel_id, commitment)` and `connector_id` stays `null` while
+`PENDING`. `ClprRegisterConnectorHandler` writes its commitment unconditionally, so
+`ClprRegisterConnectorTransactionHandler` must explicitly reset `status = 'PENDING'` on every upsert, otherwise
+`coalesce` preserves the prior lifecycle's value (this is also how a deregistered Connector is re-registered,
+reusing the same row).
 
 ### 1. Channel Tables
 
@@ -270,48 +273,34 @@ table, even though the row count isn't tiny.
 
 ```sql
 -- add_clpr_connector_support.sql
-create table if not exists clpr_connector_pending_commitment
-(
-    commitment            bytea                           not null,
-    created_timestamp     bigint                          not null,
-    status                clpr_pending_commitment_status  not null default 'OPEN',
-    timestamp_range       int8range                       not null,
 
-    primary key (commitment)
-);
-
-create index if not exists clpr_connector_pending_commitment__created_timestamp
-    on clpr_connector_pending_commitment (created_timestamp)
-    where status = 'OPEN';
-
-create table if not exists clpr_connector_pending_commitment_history
-(
-    like clpr_connector_pending_commitment including defaults
-);
-
-create index if not exists clpr_connector_pending_commitment_history__timestamp_range
-    on clpr_connector_pending_commitment_history using gist (timestamp_range);
+create type clpr_connector_status as enum ('PENDING', 'ACTIVE', 'DELETED');
 
 create table if not exists clpr_connector
 (
-    connector_contract_id    bigint      not null,
-    created_timestamp        bigint      not null,
-    in_flight_message_count  bigint      not null default 0,
-    locked_stake             bigint      not null default 0,
-    slash_count              bigint      not null default 0,
+    connector_contract_id    bigint,
+    created_timestamp        bigint                 not null,
+    in_flight_message_count  bigint                 not null default 0,
+    locked_stake             bigint                 not null default 0,
+    slash_count              bigint                 not null default 0,
     stake_recipient_id       bigint,
-    deleted                  boolean     not null default false,
     signature_scheme         clpr_signature_scheme,
+    status                   clpr_connector_status  not null default 'PENDING',
     admin_key                bytea,
-    channel_id               bytea       not null,
-    connector_id             bytea       not null,
+    channel_id               bytea                  not null,
+    commitment               bytea                  not null,
+    connector_id             bytea,
     public_key               bytea,
     salt                     bytea,
     signature                bytea,
-    timestamp_range          int8range   not null,
+    timestamp_range          int8range              not null,
 
-    primary key (channel_id, connector_id)
+    primary key (channel_id, commitment)
 );
+
+create unique index if not exists clpr_connector__channel_id_connector_id
+    on clpr_connector (channel_id, connector_id)
+    where connector_id is not null;
 
 create index if not exists clpr_connector__channel_id_created_timestamp
     on clpr_connector (channel_id, created_timestamp);
@@ -328,11 +317,8 @@ select create_distributed_table('clpr_connector', 'channel_id', colocate_with =>
 select create_distributed_table('clpr_connector_history', 'channel_id', colocate_with => 'clpr_connector');
 ```
 
-`channelId` is a required path param on [Connectors](#4-connectors-api), same as
-[Messages per Channel](#2-messages-per-channel-api), so every query is shard-local in `v2` —
-`clpr_connector__channel_id_created_timestamp` serves all of them. A `connector.id` lookup pairs with that same
-`channel_id`, resolving via the `(channel_id, connector_id)` primary key, so no separate index on `connector_id` is
-needed.
+`clpr_connector__channel_id_connector_id` is partial because `connector_id` is `null` while `PENDING`, and leads
+with `channel_id` because Citus requires unique indexes to include the distribution column.
 
 ### 3. Ledger Configuration and Endpoint Manifest
 
@@ -548,7 +534,7 @@ Channel query to the right partition, regardless of which other filter is also a
 > `colocate_with => 'clpr_channel'`, so per-channel queries stay shard-local in `v2`. `clpr_message` is additionally
 > time-partitioned by `consensus_timestamp` in both profiles (see above) — distribution (shard dimension, `v2`
 > only) and partitioning (time dimension, both profiles) are orthogonal and both apply to it.
-> `clpr_channel_pending_commitment`/`clpr_connector_pending_commitment`, `clpr_ledger_configuration`, and
+> `clpr_channel_pending_commitment`, `clpr_ledger_configuration`, and
 > `clpr_endpoint_manifest` all
 > stay plain, undistributed tables (see above): none is joined against from a distributed table, and each has a
 > write pattern too low-volume to need sharding. Tables that aren't colocated with another table need an explicit
@@ -687,45 +673,6 @@ still produces a `clpr_channel_history` row, while a counter-only bundle doesn't
 | `endpoint_manifest_proof_bytes`   | `TransactionBody` (`ClprCompleteChannel.endpoint_manifest_proof_bytes`); not on real state                   | `ClprCompleteChannel`                                         |
 | `timestamp_range`                 | Framework-managed (`@Upsertable`)                                                                            | —                                                             |
 
-#### AbstractClprConnectorPendingCommitment.java
-
-```java
-// common/src/main/java/org/hiero/mirror/common/domain/clpr/AbstractClprConnectorPendingCommitment.java
-@Upsertable(history = true, skipPartialUpdate = true)
-public abstract class AbstractClprConnectorPendingCommitment implements History {
-
-    @Id
-    private byte[] commitment;
-
-    // ...
-}
-```
-
-#### ClprConnectorPendingCommitment.java / ClprConnectorPendingCommitmentHistory.java
-
-```java
-// common/src/main/java/org/hiero/mirror/common/domain/clpr/ClprConnectorPendingCommitment.java
-public class ClprConnectorPendingCommitment extends AbstractClprConnectorPendingCommitment {
-    // Only the parent class should contain fields so that they're shared with both the history and non-history tables.
-}
-```
-
-```java
-// common/src/main/java/org/hiero/mirror/common/domain/clpr/ClprConnectorPendingCommitmentHistory.java
-public class ClprConnectorPendingCommitmentHistory extends AbstractClprConnectorPendingCommitment {
-    // Only the parent class should contain fields so that they're shared with both the history and non-history tables.
-}
-```
-
-**Field sources:**
-
-| Field               | Access path                                                                                                                                                        | Set by                                                                                       |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `commitment`        | `TransactionBody` (`ClprRegisterConnector.commitment`); recomputed as `keccak256(connector_id, public_key)` by the handler itself to locate this row on completion | `ClprRegisterConnector`; `ClprCompleteConnector` (recomputed to find the row by primary key) |
-| `created_timestamp` | Derived (consensus timestamp)                                                                                                                                      | `ClprRegisterConnector`                                                                      |
-| `status`            | Literal `OPEN`, explicitly reset on every register (not left unset); `COMPLETED` on completion; `DELETED` is reserved for schema symmetry, no handler ever sets it | `ClprRegisterConnector` (`OPEN`); `ClprCompleteConnector` (`COMPLETED`)                      |
-| `timestamp_range`   | Framework-managed (`@Upsertable`)                                                                                                                                  | —                                                                                            |
-
 #### AbstractClprConnector.java
 
 ```java
@@ -735,13 +682,13 @@ public class ClprConnectorPendingCommitmentHistory extends AbstractClprConnector
 public abstract class AbstractClprConnector implements History {
 
     private byte[] channelId;
-    private byte[] connectorId;
+    private byte[] commitment;
 
     // ...
 
     public static class Id implements Serializable {
         private byte[] channelId;
-        private byte[] connectorId;
+        private byte[] commitment;
     }
 }
 ```
@@ -764,28 +711,29 @@ public class ClprConnectorHistory extends AbstractClprConnector {
 
 `skipPartialUpdate = true` drops an update that never saw its create — the same safeguard `AbstractToken` uses. Like
 `ClprChannel`, `ClprSubmitBundleTransactionHandler` sets `timestampRange` on its `clpr_connector` update only when
-a non-counter field changes — a ban flipping `deleted` to `true` historizes; a counter-only update
+a non-counter field changes — a ban flipping `status` to `DELETED` historizes; a counter-only update
 (`in_flight_message_count`/`slash_count`/`locked_stake`) doesn't.
 
 **Field sources:**
 
-| Field                               | Access path                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Set by                                                                                               |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `channel_id`                        | `clpr_connector_value` state change (`ClprConnector.channel_id`), via `ClprCompleteConnectorTransformer`                                                                                                                                                                                                                                                                                                                                                                                                     | `ClprCompleteConnector`                                                                              |
-| `connector_id`                      | `clpr_connector_value` state change (`ClprConnector.connector_id`), via `ClprCompleteConnectorTransformer`                                                                                                                                                                                                                                                                                                                                                                                                   | `ClprCompleteConnector`                                                                              |
-| `connector_contract_id`             | `clpr_connector_value` state change (`ClprConnector.connector_contract`), via `ClprCompleteConnectorTransformer`                                                                                                                                                                                                                                                                                                                                                                                             | `ClprCompleteConnector`                                                                              |
-| `admin_key`                         | `clpr_connector_value` state change (`ClprConnector.admin_key`), via `ClprCompleteConnectorTransformer`                                                                                                                                                                                                                                                                                                                                                                                                      | `ClprCompleteConnector`                                                                              |
-| `locked_stake` (counter)            | `clpr_connector_value` state change (`ClprConnector.locked_stake`), via `ClprCompleteConnectorTransformer`                                                                                                                                                                                                                                                                                                                                                                                                   | `ClprCompleteConnector`                                                                              |
-| `in_flight_message_count` (counter) | Literal `0` at completion; thereafter the `clpr_connector_value` state change via `ClprSubmitBundleTransformer`                                                                                                                                                                                                                                                                                                                                                                                              | `ClprCompleteConnector` (initial); `ClprSubmitBundle` (ongoing)                                      |
-| `slash_count` (counter)             | Literal `0` at completion; thereafter the `clpr_connector_value` state change via `ClprSubmitBundleTransformer`                                                                                                                                                                                                                                                                                                                                                                                              | `ClprCompleteConnector` (initial); `ClprSubmitBundle` (ongoing)                                      |
-| `created_timestamp`                 | Derived (consensus timestamp); reset fresh on every completion, including reactivation after deregistration                                                                                                                                                                                                                                                                                                                                                                                                  | `ClprCompleteConnector`                                                                              |
-| `deleted`                           | Literal `false` on completion; literal `true` on deregistration, and also on a ban (`ClprSlashingUtils.applySlash` removes a Connector from state via the identical `connectorStore.remove(...)` once `slash_count` crosses `clpr.slashBanThreshold` — same outcome, different trigger; see [Transaction & Query Inventory](#transaction--query-inventory) row 122). `stake_recipient_id IS NOT NULL` distinguishes a voluntary deregistration from a ban, since only `ClprDeregisterConnector` ever sets it | `ClprCompleteConnector` (false); `ClprDeregisterConnector` (true); `ClprSubmitBundle` (true, on ban) |
-| `stake_recipient_id`                | `TransactionBody` (`ClprDeregisterConnector.stake_recipient`); no state equivalent                                                                                                                                                                                                                                                                                                                                                                                                                           | `ClprDeregisterConnector`                                                                            |
-| `public_key`                        | `TransactionBody` (`ClprCompleteConnector.public_key`); not on real state                                                                                                                                                                                                                                                                                                                                                                                                                                    | `ClprCompleteConnector`                                                                              |
-| `signature_scheme`                  | `TransactionBody` (`ClprCompleteConnector.signature_scheme`); not on real state                                                                                                                                                                                                                                                                                                                                                                                                                              | `ClprCompleteConnector`                                                                              |
-| `signature`                         | `TransactionBody` (`ClprCompleteConnector.signature`); not on real state                                                                                                                                                                                                                                                                                                                                                                                                                                     | `ClprCompleteConnector`                                                                              |
-| `salt`                              | `TransactionBody` (`ClprCompleteConnector.salt`); not on real state                                                                                                                                                                                                                                                                                                                                                                                                                                          | `ClprCompleteConnector`                                                                              |
-| `timestamp_range`                   | Framework-managed (`@Upsertable`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | —                                                                                                    |
+| Field                               | Access path                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Set by                                                                                                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `channel_id`                        | `TransactionBody` (`ClprRegisterConnector.channel_id`); on completion, matches the `clpr_connector_value` state change (`ClprConnector.channel_id`)                                                                                                                                                                                                                                                                                                                                                                                                                      | `ClprRegisterConnector`; `ClprCompleteConnector` (locates the row)                                                                                     |
+| `commitment`                        | `TransactionBody` (`ClprRegisterConnector.commitment`); on completion, recomputed as `keccak256(connector_id, public_key)` from `ClprCompleteConnector`'s own fields to locate this row                                                                                                                                                                                                                                                                                                                                                                                  | `ClprRegisterConnector`; `ClprCompleteConnector` (locates the row)                                                                                     |
+| `connector_id`                      | `null` until completion, then set from the `clpr_connector_value` state change (`ClprConnector.connector_id`), via `ClprCompleteConnectorTransformer`                                                                                                                                                                                                                                                                                                                                                                                                                    | `ClprCompleteConnector`                                                                                                                                |
+| `connector_contract_id`             | `clpr_connector_value` state change (`ClprConnector.connector_contract`), via `ClprCompleteConnectorTransformer`                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `ClprCompleteConnector`                                                                                                                                |
+| `admin_key`                         | `clpr_connector_value` state change (`ClprConnector.admin_key`), via `ClprCompleteConnectorTransformer`                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `ClprCompleteConnector`                                                                                                                                |
+| `locked_stake` (counter)            | `clpr_connector_value` state change (`ClprConnector.locked_stake`), via `ClprCompleteConnectorTransformer`                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `ClprCompleteConnector`                                                                                                                                |
+| `in_flight_message_count` (counter) | Literal `0` at completion; thereafter the `clpr_connector_value` state change via `ClprSubmitBundleTransformer`                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `ClprCompleteConnector` (initial); `ClprSubmitBundle` (ongoing)                                                                                        |
+| `slash_count` (counter)             | Literal `0` at completion; thereafter the `clpr_connector_value` state change via `ClprSubmitBundleTransformer`                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `ClprCompleteConnector` (initial); `ClprSubmitBundle` (ongoing)                                                                                        |
+| `created_timestamp`                 | Derived (consensus timestamp); set at registration, then reset fresh on every completion, including reactivation after deregistration                                                                                                                                                                                                                                                                                                                                                                                                                                    | `ClprRegisterConnector`; `ClprCompleteConnector`                                                                                                       |
+| `status`                            | Literal `PENDING`, explicitly reset on every register (not left unset); `ACTIVE` on completion; `DELETED` on deregistration, and also on a ban (`ClprSlashingUtils.applySlash` removes a Connector from state via the identical `connectorStore.remove(...)` once `slash_count` crosses `clpr.slashBanThreshold` — same outcome, different trigger; see [Transaction & Query Inventory](#transaction--query-inventory) row 122). `stake_recipient_id IS NOT NULL` distinguishes a voluntary deregistration from a ban, since only `ClprDeregisterConnector` ever sets it | `ClprRegisterConnector` (`PENDING`); `ClprCompleteConnector` (`ACTIVE`); `ClprDeregisterConnector` (`DELETED`); `ClprSubmitBundle` (`DELETED`, on ban) |
+| `stake_recipient_id`                | `TransactionBody` (`ClprDeregisterConnector.stake_recipient`); no state equivalent                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `ClprDeregisterConnector`                                                                                                                              |
+| `public_key`                        | `TransactionBody` (`ClprCompleteConnector.public_key`); not on real state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `ClprCompleteConnector`                                                                                                                                |
+| `signature_scheme`                  | `TransactionBody` (`ClprCompleteConnector.signature_scheme`); not on real state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `ClprCompleteConnector`                                                                                                                                |
+| `signature`                         | `TransactionBody` (`ClprCompleteConnector.signature`); not on real state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `ClprCompleteConnector`                                                                                                                                |
+| `salt`                              | `TransactionBody` (`ClprCompleteConnector.salt`); not on real state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | `ClprCompleteConnector`                                                                                                                                |
+| `timestamp_range`                   | Framework-managed (`@Upsertable`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | —                                                                                                                                                      |
 
 #### ClprLedgerConfiguration.java
 
@@ -998,7 +946,6 @@ existing `default void onX(X x) {}` pattern:
 - `onClprChannel(ClprChannel)`
 - `onClprChannelPendingCommitment(ClprChannelPendingCommitment)`
 - `onClprConnector(ClprConnector)`
-- `onClprConnectorPendingCommitment(ClprConnectorPendingCommitment)`
 - `onClprEndpointManifest(ClprEndpointManifest)`
 - `onClprLedgerConfiguration(ClprLedgerConfiguration)`
 - `onClprMessage(ClprMessage)`
@@ -1009,7 +956,6 @@ New `JpaRepository`-based repositories:
 
 - `ClprChannelPendingCommitmentRepository`
 - `ClprChannelRepository`
-- `ClprConnectorPendingCommitmentRepository`
 - `ClprConnectorRepository`
 - `ClprLedgerConfigurationRepository`
 - `ClprEndpointManifestRepository`
@@ -1017,14 +963,13 @@ New `JpaRepository`-based repositories:
 
 ## REST API Implementation
 
-Scoped to six read APIs, following existing `rest-java` conventions (paginated and filterable, except the two single-object APIs below):
+Scoped to five read APIs, following existing `rest-java` conventions (paginated and filterable, except the two single-object APIs below):
 
 1. Channels
 2. Messages per channel
-3. Pending connectors
-4. Connectors
-5. Ledger configuration
-6. Endpoint manifest
+3. Connectors
+4. Ledger configuration
+5. Endpoint manifest
 
 Ledger configuration and endpoint manifest change rarely (admin-updated or reconciled, not per-transaction). Only
 one of each is in effect at a time, so both APIs return a single object — the latest, or with `timestamp`, the latest
@@ -1220,51 +1165,7 @@ other filter here, for partition pruning (see above).
 - `/api/v1/clpr/channels/0x1a2b3c.../messages?connector.id=eq:0x4d5e6f...&timestamp=lt:1726874345.000000000` — Get all messages handled by a specific Connector before a given time
 - `/api/v1/clpr/channels/0x1a2b3c.../messages?connector.id=eq:0x4d5e6f...&timestamp=gte:1726874345.000000000&limit=10` — Get 10 of a Connector's messages within a bounded time window
 
-### 3. Pending Connectors API
-
-```
-GET /api/v1/clpr/connectors/pending
-```
-
-Same idea as `status=PENDING` on [Channels](#1-channels-api), for the same reason: `ClprRegisterConnectorTransactionBody`
-carries only `commitment` — neither `channel_id` nor `connector_id` is known at registration time, since
-`connector_id = keccak256(channel_id || pub_key || salt)` is itself folded into the outer commitment hash. So this
-is necessarily a standalone, channel-independent endpoint, not nested under a Channel path. Lists
-`clpr_connector_pending_commitment` rows with `status = 'OPEN'` (`DELETED` is reserved for schema symmetry with the
-Channel side; no handler sets it for Connectors today — see [Domain Models](#1-domain-models)). Served by
-`clpr_connector_pending_commitment__created_timestamp` (see [Database Schema Design](#database-schema-design)).
-
-Response format:
-
-```json
-{
-  "pending_connectors": [
-    {
-      "commitment": "0x9c2e4a...",
-      "created_timestamp": "1726874345.123456789",
-      "status": "OPEN"
-    }
-  ],
-  "links": {
-    "next": "/api/v1/clpr/connectors/pending?timestamp=lt:1726874345.123456789&limit=1"
-  }
-}
-```
-
-#### Query Parameters
-
-| Parameter   | Type    | Description                            | Default | Validation                                   |
-| ----------- | ------- | -------------------------------------- | ------- | -------------------------------------------- |
-| `timestamp` | string  | Filter/paginate by `created_timestamp` | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:` |
-| `limit`     | integer | Maximum number of rows to return       | `25`    | Must be between 1 and 100                    |
-| `order`     | string  | Sort order for results                 | `desc`  | Must be either `asc` or `desc`               |
-
-**Examples:**
-
-- `/api/v1/clpr/connectors/pending` — Get all pending connector commitments, newest first
-- `/api/v1/clpr/connectors/pending?limit=10` — Get first 10 pending commitments
-
-### 4. Connectors API
+### 3. Connectors API
 
 ```
 GET /api/v1/clpr/channels/{channelId}/connectors
@@ -1273,9 +1174,12 @@ GET /api/v1/clpr/channels/{channelId}/connectors
 `channelId` is required in the path, keeping every query shard-local via `channel_id` (same as
 [Messages per Channel](#2-messages-per-channel-api)) — there's no cross-Channel listing.
 
-When `connector.id` is also supplied — together with `channelId` they're this table's primary key — `timestamp`
-means "as of" instead of "filter/paginate", built the same way as [Channels](#1-channels-api) above. Without
-`connector.id`, `timestamp` keeps its list meaning below.
+This one endpoint covers every lifecycle state, including `PENDING` Connectors (`connector_id` `null`). Unlike
+Channels, pending and real rows share one table, so `status` combines freely with the other filters.
+
+When `connector.id` is supplied, `timestamp` means "as of" instead of "filter/paginate", built the same way as [Channels](#1-channels-api) above. A
+pending Connector has no `connector_id`, so combining `connector.id` with `status=eq:PENDING`
+returns `400`. Without `connector.id`, `timestamp` keeps its list meaning below.
 
 Response format:
 
@@ -1288,10 +1192,10 @@ Response format:
         "key": "302a300506032b6570032100e5b2…"
       },
       "channel_id": "0x1a2b3c...",
+      "commitment": "0x9c2e4a...",
       "connector_contract_id": "0.0.789",
       "connector_id": "0x4d5e6f...",
       "created_timestamp": "1726874345.123456789",
-      "deleted": false,
       "in_flight_message_count": 2,
       "locked_stake": "100000000",
       "public_key": "0x04a1b2c3...",
@@ -1300,6 +1204,7 @@ Response format:
       "signature_scheme": "ED25519",
       "slash_count": 0,
       "stake_recipient_id": null,
+      "status": "ACTIVE",
       "timestamp": {
         "from": "1726874345.123456789",
         "to": null
@@ -1316,7 +1221,8 @@ Response format:
 
 | Parameter      | Type    | Description                                                                                                                         | Default | Validation                                                                                                            |
 | -------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------- |
-| `connector.id` | string  | Filter by `connector_id`                                                                                                            | none    | Supports `eq:` only                                                                                                   |
+| `connector.id` | string  | Filter by `connector_id`                                                                                                            | none    | Supports `eq:` only; not allowed with `status=eq:PENDING`                                                             |
+| `status`       | string  | Filter by Connector status                                                                                                          | none    | Supports `eq:` only; one of `PENDING`, `ACTIVE`, `DELETED`                                                            |
 | `timestamp`    | string  | Filter/paginate by `created_timestamp`; with `connector.id`, instead reconstruct that Connector's state as of this time (see above) | none    | Supports `eq:`, `gt:`, `gte:`, `lt:`, `lte:`; combined range must not exceed the configured max window (e.g. 30 days) |
 | `limit`        | integer | Maximum number of Connectors to return                                                                                              | `25`    | Must be between 1 and 100                                                                                             |
 | `order`        | string  | Sort order for results                                                                                                              | `desc`  | Must be either `asc` or `desc`                                                                                        |
@@ -1325,11 +1231,13 @@ Response format:
 
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors` — Get all Connectors on a Channel, newest first
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors?limit=10` — Get first 10 Connectors on a Channel
+- `/api/v1/clpr/channels/0x1a2b3c.../connectors?status=eq:PENDING` — Get Connectors on a Channel whose commitment is
+  registered but not yet completed, newest first
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors?connector.id=eq:0x4d5e6f...` — Get a specific Connector by id
 - `/api/v1/clpr/channels/0x1a2b3c.../connectors?connector.id=eq:0x4d5e6f...&timestamp=eq:1726874300.000000000` — Get
   that Connector's state as of a past consensus timestamp
 
-### 5. Ledger Configuration API
+### 4. Ledger Configuration API
 
 ```
 GET /api/v1/clpr/configuration
@@ -1376,7 +1284,7 @@ Response format:
 - `/api/v1/clpr/configuration?timestamp=gte:1726870000.000000000&timestamp=lt:1726874300.000000000` — Get the latest
   configuration set within a bounded time window
 
-### 6. Endpoint Manifest API
+### 5. Endpoint Manifest API
 
 ```
 GET /api/v1/clpr/endpoint-manifest
@@ -1430,10 +1338,11 @@ Response format:
 
 - Full Channel lifecycle: `registerChannel` → `completeChannel` → `submitBundle` (multiple) → `closeChannel` →
   drain to `CLOSED`, asserting `clpr_channel`/`clpr_channel_history` rows at each transition.
-- Full Connector lifecycle: `registerConnector` → `completeConnector` → message dispatch affecting
-  `in_flight_message_count`/`slash_count` → `deregisterConnector`.
+- Full Connector lifecycle: `registerConnector` → `completeConnector` (same row, `PENDING` → `ACTIVE`) → message dispatch affecting
+  `in_flight_message_count`/`slash_count` → `deregisterConnector` (`DELETED`), asserting `clpr_connector`/
+  `clpr_connector_history` rows at each transition.
 - Connector ban path: repeated slashing until `slash_count` crosses `clpr.slashBanThreshold`, asserting
-  `clpr_connector.deleted = true` with `stake_recipient_id IS NULL` (distinguishing it from a voluntary
+  `clpr_connector.status = 'DELETED'` with `stake_recipient_id IS NULL` (distinguishing it from a voluntary
   `deregisterConnector`, see [Domain Models](#1-domain-models)).
 - Database migration tests for the new tables, including the `v2` Citus distribution calls and `clpr_message`'s
   time-partitioning (manual in `v1`, Citus-managed in `v2`; see [Database Schema Design](#database-schema-design)).
@@ -1464,9 +1373,8 @@ Feature: CLPR Channel and Connector Lifecycle
 
 ### 4. k6 Tests
 
-Add all six REST read endpoints from [REST API Implementation](#rest-api-implementation) to the k6 test suite:
-Channels, Messages per Channel, Pending Connectors, Connectors, Ledger Configuration, and
-Endpoint Manifest.
+Add all five REST read endpoints from [REST API Implementation](#rest-api-implementation) to the k6 test suite:
+Channels, Messages per Channel, Connectors, Ledger Configuration, and Endpoint Manifest.
 
 Staging environment needs, to exercise every endpoint variant:
 
@@ -1474,7 +1382,7 @@ Staging environment needs, to exercise every endpoint variant:
   Messages per Channel (plain, `type`-filtered, and `connector.id`-filtered) and Connectors have real
   rows to page through.
 - At least one still-pending Channel commitment (`status=PENDING` on Channels) and one still-pending Connector
-  commitment (Pending Connectors API).
+  commitment (`status=PENDING` on Connectors).
 - At least one Channel in a non-`ACTIVE` status, to exercise `status`-filtered queries on Channels.
 - At least one Channel and one Connector with a `clpr_channel_history`/`clpr_connector_history` row (a prior status
   change), to exercise the `channel.id`/`connector.id` + `timestamp` as-of lookup.
@@ -1491,12 +1399,11 @@ feature flag, no mixed-version gating) — only the schema migrations needed to 
 ### 1. Database Migrations
 
 - New Flyway migrations under `importer/src/main/resources/db/migration/{v1,v2}` for
-  `clpr_channel_pending_commitment(_history)`, `clpr_channel(_history)`, `clpr_connector_pending_commitment(_history)`,
+  `clpr_channel_pending_commitment(_history)`, `clpr_channel(_history)`,
   `clpr_connector(_history)`, `clpr_ledger_configuration`, `clpr_endpoint_manifest`,
   and `clpr_message`, following the append-only migration convention (never edit a merged migration).
 - The `v2` (Citus) migrations include the `create_distributed_table` calls specified in
-  [Database Schema Design](#database-schema-design) for every table except `clpr_channel_pending_commitment(_history)`,
-  `clpr_connector_pending_commitment(_history)`, `clpr_ledger_configuration`,
+  [Database Schema Design](#database-schema-design) for every table except `clpr_channel_pending_commitment(_history)`, `clpr_ledger_configuration`,
   and `clpr_endpoint_manifest`, which all stay plain, undistributed
   tables in both profiles. `clpr_message` is `partition by range (consensus_timestamp)` and time-partitioned in
   both `v1` and
@@ -1610,7 +1517,7 @@ depend on the [Consensus-Node Assumptions](#consensus-node-assumptions) above.
 
 1. **DB schema migration for CLPR tables.** Flyway migrations (`v1` and `v2`) for
    `clpr_channel_pending_commitment(_history)`, `clpr_channel(_history)`,
-   `clpr_connector_pending_commitment(_history)`, `clpr_connector(_history)`, `clpr_ledger_configuration`,
+   `clpr_connector(_history)`, `clpr_ledger_configuration`,
    `clpr_endpoint_manifest`, and `clpr_message`, including the `v2` Citus
    `create_distributed_table` calls from [Database Schema Design](#database-schema-design) for
    `clpr_channel(_history)`, `clpr_connector(_history)`, and `clpr_message` — every other table in this list stays
@@ -1631,8 +1538,8 @@ depend on the [Consensus-Node Assumptions](#consensus-node-assumptions) above.
    plus `ClprUpdateLedgerConfigurationTransformer` for the immutable `chain_id`/`protocol_version` fields, plus
    `ClprMaintenanceTransactionHandler`/`ClprMaintenanceTransformer` for both singletons' first row and the endpoint
    manifest's ongoing reconciliation updates.
-6. **REST API: the six read endpoints scoped in [REST API Implementation](#rest-api-implementation)** — Channels,
-   Messages per channel, Pending connectors, Connectors, Ledger configuration, and Endpoint
+6. **REST API: the five read endpoints scoped in [REST API Implementation](#rest-api-implementation)** — Channels,
+   Messages per channel, Connectors, Ledger configuration, and Endpoint
    manifest — including k6 test coverage for each (see [k6 Tests](#4-k6-tests)).
 7. **Acceptance tests for the CLPR Channel/Connector lifecycle**, gated on a working verifier and a
    CLPR-enabled test network being available to the acceptance suite.
