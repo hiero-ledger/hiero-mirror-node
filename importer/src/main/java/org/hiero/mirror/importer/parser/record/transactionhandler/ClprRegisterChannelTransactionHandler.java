@@ -30,7 +30,8 @@ class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        var ownershipCommitment = recordItem.getClprChannelPendingCommitment();
+        var clprContext = recordItem.getClprContext();
+        var ownershipCommitment = clprContext != null ? clprContext.getClprChannelPendingCommitment() : null;
         if (ClprStateChangeHandler.isMissingStateChange(
                 ownershipCommitment,
                 "clpr_pending_commitments",

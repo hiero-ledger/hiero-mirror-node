@@ -15,6 +15,7 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.transaction.ClprRecordContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
@@ -97,7 +98,9 @@ class ClprRegisterChannelTransactionHandlerTest extends AbstractTransactionHandl
                 .hapiVersion(new Version(0, 28, 0))
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
-                .clprChannelPendingCommitment(ownershipCommitment)
+                .clprContext(ClprRecordContext.builder()
+                        .clprChannelPendingCommitment(ownershipCommitment)
+                        .build())
                 .build();
     }
 }
