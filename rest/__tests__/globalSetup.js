@@ -11,7 +11,7 @@ import {PostgreSqlContainer} from '@testcontainers/postgresql';
 import {isV2Schema} from './testutils.js';
 
 const FLYWAY_DATA_PATH = path.join('.', 'build', process.platform === 'win32' ? 'flyway data' : 'flyway');
-const FLYWAY_VERSION = '13-alpine';
+const FLYWAY_VERSION = '13.11.1';
 const FLYWAY_EXE_PATH = path.join('.', 'node_modules', 'flyway', FLYWAY_VERSION, 'flyway');
 
 const DB_NAME = 'mirror_node';
