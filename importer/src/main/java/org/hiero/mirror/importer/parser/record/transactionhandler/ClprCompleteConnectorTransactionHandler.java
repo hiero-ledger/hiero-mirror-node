@@ -15,7 +15,6 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
-import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -36,10 +35,11 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
 
         var transactionBody = recordItem.getTransactionBody().getClprCompleteConnector();
         var clprConnectorValue = recordItem.getClprConnector();
-        if (clprConnectorValue == null) {
-            Utility.handleRecoverableError(
-                    "No clpr_connector_value state change found for successful ClprCompleteConnector at {}",
-                    recordItem.getConsensusTimestamp());
+        if (ClprStateChangeHandler.isMissingStateChange(
+                clprConnectorValue,
+                "clpr_connector_value",
+                "ClprCompleteConnector",
+                recordItem.getConsensusTimestamp())) {
             return;
         }
 

@@ -14,7 +14,6 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
-import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -35,10 +34,8 @@ class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
 
         var transactionBody = recordItem.getTransactionBody().getClprCompleteChannel();
         var clprChannelValue = recordItem.getClprChannel();
-        if (clprChannelValue == null) {
-            Utility.handleRecoverableError(
-                    "No clpr_channel_value state change found for successful ClprCompleteChannel at {}",
-                    recordItem.getConsensusTimestamp());
+        if (ClprStateChangeHandler.isMissingStateChange(
+                clprChannelValue, "clpr_channel_value", "ClprCompleteChannel", recordItem.getConsensusTimestamp())) {
             return;
         }
 

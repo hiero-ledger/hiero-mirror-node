@@ -12,7 +12,6 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
-import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -32,11 +31,11 @@ class ClprRegisterConnectorTransactionHandler extends AbstractTransactionHandler
         }
 
         var commitment = recordItem.getClprConnectorPendingCommitment();
-        if (commitment == null) {
-            Utility.handleRecoverableError(
-                    "No clpr_pending_connector_commitments state change found for successful"
-                            + " ClprRegisterConnector at {}",
-                    recordItem.getConsensusTimestamp());
+        if (ClprStateChangeHandler.isMissingStateChange(
+                commitment,
+                "clpr_pending_connector_commitments",
+                "ClprRegisterConnector",
+                recordItem.getConsensusTimestamp())) {
             return;
         }
 

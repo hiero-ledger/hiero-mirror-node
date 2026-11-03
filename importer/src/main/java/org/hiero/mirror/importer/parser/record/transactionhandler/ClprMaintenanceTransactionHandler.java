@@ -10,7 +10,6 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
-import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -30,10 +29,8 @@ class ClprMaintenanceTransactionHandler extends AbstractTransactionHandler {
         }
 
         var manifest = recordItem.getClprEndpointManifest();
-        if (manifest == null) {
-            Utility.handleRecoverableError(
-                    "No clpr_endpoint_manifest_value state change found for successful ClprMaintenance at {}",
-                    recordItem.getConsensusTimestamp());
+        if (ClprStateChangeHandler.isMissingStateChange(
+                manifest, "clpr_endpoint_manifest_value", "ClprMaintenance", recordItem.getConsensusTimestamp())) {
             return;
         }
 

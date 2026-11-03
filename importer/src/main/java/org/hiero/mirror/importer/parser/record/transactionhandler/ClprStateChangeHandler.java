@@ -41,6 +41,22 @@ class ClprStateChangeHandler {
 
     private final EntityListener entityListener;
 
+    /**
+     * Logs and reports a missing state change for a successful transaction that depends on one. {@code value} is
+     * typed {@code Object} since callers pass whichever state-change shape (a protobuf message, a commitment byte
+     * string, etc.) their transaction depends on -- only nullness is checked here.
+     */
+    static boolean isMissingStateChange(
+            @Nullable Object value, String description, String transactionName, long consensusTimestamp) {
+        if (value != null) {
+            return false;
+        }
+
+        Utility.handleRecoverableError(
+                "No {} state change found for successful {} at {}", description, transactionName, consensusTimestamp);
+        return true;
+    }
+
     static void populateFromStateChange(
             AbstractClprChannel.AbstractClprChannelBuilder<?, ?> builder,
             com.hederahashgraph.api.proto.java.ClprChannel value) {
@@ -175,15 +191,15 @@ class ClprStateChangeHandler {
                 .initialTrustAnchor(DomainUtils.toBytes(configuration.getInitialTrustAnchor()))
                 .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()));
 
-        if (configuration.hasThrottles()) {
-            var throttles = configuration.getThrottles();
-            builder.maxGasPerMessage(throttles.getMaxGasPerMessage())
-                    .maxLocalEndpoints((long) throttles.getMaxLocalEndpoints())
-                    .maxMessagePayloadBytes((long) throttles.getMaxMessagePayloadBytes())
-                    .maxMessagesPerBundle((long) throttles.getMaxMessagesPerBundle())
-                    .maxPeerEndpoints((long) throttles.getMaxPeerEndpoints())
-                    .maxQueueDepth((long) throttles.getMaxQueueDepth())
-                    .maxSyncBytes(throttles.getMaxSyncBytes());
+        var throttleValues = ClprThrottleValues.from(configuration);
+        if (throttleValues != null) {
+            builder.maxGasPerMessage(throttleValues.maxGasPerMessage())
+                    .maxLocalEndpoints(throttleValues.maxLocalEndpoints())
+                    .maxMessagePayloadBytes(throttleValues.maxMessagePayloadBytes())
+                    .maxMessagesPerBundle(throttleValues.maxMessagesPerBundle())
+                    .maxPeerEndpoints(throttleValues.maxPeerEndpoints())
+                    .maxQueueDepth(throttleValues.maxQueueDepth())
+                    .maxSyncBytes(throttleValues.maxSyncBytes());
         }
 
         return builder.build();

@@ -10,7 +10,6 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
-import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -30,11 +29,11 @@ class ClprUpdateLedgerConfigurationTransactionHandler extends AbstractTransactio
         }
 
         var configuration = recordItem.getClprLedgerConfiguration();
-        if (configuration == null) {
-            Utility.handleRecoverableError(
-                    "No clpr_ledger_configuration_value state change found for successful"
-                            + " ClprUpdateLedgerConfiguration at {}",
-                    recordItem.getConsensusTimestamp());
+        if (ClprStateChangeHandler.isMissingStateChange(
+                configuration,
+                "clpr_ledger_configuration_value",
+                "ClprUpdateLedgerConfiguration",
+                recordItem.getConsensusTimestamp())) {
             return;
         }
 
@@ -48,15 +47,15 @@ class ClprUpdateLedgerConfigurationTransactionHandler extends AbstractTransactio
                 .initialTrustAnchor(DomainUtils.toBytes(configuration.getInitialTrustAnchor()))
                 .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()));
 
-        if (configuration.hasThrottles()) {
-            var throttles = configuration.getThrottles();
-            builder.maxGasPerMessage(throttles.getMaxGasPerMessage())
-                    .maxLocalEndpoints((long) throttles.getMaxLocalEndpoints())
-                    .maxMessagePayloadBytes((long) throttles.getMaxMessagePayloadBytes())
-                    .maxMessagesPerBundle((long) throttles.getMaxMessagesPerBundle())
-                    .maxPeerEndpoints((long) throttles.getMaxPeerEndpoints())
-                    .maxQueueDepth((long) throttles.getMaxQueueDepth())
-                    .maxSyncBytes(throttles.getMaxSyncBytes());
+        var throttleValues = ClprThrottleValues.from(configuration);
+        if (throttleValues != null) {
+            builder.maxGasPerMessage(throttleValues.maxGasPerMessage())
+                    .maxLocalEndpoints(throttleValues.maxLocalEndpoints())
+                    .maxMessagePayloadBytes(throttleValues.maxMessagePayloadBytes())
+                    .maxMessagesPerBundle(throttleValues.maxMessagesPerBundle())
+                    .maxPeerEndpoints(throttleValues.maxPeerEndpoints())
+                    .maxQueueDepth(throttleValues.maxQueueDepth())
+                    .maxSyncBytes(throttleValues.maxSyncBytes());
         }
 
         entityListener.onClprLedgerConfiguration(builder.build());

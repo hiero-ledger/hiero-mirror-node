@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
 
 /**
@@ -25,7 +24,7 @@ import org.hiero.mirror.common.domain.Upsertable;
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true, skipPartialUpdate = true)
-public abstract class AbstractClprChannelPendingCommitment implements History {
+public abstract class AbstractClprChannelPendingCommitment implements ClprPendingCommitment {
 
     private Long createdTimestamp;
 

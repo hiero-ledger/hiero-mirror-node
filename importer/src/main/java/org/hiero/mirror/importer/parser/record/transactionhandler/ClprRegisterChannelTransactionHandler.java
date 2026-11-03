@@ -12,7 +12,6 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
-import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -32,10 +31,11 @@ class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
         }
 
         var ownershipCommitment = recordItem.getClprChannelPendingCommitment();
-        if (ownershipCommitment == null) {
-            Utility.handleRecoverableError(
-                    "No clpr_pending_commitments state change found for successful ClprRegisterChannel at {}",
-                    recordItem.getConsensusTimestamp());
+        if (ClprStateChangeHandler.isMissingStateChange(
+                ownershipCommitment,
+                "clpr_pending_commitments",
+                "ClprRegisterChannel",
+                recordItem.getConsensusTimestamp())) {
             return;
         }
 

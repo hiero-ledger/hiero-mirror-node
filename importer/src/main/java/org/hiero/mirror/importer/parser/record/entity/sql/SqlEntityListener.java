@@ -20,6 +20,7 @@ import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitment;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -123,7 +124,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         context.merge(
                 ByteBuffer.wrap(clprChannelPendingCommitment.getOwnershipCommitment()),
                 clprChannelPendingCommitment,
-                this::mergeClprChannelPendingCommitment);
+                this::mergeClprPendingCommitment);
     }
 
     @Override
@@ -136,7 +137,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         context.merge(
                 ByteBuffer.wrap(clprConnectorPendingCommitment.getCommitment()),
                 clprConnectorPendingCommitment,
-                this::mergeClprConnectorPendingCommitment);
+                this::mergeClprPendingCommitment);
     }
 
     @Override
@@ -672,14 +673,13 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         return current;
     }
 
-    private ClprChannelPendingCommitment mergeClprChannelPendingCommitment(
-            ClprChannelPendingCommitment previous, ClprChannelPendingCommitment current) {
+    private <T extends ClprPendingCommitment> T mergeClprPendingCommitment(T previous, T current) {
         previous.setTimestampUpper(current.getTimestampLower());
 
         if (current.getCreatedTimestamp() != null
                 && current.getCreatedTimestamp().equals(current.getTimestampLower())) {
-            // Fresh registration -- possibly a re-registration of a commitment previously swept by
-            // ClprCloseChannel -- so don't carry stale fields forward from the abandoned commitment.
+            // Fresh registration -- possibly a re-registration of a commitment previously swept/deregistered -- so
+            // don't carry stale fields forward from the abandoned commitment.
             return current;
         }
 
@@ -759,27 +759,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         }
         if (current.getDeleted() == null) {
             current.setDeleted(previous.getDeleted());
-        }
-
-        return current;
-    }
-
-    private ClprConnectorPendingCommitment mergeClprConnectorPendingCommitment(
-            ClprConnectorPendingCommitment previous, ClprConnectorPendingCommitment current) {
-        previous.setTimestampUpper(current.getTimestampLower());
-
-        if (current.getCreatedTimestamp() != null
-                && current.getCreatedTimestamp().equals(current.getTimestampLower())) {
-            // Fresh registration -- possibly a re-registration after a prior deregistration -- so don't carry stale
-            // fields forward from the old commitment.
-            return current;
-        }
-
-        if (current.getCreatedTimestamp() == null) {
-            current.setCreatedTimestamp(previous.getCreatedTimestamp());
-        }
-        if (current.getStatus() == null) {
-            current.setStatus(previous.getStatus());
         }
 
         return current;
