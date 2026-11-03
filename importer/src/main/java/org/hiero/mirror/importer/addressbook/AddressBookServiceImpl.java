@@ -139,7 +139,7 @@ public class AddressBookServiceImpl implements AddressBookService {
     @Override
     public Collection<ConsensusNode> getNodes() {
         var addressBook = getCurrent();
-        var totalStake = new AtomicLong(0L);
+        long totalStake = 0L;
         var nodes = new TreeSet<ConsensusNode>();
         var nodeStakes = new HashMap<Long, NodeStake>();
         var consensusMode = importerProperties.getConsensusMode();
@@ -148,19 +148,19 @@ public class AddressBookServiceImpl implements AddressBookService {
                 .collect(Collectors.toSet());
 
         var nodeStakeTimestamp = new AtomicLong(0L);
-        nodeStakeRepository.findLatest().forEach(nodeStake -> {
+        for (final var nodeStake : nodeStakeRepository.findLatest()) {
             if (consensusMode == ConsensusMode.EQUAL) {
                 nodeStake.setStake(1L);
             }
 
             if (consensusMode != ConsensusMode.STAKE_IN_ADDRESS_BOOK
                     || nodesInAddressBook.contains(nodeStake.getNodeId())) {
-                totalStake.addAndGet(nodeStake.getStake());
+                totalStake = Math.addExact(totalStake, Math.max(0L, nodeStake.getStake()));
             }
             nodeStakes.put(nodeStake.getNodeId(), nodeStake);
             // all the node stake rows have the same consensus timestamp
             nodeStakeTimestamp.compareAndSet(0L, nodeStake.getConsensusTimestamp());
-        });
+        }
 
         long nodeCountAddressBook = addressBook.getNodeCount() != null ? addressBook.getNodeCount() : 0L;
         long nodeCount = (consensusMode == ConsensusMode.STAKE_IN_ADDRESS_BOOK || nodeStakes.isEmpty())
@@ -179,13 +179,13 @@ public class AddressBookServiceImpl implements AddressBookService {
                     nodeStakes.size());
         }
 
-        addressBook.getEntries().forEach(e -> {
+        for (final var e : addressBook.getEntries()) {
             if (StringUtils.isNotBlank(importerProperties.getNodePublicKey())) {
                 e.setPublicKey(importerProperties.getNodePublicKey());
             }
             var nodeStake = nodeStakes.get(e.getNodeId());
-            nodes.add(new ConsensusNodeWrapper(e, nodeStake, nodeCount, totalStake.get()));
-        });
+            nodes.add(new ConsensusNodeWrapper(e, nodeStake, nodeCount, totalStake));
+        }
 
         if (nodes.isEmpty()) {
             throw new InvalidDatasetException("Unable to find a valid address book");

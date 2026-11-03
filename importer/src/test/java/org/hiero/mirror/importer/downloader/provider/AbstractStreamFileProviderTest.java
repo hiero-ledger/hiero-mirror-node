@@ -29,6 +29,7 @@ import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.FileCopier;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.ImporterProperties.HederaNetwork;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.domain.ConsensusNodeStub;
@@ -49,6 +50,7 @@ import reactor.test.StepVerifier;
 abstract class AbstractStreamFileProviderTest {
 
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
+    private static final String RESETTABLE_NETWORK = HederaNetwork.TESTNET;
 
     @TempDir
     protected Path dataPath;
@@ -186,6 +188,7 @@ abstract class AbstractStreamFileProviderTest {
     @Test
     void discoverNetwork() {
         // given
+        useResettableNetwork();
         final var rootPath = dataPath.resolve(blockStreamTargetRootPath);
         final var formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(ZoneId.of("UTC"));
         final var now = Instant.now();
@@ -194,6 +197,13 @@ abstract class AbstractStreamFileProviderTest {
                 "%s-%s".formatted(importerProperties.getNetwork(), formatter.format(now.minus(Duration.ofDays(10))));
         FileUtils.forceMkdir(rootPath.resolve(latestFolder).toFile());
         FileUtils.forceMkdir(rootPath.resolve(previousFolder).toFile());
+        // folders that must be ignored: no timestamp, malformed timestamp, invalid date, other network
+        FileUtils.forceMkdir(rootPath.resolve(RESETTABLE_NETWORK).toFile());
+        FileUtils.forceMkdir(rootPath.resolve(RESETTABLE_NETWORK + "-abc").toFile());
+        FileUtils.forceMkdir(
+                rootPath.resolve(RESETTABLE_NETWORK + "-209913992500").toFile());
+        FileUtils.forceMkdir(rootPath.resolve("other-" + formatter.format(now.plus(Duration.ofDays(1))))
+                .toFile());
         // create a top-level file and a subdirectory
         FileUtils.touch(rootPath.resolve("streamfile").toFile());
         FileUtils.forceMkdir(
@@ -223,6 +233,7 @@ abstract class AbstractStreamFileProviderTest {
     @Test
     void discoverNetworkNotFound() {
         // given
+        useResettableNetwork();
         FileUtils.forceMkdir(dataPath.resolve(blockStreamTargetRootPath).toFile());
 
         // when, then
@@ -348,6 +359,12 @@ abstract class AbstractStreamFileProviderTest {
                 .expectNext(data1)
                 .expectComplete()
                 .verify(Duration.ofSeconds(10L));
+    }
+
+    private void useResettableNetwork() {
+        // pin the bucket names, which default to the network, to the already created buckets
+        blockProperties.setBucketName(blockStreamTargetRootPath);
+        importerProperties.setNetwork(RESETTABLE_NETWORK);
     }
 
     @SneakyThrows
