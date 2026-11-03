@@ -41,6 +41,9 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
 
     static final String DEFAULT_BATCH_INTERVAL = "1d";
 
+    // 2021-11-01T00:00:00Z, parent_consensus_timestamp was introduced with HAPI v0.21 so nothing earlier is a child
+    static final long PARENT_CONSENSUS_TIMESTAMP_START = 1635724800000000000L;
+
     // Before hooks and contract scheduled calls, a contract result is a child exactly when its nonce is above 0
     private static final String BACKFILL_CHILD_BY_NONCE_SQL = """
             update contract_result
@@ -49,6 +52,7 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
               and consensus_timestamp <= :consensusEnd
               and transaction_nonce > 0
               and not child
+            returning consensus_timestamp
             """;
 
     private static final String BACKFILL_CHILD_BY_PARENT_SQL = """
@@ -58,6 +62,7 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
               and consensus_timestamp <= :consensusEnd
               and not child
               and consensus_timestamp = any(cast(:childTimestamps as bigint[]))
+            returning consensus_timestamp
             """;
 
     private static final String BACKFILL_CHILD_CONTRACT_LOG_SQL = """
@@ -100,18 +105,6 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
               and (parent_consensus_timestamp is not null or scheduled)
             """;
 
-    private static final String SELECT_CHILD_CONTRACT_LOG_TIMESTAMPS = """
-            select consensus_timestamp from contract_log
-            where consensus_timestamp >= :consensusStart
-              and consensus_timestamp <= :consensusEnd
-              and not child
-            intersect
-            select consensus_timestamp from contract_result
-            where consensus_timestamp >= :consensusStart
-              and consensus_timestamp <= :consensusEnd
-              and child
-            """;
-
     private static final String SELECT_CONTRACT_RESULTS = """
             select consensus_timestamp, contract_id, coalesce(gas_used, 0) as gas_used
             from contract_result
@@ -122,8 +115,10 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
 
     // Hook executions and calls scheduled by a contract are child records that aren't a child of an EVM transaction
     private static final String SELECT_FIRST_HOOK_OR_SCHEDULE_CONTRACT_RESULT = """
-            select min(consensus_timestamp) from contract_result
-            where contract_id in (:hookContractId, :scheduleContractId)
+            select least(
+              (select min(consensus_timestamp) from contract_result where contract_id = :hookContractId),
+              (select min(consensus_timestamp) from contract_result where contract_id = :scheduleContractId)
+            )
             """;
 
     private static final String SELECT_MAX_CONSENSUS_TIMESTAMP = "select max(consensus_timestamp) from contract_result";
@@ -218,29 +213,28 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
         final var params = new MapSqlParameterSource()
                 .addValue("consensusStart", consensusStart)
                 .addValue("consensusEnd", consensusEnd);
-        int updatedResults = 0;
+        List<Long> updatedResults = List.of();
         if (consensusEnd < firstHookOrScheduleTimestamp) {
-            updatedResults = jdbcOperations.update(BACKFILL_CHILD_BY_NONCE_SQL, params);
+            updatedResults = jdbcOperations.queryForList(BACKFILL_CHILD_BY_NONCE_SQL, params, Long.class);
         } else {
             final var childTimestamps = findChildTimestamps(consensusStart, consensusEnd);
             if (!childTimestamps.isEmpty()) {
                 params.addValue("childTimestamps", toArray(childTimestamps));
-                updatedResults = jdbcOperations.update(BACKFILL_CHILD_BY_PARENT_SQL, params);
+                updatedResults = jdbcOperations.queryForList(BACKFILL_CHILD_BY_PARENT_SQL, params, Long.class);
             }
         }
 
-        final var childLogTimestamps =
-                jdbcOperations.queryForList(SELECT_CHILD_CONTRACT_LOG_TIMESTAMPS, params, Long.class);
+        // A contract log is only missing the child flag when the contract result at its timestamp was too
         int updatedLogs = 0;
-        if (!childLogTimestamps.isEmpty()) {
-            params.addValue("childTimestamps", toArray(childLogTimestamps));
+        if (!updatedResults.isEmpty()) {
+            params.addValue("childTimestamps", toArray(updatedResults));
             updatedLogs = jdbcOperations.update(BACKFILL_CHILD_CONTRACT_LOG_SQL, params);
         }
 
-        if (updatedResults > 0 || updatedLogs > 0) {
+        if (!updatedResults.isEmpty() || updatedLogs > 0) {
             log.info(
                     "Backfilled child column for {} contract_result and {} contract_log rows in range [{}, {}]",
-                    updatedResults,
+                    updatedResults.size(),
                     updatedLogs,
                     consensusStart,
                     consensusEnd);
@@ -259,7 +253,7 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
 
         final var jdbcOperations = getJdbcOperations();
         final var maxConsensusTimestamp = jdbcOperations.queryForObject(SELECT_MAX_CONSENSUS_TIMESTAMP, Long.class);
-        if (maxConsensusTimestamp == null) {
+        if (maxConsensusTimestamp == null || maxConsensusTimestamp < PARENT_CONSENSUS_TIMESTAMP_START) {
             log.info("No contract results to process, skipping migration");
             return false;
         }
@@ -268,7 +262,9 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
         final var savedProgress =
                 queryForObjectOrNull(SELECT_PROGRESS_UPPER_BOUND, new MapSqlParameterSource(), Long.class);
         initialUpperBound = savedProgress != null ? savedProgress : maxConsensusTimestamp;
-        lowerBound = Objects.requireNonNull(jdbcOperations.queryForObject(SELECT_MIN_CONSENSUS_TIMESTAMP, Long.class));
+        final long minConsensusTimestamp =
+                Objects.requireNonNull(jdbcOperations.queryForObject(SELECT_MIN_CONSENSUS_TIMESTAMP, Long.class));
+        lowerBound = Math.max(minConsensusTimestamp, PARENT_CONSENSUS_TIMESTAMP_START);
         final var firstHookOrSchedule = queryForObjectOrNull(
                 SELECT_FIRST_HOOK_OR_SCHEDULE_CONTRACT_RESULT,
                 new MapSqlParameterSource()

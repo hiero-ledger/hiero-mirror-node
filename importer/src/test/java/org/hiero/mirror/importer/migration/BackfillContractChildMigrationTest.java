@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.RecordItem.HOOK_CONTRACT_NUM;
+import static org.hiero.mirror.importer.migration.BackfillContractChildMigration.PARENT_CONSENSUS_TIMESTAMP_START;
 
 import java.time.Duration;
 import lombok.Getter;
@@ -292,6 +293,23 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         // then
         assertThat(contractResultRepository.findAll()).isEmpty();
         assertThat(contractLogRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void ignoresRowsBeforeParentConsensusTimestampStart() {
+        // given
+        final var oldChild = childOfContractCall(PARENT_CONSENSUS_TIMESTAMP_START - 10);
+        final var oldResult = contractResult(oldChild);
+        final var child = childOfContractCall(PARENT_CONSENSUS_TIMESTAMP_START + 10);
+        final var result = contractResult(child);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertChild(oldResult, false);
+        assertChild(result, true);
     }
 
     @Test
