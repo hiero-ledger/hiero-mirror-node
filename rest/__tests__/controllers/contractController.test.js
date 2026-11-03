@@ -517,6 +517,21 @@ describe('extractContractResultsByIdQuery', () => {
     }
   });
 
+  test('contract endpoint - syntheticContractIdResults enabled and from range disables includeSynthetic', async () => {
+    config.query.syntheticContractIdResults = true;
+    try {
+      const result = await contracts.extractContractResultsByIdQuery(
+        [{key: constants.filterKeys.FROM, operator: gte, value: '1001'}],
+        defaultContractId
+      );
+      expect(result.includeSynthetic).toBe(false);
+      expect(result.conditions).toEqual([primaryContractFilter, 'cr.sender_id >= $2', 'cr.transaction_nonce = 0']);
+      expect(result.params).toEqual([defaultContractId, '1001']);
+    } finally {
+      config.query.syntheticContractIdResults = false;
+    }
+  });
+
   test('contract endpoint - syntheticContractResults flag disabled → includeSynthetic false', async () => {
     config.query.syntheticContractIdResults = true;
     config.query.syntheticContractResults = false;
