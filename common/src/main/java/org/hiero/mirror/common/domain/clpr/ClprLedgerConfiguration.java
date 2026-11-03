@@ -24,10 +24,10 @@ import org.springframework.data.domain.Persistable;
 @NoArgsConstructor
 public class ClprLedgerConfiguration implements Persistable<Long> {
 
+    private String chainId;
+
     @Id
     private long consensusTimestamp;
-
-    private String chainId;
 
     @ToString.Exclude
     private byte[] initialTrustAnchor;

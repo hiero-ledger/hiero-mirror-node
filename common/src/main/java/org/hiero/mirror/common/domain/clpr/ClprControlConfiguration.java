@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * The {@code ClprLedgerConfiguration} propagated via a Control message's {@code ClprConfigUpdate}, stored as
- * {@code jsonb} in {@code clpr_message.control_configuration}. A Lombok class rather than a record since
+ * {@code jsonb} in {@code clpr_message.control_message}. A Lombok class rather than a record since
  * {@code byte[]} record components get identity-based, not value-based, {@code equals()}/{@code hashCode()}.
  */
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -18,9 +18,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class ClprControlConfiguration {
-    private long protocolVersion;
     private String chainId;
-    private byte[] serviceAddress;
+    private byte[] initialTrustAnchor;
+    private byte[] initialTrustAnchorId;
     private Long maxGasPerMessage;
     private Long maxLocalEndpoints;
     private Long maxMessagePayloadBytes;
@@ -28,6 +28,6 @@ public class ClprControlConfiguration {
     private Long maxPeerEndpoints;
     private Long maxQueueDepth;
     private Long maxSyncBytes;
-    private byte[] initialTrustAnchor;
-    private byte[] initialTrustAnchorId;
+    private long protocolVersion;
+    private byte[] serviceAddress;
 }

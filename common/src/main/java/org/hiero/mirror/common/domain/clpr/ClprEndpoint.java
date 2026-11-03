@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class ClprEndpoint {
+    private byte[] accountId;
     private ClprServiceEndpoint serviceEndpoint;
     private byte[] tlsCertificate;
-    private byte[] accountId;
 }
