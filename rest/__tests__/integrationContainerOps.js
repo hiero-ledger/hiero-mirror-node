@@ -131,6 +131,7 @@ schemas = ["public"]
 [flyway.placeholders]
 api-password = "${defaultDbConfig.password}"
 api-user = "${defaultDbConfig.username}"
+clprEnablementDate = "'1970-01-01'"
 db-name = "${database}"
 db-user = "${user}"
 hashShardCount = 2
