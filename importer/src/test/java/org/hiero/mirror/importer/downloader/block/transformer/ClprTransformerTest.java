@@ -82,6 +82,22 @@ class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
+    void clprSubmitBundle() {
+        // given
+        var expectedRecordItem =
+                recordItemBuilder.clprSubmitBundle().customize(this::finalize).build();
+        var blockTransaction =
+                blockTransactionBuilder.clprSubmitBundle(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertRecordItems(items, List.of(expectedRecordItem)));
+    }
+
+    @Test
     void clprCloseChannel() {
         // given
         var expectedRecordItem =
