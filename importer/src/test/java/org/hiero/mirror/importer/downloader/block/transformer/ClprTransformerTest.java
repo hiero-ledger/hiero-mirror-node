@@ -45,6 +45,22 @@ class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
+    void clprMaintenance() {
+        // given
+        var expectedRecordItem =
+                recordItemBuilder.clprMaintenance().customize(this::finalize).build();
+        var blockTransaction =
+                blockTransactionBuilder.clprMaintenance(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertRecordItems(items, List.of(expectedRecordItem)));
+    }
+
+    @Test
     void clprRegisterChannel() {
         // given
         var expectedRecordItem = recordItemBuilder
