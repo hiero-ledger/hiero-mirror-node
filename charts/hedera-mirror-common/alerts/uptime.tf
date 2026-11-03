@@ -345,6 +345,7 @@ resource "grafana_rule_group" "uptime_clusters" {
     labels = {
       area         = "uptime"
       env_category = "production"
+      paging       = "rootly"
       severity     = "critical"
     }
     is_paused = false
