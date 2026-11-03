@@ -465,6 +465,13 @@ check_result() {
 
   processed=$((processed + 1))
   has_failure=true
+
+  local pct
+  pct="$(awk -v e="${estimated}" -v c="${consumed}" 'BEGIN {
+    printf "%.2f", ((e - c) * 100.0 / c)
+  }')"
+  printf '%s\n' "Out of tolerance for hash=${hash}: estimated=${estimated} gas_used=${consumed} overhead=${pct}% (expected ${MIN_TOLERANCE_PERCENT}-${TOLERANCE_PERCENT}%)"
+  printf '%s\n' "request=${request}"
 }
 
 page_url_from_next() {
