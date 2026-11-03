@@ -23,9 +23,9 @@ final class ClprUpdateLedgerConfigurationTransformer extends AbstractBlockTransa
         blockTransaction
                 .getStateChangeContext()
                 .getClprLedgerConfiguration()
-                .ifPresent(blockTransactionTransformation
-                        .recordItemBuilder()
-                        .clprContextBuilder()::clprLedgerConfiguration);
+                .ifPresent(
+                        blockTransactionTransformation.recordItemBuilder().clprContextBuilder()
+                                ::clprLedgerConfiguration);
     }
 
     @Override

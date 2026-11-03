@@ -113,7 +113,9 @@ class ClprMaintenanceTransactionHandlerTest extends AbstractTransactionHandlerTe
                 .hapiVersion(new Version(0, 28, 0))
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
-                .clprContext(ClprRecordContext.builder().clprEndpointManifest(manifest).build())
+                .clprContext(ClprRecordContext.builder()
+                        .clprEndpointManifest(manifest)
+                        .build())
                 .build();
     }
 }

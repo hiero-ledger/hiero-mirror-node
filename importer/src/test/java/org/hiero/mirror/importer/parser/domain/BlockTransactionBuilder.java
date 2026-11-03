@@ -226,7 +226,8 @@ public class BlockTransactionBuilder {
 
     public BlockTransactionBuilder.Builder clprCompleteChannel(RecordItem recordItem) {
         var channelId = recordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
-        var stateChange = clprChannelStateChange(channelId, recordItem.getClprContext().getClprChannel());
+        var stateChange =
+                clprChannelStateChange(channelId, recordItem.getClprContext().getClprChannel());
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
@@ -245,7 +246,9 @@ public class BlockTransactionBuilder {
                 .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))
-                        .setValue(MapChangeValue.newBuilder().setClprConnectorValue(recordItem.getClprContext().getClprConnector())))
+                        .setValue(MapChangeValue.newBuilder()
+                                .setClprConnectorValue(
+                                        recordItem.getClprContext().getClprConnector())))
                 .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
@@ -259,7 +262,8 @@ public class BlockTransactionBuilder {
         var stateChange = StateChange.newBuilder()
                 .setStateId(StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE)
                 .setSingletonUpdate(SingletonUpdateChange.newBuilder()
-                        .setClprEndpointManifestValue(recordItem.getClprContext().getClprEndpointManifest()))
+                        .setClprEndpointManifestValue(
+                                recordItem.getClprContext().getClprEndpointManifest()))
                 .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
@@ -274,7 +278,8 @@ public class BlockTransactionBuilder {
                 .setStateId(StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder()
-                                .setProtoBytesKey(BytesValue.of(recordItem.getClprContext().getClprChannelPendingCommitment())))
+                                .setProtoBytesKey(BytesValue.of(
+                                        recordItem.getClprContext().getClprChannelPendingCommitment())))
                         .setValue(MapChangeValue.newBuilder().setProtoBytesValue(BytesValue.getDefaultInstance())))
                 .build();
         return new BlockTransactionBuilder.Builder(
@@ -290,7 +295,8 @@ public class BlockTransactionBuilder {
                 .setStateId(StateIdentifier.STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder()
-                                .setProtoBytesKey(BytesValue.of(recordItem.getClprContext().getClprConnectorPendingCommitment())))
+                                .setProtoBytesKey(BytesValue.of(
+                                        recordItem.getClprContext().getClprConnectorPendingCommitment())))
                         .setValue(MapChangeValue.newBuilder().setProtoBytesValue(BytesValue.getDefaultInstance())))
                 .build();
         return new BlockTransactionBuilder.Builder(
@@ -304,7 +310,8 @@ public class BlockTransactionBuilder {
     public BlockTransactionBuilder.Builder clprSubmitBundle(RecordItem recordItem) {
         var channelId = recordItem.getTransactionBody().getClprSubmitBundle().getChannelId();
         var stateChangesBuilder = StateChanges.newBuilder()
-                .addStateChanges(clprChannelStateChange(channelId, recordItem.getClprContext().getClprChannel()));
+                .addStateChanges(clprChannelStateChange(
+                        channelId, recordItem.getClprContext().getClprChannel()));
         for (var entry : recordItem.getClprContext().getClprMessages()) {
             stateChangesBuilder.addStateChanges(StateChange.newBuilder()
                     .setStateId(StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE)
@@ -325,7 +332,8 @@ public class BlockTransactionBuilder {
         var stateChange = StateChange.newBuilder()
                 .setStateId(StateIdentifier.STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE)
                 .setSingletonUpdate(SingletonUpdateChange.newBuilder()
-                        .setClprLedgerConfigurationValue(recordItem.getClprContext().getClprLedgerConfiguration()))
+                        .setClprLedgerConfigurationValue(
+                                recordItem.getClprContext().getClprLedgerConfiguration()))
                 .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),

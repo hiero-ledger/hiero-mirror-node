@@ -149,7 +149,8 @@ class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandl
                 .hapiVersion(new Version(0, 28, 0))
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
-                .clprContext(ClprRecordContext.builder().clprChannel(clprChannel).build())
+                .clprContext(
+                        ClprRecordContext.builder().clprChannel(clprChannel).build())
                 .build();
     }
 }

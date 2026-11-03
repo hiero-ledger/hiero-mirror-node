@@ -146,7 +146,8 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 .hapiVersion(new Version(0, 28, 0))
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
-                .clprContext(ClprRecordContext.builder().clprConnector(clprConnector).build())
+                .clprContext(
+                        ClprRecordContext.builder().clprConnector(clprConnector).build())
                 .build();
     }
 }

@@ -24,9 +24,8 @@ final class ClprMaintenanceTransformer extends AbstractBlockTransactionTransform
         blockTransaction
                 .getStateChangeContext()
                 .getClprEndpointManifest()
-                .ifPresent(blockTransactionTransformation
-                        .recordItemBuilder()
-                        .clprContextBuilder()::clprEndpointManifest);
+                .ifPresent(
+                        blockTransactionTransformation.recordItemBuilder().clprContextBuilder()::clprEndpointManifest);
     }
 
     @Override

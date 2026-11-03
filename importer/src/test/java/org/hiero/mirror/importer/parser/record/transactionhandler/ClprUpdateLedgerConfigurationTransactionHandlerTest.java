@@ -139,8 +139,9 @@ class ClprUpdateLedgerConfigurationTransactionHandlerTest extends AbstractTransa
                 .hapiVersion(new Version(0, 28, 0))
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
-                .clprContext(
-                        ClprRecordContext.builder().clprLedgerConfiguration(configuration).build())
+                .clprContext(ClprRecordContext.builder()
+                        .clprLedgerConfiguration(configuration)
+                        .build())
                 .build();
     }
 }

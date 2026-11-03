@@ -22,9 +22,9 @@ final class ClprRegisterConnectorTransformer extends AbstractBlockTransactionTra
         blockTransaction
                 .getStateChangeContext()
                 .getClprConnectorPendingCommitment()
-                .ifPresent(blockTransactionTransformation
-                        .recordItemBuilder()
-                        .clprContextBuilder()::clprConnectorPendingCommitment);
+                .ifPresent(
+                        blockTransactionTransformation.recordItemBuilder().clprContextBuilder()
+                                ::clprConnectorPendingCommitment);
     }
 
     @Override
