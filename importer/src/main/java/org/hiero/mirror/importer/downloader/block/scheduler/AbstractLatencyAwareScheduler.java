@@ -95,13 +95,7 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
         final long threshold =
                 schedulerProperties.getRescheduleLatencyThreshold().toMillis();
         for (var candidate : candidates) {
-            final var candidateLatency = candidate.getLatency();
-            if (!candidateLatency.isFresh(maxLatencyAgeMillis)) {
-                // don't reschedule to a candidate based on a measurement that may no longer reflect its condition
-                continue;
-            }
-
-            final var candidateAverage = candidateLatency.getAverage();
+            final var candidateAverage = candidate.getLatency().getAverage(maxLatencyAgeMillis);
             if (average - candidateAverage >= threshold) {
                 log.info(
                         "Will stop streaming from {} and switch to a lower-latency node",

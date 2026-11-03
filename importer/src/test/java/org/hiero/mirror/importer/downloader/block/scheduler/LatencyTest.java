@@ -38,19 +38,6 @@ final class LatencyTest {
     }
 
     @Test
-    void fresh() {
-        // given
-        final var latency = new Latency();
-
-        // when
-        latency.record(10);
-
-        // then
-        assertThat(latency.isFresh(Long.MAX_VALUE)).isTrue();
-        assertThat(latency.isFresh(-1)).isFalse();
-    }
-
-    @Test
     void getAverageWithMaxAge() throws InterruptedException {
         // given
         final var latency = new Latency();
@@ -124,7 +111,6 @@ final class LatencyTest {
 
         // then
         assertThat(latency.getAverage()).isCloseTo(Double.MAX_VALUE, OFFSET);
-        assertThat(latency.isFresh(Long.MAX_VALUE)).isFalse();
 
         // when
         latency.record(20);
@@ -140,6 +126,5 @@ final class LatencyTest {
 
         // when, then
         assertThat(latency.getAverage()).isCloseTo(Double.MAX_VALUE, OFFSET);
-        assertThat(latency.isFresh(Long.MAX_VALUE)).isFalse();
     }
 }
