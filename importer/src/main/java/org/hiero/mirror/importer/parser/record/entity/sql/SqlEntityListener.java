@@ -13,6 +13,14 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprMessage;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitment;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -104,6 +112,47 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onAssessedCustomFee(AssessedCustomFee assessedCustomFee) throws ImporterException {
         context.add(assessedCustomFee);
+    }
+
+    @Override
+    public void onClprChannel(ClprChannel clprChannel) {
+        context.merge(ByteBuffer.wrap(clprChannel.getChannelId()), clprChannel, this::mergeClprChannel);
+    }
+
+    @Override
+    public void onClprChannelPendingCommitment(ClprChannelPendingCommitment clprChannelPendingCommitment) {
+        context.merge(
+                ByteBuffer.wrap(clprChannelPendingCommitment.getOwnershipCommitment()),
+                clprChannelPendingCommitment,
+                this::mergeClprPendingCommitment);
+    }
+
+    @Override
+    public void onClprConnector(ClprConnector clprConnector) {
+        context.merge(clprConnector.getId(), clprConnector, this::mergeClprConnector);
+    }
+
+    @Override
+    public void onClprConnectorPendingCommitment(ClprConnectorPendingCommitment clprConnectorPendingCommitment) {
+        context.merge(
+                ByteBuffer.wrap(clprConnectorPendingCommitment.getCommitment()),
+                clprConnectorPendingCommitment,
+                this::mergeClprPendingCommitment);
+    }
+
+    @Override
+    public void onClprEndpointManifest(ClprEndpointManifest clprEndpointManifest) {
+        context.add(clprEndpointManifest);
+    }
+
+    @Override
+    public void onClprLedgerConfiguration(ClprLedgerConfiguration clprLedgerConfiguration) {
+        context.add(clprLedgerConfiguration);
+    }
+
+    @Override
+    public void onClprMessage(ClprMessage clprMessage) {
+        context.add(clprMessage);
     }
 
     @Override
@@ -453,6 +502,265 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     private CustomFee mergeCustomFee(CustomFee previous, CustomFee current) {
         previous.setTimestampUpper(current.getTimestampLower());
+        return current;
+    }
+
+    @SuppressWarnings("java:S3776")
+    private ClprChannel mergeClprChannel(ClprChannel previous, ClprChannel current) {
+        // No timestampRange: a non-historical patch, same mechanism as Entity.balance.
+        if (!current.hasHistory()) {
+            if (current.getStatus() != null) {
+                previous.setStatus(current.getStatus());
+            }
+            if (current.getNextMessageId() != null) {
+                previous.setNextMessageId(current.getNextMessageId());
+            }
+            if (current.getAckedMessageId() != null) {
+                previous.setAckedMessageId(current.getAckedMessageId());
+            }
+            if (current.getReceivedMessageId() != null) {
+                previous.setReceivedMessageId(current.getReceivedMessageId());
+            }
+            if (current.getSentRunningHash() != null) {
+                previous.setSentRunningHash(current.getSentRunningHash());
+            }
+            if (current.getReceivedRunningHash() != null) {
+                previous.setReceivedRunningHash(current.getReceivedRunningHash());
+            }
+            if (current.getOwnershipCommitment() != null) {
+                previous.setOwnershipCommitment(current.getOwnershipCommitment());
+            }
+            if (current.getTrustAnchor() != null) {
+                previous.setTrustAnchor(current.getTrustAnchor());
+            }
+            if (current.getTrustAnchorId() != null) {
+                previous.setTrustAnchorId(current.getTrustAnchorId());
+            }
+            if (current.getChannelContext() != null) {
+                previous.setChannelContext(current.getChannelContext());
+            }
+            if (current.getEndpointManifestVersion() != null) {
+                previous.setEndpointManifestVersion(current.getEndpointManifestVersion());
+            }
+            if (current.getLastConfigTimestamp() != null) {
+                previous.setLastConfigTimestamp(current.getLastConfigTimestamp());
+            }
+            if (current.getPeerConfigTimestamp() != null) {
+                previous.setPeerConfigTimestamp(current.getPeerConfigTimestamp());
+            }
+            if (current.getPeerMaxGasPerMessage() != null) {
+                previous.setPeerMaxGasPerMessage(current.getPeerMaxGasPerMessage());
+            }
+            if (current.getPeerMaxLocalEndpoints() != null) {
+                previous.setPeerMaxLocalEndpoints(current.getPeerMaxLocalEndpoints());
+            }
+            if (current.getPeerMaxMessagePayloadBytes() != null) {
+                previous.setPeerMaxMessagePayloadBytes(current.getPeerMaxMessagePayloadBytes());
+            }
+            if (current.getPeerMaxMessagesPerBundle() != null) {
+                previous.setPeerMaxMessagesPerBundle(current.getPeerMaxMessagesPerBundle());
+            }
+            if (current.getPeerMaxPeerEndpoints() != null) {
+                previous.setPeerMaxPeerEndpoints(current.getPeerMaxPeerEndpoints());
+            }
+            if (current.getPeerMaxQueueDepth() != null) {
+                previous.setPeerMaxQueueDepth(current.getPeerMaxQueueDepth());
+            }
+            if (current.getPeerMaxSyncBytes() != null) {
+                previous.setPeerMaxSyncBytes(current.getPeerMaxSyncBytes());
+            }
+            if (current.getEndpointManifest() != null) {
+                previous.setEndpointManifest(current.getEndpointManifest());
+            }
+
+            return previous;
+        }
+
+        previous.setTimestampUpper(current.getTimestampLower());
+
+        // Channels are only ever created once; every later touch is a partial update, so no "fresh creation" branch
+        if (current.getCreatedTimestamp() == null) {
+            current.setCreatedTimestamp(previous.getCreatedTimestamp());
+        }
+        if (current.getChainId() == null) {
+            current.setChainId(previous.getChainId());
+        }
+        if (current.getChannelContext() == null) {
+            current.setChannelContext(previous.getChannelContext());
+        }
+        if (current.getOwnershipCommitment() == null) {
+            current.setOwnershipCommitment(previous.getOwnershipCommitment());
+        }
+        if (current.getVerifierContractId() == null) {
+            current.setVerifierContractId(previous.getVerifierContractId());
+        }
+        if (current.getVerifierFingerprint() == null) {
+            current.setVerifierFingerprint(previous.getVerifierFingerprint());
+        }
+        if (current.getConfigProofBytes() == null) {
+            current.setConfigProofBytes(previous.getConfigProofBytes());
+        }
+        if (current.getEndpointManifestProofBytes() == null) {
+            current.setEndpointManifestProofBytes(previous.getEndpointManifestProofBytes());
+        }
+        if (current.getPublicKey() == null) {
+            current.setPublicKey(previous.getPublicKey());
+        }
+        if (current.getSignature() == null) {
+            current.setSignature(previous.getSignature());
+        }
+        if (current.getSignatureScheme() == null) {
+            current.setSignatureScheme(previous.getSignatureScheme());
+        }
+        if (current.getStatus() == null) {
+            current.setStatus(previous.getStatus());
+        }
+        if (current.getNextMessageId() == null) {
+            current.setNextMessageId(previous.getNextMessageId());
+        }
+        if (current.getAckedMessageId() == null) {
+            current.setAckedMessageId(previous.getAckedMessageId());
+        }
+        if (current.getReceivedMessageId() == null) {
+            current.setReceivedMessageId(previous.getReceivedMessageId());
+        }
+        if (current.getSentRunningHash() == null) {
+            current.setSentRunningHash(previous.getSentRunningHash());
+        }
+        if (current.getReceivedRunningHash() == null) {
+            current.setReceivedRunningHash(previous.getReceivedRunningHash());
+        }
+        if (current.getLastConfigTimestamp() == null) {
+            current.setLastConfigTimestamp(previous.getLastConfigTimestamp());
+        }
+        if (current.getPeerConfigTimestamp() == null) {
+            current.setPeerConfigTimestamp(previous.getPeerConfigTimestamp());
+        }
+        if (current.getPeerMaxGasPerMessage() == null) {
+            current.setPeerMaxGasPerMessage(previous.getPeerMaxGasPerMessage());
+        }
+        if (current.getPeerMaxLocalEndpoints() == null) {
+            current.setPeerMaxLocalEndpoints(previous.getPeerMaxLocalEndpoints());
+        }
+        if (current.getPeerMaxMessagePayloadBytes() == null) {
+            current.setPeerMaxMessagePayloadBytes(previous.getPeerMaxMessagePayloadBytes());
+        }
+        if (current.getPeerMaxMessagesPerBundle() == null) {
+            current.setPeerMaxMessagesPerBundle(previous.getPeerMaxMessagesPerBundle());
+        }
+        if (current.getPeerMaxPeerEndpoints() == null) {
+            current.setPeerMaxPeerEndpoints(previous.getPeerMaxPeerEndpoints());
+        }
+        if (current.getPeerMaxQueueDepth() == null) {
+            current.setPeerMaxQueueDepth(previous.getPeerMaxQueueDepth());
+        }
+        if (current.getPeerMaxSyncBytes() == null) {
+            current.setPeerMaxSyncBytes(previous.getPeerMaxSyncBytes());
+        }
+        if (current.getEndpointManifest() == null) {
+            current.setEndpointManifest(previous.getEndpointManifest());
+        }
+        if (current.getEndpointManifestVersion() == null) {
+            current.setEndpointManifestVersion(previous.getEndpointManifestVersion());
+        }
+        if (current.getTrustAnchor() == null) {
+            current.setTrustAnchor(previous.getTrustAnchor());
+        }
+        if (current.getTrustAnchorId() == null) {
+            current.setTrustAnchorId(previous.getTrustAnchorId());
+        }
+
+        return current;
+    }
+
+    private <T extends ClprPendingCommitment> T mergeClprPendingCommitment(T previous, T current) {
+        previous.setTimestampUpper(current.getTimestampLower());
+
+        if (current.getCreatedTimestamp() != null
+                && current.getCreatedTimestamp().equals(current.getTimestampLower())) {
+            // Fresh registration -- possibly a re-registration of a commitment previously swept/deregistered -- so
+            // don't carry stale fields forward from the abandoned commitment.
+            return current;
+        }
+
+        if (current.getCreatedTimestamp() == null) {
+            current.setCreatedTimestamp(previous.getCreatedTimestamp());
+        }
+        if (current.getStatus() == null) {
+            current.setStatus(previous.getStatus());
+        }
+
+        return current;
+    }
+
+    private ClprConnector mergeClprConnector(ClprConnector previous, ClprConnector current) {
+        // No timestampRange: a non-historical patch, same mechanism as mergeClprChannel above.
+        if (!current.hasHistory()) {
+            if (current.getConnectorContractId() != null) {
+                previous.setConnectorContractId(current.getConnectorContractId());
+            }
+            if (current.getAdminKey() != null) {
+                previous.setAdminKey(current.getAdminKey());
+            }
+            if (current.getLockedStake() != null) {
+                previous.setLockedStake(current.getLockedStake());
+            }
+            if (current.getSlashCount() != null) {
+                previous.setSlashCount(current.getSlashCount());
+            }
+            if (current.getInFlightMessageCount() != null) {
+                previous.setInFlightMessageCount(current.getInFlightMessageCount());
+            }
+
+            return previous;
+        }
+
+        previous.setTimestampUpper(current.getTimestampLower());
+
+        if (current.getCreatedTimestamp() != null
+                && current.getCreatedTimestamp().equals(current.getTimestampLower())) {
+            // Fresh completion -- possibly a re-registration of a connector previously deregistered -- so don't
+            // carry stale fields forward from the deregistered connector.
+            return current;
+        }
+
+        if (current.getCreatedTimestamp() == null) {
+            current.setCreatedTimestamp(previous.getCreatedTimestamp());
+        }
+        if (current.getAdminKey() == null) {
+            current.setAdminKey(previous.getAdminKey());
+        }
+        if (current.getConnectorContractId() == null) {
+            current.setConnectorContractId(previous.getConnectorContractId());
+        }
+        if (current.getLockedStake() == null) {
+            current.setLockedStake(previous.getLockedStake());
+        }
+        if (current.getPublicKey() == null) {
+            current.setPublicKey(previous.getPublicKey());
+        }
+        if (current.getSalt() == null) {
+            current.setSalt(previous.getSalt());
+        }
+        if (current.getSignature() == null) {
+            current.setSignature(previous.getSignature());
+        }
+        if (current.getSignatureScheme() == null) {
+            current.setSignatureScheme(previous.getSignatureScheme());
+        }
+        if (current.getInFlightMessageCount() == null) {
+            current.setInFlightMessageCount(previous.getInFlightMessageCount());
+        }
+        if (current.getSlashCount() == null) {
+            current.setSlashCount(previous.getSlashCount());
+        }
+        if (current.getStakeRecipientId() == null) {
+            current.setStakeRecipientId(previous.getStakeRecipientId());
+        }
+        if (current.getDeleted() == null) {
+            current.setDeleted(previous.getDeleted());
+        }
+
         return current;
     }
 
