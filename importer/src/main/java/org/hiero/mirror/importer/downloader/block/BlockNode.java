@@ -158,16 +158,14 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     }
 
     /**
-     * Checks whether the block node has the block. Unlike {@link #getBlockOrEarliest}, a failed call is thrown and
-     * doesn't count toward deactivating the node.
+     * Checks whether the block node has the block. A failed call doesn't count toward deactivating the node.
      */
     public boolean hasBlock(final long blockNumber) {
         return hasBlock(getServerStatusDetail(), blockNumber);
     }
 
     /**
-     * Streams a single block to measure latency. Unlike {@link #streamBlocks}, a failure doesn't count toward
-     * deactivating the node.
+     * Streams a single block to measure latency. A failure doesn't count toward deactivating the node.
      */
     public void probeBlock(
             final long blockNumber,
