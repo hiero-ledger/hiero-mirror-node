@@ -44,6 +44,19 @@ class ContractCallTraceDataSizeTest extends AbstractContractCallServiceOpcodeTra
         assertThat(exception.getMessage()).isEqualTo(INSUFFICIENT_GAS.protoName());
     }
 
+    // Bonneville EVM reports nested calls through traceSuspended and traceNotExecuting, which the trace data
+    // counting doesn't implement
+    @Test
+    void bonnevilleEvmDisabled() {
+        final var useBonnevilleEvm = evmProperties
+                .getVersionedConfiguration()
+                .getConfigData(ContractsConfig.class)
+                .useBonnevilleEVM();
+        assertThat(useBonnevilleEvm)
+                .as("Bonneville EVM enabled. Implement tracePerOpcode, traceSuspended and traceNotExecuting first")
+                .isFalse();
+    }
+
     @Test
     void opcodesTraceDataWithinLimit() {
         // Given

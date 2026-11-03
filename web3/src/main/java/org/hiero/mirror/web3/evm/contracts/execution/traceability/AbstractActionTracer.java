@@ -3,17 +3,23 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.INSUFFICIENT_GAS;
+import static com.hedera.node.app.service.contract.impl.exec.utils.ActionStack.Validation.OFF;
 import static com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils.contractsConfigOf;
+import static com.hedera.node.app.service.contract.impl.utils.ConversionUtils.tuweniToPbjBytes;
 import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
+import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_SUCCESS;
 import static org.hyperledger.besu.evm.frame.MessageFrame.Type.CONTRACT_CREATION;
 
 import com.hedera.hapi.streams.CallOperationType;
 import com.hedera.hapi.streams.ContractAction;
 import com.hedera.hapi.streams.ContractActionType;
+import com.hedera.hapi.streams.ContractBytecode;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
+import com.hedera.node.app.service.contract.impl.exec.utils.ActionStack;
 import com.hedera.node.app.spi.workflows.HandleException;
+import com.hedera.pbj.runtime.ProtoWriterTools;
 import java.util.List;
-import org.apache.tuweni.bytes.Bytes;
+import java.util.Optional;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
@@ -21,10 +27,11 @@ import org.hyperledger.besu.evm.operation.Operation;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 import org.jspecify.annotations.NonNull;
 
+/**
+ * Measures the trace data the consensus node would externalize, using its own {@link ActionStack} like its
+ * EvmActionTracer, and fails with INSUFFICIENT_GAS once it exceeds contracts.maxSerializedTraceDataBytes.
+ */
 public abstract class AbstractActionTracer implements ActionSidecarContentTracer {
-
-    // Measured serialized overhead of one contract action
-    private static final int ACTION_BYTES = 40;
 
     @Override
     public void tracePreExecution(@NonNull final MessageFrame frame) {
@@ -37,8 +44,8 @@ public abstract class AbstractActionTracer implements ActionSidecarContentTracer
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
         switch (frame.getState()) {
             case CODE_EXECUTING -> {}
-            case CODE_SUSPENDED -> addActionInput(frame.getMessageFrameStack().peek());
-            default -> addActionResult(frame);
+            case CODE_SUSPENDED -> actionStack().pushActionOfIntermediate(frame);
+            default -> finalizeAction(frame, () -> actionStack().finalizeLastAction(frame, OFF));
         }
 
         // Reset the balance call flag after BALANCE opcode completes
@@ -54,18 +61,28 @@ public abstract class AbstractActionTracer implements ActionSidecarContentTracer
 
     @Override
     public void traceSuspended(MessageFrame parent, MessageFrame child, CallOperationType opCall) {
-        // NO-OP
+        actionStack().pushActionOfIntermediate(parent, child, opCall);
     }
 
     @Override
     public void traceNotExecuting(MessageFrame child) {
-        // NO-OP
+        finalizeAction(child, () -> actionStack().finalizeLastAction(child, OFF));
+    }
+
+    @Override
+    public void traceAccountCreationResult(
+            @NonNull final MessageFrame frame, @NonNull final Optional<ExceptionalHaltReason> haltReason) {
+        // Only a failed creation skips tracePostExecution, so only then is its action finalized here
+        if (haltReason.isPresent()) {
+            finalizeAction(frame, () -> actionStack().finalizeLastAction(frame, OFF));
+        }
     }
 
     @Override
     public void traceOriginAction(@NonNull final MessageFrame frame) {
-        ContractCallContext.get().setTraceDataBytes(0);
-        addActionInput(frame);
+        final var context = ContractCallContext.get();
+        context.resetTraceData();
+        context.getActionStack().pushActionOfTopLevel(frame);
     }
 
     @Override
@@ -75,7 +92,7 @@ public abstract class AbstractActionTracer implements ActionSidecarContentTracer
 
     @Override
     public void tracePrecompileResult(@NonNull final MessageFrame frame, @NonNull final ContractActionType type) {
-        addActionResult(frame);
+        finalizeAction(frame, () -> actionStack().finalizeLastStackActionAsPrecompile(frame, type, OFF));
     }
 
     @Override
@@ -83,23 +100,32 @@ public abstract class AbstractActionTracer implements ActionSidecarContentTracer
         return List.of();
     }
 
-    // A child creation also externalizes its initcode as bytecode
-    private static void addActionInput(final MessageFrame frame) {
-        final var initcodeBytes = frame.getType() == CONTRACT_CREATION && frame.getDepth() > 0
-                ? frame.getCode().getSize()
-                : 0;
-        addTraceDataBytes(frame, ACTION_BYTES + frame.getInputData().size() + initcodeBytes);
+    private static ActionStack actionStack() {
+        return ContractCallContext.get().getActionStack();
     }
 
-    // A halted frame externalizes only its halt reason and may have no output
-    private static void addActionResult(final MessageFrame frame) {
-        addTraceDataBytes(
-                frame,
-                switch (frame.getState()) {
-                    case REVERT -> frame.getRevertReason().map(Bytes::size).orElse(0);
-                    case EXCEPTIONAL_HALT, COMPLETED_FAILED -> 0;
-                    default -> frame.getOutputData().size();
-                });
+    private static void finalizeAction(final MessageFrame frame, final Runnable finalizer) {
+        final var openAction = ContractCallContext.get().getOpenActions().peek();
+        if (openAction == null) {
+            return;
+        }
+
+        finalizer.run();
+        final var action = openAction.get();
+        final var actionBytes = ContractAction.PROTOBUF.measureRecord(action);
+        // Each action is a length-delimited entry of the ContractActions sidecar
+        addTraceDataBytes(frame, 1L + ProtoWriterTools.sizeOfVarInt32(actionBytes) + actionBytes);
+
+        // A successful creation also externalizes its bytecode, with the initcode only for a child creation
+        if (frame.getType() == CONTRACT_CREATION && frame.getState() == CODE_SUCCESS) {
+            final var bytecode = ContractBytecode.newBuilder()
+                    .contractId(action.recipientContract())
+                    .runtimeBytecode(tuweniToPbjBytes(frame.getOutputData()));
+            if (frame.getDepth() > 0) {
+                bytecode.initcode(tuweniToPbjBytes(frame.getCode().getBytes()));
+            }
+            addTraceDataBytes(frame, ContractBytecode.PROTOBUF.measureRecord(bytecode.build()));
+        }
     }
 
     // Like the consensus node, fail with INSUFFICIENT_GAS once the trace data exceeds the limit. The consensus node
