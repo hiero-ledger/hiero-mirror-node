@@ -197,14 +197,14 @@ resource "grafana_rule_group" "rule_group_grpc" {
       }
 
       datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod, statusCode) (rate(grpc_server_processing_duration_seconds_count{application=\\\"grpc\\\",statusCode!~\\\"CANCELLED|DEADLINE_EXCEEDED|INVALID_ARGUMENT|NOT_FOUND|OK\\\"}[5m])) / sum by (cluster, namespace, env_category, pod, statusCode) (rate(grpc_server_processing_duration_seconds_count{application=\\\"grpc\\\"}[5m])) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod, grpc_status_code) (rate(grpc_server_seconds_count{application=\\\"grpc\\\",grpc_status_code!~\\\"CANCELLED|DEADLINE_EXCEEDED|INVALID_ARGUMENT|NOT_FOUND|OK|UNKNOWN\\\"}[5m])) / on (cluster, namespace, env_category, pod) group_left sum by (cluster, namespace, env_category, pod) (rate(grpc_server_seconds_count{application=\\\"grpc\\\"}[5m])) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
     no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ (index $values \"A\").Value | humanizePercentage }} gRPC {{ $labels.statusCode }} error rate for {{ $labels.pod }}"
+      description = "{{ (index $values \"A\").Value | humanizePercentage }} gRPC {{ $labels.grpc_status_code }} error rate for {{ $labels.pod }}"
       summary     = "Mirror gRPC API error rate exceeds 5%"
     }
     labels = {
