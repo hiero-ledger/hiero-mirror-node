@@ -68,5 +68,4 @@ spec:
                 network: OTHER
     web3:
       env:
-        HIERO_MIRROR_WEB3_API_PRESTATE_ENABLED: "true"
         HIERO_MIRROR_WEB3_EVM_NETWORK: OTHER
