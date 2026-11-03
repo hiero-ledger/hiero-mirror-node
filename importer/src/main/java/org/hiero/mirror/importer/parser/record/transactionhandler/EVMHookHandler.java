@@ -18,13 +18,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.bouncycastle.jcajce.provider.digest.Keccak.Digest256;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.util.Utility;
@@ -38,17 +38,6 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
     private final EntityListener entityListener;
     private final EntityIdService entityIdService;
-
-    static byte[] keccak256(byte[] input) {
-        final var d = new Digest256();
-        return d.digest(input);
-    }
-
-    static byte[] keccak256(byte[] key, byte[] mappingSlot) {
-        final var d = new Digest256();
-        d.update(key);
-        return d.digest(mappingSlot);
-    }
 
     /**
      * Processes both hook deletions and hook creations for a given transaction. This method serves as the main entry
@@ -267,8 +256,8 @@ final class EVMHookHandler implements EvmHookStorageHandler {
                 final var entry = entries.get(index);
                 final var mappingKey = entry.hasKey()
                         ? leftPadBytes(toBytes(entry.getKey()), 32)
-                        : keccak256(toBytes(entry.getPreimage()));
-                final var derivedSlot = keccak256(mappingKey, mappingSlot);
+                        : SignatureUtils.keccak256(toBytes(entry.getPreimage()));
+                final var derivedSlot = SignatureUtils.keccak256(mappingKey, mappingSlot);
                 final var valueWritten = toBytes(entry.getValue());
                 persistChange(derivedSlot, valueWritten);
             }
