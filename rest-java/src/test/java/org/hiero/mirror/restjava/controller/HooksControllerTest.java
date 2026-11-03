@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.restjava.common.Constants.MAX_REPEATED_QUERY_PARAMETERS;
 import static org.hiero.mirror.restjava.common.LinkFactory.LINK_HEADER;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.io.BaseEncoding;
 import java.math.BigInteger;
@@ -536,6 +537,43 @@ final class HooksControllerTest extends ControllerTest {
             // then
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
             assertThat(actual.getStorage()).hasSize(limit);
+        }
+
+        @Test
+        @DisplayName("Full page ending at max slot omits links.next; gt:max itself is out of range (400)")
+        void nextLinkAtMaxSlotIsEmptyNot400() {
+            final int limit = 1;
+            final var maxKey = "0x" + "f".repeat(64);
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
+
+            persistHookStorage(ownerId, HOOK_ID, maxKey);
+
+            // Page of size 1 whose only row is the max slot — nothing can follow, so no next link
+            final var page = restClient
+                    .get()
+                    .uri(uriBuilder -> uriBuilder
+                            .queryParam("limit", limit)
+                            .queryParam("order", "asc")
+                            .build(Map.of(
+                                    "account_id", OWNER_ID,
+                                    "hookId", HOOK_ID)))
+                    .retrieve()
+                    .body(HooksStorageResponse.class);
+
+            assertThat(page).isNotNull();
+            assertThat(page.getStorage()).hasSize(1);
+            assertThat(page.getLinks()).isNotNull();
+            assertThat(page.getLinks().getNext()).isNull();
+
+            // gt:max is out of range user input and is rejected rather than wrapping around
+            assertThrows(
+                    HttpClientErrorException.BadRequest.class,
+                    () -> restClient
+                            .get()
+                            .uri("?key=gt:" + maxKey + "&limit=1&order=asc", OWNER_ID, HOOK_ID)
+                            .retrieve()
+                            .toEntity(String.class));
         }
 
         @ParameterizedTest

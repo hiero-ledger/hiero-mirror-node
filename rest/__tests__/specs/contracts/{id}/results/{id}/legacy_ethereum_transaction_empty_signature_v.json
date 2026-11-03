@@ -93,6 +93,7 @@
     "gas_price": "0x4a817c80",
     "gas_used": 123,
     "hash": "0x4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
+    "child": false,
     "logs": [],
     "max_fee_per_gas": "0x",
     "max_priority_fee_per_gas": "0x",

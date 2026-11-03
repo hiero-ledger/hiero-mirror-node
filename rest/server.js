@@ -170,7 +170,7 @@ if (!isTestEnv()) {
   // Health check endpoints
   createTerminus(server, {
     headers: {
-      [constants.clusterIdHeader]: config.clusterId,
+      [constants.clusterIdHeader]: config.common.clusterId,
     },
     healthChecks: {
       '/health/readiness': health.readinessCheck,

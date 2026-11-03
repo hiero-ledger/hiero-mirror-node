@@ -35,7 +35,10 @@ val test =
         }
     }
 
-tasks.register("build") { dependsOn(test) }
+tasks.register<NpmTask>("build") {
+    dependsOn(tasks.npmInstall, test)
+    args = listOf("run", "build")
+}
 
 tasks.dependencyCheckAggregate { dependsOn(tasks.npmInstall) }
 

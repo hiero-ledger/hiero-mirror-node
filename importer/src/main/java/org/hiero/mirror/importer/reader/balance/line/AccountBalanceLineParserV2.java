@@ -16,6 +16,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 
@@ -52,8 +53,8 @@ public class AccountBalanceLineParserV2 implements AccountBalanceLineParser {
             }
 
             long shardNum = Long.parseLong(parts.get(0));
-            int realmNum = Integer.parseInt(parts.get(1));
-            int accountNum = Integer.parseInt(parts.get(2));
+            long realmNum = Long.parseLong(parts.get(1));
+            long accountNum = Long.parseLong(parts.get(2));
             long balance = Long.parseLong(parts.get(3));
 
             if (shardNum < 0 || realmNum < 0 || accountNum < 0 || balance < 0) {
@@ -65,14 +66,14 @@ public class AccountBalanceLineParserV2 implements AccountBalanceLineParser {
                         "Invalid account balance line: %s. Expect shard (0), got shard (%d)", line, shardNum));
             }
 
-            EntityId accountId = EntityId.of(shardNum, realmNum, accountNum);
+            EntityId accountId = AccountBalanceLineParser.toEntityId(shardNum, realmNum, accountNum);
 
             List<TokenBalance> tokenBalances = hasTokenBalance
                     ? parseTokenBalanceList(parts.get(4), consensusTimestamp, accountId)
                     : Collections.emptyList();
 
             return new AccountBalance(balance, tokenBalances, new AccountBalance.Id(consensusTimestamp, accountId));
-        } catch (NumberFormatException | InvalidProtocolBufferException ex) {
+        } catch (InvalidEntityException | InvalidProtocolBufferException | NumberFormatException ex) {
             throw new InvalidDatasetException(INVALID_BALANCE + line, ex);
         }
     }
@@ -87,7 +88,9 @@ public class AccountBalanceLineParserV2 implements AccountBalanceLineParser {
             final var tokenBalances = new ArrayList<TokenBalance>(tokenBalanceProtoList.size());
 
             for (final var tokenBalance : tokenBalanceProtoList) {
-                final var tokenId = EntityId.of(tokenBalance.getTokenId());
+                final var tokenProto = tokenBalance.getTokenId();
+                final var tokenId = AccountBalanceLineParser.toEntityId(
+                        tokenProto.getShardNum(), tokenProto.getRealmNum(), tokenProto.getTokenNum());
                 final var id = new TokenBalance.Id(consensusTimestamp, accountId, tokenId);
                 tokenBalances.add(new TokenBalance(tokenBalance.getBalance(), id));
             }

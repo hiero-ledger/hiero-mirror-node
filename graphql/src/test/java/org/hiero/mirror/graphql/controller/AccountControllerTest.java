@@ -4,6 +4,7 @@ package org.hiero.mirror.graphql.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Base32;
 import org.apache.commons.codec.binary.Hex;
@@ -40,10 +41,39 @@ class AccountControllerTest extends GraphqlIntegrationTest {
               query { account(input: {id: ""}) { id }}                                                   | id must match
               query { account(input: {id: "*"}) { id }}                                                  | id must match
               query { account(input: {id: "azAZ0123456789+/="}) { id }}                                  | Not implemented
+              query { account(input: {bogus: 1}) { id }}                                                 | contains a field not in
+              query { account(input: {entityId: {num: "abc"}}) { id }}                                   | Expected value to be a Long
+              query { account(input: {entityId: {num: 99999999999999999999999}}) { id }}                 | Expected value to be in the Long range
+              query { account(input: {entityId: {num: 1.5}}) { id }}                                     | Expected AST type
+              query { account(input: {entityId: {num: null}}) { id }}                                    | must not be null
+              query { account(input: {entityId: {num: $num}}) { id }}                                    | Undefined variable
+              query { account(input: {entityId: {num: 1}}) { balance(unit: NOPE) }}                     | Literal value not in allowable values for enum
+              query { account(input: {entityId: {num: 1}}) { unknown }}                                  | FieldUndefined@[account/unknown]
             """)
     @ParameterizedTest
     void invalidInput(String query, String error) {
         tester.document(query)
+                .execute()
+                .errors()
+                .satisfy(r -> assertThat(r)
+                        .hasSize(1)
+                        .first()
+                        .extracting(ResponseError::getMessage)
+                        .asString()
+                        .contains(error));
+    }
+
+    // Variable coercion errors are produced by graphql-java before any data fetcher runs
+    @CsvSource(delimiter = '|', nullValues = "null", textBlock = """
+              abc  | has an invalid value
+              1.5  | has an invalid value
+              null | has coerced Null value for NonNull type
+            """)
+    @ParameterizedTest
+    void invalidVariable(String num, String error) {
+        final var variables = num == null ? Map.<String, Object>of() : Map.<String, Object>of("num", num);
+        tester.document("query Account($num: Long!) { account(input: {entityId: {num: $num}}) { id }}")
+                .variables(variables)
                 .execute()
                 .errors()
                 .satisfy(r -> assertThat(r)

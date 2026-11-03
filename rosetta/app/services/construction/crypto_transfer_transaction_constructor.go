@@ -9,8 +9,11 @@ import (
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
+	"github.com/hiero-ledger/hiero-sdk-go/v2/proto/services"
 	"github.com/hiero-ledger/hiero-sdk-go/v2/sdk"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // maxTinybarTransfer is the maximum HBAR supply expressed in tinybars.
@@ -18,6 +21,7 @@ const maxTinybarTransfer int64 = 5_000_000_000_000_000_000
 
 type cryptoTransferTransactionConstructor struct {
 	commonTransactionConstructor
+	validateCryptoTransferFields bool
 }
 
 type transfer struct {
@@ -86,6 +90,12 @@ func (c *cryptoTransferTransactionConstructor) Parse(_ context.Context, transact
 	for _, operation := range operations {
 		if operation.Amount.GetValue() < 0 {
 			senderMap[operation.AccountId.String()] = operation.AccountId
+		}
+	}
+
+	if c.validateCryptoTransferFields {
+		if rErr := validateSupportedCryptoTransferFields(transferTransaction); rErr != nil {
+			return nil, nil, rErr
 		}
 	}
 
@@ -179,11 +189,128 @@ func addInt64(left, right int64) (int64, bool) {
 	return left + right, true
 }
 
-func newCryptoTransferTransactionConstructor() transactionConstructorWithType {
+func newCryptoTransferTransactionConstructor(validateCryptoTransferFields bool) transactionConstructorWithType {
 	return &cryptoTransferTransactionConstructor{
 		commonTransactionConstructor: newCommonTransactionConstructor(
 			hiero.NewTransferTransaction(),
 			types.OperationTypeCryptoTransfer,
 		),
+		validateCryptoTransferFields: validateCryptoTransferFields,
 	}
+}
+
+// Fields this API already returns from a crypto transfer. Any other populated protobuf field is rejected.
+var allowedCryptoTransferFields = map[protoreflect.Name]struct{}{
+	"transfers": {},
+}
+
+var allowedAccountAmountFields = map[protoreflect.Name]struct{}{
+	"accountID": {},
+	"amount":    {},
+}
+
+func validateSupportedCryptoTransferFields(tx hiero.TransferTransaction) *rTypes.Error {
+	// A frozen transaction has signed body bytes, so every populated protobuf field can be checked
+	// against the allowlist. An unfrozen transaction has no body yet; only the public SDK getters
+	// can be checked, and they do not expose fields such as an HBAR approval or hook call.
+	if tx.IsFrozen() {
+		return validateFrozenCryptoTransferFields(tx)
+	}
+
+	if field := unsupportedCryptoTransferSDKField(tx); field != "" {
+		log.Errorf("Crypto transfer field %s is not supported", field)
+		return errors.ErrInvalidTransaction
+	}
+
+	return nil
+}
+
+func validateFrozenCryptoTransferFields(tx hiero.TransferTransaction) *rTypes.Error {
+	body := &services.TransactionBody{}
+	if err := proto.Unmarshal(tx.GetSignedTransactionBodyBytes(0), body); err != nil {
+		log.Errorf("Failed to read the signed crypto transfer body: %s", err)
+		return errors.ErrInvalidTransaction
+	}
+
+	transfer := body.GetCryptoTransfer()
+	if transfer == nil {
+		log.Error("Stored transfer transaction body is not a crypto transfer")
+		return errors.ErrInvalidTransaction
+	}
+
+	if field, ok := unsupportedCryptoTransferField(transfer); ok {
+		log.Errorf("Crypto transfer field %s is not supported", field)
+		return errors.ErrInvalidTransaction
+	}
+
+	return nil
+}
+
+func unsupportedCryptoTransferField(body *services.CryptoTransferTransactionBody) (string, bool) {
+	var unsupported string
+	body.ProtoReflect().Range(func(field protoreflect.FieldDescriptor, _ protoreflect.Value) bool {
+		if _, allowed := allowedCryptoTransferFields[field.Name()]; !allowed {
+			unsupported = string(field.Name())
+			return false
+		}
+		return true
+	})
+	if unsupported != "" {
+		return unsupported, true
+	}
+	if len(body.ProtoReflect().GetUnknown()) > 0 {
+		return "unknown", true
+	}
+
+	for _, amount := range body.GetTransfers().GetAccountAmounts() {
+		if field, ok := unsupportedAccountAmountField(amount); ok {
+			return field, true
+		}
+	}
+
+	return "", false
+}
+
+func unsupportedAccountAmountField(amount *services.AccountAmount) (string, bool) {
+	if amount == nil {
+		return "", false
+	}
+
+	var unsupported string
+	amount.ProtoReflect().Range(func(field protoreflect.FieldDescriptor, _ protoreflect.Value) bool {
+		if _, allowed := allowedAccountAmountFields[field.Name()]; !allowed {
+			unsupported = string(field.Name())
+			return false
+		}
+		return true
+	})
+	if unsupported != "" {
+		return unsupported, true
+	}
+	if len(amount.ProtoReflect().GetUnknown()) > 0 {
+		return "unknown", true
+	}
+
+	return "", false
+}
+
+func unsupportedCryptoTransferSDKField(tx hiero.TransferTransaction) string {
+	if len(tx.GetTokenTransfers()) > 0 {
+		return "tokenTransfers"
+	}
+	if len(tx.GetNftTransfers()) > 0 {
+		return "nftTransfers"
+	}
+
+	return ""
+}
+
+// RejectUnsupportedCryptoTransferFields rejects a transfer whose body contains fields this API does not return.
+func RejectUnsupportedCryptoTransferFields(transaction hiero.TransactionInterface) *rTypes.Error {
+	transferTransaction, ok := transaction.(hiero.TransferTransaction)
+	if !ok {
+		return nil
+	}
+
+	return validateSupportedCryptoTransferFields(transferTransaction)
 }

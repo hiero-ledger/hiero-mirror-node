@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
@@ -168,19 +169,17 @@ abstract class CsvBalanceFileReaderTest {
     }
 
     @Test
-    void readValidWhenFileHasBadTrailingLines() throws IOException {
+    void readFailsWhenFileHasBadTrailingLines() throws IOException {
         List<String> lines = FileUtils.readLines(balanceFile, CsvBalanceFileReader.CHARSET);
         FileUtils.writeLines(testFile, lines);
         FileUtils.writeStringToFile(testFile, "\n0.0.3.20340\nfoobar\n", CsvBalanceFileReader.CHARSET, true);
 
         StreamFileData streamFileData = StreamFileData.from(testFile);
-        AccountBalanceFile accountBalanceFile = balanceFileReader.read(streamFileData);
-        assertAccountBalanceFile(accountBalanceFile);
-        verifySuccess(testFile, accountBalanceFile, 2);
+        assertThrows(InvalidDatasetException.class, () -> balanceFileReader.read(streamFileData));
     }
 
     @Test
-    void readValidWhenFileHasLinesWithDifferentShardNum() throws IOException {
+    void readFailsWhenFileHasLinesWithDifferentShardNum() throws IOException {
         List<String> lines = FileUtils.readLines(balanceFile, CsvBalanceFileReader.CHARSET);
         FileUtils.writeLines(testFile, lines);
         long otherShard = commonProperties.getShard() + 1;
@@ -191,9 +190,19 @@ abstract class CsvBalanceFileReaderTest {
                 true);
 
         StreamFileData streamFileData = StreamFileData.from(testFile);
-        AccountBalanceFile accountBalanceFile = balanceFileReader.read(streamFileData);
-        assertAccountBalanceFile(accountBalanceFile);
-        verifySuccess(testFile, accountBalanceFile, 2);
+        assertThrows(InvalidDatasetException.class, () -> balanceFileReader.read(streamFileData));
+    }
+
+    @Test
+    void readFailsWhenFileHasLinesWithOutOfRangeEntityId() throws IOException {
+        List<String> lines = FileUtils.readLines(balanceFile, CsvBalanceFileReader.CHARSET);
+        FileUtils.writeLines(testFile, lines);
+        // realm above EntityId's 16-bit realm range, and account above its 38-bit num range
+        FileUtils.writeStringToFile(
+                testFile, String.format("%n0,65536,3,340%n0,0,274877906944,340%n"), CsvBalanceFileReader.CHARSET, true);
+
+        StreamFileData streamFileData = StreamFileData.from(testFile);
+        assertThrows(InvalidDatasetException.class, () -> balanceFileReader.read(streamFileData));
     }
 
     @Test
@@ -266,17 +275,15 @@ abstract class CsvBalanceFileReaderTest {
 
             while (lineIter.hasNext()) {
                 String line = lineIter.next();
-                line = line.trim();
-                if (line.isEmpty()) {
+                // Mirror the reader: blank lines are whitespace; the column header is consumed by
+                // parseConsensusTimestamp and is not a data entry.
+                if (line.isBlank() || Strings.CI.startsWith(line, CsvBalanceFileReader.COLUMN_HEADER_PREFIX)) {
                     continue;
                 }
 
-                try {
-                    AccountBalance expectedItem = parser.parse(line, consensusTimestamp);
-                    AccountBalance actualItem = accountBalanceIter.next();
-                    assertThat(actualItem).isEqualTo(expectedItem);
-                } catch (InvalidDatasetException ex) {
-                }
+                AccountBalance expectedItem = parser.parse(line, consensusTimestamp);
+                AccountBalance actualItem = accountBalanceIter.next();
+                assertThat(actualItem).isEqualTo(expectedItem);
             }
 
             assertThat(accountBalanceIter.hasNext()).isFalse();

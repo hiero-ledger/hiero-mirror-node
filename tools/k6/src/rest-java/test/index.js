@@ -9,6 +9,8 @@ import * as accountsPendingAirdrop from './accountsPendingAirdrop.js';
 import * as accountsOutstandingAirdrop from './accountsOutstandingAirdrop.js';
 import * as networkExchangeRate from './networkExchangeRate.js';
 import * as networkFees from './networkFees.js';
+import * as networkFeesEstimate from './networkFeesEstimate.js';
+import * as networkFeesEstimateState from './networkFeesEstimateState.js';
 import * as networkNodes from './networkNodes.js';
 import * as networkRegisteredNodes from './networkRegisteredNodes.js';
 import * as networkStake from './networkStake.js';
@@ -24,6 +26,8 @@ const tests = {
   accountsOutstandingAirdrop,
   networkExchangeRate,
   networkFees,
+  networkFeesEstimate,
+  networkFeesEstimateState,
   networkNodes,
   networkRegisteredNodes,
   networkStake,

@@ -191,6 +191,44 @@ class RecordItemTest {
     }
 
     @Test
+    void missingParentConsensusTimestampRecordItemIsNotChild() {
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(TransactionID.newBuilder()
+                        .setNonce(0)
+                        .setScheduled(false)
+                        .build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(DEFAULT_TRANSACTION)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isChild()).isFalse();
+    }
+
+    @Test
+    void parentConsensusTimestampSetRecordItemIsChild() {
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(TransactionID.newBuilder()
+                        .setNonce(1)
+                        .setScheduled(false)
+                        .build())
+                .setParentConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(2444532).build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(DEFAULT_TRANSACTION)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isChild()).isTrue();
+    }
+
+    @Test
     void systemFileUpdatePaidBySystemAccountIsTopLevel() {
         var payer = AccountID.newBuilder().setAccountNum(50).build();
         var txBody = TransactionBody.newBuilder()

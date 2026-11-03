@@ -18,6 +18,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,8 @@ public class TransactionPublisher implements AutoCloseable {
     private final NodeSupplier nodeSupplier;
     private final PublishProperties publishProperties;
 
+    // The node snapshot each client's network was last built from
+    private final Map<Client, List<NodeProperties>> clientNodes = new ConcurrentHashMap<>();
     private final Flux<Client> clients = Flux.defer(this::getClients).cache();
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -87,6 +90,7 @@ public class TransactionPublisher implements AutoCloseable {
             request.setNode(node);
         }
 
+        updateNetwork(client);
         return execute(client, transaction);
     }
 
@@ -136,12 +140,21 @@ public class TransactionPublisher implements AutoCloseable {
                         nodes -> Flux.range(0, publishProperties.getClients()).map(i -> toClient(nodes)));
     }
 
-    @SneakyThrows
     private Client toClient(List<NodeProperties> nodes) {
         var operatorId = AccountId.fromString(monitorProperties.getOperator().getAccountId());
         var operatorPrivateKey =
                 PrivateKey.fromString(monitorProperties.getOperator().getPrivateKey());
 
+        var client = Client.forNetwork(Map.of());
+        setNetwork(client, nodes);
+        client.setNodeMaxBackoff(publishProperties.getNodeMaxBackoff());
+        client.setOperator(operatorId, operatorPrivateKey);
+        clientNodes.put(client, nodes);
+        return client;
+    }
+
+    @SneakyThrows
+    private void setNetwork(final Client client, final List<NodeProperties> nodes) {
         // setNetworkFromAddressBook() doesn't support in-process URIs so we have to set network too.
         // Fix issue #11908 when different nodes in address book have the same service endpoint(s).
         var network = nodes.stream()
@@ -157,11 +170,28 @@ public class TransactionPublisher implements AutoCloseable {
                 .build()
                 .toByteString();
 
-        var client = Client.forNetwork(Map.of());
         client.setNetworkFromAddressBook(com.hedera.hashgraph.sdk.NodeAddressBook.fromBytes(nodeAddressBook));
         client.setNetwork(network);
-        client.setNodeMaxBackoff(publishProperties.getNodeMaxBackoff());
-        client.setOperator(operatorId, operatorPrivateKey);
-        return client;
+    }
+
+    /**
+     * Rebuilds the client's network when the validated nodes changed since it was last built, so node additions,
+     * removals and endpoint changes (e.g. a plaintext to TLS switch) reach clients created earlier.
+     */
+    private void updateNetwork(final Client client) {
+        final var current = nodeSupplier.getNodes();
+        if (current.isEmpty() || clientNodes.get(client) == current) {
+            return;
+        }
+
+        synchronized (client) {
+            if (clientNodes.get(client) == current) {
+                return;
+            }
+
+            log.info("Updating client network to {} nodes", current.size());
+            setNetwork(client, current);
+            clientNodes.put(client, current);
+        }
     }
 }

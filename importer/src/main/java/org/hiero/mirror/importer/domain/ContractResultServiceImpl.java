@@ -9,7 +9,9 @@ import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
 import com.hedera.services.stream.proto.ContractBytecode;
 import com.hedera.services.stream.proto.ContractStateChange;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
 import java.util.ArrayList;
@@ -117,6 +119,7 @@ final class ContractResultServiceImpl implements ContractResultService {
         var payerAccountId = transaction.getPayerAccountId();
         var contractResult = ContractResult.builder()
                 .callResult(DomainUtils.EMPTY_BYTE_ARRAY)
+                .child(recordItem.isEvmChild())
                 .consensusTimestamp(transaction.getConsensusTimestamp())
                 .contractId(0)
                 .functionParameters(functionParameters)
@@ -139,6 +142,15 @@ final class ContractResultServiceImpl implements ContractResultService {
     private boolean isContractCreateOrCall(Transaction transaction) {
         return transaction.getType() == TransactionType.CONTRACTCALL.getProtoId()
                 || transaction.getType() == TransactionType.CONTRACTCREATEINSTANCE.getProtoId();
+    }
+
+    // Consensus nodes report a call to the EVM zero address as recipient shard.realm.0, which isn't an entity
+    private static boolean isZeroAddress(final AccountID accountId) {
+        return accountId.getAccountNum() == 0 && !accountId.hasAlias();
+    }
+
+    private static boolean isZeroAddress(final ContractID contractId) {
+        return contractId.getContractNum() == 0 && !contractId.hasEvmAddress();
     }
 
     private void processContractAction(ContractAction action, int index, RecordItem recordItem) {
@@ -165,9 +177,22 @@ final class ContractResultServiceImpl implements ContractResultService {
 
         try {
             switch (action.getRecipientCase()) {
-                case RECIPIENT_ACCOUNT -> contractAction.setRecipientAccount(EntityId.of(action.getRecipientAccount()));
-                case RECIPIENT_CONTRACT ->
-                    contractAction.setRecipientContract(EntityId.of(action.getRecipientContract()));
+                case RECIPIENT_ACCOUNT -> {
+                    final var recipientAccount = action.getRecipientAccount();
+                    if (isZeroAddress(recipientAccount)) {
+                        contractAction.setRecipientAddress(new byte[DomainUtils.EVM_ADDRESS_LENGTH]);
+                    } else {
+                        contractAction.setRecipientAccount(EntityId.of(recipientAccount));
+                    }
+                }
+                case RECIPIENT_CONTRACT -> {
+                    final var recipientContract = action.getRecipientContract();
+                    if (isZeroAddress(recipientContract)) {
+                        contractAction.setRecipientAddress(new byte[DomainUtils.EVM_ADDRESS_LENGTH]);
+                    } else {
+                        contractAction.setRecipientContract(EntityId.of(recipientContract));
+                    }
+                }
                 case TARGETED_ADDRESS ->
                     contractAction.setRecipientAddress(DomainUtils.toBytes(action.getTargetedAddress()));
                 default -> {
@@ -230,6 +255,7 @@ final class ContractResultServiceImpl implements ContractResultService {
         var payerAccountId = recordItem.getPayerAccountId();
 
         var contractResult = new ContractResult();
+        contractResult.setChild(recordItem.isEvmChild());
         contractResult.setConsensusTimestamp(recordItem.getConsensusTimestamp());
         contractResult.setContractId(contractEntityId.getId());
         contractResult.setPayerAccountId(payerAccountId);
@@ -291,6 +317,7 @@ final class ContractResultServiceImpl implements ContractResultService {
             var contractId = EntityId.of(contractLogInfo.getContractID());
             var rootContractId = EntityId.of(contractResult.getContractId());
             contractLog.setBloom(DomainUtils.toBytes(contractLogInfo.getBloom()));
+            contractLog.setChild(recordItem.isEvmChild());
             contractLog.setConsensusTimestamp(contractResult.getConsensusTimestamp());
             contractLog.setContractId(contractId);
             contractLog.setData(DomainUtils.toBytes(contractLogInfo.getData()));

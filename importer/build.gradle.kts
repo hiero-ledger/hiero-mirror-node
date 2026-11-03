@@ -20,7 +20,9 @@ dependencies {
     implementation(project(":common"))
     implementation("com.esaulpaugh:headlong")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
-    implementation("com.hedera.cryptography:hedera-cryptography-wraps")
+    implementation("com.hedera.cryptography:hedera-cryptography-wraps") {
+        capabilities { requireFeature("verifier") }
+    }
     implementation("commons-io:commons-io")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
     implementation("io.grpc:grpc-protobuf")
@@ -57,10 +59,12 @@ dependencies {
     testImplementation("org.apache.commons:commons-math3")
     testImplementation("org.awaitility:awaitility")
     testImplementation("org.gaul:s3proxy") {
+        exclude(group = "com.azure")
         exclude(group = "com.github.openstack4j.core")
         exclude(group = "com.github.openstack4j.core.connectors")
         exclude(group = "com.google.cloud")
         exclude(group = "io.opentelemetry")
+        exclude(group = "org.apache.sshd")
     }
     testImplementation("org.junit.platform:junit-platform-launcher")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")

@@ -45,11 +45,12 @@ const (
 // constructionAPIService implements the server.ConstructionAPIServicer interface.
 type constructionAPIService struct {
 	BaseService
-	accountRepo        interfaces.AccountRepository
-	sdkClient          *hiero.Client
-	systemShard        int64
-	systemRealm        int64
-	transactionHandler construction.TransactionConstructor
+	accountRepo                  interfaces.AccountRepository
+	sdkClient                    *hiero.Client
+	systemShard                  int64
+	systemRealm                  int64
+	transactionHandler           construction.TransactionConstructor
+	validateCryptoTransferFields bool
 }
 
 // ConstructionCombine implements the /construction/combine endpoint.
@@ -63,6 +64,10 @@ func (c *constructionAPIService) ConstructionCombine(
 
 	transaction, rErr := unmarshallTransactionFromHexString(request.UnsignedTransaction)
 	if rErr != nil {
+		return nil, rErr
+	}
+
+	if rErr = c.rejectUnsupportedCryptoTransferFields(transaction); rErr != nil {
 		return nil, rErr
 	}
 
@@ -345,6 +350,10 @@ func (c *constructionAPIService) ConstructionSubmit(
 
 	transaction, rErr := unmarshallTransactionFromHexString(request.SignedTransaction)
 	if rErr != nil {
+		return nil, rErr
+	}
+
+	if rErr = c.rejectUnsupportedCryptoTransferFields(transaction); rErr != nil {
 		return nil, rErr
 	}
 
@@ -658,13 +667,24 @@ func NewConstructionAPIService(
 	sdkClient.SetMaxAttempts(1)
 
 	return &constructionAPIService{
-		accountRepo:        accountRepo,
-		BaseService:        baseService,
-		sdkClient:          sdkClient,
-		systemShard:        config.Common.Shard,
-		systemRealm:        config.Common.Realm,
-		transactionHandler: transactionConstructor,
+		accountRepo:                  accountRepo,
+		BaseService:                  baseService,
+		sdkClient:                    sdkClient,
+		systemShard:                  config.Common.Shard,
+		systemRealm:                  config.Common.Realm,
+		transactionHandler:           transactionConstructor,
+		validateCryptoTransferFields: config.Rosetta.Feature.ValidateCryptoTransferFields,
 	}, nil
+}
+
+func (c *constructionAPIService) rejectUnsupportedCryptoTransferFields(
+	transaction hiero.TransactionInterface,
+) *rTypes.Error {
+	if !c.validateCryptoTransferFields {
+		return nil
+	}
+
+	return construction.RejectUnsupportedCryptoTransferFields(transaction)
 }
 
 func getFrozenTransactionBodyBytes(transaction hiero.TransactionInterface) ([]byte, *rTypes.Error) {

@@ -66,12 +66,11 @@ public class TransactionHashTxManager implements TransactionSynchronization {
             }
         }
 
-        String statusString =
-                switch (status) {
-                    case STATUS_COMMITTED -> "committed";
-                    case STATUS_ROLLED_BACK -> "rolled back";
-                    default -> "unknown";
-                };
+        String statusString = switch (status) {
+            case STATUS_COMMITTED -> "committed";
+            case STATUS_ROLLED_BACK -> "rolled back";
+            default -> "unknown";
+        };
 
         if (failedShards.isEmpty()) {
             log.debug(

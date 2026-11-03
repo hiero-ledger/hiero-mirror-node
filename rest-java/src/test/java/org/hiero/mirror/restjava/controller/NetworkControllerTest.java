@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.list;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.UnknownFieldSet;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoCreateTransactionBody;
@@ -18,6 +20,7 @@ import com.hederahashgraph.api.proto.java.FeeData;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
+import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -833,6 +836,125 @@ final class NetworkControllerTest extends ControllerTest {
                     .hasMessageContaining("Unable to parse transaction");
         }
 
+        @ParameterizedTest
+        @ValueSource(strings = {"INTRINSIC", "STATE"})
+        void unknownTransactionType(final String mode) {
+            // given a well-formed transaction whose body has no transaction type set
+            seedFeeSchedule();
+            final var transactionBody =
+                    TransactionBody.newBuilder().setMemo("test").build().toByteString();
+            final var transaction = signedTransaction(transactionBody);
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("?mode=" + mode)
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Unknown transaction type");
+        }
+
+        @Test
+        void emptyTransactionBody() {
+            // given a signed transaction with an empty signature map so that it is non-empty, but no body bytes
+            seedFeeSchedule();
+            final var signedTransaction = SignedTransaction.newBuilder()
+                    .setSigMap(SignatureMap.getDefaultInstance())
+                    .build()
+                    .toByteString();
+            final var transaction = Transaction.newBuilder()
+                    .setSignedTransactionBytes(signedTransaction)
+                    .build()
+                    .toByteArray();
+
+            // when / then
+            validateError(
+                    () -> postFees(transaction), HttpClientErrorException.BadRequest.class, "Unknown transaction type");
+        }
+
+        @Test
+        void legacyUnknownTransactionType() {
+            // given a transaction in the deprecated format whose body has no transaction type set
+            seedFeeSchedule();
+            final var transactionBody =
+                    TransactionBody.newBuilder().setMemo("test").build().toByteString();
+            final var transaction = Transaction.newBuilder()
+                    .setBodyBytes(transactionBody)
+                    .build()
+                    .toByteArray();
+
+            // when / then
+            validateError(
+                    () -> postFees(transaction), HttpClientErrorException.BadRequest.class, "Unknown transaction type");
+        }
+
+        @Test
+        void legacyMissingBody() {
+            // given a transaction in the deprecated format with a signature map but neither form of body bytes
+            seedFeeSchedule();
+            final var transaction = Transaction.newBuilder()
+                    .setSigMap(SignatureMap.getDefaultInstance())
+                    .build()
+                    .toByteArray();
+
+            // when / then
+            validateError(
+                    () -> postFees(transaction),
+                    HttpClientErrorException.BadRequest.class,
+                    "Transaction must contain body bytes or signed transaction bytes");
+        }
+
+        @Test
+        void malformedTransactionBody() {
+            // given a field 1 length prefix of 100 with no content following it
+            seedFeeSchedule();
+            final var transaction = signedTransaction(ByteString.copyFrom(new byte[] {0x0A, 0x64}));
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Unable to parse transaction");
+        }
+
+        @Test
+        void unrecognizedTransactionType() {
+            // given a body setting a field number no transaction type uses, rejected by the strict parser
+            seedFeeSchedule();
+            final var unknownField = UnknownFieldSet.Field.newBuilder()
+                    .addLengthDelimited(ByteString.EMPTY)
+                    .build();
+            final var transactionBody = TransactionBody.newBuilder()
+                    .setUnknownFields(UnknownFieldSet.newBuilder()
+                            .addField(9999, unknownField)
+                            .build())
+                    .build()
+                    .toByteString();
+            final var transaction = signedTransaction(transactionBody);
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Unable to parse transaction");
+        }
+
         @Test
         void deeplyNestedTransaction() {
             // given a body within the max size but nested far beyond the parser's max depth
@@ -1007,6 +1129,27 @@ final class NetworkControllerTest extends ControllerTest {
                     .setCryptoTransfer(cryptoTransfer)
                     .build()
                     .toByteString();
+            final var signedTransaction = SignedTransaction.newBuilder()
+                    .setBodyBytes(transactionBody)
+                    .build()
+                    .toByteString();
+            return Transaction.newBuilder()
+                    .setSignedTransactionBytes(signedTransaction)
+                    .build()
+                    .toByteArray();
+        }
+
+        private FeeEstimateResponse postFees(final byte[] transaction) {
+            return restClient
+                    .post()
+                    .uri("")
+                    .body(transaction)
+                    .contentType(MediaType.APPLICATION_PROTOBUF)
+                    .retrieve()
+                    .body(FeeEstimateResponse.class);
+        }
+
+        private byte[] signedTransaction(final ByteString transactionBody) {
             final var signedTransaction = SignedTransaction.newBuilder()
                     .setBodyBytes(transactionBody)
                     .build()

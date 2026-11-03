@@ -26,8 +26,8 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Queue;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -87,7 +87,9 @@ final class TransactionPublisherTest {
         publishProperties = new PublishProperties();
         transactionPublisher = new TransactionPublisher(monitorProperties, nodeSupplier, publishProperties);
         cryptoServiceStub = new CryptoServiceStub();
-        when(nodeSupplier.list()).thenReturn(Mono.just(new ArrayList<>(monitorProperties.getNodes())));
+        final var snapshot = List.copyOf(monitorProperties.getNodes());
+        when(nodeSupplier.list()).thenReturn(Mono.just(snapshot));
+        when(nodeSupplier.getNodes()).thenReturn(snapshot);
         when(nodeSupplier.get()).thenReturn(node);
         server = InProcessServerBuilder.forName(SERVER)
                 .addService(cryptoServiceStub)
@@ -126,6 +128,49 @@ final class TransactionPublisherTest {
                 })
                 .expectComplete()
                 .verify(Duration.ofSeconds(1L));
+    }
+
+    @Test
+    @Timeout(3)
+    void publishUpdatesNetworkWhenNodesChange() throws Exception {
+        final var tlsServerName = "tls";
+        final var tlsCryptoServiceStub = new CryptoServiceStub();
+        final var tlsServer = InProcessServerBuilder.forName(tlsServerName)
+                .addService(tlsCryptoServiceStub)
+                .directExecutor()
+                .build()
+                .start();
+
+        try {
+            // Given a client created while the node was on its plaintext endpoint
+            cryptoServiceStub.addTransaction(Mono.just(response(OK)));
+            transactionPublisher
+                    .publish(request().build())
+                    .as(StepVerifier::create)
+                    .expectNextCount(1L)
+                    .expectComplete()
+                    .verify(Duration.ofSeconds(1L));
+
+            // When the same node moves to its TLS endpoint after validation
+            final var tlsNode = new NodeProperties("0.0.3", "in-process:" + tlsServerName);
+            tlsNode.setNodeId(0L);
+            tlsNode.setPort(50212);
+            when(nodeSupplier.getNodes()).thenReturn(List.of(tlsNode));
+            when(nodeSupplier.get()).thenReturn(tlsNode);
+
+            // Then the cached client publishes to the new endpoint
+            tlsCryptoServiceStub.addTransaction(Mono.just(response(OK)));
+            transactionPublisher
+                    .publish(request().build())
+                    .as(StepVerifier::create)
+                    .expectNextCount(1L)
+                    .expectComplete()
+                    .verify(Duration.ofSeconds(1L));
+        } finally {
+            tlsCryptoServiceStub.verify();
+            tlsServer.shutdownNow();
+            tlsServer.awaitTermination();
+        }
     }
 
     @Test

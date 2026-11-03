@@ -161,6 +161,16 @@ final class BlockStreamVerifier {
 
     private void verifyBlockNumber(final BlockFile blockFile) {
         final var blockNumber = blockFile.getIndex();
+        // The block header is unsigned for a wrapped record block, bind its block number to the signed record file
+        if (blockFile.hasRecordFile()) {
+            final long recordFileBlockNumber = blockFile.getRecordFile().getIndex();
+            if (recordFileBlockNumber != blockNumber) {
+                throw new InvalidStreamFileException(String.format(
+                        "Block number mismatch, from block header = %d, from wrapped record file = %d",
+                        blockNumber, recordFileBlockNumber));
+            }
+        }
+
         cutoverService.getLastRecordFile().map(RecordFile::getIndex).ifPresent(lastBlockNumber -> {
             if (blockNumber != lastBlockNumber + 1) {
                 throw new InvalidStreamFileException(String.format(
@@ -190,6 +200,12 @@ final class BlockStreamVerifier {
         final boolean isLastRecordFile = last.getVersion() < BlockStreamReader.VERSION;
         final var previousHash = last.getHash();
         if (!isLastRecordFile) {
+            // Consensus nodes only produce pure blocks after cutover.
+            if (blockFile.hasRecordFile()) {
+                throw new InvalidStreamFileException(
+                        "Wrapped record block %s is not allowed after a block".formatted(blockFile.getName()));
+            }
+
             if (!blockFile.getPreviousHash().contentEquals(previousHash)) {
                 throw new HashMismatchException(
                         blockFile.getName(), previousHash, blockFile.getPreviousHash(), HASH_TYPE_PREVIOUS);

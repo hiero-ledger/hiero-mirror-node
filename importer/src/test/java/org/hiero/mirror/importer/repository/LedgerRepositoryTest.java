@@ -14,16 +14,16 @@ final class LedgerRepositoryTest extends ImporterIntegrationTest {
     private final LedgerRepository repository;
 
     @Test
-    void findTopByOrderByConsensusTimestampDesc() {
+    void findLatest() {
         // empty when no data
-        assertThat(repository.findTopByOrderByConsensusTimestampDesc()).isEmpty();
+        assertThat(repository.findLatest()).isEmpty();
 
         // given
         domainBuilder.ledger().persist();
         final var expected = domainBuilder.ledger().persist();
 
         // when, then
-        assertThat(repository.findTopByOrderByConsensusTimestampDesc()).contains(expected);
+        assertThat(repository.findLatest()).contains(expected);
     }
 
     @Test

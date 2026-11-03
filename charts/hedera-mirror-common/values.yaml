@@ -5,6 +5,9 @@ global:
   security:
     allowInsecureImages: true
 
+hyperdiskStorageClass:
+  enabled: true  # Non-default hyperdisk-balanced StorageClass for GKE machine families that only support Hyperdisk
+
 labels: {}
 
 loki:
@@ -402,6 +405,7 @@ testkube:
         K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
     delay: 600s  # Delay duration between test suite steps. This needs to be at least 600s to match the pgbouncer server
                  # connection idle timeout, so that connections will be freed up for the next set of tests
+    artifactStorageClassName: standard
     extraExecutionRequestVariables: {}
     gitBranch: ""  # Default to .Chart.AppVersion
     schedule: ""  # Cron schedule of the test suite, default to no schedule
@@ -491,6 +495,16 @@ zfs:
   # ZFS daemonset bootstrap configuration
   init:
     arcSizeGb: 2
+    disk:
+      coordinator:
+        provisionedIops: ""
+        provisionedThroughput: ""
+      deviceName: sdb  # GCE device name the disk is attached with, not the kernel name. Existing disks use sdb
+      nodes: {}  # Per node ID overrides of the role values, e.g. worker-us-central1-a-0: {provisionedIops: 6000}
+      type: pd-balanced
+      worker:
+        provisionedIops: ""
+        provisionedThroughput: ""
     diskPrefix: citus
     image:
       pullPolicy: IfNotPresent

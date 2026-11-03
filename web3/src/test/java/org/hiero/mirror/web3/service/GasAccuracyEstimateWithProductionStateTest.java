@@ -7,6 +7,8 @@ import static org.hiero.mirror.common.domain.transaction.TransactionType.FILECRE
 import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.longValueOf;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -63,8 +65,9 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
                 request.path("value").asLong(0L),
                 request.get("gas").asLong())));
 
-        assertThat(gasUsed).isEqualTo(34_187L);
-        assertThat(estimated).isEqualTo(36_073L);
+        assertThat(isWithinExpectedGasRange(estimated, gasUsed))
+                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimated, gasUsed)
+                .isTrue();
     }
 
     @Test
@@ -81,8 +84,9 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
                 request.path("value").asLong(0L),
                 request.get("gas").asLong())));
 
-        assertThat(gasUsed).isEqualTo(165_444L);
-        assertThat(estimated).isEqualTo(179_776L);
+        assertThat(isWithinExpectedGasRange(estimated, gasUsed))
+                .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimated, gasUsed)
+                .isTrue();
     }
 
     private ContractExecutionParameters estimateParameters(

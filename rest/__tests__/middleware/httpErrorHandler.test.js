@@ -69,7 +69,7 @@ describe('handleError logging', () => {
     expect(logged).not.toMatch(/[\r\n\t\0]/);
     expect(logged).toContain('/api/v1/accounts__WARN injected');
     expect(logged).toContain('bad_input');
-    expect(mockResponse.set).toHaveBeenCalledWith(clusterIdHeader, config.clusterId);
+    expect(mockResponse.set).toHaveBeenCalledWith(clusterIdHeader, config.common.clusterId);
     expect(mockResponse.json).toHaveBeenCalledWith({
       _status: {messages: [{message: 'bad\ninput'}]},
     });

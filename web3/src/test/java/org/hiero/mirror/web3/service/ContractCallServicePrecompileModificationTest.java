@@ -1424,6 +1424,60 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
     }
 
+    @Test
+    void transferTokenFromContractWithAllowance() throws Exception {
+        // Given
+        final var tokenEntity = tokenEntityPersist();
+        final var treasuryAccount = accountEntityPersist();
+        fungibleTokenPersist(tokenEntity, treasuryAccount);
+
+        final var ownerContract = domainBuilder
+                .entity()
+                .customize(e -> e.type(CONTRACT).alias(null).evmAddress(null).key(null))
+                .persist();
+        final var receiver = accountEntityWithEvmAddressPersist();
+
+        final var tokenId = tokenEntity.getId();
+        tokenAccountPersist(tokenId, ownerContract.getId());
+        tokenAccountPersist(tokenId, receiver.getId());
+
+        accountBalanceRecordsPersist(
+                ownerContract.toEntityId(), ownerContract.getCreatedTimestamp(), ownerContract.getBalance());
+        accountBalanceRecordsPersist(receiver.toEntityId(), receiver.getCreatedTimestamp(), receiver.getBalance());
+        tokenBalancePersist(ownerContract.toEntityId(), tokenEntity.toEntityId(), ownerContract.getBalanceTimestamp());
+        tokenBalancePersist(receiver.toEntityId(), tokenEntity.toEntityId(), receiver.getBalanceTimestamp());
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contractEntityId = entityIdFromEvmAddress(Address.fromHexString(contract.getContractAddress()));
+
+        tokenAllowancePersistCustomizable(e -> e.owner(ownerContract.getId())
+                .amount(1L)
+                .amountGranted(1L)
+                .spender(contractEntityId.getId())
+                .tokenId(tokenId));
+
+        // When transfer amount is within the allowance granted by ownerContract, it succeeds via approval switch
+        final var allowedCall = contract.call_transferTokenExternal(
+                getAddressFromEntity(tokenEntity),
+                getAddressFromEntity(ownerContract),
+                getAliasFromEntity(receiver),
+                BigInteger.ONE);
+
+        // Then
+        verifyEthCallAndEstimateGas(allowedCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(allowedCall.encodeFunctionCall(), contract);
+
+        // When transfer amount exceeds the allowance granted by ownerContract, it reverts because ownerContract's
+        // CONTRACT_ID key is not active for the caller contract and ApprovalSwitchHelper requires an allowance spend
+        final var exceedingAllowanceCall = contract.call_transferTokenExternal(
+                getAddressFromEntity(tokenEntity),
+                getAddressFromEntity(ownerContract),
+                getAliasFromEntity(receiver),
+                BigInteger.TWO);
+
+        assertThatThrownBy(exceedingAllowanceCall::send).isInstanceOf(MirrorEvmTransactionException.class);
+    }
+
     @ParameterizedTest
     @CsvSource({"single", "multiple"})
     void transferNft(final String type) throws Exception {

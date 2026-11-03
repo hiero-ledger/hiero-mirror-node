@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -13,6 +14,7 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,6 +22,10 @@ import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import org.flywaydb.core.api.callback.Event;
+import org.flywaydb.core.api.configuration.FluentConfiguration;
+import org.flywaydb.core.internal.callback.SimpleContext;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -37,25 +43,26 @@ import org.junit.jupiter.api.Test;
 final class EvmTransactionIndexImporterIntegrationTest
         extends AbstractAsyncJavaMigrationTest<FixScheduledAndHookEvmTransactionIndexMigration> {
 
-    private static final ContractID HOOK_CONTRACT_ID =
-            ContractID.newBuilder().setContractNum(RecordItem.HOOK_CONTRACT_NUM).build();
     private static final ContractID PRECOMPILE_ID =
             ContractID.newBuilder().setContractNum(359).build();
 
     @Getter
     private final FixScheduledAndHookEvmTransactionIndexMigration migration;
 
+    private final BackfillContractChildMigration childMigration;
     private final RecordFileParser recordFileParser;
     private final RecordItemBuilder recordItemBuilder;
 
     private final List<RecordItem> items = new ArrayList<>();
     private int parsedCount;
+    private ContractID hookContractId;
     private RecordFile previousFile;
     private long timestamp;
 
     @BeforeEach
     void setup() {
         recordFileParser.clear();
+        hookContractId = recordItemBuilder.contractId(RecordItem.HOOK_CONTRACT_NUM);
         items.clear();
         parsedCount = 0;
         previousFile = null;
@@ -76,6 +83,9 @@ final class EvmTransactionIndexImporterIntegrationTest
         assertIndex(call, 0);
         assertIndex(ethereum, 1);
         assertIndex(secondCall, 2);
+        assertChild(call, false);
+        assertChild(ethereum, false);
+        assertChild(secondCall, false);
     }
 
     @Test
@@ -109,6 +119,11 @@ final class EvmTransactionIndexImporterIntegrationTest
         assertIndex(mint, 1);
         assertIndex(transfer, 1);
         assertLogIndexes(call, 1);
+        assertChild(otherCall, false);
+        assertChild(call, false);
+        assertChild(mint, true);
+        assertChild(transfer, true);
+        assertChildBackfillMatchesImporter();
     }
 
     @Test
@@ -126,13 +141,17 @@ final class EvmTransactionIndexImporterIntegrationTest
         assertIndex(firstInner, 0);
         assertIndex(effect, 0);
         assertIndex(secondInner, 1);
+        assertChild(firstInner, false);
+        assertChild(effect, true);
+        assertChild(secondInner, false);
+        assertChildBackfillMatchesImporter();
     }
 
     @Test
     void hookCallsClaimIndexesAndSiblingsInheritUntilTheChainBreaks() {
         // given
         final var transfer = add(recordItemBuilder.cryptoTransfer(), null, 0, null, false);
-        final var hook = add(recordItemBuilder.contractCall(HOOK_CONTRACT_ID), hookResult(50), 1, transfer, false);
+        final var hook = add(recordItemBuilder.contractCall(hookContractId), hookResult(50), 1, transfer, false);
         final var sibling = add(recordItemBuilder.contractCall(), result(30), 2, transfer, false);
         add(recordItemBuilder.cryptoTransfer(), null, 3, transfer, false);
         final var afterBreak = add(recordItemBuilder.contractCall(), result(30), 4, transfer, false);
@@ -145,6 +164,10 @@ final class EvmTransactionIndexImporterIntegrationTest
         assertIndex(sibling, 0);
         assertIndex(afterBreak, 1);
         assertMigrationKeepsIndexes();
+        assertChild(hook, false);
+        assertChild(sibling, true);
+        assertChild(afterBreak, false);
+        assertChildBackfillMatchesImporter();
     }
 
     @Test
@@ -169,6 +192,11 @@ final class EvmTransactionIndexImporterIntegrationTest
         assertIndex(transfer, null);
         assertIndex(call, 0);
         assertMigrationKeepsIndexes();
+        assertChild(failedCall, false);
+        assertChild(mint, true);
+        assertChild(transfer, true);
+        assertChild(call, false);
+        assertChildBackfillMatchesImporter();
     }
 
     @Test
@@ -189,6 +217,11 @@ final class EvmTransactionIndexImporterIntegrationTest
         assertIndex(precompileCall, null);
         assertIndex(call, 0);
         assertMigrationKeepsIndexes();
+        assertChild(failedCall, false);
+        assertChild(transfer, true);
+        assertChild(precompileCall, true);
+        assertChild(call, false);
+        assertChildBackfillMatchesImporter();
     }
 
     @Test
@@ -212,6 +245,12 @@ final class EvmTransactionIndexImporterIntegrationTest
         assertIndex(mint, 1);
         assertIndex(laterRoot, 2);
         assertMigrationKeepsIndexes();
+        assertChild(root, false);
+        assertChild(scheduledCall, false);
+        assertChild(transfer, true);
+        assertChild(mint, true);
+        assertChild(laterRoot, false);
+        assertChildBackfillMatchesImporter();
     }
 
     @Test
@@ -230,6 +269,10 @@ final class EvmTransactionIndexImporterIntegrationTest
         assertIndex(effect, 0);
         assertIndex(call, 1);
         assertMigrationKeepsIndexes();
+        assertChild(scheduledCall, false);
+        assertChild(effect, true);
+        assertChild(call, false);
+        assertChildBackfillMatchesImporter();
     }
 
     @Test
@@ -249,6 +292,10 @@ final class EvmTransactionIndexImporterIntegrationTest
         assertIndex(effect, null);
         assertIndex(call, 0);
         assertMigrationKeepsIndexes();
+        assertChild(scheduledCall, false);
+        assertChild(effect, true);
+        assertChild(call, false);
+        assertChildBackfillMatchesImporter();
     }
 
     @Test
@@ -340,6 +387,56 @@ final class EvmTransactionIndexImporterIntegrationTest
         timestamp += 1_000_000;
     }
 
+    private void assertChild(RecordItem recordItem, boolean expected) {
+        final var consensusTimestamp = recordItem.getConsensusTimestamp();
+        assertThat(jdbcOperations.queryForList(
+                        "select child from contract_result where consensus_timestamp = ?",
+                        Boolean.class,
+                        consensusTimestamp))
+                .as("contract result child at %d", consensusTimestamp)
+                .containsExactly(expected);
+        assertThat(jdbcOperations.queryForList(
+                        "select child from contract_log where consensus_timestamp = ?",
+                        Boolean.class,
+                        consensusTimestamp))
+                .as("contract log child at %d", consensusTimestamp)
+                .doesNotContain(!expected);
+    }
+
+    // The child backfill must reproduce exactly what the importer stored
+    @SneakyThrows
+    private void assertChildBackfillMatchesImporter() {
+        final var before = children();
+        jdbcOperations.update("update contract_result set child = false");
+        jdbcOperations.update("update contract_log set child = false");
+        jdbcOperations.update(
+                "update flyway_schema_history set checksum = -1 where description = ?",
+                childMigration.getDescription());
+
+        childMigration.doMigrate();
+        childMigration.handle(Event.AFTER_MIGRATE_OPERATION_FINISH, new SimpleContext(new FluentConfiguration()));
+        await().atMost(Duration.ofSeconds(5))
+                .pollInterval(Duration.ofMillis(100))
+                .until(() -> Integer.valueOf(childMigration.getSuccessChecksum())
+                        .equals(jdbcOperations.queryForObject(
+                                "select checksum from flyway_schema_history where description = ? "
+                                        + "order by installed_rank desc limit 1",
+                                Integer.class,
+                                childMigration.getDescription())));
+        assertThat(children()).isEqualTo(before);
+    }
+
+    private Map<String, Boolean> children() {
+        final var result = new HashMap<String, Boolean>();
+        jdbcOperations.query("select consensus_timestamp, child from contract_result", rs -> {
+            result.put("result " + rs.getLong(1), rs.getBoolean(2));
+        });
+        jdbcOperations.query("select consensus_timestamp, index, child from contract_log", rs -> {
+            result.put("log " + rs.getLong(1) + "/" + rs.getInt(2), rs.getBoolean(3));
+        });
+        return result;
+    }
+
     private void assertIndex(RecordItem recordItem, Integer expected) {
         assertThat(jdbcOperations.queryForList(
                         "select transaction_index from contract_result where consensus_timestamp = ?",
@@ -384,8 +481,8 @@ final class EvmTransactionIndexImporterIntegrationTest
                 .build();
     }
 
-    private static ContractFunctionResult hookResult(long gasUsed) {
-        return result(gasUsed).toBuilder().setContractID(HOOK_CONTRACT_ID).build();
+    private ContractFunctionResult hookResult(long gasUsed) {
+        return result(gasUsed).toBuilder().setContractID(hookContractId).build();
     }
 
     private static ContractFunctionResult resultWithLog(long gasUsed) {

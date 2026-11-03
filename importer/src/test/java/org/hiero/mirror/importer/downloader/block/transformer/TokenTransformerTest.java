@@ -4,10 +4,21 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
+import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
+import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
+import com.hedera.hapi.block.stream.output.protoc.StateChange;
+import com.hedera.hapi.block.stream.output.protoc.StateChanges;
+import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.Token;
+import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
 import java.util.List;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -76,6 +87,92 @@ class TokenTransformerTest extends AbstractTransformerTest {
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void tokenBurnOrWipeDuplicateSerialNumbersInBatch(boolean burn) {
+        // given
+        // Consensus nodes de-duplicate serial numbers, so burning / wiping [2, 2, 2] only reduces the supply by 1
+        var tokenId = recordItemBuilder.tokenId();
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(StateIdentifier.STATE_ID_TOKENS_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setTokenIdKey(tokenId))
+                                .setValue(MapChangeValue.newBuilder()
+                                        .setTokenValue(Token.newBuilder()
+                                                .setTokenId(tokenId)
+                                                .setTotalSupply(7L)))))
+                .build();
+        var atomicBatchRecordItem =
+                recordItemBuilder.atomicBatch().customize(this::finalize).build();
+        var atomicBatchBlockTransaction = blockTransactionBuilder
+                .atomicBatch(atomicBatchRecordItem)
+                .stateChanges(s -> s.add(stateChanges))
+                .build();
+        var parentConsensusTimestamp =
+                atomicBatchRecordItem.getTransactionRecord().getConsensusTimestamp();
+
+        var recordItem1 = innerBurnOrWipe(burn, tokenId, List.of(1L), 8L, 1, parentConsensusTimestamp);
+        var blockTransaction1 = burnOrWipeBlockTransaction(burn, recordItem1)
+                .previous(atomicBatchBlockTransaction)
+                .stateChanges(List::clear)
+                .build();
+        var recordItem2 = innerBurnOrWipe(burn, tokenId, List.of(2L, 2L, 2L), 7L, 2, parentConsensusTimestamp);
+        var blockTransaction2 = burnOrWipeBlockTransaction(burn, recordItem2)
+                .previous(blockTransaction1)
+                .stateChanges(List::clear)
+                .build();
+
+        var blockFile = blockFileBuilder
+                .items(List.of(atomicBatchBlockTransaction, blockTransaction1, blockTransaction2))
+                .build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        var expected = List.of(atomicBatchRecordItem, recordItem1, recordItem2);
+        assertRecordFile(recordFile, blockFile, items -> assertRecordItems(items, expected));
+    }
+
+    private RecordItem innerBurnOrWipe(
+            boolean burn,
+            TokenID tokenId,
+            List<Long> serialNumbers,
+            long newTotalSupply,
+            int transactionIndex,
+            Timestamp parentConsensusTimestamp) {
+        if (burn) {
+            return recordItemBuilder
+                    .tokenBurn()
+                    .transactionBody(b -> b.setAmount(0)
+                            .setToken(tokenId)
+                            .clearSerialNumbers()
+                            .addAllSerialNumbers(serialNumbers))
+                    .clearIncrementer()
+                    .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
+                    .receipt(r -> r.setNewTotalSupply(newTotalSupply))
+                    .recordItem(r -> r.transactionIndex(transactionIndex))
+                    .customize(this::finalize)
+                    .build();
+        }
+
+        return recordItemBuilder
+                .tokenWipe(TokenType.NON_FUNGIBLE_UNIQUE)
+                .transactionBody(b ->
+                        b.setAmount(0).setToken(tokenId).clearSerialNumbers().addAllSerialNumbers(serialNumbers))
+                .clearIncrementer()
+                .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
+                .receipt(r -> r.setNewTotalSupply(newTotalSupply))
+                .recordItem(r -> r.transactionIndex(transactionIndex))
+                .customize(this::finalize)
+                .build();
+    }
+
+    private BlockTransactionBuilder.Builder burnOrWipeBlockTransaction(boolean burn, RecordItem recordItem) {
+        return burn ? blockTransactionBuilder.tokenBurn(recordItem) : blockTransactionBuilder.tokenWipe(recordItem);
     }
 
     @Test

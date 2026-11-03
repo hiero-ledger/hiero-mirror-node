@@ -333,6 +333,43 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
     }
 
     @Test
+    void atomicBatchInnerCallAfterHookChainClaimsOwnEvmTransactionIndex() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        final long timestamp = ++count;
+        final var batch = recordItemBuilder
+                .atomicBatch()
+                .record(r -> r.setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp)))
+                .build();
+        final var innerCryptoTransfer = cryptoTransferChild(timestamp + 1, timestamp, 0, batch);
+        final var hookContractId = ContractID.newBuilder()
+                .setContractNum(RecordItem.HOOK_CONTRACT_NUM)
+                .build();
+        final var hookExecution =
+                hookContractCall(hookContractId, timestamp + 2, timestamp + 1, 1, innerCryptoTransfer);
+        final var hookChild = hookContractCall(contractId(), timestamp + 3, timestamp + 1, 2, hookExecution);
+        // user-signed inner transaction after the hook chain, not an effect of the hook
+        final var innerContractCall = hookContractCall(contractId(), timestamp + 4, timestamp, 0, hookChild);
+
+        final var items = List.of(batch, innerCryptoTransfer, hookExecution, hookChild, innerContractCall);
+        final var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(hookExecution.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(hookExecution.isEvmChild()).isFalse(),
+                () -> assertThat(hookChild.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(hookChild.isEvmChild()).isTrue(),
+                () -> assertThat(innerContractCall.getContractRelatedParent()).isNull(),
+                () -> assertThat(innerContractCall.getEvmTransactionIndex()).isEqualTo(1),
+                () -> assertThat(innerContractCall.isEvmChild()).isFalse());
+    }
+
+    @Test
     void scheduledCallEffectsInheritScheduledCallEvmIndex() {
         // given
         // The effects are parented to the ScheduleSign, not to the scheduled call
@@ -376,6 +413,49 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 () -> assertThat(cryptoTransferEffect.getEvmTransactionIndex()).isZero(),
                 () -> assertThat(contractCallEffect.getEvmTransactionIndex()).isZero(),
                 () -> assertThat(contractCallItem.getEvmTransactionIndex()).isEqualTo(1));
+    }
+
+    @Test
+    void atomicBatchInnerCallAfterScheduledCallClaimsOwnEvmTransactionIndex() {
+        // given
+        when(dateRangeCalculator.getFilter(parserProperties.getStreamType())).thenReturn(DateRangeFilter.all());
+
+        final long timestamp = ++count;
+        final var batch = recordItemBuilder
+                .atomicBatch()
+                .record(r -> r.setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp)))
+                .build();
+        final var innerScheduleSign = recordItemBuilder
+                .scheduleSign()
+                .record(r -> r.setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp + 1))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp)))
+                .recordItem(r -> r.previous(batch))
+                .build();
+        final var scheduledCall =
+                scheduledContractCall(contractFunctionResult(227547L, new byte[] {1}), timestamp + 2, 0);
+        final var scheduledCallEffect = precompileChild(
+                recordItemBuilder.cryptoTransfer(),
+                contractFunctionResult(15284L, new byte[] {2}),
+                timestamp + 3,
+                timestamp + 1,
+                1,
+                scheduledCall);
+        // user-signed inner transaction after the scheduled call, not an effect of it
+        final var innerContractCall = hookContractCall(contractId(), timestamp + 4, timestamp, 0, scheduledCallEffect);
+
+        final var items = List.of(batch, innerScheduleSign, scheduledCall, scheduledCallEffect, innerContractCall);
+        final var recordFile = getStreamFile(items, timestamp);
+
+        // when
+        parser.parse(recordFile);
+
+        // then
+        assertAll(
+                () -> assertThat(scheduledCall.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(scheduledCallEffect.getEvmTransactionIndex()).isZero(),
+                () -> assertThat(scheduledCallEffect.isEvmChild()).isTrue(),
+                () -> assertThat(innerContractCall.getEvmTransactionIndex()).isEqualTo(1),
+                () -> assertThat(innerContractCall.isEvmChild()).isFalse());
     }
 
     @Test

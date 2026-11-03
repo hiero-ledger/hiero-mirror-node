@@ -35,6 +35,12 @@ variable "nonprod_slack_contact_point" {
   description = "Name of the manually-created Grafana contact point that posts to the non-prod Slack channel."
 }
 
+variable "rootly_contact_point" {
+  type        = string
+  default     = "Rootly-Paging"
+  description = "Name of the manually-created Grafana contact point that pages the on-call via Rootly."
+}
+
 resource "grafana_notification_policy" "root" {
   contact_point = "grafana-default-email"
   group_by      = ["alertname", "cluster", "namespace"]
@@ -42,6 +48,22 @@ resource "grafana_notification_policy" "root" {
   group_wait      = "30s"
   group_interval  = "5m"
   repeat_interval = "4h"
+
+  # Keep as the first policy block so paging=rootly alerts reach Rootly, then continue on to Slack below
+  policy {
+    contact_point = var.rootly_contact_point
+    continue      = true
+    matcher {
+      label = "paging"
+      match = "="
+      value = "rootly"
+    }
+    matcher {
+      label = "env_category"
+      match = "="
+      value = "production"
+    }
+  }
 
   policy {
     contact_point = var.prod_slack_contact_point
@@ -2754,7 +2776,7 @@ resource "grafana_rule_group" "rule_group_database" {
       }
 
       datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, persistentvolumeclaim) (kubelet_volume_stats_used_bytes{node=~\\\".*(worker|coord).*\\\"}) / sum by (cluster, namespace, env_category, persistentvolumeclaim) (kubelet_volume_stats_capacity_bytes{node=~\\\".*(worker|coord).*\\\"}) >= 0.80\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, persistentvolumeclaim) (kubelet_volume_stats_used_bytes{node=~\\\".*(worker|coord).*\\\"}) / sum by (cluster, namespace, env_category, persistentvolumeclaim) (kubelet_volume_stats_capacity_bytes{node=~\\\".*(worker|coord).*\\\"}) >= 0.92\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
     no_data_state  = "NoData"
@@ -2762,11 +2784,12 @@ resource "grafana_rule_group" "rule_group_database" {
     for            = "1m"
     annotations = {
       description = "Storage for {{ $labels.persistentvolumeclaim }} is {{ (index $values \"A\").Value | humanizePercentage }} full"
-      summary     = "Database storage exceeds 80% capacity"
+      summary     = "Database storage exceeds 92% capacity"
     }
     labels = {
       application = "hedera-mirror-common"
       area        = "resource"
+      paging      = "rootly"
       severity    = "critical"
     }
     is_paused = false

@@ -2,8 +2,15 @@
 
 hiero:
   mirror:
+    common:
+      clusterId: "9ef9396"
     web3:
       api:
+        default:
+          response:
+            headers:
+              # Merged into every endpoint's response headers on startup unless overridden below.
+              "x-cluster-id": "${hiero.mirror.common.clusterId}"
         call:
           enabled: true
           response:

@@ -27,6 +27,10 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
             UNFROZEN, REVOKED, , , UNFROZEN, REVOKED
             FROZEN, NOT_APPLICABLE, , , FROZEN, NOT_APPLICABLE
             NOT_APPLICABLE, NOT_APPLICABLE, , , NOT_APPLICABLE, NOT_APPLICABLE
+            NOT_APPLICABLE, NOT_APPLICABLE, UNFROZEN, GRANTED, NOT_APPLICABLE, NOT_APPLICABLE
+            NOT_APPLICABLE, NOT_APPLICABLE, FROZEN, REVOKED, NOT_APPLICABLE, NOT_APPLICABLE
+            NOT_APPLICABLE, REVOKED, UNFROZEN, GRANTED, NOT_APPLICABLE, GRANTED
+            FROZEN, NOT_APPLICABLE, UNFROZEN, GRANTED, UNFROZEN, NOT_APPLICABLE
             """)
     @ParameterizedTest
     void findById(
@@ -191,6 +195,10 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
             UNFROZEN, REVOKED, , , UNFROZEN, REVOKED
             FROZEN, NOT_APPLICABLE, , , FROZEN, NOT_APPLICABLE
             NOT_APPLICABLE, NOT_APPLICABLE, , , NOT_APPLICABLE, NOT_APPLICABLE
+            NOT_APPLICABLE, NOT_APPLICABLE, UNFROZEN, GRANTED, NOT_APPLICABLE, NOT_APPLICABLE
+            NOT_APPLICABLE, NOT_APPLICABLE, FROZEN, REVOKED, NOT_APPLICABLE, NOT_APPLICABLE
+            NOT_APPLICABLE, REVOKED, UNFROZEN, GRANTED, NOT_APPLICABLE, GRANTED
+            FROZEN, NOT_APPLICABLE, UNFROZEN, GRANTED, UNFROZEN, NOT_APPLICABLE
             """)
     @ParameterizedTest
     void findByIdAndTimestampHistoricalReturnsLatestEntry(
@@ -234,14 +242,26 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                 .returns(expectedKycStatus, TokenAccount::getKycStatus);
     }
 
-    @Test
-    void findByIdAndTimestampUsesHistoricalTokenDefaults() {
+    @CsvSource(textBlock = """
+            UNFROZEN, REVOKED, , , UNFROZEN, REVOKED
+            NOT_APPLICABLE, NOT_APPLICABLE, UNFROZEN, GRANTED, NOT_APPLICABLE, NOT_APPLICABLE
+            NOT_APPLICABLE, REVOKED, UNFROZEN, GRANTED, NOT_APPLICABLE, GRANTED
+            UNFROZEN, NOT_APPLICABLE, FROZEN, GRANTED, FROZEN, NOT_APPLICABLE
+            """)
+    @ParameterizedTest
+    void findByIdAndTimestampUsesHistoricalTokenDefaults(
+            TokenFreezeStatusEnum tokenFreezeStatus,
+            TokenKycStatusEnum tokenKycStatus,
+            TokenFreezeStatusEnum freezeStatus,
+            TokenKycStatusEnum kycStatus,
+            TokenFreezeStatusEnum expectedFreezeStatus,
+            TokenKycStatusEnum expectedKycStatus) {
         final long tokenId = 102L;
         domainBuilder
                 .tokenHistory()
                 .customize(t -> t.tokenId(tokenId)
-                        .freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
-                        .kycStatus(TokenKycStatusEnum.REVOKED)
+                        .freezeStatus(tokenFreezeStatus)
+                        .kycStatus(tokenKycStatus)
                         .timestampRange(Range.closedOpen(100L, 200L)))
                 .persist();
         domainBuilder
@@ -255,15 +275,15 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                 .tokenAccountHistory()
                 .customize(t -> t.tokenId(tokenId)
                         .accountId(accountId)
-                        .freezeStatus(null)
-                        .kycStatus(null)
+                        .freezeStatus(freezeStatus)
+                        .kycStatus(kycStatus)
                         .timestampRange(Range.closedOpen(100L, 200L)))
                 .persist();
 
         assertThat(repository.findByIdAndTimestamp(accountId, tokenId, 150L))
                 .hasValueSatisfying(relationship -> assertThat(relationship)
-                        .returns(TokenFreezeStatusEnum.UNFROZEN, TokenAccount::getFreezeStatus)
-                        .returns(TokenKycStatusEnum.REVOKED, TokenAccount::getKycStatus)
+                        .returns(expectedFreezeStatus, TokenAccount::getFreezeStatus)
+                        .returns(expectedKycStatus, TokenAccount::getKycStatus)
                         .returns(tokenAccount.getBalance(), TokenAccount::getBalance));
     }
 

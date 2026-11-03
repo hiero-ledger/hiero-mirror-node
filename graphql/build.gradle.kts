@@ -64,7 +64,7 @@ generatePojoConf {
                 "org.hiero.mirror.graphql.config.GraphQlTimestamp.INSTANCE",
                 "",
             ),
-        )
+        ),
     )
 }
 
@@ -78,7 +78,7 @@ tasks.withType<JavaCompile>().configureEach {
                 "-Amapstruct.disableBuilders=true",
                 "-Amapstruct.unmappedTargetPolicy=IGNORE", // Remove once all Account fields have
                 // been mapped
-            )
+            ),
         )
     }
 }

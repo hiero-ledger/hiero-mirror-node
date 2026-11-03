@@ -343,13 +343,12 @@ final class DomainUtilsTest {
     void parseProtobufSupportedTypes(String type) {
         // given
         final var bytes = TIMESTAMP.toByteArray();
-        final var input =
-                switch (type) {
-                    case "byte[]" -> bytes;
-                    case "ByteString" -> ByteString.copyFrom(bytes);
-                    case "InputStream" -> new ByteArrayInputStream(bytes);
-                    default -> throw new IllegalArgumentException(type);
-                };
+        final var input = switch (type) {
+            case "byte[]" -> bytes;
+            case "ByteString" -> ByteString.copyFrom(bytes);
+            case "InputStream" -> new ByteArrayInputStream(bytes);
+            default -> throw new IllegalArgumentException(type);
+        };
 
         // when
         final var actual = DomainUtils.parseProtobuf(input, Timestamp::parseFrom);
@@ -371,14 +370,13 @@ final class DomainUtilsTest {
     @ValueSource(strings = {"String", "ByteBuffer", "Integer", "List"})
     void parseProtobufUnsupportedType(String type) {
         // given
-        final var input =
-                switch (type) {
-                    case "String" -> "not protobuf";
-                    case "ByteBuffer" -> ByteBuffer.allocate(8);
-                    case "Integer" -> 42;
-                    case "List" -> List.of();
-                    default -> throw new IllegalArgumentException(type);
-                };
+        final var input = switch (type) {
+            case "String" -> "not protobuf";
+            case "ByteBuffer" -> ByteBuffer.allocate(8);
+            case "Integer" -> 42;
+            case "List" -> List.of();
+            default -> throw new IllegalArgumentException(type);
+        };
 
         // when, then
         assertThatThrownBy(() -> DomainUtils.parseProtobuf(input, Timestamp::parseFrom))

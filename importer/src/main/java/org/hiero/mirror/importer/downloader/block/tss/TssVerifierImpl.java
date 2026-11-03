@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.downloader.block.tss;
 
 import com.hedera.cryptography.tss.TSS;
-import com.hedera.cryptography.wraps.WRAPSVerificationKey;
 import jakarta.inject.Named;
 import java.util.Objects;
 import java.util.Optional;
@@ -62,34 +61,13 @@ final class TssVerifierImpl implements TssVerifier {
         return Objects.requireNonNull(ledger.get())
                 .or(() -> {
                     final var resolved = Optional.ofNullable(ledgerOnChain)
-                            .or(ledgerRepository::findTopByOrderByConsensusTimestampDesc)
+                            .or(ledgerRepository::findLatest)
                             .or(() -> Optional.ofNullable(ledgerConfig))
-                            .map(l -> {
-                                onLedgerSet(l);
-                                return l;
-                            })
                             .or(() -> Optional.of(EMPTY));
                     ledger.set(resolved);
                     return resolved;
                 })
                 .filter(l -> l != EMPTY)
-                .orElseThrow(() -> new IllegalStateException(
-                        "Ledger id, history proof verification key and node contributions not found"));
-    }
-
-    private void onLedgerSet(final Ledger ledger) {
-        final int addressBookSize = ledger.getNodeContributions().size();
-        final byte[][] schnorrPublicKeys = new byte[addressBookSize][];
-        final long[] nodeIds = new long[addressBookSize];
-        final long[] weights = new long[addressBookSize];
-        for (int i = 0; i < addressBookSize; i++) {
-            final var nodeContribution = ledger.getNodeContributions().get(i);
-            schnorrPublicKeys[i] = nodeContribution.getHistoryProofKey();
-            nodeIds[i] = nodeContribution.getNodeId();
-            weights[i] = nodeContribution.getWeight();
-        }
-
-        TSS.setAddressBook(schnorrPublicKeys, weights, nodeIds);
-        WRAPSVerificationKey.setCurrentKey(ledger.getHistoryProofVerificationKey());
+                .orElseThrow(() -> new IllegalStateException("Ledger id not found"));
     }
 }

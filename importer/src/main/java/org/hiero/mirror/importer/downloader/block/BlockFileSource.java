@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import static org.hiero.mirror.importer.downloader.block.scheduler.Scheduler.EARLIEST_AVAILABLE_BLOCK_NUMBER;
 
-import com.hedera.hapi.block.stream.protoc.Block;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
@@ -14,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
+import org.hiero.block.internal.protoc.BlockUnparsed;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
@@ -106,10 +106,10 @@ final class BlockFileSource extends AbstractBlockSource {
     private BlockStream getBlockStream(final StreamFileData blockFileData) throws IOException {
         try (final var inputStream = blockFileData.getInputStream()) {
             final int maxSize = (int) commonDownloaderProperties.getMaxSize().toBytes();
-            final var block = parseProtobuf(inputStream, Block::parseFrom, maxSize);
+            final var block = parseProtobuf(inputStream, BlockUnparsed::parseFrom, maxSize);
             final byte[] bytes = blockFileData.getBytes();
             return new BlockStream(
-                    block.getItemsList(),
+                    block.getBlockItemsList(),
                     System.currentTimeMillis(),
                     bytes,
                     blockFileData.getFilename(),

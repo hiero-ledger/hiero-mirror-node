@@ -3,6 +3,8 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.migration.GasConsumedMigrationTest.createMigrationContractResult;
+import static org.hiero.mirror.importer.migration.GasConsumedMigrationTest.persistMigrationContractResult;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Array;
@@ -209,12 +211,10 @@ final class FixContractTransactionContractZeroTest extends ImporterIntegrationTe
     }
 
     private void persistContractResult(final long consensusTimestamp, final long contractId, final long payerId) {
-        domainBuilder
-                .contractResult()
-                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
-                        .contractId(contractId)
-                        .payerAccountId(EntityId.of(payerId)))
-                .persist();
+        final var contractResult = createMigrationContractResult(
+                consensusTimestamp, domainBuilder.entityId(), contractId, null, domainBuilder);
+        contractResult.setPayerAccountId(EntityId.of(payerId));
+        persistMigrationContractResult(contractResult, jdbcOperations);
     }
 
     private void persistContractTransaction(

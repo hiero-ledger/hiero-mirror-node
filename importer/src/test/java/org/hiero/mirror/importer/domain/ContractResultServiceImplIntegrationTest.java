@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.domain;
 
 import static com.hedera.services.stream.proto.ContractAction.RecipientCase.RECIPIENT_NOT_SET;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
@@ -605,6 +606,71 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
     }
 
     @Test
+    void processContractActionZeroAddressRecipient() {
+        final var recordItem = recordItemBuilder
+                .contractCall()
+                .sidecarRecords(s -> s.get(1)
+                        .getActionsBuilder()
+                        .getContractActionsBuilder(0)
+                        .setRecipientContract(ContractID.newBuilder().setContractNum(0L)))
+                .sidecarRecords(s -> s.get(1)
+                        .getActionsBuilder()
+                        .getContractActionsBuilder(1)
+                        .setRecipientAccount(AccountID.newBuilder()
+                                .setShardNum(1L)
+                                .setRealmNum(2L)
+                                .setAccountNum(0L)))
+                .build();
+        final var targetedAddress = recordItem
+                .getSidecarRecords()
+                .get(1)
+                .getActions()
+                .getContractActions(2)
+                .getTargetedAddress()
+                .toByteArray();
+
+        process(recordItem);
+
+        assertContractActions(recordItem);
+        assertThat(entityRepository.count()).isZero();
+        assertThat(contractActionRepository.findAll())
+                .extracting(
+                        ContractAction::getIndex,
+                        ContractAction::getRecipientAccount,
+                        ContractAction::getRecipientContract,
+                        ContractAction::getRecipientAddress)
+                .containsExactlyInAnyOrder(
+                        tuple(0, null, null, new byte[20]),
+                        tuple(1, null, null, new byte[20]),
+                        tuple(2, null, null, targetedAddress));
+    }
+
+    @Test
+    void processContractActionAliasRecipientNotZeroAddress() {
+        final var recordItem = recordItemBuilder
+                .contractCall()
+                .sidecarRecords(s -> s.get(1)
+                        .getActionsBuilder()
+                        .getContractActionsBuilder(0)
+                        .setRecipientContract(ContractID.newBuilder().setEvmAddress(recordItemBuilder.bytes(20))))
+                .sidecarRecords(s -> s.get(1)
+                        .getActionsBuilder()
+                        .removeContractActions(2)
+                        .getContractActionsBuilder(1)
+                        .setRecipientAccount(AccountID.newBuilder().setAlias(recordItemBuilder.bytes(20))))
+                .build();
+
+        process(recordItem);
+
+        assertThat(contractActionRepository.findAll())
+                .hasSize(2)
+                .allSatisfy(a -> assertThat(a)
+                        .returns(null, ContractAction::getRecipientAccount)
+                        .returns(null, ContractAction::getRecipientContract)
+                        .returns(null, ContractAction::getRecipientAddress));
+    }
+
+    @Test
     void processContractActionInvalidResultData() {
         var recordItem = recordItemBuilder
                 .contractCall()
@@ -880,6 +946,7 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
                 .returns(parseContractResultLongs(functionResult.getGasUsed()), ContractResult::getGasUsed)
                 .returns(toBytes(failedInitcode), ContractResult::getFailedInitcode)
                 .returns(recordItem.getEvmTransactionIndex(), ContractResult::getTransactionIndex)
+                .returns(recordItem.isEvmChild(), ContractResult::isChild)
                 .returns(transaction.getNonce(), ContractResult::getTransactionNonce)
                 .returns(transaction.getResult(), ContractResult::getTransactionResult)
                 .extracting(ContractResult::getTransactionHash, InstanceOfAssertFactories.BYTE_ARRAY)

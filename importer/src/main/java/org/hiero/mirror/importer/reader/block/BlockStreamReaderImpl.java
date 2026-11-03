@@ -2,26 +2,33 @@
 
 package org.hiero.mirror.importer.reader.block;
 
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_FOOTER;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_HEADER;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_PROOF;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.EVENT_HEADER;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.RECORD_FILE;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.ROUND_HEADER;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.SIGNED_TRANSACTION;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.STATE_CHANGES;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRACE_DATA;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_OUTPUT;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.BLOCK_FOOTER;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.BLOCK_HEADER;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.BLOCK_PROOF;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.EVENT_HEADER;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.RECORD_FILE;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.ROUND_HEADER;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.SIGNED_TRANSACTION;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.STATE_CHANGES;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.TRACE_DATA;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.TRANSACTION_OUTPUT;
+import static org.hiero.block.internal.protoc.BlockItemUnparsed.ItemCase.TRANSACTION_RESULT;
 import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
 import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
 import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.CodedInputStream;
+import com.hedera.hapi.block.stream.input.protoc.RoundHeader;
+import com.hedera.hapi.block.stream.output.protoc.BlockFooter;
+import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
-import com.hedera.hapi.block.stream.protoc.BlockItem;
+import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
+import com.hedera.hapi.block.stream.protoc.BlockProof;
+import com.hedera.hapi.block.stream.protoc.RecordFileItem;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -37,6 +44,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.block.internal.protoc.BlockItemUnparsed;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
@@ -46,6 +54,7 @@ import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 import org.hiero.mirror.importer.reader.block.record.RecordFileItemReader;
 import org.jspecify.annotations.Nullable;
+import org.springframework.util.function.ThrowingFunction;
 
 @CustomLog
 @Named
@@ -66,16 +75,16 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 .size(blockStream.size())
                 .version(VERSION);
 
-        readBlockHeader(context);
+        final var blockHeader = readBlockHeader(context);
         final var recordFileItem = context.readBlockItemFor(RECORD_FILE);
         if (recordFileItem == null) {
             readRounds(context);
         }
 
-        readBlockFooter(context);
+        final var blockFooter = readBlockFooter(context);
         readBlockProof(context);
 
-        final byte[] rootHash = context.getBlockRootHashDigest().digest();
+        final byte[] rootHash = context.getBlockRootHashDigest().digest(blockHeader.getBlockTimestamp(), blockFooter);
         final var blockFile = blockFileBuilder
                 .hash(Hex.encodeHexString(rootHash))
                 .rawHash(rootHash)
@@ -103,7 +112,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         } else {
             final int recordFileVersion =
                     blockFile.getBlockProof().getSignedRecordFileProof().getVersion();
-            final var recordFile = recordFileItemReader.read(recordFileItem.getRecordFile(), recordFileVersion);
+            final var recordFile = recordFileItemReader.read(
+                    parseItem(recordFileItem.getRecordFile(), RecordFileItem::parseFrom), recordFileVersion);
             blockFile.setRecordFile(recordFile);
             recordFile.setLoadStart(blockStream.loadStart());
             recordFile.setPreviousWrappedRecordBlockHash(blockFile.getRawPreviousHash());
@@ -127,27 +137,39 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         return blockFile;
     }
 
-    private void readBlockFooter(final ReaderContext context) {
+    // The block items are already in memory, and the block's size has been limited when reading the block
+    private static <T> T parseItem(final ByteString item, final ThrowingFunction<CodedInputStream, T> parser) {
+        return parseProtobuf(item, parser, Integer.MAX_VALUE);
+    }
+
+    private BlockFooter readBlockFooter(final ReaderContext context) {
         final var blockItem = context.readBlockItemFor(BLOCK_FOOTER);
         if (blockItem == null) {
             throw new InvalidStreamFileException("Missing block footer in block " + context.getFilename());
         }
 
-        final var blockFooter = blockItem.getBlockFooter();
+        final var blockFooter = parseItem(blockItem.getBlockFooter(), BlockFooter::parseFrom);
         final byte[] previousHash = toBytes(blockFooter.getPreviousBlockRootHash());
         context.getBlockFile().previousHash(bytesToHex(previousHash)).rawPreviousHash(previousHash);
+        return blockFooter;
     }
 
-    private void readBlockHeader(final ReaderContext context) {
+    private BlockHeader readBlockHeader(final ReaderContext context) {
         final var blockItem = context.readBlockItemFor(BLOCK_HEADER);
         if (blockItem == null) {
             throw new InvalidStreamFileException("Missing block header in block " + context.getFilename());
         }
 
         final var blockFileBuilder = context.getBlockFile();
-        final var blockHeader = blockItem.getBlockHeader();
+        final var blockHeader = parseItem(blockItem.getBlockHeader(), BlockHeader::parseFrom);
         blockFileBuilder.blockHeader(blockHeader);
         blockFileBuilder.index(blockHeader.getNumber());
+
+        if (blockHeader.getNumber() == GENESIS_BLOCK_NUMBER) {
+            context.collectStateChanges();
+        }
+
+        return blockHeader;
     }
 
     private void readBlockProof(final ReaderContext context) {
@@ -156,7 +178,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             throw new InvalidStreamFileException("Missing block proof in block " + context.getFilename());
         }
 
-        final var blockProof = blockItem.getBlockProof();
+        final var blockProof = parseItem(blockItem.getBlockProof(), BlockProof::parseFrom);
         context.getBlockFile().blockProof(blockProof);
 
         // Read remaining blockProof block items. In a later release, implement support of multiple blockProof items,
@@ -177,15 +199,21 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
     }
 
     private void readInitialState(final ReaderContext context, final RecordFile recordFile) {
-        if (recordFile.getIndex() != GENESIS_BLOCK_NUMBER || context.getStateChangesList() == null) {
+        final var stateChangesItems = context.getStateChangesList();
+        if (recordFile.getIndex() != GENESIS_BLOCK_NUMBER || stateChangesItems == null) {
             return;
         }
 
-        recordFile.setInitialState(initialStateReader.read(context.getStateChangesList()));
+        final var stateChangesList = new ArrayList<StateChanges>(stateChangesItems.size());
+        for (final var stateChanges : stateChangesItems) {
+            stateChangesList.add(parseItem(stateChanges, StateChanges::parseFrom));
+        }
+
+        recordFile.setInitialState(initialStateReader.read(stateChangesList));
     }
 
     private void readSignedTransactions(final ReaderContext context) {
-        BlockItem protoBlockItem;
+        BlockItemUnparsed protoBlockItem;
         SignedTransactionInfo signedTransactionInfo;
 
         while ((signedTransactionInfo = context.getSignedTransaction()) != null) {
@@ -206,19 +234,21 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
             final var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
             while ((protoBlockItem = context.readBlockItemFor(TRANSACTION_OUTPUT)) != null) {
-                final var transactionOutput = protoBlockItem.getTransactionOutput();
+                final var transactionOutput =
+                        parseItem(protoBlockItem.getTransactionOutput(), TransactionOutput::parseFrom);
                 transactionOutputs.put(transactionOutput.getTransactionCase(), transactionOutput);
             }
 
             final var traceDataList = new ArrayList<TraceData>();
             while ((protoBlockItem = context.readBlockItemFor(TRACE_DATA)) != null) {
-                traceDataList.add(protoBlockItem.getTraceData());
+                traceDataList.add(parseItem(protoBlockItem.getTraceData(), TraceData::parseFrom));
             }
 
             final var stateChangesList = new ArrayList<StateChanges>();
-            final var transactionResult = transactionResultProtoBlockItem.getTransactionResult();
+            final var transactionResult =
+                    parseItem(transactionResultProtoBlockItem.getTransactionResult(), TransactionResult::parseFrom);
             while ((protoBlockItem = context.readBlockItemFor(STATE_CHANGES)) != null) {
-                final var stateChanges = protoBlockItem.getStateChanges();
+                final var stateChanges = parseItem(protoBlockItem.getStateChanges(), StateChanges::parseFrom);
                 if (!Objects.equals(transactionResult.getConsensusTimestamp(), stateChanges.getConsensusTimestamp())) {
                     break;
                 }
@@ -248,9 +278,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
     }
 
     private void readRounds(ReaderContext context) {
-        BlockItem blockItem;
+        BlockItemUnparsed blockItem;
         while ((blockItem = context.readBlockItemFor(ROUND_HEADER)) != null) {
-            context.getBlockFile().onNewRound(blockItem.getRoundHeader().getRoundNumber());
+            final var roundHeader = parseItem(blockItem.getRoundHeader(), RoundHeader::parseFrom);
+            context.getBlockFile().onNewRound(roundHeader.getRoundNumber());
             readEvents(context);
         }
     }
@@ -259,7 +290,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
     private static class ReaderContext {
 
         private BlockFile.BlockFileBuilder blockFile;
-        private List<BlockItem> blockItems;
+        private List<BlockItemUnparsed> blockItems;
         private BlockRootHashDigest blockRootHashDigest;
         private ConsensusTimestampTracker consensusTimestampTracker = new ConsensusTimestampTracker();
         private String filename;
@@ -286,15 +317,20 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         @Nullable
         private BlockTransaction lastChildTransaction;
 
+        // The serialized state changes in the genesis block, parsed only when the initial state is read
         @NonFinal
         @Nullable
-        private List<StateChanges> stateChangesList;
+        private List<ByteString> stateChangesList;
 
-        ReaderContext(final List<BlockItem> blockItems, final String filename) {
+        ReaderContext(final List<BlockItemUnparsed> blockItems, final String filename) {
             this.blockFile = BlockFile.builder();
             this.blockItems = blockItems;
             this.blockRootHashDigest = new BlockRootHashDigest();
             this.filename = filename;
+        }
+
+        void collectStateChanges() {
+            stateChangesList = new ArrayList<>();
         }
 
         @Nullable
@@ -319,7 +355,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
          * @return The matching block item, or null
          */
         @Nullable
-        BlockItem readBlockItemFor(final BlockItem.ItemCase itemCase) {
+        BlockItemUnparsed readBlockItemFor(final BlockItemUnparsed.ItemCase itemCase) {
             while (index < blockItems.size()) {
                 final var blockItem = blockItems.get(index);
                 final var currentItemCase = blockItem.getItemCase();
@@ -384,7 +420,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             }
         }
 
-        private static boolean shouldSkip(final BlockItem.ItemCase actual, final BlockItem.ItemCase expected) {
+        private static boolean shouldSkip(
+                final BlockItemUnparsed.ItemCase actual, final BlockItemUnparsed.ItemCase expected) {
             // Skip a statechanges block item when the expected type is not statechanges / trace data / transaction
             // output. Such a statechanges block item must be a non-transaction statechanges block item. When
             // the expected type is either trace data or transaction output, the statechanges block item should not be
@@ -395,13 +432,9 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                     && expected != TRANSACTION_OUTPUT;
         }
 
-        private void consumeBlockItem(final BlockItem blockItem) {
+        private void consumeBlockItem(final BlockItemUnparsed blockItem) {
             blockRootHashDigest.addBlockItem(blockItem);
             index++;
-
-            if (blockItem.hasBlockHeader() && blockItem.getBlockHeader().getNumber() == GENESIS_BLOCK_NUMBER) {
-                stateChangesList = new ArrayList<>();
-            }
 
             if (blockItem.hasStateChanges() && stateChangesList != null) {
                 stateChangesList.add(blockItem.getStateChanges());
