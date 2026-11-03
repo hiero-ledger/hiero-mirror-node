@@ -17,7 +17,7 @@ const FLYWAY_EXE_PATH = path.join('.', 'node_modules', 'flyway', FLYWAY_VERSION,
 const DB_NAME = 'mirror_node';
 const OWNER_USER = 'mirror_node';
 const DATABASE_IMAGES = {
-  v1: 'gcr.io/mirrornode/postgres:18-alpine',
+  v1: 'gcr.io/mirrornode/postgres:18.6-alpine3.24',
   v2: 'gcr.io/mirrornode/citus:14.0.0',
 };
 

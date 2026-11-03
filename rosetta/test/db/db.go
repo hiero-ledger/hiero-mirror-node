@@ -190,7 +190,7 @@ func createPostgresDb(pool *dockertest.Pool, network *dockertest.Network) (*dock
 	options := &dockertest.RunOptions{
 		Name:       getDbHostname(network.Network),
 		Repository: "gcr.io/mirrornode/postgres",
-		Tag:        "18-alpine",
+		Tag:        "18.6-alpine3.24",
 		Env:        env,
 		Mounts:     []string{toDockerMount(filepath.Join(moduleRoot, initScript), "/docker-entrypoint-initdb.d/init.sh")},
 		Networks:   []*dockertest.Network{network},
