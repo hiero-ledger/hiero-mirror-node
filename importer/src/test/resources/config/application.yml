@@ -118,6 +118,7 @@ server:
 spring:
   flyway:
     placeholders:
+      clprEnablementDate: "'1970-01-01'"
       hashShardCount: 2
       partitionStartDate: "'1970-01-01'"
       partitionTimeInterval: "'10 years'"

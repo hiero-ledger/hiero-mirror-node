@@ -10,6 +10,13 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -70,6 +77,43 @@ final class CompositeEntityListener implements EntityListener {
     @Override
     public void onAssessedCustomFee(AssessedCustomFee assessedCustomFee) throws ImporterException {
         onEach(EntityListener::onAssessedCustomFee, assessedCustomFee);
+    }
+
+    @Override
+    public void onClprChannel(ClprChannel clprChannel) throws ImporterException {
+        onEach(EntityListener::onClprChannel, clprChannel);
+    }
+
+    @Override
+    public void onClprChannelPendingCommitment(ClprChannelPendingCommitment clprChannelPendingCommitment)
+            throws ImporterException {
+        onEach(EntityListener::onClprChannelPendingCommitment, clprChannelPendingCommitment);
+    }
+
+    @Override
+    public void onClprConnector(ClprConnector clprConnector) throws ImporterException {
+        onEach(EntityListener::onClprConnector, clprConnector);
+    }
+
+    @Override
+    public void onClprConnectorPendingCommitment(ClprConnectorPendingCommitment clprConnectorPendingCommitment)
+            throws ImporterException {
+        onEach(EntityListener::onClprConnectorPendingCommitment, clprConnectorPendingCommitment);
+    }
+
+    @Override
+    public void onClprEndpointManifest(ClprEndpointManifest clprEndpointManifest) throws ImporterException {
+        onEach(EntityListener::onClprEndpointManifest, clprEndpointManifest);
+    }
+
+    @Override
+    public void onClprLedgerConfiguration(ClprLedgerConfiguration clprLedgerConfiguration) throws ImporterException {
+        onEach(EntityListener::onClprLedgerConfiguration, clprLedgerConfiguration);
+    }
+
+    @Override
+    public void onClprMessage(ClprMessage clprMessage) throws ImporterException {
+        onEach(EntityListener::onClprMessage, clprMessage);
     }
 
     @Override
