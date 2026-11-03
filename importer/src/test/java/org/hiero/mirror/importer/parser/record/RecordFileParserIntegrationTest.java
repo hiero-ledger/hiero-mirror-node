@@ -5,6 +5,10 @@ package org.hiero.mirror.importer.parser.record;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.DEFAULT_GAS_USED;
 
+import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprChannelStatus;
+import com.hederahashgraph.api.proto.java.ClprConnector;
+import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Timestamp;
@@ -15,6 +19,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
+import org.hiero.mirror.common.domain.clpr.AbstractClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
@@ -23,10 +29,17 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
+import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.domain.RecordFileBuilder;
+import org.hiero.mirror.importer.repository.ClprChannelPendingCommitmentRepository;
+import org.hiero.mirror.importer.repository.ClprChannelRepository;
+import org.hiero.mirror.importer.repository.ClprConnectorPendingCommitmentRepository;
+import org.hiero.mirror.importer.repository.ClprConnectorRepository;
+import org.hiero.mirror.importer.repository.ClprLedgerConfigurationRepository;
+import org.hiero.mirror.importer.repository.ClprMessageRepository;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.ContractResultRepository;
 import org.hiero.mirror.importer.repository.CryptoTransferRepository;
@@ -51,6 +64,12 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
     private static final ContractID HTS_PRECOMPILE_CONTRACT_ID =
             ContractID.newBuilder().setContractNum(0x167).build();
 
+    private final ClprChannelPendingCommitmentRepository clprChannelPendingCommitmentRepository;
+    private final ClprChannelRepository clprChannelRepository;
+    private final ClprConnectorPendingCommitmentRepository clprConnectorPendingCommitmentRepository;
+    private final ClprConnectorRepository clprConnectorRepository;
+    private final ClprLedgerConfigurationRepository clprLedgerConfigurationRepository;
+    private final ClprMessageRepository clprMessageRepository;
     private final CryptoTransferRepository cryptoTransferRepository;
     private final EntityRepository entityRepository;
     private final ReactiveRedisOperations<String, StreamMessage> reactiveRedisOperations;
@@ -371,6 +390,240 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .thenCancel()
                 .verify(java.time.Duration.ofMillis(2000L));
         assertRecordFile(recordFile);
+    }
+
+    @Test
+    void clprChannelLifecycle() {
+        // given -- register, complete, submit a bundle, then close, correlated by channel_id and
+        // ownership_commitment = keccak256(channel_id || public_key); exercises the in-batch upsert-merge logic
+        var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        var publicKey = DomainUtils.fromBytes(domainBuilder.bytes(64));
+        var ownershipCommitment = DomainUtils.fromBytes(
+                SignatureUtils.keccak256(DomainUtils.toBytes(channelId), DomainUtils.toBytes(publicKey)));
+
+        var register = recordItemBuilder
+                .clprRegisterChannel()
+                .transactionBody(b -> b.setOwnershipCommitment(ownershipCommitment))
+                .recordItem(r -> r.clprContextBuilder().clprChannelPendingCommitment(ownershipCommitment))
+                .build();
+
+        var clprChannelActive = ClprChannel.newBuilder()
+                .setChannelId(channelId)
+                .setChainId("hedera:mainnet")
+                .setStatus(ClprChannelStatus.ACTIVE)
+                .setNextMessageId(1)
+                .setAckedMessageId(0)
+                .setSentRunningHash(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setReceivedMessageId(0)
+                .setReceivedRunningHash(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setOwnershipCommitment(ownershipCommitment)
+                .setVerifierFingerprint(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .build();
+        var complete = recordItemBuilder
+                .clprCompleteChannel()
+                .transactionBody(b -> b.setChannelId(channelId).setPublicKey(publicKey))
+                .recordItem(r -> r.clprContextBuilder().clprChannel(clprChannelActive))
+                .build();
+
+        var clprChannelAfterBundle =
+                clprChannelActive.toBuilder().setNextMessageId(2).build();
+        var submitBundle = recordItemBuilder
+                .clprSubmitBundle()
+                .transactionBody(b -> b.setChannelId(channelId))
+                .recordItem(r -> r.clprContextBuilder().clprChannel(clprChannelAfterBundle))
+                .build();
+
+        var clprChannelClosing = clprChannelAfterBundle.toBuilder()
+                .setStatus(ClprChannelStatus.CLOSING)
+                .build();
+        var closeChannel = recordItemBuilder
+                .clprCloseChannel()
+                .transactionBody(b -> b.setChannelId(channelId))
+                .recordItem(r -> r.clprContextBuilder().clprChannel(clprChannelClosing))
+                .build();
+
+        var recordFile = recordFileWithItems(List.of(register, complete, submitBundle, closeChannel), null);
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertRecordFile(recordFile);
+
+        var pendingCommitment = clprChannelPendingCommitmentRepository
+                .findById(DomainUtils.toBytes(ownershipCommitment))
+                .orElseThrow();
+        assertThat(pendingCommitment.getStatus()).isEqualTo(ClprPendingCommitmentStatus.COMPLETED);
+
+        var channel =
+                clprChannelRepository.findById(DomainUtils.toBytes(channelId)).orElseThrow();
+        assertThat(channel.getStatus()).isEqualTo(org.hiero.mirror.common.domain.clpr.ClprChannelStatus.CLOSING);
+        assertThat(channel.getNextMessageId()).isEqualTo(2L);
+        // chainId was only set at completion time; merging the later submitBundle/close updates must carry it
+        // forward rather than null it out
+        assertThat(channel.getChainId()).isEqualTo("hedera:mainnet");
+
+        assertThat(clprMessageRepository.count()).isOne();
+    }
+
+    @Test
+    void clprConnectorLifecycle() {
+        // given -- register, complete, then deregister, correlated by connector_id and
+        // commitment = keccak256(connector_id || public_key); exercises the in-batch upsert-merge logic
+        var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        var publicKey = DomainUtils.fromBytes(domainBuilder.bytes(64));
+        var commitment = DomainUtils.fromBytes(
+                SignatureUtils.keccak256(DomainUtils.toBytes(connectorId), DomainUtils.toBytes(publicKey)));
+
+        var register = recordItemBuilder
+                .clprRegisterConnector()
+                .transactionBody(b -> b.setCommitment(commitment))
+                .recordItem(r -> r.clprContextBuilder().clprConnectorPendingCommitment(commitment))
+                .build();
+
+        var clprConnectorValue = ClprConnector.newBuilder()
+                .setConnectorId(connectorId)
+                .setChannelId(channelId)
+                .setConnectorContract(domainBuilder.entityNum(4000L).toContractID())
+                .build();
+        var complete = recordItemBuilder
+                .clprCompleteConnector()
+                .transactionBody(b ->
+                        b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
+                .recordItem(r -> r.clprContextBuilder().clprConnector(clprConnectorValue))
+                .build();
+
+        var stakeRecipient = domainBuilder.entityNum(5000L).toAccountID();
+        var deregister = recordItemBuilder
+                .clprDeregisterConnector()
+                .transactionBody(b ->
+                        b.setChannelId(channelId).setConnectorId(connectorId).setStakeRecipient(stakeRecipient))
+                .build();
+
+        var recordFile = recordFileWithItems(List.of(register, complete, deregister), null);
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertRecordFile(recordFile);
+
+        var pendingCommitment = clprConnectorPendingCommitmentRepository
+                .findById(DomainUtils.toBytes(commitment))
+                .orElseThrow();
+        assertThat(pendingCommitment.getStatus()).isEqualTo(ClprPendingCommitmentStatus.COMPLETED);
+
+        var connector = clprConnectorRepository
+                .findById(
+                        new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+                .orElseThrow();
+        assertThat(connector.getDeleted()).isTrue();
+        // connectorContractId was only set at completion time; merging the later deregister update must carry it
+        // forward rather than null it out
+        assertThat(connector.getConnectorContractId()).isNotNull();
+    }
+
+    @Test
+    void clprConnectorSendMessageThenSubmitBundlePatch() {
+        // given -- register + complete establish the connector, a ContractCall invoking the CLPR sendMessage system
+        // contract bumps in_flight_message_count, then a SubmitBundle reply slashes and decrements it; exercises the
+        // cross-handler (ContractCall + ClprSubmitBundle) same-batch merge onto one connector row
+        var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        var publicKey = DomainUtils.fromBytes(domainBuilder.bytes(64));
+        var commitment = DomainUtils.fromBytes(
+                SignatureUtils.keccak256(DomainUtils.toBytes(connectorId), DomainUtils.toBytes(publicKey)));
+
+        var register = recordItemBuilder
+                .clprRegisterConnector()
+                .transactionBody(b -> b.setCommitment(commitment))
+                .recordItem(r -> r.clprContextBuilder().clprConnectorPendingCommitment(commitment))
+                .build();
+
+        var clprConnectorComplete = ClprConnector.newBuilder()
+                .setConnectorId(connectorId)
+                .setChannelId(channelId)
+                .setConnectorContract(domainBuilder.entityNum(4100L).toContractID())
+                .setLockedStake(100_000_000L)
+                .build();
+        var complete = recordItemBuilder
+                .clprCompleteConnector()
+                .transactionBody(b ->
+                        b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
+                .recordItem(r -> r.clprContextBuilder().clprConnector(clprConnectorComplete))
+                .build();
+
+        // Each ClprConnector state change is the connector's full current state, not a delta, so later snapshots
+        // are derived from the prior one rather than built from scratch.
+        var clprConnectorAfterSend =
+                clprConnectorComplete.toBuilder().setInFlightMessageCount(1).build();
+        var sendMessage = recordItemBuilder
+                .contractCall()
+                .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of(clprConnectorAfterSend)))
+                .build();
+
+        var clprConnectorAfterBundle = clprConnectorAfterSend.toBuilder()
+                .setInFlightMessageCount(0)
+                .setSlashCount(1)
+                .setLockedStake(90_000_000L)
+                .build();
+        var submitBundle = recordItemBuilder
+                .clprSubmitBundle()
+                .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of(clprConnectorAfterBundle)))
+                .build();
+
+        var recordFile = recordFileWithItems(List.of(register, complete, sendMessage, submitBundle), null);
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertRecordFile(recordFile);
+
+        var connector = clprConnectorRepository
+                .findById(
+                        new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+                .orElseThrow();
+        assertThat(connector.getInFlightMessageCount()).isZero();
+        assertThat(connector.getSlashCount()).isOne();
+        assertThat(connector.getLockedStake()).isEqualTo(90_000_000L);
+        // connectorContractId was only set at completion time; merging the sendMessage/submitBundle patches must
+        // carry it forward rather than null it out
+        assertThat(connector.getConnectorContractId()).isNotNull();
+    }
+
+    @Test
+    void clprUpdateLedgerConfiguration() {
+        // given -- protocol_version/chain_id differ between the submitted body and the state change to confirm the
+        // persisted row comes from the state change, not the submitted body
+        var realConfiguration = ClprLedgerConfiguration.newBuilder()
+                .setProtocolVersion(1)
+                .setChainId("hedera:mainnet")
+                .setServiceAddress(DomainUtils.fromBytes(domainBuilder.bytes(20)))
+                .setInitialTrustAnchor(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setInitialTrustAnchorId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .build();
+        var updateLedgerConfiguration = recordItemBuilder
+                .clprUpdateLedgerConfiguration()
+                .transactionBody(
+                        b -> b.getConfigurationBuilder().setProtocolVersion(999).setChainId("submitted-garbage"))
+                .recordItem(r -> r.clprContextBuilder().clprLedgerConfiguration(realConfiguration))
+                .build();
+
+        var recordFile = recordFileWithItems(List.of(updateLedgerConfiguration), null);
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertRecordFile(recordFile);
+
+        var persisted = clprLedgerConfigurationRepository
+                .findById(updateLedgerConfiguration.getConsensusTimestamp())
+                .orElseThrow();
+        assertThat(persisted.getProtocolVersion()).isEqualTo(1L);
+        assertThat(persisted.getChainId()).isEqualTo("hedera:mainnet");
     }
 
     @Test
