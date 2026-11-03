@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 @Tag("migration")
 final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigrationTest<BackfillContractChildMigration> {
 
-    private static final long BATCH_INTERVAL = Duration.ofDays(1).toNanos();
+    private static final long BATCH_INTERVAL = Duration.ofHours(3).toNanos();
 
     @Getter
     private final BackfillContractChildMigration migration;

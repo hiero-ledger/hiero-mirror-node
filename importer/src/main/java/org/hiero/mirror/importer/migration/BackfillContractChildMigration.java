@@ -39,7 +39,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Named
 final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
 
-    static final String DEFAULT_BATCH_INTERVAL = "1d";
+    static final String DEFAULT_BATCH_INTERVAL = "3h";
 
     // 2021-11-01T00:00:00Z, parent_consensus_timestamp was introduced with HAPI v0.21 so nothing earlier is a child
     static final long PARENT_CONSENSUS_TIMESTAMP_START = 1635724800000000000L;
