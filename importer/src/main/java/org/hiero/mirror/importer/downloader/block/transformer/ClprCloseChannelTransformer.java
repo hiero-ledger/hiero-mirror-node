@@ -26,9 +26,7 @@ final class ClprCloseChannelTransformer extends AbstractBlockTransactionTransfor
         blockTransaction
                 .getStateChangeContext()
                 .getClprChannel(transactionBody.getChannelId())
-                .ifPresent(blockTransactionTransformation
-                        .recordItemBuilder()
-                        .clprContextBuilder()::clprChannel);
+                .ifPresent(blockTransactionTransformation.recordItemBuilder().clprContextBuilder()::clprChannel);
     }
 
     @Override

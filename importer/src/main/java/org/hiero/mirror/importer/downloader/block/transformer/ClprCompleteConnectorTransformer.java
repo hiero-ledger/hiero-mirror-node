@@ -29,9 +29,7 @@ final class ClprCompleteConnectorTransformer extends AbstractBlockTransactionTra
         blockTransaction
                 .getStateChangeContext()
                 .getClprConnector(key)
-                .ifPresent(blockTransactionTransformation
-                        .recordItemBuilder()
-                        .clprContextBuilder()::clprConnector);
+                .ifPresent(blockTransactionTransformation.recordItemBuilder().clprContextBuilder()::clprConnector);
     }
 
     @Override

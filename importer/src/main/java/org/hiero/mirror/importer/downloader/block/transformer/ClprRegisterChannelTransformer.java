@@ -22,9 +22,9 @@ final class ClprRegisterChannelTransformer extends AbstractBlockTransactionTrans
         blockTransaction
                 .getStateChangeContext()
                 .getClprChannelPendingCommitment()
-                .ifPresent(blockTransactionTransformation
-                        .recordItemBuilder()
-                        .clprContextBuilder()::clprChannelPendingCommitment);
+                .ifPresent(
+                        blockTransactionTransformation.recordItemBuilder().clprContextBuilder()
+                                ::clprChannelPendingCommitment);
     }
 
     @Override
