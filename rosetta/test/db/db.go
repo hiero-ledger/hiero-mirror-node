@@ -190,7 +190,7 @@ func createPostgresDb(pool *dockertest.Pool, network *dockertest.Network) (*dock
 	options := &dockertest.RunOptions{
 		Name:       getDbHostname(network.Network),
 		Repository: "gcr.io/mirrornode/postgres",
-		Tag:        "16-alpine",
+		Tag:        "18-alpine",
 		Env:        env,
 		Mounts:     []string{toDockerMount(filepath.Join(moduleRoot, initScript), "/docker-entrypoint-initdb.d/init.sh")},
 		Networks:   []*dockertest.Network{network},
@@ -212,7 +212,7 @@ func runFlywayMigration(pool *dockertest.Pool, network *dockertest.Network, para
 	// run the container with tty and entrypoint "bin/sh" so it will stay alive in background
 	options := &dockertest.RunOptions{
 		Repository: "flyway/flyway",
-		Tag:        "9",
+		Tag:        "13-alpine",
 		Entrypoint: []string{"/bin/sh"},
 		Networks:   []*dockertest.Network{network},
 		Mounts:     []string{toDockerMount(migrationPath, "/flyway/sql")},

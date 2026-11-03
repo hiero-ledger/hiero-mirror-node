@@ -5336,10 +5336,10 @@ components:
           summary: Example of id equals operator
           value: eq:0.0.200
         idGtOperator:
-          summary: Example of id greather than operator
+          summary: Example of id greater than operator
           value: gt:0.0.200
         idGteOperator:
-          summary: Example of id greather than or equal to operator
+          summary: Example of id greater than or equal to operator
           value: gte:0.0.200
         idLtOperator:
           summary: Example of id less than operator
@@ -5469,10 +5469,10 @@ components:
           summary: Example of id equals operator
           value: eq:0.0.200
         idGtOperator:
-          summary: Example of id greather than operator
+          summary: Example of id greater than operator
           value: gt:0.0.200
         idGteOperator:
-          summary: Example of id greather than or equal to operator
+          summary: Example of id greater than or equal to operator
           value: gte:0.0.200
         idLtOperator:
           summary: Example of id less than operator
@@ -5721,10 +5721,10 @@ components:
           summary: Example of id equals operator
           value: eq:0.0.200
         idGtOperator:
-          summary: Example of id greather than operator
+          summary: Example of id greater than operator
           value: gt:0.0.200
         idGteOperator:
-          summary: Example of id greather than or equal to operator
+          summary: Example of id greater than or equal to operator
           value: gte:0.0.200
         idLtOperator:
           summary: Example of id less than operator

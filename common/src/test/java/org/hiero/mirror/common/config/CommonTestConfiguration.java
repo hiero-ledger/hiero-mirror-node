@@ -102,7 +102,7 @@ public class CommonTestConfiguration {
 
     @Bean(POSTGRESQL)
     PostgreSQLContainer postgresql() {
-        var imageName = v2 ? "gcr.io/mirrornode/citus:12.1.1" : "gcr.io/mirrornode/postgres:16-alpine";
+        var imageName = v2 ? "gcr.io/mirrornode/citus:14.0.0" : "gcr.io/mirrornode/postgres:18-alpine";
         var dockerImageName = DockerImageName.parse(imageName).asCompatibleSubstituteFor("postgres");
         var logger = LoggerFactory.getLogger(PostgreSQLContainer.class);
         var excluded = "terminating connection due to unexpected postmaster exit";
