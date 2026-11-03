@@ -96,6 +96,7 @@ val flywayMigrate =
             mapOf(
                 "api-password" to "mirror_api_password",
                 "api-user" to "mirror_api_user",
+                "clprEnablementDate" to "'1970-01-01'",
                 "db-name" to Database.name,
                 "db-user" to Database.username,
                 "partitionStartDate" to "'1970-01-01'",

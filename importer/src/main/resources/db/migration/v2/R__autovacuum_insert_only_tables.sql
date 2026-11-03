@@ -27,6 +27,8 @@ language plpgsql;
 
 -- auto vacuum per each account balance snapshot if there are at least 10000 accounts' balance inserted
 select apply_vacuum_settings_for_partitioned_table('account_balance'::regclass, 'autovacuum_vacuum_insert_scale_factor=0, autovacuum_vacuum_insert_threshold=10000');
+-- CLPR is a new feature with no established production TPS yet
+select apply_vacuum_settings_for_partitioned_table('clpr_message'::regclass, 'autovacuum_vacuum_insert_scale_factor=0, autovacuum_vacuum_insert_threshold=6000000');
 -- based on 12 contract actions per smart contract transaction and max 300 TPS
 select apply_vacuum_settings_for_partitioned_table('contract_action'::regclass, 'autovacuum_vacuum_insert_scale_factor=0, autovacuum_vacuum_insert_threshold=2160000');
 -- base on average of 3 contract logs per smart contract transaction and max 300 TPS
