@@ -35,13 +35,19 @@ public enum BlockNodeFailure {
         return this == REJECTED || this == UNREACHABLE;
     }
 
-    public static BlockNodeFailure of(final Throwable throwable) {
+    public static BlockNodeFailure of(final @Nullable Throwable throwable) {
         for (var t = throwable; t != null; t = t.getCause()) {
             final var failure = switch (t) {
                 case InterruptedException _ -> IGNORED;
                 case StatusException e -> of(e.getStatus());
                 case StatusRuntimeException e -> of(e.getStatus());
                 case TimeoutException _ -> TIMEOUT;
+                // Transport failures, report as UNREACHABLE
+                case ClosedChannelException _,
+                        SocketException _,
+                        SSLException _,
+                        UnknownHostException _,
+                        UnresolvedAddressException _ -> UNREACHABLE;
                 default -> null;
             };
 
@@ -53,21 +59,12 @@ public enum BlockNodeFailure {
         return ERROR;
     }
 
-    private static boolean isTransportFailure(@Nullable final Throwable cause) {
-        // Netty reports a closed channel without its original cause as UNKNOWN
-        return cause instanceof ClosedChannelException
-                || cause instanceof SocketException
-                || cause instanceof SSLException
-                || cause instanceof UnknownHostException
-                || cause instanceof UnresolvedAddressException;
-    }
-
     private static BlockNodeFailure of(final Status status) {
         return switch (status.getCode()) {
             case CANCELLED -> status.getCause() instanceof InterruptedException ? IGNORED : ERROR;
             case DEADLINE_EXCEEDED, UNAVAILABLE -> UNREACHABLE;
             case PERMISSION_DENIED, UNAUTHENTICATED, UNIMPLEMENTED -> REJECTED;
-            case UNKNOWN -> isTransportFailure(status.getCause()) ? UNREACHABLE : ERROR;
+            case UNKNOWN -> of(status.getCause());
             default -> ERROR;
         };
     }

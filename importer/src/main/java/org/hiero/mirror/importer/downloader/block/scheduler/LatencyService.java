@@ -30,7 +30,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 @RequiredArgsConstructor
 public final class LatencyService implements AutoCloseable {
 
-    static final String PROBE_FAILURE_METRIC_NAME = "hiero.mirror.importer.block.latency.probe.failure";
+    static final String PROBE_FAILURE_METRIC_NAME = "hiero.mirror.importer.block.probe";
 
     private static final long MIN_FRESHNESS_RUNS = 3;
     private static final String NOT_AVAILABLE_KIND = "not_available";

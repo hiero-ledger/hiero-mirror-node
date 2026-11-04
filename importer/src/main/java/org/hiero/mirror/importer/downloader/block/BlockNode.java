@@ -273,7 +273,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             return;
         }
 
-        if ((!failure.isDeactivating() && errors.incrementAndGet() < streamProperties.getMaxSubscribeAttempts())) {
+        if ((!failure.isDeactivating() && errors.incrementAndGet() < streamProperties.getMaxAttempts())) {
             return;
         }
 
@@ -283,10 +283,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         if (failure.isDeactivating()) {
             log.warn("Marking connection to {} as inactive since the call is {}", this, failure);
         } else {
-            log.warn(
-                    "Marking connection to {} as inactive after {} attempts",
-                    this,
-                    streamProperties.getMaxSubscribeAttempts());
+            log.warn("Marking connection to {} as inactive after {} attempts", this, streamProperties.getMaxAttempts());
         }
     }
 

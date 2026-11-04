@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
-import jakarta.validation.constraints.AssertTrue;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
@@ -32,13 +32,14 @@ public final class LatencyServiceProperties {
     @NotNull
     private Duration timeout = Duration.ofSeconds(5);
 
-    @AssertTrue(message = "maxBackoff must be at least twice frequency")
-    private boolean isMaxBackoffValid() {
-        return maxBackoff.compareTo(frequency.multipliedBy(2)) >= 0;
-    }
+    @PostConstruct
+    public void validate() {
+        if (maxBackoff.compareTo(frequency.multipliedBy(2)) < 0) {
+            throw new IllegalArgumentException("maxBackoff must be at least twice frequency");
+        }
 
-    @AssertTrue(message = "timeout must be less than frequency")
-    private boolean isTimeoutValid() {
-        return timeout.compareTo(frequency) < 0;
+        if (timeout.compareTo(frequency) >= 0) {
+            throw new IllegalArgumentException("timeout must be less than frequency");
+        }
     }
 }

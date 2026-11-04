@@ -2,61 +2,44 @@
 
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import jakarta.validation.Validation;
-import jakarta.validation.ValidatorFactory;
 import java.time.Duration;
-import java.util.Set;
-import java.util.stream.Collectors;
-import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 final class LatencyServicePropertiesTest {
 
-    @AutoClose
-    private static final ValidatorFactory VALIDATOR_FACTORY = Validation.buildDefaultValidatorFactory();
-
     @Test
     void defaults() {
-        assertThat(violationPaths(new LatencyServiceProperties())).isEmpty();
+        assertThatCode(() -> new LatencyServiceProperties().validate()).doesNotThrowAnyException();
     }
 
     @ParameterizedTest
-    @CsvSource(textBlock = """
-            20, false
-            19, true
-            10, true
-            """)
-    void maxBackoff(final long maxBackoffSeconds, final boolean violated) {
+    @ValueSource(longs = {19, 10})
+    void maxBackoff(final long maxBackoffSeconds) {
         // given
         final var properties = new LatencyServiceProperties();
         properties.setMaxBackoff(Duration.ofSeconds(maxBackoffSeconds));
 
         // when, then
-        assertThat(violationPaths(properties).contains("maxBackoffValid")).isEqualTo(violated);
+        assertThatThrownBy(properties::validate)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("maxBackoff must be at least twice frequency");
     }
 
     @ParameterizedTest
-    @CsvSource(textBlock = """
-            9, false
-            10, true
-            11, true
-            """)
-    void timeout(final long timeoutSeconds, final boolean violated) {
+    @ValueSource(longs = {10, 11})
+    void timeout(final long timeoutSeconds) {
         // given
         final var properties = new LatencyServiceProperties();
         properties.setTimeout(Duration.ofSeconds(timeoutSeconds));
 
         // when, then
-        assertThat(violationPaths(properties).contains("timeoutValid")).isEqualTo(violated);
-    }
-
-    private static Set<String> violationPaths(final LatencyServiceProperties properties) {
-        return VALIDATOR_FACTORY.getValidator().validate(properties).stream()
-                .map(v -> v.getPropertyPath().toString())
-                .collect(Collectors.toSet());
+        assertThatThrownBy(properties::validate)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("timeout must be less than frequency");
     }
 }

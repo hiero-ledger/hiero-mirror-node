@@ -245,7 +245,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     @Test
     void getBlockOrEarliestOnErrorDeactivatesAfterMaxSubscribeAttempts(final Resources resources) {
         // given
-        final int maxSubscribeAttempts = streamProperties.getMaxSubscribeAttempts();
+        final int maxSubscribeAttempts = streamProperties.getMaxAttempts();
         final var errors = new ArrayList<>();
         for (int i = 0; i < maxSubscribeAttempts; i++) {
             errors.add(new StatusException(Status.INTERNAL));
@@ -290,7 +290,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     @Test
     void getBlockOrEarliestAndStreamErrorsShareCount(final Resources resources) {
         // given status errors one less than max subscribe attempts, interrupted by a successful status call
-        final int maxSubscribeAttempts = streamProperties.getMaxSubscribeAttempts();
+        final int maxSubscribeAttempts = streamProperties.getMaxAttempts();
         final var responses = new ArrayList<Object>();
         for (int i = 0; i < maxSubscribeAttempts - 1; i++) {
             responses.add(new StatusException(Status.INTERNAL));
@@ -444,7 +444,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE)));
 
         // when the probe fails more times than the max subscribe attempts
-        for (int i = 0; i < streamProperties.getMaxSubscribeAttempts() + 1; i++) {
+        for (int i = 0; i < streamProperties.getMaxAttempts() + 1; i++) {
             assertThatThrownBy(() -> node.probeBlock(0, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
         }
 
@@ -459,7 +459,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         var server = runBlockStreamSubscribeService(
                 resources,
                 ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE)));
-        for (int i = 0; i < streamProperties.getMaxSubscribeAttempts() - 1; i++) {
+        for (int i = 0; i < streamProperties.getMaxAttempts() - 1; i++) {
             assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                     .isInstanceOf(BlockStreamException.class);
         }
