@@ -38,6 +38,7 @@ public final class AcceptanceTestProperties {
     private static final String DEFAULT_OPERATOR_ID = "0.0.2";
 
     private final FeatureProperties featureProperties;
+    private final RestJavaProperties restJavaProperties;
     private final RestProperties restProperties;
     private final WebClientProperties webClientProperties;
     private final CommonProperties commonProperties;
