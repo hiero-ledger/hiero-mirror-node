@@ -39,15 +39,8 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         // given
         final var topLevel = transaction(0, null, false);
         final var topLevelResult = contractResult(topLevel);
-        final var topLevelLog = contractLog(topLevel.getConsensusTimestamp(), 0);
-        final var topLevelSyntheticLog = syntheticContractLog(topLevel.getConsensusTimestamp(), 1);
         final var evmChild = transaction(1, topLevel.getConsensusTimestamp(), false);
         final var evmChildResult = contractResult(evmChild);
-        final var evmChildLogs = new ContractLog[] {
-            contractLog(evmChild.getConsensusTimestamp(), 0),
-            contractLog(evmChild.getConsensusTimestamp(), 1),
-            syntheticContractLog(evmChild.getConsensusTimestamp(), 2)
-        };
         final var alreadyChild = transaction(2, topLevel.getConsensusTimestamp(), false);
         final var alreadyChildResult = domainBuilder
                 .contractResult()
@@ -60,13 +53,8 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         final var hookTrigger = transaction(0, null, false);
         final var hookExecution = transaction(1, hookTrigger.getConsensusTimestamp(), false);
         final var hookResult = hookContractResult(hookExecution);
-        final var hookLogs = new ContractLog[] {
-            contractLog(hookExecution.getConsensusTimestamp(), 0),
-            syntheticContractLog(hookExecution.getConsensusTimestamp(), 1)
-        };
         final var hookDispatched = transaction(2, hookTrigger.getConsensusTimestamp(), false);
         final var hookDispatchedResult = contractResult(hookDispatched);
-        final var hookDispatchedLog = contractLog(hookDispatched.getConsensusTimestamp(), 0);
 
         // a sibling without a contract result breaks the hook chain
         final var brokenHookTrigger = transaction(0, null, false);
@@ -86,7 +74,6 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         final var batch = transaction(0, null, false);
         final var batchInner = transaction(0, batch.getConsensusTimestamp(), false);
         final var batchInnerResult = contractResult(batchInner);
-        final var batchInnerLog = contractLog(batchInner.getConsensusTimestamp(), 0);
 
         // a user-signed atomic batch inner call after a hook chain isn't an effect of the hook
         final var hookBatch = transaction(0, null, false);
@@ -97,14 +84,12 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         final var hookBatchDispatchedResult = contractResult(hookBatchDispatched);
         final var hookBatchInnerCall = transaction(0, hookBatch.getConsensusTimestamp(), false);
         final var hookBatchInnerCallResult = contractResult(hookBatchInnerCall);
-        final var hookBatchInnerCallLog = contractLog(hookBatchInnerCall.getConsensusTimestamp(), 0);
 
         final var scheduledExecution = transaction(0, null, true);
         final var scheduledResult = contractResult(scheduledExecution);
         final var recurringScheduledExecution = transaction(1, null, true);
         final var recurringScheduledResult = contractResult(recurringScheduledExecution);
         final var orphanResult = contractResult(domainBuilder.timestamp(), 0);
-        final var orphanLog = contractLog(orphanResult.getConsensusTimestamp(), 0);
 
         // when
         runMigration();
@@ -112,31 +97,19 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
 
         // then
         assertChild(topLevelResult, false);
-        assertChild(topLevelLog, false);
-        assertChild(topLevelSyntheticLog, false);
         assertChild(evmChildResult, true);
-        for (final var log : evmChildLogs) {
-            assertChild(log, true);
-        }
         assertChild(alreadyChildResult, true);
         assertChild(hookResult, false);
-        for (final var log : hookLogs) {
-            assertChild(log, false);
-        }
         assertChild(hookDispatchedResult, true);
-        assertChild(hookDispatchedLog, true);
         assertChild(afterBrokenChainResult, false);
         assertChild(scheduledCallResult, false);
         assertChild(scheduledCallEffectResult, true);
         assertChild(batchInnerResult, false);
-        assertChild(batchInnerLog, false);
         assertChild(hookBatchDispatchedResult, true);
         assertChild(hookBatchInnerCallResult, false);
-        assertChild(hookBatchInnerCallLog, false);
         assertChild(scheduledResult, false);
         assertChild(recurringScheduledResult, false);
         assertChild(orphanResult, false);
-        assertChild(orphanLog, false);
     }
 
     @Test
@@ -144,10 +117,8 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         // given
         final var topLevel = transaction(0, null, false);
         final var topLevelResult = contractResult(topLevel);
-        final var topLevelLog = contractLog(topLevel.getConsensusTimestamp(), 0);
         final var evmChild = transaction(1, topLevel.getConsensusTimestamp(), false);
         final var evmChildResult = contractResult(evmChild);
-        final var evmChildLog = contractLog(evmChild.getConsensusTimestamp(), 0);
         final var scheduleSign = transaction(0, null, false);
         final var scheduledCall = transaction(0, null, true);
         final var scheduledCallResult = contractResult(scheduledCall);
@@ -156,7 +127,6 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         final var batch = transaction(0, null, false);
         final var batchInner = transaction(0, batch.getConsensusTimestamp(), false);
         final var batchInnerResult = contractResult(batchInner);
-        final var batchInnerLog = contractLog(batchInner.getConsensusTimestamp(), 0);
 
         // a later window with a hook call is walked by parent, earlier windows only use the nonce
         final long hookTriggerTimestamp = domainBuilder.timestamp() + BATCH_INTERVAL * 3;
@@ -170,13 +140,10 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
 
         // then
         assertChild(topLevelResult, false);
-        assertChild(topLevelLog, false);
         assertChild(evmChildResult, true);
-        assertChild(evmChildLog, true);
         assertChild(scheduledCallResult, false);
         assertChild(scheduledCallEffectResult, true);
         assertChild(batchInnerResult, false);
-        assertChild(batchInnerLog, false);
         assertChild(hookResult, false);
     }
 
@@ -251,9 +218,9 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         runMigration();
         waitForCompletion();
 
-        // then
+        // then contract logs are left alone since they always belong to the top level EVM transaction
         assertChild(contractResult, true);
-        assertChild(contractLog, true);
+        assertChild(contractLog, false);
     }
 
     @Test
@@ -440,16 +407,6 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
                         .consensusTimestamp(transaction.getConsensusTimestamp())
                         .contractId(domainBuilder.entityNum(HOOK_CONTRACT_NUM).getId())
                         .transactionNonce(transaction.getNonce()))
-                .persist();
-    }
-
-    private ContractLog syntheticContractLog(final long consensusTimestamp, final int index) {
-        return domainBuilder
-                .contractLog()
-                .customize(cl -> cl.child(false)
-                        .consensusTimestamp(consensusTimestamp)
-                        .index(index)
-                        .synthetic(true))
                 .persist();
     }
 

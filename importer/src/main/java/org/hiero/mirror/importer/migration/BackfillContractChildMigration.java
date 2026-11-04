@@ -52,7 +52,6 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
               and consensus_timestamp <= :consensusEnd
               and transaction_nonce > 0
               and not child
-            returning consensus_timestamp
             """;
 
     private static final String BACKFILL_CHILD_BY_PARENT_SQL = """
@@ -61,15 +60,6 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
             where consensus_timestamp >= :consensusStart
               and consensus_timestamp <= :consensusEnd
               and not child
-              and consensus_timestamp = any(cast(:childTimestamps as bigint[]))
-            returning consensus_timestamp
-            """;
-
-    private static final String BACKFILL_CHILD_CONTRACT_LOG_SQL = """
-            update contract_log
-            set child = true
-            where consensus_timestamp >= :consensusStart
-              and consensus_timestamp <= :consensusEnd
               and consensus_timestamp = any(cast(:childTimestamps as bigint[]))
             """;
 
@@ -213,29 +203,22 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
         final var params = new MapSqlParameterSource()
                 .addValue("consensusStart", consensusStart)
                 .addValue("consensusEnd", consensusEnd);
-        List<Long> updatedResults = List.of();
+        int updatedResults = 0;
         if (consensusEnd < firstHookOrScheduleTimestamp) {
-            updatedResults = jdbcOperations.queryForList(BACKFILL_CHILD_BY_NONCE_SQL, params, Long.class);
+            updatedResults = jdbcOperations.update(BACKFILL_CHILD_BY_NONCE_SQL, params);
         } else {
             final var childTimestamps = findChildTimestamps(consensusStart, consensusEnd);
             if (!childTimestamps.isEmpty()) {
                 params.addValue("childTimestamps", toArray(childTimestamps));
-                updatedResults = jdbcOperations.queryForList(BACKFILL_CHILD_BY_PARENT_SQL, params, Long.class);
+                updatedResults = jdbcOperations.update(BACKFILL_CHILD_BY_PARENT_SQL, params);
             }
         }
 
-        // A contract log is only missing the child flag when the contract result at its timestamp was too
-        int updatedLogs = 0;
-        if (!updatedResults.isEmpty()) {
-            params.addValue("childTimestamps", toArray(updatedResults));
-            updatedLogs = jdbcOperations.update(BACKFILL_CHILD_CONTRACT_LOG_SQL, params);
-        }
-
-        if (!updatedResults.isEmpty() || updatedLogs > 0) {
+        // Contract logs are always attached to the top level EVM transaction, so they're never a child
+        if (updatedResults > 0) {
             log.info(
-                    "Backfilled child column for {} contract_result and {} contract_log rows in range [{}, {}]",
-                    updatedResults.size(),
-                    updatedLogs,
+                    "Backfilled child column for {} contract_result rows in range [{}, {}]",
+                    updatedResults,
                     consensusStart,
                     consensusEnd);
         }
