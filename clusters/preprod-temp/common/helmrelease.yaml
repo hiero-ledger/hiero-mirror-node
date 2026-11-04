@@ -1,0 +1,111 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: mirror
+  namespace: common
+spec:
+  chart:
+    spec:
+      chart: charts/hedera-mirror-common
+      reconcileStrategy: Revision
+      sourceRef:
+        kind: GitRepository
+        name: hedera-mirror-node
+      valuesFiles:
+        - charts/hedera-mirror-common/values.yaml
+        - charts/hedera-mirror-common/values-v2.yaml
+  dependsOn:
+    - name: testkube
+      namespace: testkube
+  driftDetection:
+    mode: enabled
+    ignore:
+      - paths: [""]
+        target:
+          kind: (MutatingWebhookConfiguration|SGConfig|ValidatingWebhookConfiguration)
+  install:
+    crds: CreateReplace
+  interval: 1m
+  timeout: 10m
+  upgrade:
+    cleanupOnFail: true
+  valuesFrom:
+    - kind: Secret
+      name: mirror
+  values:
+    hyperdiskStorageClass:
+      enabled: false
+    loki:
+      loki:
+        structuredConfig:
+          ruler:
+            external_url: https://mirrornode.grafana.net
+      singleBinary:
+        persistence:
+          storageClass: hyperdisk-balanced
+    minio:
+      enabled: false
+    prometheus:
+      alertmanager:
+        enabled: false
+      prometheus:
+        prometheusSpec:
+          externalLabels:
+            cluster: preprod-temp
+            env_category: non-prod
+          remoteWrite:
+            - basicAuth:
+                password:
+                  key: password
+                  name: grafana-cloud
+                username:
+                  key: username
+                  name: grafana-cloud
+              url: https://prometheus-blocks-prod-us-central1.grafana.net/api/prom/push
+              writeRelabelConfigs:
+                - action: keep
+                  regex: .*(graphql|grpc|importer|monitor|rest|restjava|rosetta|traefik|web3);.+|.*;kube_pod_status_ready
+                  separator: ;
+                  sourceLabels: [job, __name__]
+                - action: drop
+                  regex: (api_.+_bucket|executor.*|lettuce_.*_bucket|traefik_.+_bucket)
+                  sourceLabels: [__name__]
+          replicaExternalLabelName: __replica__
+          resources:
+            limits:
+              memory: 8Gi
+            requests:
+              memory: 4Gi
+          storageSpec:
+            volumeClaimTemplate:
+              spec:
+                resources:
+                  requests:
+                    storage: 250Gi
+                storageClassName: hyperdisk-balanced
+    testkube:
+      enabled: true
+      test:
+        artifactStorageClassName: hyperdisk-balanced
+        gitBranch: main
+        target:
+          namespace: performance-citus
+    traefik:
+      service:
+        annotations:
+          cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mirrornode-preprod-temp"} } }'
+    zfs:
+      coordinator:
+        initialDiskSize: 400GB
+      init:
+        disk:
+          coordinator:
+            provisionedIops: 4000
+            provisionedThroughput: 140
+          type: hyperdisk-balanced
+          worker:
+            provisionedIops: 7000
+            provisionedThroughput: 180
+        diskPrefix: preprod
+        serviceAccount:
+          iAmName: citus-zfs-preprod-sa@mirrornode-non-prod-314918.iam.gserviceaccount.com

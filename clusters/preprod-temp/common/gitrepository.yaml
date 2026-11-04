@@ -1,0 +1,13 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: hedera-mirror-node
+  namespace: common
+spec:
+  ignore: |
+    /*
+    !/charts
+  interval: 1h0m0s
+  ref:
+    commit: 485e8d27292818e277acbb933c7f821b64c66a76
+  url: https://github.com/hiero-ledger/hiero-mirror-node.git
