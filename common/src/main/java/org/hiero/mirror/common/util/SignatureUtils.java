@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.common.util;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Arrays;
 import lombok.experimental.UtilityClass;
 import org.bouncycastle.crypto.digests.KeccakDigest;
@@ -33,9 +35,8 @@ public final class SignatureUtils {
     public static byte[] keccak256(byte[]... parts) {
         final var digest = new KeccakDigest(256);
         for (final var part : parts) {
-            if (part != null) {
-                digest.update(part, 0, part.length);
-            }
+            requireNonNull(part, "part must not be null");
+            digest.update(part, 0, part.length);
         }
 
         final var hash = new byte[32];

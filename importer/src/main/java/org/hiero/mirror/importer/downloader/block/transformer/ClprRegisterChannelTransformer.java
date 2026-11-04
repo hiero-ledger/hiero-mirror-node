@@ -7,14 +7,15 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 /**
  * Reads the {@code clpr_pending_commitments} map-update's own key off {@code StateChangeContext} and populates
- * {@link org.hiero.mirror.common.domain.transaction.RecordItem#getClprChannelPendingCommitment()}.
+ * {@link org.hiero.mirror.common.domain.transaction.RecordItem#getClprContext()}'s
+ * {@link org.hiero.mirror.common.domain.transaction.ClprRecordContext#getClprChannelPendingCommitment()}.
  */
 @Named
 final class ClprRegisterChannelTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        final var blockTransaction = blockTransactionTransformation.blockTransaction();
         if (!blockTransaction.isSuccessful()) {
             return;
         }

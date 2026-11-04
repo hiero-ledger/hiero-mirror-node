@@ -33,9 +33,9 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
             return;
         }
 
-        var transactionBody = recordItem.getTransactionBody().getClprCompleteConnector();
-        var clprContext = recordItem.getClprContext();
-        var clprConnectorValue = clprContext != null ? clprContext.getClprConnector() : null;
+        final var transactionBody = recordItem.getTransactionBody().getClprCompleteConnector();
+        final var clprContext = recordItem.getClprContext();
+        final var clprConnectorValue = clprContext != null ? clprContext.getClprConnector() : null;
         if (ClprStateChangeHandler.isMissingStateChange(
                 clprConnectorValue,
                 "clpr_connector_value",
@@ -44,12 +44,12 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
             return;
         }
 
-        long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var connectorId = DomainUtils.toBytes(clprConnectorValue.getConnectorId());
-        var publicKey = DomainUtils.toBytes(transactionBody.getPublicKey());
-        var connectorContractId = EntityId.of(clprConnectorValue.getConnectorContract());
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var connectorId = DomainUtils.toBytes(clprConnectorValue.getConnectorId());
+        final var publicKey = DomainUtils.toBytes(transactionBody.getPublicKey());
+        final var connectorContractId = EntityId.of(clprConnectorValue.getConnectorContract());
 
-        var connector = ClprConnector.builder()
+        final var connector = ClprConnector.builder()
                 .channelId(DomainUtils.toBytes(clprConnectorValue.getChannelId()))
                 .connectorId(connectorId)
                 .connectorContractId(connectorContractId)
@@ -69,7 +69,7 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
         recordItem.addEntityId(connectorContractId);
 
         // ClprConnector has no commitment field (unlike Channel), so this must be recomputed, not read off state.
-        var commitment = ClprConnectorPendingCommitment.builder()
+        final var commitment = ClprConnectorPendingCommitment.builder()
                 .commitment(SignatureUtils.keccak256(connectorId, publicKey))
                 .status(ClprPendingCommitmentStatus.COMPLETED)
                 .timestampRange(Range.atLeast(consensusTimestamp))

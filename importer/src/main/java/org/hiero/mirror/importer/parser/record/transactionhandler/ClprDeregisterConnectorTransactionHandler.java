@@ -30,12 +30,12 @@ class ClprDeregisterConnectorTransactionHandler extends AbstractTransactionHandl
             return;
         }
 
-        var transactionBody = recordItem.getTransactionBody().getClprDeregisterConnector();
-        long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var stakeRecipientId = EntityId.of(transactionBody.getStakeRecipient());
+        final var transactionBody = recordItem.getTransactionBody().getClprDeregisterConnector();
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var stakeRecipientId = EntityId.of(transactionBody.getStakeRecipient());
 
         // Mirror-node-only soft-delete; consensus removes the Connector from its map entirely
-        var connector = ClprConnector.builder()
+        final var connector = ClprConnector.builder()
                 .channelId(DomainUtils.toBytes(transactionBody.getChannelId()))
                 .connectorId(DomainUtils.toBytes(transactionBody.getConnectorId()))
                 .deleted(true)

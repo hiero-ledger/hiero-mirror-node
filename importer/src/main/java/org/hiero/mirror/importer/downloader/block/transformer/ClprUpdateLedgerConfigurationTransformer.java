@@ -15,7 +15,7 @@ final class ClprUpdateLedgerConfigurationTransformer extends AbstractBlockTransa
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        final var blockTransaction = blockTransactionTransformation.blockTransaction();
         if (!blockTransaction.isSuccessful()) {
             return;
         }

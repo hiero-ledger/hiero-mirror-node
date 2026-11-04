@@ -28,8 +28,8 @@ class ClprMaintenanceTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        var clprContext = recordItem.getClprContext();
-        var manifest = clprContext != null ? clprContext.getClprEndpointManifest() : null;
+        final var clprContext = recordItem.getClprContext();
+        final var manifest = clprContext != null ? clprContext.getClprEndpointManifest() : null;
         if (ClprStateChangeHandler.isMissingStateChange(
                 manifest, "clpr_endpoint_manifest_value", "ClprMaintenance", recordItem.getConsensusTimestamp())) {
             return;

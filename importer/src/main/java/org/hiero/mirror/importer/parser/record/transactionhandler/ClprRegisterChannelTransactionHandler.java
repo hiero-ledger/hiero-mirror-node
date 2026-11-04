@@ -30,8 +30,8 @@ class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        var clprContext = recordItem.getClprContext();
-        var ownershipCommitment = clprContext != null ? clprContext.getClprChannelPendingCommitment() : null;
+        final var clprContext = recordItem.getClprContext();
+        final var ownershipCommitment = clprContext != null ? clprContext.getClprChannelPendingCommitment() : null;
         if (ClprStateChangeHandler.isMissingStateChange(
                 ownershipCommitment,
                 "clpr_pending_commitments",
@@ -40,11 +40,11 @@ class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
 
         // status must be set explicitly: a swept commitment can be legitimately re-registered, and leaving it
         // unset would let the upsert coalesce preserve the prior sweep's DELETED status
-        var commitment = ClprChannelPendingCommitment.builder()
+        final var commitment = ClprChannelPendingCommitment.builder()
                 .createdTimestamp(consensusTimestamp)
                 .status(ClprPendingCommitmentStatus.OPEN)
                 .ownershipCommitment(DomainUtils.toBytes(ownershipCommitment))

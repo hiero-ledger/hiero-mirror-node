@@ -31,14 +31,14 @@ class ClprCloseChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var clprContext = recordItem.getClprContext();
-        var clprChannelValue = clprContext != null ? clprContext.getClprChannel() : null;
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var clprContext = recordItem.getClprContext();
+        final var clprChannelValue = clprContext != null ? clprContext.getClprChannel() : null;
         if (clprChannelValue == null) {
             // No Channel exists yet for this channel_id -- an admin sweep of an abandoned commitment, not a real
             // closure; the only branch that ever marks a commitment DELETED
-            var transactionBody = recordItem.getTransactionBody().getClprCloseChannel();
-            var commitment = ClprChannelPendingCommitment.builder()
+            final var transactionBody = recordItem.getTransactionBody().getClprCloseChannel();
+            final var commitment = ClprChannelPendingCommitment.builder()
                     .ownershipCommitment(DomainUtils.toBytes(transactionBody.getOwnershipCommitment()))
                     .status(ClprPendingCommitmentStatus.DELETED)
                     .timestampRange(Range.atLeast(consensusTimestamp))
@@ -47,7 +47,7 @@ class ClprCloseChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        var builder = ClprChannel.builder();
+        final var builder = ClprChannel.builder();
         ClprStateChangeHandler.populateFromStateChange(builder, clprChannelValue);
         entityListener.onClprChannel(
                 builder.timestampRange(Range.atLeast(consensusTimestamp)).build());

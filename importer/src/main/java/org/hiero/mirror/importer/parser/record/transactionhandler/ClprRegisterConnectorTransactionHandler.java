@@ -30,8 +30,8 @@ class ClprRegisterConnectorTransactionHandler extends AbstractTransactionHandler
             return;
         }
 
-        var clprContext = recordItem.getClprContext();
-        var commitment = clprContext != null ? clprContext.getClprConnectorPendingCommitment() : null;
+        final var clprContext = recordItem.getClprContext();
+        final var commitment = clprContext != null ? clprContext.getClprConnectorPendingCommitment() : null;
         if (ClprStateChangeHandler.isMissingStateChange(
                 commitment,
                 "clpr_pending_connector_commitments",
@@ -40,8 +40,8 @@ class ClprRegisterConnectorTransactionHandler extends AbstractTransactionHandler
             return;
         }
 
-        long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var pendingCommitment = ClprConnectorPendingCommitment.builder()
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var pendingCommitment = ClprConnectorPendingCommitment.builder()
                 .commitment(DomainUtils.toBytes(commitment))
                 .createdTimestamp(consensusTimestamp)
                 .status(ClprPendingCommitmentStatus.OPEN)
