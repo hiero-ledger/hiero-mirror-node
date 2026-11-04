@@ -8,7 +8,6 @@ import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
-import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
@@ -66,9 +65,6 @@ public interface EntityListener {
             throws ImporterException {}
 
     default void onClprConnector(ClprConnector clprConnector) throws ImporterException {}
-
-    default void onClprConnectorPendingCommitment(ClprConnectorPendingCommitment clprConnectorPendingCommitment)
-            throws ImporterException {}
 
     default void onClprEndpointManifest(ClprEndpointManifest clprEndpointManifest) throws ImporterException {}
 
