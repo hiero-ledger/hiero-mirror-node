@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
@@ -16,12 +15,8 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 
 class ContractCallTransactionHandlerTest extends AbstractTransactionHandlerTest {
-
-    @Mock
-    private ClprStateChangeHandler clprStateChangeHandler;
 
     @BeforeEach
     void beforeEach() {
@@ -31,7 +26,7 @@ class ContractCallTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ContractCallTransactionHandler(clprStateChangeHandler, entityIdService);
+        return new ContractCallTransactionHandler(entityIdService);
     }
 
     @Override
@@ -86,18 +81,5 @@ class ContractCallTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .returns(null, ContractResult::getGasLimit)
                 .returns(null, ContractResult::getFunctionParameters);
         assertThat(recordItem.getEntityTransactions()).isEmpty();
-    }
-
-    @Test
-    void updateTransactionDelegatesToClprStateChangeHandler() {
-        // given
-        var recordItem = recordItemBuilder.contractCall().build();
-        var transaction = domainBuilder.transaction().get();
-
-        // when
-        transactionHandler.updateTransaction(transaction, recordItem);
-
-        // then
-        verify(clprStateChangeHandler).process(recordItem);
     }
 }

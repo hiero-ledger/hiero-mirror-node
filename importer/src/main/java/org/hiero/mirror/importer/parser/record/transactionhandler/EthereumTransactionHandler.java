@@ -30,7 +30,6 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
 
     private static final int EIP_7702_TYPE_BYTE = 4;
 
-    private final ClprStateChangeHandler clprStateChangeHandler;
     private final ContractBytecodeService contractBytecodeService;
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
@@ -106,10 +105,6 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
 
     @Override
     protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
-        // No-op unless this EthereumTransaction invoked the CLPR sendMessage system contract; independent of
-        // isEthereumTransactions() below, which only gates ethereum_transaction persistence.
-        clprStateChangeHandler.process(recordItem);
-
         if (!entityProperties.getPersist().isEthereumTransactions()) {
             return;
         }
