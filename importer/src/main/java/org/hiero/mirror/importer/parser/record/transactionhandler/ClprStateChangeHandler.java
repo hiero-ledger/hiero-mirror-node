@@ -6,8 +6,10 @@ import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import jakarta.inject.Named;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.AbstractClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
@@ -23,6 +25,7 @@ import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprMessageEntry;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.util.Utility;
@@ -30,16 +33,71 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Patches whatever CLPR Channel/Message/Connector state changes are present on a {@link RecordItem}. Connector
- * patches are non-historical; channel patches historize per {@link #channelHistorizes}. Shared by
- * {@code ClprSubmitBundleTransactionHandler}, {@code ContractCallTransactionHandler}, and
- * {@code EthereumTransactionHandler} (the CLPR {@code sendMessage} system contract can run inside the latter two).
- * No-op when none of these fields are present.
+ * patches are non-historical; channel patches historize per {@link #channelHistorizes}. Called generically from
+ * {@code EntityRecordItemListener} for every transaction; no-op when none of these fields are present.
  */
 @Named
 @RequiredArgsConstructor
-class ClprStateChangeHandler {
+public class ClprStateChangeHandler {
+
+    /** Excluded from process() since their own handler already writes onClprChannel/onClprConnector directly. */
+    private static final Set<TransactionType> SELF_PROCESSED_TYPES = EnumSet.of(
+            TransactionType.CLPRCLOSECHANNEL,
+            TransactionType.CLPRCOMPLETECHANNEL,
+            TransactionType.CLPRCOMPLETECONNECTOR,
+            TransactionType.CLPRDEREGISTERCONNECTOR);
 
     private final EntityListener entityListener;
+
+    public void process(RecordItem recordItem) {
+        if (!recordItem.isSuccessful()) {
+            return;
+        }
+
+        final var clprContext = recordItem.getClprContext();
+        if (clprContext == null) {
+            return;
+        }
+
+        if (SELF_PROCESSED_TYPES.contains(TransactionType.of(recordItem.getTransactionType()))) {
+            return;
+        }
+
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var clprChannelValue = clprContext.getClprChannel();
+        if (clprChannelValue != null) {
+            final var builder = ClprChannel.builder();
+            populateFromStateChange(builder, clprChannelValue);
+            if (channelHistorizes(clprChannelValue)) {
+                builder.timestampRange(Range.atLeast(consensusTimestamp));
+            }
+            entityListener.onClprChannel(builder.build());
+        }
+
+        for (final var entry : clprContext.getClprMessages()) {
+            final var message = toMessage(entry, consensusTimestamp);
+            if (message != null) {
+                entityListener.onClprMessage(message);
+            }
+        }
+
+        // Process removals first so a connector banned and patched in the same transaction ends up deleted.
+        final var removedConnectorKeys = new HashSet<ClprConnectorKey>();
+        for (final var key : clprContext.getClprConnectorsRemoved()) {
+            removedConnectorKeys.add(key);
+            entityListener.onClprConnector(toRemovedConnector(key, consensusTimestamp));
+        }
+
+        for (final var value : clprContext.getClprConnectors()) {
+            final var key = ClprConnectorKey.newBuilder()
+                    .setChannelId(value.getChannelId())
+                    .setConnectorId(value.getConnectorId())
+                    .build();
+            if (!removedConnectorKeys.contains(key)) {
+                entityListener.onClprConnector(toConnector(value));
+            }
+        }
+    }
 
     /**
      * Logs and reports a missing state change for a successful transaction that depends on one. {@code value} is
@@ -127,52 +185,6 @@ class ClprStateChangeHandler {
                     .build());
         }
         return result;
-    }
-
-    void process(RecordItem recordItem) {
-        if (!recordItem.isSuccessful()) {
-            return;
-        }
-
-        final var clprContext = recordItem.getClprContext();
-        if (clprContext == null) {
-            return;
-        }
-
-        final long consensusTimestamp = recordItem.getConsensusTimestamp();
-        final var clprChannelValue = clprContext.getClprChannel();
-        if (clprChannelValue != null) {
-            final var builder = ClprChannel.builder();
-            populateFromStateChange(builder, clprChannelValue);
-            if (channelHistorizes(clprChannelValue)) {
-                builder.timestampRange(Range.atLeast(consensusTimestamp));
-            }
-            entityListener.onClprChannel(builder.build());
-        }
-
-        for (final var entry : clprContext.getClprMessages()) {
-            final var message = toMessage(entry, consensusTimestamp);
-            if (message != null) {
-                entityListener.onClprMessage(message);
-            }
-        }
-
-        // Process removals first so a connector banned and patched in the same transaction ends up deleted.
-        final var removedConnectorKeys = new HashSet<ClprConnectorKey>();
-        for (final var key : clprContext.getClprConnectorsRemoved()) {
-            removedConnectorKeys.add(key);
-            entityListener.onClprConnector(toRemovedConnector(key, consensusTimestamp));
-        }
-
-        for (final var value : clprContext.getClprConnectors()) {
-            final var key = ClprConnectorKey.newBuilder()
-                    .setChannelId(value.getChannelId())
-                    .setConnectorId(value.getConnectorId())
-                    .build();
-            if (!removedConnectorKeys.contains(key)) {
-                entityListener.onClprConnector(toConnector(value));
-            }
-        }
     }
 
     private ClprConnector toConnector(com.hederahashgraph.api.proto.java.ClprConnector value) {

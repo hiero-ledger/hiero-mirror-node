@@ -2,8 +2,7 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.hederahashgraph.api.proto.java.ClprSubmitBundleTransactionBody;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -15,17 +14,13 @@ import org.hiero.mirror.common.domain.transaction.ClprRecordContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.springframework.data.util.Version;
 
 class ClprSubmitBundleTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
-    @Mock
-    private ClprStateChangeHandler clprStateChangeHandler;
-
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ClprSubmitBundleTransactionHandler(clprStateChangeHandler);
+        return new ClprSubmitBundleTransactionHandler();
     }
 
     @Override
@@ -43,7 +38,7 @@ class ClprSubmitBundleTransactionHandlerTest extends AbstractTransactionHandlerT
     }
 
     @Test
-    void updateTransactionDelegatesToClprStateChangeHandler() {
+    void updateTransactionClprChannelPresent() {
         // given
         var transactionBody = getDefaultTransactionBody().build();
         var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
@@ -53,11 +48,10 @@ class ClprSubmitBundleTransactionHandlerTest extends AbstractTransactionHandlerT
                 buildRecordItem(transactionBody, getDefaultTransactionRecord().build(), clprChannelValue);
         var transaction = domainBuilder.transaction().get();
 
-        // when
-        transactionHandler.updateTransaction(transaction, recordItem);
-
-        // then
-        verify(clprStateChangeHandler).process(recordItem);
+        // when/then -- actual persistence is dispatched generically from EntityRecordItemListener, so this handler
+        // has nothing left to do but validate the expected state change is present
+        assertThatCode(() -> transactionHandler.updateTransaction(transaction, recordItem))
+                .doesNotThrowAnyException();
     }
 
     @Test
@@ -69,11 +63,9 @@ class ClprSubmitBundleTransactionHandlerTest extends AbstractTransactionHandlerT
                 null);
         var transaction = domainBuilder.transaction().get();
 
-        // when
-        transactionHandler.updateTransaction(transaction, recordItem);
-
-        // then
-        verifyNoInteractions(clprStateChangeHandler);
+        // when/then -- logs a recoverable error internally but must not throw
+        assertThatCode(() -> transactionHandler.updateTransaction(transaction, recordItem))
+                .doesNotThrowAnyException();
     }
 
     private RecordItem buildRecordItem(

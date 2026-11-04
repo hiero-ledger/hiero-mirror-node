@@ -12,8 +12,6 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 @RequiredArgsConstructor
 class ClprSubmitBundleTransactionHandler extends AbstractTransactionHandler {
 
-    private final ClprStateChangeHandler clprStateChangeHandler;
-
     @Override
     public TransactionType getType() {
         return TransactionType.CLPRSUBMITBUNDLE;
@@ -27,11 +25,7 @@ class ClprSubmitBundleTransactionHandler extends AbstractTransactionHandler {
 
         final var clprContext = recordItem.getClprContext();
         final var clprChannelValue = clprContext != null ? clprContext.getClprChannel() : null;
-        if (ClprStateChangeHandler.isMissingStateChange(
-                clprChannelValue, "clpr_channel_value", "ClprSubmitBundle", recordItem.getConsensusTimestamp())) {
-            return;
-        }
-
-        clprStateChangeHandler.process(recordItem);
+        ClprStateChangeHandler.isMissingStateChange(
+                clprChannelValue, "clpr_channel_value", "ClprSubmitBundle", recordItem.getConsensusTimestamp());
     }
 }

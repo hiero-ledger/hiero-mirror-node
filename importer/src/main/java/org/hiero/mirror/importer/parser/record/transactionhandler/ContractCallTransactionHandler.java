@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
-import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
@@ -17,7 +16,6 @@ import org.hiero.mirror.importer.domain.EntityIdService;
 @RequiredArgsConstructor
 class ContractCallTransactionHandler extends AbstractTransactionHandler {
 
-    private final ClprStateChangeHandler clprStateChangeHandler;
     private final EntityIdService entityIdService;
 
     /**
@@ -52,11 +50,5 @@ class ContractCallTransactionHandler extends AbstractTransactionHandler {
                     DomainUtils.toBytes(contractCallTransactionBody.getFunctionParameters()));
             contractResult.setGasLimit(contractCallTransactionBody.getGas());
         }
-    }
-
-    @Override
-    protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
-        // No-op unless this ContractCall invoked the CLPR sendMessage system contract.
-        clprStateChangeHandler.process(recordItem);
     }
 }
