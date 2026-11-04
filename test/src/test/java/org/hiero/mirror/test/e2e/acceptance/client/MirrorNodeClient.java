@@ -5,6 +5,7 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.test.e2e.acceptance.config.RestProperties.URL_PREFIX;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.toRestTransactionId;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
@@ -13,6 +14,7 @@ import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
+import com.hedera.hashgraph.sdk.ExchangeRate;
 import com.hedera.hashgraph.sdk.MirrorNodeContractEstimateGasQuery;
 import com.hedera.hashgraph.sdk.SubscriptionHandle;
 import com.hedera.hashgraph.sdk.TokenId;
@@ -21,6 +23,7 @@ import com.hedera.hashgraph.sdk.Transaction;
 import com.hedera.hashgraph.sdk.TransactionId;
 import jakarta.inject.Named;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.net.URISyntaxException;
 import java.time.Duration;
@@ -40,6 +43,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.awaitility.Awaitility;
 import org.awaitility.Durations;
 import org.awaitility.core.ConditionTimeoutException;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.rest.model.AccountBalanceTransactions;
 import org.hiero.mirror.rest.model.AccountInfo;
 import org.hiero.mirror.rest.model.AccountsResponse;
@@ -452,27 +456,35 @@ public class MirrorNodeClient {
     /**
      * Verifies that the fee actually charged for a transaction, as reported by the mirror node, is within the given
      * tolerance of a fee estimate previously obtained from {@link #estimateFees}. The estimate is in tinycents and is
-     * converted to tinybars using the current exchange rate, e.g. {@code tinybars = tinycents * hbarEquiv /
-     * centEquiv}, since one hbar is \(10^8\) tinybars and one cent is \(10^8\) tinycents.
+     * converted to tinybars using the exchange rate from the transaction receipt, e.g. {@code tinybars = tinycents *
+     * hbars / cents}, since one hbar is \(10^8\) tinybars and one cent is \(10^8\) tinycents.
+     *
+     * <p>A contract create also charges gas during EVM execution. That gas is subtracted from the charged fee so the
+     * comparison covers the simple fee, including the base fee, keys, and hooks.
      *
      * @param transactionId the ID of the executed transaction
+     * @param exchangeRate the exchange rate from the transaction receipt
      * @param estimate the fee estimate obtained before the transaction was executed
      * @param tolerancePercent the maximum allowed deviation between the charged and estimated fee, in percent
+     * @return the mirror node transactions for {@code transactionId}, for reuse by later assertions
      */
-    public void verifyFeeEstimate(
-            final TransactionId transactionId, final FeeEstimateResponse estimate, final double tolerancePercent) {
+    public TransactionByIdResponse verifyFeeEstimate(
+            final TransactionId transactionId,
+            final ExchangeRate exchangeRate,
+            final FeeEstimateResponse estimate,
+            final double tolerancePercent) {
         if (estimate == null || estimate.getTotal() <= 0) {
             log.debug("Skipping fee verification for {} since the estimate has no total", transactionId);
-            return;
+            return null;
         }
 
-        final var currentRate = getExchangeRates().getCurrentRate();
         final long expectedTinybars = BigDecimal.valueOf(estimate.getTotal())
-                .multiply(BigDecimal.valueOf(currentRate.getHbarEquivalent().longValue()))
-                .divide(BigDecimal.valueOf(currentRate.getCentEquivalent().longValue()), 0, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(exchangeRate.hbars))
+                .divide(BigDecimal.valueOf(exchangeRate.cents), 0, RoundingMode.HALF_UP)
                 .longValue();
-        final var transactions =
-                getTransactions(toRestTransactionId(transactionId)).getTransactions();
+        final var restTransactionId = toRestTransactionId(transactionId);
+        final var transactionsResponse = getTransactions(restTransactionId);
+        final var transactions = transactionsResponse.getTransactions();
         assertThat(transactions).as("Transactions for %s", transactionId).isNotEmpty();
 
         // Preceding children share the transaction ID and are returned first. The parent transaction is the one with
@@ -481,22 +493,46 @@ public class MirrorNodeClient {
                 .filter(t -> Integer.valueOf(0).equals(t.getNonce()))
                 .findFirst()
                 .orElse(null);
+        assertThat(transaction).as("Nonce 0 transaction for %s", transactionId).isNotNull();
 
-        final var actualTinybars = transaction.getChargedTxFee();
-        assertThat(actualTinybars).as("Charged fee for %s", transactionId).isNotNull();
+        final var chargedTinybars = transaction.getChargedTxFee();
+        assertThat(chargedTinybars).as("Charged fee for %s", transactionId).isNotNull();
 
         // A fee-exempt payer, such as genesis account 0.0.2 during fund reclaim, is charged nothing.
-        if (actualTinybars == 0) {
-            return;
+        if (chargedTinybars == 0) {
+            return transactionsResponse;
         }
 
-        final double deviationPercent =
-                expectedTinybars == 0 ? 0.0 : Math.abs(actualTinybars - expectedTinybars) * 100.0 / expectedTinybars;
+        // Contract create charges its simple fee and, separately, gas. Remove the gas so the comparison covers the
+        // base fee, keys, and hooks that the estimate includes.
+        final var comparableTinybars =
+                TransactionType.CONTRACTCREATEINSTANCE.name().equals(transaction.getName())
+                        ? chargedTinybars - contractCreateGasTinybars(restTransactionId)
+                        : chargedTinybars;
+
+        final double deviationPercent = expectedTinybars == 0
+                ? 0.0
+                : Math.abs(comparableTinybars - expectedTinybars) * 100.0 / expectedTinybars;
         assertThat(deviationPercent)
                 .as(
                         "Charged fee of %d tinybars for %s deviates from the estimated fee of %d tinybars",
-                        actualTinybars, transactionId, expectedTinybars)
+                        comparableTinybars, transactionId, expectedTinybars)
                 .isLessThanOrEqualTo(tolerancePercent);
+        return transactionsResponse;
+    }
+
+    /**
+     * Gas charged for a contract create, in tinybars. The contract result reports gas consumed and the consensus gas
+     * price in tinybars, and that product is included in the record's charged fee on top of the simple fee.
+     */
+    private long contractCreateGasTinybars(final String transactionId) {
+        final var result = getContractResultByTransactionId(transactionId);
+        final var gasConsumed = result.getGasConsumed();
+        final var gasPrice = result.getGasPrice();
+        assertThat(gasConsumed).as("Gas consumed for %s", transactionId).isNotNull();
+        assertThat(gasPrice).as("Gas price for %s", transactionId).isNotBlank();
+        final var priceTinybars = new BigInteger(gasPrice.replaceFirst("^0[xX]", ""), 16).longValueExact();
+        return Math.multiplyExact(gasConsumed, priceTinybars);
     }
 
     public NetworkSupplyResponse getNetworkSupply() {
@@ -879,12 +915,6 @@ public class MirrorNodeClient {
         }
 
         return uri.substring(URL_PREFIX.length());
-    }
-
-    private String toRestTransactionId(final TransactionId transactionId) {
-        final var accountId = transactionId.accountId.toString().split("-")[0];
-        final var nanos = StringUtils.leftPad(String.valueOf(transactionId.validStart.getNano()), 9, '0');
-        return accountId + "-" + transactionId.validStart.getEpochSecond() + "-" + nanos;
     }
 
     private boolean computeHasPartialState() {
