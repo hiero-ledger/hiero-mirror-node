@@ -6,8 +6,7 @@ import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
-import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
@@ -20,6 +19,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 @RequiredArgsConstructor
 class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler {
 
+    private final ClprConnectorCommitmentService clprConnectorCommitmentService;
     private final EntityListener entityListener;
 
     @Override
@@ -49,16 +49,21 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
         final var publicKey = DomainUtils.toBytes(transactionBody.getPublicKey());
         final var connectorContractId = EntityId.of(clprConnectorValue.getConnectorContract());
 
+        // ClprConnector has no commitment field (unlike Channel), so this must be recomputed, not read off state --
+        // it's what identifies the PENDING row (from ClprRegisterConnector) this completion updates.
+        final var commitment = SignatureUtils.keccak256(connectorId, publicKey);
+
         final var connector = ClprConnector.builder()
                 .channelId(DomainUtils.toBytes(clprConnectorValue.getChannelId()))
+                .commitment(commitment)
                 .connectorId(connectorId)
+                .createdTimestamp(consensusTimestamp)
                 .connectorContractId(connectorContractId)
                 .adminKey(clprConnectorValue.getAdminKey().toByteArray())
                 .lockedStake(clprConnectorValue.getLockedStake())
                 .slashCount((long) clprConnectorValue.getSlashCount())
                 .inFlightMessageCount(clprConnectorValue.getInFlightMessageCount())
-                .createdTimestamp(consensusTimestamp)
-                .deleted(false)
+                .status(ClprConnectorStatus.ACTIVE)
                 .publicKey(publicKey)
                 .salt(DomainUtils.toBytes(transactionBody.getSalt()))
                 .signature(DomainUtils.toBytes(transactionBody.getSignature()))
@@ -66,14 +71,7 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprConnector(connector);
+        clprConnectorCommitmentService.notify(connector);
         recordItem.addEntityId(connectorContractId);
-
-        // ClprConnector has no commitment field (unlike Channel), so this must be recomputed, not read off state.
-        final var commitment = ClprConnectorPendingCommitment.builder()
-                .commitment(SignatureUtils.keccak256(connectorId, publicKey))
-                .status(ClprPendingCommitmentStatus.COMPLETED)
-                .timestampRange(Range.atLeast(consensusTimestamp))
-                .build();
-        entityListener.onClprConnectorPendingCommitment(commitment);
     }
 }

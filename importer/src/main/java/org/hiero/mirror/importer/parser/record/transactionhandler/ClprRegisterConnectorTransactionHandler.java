@@ -5,8 +5,8 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -30,23 +30,17 @@ class ClprRegisterConnectorTransactionHandler extends AbstractTransactionHandler
             return;
         }
 
-        final var clprContext = recordItem.getClprContext();
-        final var commitment = clprContext != null ? clprContext.getClprConnectorPendingCommitment() : null;
-        if (ClprStateChangeHandler.isMissingStateChange(
-                commitment,
-                "clpr_pending_connector_commitments",
-                "ClprRegisterConnector",
-                recordItem.getConsensusTimestamp())) {
-            return;
-        }
-
+        // channel_id is on the transaction body itself -- the consensus node validates it references an existing
+        // Channel and rejects the transaction otherwise, so no state-change lookup is needed here.
+        final var transactionBody = recordItem.getTransactionBody().getClprRegisterConnector();
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
-        final var pendingCommitment = ClprConnectorPendingCommitment.builder()
-                .commitment(DomainUtils.toBytes(commitment))
+        final var connector = ClprConnector.builder()
+                .channelId(DomainUtils.toBytes(transactionBody.getChannelId()))
+                .commitment(DomainUtils.toBytes(transactionBody.getCommitment()))
                 .createdTimestamp(consensusTimestamp)
-                .status(ClprPendingCommitmentStatus.OPEN)
+                .status(ClprConnectorStatus.PENDING)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
-        entityListener.onClprConnectorPendingCommitment(pendingCommitment);
+        entityListener.onClprConnector(connector);
     }
 }

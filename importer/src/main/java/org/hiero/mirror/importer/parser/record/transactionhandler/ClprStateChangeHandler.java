@@ -16,6 +16,7 @@ import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConfigUpdate;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprControlMessage;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
@@ -45,8 +46,10 @@ public class ClprStateChangeHandler {
             TransactionType.CLPRCLOSECHANNEL,
             TransactionType.CLPRCOMPLETECHANNEL,
             TransactionType.CLPRCOMPLETECONNECTOR,
-            TransactionType.CLPRDEREGISTERCONNECTOR);
+            TransactionType.CLPRDEREGISTERCONNECTOR,
+            TransactionType.CLPRREGISTERCONNECTOR);
 
+    private final ClprConnectorCommitmentService clprConnectorCommitmentService;
     private final EntityListener entityListener;
 
     public void process(RecordItem recordItem) {
@@ -84,7 +87,10 @@ public class ClprStateChangeHandler {
         final var removedConnectorKeys = new HashSet<ClprConnectorKey>();
         for (final var key : clprContext.getClprConnectorsRemoved()) {
             removedConnectorKeys.add(key);
-            entityListener.onClprConnector(toRemovedConnector(key, consensusTimestamp));
+            final var removedConnector = toRemovedConnector(key, consensusTimestamp);
+            if (removedConnector != null) {
+                entityListener.onClprConnector(removedConnector);
+            }
         }
 
         for (final var value : clprContext.getClprConnectors()) {
@@ -93,7 +99,10 @@ public class ClprStateChangeHandler {
                     .setConnectorId(value.getConnectorId())
                     .build();
             if (!removedConnectorKeys.contains(key)) {
-                entityListener.onClprConnector(toConnector(value));
+                final var connector = toConnector(value, consensusTimestamp);
+                if (connector != null) {
+                    entityListener.onClprConnector(connector);
+                }
             }
         }
     }
@@ -186,10 +195,19 @@ public class ClprStateChangeHandler {
         return result;
     }
 
-    private ClprConnector toConnector(com.hederahashgraph.api.proto.java.ClprConnector value) {
+    private @Nullable ClprConnector toConnector(
+            com.hederahashgraph.api.proto.java.ClprConnector value, long consensusTimestamp) {
+        final var channelId = DomainUtils.toBytes(value.getChannelId());
+        final var connectorId = DomainUtils.toBytes(value.getConnectorId());
+        final var commitment = clprConnectorCommitmentService.lookup(channelId, connectorId);
+        if (isMissingStateChange(commitment, "clpr_connector commitment", "ClprSubmitBundle", consensusTimestamp)) {
+            return null;
+        }
+
         return ClprConnector.builder()
-                .channelId(DomainUtils.toBytes(value.getChannelId()))
-                .connectorId(DomainUtils.toBytes(value.getConnectorId()))
+                .channelId(channelId)
+                .commitment(commitment)
+                .connectorId(connectorId)
                 .connectorContractId(EntityId.of(value.getConnectorContract()))
                 .adminKey(value.getAdminKey().toByteArray())
                 .lockedStake(value.getLockedStake())
@@ -277,11 +295,19 @@ public class ClprStateChangeHandler {
         return messageBuilder.build();
     }
 
-    private ClprConnector toRemovedConnector(ClprConnectorKey key, long consensusTimestamp) {
+    private @Nullable ClprConnector toRemovedConnector(ClprConnectorKey key, long consensusTimestamp) {
+        final var channelId = DomainUtils.toBytes(key.getChannelId());
+        final var connectorId = DomainUtils.toBytes(key.getConnectorId());
+        final var commitment = clprConnectorCommitmentService.lookup(channelId, connectorId);
+        if (isMissingStateChange(commitment, "clpr_connector commitment", "ClprSubmitBundle", consensusTimestamp)) {
+            return null;
+        }
+
         return ClprConnector.builder()
-                .channelId(DomainUtils.toBytes(key.getChannelId()))
-                .connectorId(DomainUtils.toBytes(key.getConnectorId()))
-                .deleted(true)
+                .channelId(channelId)
+                .commitment(commitment)
+                .connectorId(connectorId)
+                .status(ClprConnectorStatus.DELETED)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
     }

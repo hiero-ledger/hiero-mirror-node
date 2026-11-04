@@ -62,9 +62,6 @@ public final class StateChangeContext {
     private ByteString clprChannelPendingCommitment;
 
     @Nullable
-    private ByteString clprConnectorPendingCommitment;
-
-    @Nullable
     private ClprEndpointManifest clprEndpointManifest;
 
     @Nullable
@@ -103,9 +100,6 @@ public final class StateChangeContext {
                             processClprMessageStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE ->
                             clprChannelPendingCommitment =
-                                    mapUpdate.getKey().getProtoBytesKey().getValue();
-                        case StateIdentifier.STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS_VALUE ->
-                            clprConnectorPendingCommitment =
                                     mapUpdate.getKey().getProtoBytesKey().getValue();
                         case StateIdentifier.STATE_ID_EVM_HOOK_STORAGE_VALUE -> processHookStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_FILES_VALUE ->
@@ -176,10 +170,6 @@ public final class StateChangeContext {
 
     public Optional<ClprConnector> getClprConnector(ClprConnectorKey key) {
         return Optional.ofNullable(clprConnectors.get(key));
-    }
-
-    public Optional<ByteString> getClprConnectorPendingCommitment() {
-        return Optional.ofNullable(clprConnectorPendingCommitment);
     }
 
     public List<ClprConnector> getClprConnectors() {

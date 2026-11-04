@@ -14,8 +14,7 @@ import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
-import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -25,13 +24,17 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SignatureUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.springframework.data.util.Version;
 
 class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
+    @Mock
+    private ClprConnectorCommitmentService clprConnectorCommitmentService;
+
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ClprCompleteConnectorTransactionHandler(entityListener);
+        return new ClprCompleteConnectorTransactionHandler(clprConnectorCommitmentService, entityListener);
     }
 
     @Override
@@ -74,7 +77,6 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 buildRecordItem(transactionBody, getDefaultTransactionRecord().build(), clprConnectorValue);
         var transaction = domainBuilder.transaction().get();
         var connectorCaptor = ArgumentCaptor.forClass(ClprConnector.class);
-        var commitmentCaptor = ArgumentCaptor.forClass(ClprConnectorPendingCommitment.class);
         var connectorContractId = EntityId.of(clprConnectorValue.getConnectorContract());
 
         // when
@@ -83,31 +85,27 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
         // then
         long consensusTimestamp = recordItem.getConsensusTimestamp();
         var timestampRange = Range.atLeast(consensusTimestamp);
+        var expectedCommitment = SignatureUtils.keccak256(
+                DomainUtils.toBytes(clprConnectorValue.getConnectorId()), DomainUtils.toBytes(body.getPublicKey()));
 
         verify(entityListener).onClprConnector(connectorCaptor.capture());
         assertThat(connectorCaptor.getValue())
                 .returns(DomainUtils.toBytes(clprConnectorValue.getChannelId()), ClprConnector::getChannelId)
+                .returns(expectedCommitment, ClprConnector::getCommitment)
                 .returns(DomainUtils.toBytes(clprConnectorValue.getConnectorId()), ClprConnector::getConnectorId)
                 .returns(connectorContractId, ClprConnector::getConnectorContractId)
                 .returns(clprConnectorValue.getAdminKey().toByteArray(), ClprConnector::getAdminKey)
                 .returns(clprConnectorValue.getLockedStake(), ClprConnector::getLockedStake)
                 .returns(2L, ClprConnector::getSlashCount)
                 .returns(5L, ClprConnector::getInFlightMessageCount)
-                .returns(consensusTimestamp, ClprConnector::getCreatedTimestamp)
-                .returns(false, ClprConnector::getDeleted)
+                .returns(ClprConnectorStatus.ACTIVE, ClprConnector::getStatus)
                 .returns(DomainUtils.toBytes(body.getPublicKey()), ClprConnector::getPublicKey)
                 .returns(DomainUtils.toBytes(body.getSalt()), ClprConnector::getSalt)
                 .returns(DomainUtils.toBytes(body.getSignature()), ClprConnector::getSignature)
                 .returns(ClprSignatureScheme.ECDSA_SECP256K1, ClprConnector::getSignatureScheme)
                 .returns(timestampRange, ClprConnector::getTimestampRange);
 
-        verify(entityListener).onClprConnectorPendingCommitment(commitmentCaptor.capture());
-        var expectedCommitment = SignatureUtils.keccak256(
-                DomainUtils.toBytes(clprConnectorValue.getConnectorId()), DomainUtils.toBytes(body.getPublicKey()));
-        assertThat(commitmentCaptor.getValue())
-                .returns(expectedCommitment, ClprConnectorPendingCommitment::getCommitment)
-                .returns(ClprPendingCommitmentStatus.COMPLETED, ClprConnectorPendingCommitment::getStatus)
-                .returns(timestampRange, ClprConnectorPendingCommitment::getTimestampRange);
+        verify(clprConnectorCommitmentService).notify(connectorCaptor.getValue());
 
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(
@@ -128,6 +126,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
 
         // then
         verifyNoInteractions(entityListener);
+        verifyNoInteractions(clprConnectorCommitmentService);
     }
 
     private RecordItem buildRecordItem(

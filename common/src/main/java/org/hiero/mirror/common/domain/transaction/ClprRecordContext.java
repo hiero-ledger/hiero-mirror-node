@@ -34,9 +34,6 @@ public class ClprRecordContext {
     private final ClprConnector clprConnector;
 
     @Nullable
-    private final ByteString clprConnectorPendingCommitment;
-
-    @Nullable
     private final ClprEndpointManifest clprEndpointManifest;
 
     @Nullable

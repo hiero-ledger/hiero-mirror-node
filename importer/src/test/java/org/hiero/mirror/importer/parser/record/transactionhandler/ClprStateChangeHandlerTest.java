@@ -27,6 +27,7 @@ import java.util.List;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
@@ -47,6 +48,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 final class ClprStateChangeHandlerTest {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
+
+    @Mock
+    private ClprConnectorCommitmentService clprConnectorCommitmentService;
 
     @Mock
     private ClprRecordContext clprContext;
@@ -285,6 +289,15 @@ final class ClprStateChangeHandlerTest {
                 .setConnectorId(bannedConnectorId)
                 .build();
 
+        var patchedCommitment = domainBuilder.bytes(32);
+        var bannedCommitment = domainBuilder.bytes(32);
+        when(clprConnectorCommitmentService.lookup(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(patchedConnectorId)))
+                .thenReturn(patchedCommitment);
+        when(clprConnectorCommitmentService.lookup(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(bannedConnectorId)))
+                .thenReturn(bannedCommitment);
+
         when(clprContext.getClprConnectors()).thenReturn(List.of(patchedConnectorValue, bannedConnectorValue));
         when(clprContext.getClprConnectorsRemoved()).thenReturn(List.of(bannedConnectorKey));
 
@@ -298,6 +311,7 @@ final class ClprStateChangeHandlerTest {
                 .hasSize(2)
                 .anySatisfy(connector -> assertThat(connector)
                         .returns(DomainUtils.toBytes(channelId), ClprConnector::getChannelId)
+                        .returns(patchedCommitment, ClprConnector::getCommitment)
                         .returns(DomainUtils.toBytes(patchedConnectorId), ClprConnector::getConnectorId)
                         .returns(EntityId.of(connectorContract), ClprConnector::getConnectorContractId)
                         .returns(adminKey.toByteArray(), ClprConnector::getAdminKey)
@@ -305,11 +319,12 @@ final class ClprStateChangeHandlerTest {
                         .returns(1L, ClprConnector::getSlashCount)
                         .returns(1L, ClprConnector::getInFlightMessageCount)
                         .returns(null, ClprConnector::getTimestampRange)
-                        .returns(null, ClprConnector::getDeleted))
+                        .returns(null, ClprConnector::getStatus))
                 .anySatisfy(connector -> assertThat(connector)
                         .returns(DomainUtils.toBytes(channelId), ClprConnector::getChannelId)
+                        .returns(bannedCommitment, ClprConnector::getCommitment)
                         .returns(DomainUtils.toBytes(bannedConnectorId), ClprConnector::getConnectorId)
-                        .returns(true, ClprConnector::getDeleted)
+                        .returns(ClprConnectorStatus.DELETED, ClprConnector::getStatus)
                         .returns(Range.atLeast(consensusTimestamp), ClprConnector::getTimestampRange));
     }
 

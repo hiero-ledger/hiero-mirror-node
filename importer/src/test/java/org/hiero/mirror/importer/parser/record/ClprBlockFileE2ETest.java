@@ -11,6 +11,7 @@ import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorHistory;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
@@ -109,7 +110,7 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
             assertThat(connector.getSlashCount()).isZero();
             assertThat(connector.getInFlightMessageCount()).isZero();
             assertThat(connector.getConnectorContractId()).isNotNull();
-            assertThat(connector.getDeleted()).isNotEqualTo(true);
+            assertThat(connector.getStatus()).isNotEqualTo(ClprConnectorStatus.DELETED);
         });
         assertThat(clprLedgerConfigurationRepository.count()).isZero();
         assertThat(clprMessageRepository.count()).isZero();

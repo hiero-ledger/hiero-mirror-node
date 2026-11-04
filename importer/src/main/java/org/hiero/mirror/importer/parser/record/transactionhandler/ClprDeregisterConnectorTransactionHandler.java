@@ -6,6 +6,7 @@ import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
@@ -17,6 +18,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 @RequiredArgsConstructor
 class ClprDeregisterConnectorTransactionHandler extends AbstractTransactionHandler {
 
+    private final ClprConnectorCommitmentService clprConnectorCommitmentService;
     private final EntityListener entityListener;
 
     @Override
@@ -31,18 +33,27 @@ class ClprDeregisterConnectorTransactionHandler extends AbstractTransactionHandl
         }
 
         final var transactionBody = recordItem.getTransactionBody().getClprDeregisterConnector();
-        final long consensusTimestamp = recordItem.getConsensusTimestamp();
         final var stakeRecipientId = EntityId.of(transactionBody.getStakeRecipient());
+        recordItem.addEntityId(stakeRecipientId);
+
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var channelId = DomainUtils.toBytes(transactionBody.getChannelId());
+        final var connectorId = DomainUtils.toBytes(transactionBody.getConnectorId());
+        final var commitment = clprConnectorCommitmentService.lookup(channelId, connectorId);
+        if (ClprStateChangeHandler.isMissingStateChange(
+                commitment, "clpr_connector commitment", "ClprDeregisterConnector", consensusTimestamp)) {
+            return;
+        }
 
         // Mirror-node-only soft-delete; consensus removes the Connector from its map entirely
         final var connector = ClprConnector.builder()
-                .channelId(DomainUtils.toBytes(transactionBody.getChannelId()))
-                .connectorId(DomainUtils.toBytes(transactionBody.getConnectorId()))
-                .deleted(true)
+                .channelId(channelId)
+                .commitment(commitment)
+                .connectorId(connectorId)
+                .status(ClprConnectorStatus.DELETED)
                 .stakeRecipientId(stakeRecipientId)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprConnector(connector);
-        recordItem.addEntityId(stakeRecipientId);
     }
 }

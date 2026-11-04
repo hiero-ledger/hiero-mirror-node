@@ -418,10 +418,10 @@ public final class RecordItemBuilder {
     }
 
     public Builder<ClprRegisterConnectorTransactionBody.Builder> clprRegisterConnector() {
-        var commitment = bytes(32);
-        var builder = ClprRegisterConnectorTransactionBody.newBuilder().setCommitment(commitment);
-        return new Builder<>(TransactionType.CLPRREGISTERCONNECTOR, builder)
-                .recordItem(r -> r.clprContextBuilder().clprConnectorPendingCommitment(commitment));
+        var builder = ClprRegisterConnectorTransactionBody.newBuilder()
+                .setCommitment(bytes(32))
+                .setChannelId(bytes(32));
+        return new Builder<>(TransactionType.CLPRREGISTERCONNECTOR, builder);
     }
 
     public Builder<ClprSubmitBundleTransactionBody.Builder> clprSubmitBundle() {

@@ -295,8 +295,10 @@ public class BlockTransactionBuilder {
                 .setStateId(StateIdentifier.STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder()
-                                .setProtoBytesKey(BytesValue.of(
-                                        recordItem.getClprContext().getClprConnectorPendingCommitment())))
+                                .setProtoBytesKey(BytesValue.of(recordItem
+                                        .getTransactionBody()
+                                        .getClprRegisterConnector()
+                                        .getCommitment())))
                         .setValue(MapChangeValue.newBuilder().setProtoBytesValue(BytesValue.getDefaultInstance())))
                 .build();
         return new BlockTransactionBuilder.Builder(

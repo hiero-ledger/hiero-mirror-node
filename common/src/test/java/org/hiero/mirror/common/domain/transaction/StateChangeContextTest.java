@@ -9,7 +9,6 @@ import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_I
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE;
-import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_FILES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
@@ -264,28 +263,6 @@ final class StateChangeContextTest {
         // then
         assertThat(context.getClprConnectorsRemoved()).containsExactly(key);
         assertThat(EMPTY_CONTEXT.getClprConnectorsRemoved()).isEmpty();
-    }
-
-    @Test
-    void clprConnectorPendingCommitment() {
-        // given
-        var commitment = bytes(32);
-        var stateChanges = StateChanges.newBuilder()
-                .addStateChanges(StateChange.newBuilder()
-                        .setStateId(STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS_VALUE)
-                        .setMapUpdate(MapUpdateChange.newBuilder()
-                                .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(commitment)))
-                                .setValue(MapChangeValue.newBuilder()
-                                        .setProtoBytesValue(BytesValue.getDefaultInstance()))))
-                .addStateChanges(otherMapUpdateChange())
-                .build();
-
-        // when
-        var context = new StateChangeContext(List.of(stateChanges));
-
-        // then
-        assertThat(context.getClprConnectorPendingCommitment()).contains(commitment);
-        assertThat(EMPTY_CONTEXT.getClprConnectorPendingCommitment()).isEmpty();
     }
 
     @Test

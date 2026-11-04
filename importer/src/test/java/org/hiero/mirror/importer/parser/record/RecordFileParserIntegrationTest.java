@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.clpr.AbstractClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -36,7 +37,6 @@ import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.domain.RecordFileBuilder;
 import org.hiero.mirror.importer.repository.ClprChannelPendingCommitmentRepository;
 import org.hiero.mirror.importer.repository.ClprChannelRepository;
-import org.hiero.mirror.importer.repository.ClprConnectorPendingCommitmentRepository;
 import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.hiero.mirror.importer.repository.ClprLedgerConfigurationRepository;
 import org.hiero.mirror.importer.repository.ClprMessageRepository;
@@ -66,7 +66,6 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
 
     private final ClprChannelPendingCommitmentRepository clprChannelPendingCommitmentRepository;
     private final ClprChannelRepository clprChannelRepository;
-    private final ClprConnectorPendingCommitmentRepository clprConnectorPendingCommitmentRepository;
     private final ClprConnectorRepository clprConnectorRepository;
     private final ClprLedgerConfigurationRepository clprLedgerConfigurationRepository;
     private final ClprMessageRepository clprMessageRepository;
@@ -478,8 +477,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
 
         var register = recordItemBuilder
                 .clprRegisterConnector()
-                .transactionBody(b -> b.setCommitment(commitment))
-                .recordItem(r -> r.clprContextBuilder().clprConnectorPendingCommitment(commitment))
+                .transactionBody(b -> b.setCommitment(commitment).setChannelId(channelId))
                 .build();
 
         var clprConnectorValue = ClprConnector.newBuilder()
@@ -509,16 +507,11 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         // then
         assertRecordFile(recordFile);
 
-        var pendingCommitment = clprConnectorPendingCommitmentRepository
-                .findById(DomainUtils.toBytes(commitment))
-                .orElseThrow();
-        assertThat(pendingCommitment.getStatus()).isEqualTo(ClprPendingCommitmentStatus.COMPLETED);
-
         var connector = clprConnectorRepository
-                .findById(
-                        new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+                .findById(new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(commitment)))
                 .orElseThrow();
-        assertThat(connector.getDeleted()).isTrue();
+        assertThat(connector.getStatus()).isEqualTo(ClprConnectorStatus.DELETED);
+        assertThat(connector.getConnectorId()).isEqualTo(DomainUtils.toBytes(connectorId));
         // connectorContractId was only set at completion time; merging the later deregister update must carry it
         // forward rather than null it out
         assertThat(connector.getConnectorContractId()).isNotNull();
@@ -537,8 +530,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
 
         var register = recordItemBuilder
                 .clprRegisterConnector()
-                .transactionBody(b -> b.setCommitment(commitment))
-                .recordItem(r -> r.clprContextBuilder().clprConnectorPendingCommitment(commitment))
+                .transactionBody(b -> b.setCommitment(commitment).setChannelId(channelId))
                 .build();
 
         var clprConnectorComplete = ClprConnector.newBuilder()
@@ -582,8 +574,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertRecordFile(recordFile);
 
         var connector = clprConnectorRepository
-                .findById(
-                        new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+                .findById(new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(commitment)))
                 .orElseThrow();
         assertThat(connector.getInFlightMessageCount()).isZero();
         assertThat(connector.getSlashCount()).isOne();

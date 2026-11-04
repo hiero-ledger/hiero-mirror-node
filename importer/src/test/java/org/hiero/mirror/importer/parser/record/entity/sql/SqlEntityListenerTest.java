@@ -28,6 +28,7 @@ import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
@@ -583,6 +584,50 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         assertThat(findHistory(ClprConnector.class)).isEmpty();
     }
 
+    @Test
+    void onClprConnectorRegisterThenComplete() {
+        // given -- channel_id/commitment are known at registration (PENDING, connector_id null); completion
+        // recomputes the same commitment to locate and update that row rather than inserting a new one
+        var channelId = domainBuilder.bytes(32);
+        var commitment = domainBuilder.bytes(32);
+        var register = ClprConnector.builder()
+                .channelId(channelId)
+                .commitment(commitment)
+                .createdTimestamp(domainBuilder.timestamp())
+                // Match the columns' DB defaults so the in-memory expected merge below agrees with the real upsert.
+                .inFlightMessageCount(0L)
+                .lockedStake(0L)
+                .slashCount(0L)
+                .status(ClprConnectorStatus.PENDING)
+                .build();
+        register.setTimestampRange(Range.atLeast(register.getCreatedTimestamp()));
+
+        var complete = ClprConnector.builder()
+                .channelId(channelId)
+                .commitment(commitment)
+                .connectorId(domainBuilder.bytes(32))
+                .connectorContractId(domainBuilder.entityId())
+                .adminKey(domainBuilder.key())
+                .createdTimestamp(register.getCreatedTimestamp() + 1)
+                .lockedStake(100_000_000L)
+                .publicKey(domainBuilder.bytes(64))
+                .status(ClprConnectorStatus.ACTIVE)
+                .timestampRange(Range.atLeast(register.getCreatedTimestamp() + 1))
+                .build();
+        var expected = TestUtils.merge(register, complete);
+
+        // when
+        sqlEntityListener.onClprConnector(register);
+        completeFileAndCommit();
+        sqlEntityListener.onClprConnector(complete);
+        completeFileAndCommit();
+
+        // then
+        register.setTimestampUpper(complete.getTimestampLower());
+        assertThat(clprConnectorRepository.findAll()).containsExactly(expected);
+        assertThat(findHistory(ClprConnector.class)).containsExactly(register);
+    }
+
     @ParameterizedTest
     @ValueSource(ints = {1, 2})
     void onClprConnectorSubmitBundleNeverHistorized(int commitIndex) {
@@ -590,11 +635,13 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         var complete = domainBuilder.clprConnector().get();
         var submitBundle1 = ClprConnector.builder()
                 .channelId(complete.getChannelId())
+                .commitment(complete.getCommitment())
                 .connectorId(complete.getConnectorId())
                 .inFlightMessageCount(complete.getInFlightMessageCount() + 1)
                 .build();
         var submitBundle2 = ClprConnector.builder()
                 .channelId(complete.getChannelId())
+                .commitment(complete.getCommitment())
                 .connectorId(complete.getConnectorId())
                 .inFlightMessageCount(complete.getInFlightMessageCount())
                 .lockedStake(complete.getLockedStake() - 1_000_000L)
@@ -622,6 +669,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // given -- no corresponding creation ever observed; skipPartialUpdate must drop this silently
         var orphanUpdate = ClprConnector.builder()
                 .channelId(domainBuilder.bytes(32))
+                .commitment(domainBuilder.bytes(32))
                 .connectorId(domainBuilder.bytes(32))
                 .inFlightMessageCount(1L)
                 .timestampRange(domainBuilder.timestampRange())
@@ -645,6 +693,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         var submitBundle = ClprConnector.builder()
                 .channelId(complete.getChannelId())
+                .commitment(complete.getCommitment())
                 .connectorId(complete.getConnectorId())
                 .inFlightMessageCount(complete.getInFlightMessageCount() + 1)
                 .slashCount(complete.getSlashCount() + 1)
@@ -654,8 +703,9 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         var deregister = ClprConnector.builder()
                 .channelId(complete.getChannelId())
+                .commitment(complete.getCommitment())
                 .connectorId(complete.getConnectorId())
-                .deleted(true)
+                .status(ClprConnectorStatus.DELETED)
                 .stakeRecipientId(domainBuilder.entityId())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
                 .build();
@@ -683,42 +733,6 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         patchedBySubmitBundle.setTimestampUpper(deregister.getTimestampLower());
         assertThat(clprConnectorRepository.findAll()).containsExactly(mergedDeregister);
         assertThat(findHistory(ClprConnector.class)).containsExactly(patchedBySubmitBundle);
-    }
-
-    @Test
-    void onClprConnectorReregistrationUpdatesAdminKeyAndContract() {
-        // given -- adminKey/connectorContractId aren't derived from (channelId, connectorId) like publicKey/salt
-        // are, so a re-registration sharing the same connectorId can legitimately change them
-        var original = domainBuilder.clprConnector().get();
-        var deregister = ClprConnector.builder()
-                .channelId(original.getChannelId())
-                .connectorId(original.getConnectorId())
-                .deleted(true)
-                .stakeRecipientId(domainBuilder.entityId())
-                .timestampRange(Range.atLeast(original.getCreatedTimestamp() + 1))
-                .build();
-        var reregistered = original.toBuilder()
-                .adminKey(domainBuilder.key())
-                .connectorContractId(domainBuilder.entityId())
-                .createdTimestamp(original.getCreatedTimestamp() + 2)
-                .deleted(false)
-                .timestampRange(Range.atLeast(original.getCreatedTimestamp() + 2))
-                .build();
-
-        // when -- each in its own flush, matching the real cross-block timing of a deregister-then-reregister
-        sqlEntityListener.onClprConnector(original);
-        completeFileAndCommit();
-        sqlEntityListener.onClprConnector(deregister);
-        completeFileAndCommit();
-        sqlEntityListener.onClprConnector(reregistered);
-        completeFileAndCommit();
-
-        // then
-        assertThat(clprConnectorRepository.findAll())
-                .singleElement()
-                .returns(reregistered.getAdminKey(), ClprConnector::getAdminKey)
-                .returns(reregistered.getConnectorContractId(), ClprConnector::getConnectorContractId)
-                .returns(false, ClprConnector::getDeleted);
     }
 
     @Test

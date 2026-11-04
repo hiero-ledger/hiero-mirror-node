@@ -4,22 +4,29 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.ClprDeregisterConnectorTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 
 class ClprDeregisterConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
+    @Mock
+    private ClprConnectorCommitmentService clprConnectorCommitmentService;
+
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ClprDeregisterConnectorTransactionHandler(entityListener);
+        return new ClprDeregisterConnectorTransactionHandler(clprConnectorCommitmentService, entityListener);
     }
 
     @Override
@@ -43,6 +50,10 @@ class ClprDeregisterConnectorTransactionHandlerTest extends AbstractTransactionH
                 getDefaultTransactionBody().build(),
                 getDefaultTransactionRecord().build());
         var body = recordItem.getTransactionBody().getClprDeregisterConnector();
+        var commitment = domainBuilder.bytes(32);
+        when(clprConnectorCommitmentService.lookup(
+                        DomainUtils.toBytes(body.getChannelId()), DomainUtils.toBytes(body.getConnectorId())))
+                .thenReturn(commitment);
         var transaction = domainBuilder.transaction().get();
         var captor = ArgumentCaptor.forClass(ClprConnector.class);
 
@@ -53,9 +64,25 @@ class ClprDeregisterConnectorTransactionHandlerTest extends AbstractTransactionH
         verify(entityListener).onClprConnector(captor.capture());
         assertThat(captor.getValue())
                 .returns(DomainUtils.toBytes(body.getChannelId()), ClprConnector::getChannelId)
+                .returns(commitment, ClprConnector::getCommitment)
                 .returns(DomainUtils.toBytes(body.getConnectorId()), ClprConnector::getConnectorId)
-                .returns(true, ClprConnector::getDeleted)
+                .returns(ClprConnectorStatus.DELETED, ClprConnector::getStatus)
                 .returns(EntityId.of(body.getStakeRecipient()), ClprConnector::getStakeRecipientId)
                 .returns(Range.atLeast(recordItem.getConsensusTimestamp()), ClprConnector::getTimestampRange);
+    }
+
+    @Test
+    void updateTransactionMissingCommitment() {
+        // given -- the connector completion that would have warmed the commitment lookup is missing/not yet seen
+        var recordItem = getRecordItem(
+                getDefaultTransactionBody().build(),
+                getDefaultTransactionRecord().build());
+        var transaction = domainBuilder.transaction().get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verifyNoInteractions(entityListener);
     }
 }

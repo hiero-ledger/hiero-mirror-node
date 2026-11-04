@@ -18,7 +18,6 @@ import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
-import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
@@ -132,14 +131,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onClprConnector(ClprConnector clprConnector) {
         context.merge(clprConnector.getId(), clprConnector, this::mergeClprConnector);
-    }
-
-    @Override
-    public void onClprConnectorPendingCommitment(ClprConnectorPendingCommitment clprConnectorPendingCommitment) {
-        context.merge(
-                ByteBuffer.wrap(clprConnectorPendingCommitment.getCommitment()),
-                clprConnectorPendingCommitment,
-                this::mergeClprPendingCommitment);
     }
 
     @Override
@@ -631,14 +622,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
         previous.setTimestampUpper(current.getTimestampLower());
 
-        if (current.getCreatedTimestamp() != null
-                && current.getCreatedTimestamp().equals(current.getTimestampLower())) {
-            // Fresh completion -- possibly a re-registration of a connector previously deregistered -- so don't
-            // carry stale fields forward from the deregistered connector.
-            return current;
-        }
-
+        // Unlike Channel ownership commitments, a connector commitment can never be re-registered once used
+        // (ClprRegisterConnectorHandler rejects it permanently), so createdTimestamp is only ever set once, at
+        // registration -- there's no "fresh" re-registration case to special-case here.
         fillIfAbsent(previous, current, ClprConnector::getCreatedTimestamp, ClprConnector::setCreatedTimestamp);
+        fillIfAbsent(previous, current, ClprConnector::getConnectorId, ClprConnector::setConnectorId);
         fillIfAbsent(previous, current, ClprConnector::getAdminKey, ClprConnector::setAdminKey);
         fillIfAbsent(previous, current, ClprConnector::getConnectorContractId, ClprConnector::setConnectorContractId);
         fillIfAbsent(previous, current, ClprConnector::getLockedStake, ClprConnector::setLockedStake);
@@ -649,7 +637,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         fillIfAbsent(previous, current, ClprConnector::getInFlightMessageCount, ClprConnector::setInFlightMessageCount);
         fillIfAbsent(previous, current, ClprConnector::getSlashCount, ClprConnector::setSlashCount);
         fillIfAbsent(previous, current, ClprConnector::getStakeRecipientId, ClprConnector::setStakeRecipientId);
-        fillIfAbsent(previous, current, ClprConnector::getDeleted, ClprConnector::setDeleted);
+        fillIfAbsent(previous, current, ClprConnector::getStatus, ClprConnector::setStatus);
 
         return current;
     }
