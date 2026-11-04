@@ -236,7 +236,8 @@ Build the image for both amd64 (Github CI) and arm64 (local testing). Don't forg
 can take some time depending on your internet speed. You will see activity around both arm64 and amd64.
 
 ```console
-$ docker buildx build --platform linux/arm64,linux/amd64 -t gcr.io/mirrornode/citus:12.1.1 --file alpine/Dockerfile  .
+$ export VERSION=...
+$ docker buildx build --platform linux/arm64,linux/amd64 -t gcr.io/mirrornode/citus:$VERSION --file alpine/Dockerfile  .
 [+] Building 351.1s (28/28) FINISHED
  => [internal] load .dockerignore                                                                                                                         0.0s
  => => transferring context: 2B                                                                                                                           0.0s
@@ -258,5 +259,5 @@ rather than as a separate step below.
 If you did not utilize `--push` with `docker buildx` when building the alpine image, push it now to Docker Hub.
 
 ```console
-docker push gcr.io/mirrornode/citus:12.1.1
+docker push gcr.io/mirrornode/citus:$VERSION
 ```
