@@ -42,6 +42,7 @@ public class RestJavaProperties {
      * requested in {@code STATE} mode.
      */
     @Data
+    @Validated
     public static class FeeEstimation {
 
         /** Whether to estimate the fee of each HAPI transaction before executing it and verify the charged fee. */
