@@ -319,7 +319,10 @@ public final class RecordItemBuilder {
                 .setReceivedRunningHash(bytes(32))
                 .build();
         return new Builder<>(TransactionType.CLPRCLOSECHANNEL, builder)
-                .recordItem(r -> r.clprContextBuilder().clprChannel(clprChannelValue));
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannel(clprChannelValue)
+                        // Also populated by the generic transform() step; must match for fixture equality.
+                        .clprChannels(List.of(clprChannelValue)));
     }
 
     public Builder<ClprCompleteChannelTransactionBody.Builder> clprCompleteChannel() {
@@ -347,7 +350,10 @@ public final class RecordItemBuilder {
                 .setVerifierContract(verifierContract)
                 .build();
         return new Builder<>(TransactionType.CLPRCOMPLETECHANNEL, builder)
-                .recordItem(r -> r.clprContextBuilder().clprChannel(clprChannelValue));
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannel(clprChannelValue)
+                        // Also populated by the generic transform() step; must match for fixture equality.
+                        .clprChannels(List.of(clprChannelValue)));
     }
 
     public Builder<ClprCompleteConnectorTransactionBody.Builder> clprCompleteConnector() {
@@ -449,6 +455,8 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.CLPRSUBMITBUNDLE, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannel(clprChannelValue)
+                        // Also populated by the generic transform() step; must match for fixture equality.
+                        .clprChannels(List.of(clprChannelValue))
                         .clprMessages(List.of(new StateChangeContext.ClprMessageEntry(messageKey, messageValue))));
     }
 

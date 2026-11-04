@@ -43,6 +43,9 @@ public class ClprRecordContext {
     private final ClprLedgerConfiguration clprLedgerConfiguration;
 
     @Builder.Default
+    private final List<ClprChannel> clprChannels = List.of();
+
+    @Builder.Default
     private final List<StateChangeContext.ClprMessageEntry> clprMessages = List.of();
 
     @Builder.Default

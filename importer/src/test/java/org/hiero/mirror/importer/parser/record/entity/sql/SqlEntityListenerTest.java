@@ -686,6 +686,42 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void onClprConnectorReregistrationUpdatesAdminKeyAndContract() {
+        // given -- adminKey/connectorContractId aren't derived from (channelId, connectorId) like publicKey/salt
+        // are, so a re-registration sharing the same connectorId can legitimately change them
+        var original = domainBuilder.clprConnector().get();
+        var deregister = ClprConnector.builder()
+                .channelId(original.getChannelId())
+                .connectorId(original.getConnectorId())
+                .deleted(true)
+                .stakeRecipientId(domainBuilder.entityId())
+                .timestampRange(Range.atLeast(original.getCreatedTimestamp() + 1))
+                .build();
+        var reregistered = original.toBuilder()
+                .adminKey(domainBuilder.key())
+                .connectorContractId(domainBuilder.entityId())
+                .createdTimestamp(original.getCreatedTimestamp() + 2)
+                .deleted(false)
+                .timestampRange(Range.atLeast(original.getCreatedTimestamp() + 2))
+                .build();
+
+        // when -- each in its own flush, matching the real cross-block timing of a deregister-then-reregister
+        sqlEntityListener.onClprConnector(original);
+        completeFileAndCommit();
+        sqlEntityListener.onClprConnector(deregister);
+        completeFileAndCommit();
+        sqlEntityListener.onClprConnector(reregistered);
+        completeFileAndCommit();
+
+        // then
+        assertThat(clprConnectorRepository.findAll())
+                .singleElement()
+                .returns(reregistered.getAdminKey(), ClprConnector::getAdminKey)
+                .returns(reregistered.getConnectorContractId(), ClprConnector::getConnectorContractId)
+                .returns(false, ClprConnector::getDeleted);
+    }
+
+    @Test
     void onContract() {
         // given
         Contract contract1 = domainBuilder.contract().get();

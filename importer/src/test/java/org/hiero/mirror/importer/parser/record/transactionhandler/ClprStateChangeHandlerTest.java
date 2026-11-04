@@ -95,7 +95,7 @@ final class ClprStateChangeHandlerTest {
                 .setNextMessageId(4)
                 .setAckedMessageId(2)
                 .build();
-        when(clprContext.getClprChannel()).thenReturn(clprChannelValue);
+        when(clprContext.getClprChannels()).thenReturn(List.of(clprChannelValue));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -108,6 +108,33 @@ final class ClprStateChangeHandlerTest {
                 .returns(4L, ClprChannel::getNextMessageId)
                 .returns(2L, ClprChannel::getAckedMessageId)
                 .returns(Range.atLeast(0L), ClprChannel::getTimestampRange);
+    }
+
+    @Test
+    void processMultipleChannels() {
+        // given -- a batch/hook-aggregated parent can touch more than one channel in a single transaction
+        mockEmptyClprState();
+        var channelId1 = domainBuilder.bytes(32);
+        var channelId2 = domainBuilder.bytes(32);
+        var clprChannelValue1 = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(channelId1))
+                .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE)
+                .build();
+        var clprChannelValue2 = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(channelId2))
+                .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE)
+                .build();
+        when(clprContext.getClprChannels()).thenReturn(List.of(clprChannelValue1, clprChannelValue2));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener, times(2)).onClprChannel(channelCaptor.capture());
+        assertThat(channelCaptor.getAllValues())
+                .extracting(ClprChannel::getChannelId)
+                .containsExactlyInAnyOrder(channelId1, channelId2);
     }
 
     @Test
@@ -289,6 +316,7 @@ final class ClprStateChangeHandlerTest {
     private void mockEmptyClprState() {
         lenient().when(recordItem.isSuccessful()).thenReturn(true);
         lenient().when(recordItem.getClprContext()).thenReturn(clprContext);
+        lenient().when(clprContext.getClprChannels()).thenReturn(List.of());
         lenient().when(clprContext.getClprMessages()).thenReturn(List.of());
         lenient().when(clprContext.getClprConnectors()).thenReturn(List.of());
         lenient().when(clprContext.getClprConnectorsRemoved()).thenReturn(List.of());

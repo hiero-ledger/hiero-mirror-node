@@ -64,8 +64,7 @@ public class ClprStateChangeHandler {
         }
 
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
-        final var clprChannelValue = clprContext.getClprChannel();
-        if (clprChannelValue != null) {
+        for (final var clprChannelValue : clprContext.getClprChannels()) {
             final var builder = ClprChannel.builder();
             populateFromStateChange(builder, clprChannelValue);
             if (channelHistorizes(clprChannelValue)) {

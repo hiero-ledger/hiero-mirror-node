@@ -109,7 +109,11 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
         final var clprContextBuilder =
                 blockTransactionTransformation.recordItemBuilder().clprContextBuilder();
+        // Singular clprChannel is kept only for ClprSubmitBundleTransactionHandler's presence check; clprChannels
+        // (plural) is the one ClprStateChangeHandler.process() actually persists from, since a batch/hook-aggregated
+        // parent can touch more than one channel.
         clprChannels.stream().findFirst().ifPresent(clprContextBuilder::clprChannel);
+        clprContextBuilder.clprChannels(clprChannels);
         clprContextBuilder.clprMessages(clprMessages);
         clprContextBuilder.clprConnectors(clprConnectors);
         clprContextBuilder.clprConnectorsRemoved(clprConnectorsRemoved);
