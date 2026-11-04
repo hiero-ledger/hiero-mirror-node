@@ -8,21 +8,22 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 /**
  * Reads the {@code clpr_connector_value} state change off {@code StateChangeContext} and populates
- * {@link org.hiero.mirror.common.domain.transaction.RecordItem#getClprConnector()}.
+ * {@link org.hiero.mirror.common.domain.transaction.RecordItem#getClprContext()}'s
+ * {@link org.hiero.mirror.common.domain.transaction.ClprRecordContext#getClprConnector()}.
  */
 @Named
 final class ClprCompleteConnectorTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        final var blockTransaction = blockTransactionTransformation.blockTransaction();
         if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        var transactionBody =
+        final var transactionBody =
                 blockTransactionTransformation.getTransactionBody().getClprCompleteConnector();
-        var key = ClprConnectorKey.newBuilder()
+        final var key = ClprConnectorKey.newBuilder()
                 .setChannelId(transactionBody.getChannelId())
                 .setConnectorId(transactionBody.getConnectorId())
                 .build();

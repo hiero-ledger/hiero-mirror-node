@@ -32,21 +32,21 @@ class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        var transactionBody = recordItem.getTransactionBody().getClprCompleteChannel();
-        var clprContext = recordItem.getClprContext();
-        var clprChannelValue = clprContext != null ? clprContext.getClprChannel() : null;
+        final var transactionBody = recordItem.getTransactionBody().getClprCompleteChannel();
+        final var clprContext = recordItem.getClprContext();
+        final var clprChannelValue = clprContext != null ? clprContext.getClprChannel() : null;
         if (ClprStateChangeHandler.isMissingStateChange(
                 clprChannelValue, "clpr_channel_value", "ClprCompleteChannel", recordItem.getConsensusTimestamp())) {
             return;
         }
 
-        long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var publicKey = DomainUtils.toBytes(transactionBody.getPublicKey());
-        var verifierContractId = EntityId.of(clprChannelValue.getVerifierContract());
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var publicKey = DomainUtils.toBytes(transactionBody.getPublicKey());
+        final var verifierContractId = EntityId.of(clprChannelValue.getVerifierContract());
 
-        var builder = ClprChannel.builder();
+        final var builder = ClprChannel.builder();
         ClprStateChangeHandler.populateFromStateChange(builder, clprChannelValue);
-        var clprChannel = builder.createdTimestamp(consensusTimestamp)
+        final var clprChannel = builder.createdTimestamp(consensusTimestamp)
                 .chainId(clprChannelValue.getChainId())
                 .verifierContractId(verifierContractId)
                 .verifierFingerprint(DomainUtils.toBytes(clprChannelValue.getVerifierFingerprint()))
@@ -62,7 +62,7 @@ class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
 
         // Marks the pending commitment completed rather than deleting it (consensus never removes it); reuses
         // clprChannel's own ownership_commitment rather than recomputing it.
-        var commitment = ClprChannelPendingCommitment.builder()
+        final var commitment = ClprChannelPendingCommitment.builder()
                 .ownershipCommitment(clprChannel.getOwnershipCommitment())
                 .status(ClprPendingCommitmentStatus.COMPLETED)
                 .timestampRange(Range.atLeast(consensusTimestamp))

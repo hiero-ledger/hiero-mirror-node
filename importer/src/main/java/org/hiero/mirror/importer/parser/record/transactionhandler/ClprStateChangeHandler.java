@@ -82,7 +82,7 @@ class ClprStateChangeHandler {
         }
 
         if (value.hasPeerThrottles()) {
-            var throttles = value.getPeerThrottles();
+            final var throttles = value.getPeerThrottles();
             builder.peerMaxGasPerMessage(throttles.getMaxGasPerMessage())
                     .peerMaxLocalEndpoints((long) throttles.getMaxLocalEndpoints())
                     .peerMaxMessagePayloadBytes((long) throttles.getMaxMessagePayloadBytes())
@@ -117,9 +117,9 @@ class ClprStateChangeHandler {
     }
 
     static List<ClprEndpoint> toEndpoints(List<com.hederahashgraph.api.proto.java.ClprEndpoint> endpoints) {
-        var result = new ArrayList<ClprEndpoint>(endpoints.size());
-        for (var endpoint : endpoints) {
-            var serviceEndpoint = endpoint.getServiceEndpoint();
+        final var result = new ArrayList<ClprEndpoint>(endpoints.size());
+        for (final var endpoint : endpoints) {
+            final var serviceEndpoint = endpoint.getServiceEndpoint();
             result.add(ClprEndpoint.builder()
                     .serviceEndpoint(new ClprServiceEndpoint(serviceEndpoint.getIpAddress(), serviceEndpoint.getPort()))
                     .tlsCertificate(DomainUtils.toBytes(endpoint.getTlsCertificate()))
@@ -134,15 +134,15 @@ class ClprStateChangeHandler {
             return;
         }
 
-        var clprContext = recordItem.getClprContext();
+        final var clprContext = recordItem.getClprContext();
         if (clprContext == null) {
             return;
         }
 
-        long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var clprChannelValue = clprContext.getClprChannel();
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var clprChannelValue = clprContext.getClprChannel();
         if (clprChannelValue != null) {
-            var builder = ClprChannel.builder();
+            final var builder = ClprChannel.builder();
             populateFromStateChange(builder, clprChannelValue);
             if (channelHistorizes(clprChannelValue)) {
                 builder.timestampRange(Range.atLeast(consensusTimestamp));
@@ -150,22 +150,22 @@ class ClprStateChangeHandler {
             entityListener.onClprChannel(builder.build());
         }
 
-        for (var entry : clprContext.getClprMessages()) {
-            var message = toMessage(entry, consensusTimestamp);
+        for (final var entry : clprContext.getClprMessages()) {
+            final var message = toMessage(entry, consensusTimestamp);
             if (message != null) {
                 entityListener.onClprMessage(message);
             }
         }
 
         // Process removals first so a connector banned and patched in the same transaction ends up deleted.
-        var removedConnectorKeys = new HashSet<ClprConnectorKey>();
-        for (var key : clprContext.getClprConnectorsRemoved()) {
+        final var removedConnectorKeys = new HashSet<ClprConnectorKey>();
+        for (final var key : clprContext.getClprConnectorsRemoved()) {
             removedConnectorKeys.add(key);
             entityListener.onClprConnector(toRemovedConnector(key, consensusTimestamp));
         }
 
-        for (var value : clprContext.getClprConnectors()) {
-            var key = ClprConnectorKey.newBuilder()
+        for (final var value : clprContext.getClprConnectors()) {
+            final var key = ClprConnectorKey.newBuilder()
                     .setChannelId(value.getChannelId())
                     .setConnectorId(value.getConnectorId())
                     .build();
@@ -189,14 +189,14 @@ class ClprStateChangeHandler {
 
     private ClprControlConfiguration toControlConfiguration(
             com.hederahashgraph.api.proto.java.ClprLedgerConfiguration configuration) {
-        var builder = ClprControlConfiguration.builder()
+        final var builder = ClprControlConfiguration.builder()
                 .protocolVersion(configuration.getProtocolVersion())
                 .chainId(configuration.getChainId())
                 .serviceAddress(DomainUtils.toBytes(configuration.getServiceAddress()))
                 .initialTrustAnchor(DomainUtils.toBytes(configuration.getInitialTrustAnchor()))
                 .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()));
 
-        var throttleValues = ClprThrottleValues.from(configuration);
+        final var throttleValues = ClprThrottleValues.from(configuration);
         if (throttleValues != null) {
             builder.maxGasPerMessage(throttleValues.maxGasPerMessage())
                     .maxLocalEndpoints(throttleValues.maxLocalEndpoints())
@@ -211,7 +211,7 @@ class ClprStateChangeHandler {
     }
 
     private ClprControlMessage toControlMessage(com.hederahashgraph.api.proto.java.ClprControlMessage control) {
-        var builder = ClprControlMessage.builder();
+        final var builder = ClprControlMessage.builder();
         if (control.hasConfigUpdate()) {
             builder.configUpdate(ClprConfigUpdate.builder()
                     .configuration(
@@ -222,10 +222,10 @@ class ClprStateChangeHandler {
     }
 
     private @Nullable ClprMessage toMessage(ClprMessageEntry entry, long consensusTimestamp) {
-        var key = entry.key();
-        var value = entry.value();
-        var payload = value.getPayload();
-        var messageBuilder = ClprMessage.builder()
+        final var key = entry.key();
+        final var value = entry.value();
+        final var payload = value.getPayload();
+        final var messageBuilder = ClprMessage.builder()
                 .channelId(DomainUtils.toBytes(key.getChannelId()))
                 .messageId(key.getMessageId())
                 .consensusTimestamp(consensusTimestamp)
@@ -233,7 +233,7 @@ class ClprStateChangeHandler {
 
         switch (payload.getPayloadCase()) {
             case MESSAGE -> {
-                var message = payload.getMessage();
+                final var message = payload.getMessage();
                 messageBuilder
                         .messageType(ClprMessageType.DATA)
                         .connectorId(DomainUtils.toBytes(message.getConnectorId()))
@@ -243,7 +243,7 @@ class ClprStateChangeHandler {
             }
             case MESSAGE_REPLY -> {
                 // connector_id stays null: ClprMessageReply has no connector_id field on the wire
-                var reply = payload.getMessageReply();
+                final var reply = payload.getMessageReply();
                 messageBuilder
                         .messageType(ClprMessageType.RESPONSE)
                         .replyToMessageId(reply.getMessageId())

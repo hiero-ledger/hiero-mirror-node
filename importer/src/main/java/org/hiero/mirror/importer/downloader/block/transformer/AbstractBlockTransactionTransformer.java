@@ -90,16 +90,16 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
      * they'd reprocess the same CLPR state changes a second time.
      */
     private void transformClprSendMessageSideEffects(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        final var blockTransaction = blockTransactionTransformation.blockTransaction();
         if (!blockTransaction.isSuccessful() || blockTransaction.getParent() != null) {
             return;
         }
 
-        var stateChangeContext = blockTransaction.getStateChangeContext();
-        var clprChannels = stateChangeContext.getClprChannels();
-        var clprMessages = stateChangeContext.getClprMessages();
-        var clprConnectors = stateChangeContext.getClprConnectors();
-        var clprConnectorsRemoved = stateChangeContext.getClprConnectorsRemoved();
+        final var stateChangeContext = blockTransaction.getStateChangeContext();
+        final var clprChannels = stateChangeContext.getClprChannels();
+        final var clprMessages = stateChangeContext.getClprMessages();
+        final var clprConnectors = stateChangeContext.getClprConnectors();
+        final var clprConnectorsRemoved = stateChangeContext.getClprConnectorsRemoved();
         if (clprChannels.isEmpty()
                 && clprMessages.isEmpty()
                 && clprConnectors.isEmpty()
@@ -107,7 +107,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             return;
         }
 
-        var clprContextBuilder =
+        final var clprContextBuilder =
                 blockTransactionTransformation.recordItemBuilder().clprContextBuilder();
         clprChannels.stream().findFirst().ifPresent(clprContextBuilder::clprChannel);
         clprContextBuilder.clprMessages(clprMessages);

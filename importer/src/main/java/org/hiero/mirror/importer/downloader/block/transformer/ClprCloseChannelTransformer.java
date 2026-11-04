@@ -16,12 +16,12 @@ final class ClprCloseChannelTransformer extends AbstractBlockTransactionTransfor
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        final var blockTransaction = blockTransactionTransformation.blockTransaction();
         if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        var transactionBody =
+        final var transactionBody =
                 blockTransactionTransformation.getTransactionBody().getClprCloseChannel();
         blockTransaction
                 .getStateChangeContext()

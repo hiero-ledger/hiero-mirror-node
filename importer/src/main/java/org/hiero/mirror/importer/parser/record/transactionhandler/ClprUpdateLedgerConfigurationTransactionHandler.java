@@ -28,8 +28,8 @@ class ClprUpdateLedgerConfigurationTransactionHandler extends AbstractTransactio
             return;
         }
 
-        var clprContext = recordItem.getClprContext();
-        var configuration = clprContext != null ? clprContext.getClprLedgerConfiguration() : null;
+        final var clprContext = recordItem.getClprContext();
+        final var configuration = clprContext != null ? clprContext.getClprLedgerConfiguration() : null;
         if (ClprStateChangeHandler.isMissingStateChange(
                 configuration,
                 "clpr_ledger_configuration_value",
@@ -38,9 +38,9 @@ class ClprUpdateLedgerConfigurationTransactionHandler extends AbstractTransactio
             return;
         }
 
-        long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
 
-        var builder = ClprLedgerConfiguration.builder()
+        final var builder = ClprLedgerConfiguration.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .protocolVersion(configuration.getProtocolVersion())
                 .chainId(configuration.getChainId())
@@ -48,7 +48,7 @@ class ClprUpdateLedgerConfigurationTransactionHandler extends AbstractTransactio
                 .initialTrustAnchor(DomainUtils.toBytes(configuration.getInitialTrustAnchor()))
                 .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()));
 
-        var throttleValues = ClprThrottleValues.from(configuration);
+        final var throttleValues = ClprThrottleValues.from(configuration);
         if (throttleValues != null) {
             builder.maxGasPerMessage(throttleValues.maxGasPerMessage())
                     .maxLocalEndpoints(throttleValues.maxLocalEndpoints())

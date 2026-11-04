@@ -8,6 +8,8 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
@@ -505,73 +507,45 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         return current;
     }
 
-    @SuppressWarnings("java:S3776")
+    /** Sets {@code value} on {@code target} via {@code setter} if {@code value} is non-null. */
+    private static <T, V> void patchIfPresent(T target, V value, BiConsumer<T, V> setter) {
+        if (value != null) {
+            setter.accept(target, value);
+        }
+    }
+
+    /** Carries a field from {@code previous} to {@code current} if {@code current} doesn't already have one. */
+    private static <T, V> void fillIfAbsent(T previous, T current, Function<T, V> getter, BiConsumer<T, V> setter) {
+        if (getter.apply(current) == null) {
+            setter.accept(current, getter.apply(previous));
+        }
+    }
+
     private ClprChannel mergeClprChannel(ClprChannel previous, ClprChannel current) {
         // No timestampRange: a non-historical patch, same mechanism as Entity.balance.
         if (!current.hasHistory()) {
-            if (current.getStatus() != null) {
-                previous.setStatus(current.getStatus());
-            }
-            if (current.getNextMessageId() != null) {
-                previous.setNextMessageId(current.getNextMessageId());
-            }
-            if (current.getAckedMessageId() != null) {
-                previous.setAckedMessageId(current.getAckedMessageId());
-            }
-            if (current.getReceivedMessageId() != null) {
-                previous.setReceivedMessageId(current.getReceivedMessageId());
-            }
-            if (current.getSentRunningHash() != null) {
-                previous.setSentRunningHash(current.getSentRunningHash());
-            }
-            if (current.getReceivedRunningHash() != null) {
-                previous.setReceivedRunningHash(current.getReceivedRunningHash());
-            }
-            if (current.getOwnershipCommitment() != null) {
-                previous.setOwnershipCommitment(current.getOwnershipCommitment());
-            }
-            if (current.getTrustAnchor() != null) {
-                previous.setTrustAnchor(current.getTrustAnchor());
-            }
-            if (current.getTrustAnchorId() != null) {
-                previous.setTrustAnchorId(current.getTrustAnchorId());
-            }
-            if (current.getChannelContext() != null) {
-                previous.setChannelContext(current.getChannelContext());
-            }
-            if (current.getEndpointManifestVersion() != null) {
-                previous.setEndpointManifestVersion(current.getEndpointManifestVersion());
-            }
-            if (current.getLastConfigTimestamp() != null) {
-                previous.setLastConfigTimestamp(current.getLastConfigTimestamp());
-            }
-            if (current.getPeerConfigTimestamp() != null) {
-                previous.setPeerConfigTimestamp(current.getPeerConfigTimestamp());
-            }
-            if (current.getPeerMaxGasPerMessage() != null) {
-                previous.setPeerMaxGasPerMessage(current.getPeerMaxGasPerMessage());
-            }
-            if (current.getPeerMaxLocalEndpoints() != null) {
-                previous.setPeerMaxLocalEndpoints(current.getPeerMaxLocalEndpoints());
-            }
-            if (current.getPeerMaxMessagePayloadBytes() != null) {
-                previous.setPeerMaxMessagePayloadBytes(current.getPeerMaxMessagePayloadBytes());
-            }
-            if (current.getPeerMaxMessagesPerBundle() != null) {
-                previous.setPeerMaxMessagesPerBundle(current.getPeerMaxMessagesPerBundle());
-            }
-            if (current.getPeerMaxPeerEndpoints() != null) {
-                previous.setPeerMaxPeerEndpoints(current.getPeerMaxPeerEndpoints());
-            }
-            if (current.getPeerMaxQueueDepth() != null) {
-                previous.setPeerMaxQueueDepth(current.getPeerMaxQueueDepth());
-            }
-            if (current.getPeerMaxSyncBytes() != null) {
-                previous.setPeerMaxSyncBytes(current.getPeerMaxSyncBytes());
-            }
-            if (current.getEndpointManifest() != null) {
-                previous.setEndpointManifest(current.getEndpointManifest());
-            }
+            patchIfPresent(previous, current.getStatus(), ClprChannel::setStatus);
+            patchIfPresent(previous, current.getNextMessageId(), ClprChannel::setNextMessageId);
+            patchIfPresent(previous, current.getAckedMessageId(), ClprChannel::setAckedMessageId);
+            patchIfPresent(previous, current.getReceivedMessageId(), ClprChannel::setReceivedMessageId);
+            patchIfPresent(previous, current.getSentRunningHash(), ClprChannel::setSentRunningHash);
+            patchIfPresent(previous, current.getReceivedRunningHash(), ClprChannel::setReceivedRunningHash);
+            patchIfPresent(previous, current.getOwnershipCommitment(), ClprChannel::setOwnershipCommitment);
+            patchIfPresent(previous, current.getTrustAnchor(), ClprChannel::setTrustAnchor);
+            patchIfPresent(previous, current.getTrustAnchorId(), ClprChannel::setTrustAnchorId);
+            patchIfPresent(previous, current.getChannelContext(), ClprChannel::setChannelContext);
+            patchIfPresent(previous, current.getEndpointManifestVersion(), ClprChannel::setEndpointManifestVersion);
+            patchIfPresent(previous, current.getLastConfigTimestamp(), ClprChannel::setLastConfigTimestamp);
+            patchIfPresent(previous, current.getPeerConfigTimestamp(), ClprChannel::setPeerConfigTimestamp);
+            patchIfPresent(previous, current.getPeerMaxGasPerMessage(), ClprChannel::setPeerMaxGasPerMessage);
+            patchIfPresent(previous, current.getPeerMaxLocalEndpoints(), ClprChannel::setPeerMaxLocalEndpoints);
+            patchIfPresent(
+                    previous, current.getPeerMaxMessagePayloadBytes(), ClprChannel::setPeerMaxMessagePayloadBytes);
+            patchIfPresent(previous, current.getPeerMaxMessagesPerBundle(), ClprChannel::setPeerMaxMessagesPerBundle);
+            patchIfPresent(previous, current.getPeerMaxPeerEndpoints(), ClprChannel::setPeerMaxPeerEndpoints);
+            patchIfPresent(previous, current.getPeerMaxQueueDepth(), ClprChannel::setPeerMaxQueueDepth);
+            patchIfPresent(previous, current.getPeerMaxSyncBytes(), ClprChannel::setPeerMaxSyncBytes);
+            patchIfPresent(previous, current.getEndpointManifest(), ClprChannel::setEndpointManifest);
 
             return previous;
         }
@@ -579,96 +553,46 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         previous.setTimestampUpper(current.getTimestampLower());
 
         // Channels are only ever created once; every later touch is a partial update, so no "fresh creation" branch
-        if (current.getCreatedTimestamp() == null) {
-            current.setCreatedTimestamp(previous.getCreatedTimestamp());
-        }
-        if (current.getChainId() == null) {
-            current.setChainId(previous.getChainId());
-        }
-        if (current.getChannelContext() == null) {
-            current.setChannelContext(previous.getChannelContext());
-        }
-        if (current.getOwnershipCommitment() == null) {
-            current.setOwnershipCommitment(previous.getOwnershipCommitment());
-        }
-        if (current.getVerifierContractId() == null) {
-            current.setVerifierContractId(previous.getVerifierContractId());
-        }
-        if (current.getVerifierFingerprint() == null) {
-            current.setVerifierFingerprint(previous.getVerifierFingerprint());
-        }
-        if (current.getConfigProofBytes() == null) {
-            current.setConfigProofBytes(previous.getConfigProofBytes());
-        }
-        if (current.getEndpointManifestProofBytes() == null) {
-            current.setEndpointManifestProofBytes(previous.getEndpointManifestProofBytes());
-        }
-        if (current.getPublicKey() == null) {
-            current.setPublicKey(previous.getPublicKey());
-        }
-        if (current.getSignature() == null) {
-            current.setSignature(previous.getSignature());
-        }
-        if (current.getSignatureScheme() == null) {
-            current.setSignatureScheme(previous.getSignatureScheme());
-        }
-        if (current.getStatus() == null) {
-            current.setStatus(previous.getStatus());
-        }
-        if (current.getNextMessageId() == null) {
-            current.setNextMessageId(previous.getNextMessageId());
-        }
-        if (current.getAckedMessageId() == null) {
-            current.setAckedMessageId(previous.getAckedMessageId());
-        }
-        if (current.getReceivedMessageId() == null) {
-            current.setReceivedMessageId(previous.getReceivedMessageId());
-        }
-        if (current.getSentRunningHash() == null) {
-            current.setSentRunningHash(previous.getSentRunningHash());
-        }
-        if (current.getReceivedRunningHash() == null) {
-            current.setReceivedRunningHash(previous.getReceivedRunningHash());
-        }
-        if (current.getLastConfigTimestamp() == null) {
-            current.setLastConfigTimestamp(previous.getLastConfigTimestamp());
-        }
-        if (current.getPeerConfigTimestamp() == null) {
-            current.setPeerConfigTimestamp(previous.getPeerConfigTimestamp());
-        }
-        if (current.getPeerMaxGasPerMessage() == null) {
-            current.setPeerMaxGasPerMessage(previous.getPeerMaxGasPerMessage());
-        }
-        if (current.getPeerMaxLocalEndpoints() == null) {
-            current.setPeerMaxLocalEndpoints(previous.getPeerMaxLocalEndpoints());
-        }
-        if (current.getPeerMaxMessagePayloadBytes() == null) {
-            current.setPeerMaxMessagePayloadBytes(previous.getPeerMaxMessagePayloadBytes());
-        }
-        if (current.getPeerMaxMessagesPerBundle() == null) {
-            current.setPeerMaxMessagesPerBundle(previous.getPeerMaxMessagesPerBundle());
-        }
-        if (current.getPeerMaxPeerEndpoints() == null) {
-            current.setPeerMaxPeerEndpoints(previous.getPeerMaxPeerEndpoints());
-        }
-        if (current.getPeerMaxQueueDepth() == null) {
-            current.setPeerMaxQueueDepth(previous.getPeerMaxQueueDepth());
-        }
-        if (current.getPeerMaxSyncBytes() == null) {
-            current.setPeerMaxSyncBytes(previous.getPeerMaxSyncBytes());
-        }
-        if (current.getEndpointManifest() == null) {
-            current.setEndpointManifest(previous.getEndpointManifest());
-        }
-        if (current.getEndpointManifestVersion() == null) {
-            current.setEndpointManifestVersion(previous.getEndpointManifestVersion());
-        }
-        if (current.getTrustAnchor() == null) {
-            current.setTrustAnchor(previous.getTrustAnchor());
-        }
-        if (current.getTrustAnchorId() == null) {
-            current.setTrustAnchorId(previous.getTrustAnchorId());
-        }
+        fillIfAbsent(previous, current, ClprChannel::getCreatedTimestamp, ClprChannel::setCreatedTimestamp);
+        fillIfAbsent(previous, current, ClprChannel::getChainId, ClprChannel::setChainId);
+        fillIfAbsent(previous, current, ClprChannel::getChannelContext, ClprChannel::setChannelContext);
+        fillIfAbsent(previous, current, ClprChannel::getOwnershipCommitment, ClprChannel::setOwnershipCommitment);
+        fillIfAbsent(previous, current, ClprChannel::getVerifierContractId, ClprChannel::setVerifierContractId);
+        fillIfAbsent(previous, current, ClprChannel::getVerifierFingerprint, ClprChannel::setVerifierFingerprint);
+        fillIfAbsent(previous, current, ClprChannel::getConfigProofBytes, ClprChannel::setConfigProofBytes);
+        fillIfAbsent(
+                previous,
+                current,
+                ClprChannel::getEndpointManifestProofBytes,
+                ClprChannel::setEndpointManifestProofBytes);
+        fillIfAbsent(previous, current, ClprChannel::getPublicKey, ClprChannel::setPublicKey);
+        fillIfAbsent(previous, current, ClprChannel::getSignature, ClprChannel::setSignature);
+        fillIfAbsent(previous, current, ClprChannel::getSignatureScheme, ClprChannel::setSignatureScheme);
+        fillIfAbsent(previous, current, ClprChannel::getStatus, ClprChannel::setStatus);
+        fillIfAbsent(previous, current, ClprChannel::getNextMessageId, ClprChannel::setNextMessageId);
+        fillIfAbsent(previous, current, ClprChannel::getAckedMessageId, ClprChannel::setAckedMessageId);
+        fillIfAbsent(previous, current, ClprChannel::getReceivedMessageId, ClprChannel::setReceivedMessageId);
+        fillIfAbsent(previous, current, ClprChannel::getSentRunningHash, ClprChannel::setSentRunningHash);
+        fillIfAbsent(previous, current, ClprChannel::getReceivedRunningHash, ClprChannel::setReceivedRunningHash);
+        fillIfAbsent(previous, current, ClprChannel::getLastConfigTimestamp, ClprChannel::setLastConfigTimestamp);
+        fillIfAbsent(previous, current, ClprChannel::getPeerConfigTimestamp, ClprChannel::setPeerConfigTimestamp);
+        fillIfAbsent(previous, current, ClprChannel::getPeerMaxGasPerMessage, ClprChannel::setPeerMaxGasPerMessage);
+        fillIfAbsent(previous, current, ClprChannel::getPeerMaxLocalEndpoints, ClprChannel::setPeerMaxLocalEndpoints);
+        fillIfAbsent(
+                previous,
+                current,
+                ClprChannel::getPeerMaxMessagePayloadBytes,
+                ClprChannel::setPeerMaxMessagePayloadBytes);
+        fillIfAbsent(
+                previous, current, ClprChannel::getPeerMaxMessagesPerBundle, ClprChannel::setPeerMaxMessagesPerBundle);
+        fillIfAbsent(previous, current, ClprChannel::getPeerMaxPeerEndpoints, ClprChannel::setPeerMaxPeerEndpoints);
+        fillIfAbsent(previous, current, ClprChannel::getPeerMaxQueueDepth, ClprChannel::setPeerMaxQueueDepth);
+        fillIfAbsent(previous, current, ClprChannel::getPeerMaxSyncBytes, ClprChannel::setPeerMaxSyncBytes);
+        fillIfAbsent(previous, current, ClprChannel::getEndpointManifest, ClprChannel::setEndpointManifest);
+        fillIfAbsent(
+                previous, current, ClprChannel::getEndpointManifestVersion, ClprChannel::setEndpointManifestVersion);
+        fillIfAbsent(previous, current, ClprChannel::getTrustAnchor, ClprChannel::setTrustAnchor);
+        fillIfAbsent(previous, current, ClprChannel::getTrustAnchorId, ClprChannel::setTrustAnchorId);
 
         return current;
     }
@@ -683,12 +607,12 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             return current;
         }
 
-        if (current.getCreatedTimestamp() == null) {
-            current.setCreatedTimestamp(previous.getCreatedTimestamp());
-        }
-        if (current.getStatus() == null) {
-            current.setStatus(previous.getStatus());
-        }
+        fillIfAbsent(
+                previous,
+                current,
+                ClprPendingCommitment::getCreatedTimestamp,
+                ClprPendingCommitment::setCreatedTimestamp);
+        fillIfAbsent(previous, current, ClprPendingCommitment::getStatus, ClprPendingCommitment::setStatus);
 
         return current;
     }
@@ -696,21 +620,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     private ClprConnector mergeClprConnector(ClprConnector previous, ClprConnector current) {
         // No timestampRange: a non-historical patch, same mechanism as mergeClprChannel above.
         if (!current.hasHistory()) {
-            if (current.getConnectorContractId() != null) {
-                previous.setConnectorContractId(current.getConnectorContractId());
-            }
-            if (current.getAdminKey() != null) {
-                previous.setAdminKey(current.getAdminKey());
-            }
-            if (current.getLockedStake() != null) {
-                previous.setLockedStake(current.getLockedStake());
-            }
-            if (current.getSlashCount() != null) {
-                previous.setSlashCount(current.getSlashCount());
-            }
-            if (current.getInFlightMessageCount() != null) {
-                previous.setInFlightMessageCount(current.getInFlightMessageCount());
-            }
+            patchIfPresent(previous, current.getConnectorContractId(), ClprConnector::setConnectorContractId);
+            patchIfPresent(previous, current.getAdminKey(), ClprConnector::setAdminKey);
+            patchIfPresent(previous, current.getLockedStake(), ClprConnector::setLockedStake);
+            patchIfPresent(previous, current.getSlashCount(), ClprConnector::setSlashCount);
+            patchIfPresent(previous, current.getInFlightMessageCount(), ClprConnector::setInFlightMessageCount);
 
             return previous;
         }
@@ -724,42 +638,18 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             return current;
         }
 
-        if (current.getCreatedTimestamp() == null) {
-            current.setCreatedTimestamp(previous.getCreatedTimestamp());
-        }
-        if (current.getAdminKey() == null) {
-            current.setAdminKey(previous.getAdminKey());
-        }
-        if (current.getConnectorContractId() == null) {
-            current.setConnectorContractId(previous.getConnectorContractId());
-        }
-        if (current.getLockedStake() == null) {
-            current.setLockedStake(previous.getLockedStake());
-        }
-        if (current.getPublicKey() == null) {
-            current.setPublicKey(previous.getPublicKey());
-        }
-        if (current.getSalt() == null) {
-            current.setSalt(previous.getSalt());
-        }
-        if (current.getSignature() == null) {
-            current.setSignature(previous.getSignature());
-        }
-        if (current.getSignatureScheme() == null) {
-            current.setSignatureScheme(previous.getSignatureScheme());
-        }
-        if (current.getInFlightMessageCount() == null) {
-            current.setInFlightMessageCount(previous.getInFlightMessageCount());
-        }
-        if (current.getSlashCount() == null) {
-            current.setSlashCount(previous.getSlashCount());
-        }
-        if (current.getStakeRecipientId() == null) {
-            current.setStakeRecipientId(previous.getStakeRecipientId());
-        }
-        if (current.getDeleted() == null) {
-            current.setDeleted(previous.getDeleted());
-        }
+        fillIfAbsent(previous, current, ClprConnector::getCreatedTimestamp, ClprConnector::setCreatedTimestamp);
+        fillIfAbsent(previous, current, ClprConnector::getAdminKey, ClprConnector::setAdminKey);
+        fillIfAbsent(previous, current, ClprConnector::getConnectorContractId, ClprConnector::setConnectorContractId);
+        fillIfAbsent(previous, current, ClprConnector::getLockedStake, ClprConnector::setLockedStake);
+        fillIfAbsent(previous, current, ClprConnector::getPublicKey, ClprConnector::setPublicKey);
+        fillIfAbsent(previous, current, ClprConnector::getSalt, ClprConnector::setSalt);
+        fillIfAbsent(previous, current, ClprConnector::getSignature, ClprConnector::setSignature);
+        fillIfAbsent(previous, current, ClprConnector::getSignatureScheme, ClprConnector::setSignatureScheme);
+        fillIfAbsent(previous, current, ClprConnector::getInFlightMessageCount, ClprConnector::setInFlightMessageCount);
+        fillIfAbsent(previous, current, ClprConnector::getSlashCount, ClprConnector::setSlashCount);
+        fillIfAbsent(previous, current, ClprConnector::getStakeRecipientId, ClprConnector::setStakeRecipientId);
+        fillIfAbsent(previous, current, ClprConnector::getDeleted, ClprConnector::setDeleted);
 
         return current;
     }
