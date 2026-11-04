@@ -543,6 +543,56 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @Test
+    void streamBlockNumberMismatchUsesHeaderNumber(final Resources resources) {
+        // given
+        final var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(0), eventHeader(), blockProof())),
+                subscribeStreamResponse(1));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when
+        final var streamed = new ArrayList<BlockStream>();
+        node.streamBlocks(0, null, accumulate(streamed), TIMEOUT);
+
+        // then
+        assertThat(streamed).singleElement().satisfies(blockStream -> assertBlockStream(blockStream, 0));
+    }
+
+    @Test
+    void streamFirstBlockNumberNotRequested(final Resources resources) {
+        // given
+        final var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(5), eventHeader(), blockProof())),
+                subscribeStreamResponse(5));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+        final var streamed = new ArrayList<BlockStream>();
+
+        // when, then
+        assertThatThrownBy(() -> node.streamBlocks(0, null, accumulate(streamed), TIMEOUT))
+                .isInstanceOf(BlockStreamException.class)
+                .hasMessageContaining("First block has incorrect block number: received 5, expected 0");
+        assertThat(streamed).isEmpty();
+    }
+
+    @Test
+    void streamLaterBlockNotChecked(final Resources resources) {
+        // given only the first block is bound to the requested start block number
+        final var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(3), eventHeader(), blockProof())),
+                subscribeStreamResponse(3),
+                subscribeStreamResponse(blockItemSet(blockHead(7), eventHeader(), blockProof())),
+                subscribeStreamResponse(7));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+        final var streamed = new ArrayList<BlockStream>();
+
+        // when
+        node.streamBlocks(3, null, accumulate(streamed), TIMEOUT);
+
+        // then
+        assertThat(streamed).hasSize(2);
+    }
+
+    @Test
     void streamIncorrectFirstBlockItem(Resources resources) {
         // given
         var responses = List.of(subscribeStreamResponse(blockItemSet(eventHeader(), blockProof())));
@@ -642,7 +692,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
         // when, then
         var streamed = new ArrayList<BlockStream>();
-        node.streamBlocks(0, null, accumulate(streamed), TIMEOUT);
+        node.streamBlocks(1, null, accumulate(streamed), TIMEOUT);
 
         // then
         assertThat(streamed)
@@ -702,7 +752,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
+        assertThatThrownBy(() -> node.streamBlocks(1, null, IGNORE, TIMEOUT))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Too many block items in a pending block: received 4, limit 2");
     }

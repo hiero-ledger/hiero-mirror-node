@@ -35,6 +35,12 @@ variable "nonprod_slack_contact_point" {
   description = "Name of the manually-created Grafana contact point that posts to the non-prod Slack channel."
 }
 
+variable "rootly_contact_point" {
+  type        = string
+  default     = "Rootly-Paging"
+  description = "Name of the manually-created Grafana contact point that pages the on-call via Rootly."
+}
+
 resource "grafana_notification_policy" "root" {
   contact_point = "grafana-default-email"
   group_by      = ["alertname", "cluster", "namespace"]
@@ -42,6 +48,22 @@ resource "grafana_notification_policy" "root" {
   group_wait      = "30s"
   group_interval  = "5m"
   repeat_interval = "4h"
+
+  # Keep as the first policy block so paging=rootly alerts reach Rootly, then continue on to Slack below
+  policy {
+    contact_point = var.rootly_contact_point
+    continue      = true
+    matcher {
+      label = "paging"
+      match = "="
+      value = "rootly"
+    }
+    matcher {
+      label = "env_category"
+      match = "="
+      value = "production"
+    }
+  }
 
   policy {
     contact_point = var.prod_slack_contact_point
@@ -175,14 +197,14 @@ resource "grafana_rule_group" "rule_group_grpc" {
       }
 
       datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod, statusCode) (rate(grpc_server_processing_duration_seconds_count{application=\\\"grpc\\\",statusCode!~\\\"CANCELLED|DEADLINE_EXCEEDED|INVALID_ARGUMENT|NOT_FOUND|OK\\\"}[5m])) / sum by (cluster, namespace, env_category, pod, statusCode) (rate(grpc_server_processing_duration_seconds_count{application=\\\"grpc\\\"}[5m])) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod, grpc_status_code) (rate(grpc_server_seconds_count{application=\\\"grpc\\\",grpc_status_code!~\\\"CANCELLED|DEADLINE_EXCEEDED|INVALID_ARGUMENT|NOT_FOUND|OK|UNKNOWN\\\"}[5m])) / on (cluster, namespace, env_category, pod) group_left sum by (cluster, namespace, env_category, pod) (rate(grpc_server_seconds_count{application=\\\"grpc\\\"}[5m])) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
-      description = "{{ (index $values \"A\").Value | humanizePercentage }} gRPC {{ $labels.statusCode }} error rate for {{ $labels.pod }}"
+      description = "{{ (index $values \"A\").Value | humanizePercentage }} gRPC {{ $labels.grpc_status_code }} error rate for {{ $labels.pod }}"
       summary     = "Mirror gRPC API error rate exceeds 5%"
     }
     labels = {
@@ -207,7 +229,7 @@ resource "grafana_rule_group" "rule_group_grpc" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (process_cpu_usage{application=\\\"grpc\\\"}) / sum by (cluster, namespace, env_category, pod) (system_cpu_count{application=\\\"grpc\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -237,7 +259,7 @@ resource "grafana_rule_group" "rule_group_grpc" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (hikaricp_connections_active{application=\\\"grpc\\\"}) / sum by (cluster, namespace, env_category, pod) (hikaricp_connections_max{application=\\\"grpc\\\"}) > 0.75\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -267,7 +289,7 @@ resource "grafana_rule_group" "rule_group_grpc" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (process_files_open_files{application=\\\"grpc\\\"}) / sum by (cluster, namespace, env_category, pod) (process_files_max_files{application=\\\"grpc\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -297,7 +319,7 @@ resource "grafana_rule_group" "rule_group_grpc" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_grpc_consensus_latency_seconds_sum{application=\\\"grpc\\\"}[5m])) / sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_grpc_consensus_latency_seconds_count{application=\\\"grpc\\\"}[5m])) > 15\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -326,7 +348,7 @@ resource "grafana_rule_group" "rule_group_grpc" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (jvm_memory_used_bytes{application=\\\"grpc\\\"}) / sum by (cluster, namespace, env_category, pod) (jvm_memory_max_bytes{application=\\\"grpc\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -356,7 +378,7 @@ resource "grafana_rule_group" "rule_group_grpc" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (increase(logback_events_total{application=\\\"grpc\\\",level=\\\"error\\\"}[1m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
@@ -385,7 +407,7 @@ resource "grafana_rule_group" "rule_group_grpc" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, type) (hiero_mirror_grpc_subscribers{application=\\\"grpc\\\"}) <= 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -414,7 +436,7 @@ resource "grafana_rule_group" "rule_group_grpc" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(spring_data_repository_invocations_seconds_sum{application=\\\"grpc\\\"}[5m])) / sum by (cluster, namespace, env_category, pod) (rate(spring_data_repository_invocations_seconds_count{application=\\\"grpc\\\"}[5m])) > 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -443,7 +465,7 @@ resource "grafana_rule_group" "rule_group_grpc" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-grpc-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -480,7 +502,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_importer_parse_duration_seconds_sum{application=\\\"importer\\\",type=\\\"BALANCE\\\"}[15m])) / sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_importer_parse_duration_seconds_count{application=\\\"importer\\\",type=\\\"BALANCE\\\"}[15m])) > 120\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -511,7 +533,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_importer_parse_latency_seconds_sum{application=\\\"importer\\\",type=\\\"BALANCE\\\"}[15m])) / sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_importer_parse_latency_seconds_count{application=\\\"importer\\\",type=\\\"BALANCE\\\"}[15m])) > 960\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
@@ -542,7 +564,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"(sum by (cluster, namespace, env_category, pod, type, action) (rate(hiero_mirror_importer_stream_request_seconds_count{application=\\\"importer\\\",status!~\\\"^2.*\\\"}[2m])) / sum by (cluster, namespace, env_category, pod, type, action) (rate(hiero_mirror_importer_stream_request_seconds_count{application=\\\"importer\\\"}[2m]))) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -572,7 +594,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod, type, action) (rate(hiero_mirror_importer_stream_request_seconds_sum{application=\\\"importer\\\",status=~\\\"^2.*\\\"}[2m])) / sum by (cluster, namespace, env_category, pod, type, action) (rate(hiero_mirror_importer_stream_request_seconds_count{application=\\\"importer\\\",status=~\\\"^2.*\\\"}[2m])) > 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -602,7 +624,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod, type) (rate(hiero_mirror_importer_stream_verification_seconds_count{application=\\\"importer\\\",success=\\\"false\\\"}[3m])) / sum by (cluster, namespace, env_category, pod, type) (rate(hiero_mirror_importer_stream_verification_seconds_count{application=\\\"importer\\\"}[3m])) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -632,7 +654,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (process_cpu_usage{application=\\\"importer\\\"}) / sum by (cluster, namespace, env_category, pod) (system_cpu_count{application=\\\"importer\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -662,7 +684,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (hikaricp_connections_active{application=\\\"importer\\\"}) / sum by (cluster, namespace, env_category, pod) (hikaricp_connections_max{application=\\\"importer\\\"}) > 0.75\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -692,7 +714,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (process_files_open_files{application=\\\"importer\\\"}) / sum by (cluster, namespace, env_category, pod) (process_files_max_files{application=\\\"importer\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -722,7 +744,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (jvm_memory_used_bytes{application=\\\"importer\\\"}) / sum by (cluster, namespace, env_category, pod) (jvm_memory_max_bytes{application=\\\"importer\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -752,7 +774,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (increase(logback_events_total{application=\\\"importer\\\",level=\\\"error\\\"}[2m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
@@ -782,7 +804,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (increase(hiero_mirror_importer_parse_duration_seconds_count{application=\\\"importer\\\",type=\\\"BALANCE\\\"}[16m])) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -813,7 +835,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod, type) (rate(hiero_mirror_importer_stream_signature_verification_total{application=\\\"importer\\\",status=\\\"CONSENSUS_REACHED\\\"}[2m])) / sum by (cluster, namespace, env_category, pod, type) (rate(hiero_mirror_importer_stream_signature_verification_total{application=\\\"importer\\\"}[2m])) < 0.33\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -843,7 +865,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (rate(hiero_mirror_importer_transaction_latency_seconds_count{application=\\\"importer\\\"}[5m])) <= 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -874,7 +896,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod, type) (rate(hiero_mirror_importer_parse_duration_seconds_count{application=\\\"importer\\\",success=\\\"false\\\"}[3m])) / sum by (cluster, namespace, env_category, pod, type) (rate(hiero_mirror_importer_parse_duration_seconds_count{application=\\\"importer\\\"}[3m])) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -904,7 +926,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod, type, entity) (rate(hiero_mirror_importer_publish_duration_seconds_sum{application=\\\"importer\\\"}[3m])) / sum by (cluster, namespace, env_category, pod, type, entity) (rate(hiero_mirror_importer_publish_duration_seconds_count{application=\\\"importer\\\"}[3m])) > 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -934,7 +956,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(spring_data_repository_invocations_seconds_sum{application=\\\"importer\\\"}[5m])) / sum by (cluster, namespace, env_category, pod) (rate(spring_data_repository_invocations_seconds_count{application=\\\"importer\\\"}[5m])) > 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -963,7 +985,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (hiero_mirror_importer_reconciliation{application=\\\"importer\\\"}) > 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -992,7 +1014,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_importer_parse_duration_seconds_sum{application=\\\"importer\\\",type=\\\"RECORD\\\"}[3m])) / sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_importer_parse_duration_seconds_count{application=\\\"importer\\\",type=\\\"RECORD\\\"}[3m])) > 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -1023,7 +1045,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_importer_parse_latency_seconds_sum{application=\\\"importer\\\",type=\\\"RECORD\\\"}[3m])) / sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_importer_parse_latency_seconds_count{application=\\\"importer\\\",type=\\\"RECORD\\\"}[3m])) > 20\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
@@ -1054,7 +1076,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_importer_stream_close_latency_seconds_sum{application=\\\"importer\\\",type=\\\"RECORD\\\"}[5m])) / sum by (cluster, namespace, env_category, pod) (rate(hiero_mirror_importer_stream_close_latency_seconds_count{application=\\\"importer\\\",type=\\\"RECORD\\\"}[5m])) > 10\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -1085,7 +1107,7 @@ resource "grafana_rule_group" "rule_group_importer" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-importer-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -1122,7 +1144,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (process_cpu_usage{application=\\\"monitor\\\"}) / sum by (cluster, namespace, env_category, pod) (system_cpu_count{application=\\\"monitor\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1152,7 +1174,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (jvm_memory_used_bytes{application=\\\"monitor\\\"}) / sum by (cluster, namespace, env_category, pod) (jvm_memory_max_bytes{application=\\\"monitor\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1182,7 +1204,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (increase(logback_events_total{application=\\\"monitor\\\",level=\\\"error\\\"}[2m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
@@ -1212,7 +1234,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application=\\\"monitor\\\",cluster!~\\\"preprod|previewnet|staging-lg|staging-sm|staging-council\\\",status!=\\\"SUCCESS\\\"}[2m])) / sum by (cluster, namespace, env_category, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application=\\\"monitor\\\",cluster!~\\\"preprod|previewnet|staging-lg|staging-sm|staging-council\\\"}[2m])) > 0.5\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
@@ -1242,7 +1264,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(hiero_mirror_monitor_publish_submit_seconds_sum{application=\\\"monitor\\\"}[2m])) by (cluster, namespace, env_category, pod, scenario) / sum(rate(hiero_mirror_monitor_publish_submit_seconds_count{application=\\\"monitor\\\"}[2m])) by (cluster, namespace, env_category, pod, scenario) > 7\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1272,7 +1294,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application=\\\"monitor\\\",status=~\\\"(PLATFORM_NOT_ACTIVE|UNAVAILABLE)\\\"}[2m])) / sum by (cluster, namespace, env_category) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application=\\\"monitor\\\"}[2m])) > 0.33\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -1302,7 +1324,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"(sum by (cluster, namespace, env_category, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_sum{application=\\\"monitor\\\"}[2m])) / sum by (cluster, namespace, env_category, pod, scenario) (rate(hiero_mirror_monitor_publish_submit_seconds_count{application=\\\"monitor\\\"}[2m])) > 0 or on () vector(0)) <= 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     annotations = {
       description = "Publish TPS dropped to {{ index $values \"A\" }} for '{{ $labels.scenario }}' scenario for {{ $labels.pod }}"
@@ -1331,7 +1353,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod, scenario) (rate(hiero_mirror_monitor_publish_handle_seconds_sum{application=\\\"monitor\\\"}[5m])) / sum by (cluster, namespace, env_category, pod, scenario) (rate(hiero_mirror_monitor_publish_handle_seconds_count{application=\\\"monitor\\\"}[5m])) > 11\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1361,7 +1383,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(hiero_mirror_monitor_subscribe_e2e_seconds_sum{application=\\\"monitor\\\"}[2m])) by (cluster, namespace, env_category, pod, scenario, subscriber) / sum(rate(hiero_mirror_monitor_subscribe_e2e_seconds_count{application=\\\"monitor\\\"}[2m])) by (cluster, namespace, env_category, pod, scenario, subscriber) > 14\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1390,7 +1412,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"(sum by (cluster, namespace, env_category, pod, subscriber, scenario) (rate(hiero_mirror_monitor_subscribe_e2e_seconds_sum{application=\\\"monitor\\\"}[2m])) / sum by (cluster, namespace, env_category, pod, subscriber, scenario) (rate(hiero_mirror_monitor_subscribe_e2e_seconds_count{application=\\\"monitor\\\"}[2m])) > 0 or on () vector(0)) <= 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1419,7 +1441,7 @@ resource "grafana_rule_group" "rule_group_monitor" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-monitor-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -1456,7 +1478,7 @@ resource "grafana_rule_group" "rule_group_rest" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (rate(api_request_total{code=~\\\"^5..\\\",container=\\\"rest\\\"}[1m])) / sum by (cluster, namespace, env_category) (rate(api_request_total{container=\\\"rest\\\"}[1m])) > 0.01\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -1485,7 +1507,7 @@ resource "grafana_rule_group" "rule_group_rest" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (nodejs_process_cpu_usage_percentage{container=\\\"rest\\\"}) / 100 > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1515,7 +1537,7 @@ resource "grafana_rule_group" "rule_group_rest" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (rate(api_all_request_total{container=\\\"rest\\\"}[3m])) <= 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1544,7 +1566,7 @@ resource "grafana_rule_group" "rule_group_rest" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(api_request_duration_milliseconds_sum{container=\\\"rest\\\"}[5m])) / sum by (cluster, namespace, env_category, pod) (rate(api_request_duration_milliseconds_count{container=\\\"rest\\\"}[5m])) > 2000\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -1573,7 +1595,7 @@ resource "grafana_rule_group" "rule_group_rest" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-rest-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -1610,7 +1632,7 @@ resource "grafana_rule_group" "rule_group_restjava" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(http_server_requests_seconds_count{application=\\\"rest-java\\\", status=\\\"SERVER_ERROR\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(http_server_requests_seconds_count{application=\\\"rest-java\\\"}[5m])) by (cluster, namespace, env_category, pod) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -1639,7 +1661,7 @@ resource "grafana_rule_group" "rule_group_restjava" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(process_cpu_usage{application=\\\"rest-java\\\"}) by (cluster, namespace, env_category, pod) / sum(system_cpu_count{application=\\\"rest-java\\\"}) by (cluster, namespace, env_category, pod) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1669,7 +1691,7 @@ resource "grafana_rule_group" "rule_group_restjava" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(hikaricp_connections_active{application=\\\"rest-java\\\"}) by (cluster, namespace, env_category, pod) / sum(hikaricp_connections_max{application=\\\"rest-java\\\"}) by (cluster, namespace, env_category, pod) > 0.75\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1699,7 +1721,7 @@ resource "grafana_rule_group" "rule_group_restjava" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (process_files_open_files{application=\\\"rest-java\\\"}) / sum by (cluster, namespace, env_category, pod) (process_files_max_files{application=\\\"rest-java\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1729,7 +1751,7 @@ resource "grafana_rule_group" "rule_group_restjava" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(jvm_memory_used_bytes{application=\\\"rest-java\\\"}) by (cluster, namespace, env_category, pod) / sum(jvm_memory_max_bytes{application=\\\"rest-java\\\"}) by (cluster, namespace, env_category, pod) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1759,7 +1781,7 @@ resource "grafana_rule_group" "rule_group_restjava" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(increase(logback_events_total{application=\\\"rest-java\\\", level=\\\"error\\\"}[1m])) by (cluster, namespace, env_category) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
@@ -1788,7 +1810,7 @@ resource "grafana_rule_group" "rule_group_restjava" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(http_server_requests_seconds_count{application=\\\"rest-java\\\"}[3m])) by (cluster, namespace, env_category) <= 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
@@ -1817,7 +1839,7 @@ resource "grafana_rule_group" "rule_group_restjava" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(spring_data_repository_invocations_seconds_sum{application=\\\"rest-java\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application=\\\"rest-java\\\"}[5m])) by (cluster, namespace, env_category, pod) > 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1846,7 +1868,7 @@ resource "grafana_rule_group" "rule_group_restjava" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(http_server_requests_seconds_sum{application=\\\"rest-java\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(http_server_requests_seconds_count{application=\\\"rest-java\\\"}[5m])) by (cluster, namespace, env_category, pod) > 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -1875,7 +1897,7 @@ resource "grafana_rule_group" "rule_group_restjava" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-rest-java-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -1912,7 +1934,7 @@ resource "grafana_rule_group" "rule_group_web3" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(http_server_requests_seconds_count{application=\\\"web3\\\",status=\\\"SERVER_ERROR\\\"}[5m])) / sum by (cluster, namespace, env_category, pod) (rate(http_server_requests_seconds_count{application=\\\"web3\\\"}[5m])) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -1941,7 +1963,7 @@ resource "grafana_rule_group" "rule_group_web3" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (process_cpu_usage{application=\\\"web3\\\"}) / sum by (cluster, namespace, env_category, pod) (system_cpu_count{application=\\\"web3\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -1971,7 +1993,7 @@ resource "grafana_rule_group" "rule_group_web3" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (hikaricp_connections_active{application=\\\"web3\\\"}) / sum by (cluster, namespace, env_category, pod) (hikaricp_connections_max{application=\\\"web3\\\"}) > 0.75\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2001,7 +2023,7 @@ resource "grafana_rule_group" "rule_group_web3" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (jvm_memory_used_bytes{application=\\\"web3\\\"}) / sum by (cluster, namespace, env_category, pod) (jvm_memory_max_bytes{application=\\\"web3\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2031,7 +2053,7 @@ resource "grafana_rule_group" "rule_group_web3" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (increase(logback_events_total{application=\\\"web3\\\",level=\\\"error\\\"}[1m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
@@ -2060,7 +2082,7 @@ resource "grafana_rule_group" "rule_group_web3" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (rate(http_server_requests_seconds_count{application=\\\"web3\\\"}[3m])) <= 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2089,7 +2111,7 @@ resource "grafana_rule_group" "rule_group_web3" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(spring_data_repository_invocations_seconds_sum{application=\\\"web3\\\"}[5m])) / sum by (cluster, namespace, env_category, pod) (rate(spring_data_repository_invocations_seconds_count{application=\\\"web3\\\"}[5m])) > 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -2118,7 +2140,7 @@ resource "grafana_rule_group" "rule_group_web3" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (rate(http_server_requests_seconds_sum{application=\\\"web3\\\"}[5m])) / sum by (cluster, namespace, env_category, pod) (rate(http_server_requests_seconds_count{application=\\\"web3\\\"}[5m])) > 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -2147,7 +2169,7 @@ resource "grafana_rule_group" "rule_group_web3" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (process_files_open_files{application=\\\"web3\\\"}) / sum by (cluster, namespace, env_category, pod) (process_files_max_files{application=\\\"web3\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2177,7 +2199,7 @@ resource "grafana_rule_group" "rule_group_web3" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-web3-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -2215,7 +2237,7 @@ resource "grafana_rule_group" "rule_group_graphql" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(graphql_datafetcher_seconds_count{application=\\\"graphql\\\", outcome=\\\"ERROR\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(graphql_datafetcher_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > .05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -2244,7 +2266,7 @@ resource "grafana_rule_group" "rule_group_graphql" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(graphql_request_seconds_count{application=\\\"graphql\\\", status=\\\"ERROR\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(graphql_request_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > 0.05\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -2273,7 +2295,7 @@ resource "grafana_rule_group" "rule_group_graphql" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(process_cpu_usage{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) / sum(system_cpu_count{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2303,7 +2325,7 @@ resource "grafana_rule_group" "rule_group_graphql" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(hikaricp_connections_active{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) / sum(hikaricp_connections_max{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) > 0.75\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2333,7 +2355,7 @@ resource "grafana_rule_group" "rule_group_graphql" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (process_files_open_files{application=\\\"graphql\\\"}) / sum by (cluster, namespace, env_category, pod) (process_files_max_files{application=\\\"graphql\\\"}) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2363,7 +2385,7 @@ resource "grafana_rule_group" "rule_group_graphql" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(jvm_memory_used_bytes{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) / sum(jvm_memory_max_bytes{application=\\\"graphql\\\"}) by (cluster, namespace, env_category, pod) > 0.8\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2393,7 +2415,7 @@ resource "grafana_rule_group" "rule_group_graphql" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(increase(logback_events_total{application=\\\"graphql\\\", level=\\\"error\\\"}[1m])) by (cluster, namespace, env_category) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "3m"
     annotations = {
@@ -2422,7 +2444,7 @@ resource "grafana_rule_group" "rule_group_graphql" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (kube_pod_status_ready{pod=~\\\".*-graphql-.*\\\",condition=\\\"true\\\"}) < 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "2m"
     annotations = {
@@ -2452,7 +2474,7 @@ resource "grafana_rule_group" "rule_group_graphql" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(http_server_requests_seconds_count{application=\\\"graphql\\\"}[3m])) by (cluster, namespace, env_category) <= 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2481,7 +2503,7 @@ resource "grafana_rule_group" "rule_group_graphql" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(spring_data_repository_invocations_seconds_sum{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > 1\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -2510,7 +2532,7 @@ resource "grafana_rule_group" "rule_group_graphql" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum(rate(graphql_request_seconds_sum{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) / sum(rate(graphql_request_seconds_count{application=\\\"graphql\\\"}[5m])) by (cluster, namespace, env_category, pod) > 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -2547,7 +2569,7 @@ resource "grafana_rule_group" "rule_group_database" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (pg_up) == 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2607,7 +2629,7 @@ resource "grafana_rule_group" "rule_group_database" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (pg_replication_status_lag_size) > 1e+09\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2637,7 +2659,7 @@ resource "grafana_rule_group" "rule_group_database" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (pg_replication_slots_active) == 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "30m"
     annotations = {
@@ -2667,7 +2689,7 @@ resource "grafana_rule_group" "rule_group_database" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (pg_replication_is_replica) == 1 and sum by (cluster, namespace, env_category, pod) (changes(pg_replication_is_replica[2m])) > 0\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
@@ -2727,7 +2749,7 @@ resource "grafana_rule_group" "rule_group_database" {
       model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, pod) (pgbouncer_show_stats_avg_query_time) > 3e+06\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "5m"
     annotations = {
@@ -2754,19 +2776,20 @@ resource "grafana_rule_group" "rule_group_database" {
       }
 
       datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, persistentvolumeclaim) (kubelet_volume_stats_used_bytes{node=~\\\".*(worker|coord).*\\\"}) / sum by (cluster, namespace, env_category, persistentvolumeclaim) (kubelet_volume_stats_capacity_bytes{node=~\\\".*(worker|coord).*\\\"}) >= 0.80\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category, persistentvolumeclaim) (kubelet_volume_stats_used_bytes{node=~\\\".*(worker|coord).*\\\"}) / sum by (cluster, namespace, env_category, persistentvolumeclaim) (kubelet_volume_stats_capacity_bytes{node=~\\\".*(worker|coord).*\\\"}) >= 0.92\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
     }
 
-    no_data_state  = "NoData"
+    no_data_state  = "OK"
     exec_err_state = "Error"
     for            = "1m"
     annotations = {
       description = "Storage for {{ $labels.persistentvolumeclaim }} is {{ (index $values \"A\").Value | humanizePercentage }} full"
-      summary     = "Database storage exceeds 80% capacity"
+      summary     = "Database storage exceeds 92% capacity"
     }
     labels = {
       application = "hedera-mirror-common"
       area        = "resource"
+      paging      = "rootly"
       severity    = "critical"
     }
     is_paused = false
