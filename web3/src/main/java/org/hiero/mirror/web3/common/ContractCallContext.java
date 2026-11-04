@@ -3,13 +3,7 @@
 package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
-import com.hedera.node.app.service.contract.impl.exec.utils.ActionStack;
-import com.hedera.node.app.service.contract.impl.exec.utils.ActionWrapper;
-import com.hedera.node.app.service.contract.impl.exec.utils.ActionsHelper;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -79,17 +73,7 @@ public class ContractCallContext {
     private Map<Bytes, StateOverride> stateOverrides;
 
     /**
-     * Unfinished actions of the current execution, as tracked by {@link #actionStack}.
-     */
-    private final Deque<ActionWrapper> openActions = new ArrayDeque<>();
-
-    /**
-     * The consensus node action stack of the current execution, used to measure its trace data.
-     */
-    private ActionStack actionStack = newActionStack();
-
-    /**
-     * Serialized size of the trace data of the current execution.
+     * Approximate serialized size of the trace data of the current execution.
      */
     @Setter
     private long traceDataBytes;
@@ -169,15 +153,6 @@ public class ContractCallContext {
         return timestamp.or(() -> Optional.ofNullable(getRecordFile()).map(RecordFile::getConsensusEnd));
     }
 
-    /**
-     * Starts measuring the trace data of a new execution.
-     */
-    public void resetTraceData() {
-        openActions.clear();
-        actionStack = newActionStack();
-        traceDataBytes = 0;
-    }
-
     public Map<Object, Object> getReadCacheState(final int stateId) {
         return readCache.computeIfAbsent(stateId, _ -> new HashMap<>());
     }
@@ -188,9 +163,5 @@ public class ContractCallContext {
 
     public RecordFile getRecordFile() {
         return blockSupplier.get();
-    }
-
-    private ActionStack newActionStack() {
-        return new ActionStack(new ActionsHelper(), new ArrayList<>(), openActions, new ArrayList<>());
     }
 }

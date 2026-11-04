@@ -3,25 +3,19 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.INSUFFICIENT_GAS;
-import static com.hedera.node.app.service.contract.impl.exec.utils.ActionStack.Validation.OFF;
 import static com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils.CONFIG_CONTEXT_VARIABLE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.hedera.hapi.streams.CallOperationType;
-import com.hedera.hapi.streams.ContractAction;
 import com.hedera.hapi.streams.ContractActionType;
-import com.hedera.hapi.streams.ContractActions;
-import com.hedera.hapi.streams.ContractBytecode;
-import com.hedera.node.app.service.contract.impl.exec.utils.ActionStack;
-import com.hedera.node.app.service.contract.impl.exec.utils.ActionWrapper;
 import com.hedera.node.app.spi.workflows.HandleException;
 import com.hedera.node.config.data.ContractsConfig;
 import com.swirlds.config.api.Configuration;
@@ -37,6 +31,7 @@ import org.hiero.mirror.web3.evm.properties.TraceProperties;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.Code;
+import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.frame.MessageFrame.State;
 import org.hyperledger.besu.evm.frame.MessageFrame.Type;
@@ -85,12 +80,6 @@ class MirrorOperationActionTracerTest {
     private MessageFrame childFrame;
 
     @Mock
-    private ActionStack actionStack;
-
-    @Mock
-    private Code code;
-
-    @Mock
     private Entity recipientEntity;
 
     @Mock
@@ -114,7 +103,11 @@ class MirrorOperationActionTracerTest {
         mirrorOperationTracer = new MirrorOperationActionTracer(traceProperties, commonEntityAccessor);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
         lenient().when(messageFrame.getState()).thenReturn(State.CODE_EXECUTING);
-        lenient().doReturn(actionStack).when(contractCallContext).getActionStack();
+        final var messageFrameStack = new ArrayDeque<>(List.of(childFrame));
+        lenient().when(messageFrame.getMessageFrameStack()).thenReturn(messageFrameStack);
+        lenient().when(childFrame.getMessageFrameStack()).thenReturn(messageFrameStack);
+        lenient().when(childFrame.getContextVariable(CONFIG_CONTEXT_VARIABLE)).thenReturn(CONFIGURATION);
+        lenient().when(childFrame.getInputData()).thenReturn(Bytes.EMPTY);
     }
 
     @Test
@@ -338,84 +331,62 @@ class MirrorOperationActionTracerTest {
     }
 
     @Test
-    void traceDataMeasuresFinalizedAction() {
+    void traceDataBytesCountsInputAndOutput() {
         // Given
-        final var action = givenOpenAction(32);
+        given(messageFrame.getInputData()).willReturn(Bytes.of(1, 2, 3, 4));
+        given(messageFrame.getOutputData()).willReturn(Bytes.wrap(new byte[32]));
+
+        // When
+        mirrorOperationTracer.traceOriginAction(messageFrame);
         given(messageFrame.getState()).willReturn(State.COMPLETED_SUCCESS);
+        mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
+
+        // Then
+        assertThat(contractCallContext.getTraceDataBytes()).isEqualTo(actionBytes() + (2 + 4) + (2 + 32));
+    }
+
+    @Test
+    void traceDataBytesCountsChildCreationInitcode() {
+        // Given
+        final var code = mock(Code.class);
+        given(code.getSize()).willReturn(200);
+        given(childFrame.getType()).willReturn(Type.CONTRACT_CREATION);
+        given(childFrame.getDepth()).willReturn(1);
+        given(childFrame.getCode()).willReturn(code);
+        given(messageFrame.getState()).willReturn(State.CODE_SUSPENDED);
 
         // When
         mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
 
         // Then
-        verify(actionStack).finalizeLastAction(messageFrame, OFF);
-        assertThat(contractCallContext.getTraceDataBytes())
-                .isEqualTo(ContractActions.PROTOBUF.measureRecord(new ContractActions(List.of(action))));
+        assertThat(contractCallContext.getTraceDataBytes()).isEqualTo(actionBytes() + 200);
     }
 
     @Test
-    void traceDataMeasuresCreatedBytecode() {
+    void traceDataBytesCountsPrecompileRevertReason() {
         // Given
-        final var action = givenOpenAction(0);
-        final var runtimeBytecode = Bytes.wrap(new byte[100]);
-        final var initcode = Bytes.wrap(new byte[200]);
-        given(messageFrame.getState()).willReturn(State.CODE_SUCCESS);
-        given(messageFrame.getType()).willReturn(Type.CONTRACT_CREATION);
-        given(messageFrame.getDepth()).willReturn(1);
-        given(messageFrame.getOutputData()).willReturn(runtimeBytecode);
-        given(messageFrame.getCode()).willReturn(code);
-        given(code.getBytes()).willReturn(initcode);
-
-        // When
-        mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
-
-        // Then
-        final var bytecode = ContractBytecode.newBuilder()
-                .runtimeBytecode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(runtimeBytecode.toArrayUnsafe()))
-                .initcode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(initcode.toArrayUnsafe()))
-                .build();
-        assertThat(contractCallContext.getTraceDataBytes())
-                .isEqualTo(ContractActions.PROTOBUF.measureRecord(new ContractActions(List.of(action)))
-                        + ContractBytecode.PROTOBUF.measureRecord(bytecode));
-    }
-
-    @Test
-    void traceDataMeasuresPrecompileAction() {
-        // Given
-        givenOpenAction(4);
+        given(messageFrame.getState()).willReturn(State.REVERT);
+        given(messageFrame.getRevertReason()).willReturn(Optional.of(Bytes.of(1, 2, 3, 4)));
 
         // When
         mirrorOperationTracer.tracePrecompileResult(messageFrame, ContractActionType.PRECOMPILE);
 
         // Then
-        verify(actionStack).finalizeLastStackActionAsPrecompile(messageFrame, ContractActionType.PRECOMPILE, OFF);
-        assertThat(contractCallContext.getTraceDataBytes()).isPositive();
+        assertThat(contractCallContext.getTraceDataBytes()).isEqualTo(2 + 4);
     }
 
     @Test
-    void traceDataTracksSuspendedAndNotExecutingFrames() {
+    void traceDataBytesCountsHaltReason() {
         // Given
-        givenOpenAction(childFrame, 0);
+        given(messageFrame.getState()).willReturn(State.EXCEPTIONAL_HALT);
+        given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.of(ExceptionalHaltReason.INSUFFICIENT_GAS));
 
         // When
-        mirrorOperationTracer.traceSuspended(messageFrame, childFrame, CallOperationType.OP_CALL);
-        mirrorOperationTracer.traceNotExecuting(childFrame);
+        mirrorOperationTracer.tracePrecompileResult(messageFrame, ContractActionType.PRECOMPILE);
 
         // Then
-        verify(actionStack).pushActionOfIntermediate(messageFrame, childFrame, CallOperationType.OP_CALL);
-        verify(actionStack).finalizeLastAction(childFrame, OFF);
-        assertThat(contractCallContext.getTraceDataBytes()).isPositive();
-    }
-
-    @Test
-    void traceDataIgnoresFinalizationWithoutOpenAction() {
-        // Given
-        given(messageFrame.getState()).willReturn(State.COMPLETED_SUCCESS);
-
-        // When
-        mirrorOperationTracer.tracePostExecution(messageFrame, operationResult);
-
-        // Then
-        assertThat(contractCallContext.getTraceDataBytes()).isZero();
+        assertThat(contractCallContext.getTraceDataBytes())
+                .isEqualTo(2 + ExceptionalHaltReason.INSUFFICIENT_GAS.name().length());
     }
 
     @Test
@@ -423,8 +394,8 @@ class MirrorOperationActionTracerTest {
         // Given
         final var maxSerializedTraceDataBytes =
                 CONFIGURATION.getConfigData(ContractsConfig.class).maxSerializedTraceDataBytes();
-        givenOpenAction(maxSerializedTraceDataBytes);
         given(messageFrame.getState()).willReturn(State.COMPLETED_SUCCESS);
+        given(messageFrame.getOutputData()).willReturn(Bytes.wrap(new byte[maxSerializedTraceDataBytes + 1]));
 
         // When / Then
         assertThatThrownBy(() -> mirrorOperationTracer.tracePostExecution(messageFrame, operationResult))
@@ -432,20 +403,7 @@ class MirrorOperationActionTracerTest {
                         HandleException.class, e -> assertThat(e.getStatus()).isEqualTo(INSUFFICIENT_GAS));
     }
 
-    // The mocked action stack leaves the open action as is, so it is measured as given
-    private ContractAction givenOpenAction(final int outputSize) {
-        return givenOpenAction(messageFrame, outputSize);
-    }
-
-    private ContractAction givenOpenAction(final MessageFrame frame, final int outputSize) {
-        final var action = ContractAction.newBuilder()
-                .callDepth(1)
-                .gas(INITIAL_GAS)
-                .output(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(new byte[outputSize]))
-                .build();
-        contractCallContext.getOpenActions().push(new ActionWrapper(action));
-        given(frame.getMessageFrameStack()).willReturn(new ArrayDeque<>());
-        given(frame.getContextVariable(CONFIG_CONTEXT_VARIABLE)).willReturn(CONFIGURATION);
-        return action;
+    private int actionBytes() {
+        return AbstractActionTracer.ACTION_BYTES + AbstractActionTracer.shardAndRealmBytes(messageFrame);
     }
 }
