@@ -2,6 +2,7 @@
 
 create type clpr_channel_status as enum ('ACTIVE', 'PAUSED', 'CLOSING', 'DRAINED', 'CLOSED');
 create type clpr_pending_commitment_status as enum ('OPEN', 'COMPLETED', 'DELETED');
+create type clpr_connector_status as enum ('PENDING', 'ACTIVE', 'DELETED');
 create type clpr_signature_scheme as enum ('ECDSA_SECP256K1', 'ED25519');
 create type clpr_message_type as enum ('DATA', 'RESPONSE', 'CONTROL');
 create type clpr_message_reply_status as enum
@@ -82,52 +83,37 @@ create table if not exists clpr_channel_history
 create index if not exists clpr_channel_history__timestamp_range
     on clpr_channel_history using gist (timestamp_range);
 
-create table if not exists clpr_connector_pending_commitment
-(
-    created_timestamp  bigint                           not null,
-    timestamp_range    int8range                        not null,
-    status             clpr_pending_commitment_status   not null default 'OPEN',
-    commitment         bytea                            not null,
-
-    primary key (commitment)
-);
-
--- Partial index backing the Pending Connectors API filter
-create index if not exists clpr_connector_pending_commitment__created_timestamp
-    on clpr_connector_pending_commitment (created_timestamp)
-    where status = 'OPEN';
-
-create table if not exists clpr_connector_pending_commitment_history
-(
-    like clpr_connector_pending_commitment including defaults
-);
-
-create index if not exists clpr_connector_pending_commitment_history__timestamp_range
-    on clpr_connector_pending_commitment_history using gist (timestamp_range);
-
 create table if not exists clpr_connector
 (
-    connector_contract_id    bigint      not null,
-    created_timestamp        bigint      not null,
-    in_flight_message_count  bigint      not null default 0,
-    locked_stake             bigint      not null default 0,
-    slash_count              bigint      not null default 0,
+    connector_contract_id    bigint,
+    created_timestamp        bigint                  not null,
+    in_flight_message_count  bigint                  not null default 0,
+    locked_stake             bigint                  not null default 0,
+    slash_count              bigint                  not null default 0,
     stake_recipient_id       bigint,
-    timestamp_range          int8range   not null,
+    timestamp_range          int8range               not null,
     signature_scheme         clpr_signature_scheme,
+    status                   clpr_connector_status   not null default 'PENDING',
     admin_key                bytea,
-    channel_id               bytea       not null,
-    connector_id             bytea       not null,
+    channel_id               bytea                   not null,
+    commitment               bytea                   not null,
+    connector_id             bytea,
     public_key               bytea,
     salt                     bytea,
     signature                bytea,
-    deleted                  boolean     not null default false,
 
-    primary key (channel_id, connector_id)
+    primary key (channel_id, commitment)
 );
+
+create unique index if not exists clpr_connector__channel_id_connector_id
+    on clpr_connector (channel_id, connector_id)
+    where connector_id is not null;
 
 create index if not exists clpr_connector__channel_id_created_timestamp
     on clpr_connector (channel_id, created_timestamp);
+
+create index if not exists clpr_connector__channel_id_status
+    on clpr_connector (channel_id, status, created_timestamp);
 
 create table if not exists clpr_connector_history
 (
