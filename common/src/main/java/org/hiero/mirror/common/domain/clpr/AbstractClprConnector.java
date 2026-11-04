@@ -33,14 +33,14 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 @Upsertable(history = true, skipPartialUpdate = true)
 public abstract class AbstractClprConnector implements History {
 
-    @Column(updatable = false)
+    // Unlike publicKey/salt, not derived from connectorId, so a same-connectorId re-registration can change it.
     @ToString.Exclude
     private byte[] adminKey;
 
     @jakarta.persistence.Id
     private byte[] channelId;
 
-    @Column(updatable = false)
+    // Unlike publicKey/salt, not derived from connectorId, so a same-connectorId re-registration can change it.
     @Convert(converter = EntityIdConverter.class)
     private EntityId connectorContractId;
 
