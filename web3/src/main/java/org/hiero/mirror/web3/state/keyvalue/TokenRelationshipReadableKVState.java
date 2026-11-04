@@ -58,15 +58,11 @@ final class TokenRelationshipReadableKVState extends AbstractReadableKVState<Ent
     protected TokenRelation readFromDataSource(@NonNull EntityIDPair key) {
         final var tokenId = key.tokenId();
         final var accountId = key.accountId();
-        if (tokenId == null
-                || accountId == null
-                || AccountID.DEFAULT.equals(accountId)
-                || TokenID.DEFAULT.equals(tokenId)) {
+        if (tokenId == null || accountId == null || !accountId.hasAccountNum() || TokenID.DEFAULT.equals(tokenId)) {
             return null;
         }
 
         final var timestamp = ContractCallContext.get().getTimestamp();
-        // The accountId will always be in the format "shard.realm.num"
         return findTokenAccount(tokenId, accountId, timestamp)
                 .filter(ta -> Boolean.TRUE.equals(ta.getAssociated()))
                 .map(ta -> tokenRelationFromEntity(tokenId, accountId, ta, timestamp))
