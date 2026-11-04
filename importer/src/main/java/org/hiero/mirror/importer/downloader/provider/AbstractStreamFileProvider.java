@@ -3,7 +3,9 @@
 package org.hiero.mirror.importer.downloader.provider;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.ImporterProperties.HederaNetwork;
@@ -16,8 +18,10 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 abstract class AbstractStreamFileProvider implements StreamFileProvider {
 
-    private static final DateTimeFormatter FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
-    private static final Pattern PATTERN = Pattern.compile("^(.+)(-(\\d{12}))$");
+    static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("uuuuMMddHHmm")
+            .withResolverStyle(ResolverStyle.STRICT)
+            .withZone(ZoneId.of("UTC"));
+    private static final Pattern PATTERN = Pattern.compile("^(.+?)(-(\\d{12}))?$");
 
     protected final CommonDownloaderProperties downloaderProperties;
 
@@ -30,33 +34,31 @@ abstract class AbstractStreamFileProvider implements StreamFileProvider {
         }
 
         return doDiscoverNetwork()
-                .filter(this::filterNetwork)
+                .filter(path -> filterNetwork(network, path))
                 .reduce((first, second) -> first.compareTo(second) > 0 ? first : second);
     }
 
-    private boolean filterNetwork(String path) {
+    private boolean filterNetwork(final String networkProperty, final String path) {
         try {
-            final var networkProperty =
-                    downloaderProperties.getImporterProperties().getNetwork();
             final var matcher = PATTERN.matcher(path);
 
-            if (matcher.matches() && matcher.groupCount() >= 1) {
-                final var network = matcher.group(1);
-
-                if (!networkProperty.equalsIgnoreCase(network)) {
-                    return false;
-                }
-
-                if (matcher.groupCount() == 3) {
-                    final var suffix = matcher.group(3);
-                    final var date = LocalDateTime.parse(suffix, FORMAT);
-                    return date != null;
-                }
-
-                return true;
+            if (!matcher.matches()) {
+                return false;
             }
 
-            return false;
+            final var network = matcher.group(1);
+
+            if (!networkProperty.equalsIgnoreCase(network)) {
+                return false;
+            }
+
+            final var suffix = matcher.group(3);
+            if (suffix != null) {
+                final var date = LocalDateTime.parse(suffix, FORMATTER);
+                return date != null;
+            }
+
+            return true;
         } catch (final Exception e) {
             return false;
         }

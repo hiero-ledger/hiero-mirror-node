@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.CustomLog;
@@ -147,7 +146,6 @@ public class AddressBookServiceImpl implements AddressBookService {
                 .map(AddressBookEntry::getNodeId)
                 .collect(Collectors.toSet());
 
-        var nodeStakeTimestamp = new AtomicLong(0L);
         for (final var nodeStake : nodeStakeRepository.findLatest()) {
             if (consensusMode == ConsensusMode.EQUAL) {
                 nodeStake.setStake(1L);
@@ -158,8 +156,6 @@ public class AddressBookServiceImpl implements AddressBookService {
                 totalStake = Math.addExact(totalStake, Math.max(0L, nodeStake.getStake()));
             }
             nodeStakes.put(nodeStake.getNodeId(), nodeStake);
-            // all the node stake rows have the same consensus timestamp
-            nodeStakeTimestamp.compareAndSet(0L, nodeStake.getConsensusTimestamp());
         }
 
         long nodeCountAddressBook = addressBook.getNodeCount() != null ? addressBook.getNodeCount() : 0L;
@@ -172,10 +168,9 @@ public class AddressBookServiceImpl implements AddressBookService {
                 && nodeCountAddressBook != nodeStakes.size()
                 && !nodeStakes.isEmpty()) {
             log.warn(
-                    "Using address book {} with {} nodes and node stake {} with {} nodes",
+                    "Using address book {} with {} nodes and node stake with {} nodes",
                     addressBook.getStartConsensusTimestamp(),
                     nodeCountAddressBook,
-                    nodeStakeTimestamp.get(),
                     nodeStakes.size());
         }
 
