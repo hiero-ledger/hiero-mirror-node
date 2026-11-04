@@ -421,6 +421,12 @@ paths:
                 $ref: "#/components/schemas/BalancesResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
+        429:
+          description: Too many concurrent account.balance requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       tags:
         - balances
   /api/v1/blocks:
