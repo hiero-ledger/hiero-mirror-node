@@ -43,7 +43,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.awaitility.Awaitility;
 import org.awaitility.Durations;
 import org.awaitility.core.ConditionTimeoutException;
-import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.rest.model.AccountBalanceTransactions;
 import org.hiero.mirror.rest.model.AccountInfo;
 import org.hiero.mirror.rest.model.AccountsResponse;
@@ -89,6 +88,7 @@ import org.hiero.mirror.rest.model.Topic;
 import org.hiero.mirror.rest.model.TopicMessage;
 import org.hiero.mirror.rest.model.TopicMessagesResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
+import org.hiero.mirror.rest.model.TransactionTypes;
 import org.hiero.mirror.rest.model.TransactionsResponse;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.RestJavaProperties;
@@ -493,7 +493,6 @@ public class MirrorNodeClient {
                 .filter(t -> Integer.valueOf(0).equals(t.getNonce()))
                 .findFirst()
                 .orElse(null);
-        assertThat(transaction).as("Nonce 0 transaction for %s", transactionId).isNotNull();
 
         final var chargedTinybars = transaction.getChargedTxFee();
         assertThat(chargedTinybars).as("Charged fee for %s", transactionId).isNotNull();
@@ -505,10 +504,9 @@ public class MirrorNodeClient {
 
         // Contract create charges its simple fee and, separately, gas. Remove the gas so the comparison covers the
         // base fee, keys, and hooks that the estimate includes.
-        final var comparableTinybars =
-                TransactionType.CONTRACTCREATEINSTANCE.name().equals(transaction.getName())
-                        ? chargedTinybars - contractCreateGasTinybars(restTransactionId)
-                        : chargedTinybars;
+        final var comparableTinybars = transaction.getName() == TransactionTypes.CONTRACTCREATEINSTANCE
+                ? chargedTinybars - contractCreateGasTinybars(restTransactionId)
+                : chargedTinybars;
 
         final double deviationPercent = expectedTinybars == 0
                 ? 0.0

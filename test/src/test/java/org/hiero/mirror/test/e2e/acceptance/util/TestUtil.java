@@ -49,7 +49,7 @@ public class TestUtil {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final Pattern extractTransactionIdPattern = Pattern.compile("(\\d+\\.\\d+\\.\\d+)@(\\d+)\\.(\\d+)");
 
-    /** REST transaction id form, {@code shard.realm.num-seconds-nanos}, without an account checksum. */
+    /** REST transaction id form, {@code shard.realm.num-seconds-nanos}. */
     public static String toRestTransactionId(final TransactionId transactionId) {
         final var accountId = transactionId.accountId.toString().split("-")[0];
         final var nanos = StringUtils.leftPad(String.valueOf(transactionId.validStart.getNano()), 9, '0');
