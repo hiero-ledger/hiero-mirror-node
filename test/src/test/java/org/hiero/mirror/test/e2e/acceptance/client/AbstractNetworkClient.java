@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.base.Stopwatch;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
-import com.hedera.hashgraph.sdk.ContractCreateTransaction;
 import com.hedera.hashgraph.sdk.EthereumTransaction;
 import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
@@ -26,7 +25,6 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -35,6 +33,7 @@ import lombok.Data;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.rest.model.FeeEstimateResponse;
+import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
@@ -53,9 +52,6 @@ abstract class AbstractNetworkClient implements Cleanable {
     protected final SDKClient sdkClient;
     protected final RetryTemplate retryTemplate;
     protected final AcceptanceTestProperties acceptanceTestProperties;
-
-    /** Fee estimates obtained before execution, keyed by transaction ID, pending verification of the charged fee. */
-    private final Map<TransactionId, FeeEstimateResponse> pendingFeeEstimates = new ConcurrentHashMap<>();
 
     public AbstractNetworkClient(
             SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
@@ -118,9 +114,7 @@ abstract class AbstractNetworkClient implements Cleanable {
         }
     }
 
-    public TransactionId executeTransaction(Transaction<?> transaction, KeyList keyList, ExpandedAccountId payer) {
-        final var stopwatch = Stopwatch.createStarted();
-
+    private void signTransaction(Transaction<?> transaction, KeyList keyList, ExpandedAccountId payer) {
         if (payer != null) {
             transaction.setTransactionId(TransactionId.generate(payer.getAccountId()));
             transaction.freezeWith(client);
@@ -135,17 +129,14 @@ abstract class AbstractNetworkClient implements Cleanable {
                 }
             }
         }
+    }
 
-        // Estimate the fee against the mirror node before submitting the transaction, to verify it afterwards
-        final var feeEstimate = estimateFee(transaction);
+    private TransactionId submitTransaction(Transaction<?> transaction) {
+        final var stopwatch = Stopwatch.createStarted();
 
         try {
             var transactionResponse = retryTemplate.execute(() -> transaction.execute(client));
             var transactionId = transactionResponse.transactionId;
-
-            if (feeEstimate != null) {
-                pendingFeeEstimates.put(transactionId, feeEstimate);
-            }
 
             if (log.isDebugEnabled()) {
                 var publicKeys = getSignatures(transaction);
@@ -211,26 +202,36 @@ abstract class AbstractNetworkClient implements Cleanable {
     }
 
     private boolean isFeeEstimationUnsupported(final Transaction<?> transaction) {
-        // Contract create and ethereum transactions charge gas, and an ethereum value transfer can also
-        // charge a hollow-account create. The fee endpoint prices neither. A token airdrop also charges
-        // pending-airdrop and association fees that depend on receiver state.
-        return transaction instanceof ContractCreateTransaction
-                || transaction instanceof EthereumTransaction
-                || transaction instanceof TokenAirdropTransaction;
-    }
-
-    public TransactionId executeTransaction(Transaction<?> transaction, KeyList keyList) {
-        return executeTransaction(transaction, keyList, null);
+        // An ethereum transaction charges gas, and a value transfer can also charge a hollow-account create. The fee
+        // endpoint prices neither. A token airdrop also charges pending-airdrop and association fees that depend on
+        // receiver state. Contract create is estimated: its gas is removed from the charged fee before comparison.
+        return transaction instanceof EthereumTransaction || transaction instanceof TokenAirdropTransaction;
     }
 
     public NetworkTransactionResponse executeTransactionAndRetrieveReceipt(
             Transaction<?> transaction, KeyList keyList, ExpandedAccountId payer) {
         final var stopwatch = Stopwatch.createStarted();
-        var transactionId = executeTransaction(transaction, keyList, payer);
+        signTransaction(transaction, keyList, payer);
+        final var feeEstimate = estimateFee(transaction);
+        var transactionId = submitTransaction(transaction);
         var transactionReceipt = getTransactionReceipt(transactionId);
         log.debug("Executed {} {} in {}", transaction.getClass().getSimpleName(), transactionId, stopwatch);
 
-        return new NetworkTransactionResponse(stopwatch, transactionId, transactionReceipt);
+        TransactionByIdResponse transactions = null;
+        if (feeEstimate != null) {
+            transactions = sdkClient
+                    .getMirrorNodeClient()
+                    .verifyFeeEstimate(
+                            transactionId,
+                            transactionReceipt.exchangeRate,
+                            feeEstimate,
+                            acceptanceTestProperties
+                                    .getRestJavaProperties()
+                                    .getFeeEstimation()
+                                    .getTolerancePercent());
+        }
+
+        return new NetworkTransactionResponse(stopwatch, transactionId, transactionReceipt, transactions);
     }
 
     public NetworkTransactionResponse executeTransactionAndRetrieveReceipt(
@@ -252,22 +253,8 @@ abstract class AbstractNetworkClient implements Cleanable {
         var receipt = executeQuery(() -> query);
         log.debug("Transaction receipt: {}", receipt);
 
-        final var feeEstimate = pendingFeeEstimates.remove(transactionId);
-
         if (receipt.status != Status.SUCCESS) {
             throw new NetworkException("Transaction was unsuccessful: " + receipt, receipt.status);
-        }
-
-        if (feeEstimate != null) {
-            sdkClient
-                    .getMirrorNodeClient()
-                    .verifyFeeEstimate(
-                            transactionId,
-                            feeEstimate,
-                            acceptanceTestProperties
-                                    .getRestJavaProperties()
-                                    .getFeeEstimation()
-                                    .getTolerancePercent());
         }
 
         return receipt;
