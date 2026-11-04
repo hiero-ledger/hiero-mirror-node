@@ -56,7 +56,7 @@ class NodeStakeUpdateTransactionHandler extends AbstractTransactionHandler {
                 long stake = Math.addExact(stakeRewarded, stakeNotRewarded);
                 stakeTotal = Math.addExact(stakeTotal, stake);
             } catch (ArithmeticException e) {
-                log.warn("Ignoring bad stake {}: ", n, e.getMessage());
+                log.warn("Ignoring bad stake {}: {}", n, e.getMessage());
             }
         }
 

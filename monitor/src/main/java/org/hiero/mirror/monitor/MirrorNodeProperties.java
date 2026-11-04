@@ -34,7 +34,7 @@ public class MirrorNodeProperties {
     public static class GrpcProperties {
 
         @NotBlank
-        private String host;
+        private String host = "localhost";
 
         @Min(0)
         @Max(65535)
@@ -55,7 +55,7 @@ public class MirrorNodeProperties {
         private static final int HTTPS_PORT = 443;
 
         @NotBlank
-        private String host;
+        private String host = "localhost";
 
         @Min(0)
         @Max(65535)
