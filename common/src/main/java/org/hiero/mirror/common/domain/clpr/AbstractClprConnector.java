@@ -24,7 +24,10 @@ import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
-/** On-ledger state for a single CLPR Connector, keyed by {@code (channelId, connectorId)}. */
+/**
+ * On-ledger state for a single CLPR Connector, keyed by {@code (channelId, commitment)} since {@code connectorId}
+ * isn't known until {@code ClprCompleteConnector} reveals it.
+ */
 @Data
 @MappedSuperclass
 @NoArgsConstructor
@@ -33,43 +36,41 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 @Upsertable(history = true, skipPartialUpdate = true)
 public abstract class AbstractClprConnector implements History {
 
-    @Column(updatable = false)
     @ToString.Exclude
     private byte[] adminKey;
 
     @jakarta.persistence.Id
     private byte[] channelId;
 
-    @Column(updatable = false)
+    @jakarta.persistence.Id
+    private byte[] commitment;
+
     @Convert(converter = EntityIdConverter.class)
     private EntityId connectorContractId;
 
-    @jakarta.persistence.Id
+    // Null until ClprCompleteConnector reveals it.
     private byte[] connectorId;
 
+    // The row's own creation (registration); unlike the fields below, never touched again by completion.
     @Column(updatable = false)
     private Long createdTimestamp;
-
-    private Boolean deleted;
 
     private Long inFlightMessageCount;
 
     // Mutable: ClprSubmitBundle slashing reduces this.
     private Long lockedStake;
 
-    @Column(updatable = false)
+    // Not updatable=false: null at registration, set once by ClprCompleteConnector -- on an UPDATE of the existing
+    // row, not an INSERT, since the row already exists from registration.
     @ToString.Exclude
     private byte[] publicKey;
 
-    @Column(updatable = false)
     @ToString.Exclude
     private byte[] salt;
 
-    @Column(updatable = false)
     @ToString.Exclude
     private byte[] signature;
 
-    @Column(updatable = false)
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ClprSignatureScheme signatureScheme;
@@ -79,11 +80,15 @@ public abstract class AbstractClprConnector implements History {
     @Convert(converter = EntityIdConverter.class)
     private EntityId stakeRecipientId;
 
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    private ClprConnectorStatus status;
+
     private Range<Long> timestampRange;
 
     @JsonIgnore
     public Id getId() {
-        return new Id(channelId, connectorId);
+        return new Id(channelId, commitment);
     }
 
     @AllArgsConstructor
@@ -94,6 +99,6 @@ public abstract class AbstractClprConnector implements History {
         private static final long serialVersionUID = 5327164893021746587L;
 
         private byte[] channelId;
-        private byte[] connectorId;
+        private byte[] commitment;
     }
 }

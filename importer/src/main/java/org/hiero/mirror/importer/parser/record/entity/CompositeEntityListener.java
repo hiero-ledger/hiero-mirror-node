@@ -13,7 +13,6 @@ import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
-import org.hiero.mirror.common.domain.clpr.ClprConnectorPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
@@ -93,12 +92,6 @@ final class CompositeEntityListener implements EntityListener {
     @Override
     public void onClprConnector(ClprConnector clprConnector) throws ImporterException {
         onEach(EntityListener::onClprConnector, clprConnector);
-    }
-
-    @Override
-    public void onClprConnectorPendingCommitment(ClprConnectorPendingCommitment clprConnectorPendingCommitment)
-            throws ImporterException {
-        onEach(EntityListener::onClprConnectorPendingCommitment, clprConnectorPendingCommitment);
     }
 
     @Override

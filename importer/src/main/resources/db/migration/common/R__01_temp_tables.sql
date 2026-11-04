@@ -22,8 +22,7 @@ $$ language plpgsql;
 
 call create_temp_table_safe('clpr_channel', 'channel_id');
 call create_temp_table_safe('clpr_channel_pending_commitment', 'ownership_commitment');
-call create_temp_table_safe('clpr_connector', 'channel_id', 'connector_id');
-call create_temp_table_safe('clpr_connector_pending_commitment', 'commitment');
+call create_temp_table_safe('clpr_connector', 'channel_id', 'commitment');
 call create_temp_table_safe('contract_state', 'contract_id', 'slot');
 call create_temp_table_safe('crypto_allowance', 'owner', 'spender');
 call create_temp_table_safe('custom_fee', 'entity_id');
