@@ -27,7 +27,6 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
@@ -344,13 +343,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         final var functionCall = contract.call_getCustomFeesForToken(tokenAddress);
 
         final var expectedFee = new PrecompileTestContractHistorical.FixedFee(
-                DEFAULT_FEE_AMOUNT,
-                tokenAddress,
-                false,
-                false,
-                Address.fromHexString(
-                                Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
-                        .toHexString());
+                DEFAULT_FEE_AMOUNT, tokenAddress, false, false, getAddressFromEntity(collectorAccount));
 
         // Then
         assertThat(functionCall.send().component1().getFirst()).isEqualTo(expectedFee);
@@ -393,9 +386,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 DEFAULT_FEE_MIN_VALUE,
                 DEFAULT_FEE_MAX_VALUE,
                 true,
-                Address.fromHexString(
-                                Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
-                        .toHexString());
+                getAddressFromEntity(collectorAccount));
 
         // Then
         assertThat(functionCall.send().component2().getFirst()).isEqualTo(expectedFee);
@@ -442,9 +433,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 DEFAULT_FEE_AMOUNT,
                 CommonUtils.hex(toEvmAddress(tokenEntityId)),
                 false,
-                Address.fromHexString(
-                                Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
-                        .toHexString());
+                getAddressFromEntity(collectorAccount));
 
         // Then
         assertThat(functionCall.send().component3().getFirst()).isEqualTo(expectedFee);
@@ -987,7 +976,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 getAddressFromEntityId(fixedFee.getDenominatingTokenId()),
                 false,
                 false,
-                getAliasFromEntity(feeCollector));
+                getAddressFromEntity(feeCollector));
     }
 
     private PrecompileTestContractHistorical.FractionalFee getFractionalFee(
@@ -998,7 +987,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 BigInteger.valueOf(fractionalFee.getMinimumAmount()),
                 BigInteger.valueOf(fractionalFee.getMaximumAmount()),
                 true,
-                getAliasFromEntity(feeCollector));
+                getAddressFromEntity(feeCollector));
     }
 
     private PrecompileTestContractHistorical.RoyaltyFee getRoyaltyFee(
@@ -1009,7 +998,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 BigInteger.valueOf(royaltyFee.getFallbackFee().getAmount()),
                 getAddressFromEntityId(royaltyFee.getFallbackFee().getDenominatingTokenId()),
                 false,
-                getAddressFromEvmAddress(feeCollector.getEvmAddress()));
+                getAddressFromEntity(feeCollector));
     }
 
     private PrecompileTestContractHistorical.KeyValue getKeyValue(final byte[] serializedKey) {

@@ -180,7 +180,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final long effectiveEndBlockNumber = endBlockNumber == null ? -1L : endBlockNumber;
             final var uncompressedBytes = new AtomicLong();
             final var assembler =
-                    new BlockAssembler(onBlockStream, effectiveEndBlockNumber, timeout, uncompressedBytes);
+                    new BlockAssembler(onBlockStream, effectiveEndBlockNumber, blockNumber, timeout, uncompressedBytes);
             final var request = SubscribeStreamRequest.newBuilder()
                     .setEndBlockNumber(effectiveEndBlockNumber)
                     .setStartBlockNumber(blockNumber)
@@ -339,20 +339,26 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         private final BiFunction<BlockStream, String, Boolean> blockStreamConsumer;
         private final long endBlockNumber;
         private final List<List<BlockItemUnparsed>> pending = new ArrayList<>();
+        private final long startBlockNumber;
         private final Stopwatch stopwatch;
         private final Duration timeout;
         private final AtomicLong uncompressedBytes;
+
         private long blockStartBytes = 0;
+        private int completedBlocks = 0;
+        private @Nullable BlockHeader currentBlockHeader;
         private long loadStart;
         private int pendingCount = 0;
 
         BlockAssembler(
                 final BiFunction<BlockStream, String, Boolean> blockStreamConsumer,
                 final long endBlockNumber,
+                final long startBlockNumber,
                 final Duration timeout,
                 final AtomicLong uncompressedBytes) {
             this.blockStreamConsumer = blockStreamConsumer;
             this.endBlockNumber = endBlockNumber;
+            this.startBlockNumber = startBlockNumber;
             this.stopwatch = Stopwatch.createUnstarted();
             this.timeout = timeout;
             this.uncompressedBytes = uncompressedBytes;
@@ -367,31 +373,26 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
             final var firstItemCase = blockItems.getFirst().getItemCase();
             append(blockItems, firstItemCase);
-
-            if (firstItemCase == BLOCK_HEADER) {
-                loadStart = System.currentTimeMillis();
-            }
         }
 
         Boolean onEndOfBlock(final BlockEnd blockEnd) {
-            final long blockNumber = blockEnd.getBlockNumber();
-            // Note the size includes the extra bytes from the BlockItemSet message
-            final int blockSize = (int) (uncompressedBytes.get() - blockStartBytes);
+            // reset block size bookkeeping whenever a block ends
+            final int blockSize = (int) getBlockSize();
             blockStartBytes = uncompressedBytes.get();
 
-            if (pending.isEmpty()) {
+            if (currentBlockHeader == null || pending.isEmpty()) {
                 Utility.handleRecoverableError(
-                        "Received end-of-block message for block {} while there's no pending block items", blockNumber);
+                        "Received end-of-block message for block {} while there's no pending block items",
+                        blockEnd.getBlockNumber());
                 return false;
             }
 
-            final var blockHeader =
-                    parseProtobuf(pending.getFirst().getFirst().getBlockHeader(), BlockHeader::parseFrom);
-            if (blockHeader.getNumber() != blockNumber) {
+            final long blockNumber = currentBlockHeader.getNumber();
+            if (blockNumber != blockEnd.getBlockNumber()) {
                 Utility.handleRecoverableError(
                         "Block number mismatch in BlockHeader({}) and EndOfBlock({})",
-                        blockHeader.getNumber(),
-                        blockNumber);
+                        blockNumber,
+                        blockEnd.getBlockNumber());
             }
 
             final long blockCompleteTime = System.currentTimeMillis();
@@ -406,6 +407,8 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 }
             }
 
+            completedBlocks++;
+            currentBlockHeader = null;
             pending.clear();
             pendingCount = 0;
             stopwatch.reset();
@@ -415,8 +418,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             log.info("Streamed block {} from {}", blockNumber, subscribeStreamName);
 
             // when either condition becomes true, inform the caller to stop sending items for assembling
-            return blockStreamConsumer.apply(blockStream, subscribeStreamName)
-                    || blockHeader.getNumber() == endBlockNumber;
+            return blockStreamConsumer.apply(blockStream, subscribeStreamName) || blockNumber == endBlockNumber;
         }
 
         long timeout() {
@@ -444,12 +446,30 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                         pendingCount, streamProperties.getMaxBlockItems()));
             }
 
-            final long blockSize = uncompressedBytes.get() - blockStartBytes;
+            final long blockSize = getBlockSize();
             final long maxBlockSize = streamProperties.getMaxBlockSize().toBytes();
             if (blockSize > maxBlockSize) {
                 throw new BlockStreamException(
                         String.format("Pending block too large: received %d bytes, limit %d", blockSize, maxBlockSize));
             }
+
+            if (firstItemCase == BLOCK_HEADER) {
+                currentBlockHeader = parseProtobuf(blockItems.getFirst().getBlockHeader(), BlockHeader::parseFrom);
+                if (completedBlocks == 0 && startBlockNumber != currentBlockHeader.getNumber()) {
+                    // Validate only the first block's number in this session; subsequent blocks are validated by
+                    // sequential contiguity.
+                    throw new BlockStreamException(String.format(
+                            "First block has incorrect block number: received %d, expected %d",
+                            currentBlockHeader.getNumber(), startBlockNumber));
+                }
+
+                loadStart = System.currentTimeMillis();
+            }
+        }
+
+        private long getBlockSize() {
+            // Note the size includes the extra bytes from the BlockItemSet message
+            return uncompressedBytes.get() - blockStartBytes;
         }
     }
 }
