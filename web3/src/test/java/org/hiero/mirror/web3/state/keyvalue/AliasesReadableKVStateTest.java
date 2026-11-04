@@ -10,14 +10,18 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
+import com.hedera.hapi.node.state.token.Account;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import java.util.Map;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -178,6 +182,36 @@ class AliasesReadableKVStateTest {
                         .getReadCacheState(AccountReadableKVState.STATE_ID)
                         .containsKey(ACCOUNT_ID))
                 .isTrue();
+    }
+
+    @Test
+    void aliasResolutionCachesOverriddenBalanceAndNonce() {
+        final var address = Bytes.fromHex("67d8d32e9bf1a9968a5ff53b87d777aa8ebbee69");
+        final var entity = Entity.builder()
+                .id(ENTITY_ID.getId())
+                .shard(ENTITY_ID.getShard())
+                .realm(ENTITY_ID.getRealm())
+                .num(ENTITY_ID.getNum())
+                .type(EntityType.ACCOUNT)
+                .evmAddress(address.toByteArray())
+                .balance(1000L)
+                .ethereumNonce(1L)
+                .build();
+        final var override = new StateOverride();
+        override.setAddress(address.toHex());
+        override.setBalance("0xc8");
+        override.setNonce("0x2a");
+        contractCallContext.setStateOverrides(Map.of(address, override));
+        when(commonEntityAccessor.get(address, Optional.empty())).thenReturn(Optional.of(entity));
+
+        assertThat(aliasesReadableKVState.get(new ProtoBytes(address))).isEqualTo(ACCOUNT_ID);
+
+        final var cached = (Account) contractCallContext
+                .getReadCacheState(AccountReadableKVState.STATE_ID)
+                .get(ACCOUNT_ID);
+        assertThat(cached.tinybarBalance()).isEqualTo(200L);
+        assertThat(cached.ethereumNonce()).isEqualTo(42L);
+        assertThat(entity.getBalance()).isEqualTo(1000L);
     }
 
     @Test

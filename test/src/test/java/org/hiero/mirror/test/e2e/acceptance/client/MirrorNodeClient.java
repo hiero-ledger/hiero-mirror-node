@@ -525,6 +525,11 @@ public class MirrorNodeClient {
         return callRestEndpoint("/accounts/{accountId}", AccountInfo.class, accountId.toString());
     }
 
+    public AccountInfo getAccountDetailsWithNotFound(String accountId) {
+        log.debug("Verify account '{}' is not found", accountId);
+        return callRestEndpointNoRetry("/accounts/{accountId}", AccountInfo.class, accountId);
+    }
+
     public void unSubscribeFromTopic(SubscriptionHandle subscription) {
         subscription.unsubscribe();
         log.info("Unsubscribed from {}", subscription);

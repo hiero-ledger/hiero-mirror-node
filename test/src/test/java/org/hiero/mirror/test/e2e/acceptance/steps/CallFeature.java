@@ -3,6 +3,7 @@
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE_FOR_ETH_CALL;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE_KYC_UNFROZEN_FOR_ETH_CALL;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.NFT_FOR_ETH_CALL;
@@ -18,8 +19,11 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMet
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.BURN_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.DEPLOY_NESTED_CONTRACT_CONTRACT_VIA_CREATE2_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.DEPLOY_NESTED_CONTRACT_CONTRACT_VIA_CREATE_SELECTOR;
+import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.DEPLOY_VIA_CREATE_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.DISSOCIATE_TOKEN_FAIL_TRANSFER;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.FREEZE_UNFREEZE_GET_STATUS;
+import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.GET_COUNTER;
+import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.GET_COUNTER_2;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.GRANT_KYC_REVOKE_KYC;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.HTS_GET_DEFAULT_FREEZE_STATUS_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.HTS_GET_TOKEN_DEFAULT_KYC_STATUS_SELECTOR;
@@ -54,26 +58,34 @@ import com.hedera.hashgraph.sdk.TokenId;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
+import java.io.IOException;
+import java.io.Serial;
 import java.math.BigInteger;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.LongStream;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.StateOverride;
-import org.hiero.mirror.rest.model.StorageEntry;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
+import org.hiero.mirror.test.e2e.acceptance.util.ContractCallResponseWrapper;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
+import org.hiero.mirror.test.e2e.acceptance.util.StateOverrideBuilder;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 import org.springframework.web.client.HttpClientErrorException;
+import org.web3j.crypto.ContractUtils;
+import org.web3j.utils.Numeric;
 
 @RequiredArgsConstructor
 public class CallFeature extends AbstractFeature {
 
     private static final String HEX_REGEX = "^[0-9a-fA-F]+$";
+    private static final AtomicBoolean stateOverridesUnsupported = new AtomicBoolean(false);
     private static DeployedContract deployedPrecompileContract;
     private final AccountClient accountClient;
     private final MirrorNodeClient mirrorClient;
@@ -237,38 +249,32 @@ public class CallFeature extends AbstractFeature {
         var tokenId = tokenClient.getToken(tokenNameEnum).tokenId();
 
         var data = encodeData(ERC, IERC721_TOKEN_NAME_SELECTOR, asAddress(tokenId));
-        var response = callContract(data, ercContractAddress);
 
-        assertThat(response.getResultAsText()).isEqualTo(tokenNameEnum.getSymbol() + "_name");
-    }
-
-    @RetryAsserts
-    @Then("I call function with IERC721Metadata token {string} name and state override")
-    public void ierc721MetadataTokenNameWithStateOverride(String tokenName) {
-        var tokenNameEnum = TokenClient.TokenNameEnum.valueOf(tokenName);
-        var tokenId = tokenClient.getToken(tokenNameEnum).tokenId();
-        var data = encodeData(ERC, IERC721_TOKEN_NAME_SELECTOR, asAddress(tokenId));
-        var stateOverride = new StateOverride()
-                .address("0x00000000000000000000000000000000000004e2")
-                .balance("0x1")
-                .state(List.of())
-                .addStateDiffItem(new StorageEntry()
-                        .key("0x0000000000000000000000000000000000000000000000000000000000000001")
-                        .value("0x0000000000000000000000000000000000000000000000000000000000000001"));
-        var request = ModelBuilder.contractCallRequest()
-                .block("LATEST")
-                .data(data)
-                .from(contractClient.getClientAddress())
-                .to(ercContractAddress)
-                .addStateOverridesItem(stateOverride);
+        if (!shouldUseStateOverrides()) {
+            assertMetadataTokenName(data, tokenNameEnum);
+            return;
+        }
 
         try {
-            var response = callContract(request);
-            assertThat(response.getResultAsText()).isEqualTo(tokenNameEnum.getSymbol() + "_name");
-        } catch (HttpClientErrorException.BadRequest badRequest) {
-            // This check is needed to validate that state_override entry is successfully deserialized in a native build
-            // image
-            assertThat(badRequest.getResponseBodyAsString()).contains("State overrides are not supported");
+            var runtimeBytecode =
+                    mirrorClient.getContractInfo(ercContractAddress).getRuntimeBytecode();
+            assertThat(runtimeBytecode).isNotBlank();
+            // Execute the ERC metadata function at the precompile contract's address.
+            var overrides = List.of(StateOverrideBuilder.forAddress(precompileContractAddress)
+                    .code(runtimeBytecode)
+                    .build());
+
+            assertThat(callWithStateOverrides(data, precompileContractAddress, overrides)
+                            .getResultAsText())
+                    .isEqualTo(tokenNameEnum.getSymbol() + "_name");
+            assertThat(callContract(
+                                    encodeData(PRECOMPILE, HTS_IS_TOKEN_SELECTOR, fungibleTokenAddress),
+                                    precompileContractAddress)
+                            .getResultAsBoolean())
+                    .as("The original precompile code must be restored for the next request")
+                    .isTrue();
+        } catch (final StateOverridesUnsupportedException _) {
+            assertMetadataTokenName(data, tokenNameEnum);
         }
     }
 
@@ -380,65 +386,266 @@ public class CallFeature extends AbstractFeature {
     public void ethCallUpdateFunction() {
         var updateValue = new BigInteger("5");
         var data = encodeData(ESTIMATE_GAS, UPDATE_COUNTER_SELECTOR, updateValue);
-        var response = callContract(data, estimateContractAddress);
 
-        assertEquals(response.getResultAsNumber(), updateValue);
+        if (!shouldUseStateOverrides()) {
+            assertUpdatedCounter(data, updateValue);
+            return;
+        }
+
+        try {
+            var counterData = encodeData(ESTIMATE_GAS, GET_COUNTER);
+            var counter2Data = encodeData(ESTIMATE_GAS, GET_COUNTER_2);
+            var initialCounterValue =
+                    callContract(counterData, estimateContractAddress).getResultAsNumber();
+            var initialCounter2Value =
+                    callContract(counter2Data, estimateContractAddress).getResultAsNumber();
+            assertThat(initialCounter2Value).isNotZero();
+            // Patch counter (slot 3), preserving the unlisted counter2 (slot 4).
+            var overrides = List.of(StateOverrideBuilder.forAddress(estimateContractAddress)
+                    .stateDiff(3, 41)
+                    .build());
+            assertThat(callWithStateOverrides(counterData, estimateContractAddress, overrides)
+                            .getResultAsNumber())
+                    .isEqualTo(41);
+            assertThat(callWithStateOverrides(counter2Data, estimateContractAddress, overrides)
+                            .getResultAsNumber())
+                    .isEqualTo(initialCounter2Value);
+            assertThat(callWithStateOverrides(data, estimateContractAddress, overrides)
+                            .getResultAsNumber())
+                    .isEqualTo(updateValue);
+            assertThat(initialCounterValue).isNotZero();
+            var zeroOverrides = List.of(StateOverrideBuilder.forAddress(estimateContractAddress)
+                    .stateDiff(3, 0)
+                    .build());
+            assertThat(callWithStateOverrides(counterData, estimateContractAddress, zeroOverrides)
+                            .getResultAsNumber())
+                    .as("An explicit zero storage patch must clear the nonzero counter")
+                    .isZero();
+            assertThat(callWithStateOverrides(counter2Data, estimateContractAddress, zeroOverrides)
+                            .getResultAsNumber())
+                    .isEqualTo(initialCounter2Value);
+            assertThat(callContract(counterData, estimateContractAddress).getResultAsNumber())
+                    .as("The storage patch and simulated update must not persist")
+                    .isEqualTo(initialCounterValue);
+
+            var runtimeBytecode =
+                    mirrorClient.getContractInfo(estimateContractAddress).getRuntimeBytecode();
+            assertThat(runtimeBytecode).isNotBlank();
+            assertCodeAndStorageOverride(secondReceiverAlias, runtimeBytecode);
+
+            // Use a valid entity number far beyond the accounts allocated by the acceptance suite.
+            var missingAddress = asAddress(274_877_906_943L).toString();
+            assertThatExceptionOfType(HttpClientErrorException.NotFound.class)
+                    .isThrownBy(() -> mirrorClient.getAccountDetailsWithNotFound(missingAddress));
+            assertCodeAndStorageOverride(missingAddress, runtimeBytecode);
+            // Account continue to be missing
+            assertThatExceptionOfType(HttpClientErrorException.NotFound.class)
+                    .isThrownBy(() -> mirrorClient.getAccountDetailsWithNotFound(missingAddress));
+        } catch (final StateOverridesUnsupportedException _) {
+            assertUpdatedCounter(data, updateValue);
+        }
     }
 
+    @RetryAsserts
     @Then("I call function that makes N times state update")
     public void ethCallStateUpdateNTimesFunction() {
         var data = encodeData(ESTIMATE_GAS, STATE_UPDATE_N_TIMES_SELECTOR, new BigInteger("15"));
-        var response = callContract(data, estimateContractAddress);
 
-        assertEquals("14", String.valueOf(response.getResultAsNumber()));
+        if (!shouldUseStateOverrides()) {
+            assertStateUpdateNTimes(data);
+            return;
+        }
+
+        try {
+            // With zero iterations, updateStateNTimes returns the existing counter3 (slot 5).
+            var updateZeroTimesData = encodeData(ESTIMATE_GAS, STATE_UPDATE_N_TIMES_SELECTOR, BigInteger.ZERO);
+            var counterData = encodeData(ESTIMATE_GAS, GET_COUNTER);
+            var initialCounter3Value =
+                    callContract(updateZeroTimesData, estimateContractAddress).getResultAsNumber();
+            var initialCounterValue =
+                    callContract(counterData, estimateContractAddress).getResultAsNumber();
+            assertThat(initialCounterValue).isNotZero();
+            var overrides = List.of(StateOverrideBuilder.forAddress(estimateContractAddress)
+                    .state(5, 41)
+                    .build());
+            assertThat(callWithStateOverrides(updateZeroTimesData, estimateContractAddress, overrides)
+                            .getResultAsNumber())
+                    .isEqualTo(41);
+            assertThat(callWithStateOverrides(counterData, estimateContractAddress, overrides)
+                            .getResultAsNumber())
+                    .as("Full state replacement clears the omitted counter slot")
+                    .isZero();
+            assertThat(callWithStateOverrides(data, estimateContractAddress, overrides)
+                            .getResultAsNumber())
+                    .isEqualTo(14);
+            assertThat(callContract(updateZeroTimesData, estimateContractAddress)
+                            .getResultAsNumber())
+                    .isEqualTo(initialCounter3Value);
+            assertThat(callContract(counterData, estimateContractAddress).getResultAsNumber())
+                    .isEqualTo(initialCounterValue);
+        } catch (final StateOverridesUnsupportedException _) {
+            assertStateUpdateNTimes(data);
+        }
     }
 
+    @RetryAsserts
     @Then("I call function with nested deploy using create function")
     public void ethCallNestedDeployViaCreateFunction() {
         var data = encodeData(ESTIMATE_GAS, DEPLOY_NESTED_CONTRACT_CONTRACT_VIA_CREATE_SELECTOR);
-        var response = callContract(data, estimateContractAddress);
-        String[] addresses = splitAddresses(response.getResult());
 
-        validateAddresses(addresses);
+        if (!shouldUseStateOverrides()) {
+            assertNestedDeploy(data);
+            return;
+        }
+
+        try {
+            var response = callContract(data, estimateContractAddress);
+
+            var overrides = List.of(StateOverrideBuilder.forAddress(estimateContractAddress)
+                    .nonce(42)
+                    .build());
+            assertThat(callWithStateOverrides(data, estimateContractAddress, overrides)
+                            .getResultAsListDecimal())
+                    .as("Sequential CREATE operations must use overridden nonces 42 and 43")
+                    .isEqualTo(createdAddresses(estimateContractAddress, 42));
+
+            // A second CREATE at nonce 1 would collide with the constructor's existing MockContract.
+            var zeroNonceData = encodeData(ESTIMATE_GAS, DEPLOY_VIA_CREATE_SELECTOR);
+            var zeroNonceOverrides = List.of(StateOverrideBuilder.forAddress(estimateContractAddress)
+                    .nonce(0)
+                    .build());
+            assertThat(callWithStateOverrides(zeroNonceData, estimateContractAddress, zeroNonceOverrides)
+                            .getResultAsNumber())
+                    .as("CREATE must use an explicitly overridden zero nonce")
+                    .isEqualTo(createdAddresses(estimateContractAddress, 0).getFirst());
+            assertThat(callContract(data, estimateContractAddress).getResult())
+                    .as("The overridden nonce and simulated creations must not persist")
+                    .isEqualTo(response.getResult());
+        } catch (final StateOverridesUnsupportedException _) {
+            assertNestedDeploy(data);
+        }
     }
 
     @Then("I call function with nested deploy using create2 function")
-    public void ethCallNestedDeployViaCreate2Function() {
+    public void ethCallNestedDeployViaCreate2Function() throws IOException {
         var data = encodeData(ESTIMATE_GAS, DEPLOY_NESTED_CONTRACT_CONTRACT_VIA_CREATE2_SELECTOR);
-        var response = callContract(data, estimateContractAddress);
 
-        String[] addresses = splitAddresses(response.getResult());
+        if (!shouldUseStateOverrides()) {
+            assertNestedDeploy(data);
+            return;
+        }
 
-        validateAddresses(addresses);
+        try {
+            var response = callContract(data, estimateContractAddress);
+
+            // salt and salt2 occupy slots 0 and 1 in EstimateGasContract.
+            var overrides = List.of(StateOverrideBuilder.forAddress(estimateContractAddress)
+                    .stateDiff(0, 41)
+                    .stateDiff(1, 42)
+                    .build());
+            String mockBytecode;
+            try (var in = getResourceAsStream(
+                    "classpath:solidity/artifacts/contracts/EstimateGasContract.sol/MockContract.json")) {
+                mockBytecode = readCompiledArtifact(in).getBytecode();
+            }
+            assertThat(callWithStateOverrides(data, estimateContractAddress, overrides)
+                            .getResultAsListDecimal())
+                    .as("CREATE2 addresses must reflect both overridden storage salts")
+                    .isEqualTo(createdAddressesWithSalt(estimateContractAddress, mockBytecode, 41, 42));
+            assertThat(callContract(data, estimateContractAddress).getResult()).isEqualTo(response.getResult());
+        } catch (final StateOverridesUnsupportedException _) {
+            assertNestedDeploy(data);
+        }
     }
 
-    @SuppressWarnings("java:S2925")
     @RetryAsserts
     @Then("I successfully update the balance of an account and get the updated balance after 2 seconds")
     public void getBalance() throws InterruptedException {
-        var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, receiverAccountAddress);
-        var initialBalance = callContract(data, estimateContractAddress).getResultAsNumber();
-        networkTransactionResponse = accountClient.sendCryptoTransfer(
-                receiverAccountId.getAccountId(),
-                Hbar.fromTinybars(initialBalance.longValue()),
-                receiverAccountId.getPrivateKey());
-        verifyMirrorTransactionsResponse(mirrorClient, 200);
-        // wait for token cache to expire
-        Thread.sleep(2000);
-        var updatedBalance = callContract(data, estimateContractAddress).getResultAsNumber();
-        assertThat(initialBalance).isEqualTo(updatedBalance.divide(BigInteger.TWO));
+        var firstReceiverData = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, receiverAccountAddress);
+
+        if (!shouldUseStateOverrides()) {
+            assertUpdatedAccountBalance(firstReceiverData);
+            return;
+        }
+
+        try {
+            var firstReceiverInitialBalance =
+                    callContract(firstReceiverData, estimateContractAddress).getResultAsNumber();
+
+            var secondReceiverData = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, asAddress(secondReceiverAlias));
+            var secondReceiverBalance =
+                    callContract(secondReceiverData, estimateContractAddress).getResultAsNumber();
+            var overrides = List.of(
+                    StateOverrideBuilder.forAddress(receiverAccountAddress.toString())
+                            .balance(100)
+                            .build(),
+                    StateOverrideBuilder.forAddress(secondReceiverAlias)
+                            .balance(200)
+                            .build());
+            assertThat(callWithStateOverrides(firstReceiverData, estimateContractAddress, overrides)
+                            .getResultAsNumber())
+                    .isEqualTo(100);
+            assertThat(callWithStateOverrides(secondReceiverData, estimateContractAddress, overrides)
+                            .getResultAsNumber())
+                    .isEqualTo(200);
+            assertThat(firstReceiverInitialBalance).isPositive();
+            assertThat(secondReceiverBalance).isPositive();
+            var zeroOverrides = List.of(
+                    StateOverrideBuilder.forAddress(receiverAccountAddress.toString())
+                            .balance(0)
+                            .build(),
+                    StateOverrideBuilder.forAddress(secondReceiverAlias)
+                            .balance(0)
+                            .build());
+            assertThat(callWithStateOverrides(firstReceiverData, estimateContractAddress, zeroOverrides)
+                            .getResultAsNumber())
+                    .isZero();
+            assertThat(callWithStateOverrides(secondReceiverData, estimateContractAddress, zeroOverrides)
+                            .getResultAsNumber())
+                    .isZero();
+            assertThat(callContract(firstReceiverData, estimateContractAddress).getResultAsNumber())
+                    .isEqualTo(firstReceiverInitialBalance);
+            assertThat(callContract(secondReceiverData, estimateContractAddress).getResultAsNumber())
+                    .isEqualTo(secondReceiverBalance);
+            assertThat(callWithStateOverrides(firstReceiverData, estimateContractAddress, overrides.reversed())
+                            .getResultAsNumber())
+                    .isEqualTo(100);
+            assertThat(callWithStateOverrides(secondReceiverData, estimateContractAddress, overrides.reversed())
+                            .getResultAsNumber())
+                    .isEqualTo(200);
+            assertThat(callContract(firstReceiverData, estimateContractAddress).getResultAsNumber())
+                    .isEqualTo(firstReceiverInitialBalance);
+            assertThat(callContract(secondReceiverData, estimateContractAddress).getResultAsNumber())
+                    .isEqualTo(secondReceiverBalance);
+        } catch (StateOverridesUnsupportedException _) {
+            assertUpdatedAccountBalance(firstReceiverData);
+        }
     }
 
     @RetryAsserts
     @Then("I call function with transfer that returns the balance")
     public void ethCallReentrancyCallFunction() {
         var data = encodeData(ESTIMATE_GAS, REENTRANCY_CALL_WITH_GAS, receiverAccountAddress, new BigInteger("10000"));
-        var response = callContract(data, estimateContractAddress);
-        String[] balances = splitAddresses(response.getResult());
-        // verify initial balance
-        assertEquals(1000000, Integer.parseInt(balances[0], 16));
-        // verify balance after transfer of 10,000
-        assertEquals(990000, Integer.parseInt(balances[1], 16));
+
+        if (!shouldUseStateOverrides()) {
+            assertTransferBalance(data);
+            return;
+        }
+
+        try {
+            var response = callContract(data, estimateContractAddress);
+
+            var overrides = List.of(StateOverrideBuilder.forAddress(estimateContractAddress)
+                    .balance(2_000_000)
+                    .build());
+            assertThat(callWithStateOverrides(data, estimateContractAddress, overrides)
+                            .getResultAsListDecimal())
+                    .as("The transfer must spend from the overridden contract balance")
+                    .containsExactly(BigInteger.valueOf(2_000_000), BigInteger.valueOf(1_990_000));
+            assertThat(callContract(data, estimateContractAddress).getResult()).isEqualTo(response.getResult());
+        } catch (final StateOverridesUnsupportedException _) {
+            assertTransferBalance(data);
+        }
     }
 
     @Then("I directly call Ethereum precompile 0x01")
@@ -789,6 +996,131 @@ public class CallFeature extends AbstractFeature {
                 .isEqualTo(176);
     }
 
+    private void assertCodeAndStorageOverride(String address, String runtimeBytecode) {
+        var data = encodeData(ESTIMATE_GAS, GET_COUNTER);
+        assertThat(callContract(data, address).getResult()).isEqualTo("0x");
+        var balanceData = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, asAddress(address));
+        var initialBalance = callContract(balanceData, estimateContractAddress).getResultAsNumber();
+        var overrides = List.of(StateOverrideBuilder.forAddress(address)
+                .code(runtimeBytecode)
+                .stateDiff(3, 41)
+                .balance(200)
+                .build());
+
+        assertThat(callWithStateOverrides(data, address, overrides).getResultAsNumber())
+                .as("Code and storage overrides must execute together at %s", address)
+                .isEqualTo(41);
+        assertThat(callWithStateOverrides(balanceData, address, overrides).getResultAsNumber())
+                .isEqualTo(200);
+        var updateData = encodeData(ESTIMATE_GAS, UPDATE_COUNTER_SELECTOR, BigInteger.valueOf(5));
+        assertThat(callWithStateOverrides(updateData, address, overrides).getResultAsNumber())
+                .isEqualTo(5);
+        assertThat(callWithStateOverrides(data, address, overrides).getResultAsNumber())
+                .as("A simulated storage update must not change the next request's override")
+                .isEqualTo(41);
+
+        assertThat(callContract(data, address).getResult())
+                .as("The code override must not persist")
+                .isEqualTo("0x");
+        assertThat(callContract(balanceData, estimateContractAddress).getResultAsNumber())
+                .as("The balance override must not persist")
+                .isEqualTo(initialBalance);
+    }
+
+    private void assertMetadataTokenName(String data, TokenClient.TokenNameEnum tokenNameEnum) {
+        var response = callContract(data, ercContractAddress);
+        assertThat(response.getResultAsText()).isEqualTo(tokenNameEnum.getSymbol() + "_name");
+    }
+
+    private void assertUpdatedCounter(String data, BigInteger updateValue) {
+        var response = callContract(data, estimateContractAddress);
+        assertEquals(response.getResultAsNumber(), updateValue);
+    }
+
+    private void assertStateUpdateNTimes(String data) {
+        var response = callContract(data, estimateContractAddress);
+        assertEquals("14", String.valueOf(response.getResultAsNumber()));
+    }
+
+    private void assertNestedDeploy(String data) {
+        var response = callContract(data, estimateContractAddress);
+        var addresses = splitAddresses(response.getResult());
+        validateAddresses(addresses);
+    }
+
+    @SuppressWarnings("java:S2925")
+    private void assertUpdatedAccountBalance(String firstReceiverData) throws InterruptedException {
+        var firstReceiverInitialBalance =
+                callContract(firstReceiverData, estimateContractAddress).getResultAsNumber();
+        networkTransactionResponse = accountClient.sendCryptoTransfer(
+                receiverAccountId.getAccountId(),
+                Hbar.fromTinybars(firstReceiverInitialBalance.longValue()),
+                receiverAccountId.getPrivateKey());
+        verifyMirrorTransactionsResponse(mirrorClient, 200);
+        // wait for token cache to expire
+        Thread.sleep(2000);
+        var updatedBalance =
+                callContract(firstReceiverData, estimateContractAddress).getResultAsNumber();
+        assertThat(firstReceiverInitialBalance).isEqualTo(updatedBalance.divide(BigInteger.TWO));
+    }
+
+    private void assertTransferBalance(String data) {
+        var response = callContract(data, estimateContractAddress);
+        String[] balances = splitAddresses(response.getResult());
+        // verify initial balance
+        assertEquals(1000000, Integer.parseInt(balances[0], 16));
+        // verify balance after transfer of 10,000
+        assertEquals(990000, Integer.parseInt(balances[1], 16));
+    }
+
+    private boolean shouldUseStateOverrides() {
+        return web3Properties.isStateOverridesEnabled() && !stateOverridesUnsupported.get();
+    }
+
+    private ContractCallResponseWrapper callWithStateOverrides(
+            String data, String address, List<StateOverride> overrides) {
+        try {
+            return callContract(ModelBuilder.contractCallRequest()
+                    .block("LATEST")
+                    .gasPrice(0L)
+                    .value(0L)
+                    .data(data)
+                    .from(contractClient.getClientAddress())
+                    .to(address)
+                    .stateOverrides(overrides));
+        } catch (final HttpClientErrorException.BadRequest e) {
+            if (!e.getResponseBodyAsString().contains("State overrides are not supported.")) {
+                throw e;
+            }
+            if (stateOverridesUnsupported.compareAndSet(false, true)) {
+                log.warn(
+                        "State overrides are not supported by the environment. Using regular assertions for the remainder of the suite.");
+            }
+            throw new StateOverridesUnsupportedException(e);
+        }
+    }
+
+    private List<BigInteger> createdAddresses(String address, long nonce) {
+        return LongStream.range(nonce, nonce + 2)
+                .mapToObj(value -> new BigInteger(
+                        ContractUtils.generateContractAddress(address, BigInteger.valueOf(value))
+                                .substring(2),
+                        16))
+                .toList();
+    }
+
+    private List<BigInteger> createdAddressesWithSalt(String address, String bytecode, long... salts) {
+        return LongStream.of(salts)
+                .mapToObj(salt -> new BigInteger(
+                        ContractUtils.generateCreate2ContractAddress(
+                                        address,
+                                        Numeric.toBytesPadded(BigInteger.valueOf(salt), 32),
+                                        Numeric.hexStringToByteArray(bytecode))
+                                .substring(2),
+                        16))
+                .toList();
+    }
+
     private void validateAddresses(String[] addresses) {
         assertNotEquals(addresses[0], addresses[1]);
         assertTrue(addresses[0].matches(HEX_REGEX));
@@ -799,7 +1131,17 @@ public class CallFeature extends AbstractFeature {
         var tokenRelationships =
                 mirrorClient.getTokenRelationships(accountId, tokenId).getTokens();
         assertThat(tokenRelationships).isNotNull().hasSize(1);
-        return tokenRelationships.get(0).getBalance();
+        return tokenRelationships.getFirst().getBalance();
+    }
+
+    private static final class StateOverridesUnsupportedException extends RuntimeException {
+
+        @Serial
+        private static final long serialVersionUID = 15974834468L;
+
+        private StateOverridesUnsupportedException(final HttpClientErrorException.BadRequest cause) {
+            super("State overrides are not supported.", cause);
+        }
     }
 
     @Getter
@@ -815,9 +1157,12 @@ public class CallFeature extends AbstractFeature {
         HTS_GET_DEFAULT_FREEZE_STATUS_SELECTOR("getTokenDefaultFreeze", VIEW),
         HTS_GET_TOKEN_DEFAULT_KYC_STATUS_SELECTOR("getTokenDefaultKyc", VIEW),
         UPDATE_COUNTER_SELECTOR("updateCounter", MUTABLE),
+        GET_COUNTER("getCounter", VIEW),
+        GET_COUNTER_2("counter2", VIEW),
         STATE_UPDATE_N_TIMES_SELECTOR("updateStateNTimes", MUTABLE),
         DEPLOY_NESTED_CONTRACT_CONTRACT_VIA_CREATE_SELECTOR("deployNestedContracts", MUTABLE),
         DEPLOY_NESTED_CONTRACT_CONTRACT_VIA_CREATE2_SELECTOR("deployNestedContracts2", MUTABLE),
+        DEPLOY_VIA_CREATE_SELECTOR("deployViaCreate", MUTABLE),
         REENTRANCY_CALL_WITH_GAS("reentrancyCallWithGas", MUTABLE),
         MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", MUTABLE),
         BURN_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", MUTABLE),
