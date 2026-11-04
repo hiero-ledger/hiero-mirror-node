@@ -540,8 +540,8 @@ class ContractController extends BaseController {
     }
 
     // Special case: don't include synthetic contract results created from synthetic contract logs when the query is for
-    // a specific contract, a workaround for #14365. Any from filter (eq or range) also excludes them, since
-    // the sender synthetic query can't filter on sender.
+    // a specific contract, a workaround for #14365. Any from filter (eq or range) also excludes them, since the
+    // synthetic query can't filter on sender.
     const includeSynthetic =
       config.query.syntheticContractResults &&
       (contractId == null || config.query.syntheticContractIdResults) &&
