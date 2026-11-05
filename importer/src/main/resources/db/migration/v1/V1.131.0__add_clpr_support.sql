@@ -186,7 +186,7 @@ declare
     partition_to timestamp;
     partition_to_ns bigint;
 begin
-    partition_from := date_trunc('month', ${clprEnablementDate}::timestamp);
+    partition_from := date_trunc('month', ${partitionStartDate}::timestamp);
     while current_timestamp + ${partitionTimeInterval}::interval >= partition_from loop
         partition_name := format('clpr_message_p%s', to_char(partition_from, 'YYYY_MM'));
         partition_from_ns := extract(epoch from partition_from)::bigint * one_sec_in_ns;
