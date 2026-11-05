@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.test.e2e.acceptance.client;
 
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.toRestTransactionId;
+
 import com.google.common.base.Stopwatch;
 import com.hedera.hashgraph.sdk.Client;
 import com.hedera.hashgraph.sdk.Query;
@@ -168,8 +170,7 @@ public class StartupProbe {
                 .timeout(timeout)
                 .build());
 
-        var restTransactionId = transactionId.accountId + "-" + transactionId.validStart.getEpochSecond() + "-"
-                + transactionId.validStart.getNano();
+        var restTransactionId = toRestTransactionId(transactionId);
 
         retryTemplate.execute(() -> restClient
                 .build()

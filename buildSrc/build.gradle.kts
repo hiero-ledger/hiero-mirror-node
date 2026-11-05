@@ -37,6 +37,7 @@ dependencies {
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.1")
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.cyclonedx:cyclonedx-gradle-plugin:3.5.1")
+    // Also update version in db.go & globalSetup.js
     implementation("org.flywaydb:flyway-database-postgresql:13.11.1")
     implementation("org.graalvm.buildtools:native-gradle-plugin:1.1.17")
     implementation("org.gradle:test-retry-gradle-plugin:1.6.6")
