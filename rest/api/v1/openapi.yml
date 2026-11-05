@@ -2731,11 +2731,6 @@ components:
           allOf:
             - $ref: "#/components/schemas/Bloom"
             - description: The hex encoded bloom filter of the contract log
-        child:
-          description: >-
-            Whether the transaction that emitted this log was executed as part of another transaction's EVM execution
-            (e.g. a system contract call or a call dispatched by a hook).
-          type: boolean
         contract_id:
           $ref: "#/components/schemas/EntityId"
         data:
