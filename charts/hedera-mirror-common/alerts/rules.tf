@@ -770,12 +770,20 @@ resource "grafana_rule_group" "rule_group_importer" {
         to   = 0
       }
 
-      datasource_uid = var.prometheus_datasource_uid
-      model          = "{\"editorMode\":\"code\",\"expr\":\"sum by (cluster, namespace, env_category) (increase(logback_events_total{application=\\\"importer\\\",level=\\\"error\\\"}[2m])) >= 2\",\"instant\":true,\"intervalMs\":1000,\"legendFormat\":\"__auto\",\"maxDataPoints\":43200,\"range\":false,\"refId\":\"A\"}"
+      datasource_uid = var.loki_datasource_uid
+      query_type     = "instant"
+      model = jsonencode({
+        editorMode    = "code"
+        expr          = "label_replace(label_replace(sum by (cluster, namespace) (count_over_time({component=\"importer\"} |~ `^\\S+ ERROR ` != \"Failed to get server status detail\" [2m])), \"env_category\", \"non-prod\", \"cluster\", \".*\"), \"env_category\", \"production\", \"cluster\", \"mainnet-eu|mainnet-na|testnet-eu|testnet-na|previewnet\") >= 2"
+        queryType     = "instant"
+        intervalMs    = 1000
+        maxDataPoints = 43200
+        refId         = "A"
+      })
     }
 
     no_data_state  = "OK"
-    exec_err_state = "Error"
+    exec_err_state = "KeepLast"
     for            = "3m"
     annotations = {
       description = "Logs have reached {{ printf \"%.0f\" (index $values \"A\").Value }} error messages/s in a 3m period"
