@@ -186,5 +186,5 @@ select create_distributed_table('clpr_message', 'channel_id', colocate_with => '
 
 select create_time_partitions(table_name := 'public.clpr_message',
                               partition_interval := ${partitionTimeInterval},
-                              start_from := ${clprEnablementDate}::timestamptz,
+                              start_from := ${partitionStartDate}::timestamptz,
                               end_at := CURRENT_TIMESTAMP + ${partitionTimeInterval});
