@@ -4,7 +4,6 @@ package org.hiero.mirror.common.domain.clpr;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -51,8 +50,8 @@ public abstract class AbstractClprConnector implements History {
     // Null until ClprCompleteConnector reveals it.
     private byte[] connectorId;
 
-    // The row's own creation (registration); unlike the fields below, never touched again by completion.
-    @Column(updatable = false)
+    // Reset fresh by every ClprCompleteConnector, including reactivation after deregistration -- not the row's
+    // original registration time.
     private Long createdTimestamp;
 
     private Long inFlightMessageCount;

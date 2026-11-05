@@ -173,7 +173,7 @@ create index if not exists clpr_message__channel_id_timestamp
 
 -- Partial index: only DATA messages have a non-null connector_id
 create index if not exists clpr_message__connector_id
-    on clpr_message (connector_id, consensus_timestamp)
+    on clpr_message (channel_id, connector_id, consensus_timestamp)
     where connector_id is not null;
 
 create or replace procedure partition_clpr_message() as
@@ -186,7 +186,7 @@ declare
     partition_to timestamp;
     partition_to_ns bigint;
 begin
-    partition_from := date_trunc('month', ${clprEnablementDate}::timestamp);
+    partition_from := date_trunc('month', ${partitionStartDate}::timestamp);
     while current_timestamp + ${partitionTimeInterval}::interval >= partition_from loop
         partition_name := format('clpr_message_p%s', to_char(partition_from, 'YYYY_MM'));
         partition_from_ns := extract(epoch from partition_from)::bigint * one_sec_in_ns;

@@ -12,6 +12,8 @@ begin
 end;
 $$ language plpgsql;
 
+call create_distributed_table_safe('clpr_channel_temp', 'channel_id', 'clpr_channel');
+call create_distributed_table_safe('clpr_connector_temp', 'channel_id', 'clpr_connector');
 call create_distributed_table_safe('contract_state_temp', 'contract_id', 'contract_state');
 call create_distributed_table_safe('crypto_allowance_temp', 'owner', 'crypto_allowance');
 call create_distributed_table_safe('custom_fee_temp', 'entity_id', 'custom_fee');

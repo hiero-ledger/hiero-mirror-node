@@ -179,12 +179,12 @@ create index if not exists clpr_message__channel_id_timestamp
 
 -- Partial index: only DATA messages have a non-null connector_id
 create index if not exists clpr_message__connector_id
-    on clpr_message (connector_id, consensus_timestamp)
+    on clpr_message (channel_id, connector_id, consensus_timestamp)
     where connector_id is not null;
 
 select create_distributed_table('clpr_message', 'channel_id', colocate_with => 'clpr_channel');
 
 select create_time_partitions(table_name := 'public.clpr_message',
                               partition_interval := ${partitionTimeInterval},
-                              start_from := ${clprEnablementDate}::timestamptz,
+                              start_from := ${partitionStartDate}::timestamptz,
                               end_at := CURRENT_TIMESTAMP + ${partitionTimeInterval});

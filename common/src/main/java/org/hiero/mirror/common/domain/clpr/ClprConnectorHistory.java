@@ -2,14 +2,12 @@
 
 package org.hiero.mirror.common.domain.clpr;
 
-import jakarta.persistence.IdClass;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 @Data
 @jakarta.persistence.Entity
-@IdClass(AbstractClprConnector.Id.class)
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 public class ClprConnectorHistory extends AbstractClprConnector {
