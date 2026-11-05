@@ -206,6 +206,7 @@
     {
       "urls": [
         "/api/v1/contracts/results?from=5999&from=9001&from=9999",
+        "/api/v1/contracts/results?from=gte:5999",
         "/api/v1/contracts/results?from=5999&from=fbb9a1be370150759408cd7af48e9eda2b8ead57&from=9999",
         "/api/v1/contracts/results?from=000000000000000000000000000000000000176F&from=9999&from=fbb9a1be370150759408cd7af48e9eda2b8ead57",
         "/api/v1/contracts/results?from=9999&from=ebb9a1be370150759408cd7af48e9eda2b8ead57&from=0x0000000000000000000000000000000000002329",
