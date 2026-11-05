@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_VALUE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
@@ -30,9 +31,12 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedG
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.longValueOf;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -80,11 +84,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.web3j.abi.FunctionReturnDecoder;
@@ -98,6 +105,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
     private static final int HBAR_EQUIV = 30_000;
     private static final int HISTORICAL_CENT_EQUIV = 100_000;
+    private static final String INTERNAL_DETAIL = "Internal state failure: org.example.PrivateState key=123";
     private static final int LATEST_CENT_EQUIV = 1_000_000;
     private static final long SECONDS_PER_HOUR = 3_600L;
 
@@ -1182,6 +1190,37 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
         // Then
         assertThat(result).isEqualTo("0x0000000000000000000000000000000000000000000000000000000000000001");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false,false", "false,true", "true,false", "true,true"})
+    @ExtendWith(OutputCaptureExtension.class)
+    void runtimeErrorsDoNotLeakDetails(
+            final boolean estimate, final boolean illegalState, final CapturedOutput output) {
+        // Given
+        final var failure = illegalState
+                ? new IllegalStateException(INTERNAL_DETAIL)
+                : new IllegalArgumentException(INTERNAL_DETAIL);
+        final var mockedTransactionExecutionService = mock(TransactionExecutionService.class);
+        given(mockedTransactionExecutionService.execute(any(), anyLong())).willThrow(failure);
+        final var service = new ContractExecutionService(
+                meterRegistry,
+                binaryGasEstimator,
+                recordFileService,
+                throttleProperties,
+                throttleManager,
+                evmProperties,
+                mockedTransactionExecutionService);
+        final var params = getContractExecutionParameters(HEX_PREFIX, Address.ZERO);
+
+        // When / Then
+        assertThatThrownBy(() -> service.doProcessCall(params, params.getGas(), estimate))
+                .isInstanceOfSatisfying(MirrorEvmTransactionException.class, exception -> {
+                    assertThat(exception.getResponseCode()).isEqualTo(FAIL_INVALID);
+                    assertThat(exception.getDetail()).isEmpty();
+                    assertThat(exception.getData()).isEmpty();
+                });
+        assertThat(output.getAll().contains(INTERNAL_DETAIL)).isEqualTo(!estimate);
     }
 
     private double getGasUsedBeforeExecution(final CallType callType) {
