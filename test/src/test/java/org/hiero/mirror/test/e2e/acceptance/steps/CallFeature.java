@@ -85,7 +85,7 @@ import org.web3j.utils.Numeric;
 public class CallFeature extends AbstractFeature {
 
     private static final String HEX_REGEX = "^[0-9a-fA-F]+$";
-    private static final AtomicBoolean stateOverridesUnsupported = new AtomicBoolean(false);
+    private static final AtomicBoolean stateOverridesSupported = new AtomicBoolean(true);
     private static DeployedContract deployedPrecompileContract;
     private final AccountClient accountClient;
     private final MirrorNodeClient mirrorClient;
@@ -1074,7 +1074,7 @@ public class CallFeature extends AbstractFeature {
     }
 
     private boolean shouldUseStateOverrides() {
-        return web3Properties.isStateOverridesEnabled() && !stateOverridesUnsupported.get();
+        return web3Properties.isStateOverridesEnabled() && stateOverridesSupported.get();
     }
 
     private ContractCallResponseWrapper callWithStateOverrides(
@@ -1092,7 +1092,7 @@ public class CallFeature extends AbstractFeature {
             if (!e.getResponseBodyAsString().contains("State overrides are not supported.")) {
                 throw e;
             }
-            if (stateOverridesUnsupported.compareAndSet(false, true)) {
+            if (stateOverridesSupported.compareAndSet(true, false)) {
                 log.warn(
                         "State overrides are not supported by the environment. Using regular assertions for the remainder of the suite.");
             }

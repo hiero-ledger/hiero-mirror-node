@@ -72,6 +72,12 @@ public class ContractCallContext {
     @Setter
     private Map<Bytes, StateOverride> stateOverrides;
 
+    /**
+     * Number of synthetic accounts created for state overrides on addresses with no entity in the DB.
+     */
+    @Getter(AccessLevel.NONE)
+    private long overriddenAccountCount;
+
     private ContractCallContext() {}
 
     public static ContractCallContext get() {
@@ -109,6 +115,14 @@ public class ContractCallContext {
         }
 
         return callServiceParameters.getGasPrice() > 0 || callServiceParameters.getValue() > 0;
+    }
+
+    /**
+     * Allocates a distinct, 1-based offset for each synthetic state-override account created within this request, so
+     * that each one receives its own account number.
+     */
+    public long nextOverriddenAccountOffset() {
+        return ++overriddenAccountCount;
     }
 
     public void reset() {

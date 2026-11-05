@@ -20,16 +20,6 @@ public final class StateOverrideBuilder {
                 new StateOverride().address(address).state(new ArrayList<>()).stateDiff(new ArrayList<>()));
     }
 
-    public static StateOverrideBuilder from(StateOverride source) {
-        return new StateOverrideBuilder(new StateOverride()
-                .address(source.getAddress())
-                .balance(source.getBalance())
-                .code(source.getCode())
-                .nonce(source.getNonce())
-                .state(source.getState() == null ? new ArrayList<>() : new ArrayList<>(source.getState()))
-                .stateDiff(source.getStateDiff() == null ? new ArrayList<>() : new ArrayList<>(source.getStateDiff())));
-    }
-
     public StateOverrideBuilder balance(long tinybars) {
         override.balance(hex(tinybars));
         return this;
@@ -42,11 +32,6 @@ public final class StateOverrideBuilder {
 
     public StateOverrideBuilder code(String runtimeBytecode) {
         override.code(runtimeBytecode);
-        return this;
-    }
-
-    public StateOverrideBuilder withoutCode() {
-        override.code(null);
         return this;
     }
 
@@ -68,6 +53,16 @@ public final class StateOverrideBuilder {
 
     public StateOverride build() {
         return from(override).override;
+    }
+
+    private static StateOverrideBuilder from(StateOverride source) {
+        return new StateOverrideBuilder(new StateOverride()
+                .address(source.getAddress())
+                .balance(source.getBalance())
+                .code(source.getCode())
+                .nonce(source.getNonce())
+                .state(source.getState() == null ? new ArrayList<>() : new ArrayList<>(source.getState()))
+                .stateDiff(source.getStateDiff() == null ? new ArrayList<>() : new ArrayList<>(source.getStateDiff())));
     }
 
     private static String hex(long value) {

@@ -80,7 +80,8 @@ public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVStat
      * account carrying that address as its alias is created, the override (balance, nonce, code) is applied to it and
      * it is cached under a synthetic account number, so later account, bytecode and storage reads in the same call
      * resolve the overridden state. The number is taken from the reserved headroom just below the next entity number,
-     * so it never collides with a DB entity or with entities created during the call.
+     * so it never collides with a DB entity or with entities created during the call. A per-request counter in
+     * {@link ContractCallContext} gives each such account its own number, counting down from the next entity number.
      */
     private AccountID createOverriddenAccount(final Bytes alias) {
         final var context = ContractCallContext.get();
@@ -93,7 +94,7 @@ public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVStat
         }
 
         final var commonProperties = CommonProperties.getInstance();
-        long number = entityIdSingleton.get().number();
+        final long number = entityIdSingleton.get().number() - context.nextOverriddenAccountOffset();
         final var accountID = AccountID.newBuilder()
                 .shardNum(commonProperties.getShard())
                 .realmNum(commonProperties.getRealm())
