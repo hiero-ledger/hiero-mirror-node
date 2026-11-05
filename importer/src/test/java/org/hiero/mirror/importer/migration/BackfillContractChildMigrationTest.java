@@ -9,12 +9,10 @@ import static org.hiero.mirror.importer.migration.BackfillContractChildMigration
 import java.time.Duration;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
-import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.ContractResultRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -30,7 +28,6 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
     @Getter
     private final BackfillContractChildMigration migration;
 
-    private final ContractLogRepository contractLogRepository;
     private final ContractResultRepository contractResultRepository;
     private final EntityProperties entityProperties;
 
@@ -212,15 +209,13 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         // given
         final var child = childOfContractCall(domainBuilder.timestamp());
         final var contractResult = contractResult(child);
-        final var contractLog = contractLog(child.getConsensusTimestamp(), 0);
 
         // when
         runMigration();
         waitForCompletion();
 
-        // then contract logs are left alone since they always belong to the top level EVM transaction
+        // then
         assertChild(contractResult, true);
-        assertChild(contractLog, false);
     }
 
     @Test
@@ -259,7 +254,6 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
 
         // then
         assertThat(contractResultRepository.findAll()).isEmpty();
-        assertThat(contractLogRepository.findAll()).isEmpty();
     }
 
     @Test
@@ -350,14 +344,6 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
         assertThat(tableExists("backfill_contract_child_progress_temp")).isFalse();
     }
 
-    private void assertChild(final ContractLog contractLog, final boolean expected) {
-        assertThat(contractLogRepository.findById(
-                        new ContractLog.Id(contractLog.getConsensusTimestamp(), contractLog.getIndex())))
-                .get()
-                .extracting(ContractLog::isChild)
-                .isEqualTo(expected);
-    }
-
     private void assertChild(final ContractResult contractResult, final boolean expected) {
         assertThat(contractResultRepository.findById(contractResult.getConsensusTimestamp()))
                 .get()
@@ -377,14 +363,6 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
                 .customize(t -> t.consensusTimestamp(consensusTimestamp)
                         .nonce(1)
                         .parentConsensusTimestamp(parentConsensusTimestamp))
-                .persist();
-    }
-
-    private ContractLog contractLog(final long consensusTimestamp, final int index) {
-        return domainBuilder
-                .contractLog()
-                .customize(cl ->
-                        cl.child(false).consensusTimestamp(consensusTimestamp).index(index))
                 .persist();
     }
 

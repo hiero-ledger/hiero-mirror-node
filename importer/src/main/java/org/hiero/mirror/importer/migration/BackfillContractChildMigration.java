@@ -214,7 +214,6 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
             }
         }
 
-        // Contract logs are always attached to the top level EVM transaction, so they're never a child
         if (updatedResults > 0) {
             log.info(
                     "Backfilled child column for {} contract_result rows in range [{}, {}]",
