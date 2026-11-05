@@ -1,5 +1,5 @@
 {
-  "description": "Contract result for a child transaction (executed as part of another EVM execution) returns child true on the result and its logs, by both hash and transaction id",
+  "description": "Contract result for a child transaction (executed as part of another EVM execution) returns child true on the result, by both hash and transaction id",
   "setup": {
     "entities": [
       {
@@ -22,7 +22,6 @@
     ],
     "contractlogs": [
       {
-        "child": true,
         "consensus_timestamp": "167654000123457",
         "contract_id": 5001,
         "index": 0,
@@ -82,7 +81,6 @@
       {
         "address": "0x25fe26adc577cc89172e6156c9e24f7b9751b762",
         "bloom": "0x0123",
-        "child": true,
         "contract_id": "0.0.5001",
         "data": "0x0000000000000000000000000000000000000000000000000000000000000123",
         "index": 0,
