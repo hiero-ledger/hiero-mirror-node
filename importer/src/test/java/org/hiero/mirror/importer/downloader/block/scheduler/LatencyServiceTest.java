@@ -4,7 +4,8 @@ package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.hiero.mirror.importer.downloader.block.scheduler.LatencyService.PROBE_FAILURE_METRIC_NAME;
+import static org.hiero.mirror.importer.downloader.block.scheduler.LatencyService.PROBE_METRIC_NAME;
+import static org.hiero.mirror.importer.downloader.block.scheduler.LatencyService.STATUS_METRIC_NAME;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -122,6 +124,9 @@ final class LatencyServiceTest {
         // then
         verify(blockNode).hasBlock(1L);
         verify(blockNode).probeBlock(eq(1L), any(), any());
+        assertThat(probeCount("healthy")).isEqualTo(2);
+        assertThat(meterRegistry.find(PROBE_METRIC_NAME).counters()).hasSize(1);
+        assertThat(statusGauge(blockNode, "healthy")).isOne();
     }
 
     @Test
@@ -175,7 +180,7 @@ final class LatencyServiceTest {
             verify(node).hasBlock(1L);
         }
 
-        assertThat(probeFailures("not_available")).isEqualTo(6);
+        assertThat(probeCount("not_available")).isEqualTo(6);
     }
 
     @Test
@@ -194,13 +199,14 @@ final class LatencyServiceTest {
 
         latencyService.schedule();
         verify(latency).markStale();
-        assertThat(probeFailures("not_available")).isEqualTo(3);
+        assertThat(probeCount("not_available")).isEqualTo(3);
+        assertThat(statusGauge(blockNode, "not_available")).isOne();
         verify(blockNode, never()).probeBlock(anyLong(), any(), any());
     }
 
     @ParameterizedTest(name = "{1}")
     @MethodSource("failures")
-    void scheduleFailureMarksStaleAndBacksOff(final Consumer<BlockNode> stubFailure, final String kind) {
+    void scheduleFailureMarksStaleAndBacksOff(final Consumer<BlockNode> stubFailure, final String status) {
         // given
         final var blockNode = blockNode(0L);
         final var latency = blockNode.getLatency();
@@ -214,8 +220,9 @@ final class LatencyServiceTest {
         // then
         verify(latency).markStale();
         verify(latency, never()).record(anyLong());
-        assertThat(probeFailures(kind)).isOne();
-        assertThat(meterRegistry.find(PROBE_FAILURE_METRIC_NAME).counters()).hasSize(1);
+        assertThat(probeCount(status)).isOne();
+        assertThat(meterRegistry.find(PROBE_METRIC_NAME).counters()).hasSize(1);
+        assertThat(statusGauge(blockNode, status)).isOne();
 
         // when scheduled again right away, then the node is backing off
         latencyService.schedule();
@@ -237,7 +244,7 @@ final class LatencyServiceTest {
         latencyService.schedule();
 
         // then
-        assertThat(probeFailures("error")).isOne();
+        assertThat(probeCount("error")).isOne();
         verify(latency).markStale();
         verify(latency, never()).record(anyLong());
     }
@@ -259,7 +266,8 @@ final class LatencyServiceTest {
 
         // then the node doesn't back off
         verify(blockNode, times(2)).probeBlock(anyLong(), any(), any());
-        assertThat(meterRegistry.find(PROBE_FAILURE_METRIC_NAME).counters()).isEmpty();
+        assertThat(meterRegistry.find(PROBE_METRIC_NAME).counters()).isEmpty();
+        assertThat(meterRegistry.find(STATUS_METRIC_NAME).gauges()).isEmpty();
         verify(latency, never()).markStale();
     }
 
@@ -388,6 +396,86 @@ final class LatencyServiceTest {
     }
 
     @Test
+    void statusMetric() {
+        // given
+        final var healthy = blockNode(0L);
+        final var unreachable = blockNode(1L);
+        doThrow(Status.UNAVAILABLE.asRuntimeException()).when(unreachable).hasBlock(anyLong());
+        doReturn(-1L).when(cutoverService).getNextBlockNumber();
+        latencyService.setNodes(List.of(healthy, unreachable));
+
+        // when there's no block to probe yet
+        latencyService.schedule();
+
+        // then
+        assertThat(meterRegistry.find(STATUS_METRIC_NAME).gauges()).isEmpty();
+
+        // when
+        doReturn(1L).when(cutoverService).getNextBlockNumber();
+        latencyService.schedule();
+
+        // then each node has one gauge for its status
+        assertThat(meterRegistry.find(STATUS_METRIC_NAME).gauges()).hasSize(2);
+        assertThat(statusGauge(healthy, "healthy")).isOne();
+        assertThat(statusGauge(unreachable, "unreachable")).isOne();
+
+        // when the status changes
+        doReturn(false).when(healthy).hasBlock(anyLong());
+        doReturn(2L).when(cutoverService).getNextBlockNumber();
+        latencyService.schedule();
+
+        // then
+        assertThat(meterRegistry.find(STATUS_METRIC_NAME).gauges()).hasSize(2);
+        assertThat(statusGauge(healthy, "not_available")).isOne();
+        assertThat(meterRegistry
+                        .find(STATUS_METRIC_NAME)
+                        .tags("block_node", healthy.getStatusEndpoint(), "status", "healthy")
+                        .gauges())
+                .isEmpty();
+
+        // when a node is no longer probed, e.g. it's now the node being streamed from
+        latencyService.setNodes(List.of(unreachable));
+        latencyService.schedule();
+
+        // then
+        assertThat(meterRegistry.find(STATUS_METRIC_NAME).gauges()).hasSize(1);
+        assertThat(statusGauge(unreachable, "unreachable")).isOne();
+
+        // when
+        latencyService.close();
+        latencyService.schedule();
+
+        // then
+        assertThat(meterRegistry.find(STATUS_METRIC_NAME).gauges()).isEmpty();
+    }
+
+    @Test
+    void statusMetricPublishedWhenProbeEnds() {
+        // given the second node's probe captures the first node's status gauges
+        final var first = blockNode(0L);
+        final var second = blockNode(1L);
+        final var firstGauges = new AtomicInteger(-1);
+        doAnswer(_ -> {
+                    firstGauges.set(meterRegistry
+                            .find(STATUS_METRIC_NAME)
+                            .tags("block_node", first.getStatusEndpoint(), "status", "healthy")
+                            .gauges()
+                            .size());
+                    return true;
+                })
+                .when(second)
+                .hasBlock(anyLong());
+        doReturn(1L).when(cutoverService).getNextBlockNumber();
+        latencyService.setNodes(List.of(first, second));
+
+        // when
+        latencyService.schedule();
+
+        // then the first node's status is published before the run ends
+        assertThat(firstGauges).hasValue(1);
+    }
+
+    @Test
     void getMaxLatencyAgeMillis() {
         // given
         final long frequency = properties.getFrequency().toMillis();
@@ -438,8 +526,8 @@ final class LatencyServiceTest {
                 failure("error", n -> doNothing().when(n).probeBlock(anyLong(), any(), any())));
     }
 
-    private static Arguments failure(final String kind, final Consumer<BlockNode> stubFailure) {
-        return Arguments.of(stubFailure, kind);
+    private static Arguments failure(final String status, final Consumer<BlockNode> stubFailure) {
+        return Arguments.of(stubFailure, status);
     }
 
     private BlockNode blockNode(final long lastMeasuredMillis) {
@@ -464,10 +552,10 @@ final class LatencyServiceTest {
         return blockNode;
     }
 
-    private double probeFailures(final String kind) {
+    private double probeCount(final String status) {
         double count = 0;
         for (final var counter :
-                meterRegistry.find(PROBE_FAILURE_METRIC_NAME).tag("kind", kind).counters()) {
+                meterRegistry.find(PROBE_METRIC_NAME).tag("status", status).counters()) {
             count += counter.count();
         }
 
@@ -482,5 +570,13 @@ final class LatencyServiceTest {
             latencyService.schedule();
             assertion.run();
         });
+    }
+
+    private double statusGauge(final BlockNode blockNode, final String status) {
+        return meterRegistry
+                .get(STATUS_METRIC_NAME)
+                .tags("block_node", blockNode.getStatusEndpoint(), "status", status)
+                .gauge()
+                .value();
     }
 }

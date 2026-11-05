@@ -2,23 +2,33 @@
 
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
+import static java.util.function.Predicate.isEqual;
+import static java.util.function.Predicate.not;
+
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.MultiGauge;
+import io.micrometer.core.instrument.Tags;
 import jakarta.inject.Named;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.CustomLog;
-import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
-import org.hiero.mirror.importer.downloader.block.BlockNodeFailure;
+import org.hiero.mirror.importer.downloader.block.BlockNodeStatus;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
+import org.jspecify.annotations.Nullable;
 import org.springframework.scheduling.annotation.Scheduled;
 
 /**
@@ -27,25 +37,45 @@ import org.springframework.scheduling.annotation.Scheduled;
  */
 @CustomLog
 @Named
-@RequiredArgsConstructor
 public final class LatencyService implements AutoCloseable {
 
-    static final String PROBE_FAILURE_METRIC_NAME = "hiero.mirror.importer.block.probe";
+    static final String PROBE_METRIC_NAME = "hiero.mirror.importer.block.probe";
+    static final String STATUS_METRIC_NAME = "hiero.mirror.importer.block.status";
 
+    private static final String BLOCK_NODE_TAG = "block_node";
     private static final long MIN_FRESHNESS_RUNS = 3;
-    private static final String NOT_AVAILABLE_KIND = "not_available";
     private static final int NOT_AVAILABLE_STALE_THRESHOLD = 3;
     private static final Comparator<Probe> PROBE_COMPARATOR = Comparator.comparingLong(p -> p.lastProbeMillis);
+    private static final String STATUS_TAG = "status";
+    private static final Map<BlockNodeStatus, String> STATUS_TAG_VALUES = Arrays.stream(BlockNodeStatus.values())
+            .filter(not(isEqual(BlockNodeStatus.IGNORED)))
+            .collect(Collectors.toUnmodifiableMap(
+                    Function.identity(), s -> s.name().toLowerCase(Locale.ROOT)));
 
     private final BlockStreamReader blockStreamReader;
     private final CutoverService cutoverService;
     private final LatencyServiceProperties latencyServiceProperties;
     private final MeterRegistry meterRegistry;
+    private final MultiGauge statusMetric;
 
     private volatile Set<BlockNode> nodes = Set.of();
 
     // Only accessed by the scheduled runs, which never overlap
     private final Map<BlockNode, Probe> probes = new HashMap<>();
+
+    public LatencyService(
+            final BlockStreamReader blockStreamReader,
+            final CutoverService cutoverService,
+            final LatencyServiceProperties latencyServiceProperties,
+            final MeterRegistry meterRegistry) {
+        this.blockStreamReader = blockStreamReader;
+        this.cutoverService = cutoverService;
+        this.latencyServiceProperties = latencyServiceProperties;
+        this.meterRegistry = meterRegistry;
+        statusMetric = MultiGauge.builder(STATUS_METRIC_NAME)
+                .description("The status of the last latency probe of a block node in the status tag, always 1")
+                .register(meterRegistry);
+    }
 
     @Override
     public void close() {
@@ -55,7 +85,9 @@ public final class LatencyService implements AutoCloseable {
     @Scheduled(fixedDelayString = "#{@latencyServiceProperties.getFrequency().toMillis()}")
     public void schedule() {
         final var current = nodes;
-        probes.keySet().retainAll(current);
+        if (probes.keySet().retainAll(current)) {
+            registerStatusMetric();
+        }
 
         final long now = System.currentTimeMillis();
         final var dueProbes = new ArrayList<Probe>(current.size());
@@ -100,6 +132,26 @@ public final class LatencyService implements AutoCloseable {
         this.nodes = Set.copyOf(nodes);
     }
 
+    private void registerStatusMetric() {
+        final var rows = new ArrayList<MultiGauge.Row<?>>(probes.size());
+        for (final var probe : probes.values()) {
+            final var status = probe.status;
+            if (status == null) {
+                continue;
+            }
+
+            rows.add(MultiGauge.Row.of(
+                    Tags.of(
+                            BLOCK_NODE_TAG,
+                            probe.node.getStatusEndpoint(),
+                            STATUS_TAG,
+                            Objects.requireNonNull(STATUS_TAG_VALUES.get(status))),
+                    1));
+        }
+
+        statusMetric.register(rows);
+    }
+
     private final class Probe {
 
         private long backoffMillis;
@@ -108,6 +160,7 @@ public final class LatencyService implements AutoCloseable {
         private long nextProbeMillis;
         private final BlockNode node;
         private int notAvailable;
+        private @Nullable BlockNodeStatus status;
 
         Probe(final BlockNode node) {
             this.node = node;
@@ -136,23 +189,13 @@ public final class LatencyService implements AutoCloseable {
                     onNotAvailable();
                 }
             } catch (final Exception ex) {
-                onFailure(BlockNodeFailure.of(ex), ex);
+                onFailure(BlockNodeStatus.of(ex), ex);
             }
 
             return true;
         }
 
-        private void countFailure(final BlockNodeFailure failure) {
-            countFailure(failure.name().toLowerCase());
-        }
-
-        private void countFailure(final String kind) {
-            meterRegistry
-                    .counter(PROBE_FAILURE_METRIC_NAME, "block_node", node.getStatusEndpoint(), "kind", kind)
-                    .increment();
-        }
-
-        private void markStale(final BlockNodeFailure failure, final Throwable cause) {
+        private void markStale(final BlockNodeStatus failure, final Throwable cause) {
             if (node.getLatency().markStale()) {
                 log.warn(
                         "Marked latency of {} stale after latency probe failed with {}, cause: {}",
@@ -173,8 +216,8 @@ public final class LatencyService implements AutoCloseable {
             return true;
         }
 
-        private void onFailure(final BlockNodeFailure failure, final Exception cause) {
-            if (failure == BlockNodeFailure.IGNORED) {
+        private void onFailure(final BlockNodeStatus failure, final Exception cause) {
+            if (failure == BlockNodeStatus.IGNORED) {
                 return;
             }
 
@@ -184,7 +227,7 @@ public final class LatencyService implements AutoCloseable {
             nextProbeMillis = lastProbeMillis + backoffMillis;
             log.debug("Latency probe of {} failed with {}", node, failure, cause);
             markStale(failure, cause);
-            countFailure(failure);
+            updateStatus(failure);
         }
 
         private void onNotAvailable() {
@@ -195,7 +238,7 @@ public final class LatencyService implements AutoCloseable {
                 log.warn("Marked latency of {} stale after {} latency probes without the block", node, notAvailable);
             }
 
-            countFailure(NOT_AVAILABLE_KIND);
+            updateStatus(BlockNodeStatus.NOT_AVAILABLE);
         }
 
         private void onSuccess(final long blockNumber) {
@@ -207,6 +250,7 @@ public final class LatencyService implements AutoCloseable {
             lastMeasuredBlockNumber = blockNumber;
             nextProbeMillis = 0;
             notAvailable = 0;
+            updateStatus(BlockNodeStatus.HEALTHY);
         }
 
         private void streamBlock(final long blockNumber) {
@@ -224,6 +268,23 @@ public final class LatencyService implements AutoCloseable {
                 // The stream can end gracefully before any block is streamed
                 throw new BlockStreamException("%s ended the stream without block %d".formatted(node, blockNumber));
             }
+        }
+
+        private void updateStatus(final BlockNodeStatus status) {
+            meterRegistry
+                    .counter(
+                            PROBE_METRIC_NAME,
+                            BLOCK_NODE_TAG,
+                            node.getStatusEndpoint(),
+                            STATUS_TAG,
+                            Objects.requireNonNull(STATUS_TAG_VALUES.get(status)))
+                    .increment();
+            if (this.status == status) {
+                return;
+            }
+
+            this.status = status;
+            registerStatusMetric();
         }
     }
 }

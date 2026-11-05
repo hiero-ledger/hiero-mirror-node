@@ -15,14 +15,19 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Classifies a failed block node call by how the node should be treated.
+ * The status of a block node from the outcome of a call to it. A failed call is classified by how the node should be
+ * treated.
  */
 @NullMarked
-public enum BlockNodeFailure {
+public enum BlockNodeStatus {
     /** The node was reached but the call failed. */
     ERROR,
+    /** The call succeeded. */
+    HEALTHY,
     /** The call was interrupted by the importer itself. */
     IGNORED,
+    /** The node answered but doesn't have the requested block. */
+    NOT_AVAILABLE,
     /** The node refused the call as unsupported or unauthorized, which retrying won't fix. */
     REJECTED,
     /** The response didn't arrive within the read timeout. */
@@ -35,7 +40,8 @@ public enum BlockNodeFailure {
         return this == REJECTED || this == UNREACHABLE;
     }
 
-    public static BlockNodeFailure of(final @Nullable Throwable throwable) {
+    /** Classifies a failed call. */
+    public static BlockNodeStatus of(final @Nullable Throwable throwable) {
         for (var t = throwable; t != null; t = t.getCause()) {
             final var failure = switch (t) {
                 case InterruptedException _ -> IGNORED;
@@ -59,7 +65,7 @@ public enum BlockNodeFailure {
         return ERROR;
     }
 
-    private static BlockNodeFailure of(final Status status) {
+    private static BlockNodeStatus of(final Status status) {
         return switch (status.getCode()) {
             case CANCELLED -> status.getCause() instanceof InterruptedException ? IGNORED : ERROR;
             case DEADLINE_EXCEEDED, UNAVAILABLE -> UNREACHABLE;

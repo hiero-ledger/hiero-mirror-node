@@ -151,8 +151,8 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
             return hasBlock(response, blockNumber) ? blockNumber : null;
         } catch (final Exception ex) {
-            log.error("Failed to get server status detail for {}: {}", this, ex.getMessage());
-            onError(BlockNodeFailure.of(ex));
+            log.warn("Failed to get server status detail for {}: {}", this, ex.getMessage());
+            onError(BlockNodeStatus.of(ex));
             return null;
         }
     }
@@ -261,8 +261,8 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
      * Counts an error, and deactivates the node until the readmit time when the failure is deactivating or the
      * consecutive errors reach maxSubscribeAttempts. An inactive node keeps its readmit time.
      */
-    private void onError(final BlockNodeFailure failure) {
-        if (failure == BlockNodeFailure.IGNORED) {
+    private void onError(final BlockNodeStatus failure) {
+        if (failure == BlockNodeStatus.IGNORED) {
             return;
         }
 
@@ -364,7 +364,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             }
         } catch (final BlockStreamException ex) {
             if (trackErrors) {
-                onError(BlockNodeFailure.ERROR);
+                onError(BlockNodeStatus.ERROR);
             }
 
             throw ex;
@@ -374,9 +374,9 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             }
 
             if (trackErrors) {
-                final var failure = BlockNodeFailure.of(ex);
+                final var failure = BlockNodeStatus.of(ex);
                 // A node that drops the connection mid-stream was reachable, e.g. it may be restarting
-                onError(responded && failure == BlockNodeFailure.UNREACHABLE ? BlockNodeFailure.ERROR : failure);
+                onError(responded && failure == BlockNodeStatus.UNREACHABLE ? BlockNodeStatus.ERROR : failure);
             }
 
             throw new BlockStreamException(ex);
