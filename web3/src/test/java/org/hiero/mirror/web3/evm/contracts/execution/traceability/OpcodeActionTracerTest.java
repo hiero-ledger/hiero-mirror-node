@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
+import static com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils.CONFIG_CONTEXT_VARIABLE;
 import static com.hedera.node.app.service.contract.impl.utils.SystemContractUtils.HTS_PRECOMPILED_CONTRACT_ADDRESS;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REVERT_REASON;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,6 +64,7 @@ import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
@@ -854,7 +856,11 @@ class OpcodeActionTracerTest {
                 .gasPrice(Wei.of(GAS_PRICE))
                 .blockValues(mock(BlockValues.class))
                 .blockHashLookup((ignored, gas) -> Hash.wrap(Bytes32.ZERO))
-                .contextVariables(Map.of(ContractCallContext.CONTEXT_NAME, contractCallContext));
+                .contextVariables(Map.of(
+                        ContractCallContext.CONTEXT_NAME,
+                        contractCallContext,
+                        CONFIG_CONTEXT_VARIABLE,
+                        new EvmProperties().getVersionedConfiguration()));
     }
 
     private TxStorageUsage makeUsage(final UInt256 slotKey, final UInt256 value) {
