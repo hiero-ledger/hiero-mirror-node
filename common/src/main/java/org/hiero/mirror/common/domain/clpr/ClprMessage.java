@@ -4,6 +4,7 @@ package org.hiero.mirror.common.domain.clpr;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.IdClass;
@@ -27,7 +28,7 @@ import org.springframework.data.domain.Persistable;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@jakarta.persistence.Entity
+@Entity
 @IdClass(ClprMessage.Id.class)
 @NoArgsConstructor
 public class ClprMessage implements Persistable<ClprMessage.Id> {
