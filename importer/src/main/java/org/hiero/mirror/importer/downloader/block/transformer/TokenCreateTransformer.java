@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
@@ -19,11 +21,8 @@ final class TokenCreateTransformer extends AbstractBlockTransactionTransformer {
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        blockTransaction
-                .getStateChangeContext()
-                .getNewTokenId()
-                .map(receiptBuilder::setTokenID)
-                .orElseThrow();
+        receiptBuilder.setTokenID(requireNonNull(
+                blockTransaction.getStateChangeContext().getNewTokenId(), "No new token id in state changes"));
     }
 
     @Override

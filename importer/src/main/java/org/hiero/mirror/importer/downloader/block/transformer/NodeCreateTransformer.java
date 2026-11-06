@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
@@ -19,8 +21,8 @@ final class NodeCreateTransformer extends AbstractBlockTransactionTransformer {
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        receiptBuilder.setNodeId(
-                blockTransaction.getStateChangeContext().getNewNodeId().orElseThrow());
+        receiptBuilder.setNodeId(requireNonNull(
+                blockTransaction.getStateChangeContext().getNewNodeId(), "No new node id in state changes"));
     }
 
     @Override

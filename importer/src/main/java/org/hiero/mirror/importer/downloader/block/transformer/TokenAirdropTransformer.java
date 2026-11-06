@@ -35,23 +35,19 @@ final class TokenAirdropTransformer extends AbstractBlockTransactionTransformer 
         for (var pendingAirdrop : pendingAirdrops) {
             var pendingAirdropId = pendingAirdrop.id();
             if (pendingAirdropId.hasFungibleTokenType()) {
-                blockTransaction
+                var amount = blockTransaction
                         .getStateChangeContext()
-                        .trackPendingFungibleAirdrop(pendingAirdropId, pendingAirdrop.amount())
-                        .ifPresentOrElse(
-                                amount -> recordBuilder.addNewPendingAirdrops(PendingAirdropRecord.newBuilder()
-                                        .setPendingAirdropId(pendingAirdropId)
-                                        .setPendingAirdropValue(
-                                                PendingAirdropValue.newBuilder().setAmount(amount))),
-                                () -> {
-                                    log.warn(
-                                            "Fungible pending airdrop not found in state at {}",
-                                            blockTransaction.getConsensusTimestamp());
-                                    recordBuilder.addNewPendingAirdrops(PendingAirdropRecord.newBuilder()
-                                            .setPendingAirdropId(pendingAirdropId)
-                                            .setPendingAirdropValue(PendingAirdropValue.newBuilder()
-                                                    .setAmount(pendingAirdrop.amount())));
-                                });
+                        .trackPendingFungibleAirdrop(pendingAirdropId, pendingAirdrop.amount());
+                if (amount == null) {
+                    log.warn(
+                            "Fungible pending airdrop not found in state at {}",
+                            blockTransaction.getConsensusTimestamp());
+                    amount = pendingAirdrop.amount();
+                }
+
+                recordBuilder.addNewPendingAirdrops(PendingAirdropRecord.newBuilder()
+                        .setPendingAirdropId(pendingAirdropId)
+                        .setPendingAirdropValue(PendingAirdropValue.newBuilder().setAmount(amount)));
             } else {
                 recordBuilder.addNewPendingAirdrops(
                         PendingAirdropRecord.newBuilder().setPendingAirdropId(pendingAirdropId));
