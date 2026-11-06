@@ -63,9 +63,12 @@ import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitmentHistory;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprConfigUpdate;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorHistory;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
+import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprControlMessage;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
@@ -441,6 +444,24 @@ public class DomainBuilder {
                 .channelId(bytes(32))
                 .connectorId(bytes(32))
                 .consensusTimestamp(timestamp())
+                .controlMessage(ClprControlMessage.builder()
+                        .configUpdate(ClprConfigUpdate.builder()
+                                .configuration(ClprControlConfiguration.builder()
+                                        .chainId("hedera:mainnet")
+                                        .initialTrustAnchor(bytes(32))
+                                        .initialTrustAnchorId(bytes(32))
+                                        .maxGasPerMessage(1_000_000L)
+                                        .maxLocalEndpoints(10L)
+                                        .maxMessagePayloadBytes(6_000L)
+                                        .maxMessagesPerBundle(100L)
+                                        .maxPeerEndpoints(10L)
+                                        .maxQueueDepth(1_000L)
+                                        .maxSyncBytes(6_000_000L)
+                                        .protocolVersion(1L)
+                                        .serviceAddress(bytes(20))
+                                        .build())
+                                .build())
+                        .build())
                 .messageData(bytes(256))
                 .messageId(number())
                 .messageType(ClprMessageType.DATA)
