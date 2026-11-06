@@ -146,6 +146,15 @@ resource "grafana_notification_policy" "root" {
       value = "performance-citus"
     }
   }
+
+  policy {
+    contact_point = var.prod_slack_contact_point
+    matcher {
+      label = "alertname"
+      match = "="
+      value = "ClusterReleaseInProgress"
+    }
+  }
 }
 
 ###############################################################################
@@ -2906,6 +2915,17 @@ resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_all_when_p
     source_matchers = [{ type = "=", label = "alertname", value = "MonitorPublishPlatformNotActive" }]
     target_matchers = [{ type = "=~", label = "application", value = ".*" }]
     equal           = ["namespace"]
+  }
+}
+
+resource "grafana_apps_notifications_inhibitionrule_v1beta1" "inhibit_cluster_alerts_during_release" {
+  metadata {
+    uid = "inhibit-cluster-alerts-during-release"
+  }
+  spec {
+    source_matchers = [{ type = "=", label = "alertname", value = "ClusterReleaseInProgress" }]
+    target_matchers = [{ type = "!=", label = "alertname", value = "ClusterReleaseInProgress" }]
+    equal           = ["cluster"]
   }
 }
 
