@@ -21,7 +21,6 @@ import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
-import org.hiero.mirror.common.domain.clpr.ClprPendingCommitment;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -588,7 +587,8 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         return current;
     }
 
-    private <T extends ClprPendingCommitment> T mergeClprPendingCommitment(T previous, T current) {
+    private ClprChannelPendingCommitment mergeClprPendingCommitment(
+            ClprChannelPendingCommitment previous, ClprChannelPendingCommitment current) {
         previous.setTimestampUpper(current.getTimestampLower());
 
         if (current.getCreatedTimestamp() != null
@@ -601,9 +601,10 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         fillIfAbsent(
                 previous,
                 current,
-                ClprPendingCommitment::getCreatedTimestamp,
-                ClprPendingCommitment::setCreatedTimestamp);
-        fillIfAbsent(previous, current, ClprPendingCommitment::getStatus, ClprPendingCommitment::setStatus);
+                ClprChannelPendingCommitment::getCreatedTimestamp,
+                ClprChannelPendingCommitment::setCreatedTimestamp);
+        fillIfAbsent(
+                previous, current, ClprChannelPendingCommitment::getStatus, ClprChannelPendingCommitment::setStatus);
 
         return current;
     }
