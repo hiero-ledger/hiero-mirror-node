@@ -111,6 +111,10 @@ public class ImporterProperties {
             return MAINNET.equalsIgnoreCase(network) || TESTNET.equalsIgnoreCase(network);
         }
 
+        public static boolean isResettable(final String network) {
+            return !MAINNET.equalsIgnoreCase(network) && !DEMO.equalsIgnoreCase(network);
+        }
+
         public static boolean isAllowAnonymousAccess(final String network) {
             return DEMO.equalsIgnoreCase(network);
         }

@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -1154,6 +1155,34 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .allSatisfy(c -> assertThat(c.getPublicKey()).isNotNull())
                 .extracting(ConsensusNode::getNodeId)
                 .containsExactly(0L, 1L, 2L, 3L);
+    }
+
+    @Test
+    void getNodesNegativeStake() {
+        long timestamp = domainBuilder.timestamp();
+        IntStream.range(0, 3)
+                .forEach(i -> domainBuilder
+                        .nodeStake()
+                        .customize(
+                                n -> n.consensusTimestamp(timestamp).nodeId(i).stake(-1L))
+                        .persist());
+        domainBuilder
+                .nodeStake()
+                .customize(n -> n.consensusTimestamp(timestamp).nodeId(3).stake(100L))
+                .persist();
+        assertThat(addressBookService.getNodes()).allMatch(c -> c.getTotalStake() == 100L);
+    }
+
+    @Test
+    void getNodesOverflowStake() {
+        long timestamp = domainBuilder.timestamp();
+        IntStream.range(0, 4)
+                .forEach(i -> domainBuilder
+                        .nodeStake()
+                        .customize(
+                                n -> n.consensusTimestamp(timestamp).nodeId(i).stake(Long.MAX_VALUE))
+                        .persist());
+        assertThatThrownBy(() -> addressBookService.getNodes()).isInstanceOf(ArithmeticException.class);
     }
 
     @Test

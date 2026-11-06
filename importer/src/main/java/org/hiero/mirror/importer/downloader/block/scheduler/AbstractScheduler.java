@@ -62,7 +62,11 @@ abstract class AbstractScheduler implements Scheduler {
 
     @Override
     public final void close() {
-        getOrderedNodes().forEachRemaining(BlockNode::close);
+        final var nodes = new ArrayList<BlockNode>();
+        getOrderedNodes().forEachRemaining(nodes::add);
+        // Stop the latency probes before closing the channels they use
+        setNodes(new ArrayList<>());
+        nodes.forEach(BlockNode::close);
 
         executor.shutdown();
         try {
@@ -171,9 +175,8 @@ abstract class AbstractScheduler implements Scheduler {
     }
 
     private static @Nullable ScheduledBlockNode hasBlock(final long nextBlockNumber, final BlockNode node) {
-        return node.getBlockOrEarliest(nextBlockNumber)
-                .map(availableBlockNumber -> new ScheduledBlockNode(node, availableBlockNumber))
-                .orElse(null);
+        final var availableBlockNumber = node.getBlockOrEarliest(nextBlockNumber);
+        return availableBlockNumber != null ? new ScheduledBlockNode(node, availableBlockNumber) : null;
     }
 
     private static boolean nodesChanged(final List<BlockNodeProperties> current, final List<BlockNodeProperties> next) {
