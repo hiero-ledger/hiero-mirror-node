@@ -30,27 +30,9 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer {
 
     @Override
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
+        addOpcode(frame, operationResult);
+        // Counted last, so the opcode is still traced when the trace data limit is exceeded
         super.tracePostExecution(frame, operationResult);
-
-        final var context = ContractCallContext.get();
-        final var options = context.getOpcodeContext();
-
-        // Once the recorded-opcode cap is reached, subsequent opcodes are dropped, so skip the (potentially expensive)
-        // memory/stack/storage capture and opcode allocation and just account for the dropped opcode. The EVM still has
-        // to execute the remaining operations (this is a re-execution), but we avoid all per-opcode tracing work.
-        if (options.isAtCapacity()) {
-            // Cap reached: count the dropped opcode (and append the truncation marker once) without building it.
-            options.addOpcodes(null);
-            return;
-        }
-
-        final var memory = captureMemory(frame, options);
-        final var stack = captureStack(frame, options);
-        final var storage = captureStorage(frame, options, context);
-
-        final var revertReasonBytes = frame.getRevertReason().orElse(null);
-        final var reason = revertReasonBytes != null ? revertReasonBytes.toHexString() : null;
-        options.addOpcodes(createOpcode(frame, operationResult.getGasCost(), reason, stack, memory, storage));
     }
 
     @Override
@@ -83,8 +65,6 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer {
 
     @Override
     public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
-        super.tracePrecompileResult(frame, type);
-
         final var context = ContractCallContext.get();
         final var gasCost = context.getOpcodeContext().getGasRemaining() - frame.getRemainingGas();
 
@@ -103,6 +83,31 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer {
                         Collections.emptyMap()));
 
         context.getOpcodeContext().setGasRemaining(frame.getRemainingGas());
+
+        // Counted last, so the precompile is still traced when the trace data limit is exceeded
+        super.tracePrecompileResult(frame, type);
+    }
+
+    private void addOpcode(final MessageFrame frame, final OperationResult operationResult) {
+        final var context = ContractCallContext.get();
+        final var options = context.getOpcodeContext();
+
+        // Once the recorded-opcode cap is reached, subsequent opcodes are dropped, so skip the (potentially expensive)
+        // memory/stack/storage capture and opcode allocation and just account for the dropped opcode. The EVM still has
+        // to execute the remaining operations (this is a re-execution), but we avoid all per-opcode tracing work.
+        if (options.isAtCapacity()) {
+            // Cap reached: count the dropped opcode (and append the truncation marker once) without building it.
+            options.addOpcodes(null);
+            return;
+        }
+
+        final var memory = captureMemory(frame, options);
+        final var stack = captureStack(frame, options);
+        final var storage = captureStorage(frame, options, context);
+
+        final var revertReasonBytes = frame.getRevertReason().orElse(null);
+        final var reason = revertReasonBytes != null ? revertReasonBytes.toHexString() : null;
+        options.addOpcodes(createOpcode(frame, operationResult.getGasCost(), reason, stack, memory, storage));
     }
 
     private Opcode createOpcode(

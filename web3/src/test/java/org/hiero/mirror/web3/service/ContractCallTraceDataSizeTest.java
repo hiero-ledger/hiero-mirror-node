@@ -26,11 +26,12 @@ class ContractCallTraceDataSizeTest extends AbstractContractCallServiceOpcodeTra
     void traceDataWithinLimit() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(TraceDataSize::deploy);
+        final var iterations = maxIterationsWithinLimit();
         // When
         final var result =
-                contract.call_callEcho(new byte[PAYLOAD_SIZE], BigInteger.ONE).send();
+                contract.call_callEcho(new byte[PAYLOAD_SIZE], iterations).send();
         // Then
-        assertThat(result).isEqualTo(BigInteger.valueOf(PAYLOAD_SIZE));
+        assertThat(result).isEqualTo(iterations.multiply(BigInteger.valueOf(PAYLOAD_SIZE)));
     }
 
     @Test
@@ -38,7 +39,8 @@ class ContractCallTraceDataSizeTest extends AbstractContractCallServiceOpcodeTra
         // Given
         final var contract = testWeb3jService.deploy(TraceDataSize::deploy);
         // When
-        final var functionCall = contract.call_callEcho(new byte[PAYLOAD_SIZE], exceedingIterations());
+        final var functionCall = contract.call_callEcho(
+                new byte[PAYLOAD_SIZE], maxIterationsWithinLimit().add(BigInteger.ONE));
         // Then
         final var exception = assertThrows(MirrorNodeException.class, functionCall::send);
         assertThat(exception.getMessage()).isEqualTo(INSUFFICIENT_GAS.protoName());
@@ -62,7 +64,7 @@ class ContractCallTraceDataSizeTest extends AbstractContractCallServiceOpcodeTra
         // Given
         final var contract = testWeb3jService.deploy(TraceDataSize::deploy);
         // When
-        final var result = processOpcodeCall(contract, BigInteger.ONE);
+        final var result = processOpcodeCall(contract, maxIterationsWithinLimit());
         // Then
         assertThat(result.transactionProcessingResult().responseCodeEnum()).isEqualTo(SUCCESS);
         assertThat(result.opcodes()).isNotEmpty();
@@ -73,19 +75,21 @@ class ContractCallTraceDataSizeTest extends AbstractContractCallServiceOpcodeTra
         // Given
         final var contract = testWeb3jService.deploy(TraceDataSize::deploy);
         // When
-        final var result = processOpcodeCall(contract, exceedingIterations());
+        final var result =
+                processOpcodeCall(contract, maxIterationsWithinLimit().add(BigInteger.ONE));
         // Then
         assertThat(result.transactionProcessingResult().responseCodeEnum()).isEqualTo(INSUFFICIENT_GAS);
         assertThat(result.opcodes()).isNotEmpty();
     }
 
-    // Each iteration records the payload in both the input and the output of the nested call action
-    private BigInteger exceedingIterations() {
-        final var maxSerializedTraceDataBytes = evmProperties
+    // The top-level call input holds the payload once, and each iteration records it in both the input and the output
+    // of its nested call action
+    private BigInteger maxIterationsWithinLimit() {
+        final int maxSerializedTraceDataBytes = evmProperties
                 .getVersionedConfiguration()
                 .getConfigData(ContractsConfig.class)
                 .maxSerializedTraceDataBytes();
-        return BigInteger.valueOf(maxSerializedTraceDataBytes / PAYLOAD_SIZE);
+        return BigInteger.valueOf((maxSerializedTraceDataBytes - PAYLOAD_SIZE) / (2 * PAYLOAD_SIZE));
     }
 
     private OpcodesProcessingResult processOpcodeCall(final TraceDataSize contract, final BigInteger iterations) {
