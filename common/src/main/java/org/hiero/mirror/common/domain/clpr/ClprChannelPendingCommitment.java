@@ -2,12 +2,13 @@
 
 package org.hiero.mirror.common.domain.clpr;
 
+import jakarta.persistence.Entity;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 @Data
-@jakarta.persistence.Entity
+@Entity
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 public class ClprChannelPendingCommitment extends AbstractClprChannelPendingCommitment {

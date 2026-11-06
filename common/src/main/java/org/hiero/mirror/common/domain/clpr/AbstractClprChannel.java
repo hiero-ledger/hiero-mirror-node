@@ -31,6 +31,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 @MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
+@ToString(onlyExplicitlyIncluded = true)
 @Upsertable(history = true, skipPartialUpdate = true)
 public abstract class AbstractClprChannel implements History {
 
@@ -40,17 +41,17 @@ public abstract class AbstractClprChannel implements History {
     private String chainId;
 
     @Column(updatable = false)
-    @ToString.Exclude
     private byte[] channelContext;
 
     @Id
+    @ToString.Include
     private byte[] channelId;
 
     @Column(updatable = false)
-    @ToString.Exclude
     private byte[] configProofBytes;
 
     @Column(updatable = false)
+    @ToString.Include
     private Long createdTimestamp;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
@@ -58,7 +59,6 @@ public abstract class AbstractClprChannel implements History {
     private List<ClprEndpoint> endpointManifest;
 
     @Column(updatable = false)
-    @ToString.Exclude
     private byte[] endpointManifestProofBytes;
 
     private Long endpointManifestVersion;
@@ -68,7 +68,6 @@ public abstract class AbstractClprChannel implements History {
     private Long nextMessageId;
 
     @Column(updatable = false)
-    @ToString.Exclude
     private byte[] ownershipCommitment;
 
     private Long peerConfigTimestamp;
@@ -88,19 +87,15 @@ public abstract class AbstractClprChannel implements History {
     private Long peerMaxSyncBytes;
 
     @Column(updatable = false)
-    @ToString.Exclude
     private byte[] publicKey;
 
     private Long receivedMessageId;
 
-    @ToString.Exclude
     private byte[] receivedRunningHash;
 
-    @ToString.Exclude
     private byte[] sentRunningHash;
 
     @Column(updatable = false)
-    @ToString.Exclude
     private byte[] signature;
 
     @Column(updatable = false)
@@ -110,14 +105,14 @@ public abstract class AbstractClprChannel implements History {
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @ToString.Include
     private ClprChannelStatus status;
 
+    @ToString.Include
     private Range<Long> timestampRange;
 
-    @ToString.Exclude
     private byte[] trustAnchor;
 
-    @ToString.Exclude
     private byte[] trustAnchorId;
 
     @Column(updatable = false)
@@ -125,6 +120,5 @@ public abstract class AbstractClprChannel implements History {
     private EntityId verifierContractId;
 
     @Column(updatable = false)
-    @ToString.Exclude
     private byte[] verifierFingerprint;
 }
