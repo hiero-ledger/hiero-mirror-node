@@ -12,6 +12,7 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.co
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
+import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
@@ -36,6 +37,9 @@ import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.EvmTransactionResult;
+import com.hederahashgraph.api.proto.java.HookEntityId;
+import com.hederahashgraph.api.proto.java.HookId;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropRecord;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
@@ -45,6 +49,7 @@ import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TokenType;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionReceipt.Builder;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.util.ArrayList;
@@ -55,14 +60,17 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.commons.collections4.ListUtils;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -72,6 +80,8 @@ final class ContractTransformerTest extends AbstractTransformerTest {
     private static final ContractID HTS_PRECOMPILE_ADDRESS =
             ContractID.newBuilder().setContractNum(0x167).build();
 
+    // createdContractIDs set by RecordItemBuilder has random contract ids, so the customizers clear it, and a test sets
+    // the expected createdContractIDs with createdContractIds()
     private static final Consumer<TransactionRecord.Builder> ETHEREUM_RECORD_CUSTOMIZER = b -> {
         // calculated in parser
         b.clearEthereumHash();
@@ -81,9 +91,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
     private static final Consumer<TransactionRecord.Builder> EXPLICIT_CONTRACT_RESULT_CUSTOMIZER =
             b -> contractResultBuilder(b)
                     .ifPresent(builder -> builder.clearAmount()
-                            // createdContractIDs is deprecated and no longer used, plus it's hard and sometimes
-                            // impossible for
-                            // mirrornode to reconstruct it from block stream
                             .clearCreatedContractIDs()
                             .clearFunctionParameters()
                             .clearGas());
@@ -99,6 +106,11 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         }
 
         return Optional.empty();
+    }
+
+    private static Consumer<TransactionRecord.Builder> createdContractIds(ContractID... contractIds) {
+        return b -> contractResultBuilder(b)
+                .ifPresent(builder -> builder.clearCreatedContractIDs().addAllCreatedContractIDs(List.of(contractIds)));
     }
 
     private static Stream<Arguments> provideContractIds() {
@@ -146,6 +158,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var expectedContractCall = recordItemBuilder
                 .contractCall()
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(createdContractIds(contractId))
                 .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
                 .customize(this::finalize)
                 .build();
@@ -253,6 +266,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                     }
                 })
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(createdContractIds(contractId))
                 .sidecarRecords(records -> customizeSidecarRecords(
                         records,
                         true,
@@ -269,6 +283,138 @@ final class ContractTransformerTest extends AbstractTransformerTest {
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void contractCreateInBatchWithChildContractCreate() {
+        // given
+        var innerContractId = recordItemBuilder.contractId();
+        var childContractId = recordItemBuilder.contractId();
+        var atomicBatch =
+                recordItemBuilder.atomicBatch().customize(this::finalize).build();
+        var atomicBatchBlockTransaction =
+                blockTransactionBuilder.atomicBatch(atomicBatch).build();
+        var batchConsensusTimestamp = atomicBatch.getTransactionRecord().getConsensusTimestamp();
+        var innerContractCreate = recordItemBuilder
+                .contractCreate(innerContractId)
+                .record(r -> r.setParentConsensusTimestamp(batchConsensusTimestamp))
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(createdContractIds(innerContractId, childContractId))
+                .recordItem(r -> r.transactionIndex(1))
+                .sidecarRecords(List::clear)
+                .customize(this::finalize)
+                .build();
+        var innerContractCreateBlockTransaction = blockTransactionBuilder
+                .contractCreate(innerContractCreate)
+                .previous(atomicBatchBlockTransaction)
+                .build();
+        var childContractCreate = childContractCreate(childContractId, innerContractCreate, 1, 2);
+        var childContractCreateBlockTransaction = blockTransactionBuilder
+                .contractCreate(childContractCreate)
+                .previous(innerContractCreateBlockTransaction)
+                .build();
+        var innerContractCall = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(batchConsensusTimestamp))
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .recordItem(r -> r.transactionIndex(3))
+                .sidecarRecords(List::clear)
+                .customize(this::finalize)
+                .build();
+        var innerContractCallBlockTransaction = blockTransactionBuilder
+                .contractCall(innerContractCall, true)
+                .previous(childContractCreateBlockTransaction)
+                .build();
+        innerContractCreateBlockTransaction.setNextInBatch(innerContractCallBlockTransaction);
+        var blockFile = blockFileBuilder
+                .items(List.of(
+                        atomicBatchBlockTransaction,
+                        innerContractCreateBlockTransaction,
+                        childContractCreateBlockTransaction,
+                        innerContractCallBlockTransaction))
+                .build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        var expected = List.of(atomicBatch, innerContractCreate, childContractCreate, innerContractCall);
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertRecordItems(items, expected);
+            assertThat(items)
+                    .map(RecordItem::getParent)
+                    .containsExactly(null, items.getFirst(), items.get(1), items.getFirst());
+        });
+    }
+
+    @Test
+    void contractCreateReverted() {
+        // given
+        var expectedRecordItem = recordItemBuilder
+                .contractCreate()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.getContractCreateResultBuilder()
+                        .clearBloom()
+                        .clearLogInfo()
+                        .clearContractNonces()
+                        .clearSignerNonce())
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .status(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED)
+                .customize(this::finalize)
+                .build();
+        var blockTransaction =
+                blockTransactionBuilder.contractCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void contractCreateWithChildContractCreates() {
+        // given
+        // a hollow account finalized as a contract by CREATE2 keeps its existing, smaller, entity num
+        var hollowContractId = recordItemBuilder.contractId();
+        var contractId = recordItemBuilder.contractId();
+        var childContractId = recordItemBuilder.contractId();
+        var contractCreate = recordItemBuilder
+                .contractCreate(contractId)
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(createdContractIds(hollowContractId, contractId, childContractId))
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
+        var contractCreateBlockTransaction =
+                blockTransactionBuilder.contractCreate(contractCreate).build();
+        var childContractCreate = childContractCreate(childContractId, contractCreate, 1, 1);
+        var childContractCreateBlockTransaction = blockTransactionBuilder
+                .contractCreate(childContractCreate)
+                .previous(contractCreateBlockTransaction)
+                .build();
+        var hollowContractCreate = childContractCreate(hollowContractId, contractCreate, 2, 2);
+        var hollowContractCreateBlockTransaction = blockTransactionBuilder
+                .contractCreate(hollowContractCreate)
+                .previous(childContractCreateBlockTransaction)
+                .build();
+        var blockFile = blockFileBuilder
+                .items(List.of(
+                        contractCreateBlockTransaction,
+                        childContractCreateBlockTransaction,
+                        hollowContractCreateBlockTransaction))
+                .build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        var expected = List.of(contractCreate, childContractCreate, hollowContractCreate);
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertRecordItems(items, expected);
+            assertThat(items).map(RecordItem::getParent).containsExactly(null, items.getFirst(), items.getFirst());
+        });
     }
 
     @Test
@@ -407,6 +553,9 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var ethereumCreate = recordItemBuilder
                 .ethereumTransaction(true)
                 .record(ETHEREUM_RECORD_CUSTOMIZER)
+                .record(r -> createdContractIds(
+                                contractId, r.getContractCreateResult().getContractID())
+                        .accept(r))
                 .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
                 .customize(this::finalize)
                 .build();
@@ -451,6 +600,52 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         });
     }
 
+    @Test
+    void ethereumCreateWithSelfAndNestedChildContractCreates() {
+        // given
+        // consensus nodes externalize a child contract create for the contract created by an ethereum transaction
+        var nestedContractId = recordItemBuilder.contractId();
+        var ethereumCreate = recordItemBuilder
+                .ethereumTransaction(true)
+                .record(ETHEREUM_RECORD_CUSTOMIZER)
+                .record(r -> createdContractIds(
+                                nestedContractId, r.getContractCreateResult().getContractID())
+                        .accept(r))
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
+        var ethereumCreateBlockTransaction =
+                blockTransactionBuilder.ethereum(ethereumCreate).build();
+        var contractId =
+                ethereumCreate.getTransactionRecord().getContractCreateResult().getContractID();
+        var selfContractCreate = childContractCreate(contractId, ethereumCreate, 1, 1);
+        var selfContractCreateBlockTransaction = blockTransactionBuilder
+                .contractCreate(selfContractCreate)
+                .previous(ethereumCreateBlockTransaction)
+                .build();
+        var nestedContractCreate = childContractCreate(nestedContractId, ethereumCreate, 2, 2);
+        var nestedContractCreateBlockTransaction = blockTransactionBuilder
+                .contractCreate(nestedContractCreate)
+                .previous(selfContractCreateBlockTransaction)
+                .build();
+        var blockFile = blockFileBuilder
+                .items(List.of(
+                        ethereumCreateBlockTransaction,
+                        selfContractCreateBlockTransaction,
+                        nestedContractCreateBlockTransaction))
+                .build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        var expected = List.of(ethereumCreate, selfContractCreate, nestedContractCreate);
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertRecordItems(items, expected);
+            assertThat(items).map(RecordItem::getParent).containsExactly(null, items.getFirst(), items.getFirst());
+        });
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void ethereumNoUsedGas(boolean create) {
@@ -458,6 +653,12 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var expectedRecordItem = recordItemBuilder
                 .ethereumTransaction(create)
                 .record(ETHEREUM_RECORD_CUSTOMIZER)
+                .record(r -> {
+                    if (create) {
+                        createdContractIds(r.getContractCreateResult().getContractID())
+                                .accept(r);
+                    }
+                })
                 .record(r -> contractResultBuilder(r).ifPresent(ContractFunctionResult.Builder::clearGasUsed))
                 .receipt(Builder::clearContractID)
                 .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
@@ -1142,6 +1343,177 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         });
     }
 
+    @ParameterizedTest(name = "executed at expiry: {0}")
+    @ValueSource(booleans = {false, true})
+    void scheduledContractCallWithChildContractCreate(boolean executedAtExpiry) {
+        // given
+        var childContractId = recordItemBuilder.contractId();
+        var expected = new ArrayList<RecordItem>();
+        var blockTransactions = new ArrayList<BlockTransaction>();
+        var scheduleSign = addScheduleSign(executedAtExpiry, expected, blockTransactions);
+        var scheduledContractCall = recordItemBuilder
+                .contractCall()
+                .customize(b -> scheduled(b, scheduleSign, expected.size()))
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(createdContractIds(childContractId))
+                .customize(this::finalize)
+                .build();
+        addBlockTransaction(
+                blockTransactionBuilder.contractCall(scheduledContractCall, true),
+                scheduledContractCall,
+                expected,
+                blockTransactions);
+        var childParent = scheduleSign != null ? scheduleSign : scheduledContractCall;
+        // the synthetic child transaction dispatched by the HTS system contract has an EVM transaction result
+        var precompileCryptoTransfer = systemContractCryptoTransfer(childParent, 1, expected.size());
+        addBlockTransaction(
+                systemContractCryptoTransferBlockTransaction(precompileCryptoTransfer),
+                precompileCryptoTransfer,
+                expected,
+                blockTransactions);
+        var childContractCreate = childContractCreate(childContractId, childParent, 2, expected.size());
+        addBlockTransaction(
+                blockTransactionBuilder.contractCreate(childContractCreate),
+                childContractCreate,
+                expected,
+                blockTransactions);
+        var blockFile = blockFileBuilder.items(blockTransactions).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertRecordItems(items, expected));
+    }
+
+    @Test
+    void hookExecutionWithChildContractCreate() {
+        // given
+        // in block stream, the parent of both the hook executions and their child transactions is the user transaction
+        var childContractId = recordItemBuilder.contractId();
+        var expected = new ArrayList<RecordItem>();
+        var blockTransactions = new ArrayList<BlockTransaction>();
+        var cryptoTransfer =
+                recordItemBuilder.cryptoTransfer().customize(this::finalize).build();
+        addBlockTransaction(
+                blockTransactionBuilder.cryptoTransfer(cryptoTransfer), cryptoTransfer, expected, blockTransactions);
+        // the first hook execution creates no contract, the second one creates one after calling system contracts
+        var hookExecution1 = childContractCall(cryptoTransfer, 1, expected.size());
+        addBlockTransaction(hookExecutionBlockTransaction(hookExecution1), hookExecution1, expected, blockTransactions);
+        var hookExecution2 = childContractCall(cryptoTransfer, 2, expected.size(), childContractId);
+        addBlockTransaction(hookExecutionBlockTransaction(hookExecution2), hookExecution2, expected, blockTransactions);
+        // the synthetic ContractCall externalized for a system contract view call has an EVM transaction result
+        var systemContractCall = childContractCall(cryptoTransfer, 3, expected.size());
+        addBlockTransaction(
+                blockTransactionBuilder.contractCall(systemContractCall, true),
+                systemContractCall,
+                expected,
+                blockTransactions);
+        var precompileCryptoTransfer = systemContractCryptoTransfer(cryptoTransfer, 4, expected.size());
+        addBlockTransaction(
+                systemContractCryptoTransferBlockTransaction(precompileCryptoTransfer),
+                precompileCryptoTransfer,
+                expected,
+                blockTransactions);
+        var childContractCreate = childContractCreate(childContractId, cryptoTransfer, 5, expected.size());
+        addBlockTransaction(
+                blockTransactionBuilder.contractCreate(childContractCreate),
+                childContractCreate,
+                expected,
+                blockTransactions);
+        var blockFile = blockFileBuilder.items(blockTransactions).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertRecordItems(items, expected);
+            var parent = items.getFirst();
+            assertThat(items).map(RecordItem::getParent).containsExactly(null, parent, parent, parent, parent, parent);
+        });
+    }
+
+    @ParameterizedTest(name = "executed at expiry: {0}, child contract creates: {1}")
+    @CsvSource({"false, 0", "false, 2", "true, 0", "true, 2"})
+    void scheduledContractCreate(boolean executedAtExpiry, int childCount) {
+        // given
+        var contractId = recordItemBuilder.contractId();
+        var childContractIds = new ArrayList<ContractID>();
+        for (int i = 0; i < childCount; i++) {
+            childContractIds.add(recordItemBuilder.contractId());
+        }
+
+        var createdContractIds = new ArrayList<ContractID>();
+        createdContractIds.add(contractId);
+        createdContractIds.addAll(childContractIds);
+        var expected = new ArrayList<RecordItem>();
+        var blockTransactions = new ArrayList<BlockTransaction>();
+        var scheduleSign = addScheduleSign(executedAtExpiry, expected, blockTransactions);
+        var scheduledContractCreate = recordItemBuilder
+                .contractCreate(contractId)
+                .customize(b -> scheduled(b, scheduleSign, expected.size()))
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(createdContractIds(createdContractIds.toArray(ContractID[]::new)))
+                .customize(this::finalize)
+                .build();
+        addBlockTransaction(
+                blockTransactionBuilder.contractCreate(scheduledContractCreate),
+                scheduledContractCreate,
+                expected,
+                blockTransactions);
+        var childParent = scheduleSign != null ? scheduleSign : scheduledContractCreate;
+        for (int i = 0; i < childCount; i++) {
+            var childContractCreate = childContractCreate(childContractIds.get(i), childParent, i + 1, expected.size());
+            addBlockTransaction(
+                    blockTransactionBuilder.contractCreate(childContractCreate),
+                    childContractCreate,
+                    expected,
+                    blockTransactions);
+        }
+
+        var blockFile = blockFileBuilder.items(blockTransactions).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertRecordItems(items, expected));
+    }
+
+    private void addBlockTransaction(
+            BlockTransactionBuilder.Builder builder,
+            RecordItem recordItem,
+            List<RecordItem> recordItems,
+            List<BlockTransaction> blockTransactions) {
+        var transactionRecord = recordItem.getTransactionRecord();
+        if (transactionRecord.hasScheduleRef()) {
+            builder.transactionResult(r -> r.setScheduleRef(transactionRecord.getScheduleRef()));
+        }
+
+        if (!blockTransactions.isEmpty()) {
+            builder.previous(blockTransactions.getLast());
+        }
+
+        recordItems.add(recordItem);
+        blockTransactions.add(builder.build());
+    }
+
+    // Adds a ScheduleSign which triggers the scheduled transaction, unless the scheduled transaction is executed at
+    // expiry
+    private RecordItem addScheduleSign(
+            boolean executedAtExpiry, List<RecordItem> recordItems, List<BlockTransaction> blockTransactions) {
+        if (executedAtExpiry) {
+            return null;
+        }
+
+        var scheduleSign =
+                recordItemBuilder.scheduleSign().customize(this::finalize).build();
+        addBlockTransaction(
+                blockTransactionBuilder.scheduleSign(scheduleSign), scheduleSign, recordItems, blockTransactions);
+        return scheduleSign;
+    }
+
     @SafeVarargs
     private void customizeSidecarRecords(
             List<TransactionSidecarRecord.Builder> sidecarRecords,
@@ -1173,6 +1545,41 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 // .setContractCall(CallContractOutput.newBuilder().setContractCallResult(contractFunctionResult))
                 .build();
         return Map.of(TransactionCase.CONTRACT_CALL, output);
+    }
+
+    private RecordItem childContractCall(
+            RecordItem parent, int nonce, int transactionIndex, ContractID... createdContractIds) {
+        var transactionId = parent.getTransactionBody().getTransactionID().toBuilder()
+                .setNonce(nonce)
+                .build();
+        return recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(
+                        parent.getTransactionRecord().getConsensusTimestamp()))
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(createdContractIds(createdContractIds))
+                .recordItem(r -> r.transactionIndex(transactionIndex))
+                .sidecarRecords(List::clear)
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .customize(this::finalize)
+                .build();
+    }
+
+    // A contract create externalized by consensus nodes for a contract created by the EVM in the parent transaction
+    private RecordItem childContractCreate(ContractID contractId, RecordItem parent, int nonce, int transactionIndex) {
+        var transactionId = parent.getTransactionBody().getTransactionID().toBuilder()
+                .setNonce(nonce)
+                .build();
+        return recordItemBuilder
+                .contractCreate(contractId)
+                .record(r -> r.setParentConsensusTimestamp(
+                        parent.getTransactionRecord().getConsensusTimestamp()))
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .recordItem(r -> r.transactionIndex(transactionIndex))
+                .sidecarRecords(List::clear)
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .customize(this::finalize)
+                .build();
     }
 
     private Consumer<TransactionSidecarRecord.Builder> contractBytecode(
@@ -1211,8 +1618,52 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .build();
     }
 
+    // In block stream, a hook execution is a child ContractCall of the user transaction, with the executed hook id set
+    // in its EVM transaction result
+    private BlockTransactionBuilder.Builder hookExecutionBlockTransaction(RecordItem hookExecution) {
+        var hookId = HookId.newBuilder()
+                .setEntityId(HookEntityId.newBuilder().setAccountId(recordItemBuilder.accountId()))
+                .setHookId(1L)
+                .build();
+        return blockTransactionBuilder.contractCall(hookExecution, true).transactionOutputs(outputs -> {
+            var callContractOutput = outputs.get(TransactionCase.CONTRACT_CALL).getContractCall();
+            var evmTransactionResult =
+                    callContractOutput.getEvmTransactionResult().toBuilder().setExecutedHookId(hookId);
+            outputs.put(
+                    TransactionCase.CONTRACT_CALL,
+                    TransactionOutput.newBuilder()
+                            .setContractCall(
+                                    callContractOutput.toBuilder().setEvmTransactionResult(evmTransactionResult))
+                            .build());
+        });
+    }
+
     private ContractFunctionResult htsPrecompileContractCallResult() {
         return recordItemBuilder.contractFunctionResult(HTS_PRECOMPILE_ADDRESS).build();
+    }
+
+    // In block stream, a scheduled transaction triggered by a ScheduleSign has the ScheduleSign as its parent, so do
+    // its child transactions. A scheduled transaction executed at expiry is a top-level transaction, and the
+    // transaction ids of its child transactions have the scheduled flag set.
+    private void scheduled(RecordItemBuilder.Builder<?> builder, RecordItem scheduleSign, int transactionIndex) {
+        var transactionId = scheduleSign != null
+                ? scheduleSign.getTransactionBody().getTransactionID()
+                : TransactionID.newBuilder()
+                        .setAccountID(recordItemBuilder.accountId())
+                        .setTransactionValidStart(recordItemBuilder.timestamp())
+                        .build();
+        var scheduleId = recordItemBuilder.scheduleId();
+        builder.record(r -> {
+                    r.setScheduleRef(scheduleId);
+                    if (scheduleSign != null) {
+                        r.setParentConsensusTimestamp(
+                                scheduleSign.getTransactionRecord().getConsensusTimestamp());
+                    }
+                })
+                .recordItem(r -> r.transactionIndex(transactionIndex))
+                .sidecarRecords(List::clear)
+                .transactionBodyWrapper(w -> w.setTransactionID(
+                        transactionId.toBuilder().setScheduled(true).build()));
     }
 
     private void simpleContractStateChanges(TransactionSidecarRecord.Builder builder) {
@@ -1276,6 +1727,45 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                     .build();
             stateChangesList.add(updated);
         };
+    }
+
+    // A synthetic CryptoTransfer dispatched by the HTS system contract, e.g., to transfer tokens. Same as any other
+    // transaction dispatched by a system contract, it has an EVM transaction result in block stream
+    private RecordItem systemContractCryptoTransfer(RecordItem parent, int nonce, int transactionIndex) {
+        var contractCallResult = ContractFunctionResult.newBuilder()
+                .setContractCallResult(recordItemBuilder.bytes(32))
+                .setContractID(HTS_PRECOMPILE_ADDRESS)
+                .setGasUsed(100L)
+                .build();
+        var transactionId = parent.getTransactionBody().getTransactionID().toBuilder()
+                .setNonce(nonce)
+                .build();
+        return recordItemBuilder
+                .cryptoTransfer()
+                .receipt(r -> r.setContractID(HTS_PRECOMPILE_ADDRESS))
+                .record(r -> r.setContractCallResult(contractCallResult)
+                        .setParentConsensusTimestamp(
+                                parent.getTransactionRecord().getConsensusTimestamp()))
+                .recordItem(r -> r.transactionIndex(transactionIndex))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .customize(this::finalize)
+                .build();
+    }
+
+    private BlockTransactionBuilder.Builder systemContractCryptoTransferBlockTransaction(RecordItem recordItem) {
+        var contractCallResult = recordItem.getTransactionRecord().getContractCallResult();
+        var evmTransactionResult = EvmTransactionResult.newBuilder()
+                .setContractId(contractCallResult.getContractID())
+                .setGasUsed(contractCallResult.getGasUsed())
+                .setResultData(contractCallResult.getContractCallResult());
+        return blockTransactionBuilder
+                .cryptoTransfer(recordItem)
+                .transactionOutputs(outputs -> outputs.put(
+                        TransactionCase.CONTRACT_CALL,
+                        TransactionOutput.newBuilder()
+                                .setContractCall(
+                                        CallContractOutput.newBuilder().setEvmTransactionResult(evmTransactionResult))
+                                .build()));
     }
 
     private StateChange tokenMapUpdate(boolean deleted, TokenID tokenId, long totalSupply) {

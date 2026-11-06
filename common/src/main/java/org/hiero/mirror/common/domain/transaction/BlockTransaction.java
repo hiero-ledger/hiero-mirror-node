@@ -16,6 +16,7 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionC
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.SlotKey;
@@ -24,10 +25,12 @@ import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import lombok.AccessLevel;
@@ -96,6 +99,14 @@ public class BlockTransaction implements StreamItem {
     @Setter
     private Map<ContractSlotKey, ByteString> contractStorageReads = Collections.emptyMap();
 
+    /**
+     * The ids of the contracts created by the child ContractCreate transactions of this EVM transaction. The set is
+     * populated when the children are transformed, which happens before this transaction is transformed.
+     */
+    @EqualsAndHashCode.Exclude
+    @NonFinal
+    private Set<ContractID> createdContractIds = Collections.emptySet();
+
     @Builder(toBuilder = true)
     public BlockTransaction(
             final BlockTransaction previous,
@@ -137,6 +148,18 @@ public class BlockTransaction implements StreamItem {
         topicId = transactionBody.hasConsensusSubmitMessage()
                 ? transactionBody.getConsensusSubmitMessage().getTopicID()
                 : null;
+    }
+
+    public void addCreatedContractId(final ContractID contractId) {
+        if (contractId == null) {
+            return;
+        }
+
+        if (createdContractIds.isEmpty()) {
+            createdContractIds = new HashSet<>();
+        }
+
+        createdContractIds.add(contractId);
     }
 
     public TopicMessage getTopicMessage() {

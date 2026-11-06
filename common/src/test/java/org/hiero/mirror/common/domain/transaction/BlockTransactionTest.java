@@ -557,6 +557,35 @@ final class BlockTransactionTest {
     }
 
     @Test
+    void addCreatedContractId() {
+        // given
+        var blockTransaction = defaultBuilder().build();
+        var contractId1 = getContractId();
+        var contractId2 = getContractId();
+        assertThat(blockTransaction.getCreatedContractIds()).isEmpty();
+
+        // when
+        blockTransaction.addCreatedContractId(contractId2);
+        blockTransaction.addCreatedContractId(contractId1);
+        blockTransaction.addCreatedContractId(contractId2);
+
+        // then
+        assertThat(blockTransaction.getCreatedContractIds()).containsExactlyInAnyOrder(contractId1, contractId2);
+    }
+
+    @Test
+    void addCreatedContractIdNull() {
+        // given
+        var blockTransaction = defaultBuilder().build();
+
+        // when
+        blockTransaction.addCreatedContractId(null);
+
+        // then
+        assertThat(blockTransaction.getCreatedContractIds()).isEmpty();
+    }
+
+    @Test
     void allTraceData() {
         // given
         var topicId = StateChangeTestUtils.getTopicId();

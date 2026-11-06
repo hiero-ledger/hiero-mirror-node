@@ -518,8 +518,6 @@ final class BlockStreamVerificationTest {
             return;
         }
 
-        // created contract ids is a deprecated field
-        contractResultBuilder.clearCreatedContractIDs();
         if (contractResultBuilder.hasEvmAddress()) {
             final var evmAddress = contractResultBuilder.getEvmAddress().getValue();
             if (evmAddress
