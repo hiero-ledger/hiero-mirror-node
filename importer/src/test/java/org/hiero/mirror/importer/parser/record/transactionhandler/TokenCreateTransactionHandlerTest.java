@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,6 +14,8 @@ import static org.mockito.Mockito.verify;
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -200,6 +203,119 @@ final class TokenCreateTransactionHandlerTest extends AbstractTransactionHandler
                 .returns(transaction.getEntityId().getId(), TokenAccount::getTokenId);
 
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
+    }
+
+    @CsvSource(textBlock = """
+                true, true, true, 0.49.0, FROZEN, REVOKED
+                false, true, true, 0.49.0, UNFROZEN, REVOKED
+                true, false, true, 0.49.0, NOT_APPLICABLE, REVOKED
+                true, true, false, 0.49.0, FROZEN, NOT_APPLICABLE
+                true, false, false, 0.49.0, NOT_APPLICABLE, NOT_APPLICABLE
+                true, true, true, 0.48.0, UNFROZEN, GRANTED
+                false, false, false, 0.48.0, NOT_APPLICABLE, NOT_APPLICABLE
+                """)
+    @ParameterizedTest
+    void updateTransactionFeeCollectorAutoAssociation(
+            boolean freezeDefault,
+            boolean hasFreezeKey,
+            boolean hasKycKey,
+            @ConvertWith(VersionConverter.class) Version hapiVersion,
+            TokenFreezeStatusEnum expectedCollectorFreezeStatus,
+            TokenKycStatusEnum expectedCollectorKycStatus) {
+        // Given
+        final var collector = recordItemBuilder.accountId();
+        final var recordItem = recordItemBuilder
+                .tokenCreate()
+                .recordItem(r -> r.hapiVersion(hapiVersion))
+                .transactionBody(b -> {
+                    b.setFreezeDefault(freezeDefault);
+                    if (!hasFreezeKey) {
+                        b.clearFreezeKey();
+                    }
+                    if (!hasKycKey) {
+                        b.clearKycKey();
+                    }
+                })
+                .record(r -> r.addAutomaticTokenAssociations(
+                        r.getAutomaticTokenAssociations(0).toBuilder().setAccountId(collector)))
+                .build();
+        final long timestamp = recordItem.getConsensusTimestamp();
+        final var tokenId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getTokenID());
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp).entityId(tokenId))
+                .get();
+        final var tokenAccount = ArgumentCaptor.forClass(TokenAccount.class);
+        final long treasuryId = EntityId.of(
+                        recordItem.getTransactionBody().getTokenCreation().getTreasury())
+                .getId();
+        final var expectedTreasuryFreezeStatus =
+                hasFreezeKey ? TokenFreezeStatusEnum.UNFROZEN : TokenFreezeStatusEnum.NOT_APPLICABLE;
+        final var expectedTreasuryKycStatus =
+                hasKycKey ? TokenKycStatusEnum.GRANTED : TokenKycStatusEnum.NOT_APPLICABLE;
+
+        // When
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // Then
+        verify(entityListener, times(2)).onTokenAccount(tokenAccount.capture());
+        assertThat(tokenAccount.getAllValues())
+                .extracting(TokenAccount::getAccountId, TokenAccount::getFreezeStatus, TokenAccount::getKycStatus)
+                .containsExactlyInAnyOrder(
+                        tuple(treasuryId, expectedTreasuryFreezeStatus, expectedTreasuryKycStatus),
+                        tuple(
+                                EntityId.of(collector).getId(),
+                                expectedCollectorFreezeStatus,
+                                expectedCollectorKycStatus));
+    }
+
+    @CsvSource(textBlock = """
+                0.76.0, REVOKED, REVOKED
+                0.77.0, GRANTED, GRANTED
+                """)
+    @ParameterizedTest
+    void updateTransactionEmptyKeyListKycKey(
+            @ConvertWith(VersionConverter.class) Version hapiVersion,
+            TokenKycStatusEnum expectedTokenKycStatus,
+            TokenKycStatusEnum expectedCollectorKycStatus) {
+        // Given
+        final var collector = recordItemBuilder.accountId();
+        final var emptyKeyList = Key.newBuilder().setKeyList(KeyList.getDefaultInstance());
+        final var recordItem = recordItemBuilder
+                .tokenCreate()
+                .recordItem(r -> r.hapiVersion(hapiVersion))
+                .transactionBody(b -> b.setKycKey(emptyKeyList))
+                .record(r -> r.addAutomaticTokenAssociations(
+                        r.getAutomaticTokenAssociations(0).toBuilder().setAccountId(collector)))
+                .build();
+        final long timestamp = recordItem.getConsensusTimestamp();
+        final var tokenId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getTokenID());
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp).entityId(tokenId))
+                .get();
+        final var token = ArgumentCaptor.forClass(Token.class);
+        final var tokenAccount = ArgumentCaptor.forClass(TokenAccount.class);
+        final long treasuryId = EntityId.of(
+                        recordItem.getTransactionBody().getTokenCreation().getTreasury())
+                .getId();
+
+        // When
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // Then
+        verify(entityListener).onToken(token.capture());
+        verify(entityListener, times(2)).onTokenAccount(tokenAccount.capture());
+        assertThat(token.getValue())
+                .returns(emptyKeyList.build().toByteArray(), Token::getKycKey)
+                .returns(expectedTokenKycStatus, Token::getKycStatus);
+        assertThat(tokenAccount.getAllValues())
+                .extracting(TokenAccount::getAccountId, TokenAccount::getKycStatus)
+                .containsExactlyInAnyOrder(
+                        tuple(treasuryId, TokenKycStatusEnum.GRANTED),
+                        tuple(EntityId.of(collector).getId(), expectedCollectorKycStatus));
     }
 
     @Test
