@@ -94,8 +94,9 @@ public abstract class ContractCallService {
      * @param params the call service parameters
      * @param ctx    the contract call context
      * @return {@link EvmTransactionResult} of the contract call
-     * @throws MirrorEvmTransactionException if any pre-checks fail with {@link IllegalStateException} or
-     *                                       {@link IllegalArgumentException}
+     * @throws MirrorEvmTransactionException if execution fails; {@link IllegalStateException} and
+     *                                       {@link IllegalArgumentException} are reported as
+     *                                       {@link ResponseCodeEnum#FAIL_INVALID} without client-visible detail
      */
     protected final EvmTransactionResult callContract(CallServiceParameters params, ContractCallContext ctx)
             throws MirrorEvmTransactionException {
@@ -118,7 +119,10 @@ public abstract class ContractCallService {
                 validateResult(result, params);
             }
         } catch (IllegalStateException | IllegalArgumentException e) {
-            throw new MirrorEvmTransactionException(e.getMessage(), EMPTY);
+            if (!estimate) {
+                log.error("Contract execution failed", e);
+            }
+            throw new MirrorEvmTransactionException(ResponseCodeEnum.FAIL_INVALID, EMPTY, EMPTY);
         } catch (MirrorEvmTransactionException e) {
             // This result is needed in case of exception to be still able to call restoreGasToBucket method
             result = e.getResult();
