@@ -9,15 +9,21 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
+import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
+import com.hedera.hapi.node.state.token.Account;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import java.util.Map;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.state.singleton.EntityIdSingleton;
+import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +51,9 @@ class AliasesReadableKVStateTest {
 
     @Spy
     private AliasedAccountCacheManager aliasedAccountCacheManager;
+
+    @Mock
+    private EntityIdSingleton entityIdSingleton;
 
     @Spy
     private EvmProperties evmProperties;
@@ -178,6 +187,68 @@ class AliasesReadableKVStateTest {
                         .getReadCacheState(AccountReadableKVState.STATE_ID)
                         .containsKey(ACCOUNT_ID))
                 .isTrue();
+    }
+
+    @Test
+    void aliasResolutionCachesOverriddenBalanceAndNonce() {
+        final var address = Bytes.fromHex("67d8d32e9bf1a9968a5ff53b87d777aa8ebbee69");
+        final var entity = Entity.builder()
+                .id(ENTITY_ID.getId())
+                .shard(ENTITY_ID.getShard())
+                .realm(ENTITY_ID.getRealm())
+                .num(ENTITY_ID.getNum())
+                .type(EntityType.ACCOUNT)
+                .evmAddress(address.toByteArray())
+                .balance(1000L)
+                .ethereumNonce(1L)
+                .build();
+        final var override = new StateOverride();
+        override.setAddress(address.toHex());
+        override.setBalance("0xc8");
+        override.setNonce("0x2a");
+        contractCallContext.setStateOverrides(Map.of(address, override));
+        when(commonEntityAccessor.get(address, Optional.empty())).thenReturn(Optional.of(entity));
+
+        assertThat(aliasesReadableKVState.get(new ProtoBytes(address))).isEqualTo(ACCOUNT_ID);
+
+        final var cached = (Account) contractCallContext
+                .getReadCacheState(AccountReadableKVState.STATE_ID)
+                .get(ACCOUNT_ID);
+        assertThat(cached.tinybarBalance()).isEqualTo(200L);
+        assertThat(cached.ethereumNonce()).isEqualTo(42L);
+        assertThat(entity.getBalance()).isEqualTo(1000L);
+    }
+
+    @Test
+    void missingAddressesWithStateOverridesReceiveDistinctAccountIds() {
+        final var address1 = Bytes.fromHex("a11ce00000000000000000000000000000000001");
+        final var address2 = Bytes.fromHex("b0b0000000000000000000000000000000000002");
+        final var override1 = new StateOverride();
+        override1.setAddress(address1.toHex());
+        final var override2 = new StateOverride();
+        override2.setAddress(address2.toHex());
+        contractCallContext.setStateOverrides(Map.of(address1, override1, address2, override2));
+        when(commonEntityAccessor.get(any(Bytes.class), any())).thenReturn(Optional.empty());
+        when(entityIdSingleton.get()).thenReturn(new EntityNumber(5000L));
+
+        final var accountId1 = aliasesReadableKVState.get(new ProtoBytes(address1));
+        final var accountId2 = aliasesReadableKVState.get(new ProtoBytes(address2));
+
+        assertThat(accountId1).isNotNull();
+        assertThat(accountId2).isNotNull();
+        assertThat(accountId1).isNotEqualTo(accountId2);
+        assertThat(accountId1.accountNum()).isEqualTo(4999L);
+        assertThat(accountId2.accountNum()).isEqualTo(4998L);
+
+        // Reading the same alias again resolves to the same account without allocating a new number
+        assertThat(aliasesReadableKVState.get(new ProtoBytes(address1))).isEqualTo(accountId1);
+
+        final var accountCache = contractCallContext.getReadCacheState(AccountReadableKVState.STATE_ID);
+        final var account1 = (Account) accountCache.get(accountId1);
+        final var account2 = (Account) accountCache.get(accountId2);
+        assertThat(account1).isNotEqualTo(account2);
+        assertThat(account1.alias()).isEqualTo(address1);
+        assertThat(account2.alias()).isEqualTo(address2);
     }
 
     @Test
