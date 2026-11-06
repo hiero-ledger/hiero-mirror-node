@@ -6,6 +6,7 @@ import static org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum.FROZEN;
 import static org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum.NOT_APPLICABLE;
 import static org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum.UNFROZEN;
 import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_49_0;
+import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
 
 import com.hederahashgraph.api.proto.java.TokenAssociation;
 import jakarta.inject.Named;
@@ -124,8 +125,13 @@ final class TokenCreateTransactionHandler extends AbstractEntityCrudTransactionH
         }
 
         if (transactionBody.hasKycKey()) {
-            token.setKycKey(transactionBody.getKycKey().toByteArray());
-            token.setKycStatus(TokenKycStatusEnum.REVOKED);
+            final var kycKey = transactionBody.getKycKey();
+            token.setKycKey(kycKey.toByteArray());
+            // Since services 0.77.0, an empty key list disables KYC, so accounts are KYC granted when associated
+            final boolean kycDisabled = kycKey.hasKeyList()
+                    && kycKey.getKeyList().getKeysCount() == 0
+                    && recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_77_0);
+            token.setKycStatus(kycDisabled ? TokenKycStatusEnum.GRANTED : TokenKycStatusEnum.REVOKED);
         } else {
             token.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
         }
@@ -171,8 +177,12 @@ final class TokenCreateTransactionHandler extends AbstractEntityCrudTransactionH
 
         var freezeStatus = token.getFreezeKey() != null ? UNFROZEN : NOT_APPLICABLE;
         var kycStatus = token.getKycKey() != null ? TokenKycStatusEnum.GRANTED : TokenKycStatusEnum.NOT_APPLICABLE;
+        // Prior to services 0.49.0 (mono-service), every automatically associated account got an enabled relationship.
+        // Since then, only the treasury does, and other accounts such as fee collectors get the token defaults.
+        final boolean treasuryOnly = recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_49_0);
 
         autoAssociatedAccounts.forEach(account -> {
+            final boolean enabled = !treasuryOnly || account.equals(token.getTreasuryAccountId());
             var tokenAccount = new TokenAccount();
             tokenAccount.setAccountId(account.getId());
             tokenAccount.setAssociated(true);
@@ -180,8 +190,8 @@ final class TokenCreateTransactionHandler extends AbstractEntityCrudTransactionH
             tokenAccount.setBalance(0L);
             tokenAccount.setBalanceTimestamp(consensusTimestamp);
             tokenAccount.setCreatedTimestamp(consensusTimestamp);
-            tokenAccount.setFreezeStatus(freezeStatus);
-            tokenAccount.setKycStatus(kycStatus);
+            tokenAccount.setFreezeStatus(enabled ? freezeStatus : token.getFreezeStatus());
+            tokenAccount.setKycStatus(enabled ? kycStatus : token.getKycStatus());
             tokenAccount.setTimestampLower(consensusTimestamp);
             tokenAccount.setTokenId(tokenId.getId());
             entityListener.onTokenAccount(tokenAccount);
