@@ -13,6 +13,7 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -40,12 +41,14 @@ class ClprDeregisterConnectorTransactionHandler extends AbstractTransactionHandl
         final var channelId = DomainUtils.toBytes(transactionBody.getChannelId());
         final var connectorId = DomainUtils.toBytes(transactionBody.getConnectorId());
         final var commitment = clprConnectorCommitmentService.lookup(channelId, connectorId);
-        if (ClprStateChangeHandler.isMissingStateChange(
-                commitment, "clpr_connector commitment", "ClprDeregisterConnector", consensusTimestamp)) {
+        if (commitment == null) {
+            Utility.handleRecoverableError(
+                    "No clpr_connector found for channelId/connectorId pair for successful "
+                            + "ClprDeregisterConnector at {}",
+                    consensusTimestamp);
             return;
         }
 
-        // Mirror-node-only soft-delete; consensus removes the Connector from its map entirely
         final var connector = ClprConnector.builder()
                 .channelId(channelId)
                 .commitment(commitment)

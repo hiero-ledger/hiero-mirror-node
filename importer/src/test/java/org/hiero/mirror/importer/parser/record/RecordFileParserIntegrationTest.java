@@ -403,7 +403,6 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         var register = recordItemBuilder
                 .clprRegisterChannel()
                 .transactionBody(b -> b.setOwnershipCommitment(ownershipCommitment))
-                .recordItem(r -> r.clprContextBuilder().clprChannelPendingCommitment(ownershipCommitment))
                 .build();
 
         var clprChannelActive = ClprChannel.newBuilder()

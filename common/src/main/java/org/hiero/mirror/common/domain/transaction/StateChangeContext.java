@@ -58,14 +58,12 @@ public final class StateChangeContext {
     private final Map<ClprConnectorKey, ClprConnector> clprConnectors = new HashMap<>();
     private final List<ClprConnectorKey> clprConnectorsRemoved = new ArrayList<>();
 
-    @Nullable
-    private ByteString clprChannelPendingCommitment;
-
-    @Nullable
-    private ClprEndpointManifest clprEndpointManifest;
-
-    @Nullable
-    private ClprLedgerConfiguration clprLedgerConfiguration;
+    // Keyed by the owning StateChanges' own consensus_timestamp rather than held as a single value, so each
+    // transaction in a batch can look up its own resulting singleton state instead of whichever update happened
+    // to be processed last. Not currently reachable with more than one entry since neither ClprMaintenance (system-
+    // initiated) nor ClprUpdateLedgerConfiguration (not batchable) can appear more than once per StateChangeContext.
+    private final Map<Long, ClprEndpointManifest> clprEndpointManifests = new HashMap<>();
+    private final Map<Long, ClprLedgerConfiguration> clprLedgerConfigurations = new HashMap<>();
 
     private final List<ClprMessageEntry> clprMessages = new ArrayList<>();
     private final List<Long> nodeIds = new ArrayList<>();
@@ -87,6 +85,7 @@ public final class StateChangeContext {
      */
     StateChangeContext(List<StateChanges> stateChangesList) {
         for (var stateChanges : stateChangesList) {
+            final long consensusTimestamp = DomainUtils.timestampInNanosMax(stateChanges.getConsensusTimestamp());
             for (var stateChange : stateChanges.getStateChangesList()) {
                 if (stateChange.hasMapUpdate()) {
                     var mapUpdate = stateChange.getMapUpdate();
@@ -98,9 +97,6 @@ public final class StateChangeContext {
                             processClprConnectorStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE ->
                             processClprMessageStateChange(mapUpdate);
-                        case StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE ->
-                            clprChannelPendingCommitment =
-                                    mapUpdate.getKey().getProtoBytesKey().getValue();
                         case StateIdentifier.STATE_ID_EVM_HOOK_STORAGE_VALUE -> processHookStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_FILES_VALUE ->
                             fileIds.add(mapUpdate.getKey().getFileIdKey());
@@ -131,9 +127,9 @@ public final class StateChangeContext {
                         // Carried by the system-initiated ClprMaintenance transaction (field 92) -- see
                         // ClprMaintenanceTransformer/ClprMaintenanceTransactionHandler.
                         case StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE ->
-                            processClprEndpointManifestStateChange(singletonUpdate);
+                            processClprEndpointManifestStateChange(singletonUpdate, consensusTimestamp);
                         case StateIdentifier.STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE ->
-                            processClprLedgerConfigurationStateChange(singletonUpdate);
+                            processClprLedgerConfigurationStateChange(singletonUpdate, consensusTimestamp);
                         default -> {
                             // do nothing
                         }
@@ -160,10 +156,6 @@ public final class StateChangeContext {
         return Optional.ofNullable(clprChannels.get(channelId));
     }
 
-    public Optional<ByteString> getClprChannelPendingCommitment() {
-        return Optional.ofNullable(clprChannelPendingCommitment);
-    }
-
     public List<ClprChannel> getClprChannels() {
         return List.copyOf(clprChannels.values());
     }
@@ -180,12 +172,12 @@ public final class StateChangeContext {
         return Collections.unmodifiableList(clprConnectorsRemoved);
     }
 
-    public Optional<ClprEndpointManifest> getClprEndpointManifest() {
-        return Optional.ofNullable(clprEndpointManifest);
+    public Optional<ClprEndpointManifest> getClprEndpointManifest(long consensusTimestamp) {
+        return Optional.ofNullable(clprEndpointManifests.get(consensusTimestamp));
     }
 
-    public Optional<ClprLedgerConfiguration> getClprLedgerConfiguration() {
-        return Optional.ofNullable(clprLedgerConfiguration);
+    public Optional<ClprLedgerConfiguration> getClprLedgerConfiguration(long consensusTimestamp) {
+        return Optional.ofNullable(clprLedgerConfigurations.get(consensusTimestamp));
     }
 
     public List<ClprMessageEntry> getClprMessages() {
@@ -338,20 +330,22 @@ public final class StateChangeContext {
                 mapUpdate.getKey().getClprConnectorKey(), mapUpdate.getValue().getClprConnectorValue());
     }
 
-    private void processClprEndpointManifestStateChange(SingletonUpdateChange singletonUpdate) {
+    private void processClprEndpointManifestStateChange(
+            SingletonUpdateChange singletonUpdate, long consensusTimestamp) {
         if (!singletonUpdate.hasClprEndpointManifestValue()) {
             return;
         }
 
-        clprEndpointManifest = singletonUpdate.getClprEndpointManifestValue();
+        clprEndpointManifests.put(consensusTimestamp, singletonUpdate.getClprEndpointManifestValue());
     }
 
-    private void processClprLedgerConfigurationStateChange(SingletonUpdateChange singletonUpdate) {
+    private void processClprLedgerConfigurationStateChange(
+            SingletonUpdateChange singletonUpdate, long consensusTimestamp) {
         if (!singletonUpdate.hasClprLedgerConfigurationValue()) {
             return;
         }
 
-        clprLedgerConfiguration = singletonUpdate.getClprLedgerConfigurationValue();
+        clprLedgerConfigurations.put(consensusTimestamp, singletonUpdate.getClprLedgerConfigurationValue());
     }
 
     private void processClprMessageStateChange(MapUpdateChange mapUpdate) {

@@ -7,8 +7,8 @@ import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_I
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE;
-import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_FILES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
@@ -55,6 +55,7 @@ import com.hederahashgraph.api.proto.java.ClprConnector;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ClprControlMessage;
 import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
+import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
 import com.hederahashgraph.api.proto.java.ClprMessage;
 import com.hederahashgraph.api.proto.java.ClprMessageKey;
 import com.hederahashgraph.api.proto.java.ClprMessagePayload;
@@ -66,6 +67,7 @@ import com.hederahashgraph.api.proto.java.Node;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.RegisteredNode;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.Topic;
 import java.util.List;
@@ -185,28 +187,6 @@ final class StateChangeContextTest {
     }
 
     @Test
-    void clprChannelPendingCommitment() {
-        // given
-        var ownershipCommitment = bytes(32);
-        var stateChanges = StateChanges.newBuilder()
-                .addStateChanges(StateChange.newBuilder()
-                        .setStateId(STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE)
-                        .setMapUpdate(MapUpdateChange.newBuilder()
-                                .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(ownershipCommitment)))
-                                .setValue(MapChangeValue.newBuilder()
-                                        .setProtoBytesValue(BytesValue.getDefaultInstance()))))
-                .addStateChanges(otherMapUpdateChange())
-                .build();
-
-        // when
-        var context = new StateChangeContext(List.of(stateChanges));
-
-        // then
-        assertThat(context.getClprChannelPendingCommitment()).contains(ownershipCommitment);
-        assertThat(EMPTY_CONTEXT.getClprChannelPendingCommitment()).isEmpty();
-    }
-
-    @Test
     void clprConnector() {
         // given
         var channelId = bytes(32);
@@ -270,8 +250,10 @@ final class StateChangeContextTest {
         // given: StateChangeContext parsing is ready, but no transaction type carries this state change yet
         // (see docs/design/clpr.md Consensus-Node Assumption #4) -- constructed directly here since no
         // transaction fixture exists to source it from.
+        var consensusTimestamp = 100L;
         var manifest = ClprEndpointManifest.newBuilder().setVersion(5).build();
         var stateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) consensusTimestamp))
                 .addStateChanges(StateChange.newBuilder()
                         .setStateId(STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE)
                         .setSingletonUpdate(SingletonUpdateChange.newBuilder().setClprEndpointManifestValue(manifest)))
@@ -280,9 +262,33 @@ final class StateChangeContextTest {
         // when
         var context = new StateChangeContext(List.of(stateChanges));
 
-        // then
-        assertThat(context.getClprEndpointManifest()).contains(manifest);
-        assertThat(EMPTY_CONTEXT.getClprEndpointManifest()).isEmpty();
+        // then -- keyed by the state change's own consensus timestamp, so a different transaction's lookup misses
+        assertThat(context.getClprEndpointManifest(consensusTimestamp)).contains(manifest);
+        assertThat(context.getClprEndpointManifest(consensusTimestamp + 1)).isEmpty();
+        assertThat(EMPTY_CONTEXT.getClprEndpointManifest(consensusTimestamp)).isEmpty();
+    }
+
+    @Test
+    void clprLedgerConfiguration() {
+        // given
+        var consensusTimestamp = 200L;
+        var configuration =
+                ClprLedgerConfiguration.newBuilder().setProtocolVersion(1).build();
+        var stateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) consensusTimestamp))
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE)
+                        .setSingletonUpdate(
+                                SingletonUpdateChange.newBuilder().setClprLedgerConfigurationValue(configuration)))
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then -- keyed by the state change's own consensus timestamp, so a different transaction's lookup misses
+        assertThat(context.getClprLedgerConfiguration(consensusTimestamp)).contains(configuration);
+        assertThat(context.getClprLedgerConfiguration(consensusTimestamp + 1)).isEmpty();
+        assertThat(EMPTY_CONTEXT.getClprLedgerConfiguration(consensusTimestamp)).isEmpty();
     }
 
     @Test

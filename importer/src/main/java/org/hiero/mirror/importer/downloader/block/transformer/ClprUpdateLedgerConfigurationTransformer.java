@@ -22,7 +22,7 @@ final class ClprUpdateLedgerConfigurationTransformer extends AbstractBlockTransa
 
         blockTransaction
                 .getStateChangeContext()
-                .getClprLedgerConfiguration()
+                .getClprLedgerConfiguration(blockTransaction.getConsensusTimestamp())
                 .ifPresent(
                         blockTransactionTransformation.recordItemBuilder().clprContextBuilder()
                                 ::clprLedgerConfiguration);

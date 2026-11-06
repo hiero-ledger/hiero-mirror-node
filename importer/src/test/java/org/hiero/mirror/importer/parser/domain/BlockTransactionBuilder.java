@@ -269,7 +269,10 @@ public class BlockTransactionBuilder {
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(),
-                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                List.of(StateChanges.newBuilder()
+                        .setConsensusTimestamp(timestamp(recordItem.getConsensusTimestamp()))
+                        .addStateChanges(stateChange)
+                        .build()),
                 Collections.emptyList());
     }
 
@@ -278,8 +281,10 @@ public class BlockTransactionBuilder {
                 .setStateId(StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder()
-                                .setProtoBytesKey(BytesValue.of(
-                                        recordItem.getClprContext().getClprChannelPendingCommitment())))
+                                .setProtoBytesKey(BytesValue.of(recordItem
+                                        .getTransactionBody()
+                                        .getClprRegisterChannel()
+                                        .getOwnershipCommitment())))
                         .setValue(MapChangeValue.newBuilder().setProtoBytesValue(BytesValue.getDefaultInstance())))
                 .build();
         return new BlockTransactionBuilder.Builder(
@@ -341,7 +346,10 @@ public class BlockTransactionBuilder {
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(),
-                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                List.of(StateChanges.newBuilder()
+                        .setConsensusTimestamp(timestamp(recordItem.getConsensusTimestamp()))
+                        .addStateChanges(stateChange)
+                        .build()),
                 Collections.emptyList());
     }
 

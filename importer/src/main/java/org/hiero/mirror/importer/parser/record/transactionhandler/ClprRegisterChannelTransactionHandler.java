@@ -30,16 +30,9 @@ class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        final var clprContext = recordItem.getClprContext();
-        final var ownershipCommitment = clprContext != null ? clprContext.getClprChannelPendingCommitment() : null;
-        if (ClprStateChangeHandler.isMissingStateChange(
-                ownershipCommitment,
-                "clpr_pending_commitments",
-                "ClprRegisterChannel",
-                recordItem.getConsensusTimestamp())) {
-            return;
-        }
-
+        // ownership_commitment is on the transaction body itself -- reading it from there instead of off the
+        // shared, per-batch StateChangeContext stays correct when a batch registers more than one channel.
+        final var transactionBody = recordItem.getTransactionBody().getClprRegisterChannel();
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
 
         // status must be set explicitly: a swept commitment can be legitimately re-registered, and leaving it
@@ -47,7 +40,7 @@ class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
         final var commitment = ClprChannelPendingCommitment.builder()
                 .createdTimestamp(consensusTimestamp)
                 .status(ClprPendingCommitmentStatus.OPEN)
-                .ownershipCommitment(DomainUtils.toBytes(ownershipCommitment))
+                .ownershipCommitment(DomainUtils.toBytes(transactionBody.getOwnershipCommitment()))
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprChannelPendingCommitment(commitment);

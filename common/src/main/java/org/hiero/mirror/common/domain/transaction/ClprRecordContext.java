@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
-import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ClprChannel;
 import com.hederahashgraph.api.proto.java.ClprConnector;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
@@ -16,8 +15,7 @@ import lombok.Value;
 import org.jspecify.annotations.Nullable;
 
 /**
- * CLPR state-change payloads attached to a {@link RecordItem}, kept in one place rather than as individual fields
- * on {@code RecordItem} since the vast majority of record items have no CLPR activity.
+ * CLPR state-change payloads attached to a {@link RecordItem}
  */
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
@@ -26,9 +24,6 @@ public class ClprRecordContext {
 
     @Nullable
     private final ClprChannel clprChannel;
-
-    @Nullable
-    private final ByteString clprChannelPendingCommitment;
 
     @Nullable
     private final ClprConnector clprConnector;

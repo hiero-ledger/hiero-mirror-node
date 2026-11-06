@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.hedera.hapi.block.stream.protoc.Block;
 import java.util.List;
@@ -187,6 +188,22 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         assertThat(clprMessageRepository.findAll())
                 .filteredOn(m -> m.getMessageType() == ClprMessageType.DATA)
                 .hasSize(6);
+    }
+
+    @Test
+    void clprSendMessageInsideHookDispatch() {
+        // TODO: no real block captured yet for a CryptoTransfer/TokenAirdrop/TokenClaimAirdrop hook calling
+        // sendMessage; replace with real assertions once one exists.
+        fail("No real block captured yet for CLPR sendMessage inside an EVM hook dispatch, see "
+                + "CLPR_CHILD_STATE_CHANGE_GAP.md");
+    }
+
+    @Test
+    void clprSendMessageInsideAtomicBatch() {
+        // TODO: no real block captured yet for an AtomicBatch inner transaction calling sendMessage; replace with
+        // real assertions once one exists.
+        fail("No real block captured yet for CLPR sendMessage inside an AtomicBatch inner transaction, see "
+                + "CLPR_CHILD_STATE_CHANGE_GAP.md");
     }
 
     private void parse(String resource) throws Exception {

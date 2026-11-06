@@ -319,10 +319,8 @@ public final class RecordItemBuilder {
                 .setReceivedRunningHash(bytes(32))
                 .build();
         return new Builder<>(TransactionType.CLPRCLOSECHANNEL, builder)
-                .recordItem(r -> r.clprContextBuilder()
-                        .clprChannel(clprChannelValue)
-                        // Also populated by the generic transform() step; must match for fixture equality.
-                        .clprChannels(List.of(clprChannelValue)));
+                .recordItem(r ->
+                        r.clprContextBuilder().clprChannel(clprChannelValue).clprChannels(List.of(clprChannelValue)));
     }
 
     public Builder<ClprCompleteChannelTransactionBody.Builder> clprCompleteChannel() {
@@ -350,10 +348,8 @@ public final class RecordItemBuilder {
                 .setVerifierContract(verifierContract)
                 .build();
         return new Builder<>(TransactionType.CLPRCOMPLETECHANNEL, builder)
-                .recordItem(r -> r.clprContextBuilder()
-                        .clprChannel(clprChannelValue)
-                        // Also populated by the generic transform() step; must match for fixture equality.
-                        .clprChannels(List.of(clprChannelValue)));
+                .recordItem(r ->
+                        r.clprContextBuilder().clprChannel(clprChannelValue).clprChannels(List.of(clprChannelValue)));
     }
 
     public Builder<ClprCompleteConnectorTransactionBody.Builder> clprCompleteConnector() {
@@ -381,7 +377,6 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.CLPRCOMPLETECONNECTOR, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprConnector(clprConnectorValue)
-                        // Also populated by the generic transform() step; must match for fixture equality.
                         .clprConnectors(List.of(clprConnectorValue)));
     }
 
@@ -413,8 +408,7 @@ public final class RecordItemBuilder {
     public Builder<ClprRegisterChannelTransactionBody.Builder> clprRegisterChannel() {
         var ownershipCommitment = bytes(32);
         var builder = ClprRegisterChannelTransactionBody.newBuilder().setOwnershipCommitment(ownershipCommitment);
-        return new Builder<>(TransactionType.CLPRREGISTERCHANNEL, builder)
-                .recordItem(r -> r.clprContextBuilder().clprChannelPendingCommitment(ownershipCommitment));
+        return new Builder<>(TransactionType.CLPRREGISTERCHANNEL, builder);
     }
 
     public Builder<ClprRegisterConnectorTransactionBody.Builder> clprRegisterConnector() {
@@ -455,7 +449,6 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.CLPRSUBMITBUNDLE, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannel(clprChannelValue)
-                        // Also populated by the generic transform() step; must match for fixture equality.
                         .clprChannels(List.of(clprChannelValue))
                         .clprMessages(List.of(new StateChangeContext.ClprMessageEntry(messageKey, messageValue))));
     }
