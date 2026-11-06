@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.165.1'
+      version: '0.166.0'
   dependsOn:
     - name: mirror
       namespace: common
@@ -46,10 +46,17 @@ spec:
       name: mirror
   values:
     global:
+      config:
+        hiero:
+          mirror:
+            common:
+              clusterId: "0c72d2a"
       hostname: "*.mirrornode.hedera.com"
     importer:
       env:
+        HIERO_MIRROR_IMPORTER_MIGRATION_BACKFILLCONTRACTCHILDMIGRATION_ENABLED: "false"
         HIERO_MIRROR_IMPORTER_MIGRATION_BACKFILLTRANSACTIONHASHMIGRATION_PARAMS_STARTTIMESTAMP: "0"
+        HIERO_MIRROR_IMPORTER_MIGRATION_FIXCONTRACTACTIONZEROADDRESSRECIPIENTMIGRATION_ENABLED: "false"
         HIERO_MIRROR_IMPORTER_NETWORK: "TESTNET"
         HIERO_MIRROR_IMPORTER_PARSER_RECORD_SIDECAR_ENABLED: "true"
         HIERO_MIRROR_IMPORTER_START_DATE: "1970-01-01T00:00:00.000000000Z"
@@ -70,12 +77,6 @@ spec:
         HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_PROPERTIES_TOPICID: "0.0.1926"
         HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_TPS: "0.25"
         HIERO_MIRROR_MONITOR_SUBSCRIBE_GRPC_HCS_TOPICID: "0.0.1926"
-    rest:
-      config:
-        hiero:
-          mirror:
-            rest:
-              clusterId: "0c72d2a"
       monitor:
         config:
           contract:
