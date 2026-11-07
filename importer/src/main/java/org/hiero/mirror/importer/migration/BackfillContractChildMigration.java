@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.migration;
 
+import com.google.common.collect.Lists;
 import jakarta.inject.Named;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -11,6 +12,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.function.Consumer;
 import java.util.stream.LongStream;
 import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
@@ -40,6 +43,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
 
     static final String DEFAULT_BATCH_INTERVAL = "3h";
+    static final String DEFAULT_BATCH_SIZE = "50000";
 
     // 2021-11-01T00:00:00Z, parent_consensus_timestamp was introduced with HAPI v0.21 so nothing earlier is a child
     static final long PARENT_CONSENSUS_TIMESTAMP_START = 1635724800000000000L;
@@ -57,13 +61,15 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
     private static final String BACKFILL_CHILD_BY_PARENT_SQL = """
             update contract_result
             set child = true
-            where consensus_timestamp >= :consensusStart
-              and consensus_timestamp <= :consensusEnd
+            where consensus_timestamp >= :minTimestamp
+              and consensus_timestamp <= :maxTimestamp
               and not child
-              and consensus_timestamp = any(cast(:childTimestamps as bigint[]))
+              and consensus_timestamp = any(cast(:timestamps as bigint[]))
             """;
 
     private static final String BATCH_INTERVAL_PROPERTIES_KEY = "batchInterval";
+
+    private static final String BATCH_SIZE_PROPERTIES_KEY = "batchSize";
 
     private static final String CHECKPOINT_SQL = """
             with clear_table as (delete from backfill_contract_child_progress_temp)
@@ -93,6 +99,8 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
             where consensus_timestamp >= :consensusStart
               and consensus_timestamp <= :consensusEnd
               and (parent_consensus_timestamp is not null or scheduled)
+            order by consensus_timestamp desc
+            limit :limit
             """;
 
     private static final String SELECT_CONTRACT_RESULTS = """
@@ -130,6 +138,7 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
             new DataClassRowMapper<>(TransactionRow.class);
 
     private final long batchInterval;
+    private int batchSize;
     private final EntityProperties entityProperties;
     private long firstHookOrScheduleTimestamp = Long.MAX_VALUE;
 
@@ -203,21 +212,17 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
         final var params = new MapSqlParameterSource()
                 .addValue("consensusStart", consensusStart)
                 .addValue("consensusEnd", consensusEnd);
-        int updatedResults = 0;
+        final int updated;
         if (consensusEnd < firstHookOrScheduleTimestamp) {
-            updatedResults = jdbcOperations.update(BACKFILL_CHILD_BY_NONCE_SQL, params);
+            updated = jdbcOperations.update(BACKFILL_CHILD_BY_NONCE_SQL, params);
         } else {
-            final var childTimestamps = findChildTimestamps(consensusStart, consensusEnd);
-            if (!childTimestamps.isEmpty()) {
-                params.addValue("childTimestamps", toArray(childTimestamps));
-                updatedResults = jdbcOperations.update(BACKFILL_CHILD_BY_PARENT_SQL, params);
-            }
+            updated = backfillChildByParent(consensusStart, consensusEnd);
         }
 
-        if (updatedResults > 0) {
+        if (updated > 0) {
             log.info(
                     "Backfilled child column for {} contract_result rows in range [{}, {}]",
-                    updatedResults,
+                    updated,
                     consensusStart,
                     consensusEnd);
         }
@@ -231,6 +236,12 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
     protected boolean performSynchronousSteps() {
         if (!entityProperties.getPersist().isContractResults()) {
             return false;
+        }
+
+        batchSize = Integer.parseInt(
+                migrationProperties.getParams().getOrDefault(BATCH_SIZE_PROPERTIES_KEY, DEFAULT_BATCH_SIZE));
+        if (batchSize <= 0) {
+            throw new IllegalArgumentException("Invalid non-positive batch size " + batchSize);
         }
 
         final var jdbcOperations = getJdbcOperations();
@@ -262,23 +273,45 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
         return true;
     }
 
-    private void findChildAndScheduledTransactions(
+    // Walks the window one page of child and scheduled transactions at a time, so each page's rows are released before
+    // the next one loads
+    private int backfillChildByParent(final long consensusStart, final long consensusEnd) {
+        int updatedResults = 0;
+        long pageEnd = consensusEnd;
+        while (pageEnd >= consensusStart) {
+            final var transactions = new TreeMap<Long, TransactionRow>();
+            final long pageStart = findChildAndScheduledTransactions(consensusStart, pageEnd, transactions);
+            for (final var chunk : Lists.partition(findChildTimestamps(pageStart, transactions), batchSize)) {
+                updatedResults +=
+                        getNamedParameterJdbcOperations().update(BACKFILL_CHILD_BY_PARENT_SQL, timestampParams(chunk));
+            }
+
+            pageEnd = pageStart - 1;
+        }
+
+        return updatedResults;
+    }
+
+    // Loads at most batchSize rows from the top of the range and returns the lowest timestamp the loaded rows cover
+    private long findChildAndScheduledTransactions(
             final long consensusStart, final long consensusEnd, final TreeMap<Long, TransactionRow> transactions) {
         final var params = new MapSqlParameterSource()
                 .addValue("consensusStart", consensusStart)
-                .addValue("consensusEnd", consensusEnd);
-        for (final var transaction : getNamedParameterJdbcOperations()
-                .query(SELECT_CHILD_AND_SCHEDULED_TRANSACTIONS, params, TRANSACTION_ROW_MAPPER)) {
+                .addValue("consensusEnd", consensusEnd)
+                .addValue("limit", batchSize);
+        final var page = getNamedParameterJdbcOperations()
+                .query(SELECT_CHILD_AND_SCHEDULED_TRANSACTIONS, params, TRANSACTION_ROW_MAPPER);
+        for (final var transaction : page) {
             transactions.put(transaction.consensusTimestamp(), transaction);
         }
+
+        return page.size() < batchSize ? consensusStart : page.getLast().consensusTimestamp();
     }
 
     // Loads every row EvmTransactionIndexCalculator walks to resolve a contract related parent: children, scheduled
     // executions, earlier siblings and the parents themselves
-    private List<Long> findChildTimestamps(final long consensusStart, final long consensusEnd) {
-        final var transactions = new TreeMap<Long, TransactionRow>();
-        findChildAndScheduledTransactions(consensusStart, consensusEnd, transactions);
-
+    private List<Long> findChildTimestamps(
+            final long consensusStart, final TreeMap<Long, TransactionRow> transactions) {
         final var minParent = transactions.values().stream()
                 .map(TransactionRow::parentConsensusTimestamp)
                 .filter(Objects::nonNull)
@@ -288,12 +321,13 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
             return List.of();
         }
 
-        final long minParentTimestamp = minParent.getAsLong();
-        if (minParentTimestamp + 1 < consensusStart) {
-            findChildAndScheduledTransactions(minParentTimestamp + 1, consensusStart - 1, transactions);
+        final long extensionStart = minParent.getAsLong() + 1;
+        long loadedFrom = consensusStart;
+        while (loadedFrom > extensionStart) {
+            loadedFrom = findChildAndScheduledTransactions(extensionStart, loadedFrom - 1, transactions);
         }
 
-        final var parentTimestamps = new ArrayList<Long>();
+        final var parentTimestamps = new TreeSet<Long>();
         for (final var transaction : transactions.values()) {
             final var parentTimestamp = transaction.parentConsensusTimestamp();
             if (parentTimestamp != null && !transactions.containsKey(parentTimestamp)) {
@@ -301,21 +335,18 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
             }
         }
 
-        if (!parentTimestamps.isEmpty()) {
-            for (final var parent : getNamedParameterJdbcOperations()
-                    .query(
-                            SELECT_TRANSACTIONS_BY_TIMESTAMP,
-                            timestampParams(parentTimestamps),
-                            TRANSACTION_ROW_MAPPER)) {
-                transactions.put(parent.consensusTimestamp(), parent);
-            }
-        }
+        queryByTimestamps(
+                SELECT_TRANSACTIONS_BY_TIMESTAMP,
+                new ArrayList<>(parentTimestamps),
+                TRANSACTION_ROW_MAPPER,
+                parent -> transactions.put(parent.consensusTimestamp(), parent));
 
         final var contractResults = new HashMap<Long, ContractResultRow>();
-        for (final var contractResult : getNamedParameterJdbcOperations()
-                .query(SELECT_CONTRACT_RESULTS, timestampParams(transactions.keySet()), CONTRACT_RESULT_ROW_MAPPER)) {
-            contractResults.put(contractResult.consensusTimestamp(), contractResult);
-        }
+        queryByTimestamps(
+                SELECT_CONTRACT_RESULTS,
+                new ArrayList<>(transactions.keySet()),
+                CONTRACT_RESULT_ROW_MAPPER,
+                contractResult -> contractResults.put(contractResult.consensusTimestamp(), contractResult));
 
         final var rows = new ArrayList<EvmTransactionIndexCalculator.Row>(transactions.size());
         for (final var transaction : transactions.values()) {
@@ -334,6 +365,16 @@ final class BackfillContractChildMigration extends AsyncJavaMigration<Long> {
         return EvmTransactionIndexCalculator.findChildren(rows, getHookContractId()).stream()
                 .filter(timestamp -> timestamp >= consensusStart)
                 .toList();
+    }
+
+    // Splits the sorted timestamps to chunks capped at batchSize elements
+    private <R> void queryByTimestamps(
+            final String sql, final List<Long> timestamps, final RowMapper<R> rowMapper, final Consumer<R> consumer) {
+        for (final var chunk : Lists.partition(timestamps, batchSize)) {
+            getNamedParameterJdbcOperations()
+                    .query(sql, timestampParams(chunk), rowMapper)
+                    .forEach(consumer);
+        }
     }
 
     // Bounding the lookup by its min and max timestamp lets the query skip the other time partitions
