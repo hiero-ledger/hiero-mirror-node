@@ -41,6 +41,7 @@ import org.hiero.mirror.importer.parser.CommonParserProperties;
 import org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogService;
 import org.hiero.mirror.importer.parser.contractresult.SyntheticContractResultService;
 import org.hiero.mirror.importer.parser.record.RecordParserProperties;
+import org.hiero.mirror.importer.parser.record.transactionhandler.ClprStateChangeHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
 import org.hiero.mirror.importer.repository.FileDataRepository;
@@ -64,6 +65,9 @@ class TransactionSignatureTest {
 
     @Mock
     private AddressBookService addressBookService;
+
+    @Mock
+    private ClprStateChangeHandler clprStateChangeHandler;
 
     @Mock
     private ContractResultService contractResultService;
@@ -109,6 +113,7 @@ class TransactionSignatureTest {
         final var transferEventsGenerator = new TransferEventsGenerator(syntheticContractLogService);
         final var recordParserProperties = new RecordParserProperties();
         entityRecordItemListener = new EntityRecordItemListener(
+                clprStateChangeHandler,
                 commonParserProperties,
                 contractResultService,
                 entityIdService,

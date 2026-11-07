@@ -8,6 +8,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.Message;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
+import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
@@ -15,6 +16,13 @@ import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
+import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprConnector;
+import com.hederahashgraph.api.proto.java.ClprConnectorKey;
+import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
+import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
+import com.hederahashgraph.api.proto.java.ClprMessageKey;
+import com.hederahashgraph.api.proto.java.ClprMessageValue;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
@@ -24,11 +32,13 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Topic;
 import com.hederahashgraph.api.proto.java.TopicID;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -52,6 +62,14 @@ public final class StateChangeContext {
     // A null value means the value written is absent from a partial state change
     private final Map<ContractSlotKey, @Nullable BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractSlotId, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
+    private final Map<ByteString, ClprChannel> clprChannels = new HashMap<>();
+    private final Map<ClprConnectorKey, ClprConnector> clprConnectors = new HashMap<>();
+    private final List<ClprConnectorKey> clprConnectorsRemoved = new ArrayList<>();
+
+    private @Nullable ClprEndpointManifest clprEndpointManifest;
+    private @Nullable ClprLedgerConfiguration clprLedgerConfiguration;
+
+    private final List<ClprMessageEntry> clprMessages = new ArrayList<>();
     private final List<Long> nodeIds = new ArrayList<>();
     private final List<FileID> fileIds = new ArrayList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
@@ -78,6 +96,11 @@ public final class StateChangeContext {
                     switch (stateChange.getStateId()) {
                         case StateIdentifier.STATE_ID_ACCOUNTS_VALUE -> processAccountStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_BYTECODE_VALUE -> processContractBytecode(mapUpdate);
+                        case StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE -> processClprChannelStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE ->
+                            processClprConnectorStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE ->
+                            processClprMessageStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_EVM_HOOK_STORAGE_VALUE -> processHookStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_FILES_VALUE ->
                             fileIds.add(mapUpdate.getKey().getFileIdKey());
@@ -95,8 +118,22 @@ public final class StateChangeContext {
                 } else if (stateChange.hasMapDelete()) {
                     final var key = stateChange.getMapDelete().getKey();
                     switch (key.getKeyChoiceCase()) {
+                        case CLPR_CONNECTOR_KEY -> clprConnectorsRemoved.add(key.getClprConnectorKey());
                         case EVM_HOOK_SLOT_KEY -> processContractStorageDelete(key.getEvmHookSlotKey());
                         case SLOT_KEY_KEY -> processContractStorageDelete(key.getSlotKeyKey());
+                        default -> {
+                            // do nothing
+                        }
+                    }
+                } else if (stateChange.hasSingletonUpdate()) {
+                    final var singletonUpdate = stateChange.getSingletonUpdate();
+                    switch (stateChange.getStateId()) {
+                        // Carried by the system-initiated ClprMaintenance transaction -- see
+                        // ClprMaintenanceTransformer/ClprMaintenanceTransactionHandler.
+                        case StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE ->
+                            processClprEndpointManifestStateChange(singletonUpdate);
+                        case StateIdentifier.STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE ->
+                            processClprLedgerConfigurationStateChange(singletonUpdate);
                         default -> {
                             // do nothing
                         }
@@ -118,6 +155,39 @@ public final class StateChangeContext {
     public @Nullable Long getAccountEthereumNonce(final AccountID id) {
         return accountEthereumNonces.get(id);
     }
+
+    public Optional<ClprChannel> getClprChannel(ByteString channelId) {
+        return Optional.ofNullable(clprChannels.get(channelId));
+    }
+
+    public List<ClprChannel> getClprChannels() {
+        return List.copyOf(clprChannels.values());
+    }
+
+    public Optional<ClprConnector> getClprConnector(ClprConnectorKey key) {
+        return Optional.ofNullable(clprConnectors.get(key));
+    }
+
+    public List<ClprConnector> getClprConnectors() {
+        return List.copyOf(clprConnectors.values());
+    }
+
+    public List<ClprConnectorKey> getClprConnectorsRemoved() {
+        return Collections.unmodifiableList(clprConnectorsRemoved);
+    }
+
+    public Optional<ClprEndpointManifest> getClprEndpointManifest() {
+        return Optional.ofNullable(clprEndpointManifest);
+    }
+
+    public Optional<ClprLedgerConfiguration> getClprLedgerConfiguration() {
+        return Optional.ofNullable(clprLedgerConfiguration);
+    }
+
+    public List<ClprMessageEntry> getClprMessages() {
+        return Collections.unmodifiableList(clprMessages);
+    }
+
 
     public @Nullable ByteString getContractBytecode(final ContractID id) {
         return contractBytecodes.get(id);
@@ -188,6 +258,14 @@ public final class StateChangeContext {
      */
     public boolean isTokenTotalSupplyAbsent(final TokenID tokenId) {
         return tokensWithAbsentTotalSupply.contains(tokenId);
+    }
+
+    /** Cheap presence check against the backing maps/list directly, without the allocations the getters make. */
+    public boolean hasClprState() {
+        return !clprChannels.isEmpty()
+                || !clprMessages.isEmpty()
+                || !clprConnectors.isEmpty()
+                || !clprConnectorsRemoved.isEmpty();
     }
 
     /**
@@ -279,6 +357,49 @@ public final class StateChangeContext {
                             .setContractNum(accountId.getAccountNum())
                             .build());
         }
+    }
+
+    private void processClprChannelStateChange(MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getValue().hasClprChannelValue()) {
+            return;
+        }
+
+        final var channelId = mapUpdate.getKey().getProtoBytesKey().getValue();
+        clprChannels.put(channelId, mapUpdate.getValue().getClprChannelValue());
+    }
+
+    private void processClprConnectorStateChange(MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasClprConnectorKey() || !mapUpdate.getValue().hasClprConnectorValue()) {
+            return;
+        }
+
+        clprConnectors.put(
+                mapUpdate.getKey().getClprConnectorKey(), mapUpdate.getValue().getClprConnectorValue());
+    }
+
+    private void processClprEndpointManifestStateChange(SingletonUpdateChange singletonUpdate) {
+        if (!singletonUpdate.hasClprEndpointManifestValue()) {
+            return;
+        }
+
+        clprEndpointManifest = singletonUpdate.getClprEndpointManifestValue();
+    }
+
+    private void processClprLedgerConfigurationStateChange(SingletonUpdateChange singletonUpdate) {
+        if (!singletonUpdate.hasClprLedgerConfigurationValue()) {
+            return;
+        }
+
+        clprLedgerConfiguration = singletonUpdate.getClprLedgerConfigurationValue();
+    }
+
+    private void processClprMessageStateChange(MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasClprMessageKey() || !mapUpdate.getValue().hasClprMessageValue()) {
+            return;
+        }
+
+        clprMessages.add(new ClprMessageEntry(
+                mapUpdate.getKey().getClprMessageKey(), mapUpdate.getValue().getClprMessageValue()));
     }
 
     private void processContractBytecode(MapUpdateChange mapUpdate) {
@@ -405,4 +526,6 @@ public final class StateChangeContext {
      * A storage slot and the value written to it, or null if the value is absent.
      */
     public record SlotValue(ByteString slot, @Nullable BytesValue valueWritten) {}
+
+    public record ClprMessageEntry(ClprMessageKey key, ClprMessageValue value) {}
 }

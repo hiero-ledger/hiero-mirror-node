@@ -33,6 +33,7 @@ import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapDeleteChange;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.SignScheduleOutput;
+import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
@@ -53,6 +54,8 @@ import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
+import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
@@ -92,6 +95,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
+import org.hiero.mirror.common.domain.transaction.ClprRecordContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -208,6 +212,187 @@ public class BlockTransactionBuilder {
                 Collections.emptyMap(),
                 Collections.emptyList(),
                 Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprCloseChannel(RecordItem recordItem) {
+        final var clprContext = recordItem.getClprContext();
+        final var clprChannelValue = Optional.ofNullable(clprContext)
+                .map(ClprRecordContext::getClprChannel)
+                .orElse(null);
+        if (clprChannelValue == null) {
+            // No Channel exists yet for this channel_id -- consensus never revealed one (the commit-reveal scheme
+            // keeps channel_id secret until ClprCompleteChannel), so this is an admin sweep of an abandoned,
+            // never-completed registration. ClprCloseChannelTransactionHandler reads ownership_commitment straight
+            // off the transaction body for that case, not off a state change, so there's nothing to attach here.
+            return defaultBlockItem(recordItem);
+        }
+
+        final var channelId =
+                recordItem.getTransactionBody().getClprCloseChannel().getChannelId();
+        final var stateChange = clprChannelStateChange(channelId, clprChannelValue);
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprCompleteChannel(RecordItem recordItem) {
+        final var channelId =
+                recordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
+        final var stateChange =
+                clprChannelStateChange(channelId, recordItem.getClprContext().getClprChannel());
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprCompleteConnector(RecordItem recordItem) {
+        final var body = recordItem.getTransactionBody().getClprCompleteConnector();
+        final var key = ClprConnectorKey.newBuilder()
+                .setChannelId(body.getChannelId())
+                .setConnectorId(body.getConnectorId())
+                .build();
+        final var stateChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))
+                        .setValue(MapChangeValue.newBuilder()
+                                .setClprConnectorValue(
+                                        recordItem.getClprContext().getClprConnector())))
+                .build();
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprMaintenance(RecordItem recordItem) {
+        final var stateChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE)
+                .setSingletonUpdate(SingletonUpdateChange.newBuilder()
+                        .setClprEndpointManifestValue(
+                                recordItem.getClprContext().getClprEndpointManifest()))
+                .build();
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder()
+                        .setConsensusTimestamp(timestamp(recordItem.getConsensusTimestamp()))
+                        .addStateChanges(stateChange)
+                        .build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprRegisterChannel(RecordItem recordItem) {
+        final var stateChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder()
+                                .setProtoBytesKey(BytesValue.of(recordItem
+                                        .getTransactionBody()
+                                        .getClprRegisterChannel()
+                                        .getOwnershipCommitment())))
+                        .setValue(MapChangeValue.newBuilder().setProtoBytesValue(BytesValue.getDefaultInstance())))
+                .build();
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprRegisterConnector(RecordItem recordItem) {
+        final var stateChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder()
+                                .setProtoBytesKey(BytesValue.of(recordItem
+                                        .getTransactionBody()
+                                        .getClprRegisterConnector()
+                                        .getCommitment())))
+                        .setValue(MapChangeValue.newBuilder().setProtoBytesValue(BytesValue.getDefaultInstance())))
+                .build();
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprSubmitBundle(RecordItem recordItem) {
+        final var channelId =
+                recordItem.getTransactionBody().getClprSubmitBundle().getChannelId();
+        final var stateChangesBuilder = StateChanges.newBuilder()
+                .addStateChanges(clprChannelStateChange(
+                        channelId, recordItem.getClprContext().getClprChannel()));
+        for (final var entry : recordItem.getClprContext().getClprMessages()) {
+            stateChangesBuilder.addStateChanges(StateChange.newBuilder()
+                    .setStateId(StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE)
+                    .setMapUpdate(MapUpdateChange.newBuilder()
+                            .setKey(MapChangeKey.newBuilder().setClprMessageKey(entry.key()))
+                            .setValue(MapChangeValue.newBuilder().setClprMessageValue(entry.value()))));
+        }
+        for (final var connector : recordItem.getClprContext().getClprConnectors()) {
+            final var connectorKey = ClprConnectorKey.newBuilder()
+                    .setChannelId(connector.getChannelId())
+                    .setConnectorId(connector.getConnectorId())
+                    .build();
+            stateChangesBuilder.addStateChanges(StateChange.newBuilder()
+                    .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
+                    .setMapUpdate(MapUpdateChange.newBuilder()
+                            .setKey(MapChangeKey.newBuilder().setClprConnectorKey(connectorKey))
+                            .setValue(MapChangeValue.newBuilder().setClprConnectorValue(connector))));
+        }
+        for (final var key : recordItem.getClprContext().getClprConnectorsRemoved()) {
+            stateChangesBuilder.addStateChanges(StateChange.newBuilder()
+                    .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
+                    .setMapDelete(MapDeleteChange.newBuilder()
+                            .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))));
+        }
+
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(stateChangesBuilder.build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprUpdateLedgerConfiguration(RecordItem recordItem) {
+        final var stateChange = StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE)
+                .setSingletonUpdate(SingletonUpdateChange.newBuilder()
+                        .setClprLedgerConfigurationValue(
+                                recordItem.getClprContext().getClprLedgerConfiguration()))
+                .build();
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(StateChanges.newBuilder()
+                        .setConsensusTimestamp(timestamp(recordItem.getConsensusTimestamp()))
+                        .addStateChanges(stateChange)
+                        .build()),
+                Collections.emptyList());
+    }
+
+    private StateChange clprChannelStateChange(ByteString channelId, ClprChannel clprChannelValue) {
+        return StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(channelId)))
+                        .setValue(MapChangeValue.newBuilder().setClprChannelValue(clprChannelValue)))
+                .build();
     }
 
     public Builder consensusCreateTopic(RecordItem recordItem) {

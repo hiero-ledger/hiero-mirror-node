@@ -18,6 +18,9 @@ public class CacheProperties {
     @NotBlank
     private String alias = "maximumSize=100000,expireAfterAccess=30m,recordStats";
 
+    @NotBlank
+    private String clprConnectorCommitment = "maximumSize=100000,expireAfterAccess=30m,recordStats";
+
     private boolean enabled = true;
 
     @NotBlank
