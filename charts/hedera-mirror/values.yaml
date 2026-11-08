@@ -182,7 +182,7 @@ redis:
   kubectl:
     image:
       repository: rancher/kubectl
-      tag: v1.35.5
+      tag: v1.36.2
   metrics:
     image:
       repository: bitnamilegacy/redis-exporter
