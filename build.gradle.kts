@@ -45,7 +45,7 @@ dependencies {
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.7.2-jre")
+        api("com.google.guava:guava:33.8.0-jre")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
@@ -84,7 +84,7 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.1.0")
         api("org.xerial.snappy:snappy-java:1.1.10.12") // Temporary until next Besu
-        api("software.amazon.awssdk:bom:2.57.6")
+        api("software.amazon.awssdk:bom:2.57.9")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
