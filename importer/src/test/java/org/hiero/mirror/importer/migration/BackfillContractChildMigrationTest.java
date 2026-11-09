@@ -274,6 +274,70 @@ final class BackfillContractChildMigrationTest extends AbstractAsyncJavaMigratio
     }
 
     @Test
+    void paginatesWithinBatchInterval() {
+        // given: pages of two child or scheduled transactions split hook chains and families
+        final var hookTrigger = transaction(0, null, false);
+        final var hookExecution = transaction(1, hookTrigger.getConsensusTimestamp(), false);
+        final var hookResult = hookContractResult(hookExecution);
+        final var hookDispatched = transaction(2, hookTrigger.getConsensusTimestamp(), false);
+        final var hookDispatchedResult = contractResult(hookDispatched);
+
+        final var brokenHookTrigger = transaction(0, null, false);
+        final var brokenHookExecution = transaction(1, brokenHookTrigger.getConsensusTimestamp(), false);
+        hookContractResult(brokenHookExecution);
+        transaction(2, brokenHookTrigger.getConsensusTimestamp(), false);
+        final var afterBrokenChain = transaction(3, brokenHookTrigger.getConsensusTimestamp(), false);
+        final var afterBrokenChainResult = contractResult(afterBrokenChain);
+
+        final var scheduleSign = transaction(0, null, false);
+        final var scheduledCall = transaction(0, null, true);
+        final var scheduledCallResult = contractResult(scheduledCall);
+        final var scheduledCallEffect = transaction(1, scheduleSign.getConsensusTimestamp(), false);
+        final var scheduledCallEffectResult = contractResult(scheduledCallEffect);
+
+        final var hookBatch = transaction(0, null, false);
+        final var hookBatchTransfer = transaction(0, hookBatch.getConsensusTimestamp(), false);
+        final var hookBatchExecution = transaction(1, hookBatchTransfer.getConsensusTimestamp(), false);
+        hookContractResult(hookBatchExecution);
+        final var hookBatchDispatched = transaction(2, hookBatchTransfer.getConsensusTimestamp(), false);
+        final var hookBatchDispatchedResult = contractResult(hookBatchDispatched);
+        final var hookBatchInnerCall = transaction(0, hookBatch.getConsensusTimestamp(), false);
+        final var hookBatchInnerCallResult = contractResult(hookBatchInnerCall);
+
+        // the first page holds the last two children, so loading their siblings back to the parent takes two pages
+        final var contractCall = transaction(0, null, false);
+        final var contractCallResult = contractResult(contractCall);
+        final var contractCallChildResults = new ContractResult[4];
+        for (int i = 0; i < contractCallChildResults.length; i++) {
+            contractCallChildResults[i] =
+                    contractResult(transaction(i + 1, contractCall.getConsensusTimestamp(), false));
+        }
+
+        migration.migrationProperties.getParams().put("batchSize", "2");
+
+        try {
+            // when
+            runMigration();
+            waitForCompletion();
+        } finally {
+            migration.migrationProperties.getParams().remove("batchSize");
+        }
+
+        // then
+        assertChild(hookResult, false);
+        assertChild(hookDispatchedResult, true);
+        assertChild(afterBrokenChainResult, false);
+        assertChild(scheduledCallResult, false);
+        assertChild(scheduledCallEffectResult, true);
+        assertChild(hookBatchDispatchedResult, true);
+        assertChild(hookBatchInnerCallResult, false);
+        assertChild(contractCallResult, false);
+        for (final var result : contractCallChildResults) {
+            assertChild(result, true);
+        }
+    }
+
+    @Test
     void processesMultipleBatchIntervals() {
         // given: two children more than one batch interval apart
         final var recentChild = childOfContractCall(domainBuilder.timestamp());
