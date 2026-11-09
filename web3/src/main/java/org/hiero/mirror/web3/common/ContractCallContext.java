@@ -72,6 +72,12 @@ public class ContractCallContext {
     @Setter
     private Map<Bytes, StateOverride> stateOverrides;
 
+    /**
+     * Approximate serialized size of the trace data of the current execution.
+     */
+    @Setter
+    private long traceDataBytes;
+
     private ContractCallContext() {}
 
     public static ContractCallContext get() {
