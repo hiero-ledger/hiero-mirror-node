@@ -460,28 +460,30 @@ public class MirrorNodeClient {
      * hbars / cents}, since one hbar is \(10^8\) tinybars and one cent is \(10^8\) tinycents.
      *
      * <p>A contract create also charges gas during EVM execution. That gas is subtracted from the charged fee so the
-     * comparison covers the simple fee, including the base fee, keys, and hooks.
+     * comparison covers the simple fee, including the base fee, keys, and hooks. {@code contractKeyTinycents} is the
+     * KEYS fee for contract id keys that the 0.78 calculator omits and a newer consensus node charges. The charged fee
+     * may match either the estimate or the estimate plus that amount.
      *
      * @param transactionId the ID of the executed transaction
      * @param exchangeRate the exchange rate from the transaction receipt
      * @param estimate the fee estimate obtained before the transaction was executed
      * @param tolerancePercent the maximum allowed deviation between the charged and estimated fee, in percent
+     * @param contractKeyTinycents extra KEYS tinycents a newer node charges for contract id keys
      * @return the mirror node transactions for {@code transactionId}, for reuse by later assertions
      */
     public TransactionByIdResponse verifyFeeEstimate(
             final TransactionId transactionId,
             final ExchangeRate exchangeRate,
             final FeeEstimateResponse estimate,
-            final double tolerancePercent) {
+            final double tolerancePercent,
+            final long contractKeyTinycents) {
         if (estimate == null || estimate.getTotal() <= 0) {
             log.debug("Skipping fee verification for {} since the estimate has no total", transactionId);
             return null;
         }
 
-        final long expectedTinybars = BigDecimal.valueOf(estimate.getTotal())
-                .multiply(BigDecimal.valueOf(exchangeRate.hbars))
-                .divide(BigDecimal.valueOf(exchangeRate.cents), 0, RoundingMode.HALF_UP)
-                .longValue();
+        final long estimatedTinybars = toTinybars(estimate.getTotal(), exchangeRate);
+        final long contractKeyTinybars = contractKeyTinycents > 0 ? toTinybars(contractKeyTinycents, exchangeRate) : 0L;
         final var restTransactionId = toRestTransactionId(transactionId);
         final var transactionsResponse = getTransactions(restTransactionId);
         final var transactions = transactionsResponse.getTransactions();
@@ -508,6 +510,14 @@ public class MirrorNodeClient {
                 ? chargedTinybars - contractCreateGasTinybars(restTransactionId)
                 : chargedTinybars;
 
+        // A node that counts contract id keys charges contractKeyTinybars more than the 0.78 estimate. A 0.78 node
+        // charges the estimate itself. Compare against whichever of the two the receipt is closer to.
+        final long withContractKeys = Math.addExact(estimatedTinybars, contractKeyTinybars);
+        final long expectedTinybars =
+                Math.abs(comparableTinybars - withContractKeys) < Math.abs(comparableTinybars - estimatedTinybars)
+                        ? withContractKeys
+                        : estimatedTinybars;
+
         final double deviationPercent = expectedTinybars == 0
                 ? 0.0
                 : Math.abs(comparableTinybars - expectedTinybars) * 100.0 / expectedTinybars;
@@ -517,6 +527,13 @@ public class MirrorNodeClient {
                         comparableTinybars, transactionId, expectedTinybars)
                 .isLessThanOrEqualTo(tolerancePercent);
         return transactionsResponse;
+    }
+
+    private static long toTinybars(final long tinycents, final ExchangeRate exchangeRate) {
+        return BigDecimal.valueOf(tinycents)
+                .multiply(BigDecimal.valueOf(exchangeRate.hbars))
+                .divide(BigDecimal.valueOf(exchangeRate.cents), 0, RoundingMode.HALF_UP)
+                .longValue();
     }
 
     /**

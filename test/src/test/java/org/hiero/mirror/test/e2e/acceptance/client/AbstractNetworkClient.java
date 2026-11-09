@@ -228,7 +228,8 @@ abstract class AbstractNetworkClient implements Cleanable {
                             acceptanceTestProperties
                                     .getRestJavaProperties()
                                     .getFeeEstimation()
-                                    .getTolerancePercent());
+                                    .getTolerancePercent(),
+                            ContractKeyFee.extraTinycents(transaction.toBytes()));
         }
 
         return new NetworkTransactionResponse(stopwatch, transactionId, transactionReceipt, transactions);
