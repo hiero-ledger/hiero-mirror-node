@@ -37,6 +37,9 @@ public abstract class AbstractActionTracer implements ActionSidecarContentTracer
     @VisibleForTesting
     static final ContractAction ACTION_TEMPLATE = newActionTemplate();
 
+    // Size of the template without its call depth and caller and recipient numbers, which vary per action
+    private static final int ACTION_TEMPLATE_BYTES = actionTemplateBytes();
+
     // The number of a missing account is unknown, so it is assumed to have the largest number in practice
     private static final int MISSING_NUM_BYTES = 4;
     private static final int TEMPLATE_CALL_DEPTH = 1;
@@ -99,9 +102,15 @@ public abstract class AbstractActionTracer implements ActionSidecarContentTracer
         return List.of();
     }
 
-    // The input, call depth and caller and recipient numbers vary per action, so they adjust the template's size
+    private static int actionTemplateBytes() {
+        return ACTION_TEMPLATE.protobufSize()
+                - callDepthBytes(TEMPLATE_CALL_DEPTH)
+                - 2 * ProtoWriterTools.sizeOfVarInt64(TEMPLATE_CONTRACT_NUM);
+    }
+
+    // The input, call depth and caller and recipient numbers vary per action, so they are added to the template's size
     private static void addActionInput(final MessageFrame frame) {
-        final int actionBytes = ACTION_TEMPLATE.protobufSize()
+        final int actionBytes = ACTION_TEMPLATE_BYTES
                 + callDepthBytes(frame.getDepth())
                 + contractNumBytes(frame, frame.getSenderAddress())
                 + contractNumBytes(frame, frame.getContractAddress())
@@ -134,19 +143,13 @@ public abstract class AbstractActionTracer implements ActionSidecarContentTracer
         }
     }
 
-    // Size of the actual call depth relative to the template's, as the top-level depth of zero is omitted
+    // Size of the call depth field, as the top-level depth of zero is omitted
     private static int callDepthBytes(final int depth) {
-        final int depthBytes = depth == 0 ? 0 : 1 + ProtoWriterTools.sizeOfVarInt32(depth);
-        return depthBytes - (1 + ProtoWriterTools.sizeOfVarInt32(TEMPLATE_CALL_DEPTH));
+        return depth == 0 ? 0 : 1 + ProtoWriterTools.sizeOfVarInt32(depth);
     }
 
-    // Size of the actual caller or recipient number relative to the template's. An alias is resolved to its account,
-    // which the EVM has already loaded.
+    // Size of the caller or recipient number. An alias is resolved to its account, which the EVM has already loaded.
     private static int contractNumBytes(final MessageFrame frame, final Address address) {
-        return contractNumBytesOf(frame, address) - ProtoWriterTools.sizeOfVarInt64(TEMPLATE_CONTRACT_NUM);
-    }
-
-    private static int contractNumBytesOf(final MessageFrame frame, final Address address) {
         if (isLongZero(address)) {
             return ProtoWriterTools.sizeOfVarInt64(numberOfLongZero(address));
         }
