@@ -253,7 +253,7 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
 
     @Override
     public MigrationVersion getVersion() {
-        return v2 ? MigrationVersion.fromVersion("2.35.3") : MigrationVersion.fromVersion("1.130.3");
+        return v2 ? MigrationVersion.fromVersion("2.36.0") : MigrationVersion.fromVersion("1.131.0");
     }
 
     @Override
