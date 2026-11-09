@@ -290,6 +290,33 @@ class AccountReadableKVStateTest {
     }
 
     @Test
+    void emptyKeyListOnContractIsNotHollowSentinel() {
+        final var contractEntity = entity.toBuilder()
+                .type(EntityType.CONTRACT)
+                .key(com.hederahashgraph.api.proto.java.Key.newBuilder()
+                        .setKeyList(com.hederahashgraph.api.proto.java.KeyList.getDefaultInstance())
+                        .build()
+                        .toByteArray())
+                .build();
+        when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.of(contractEntity));
+        final var mockedConfiguration = mock(VersionedConfiguration.class);
+        final var mockedContractsConfig = mock(ContractsConfig.class);
+        when(evmProperties.getVersionedConfiguration()).thenReturn(mockedConfiguration);
+        when(mockedConfiguration.getConfigData(ContractsConfig.class)).thenReturn(mockedContractsConfig);
+        when(mockedContractsConfig.maxKvPairsIndividual()).thenReturn(1);
+        assertThat(accountReadableKVState.get(ACCOUNT_ID))
+                .satisfies(account -> assertThat(account.key())
+                        .isEqualTo(Key.newBuilder()
+                                .contractID(ContractID.newBuilder()
+                                        .shardNum(contractEntity.getShard())
+                                        .realmNum(contractEntity.getRealm())
+                                        .contractNum(contractEntity.getNum())
+                                        .build())
+                                .build()));
+    }
+
+    @Test
     void accountIsNullWhenTheAccountIdIsToken() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID_TOKEN, Optional.empty())).thenReturn(Optional.ofNullable(token));
