@@ -77,12 +77,11 @@ describe('ParentChild', function () {
 
     const salt = 42;
 
-    const childBytecode = await parent.getBytecode();
-    const childEvmAddress = await parent.getAddress(childBytecode, salt);
+    const childEvmAddress = await parent.getAddress(salt);
     expect(ethers.utils.isAddress(childEvmAddress)).to.equal(true);
 
     const [account1] = await ethers.getSigners();
-    const submitCreate2DeployTx = await parent.connect(account1).create2Deploy(childBytecode, salt);
+    const submitCreate2DeployTx = await parent.connect(account1).create2Deploy(salt);
 
     // wait until the transaction is mined
     const contractDeployResult = await submitCreate2DeployTx.wait();
