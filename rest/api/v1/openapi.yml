@@ -1980,9 +1980,9 @@ components:
           type: string
           format: binary
         balance:
-          description: The account balance as a hex-encoded quantity in weibars
-          type: string
-          format: binary
+          description: The account balance in tinybars
+          type: integer
+          format: int64
         code:
           description: the bytecode of the account
           type: string
