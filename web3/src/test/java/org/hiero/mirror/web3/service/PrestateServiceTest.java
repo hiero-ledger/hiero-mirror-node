@@ -81,8 +81,8 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPost()).hasSize(1);
-        assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0xe8d4a51000");
-        assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x15d3ef79800");
+        assertThat(response.getPre().getFirst().getBalance()).isEqualTo(100L);
+        assertThat(response.getPost().getFirst().getBalance()).isEqualTo(150L);
         assertThat(response.getPost().getFirst().getNonce()).isNull();
     }
 
@@ -289,7 +289,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPost()).hasSize(1);
         assertThat(response.getPre().getFirst().getAddress()).isEqualTo(toLongZeroAddress(changedAccount));
-        assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x15d3ef79800");
+        assertThat(response.getPost().getFirst().getBalance()).isEqualTo(150L);
     }
 
     @Test
@@ -945,7 +945,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPre().getFirst().getAddress()).isEqualTo(toLongZeroAddress(fixture.contractId()));
-        assertThat(response.getPre().getFirst().getBalance()).isEqualTo("0x746a528800");
+        assertThat(response.getPre().getFirst().getBalance()).isEqualTo(50L);
         assertThat(response.getPre().getFirst().getNonce()).isEqualTo(0L);
         assertThat(response.getPre().getFirst().getCode()).isNull();
         assertThat(response.getPre().getFirst().getStorage()).isNullOrEmpty();
@@ -974,7 +974,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         assertThat(response.getPre().getFirst().getCode()).isEqualTo(rawHex(RUNTIME_BYTECODE));
         assertThat(response.getPost()).hasSize(1);
         assertThat(response.getPost().getFirst().getCode()).isNull();
-        assertThat(response.getPost().getFirst().getBalance()).isEqualTo("0x8bb2c97000");
+        assertThat(response.getPost().getFirst().getBalance()).isEqualTo(60L);
     }
 
     @Test
@@ -1011,7 +1011,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                 .singleElement()
                 .satisfies(t -> {
                     assertThat(t.getNonce()).isEqualTo(0L);
-                    assertThat(t.getBalance()).isEqualTo("0x3a35294400");
+                    assertThat(t.getBalance()).isEqualTo(25L);
                 });
     }
 
@@ -1102,7 +1102,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                 .filteredOn(t -> deletedAddress.equals(t.getAddress()))
                 .singleElement()
                 .extracting(t -> t.getBalance())
-                .isEqualTo("0x746a528800");
+                .isEqualTo(50L);
         assertThat(response.getPost()).extracting(t -> t.getAddress()).doesNotContain(deletedAddress);
     }
 

@@ -7,6 +7,9 @@ import com.hedera.hashgraph.sdk.TransactionId;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.rest.model.TransactionByIdResponse;
+import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
+import org.jspecify.annotations.Nullable;
 
 @Value
 public class NetworkTransactionResponse {
@@ -15,10 +18,13 @@ public class NetworkTransactionResponse {
     private final TransactionId transactionId;
     private final TransactionReceipt receipt;
 
+    /** Transactions already loaded from the mirror node, when fee verification fetched them. */
+    @Nullable
+    private final TransactionByIdResponse transactions;
+
     // interim function until mirror node supports checksum
     public String getTransactionIdStringNoCheckSum() {
-        String accountIdString = transactionId.accountId.toString().split("-")[0];
-        return accountIdString + "-" + transactionId.validStart.getEpochSecond() + "-" + getPaddedNanos();
+        return TestUtil.toRestTransactionId(transactionId);
     }
 
     public String getValidStartString() {
