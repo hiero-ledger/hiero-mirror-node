@@ -73,6 +73,7 @@ import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
+import org.hiero.mirror.common.domain.clpr.ClprMessageReplyStatus;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
@@ -290,13 +291,16 @@ public class DomainBuilder {
         var builder = ClprChannel.builder()
                 .ackedMessageId(0L)
                 .chainId("hedera:mainnet")
+                .channelContext(bytes(16))
                 .channelId(bytes(32))
                 .configProofBytes(bytes(16))
                 .createdTimestamp(createdTimestamp)
                 .endpointManifestProofBytes(bytes(16))
                 .endpointManifestVersion(0L)
+                .lastConfigTimestamp(timestamp())
                 .nextMessageId(1L)
                 .ownershipCommitment(bytes(32))
+                .peerConfigTimestamp(timestamp())
                 .publicKey(bytes(64))
                 .receivedMessageId(0L)
                 .receivedRunningHash(bytes(32))
@@ -305,6 +309,8 @@ public class DomainBuilder {
                 .signatureScheme(ClprSignatureScheme.ED25519)
                 .status(ClprChannelStatus.ACTIVE)
                 .timestampRange(Range.atLeast(createdTimestamp))
+                .trustAnchor(bytes(32))
+                .trustAnchorId(bytes(32))
                 .verifierContractId(entityId())
                 .verifierFingerprint(bytes(32));
         return new DomainWrapperImpl<>(builder, builder::build);
@@ -404,6 +410,34 @@ public class DomainBuilder {
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
+    // Shape mirrors ClprStateChangeHandler#toMessage's CONTROL case: only controlMessage set, connectorId stays null
+    // since ClprControlMessage has no connector_id field on the wire.
+    public DomainWrapper<ClprMessage, ClprMessage.ClprMessageBuilder> clprControlMessage() {
+        var builder = clprMessageBuilder()
+                .controlMessage(ClprControlMessage.builder()
+                        .configUpdate(ClprConfigUpdate.builder()
+                                .configuration(ClprControlConfiguration.builder()
+                                        .chainId("hedera:mainnet")
+                                        .initialTrustAnchor(bytes(32))
+                                        .initialTrustAnchorId(bytes(32))
+                                        .protocolVersion(1L)
+                                        .serviceAddress(bytes(20))
+                                        .throttle(ClprThrottle.builder()
+                                                .maxGasPerMessage(1_000_000L)
+                                                .maxLocalEndpoints(10L)
+                                                .maxMessagePayloadBytes(6_000L)
+                                                .maxMessagesPerBundle(100L)
+                                                .maxPeerEndpoints(10L)
+                                                .maxQueueDepth(1_000L)
+                                                .maxSyncBytes(6_000_000L)
+                                                .build())
+                                        .build())
+                                .build())
+                        .build())
+                .messageType(ClprMessageType.CONTROL);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
     public DomainWrapper<ClprEndpointManifest, ClprEndpointManifest.ClprEndpointManifestBuilder>
             clprEndpointManifest() {
         var builder = ClprEndpointManifest.builder()
@@ -442,37 +476,26 @@ public class DomainBuilder {
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
+    // Shape mirrors ClprStateChangeHandler#toMessage's MESSAGE case: connectorId/sender/targetApplication/messageData
+    // set, no controlMessage or reply fields.
     public DomainWrapper<ClprMessage, ClprMessage.ClprMessageBuilder> clprMessage() {
-        var builder = ClprMessage.builder()
-                .channelId(bytes(32))
+        var builder = clprMessageBuilder()
                 .connectorId(bytes(32))
-                .consensusTimestamp(timestamp())
-                .controlMessage(ClprControlMessage.builder()
-                        .configUpdate(ClprConfigUpdate.builder()
-                                .configuration(ClprControlConfiguration.builder()
-                                        .chainId("hedera:mainnet")
-                                        .initialTrustAnchor(bytes(32))
-                                        .initialTrustAnchorId(bytes(32))
-                                        .protocolVersion(1L)
-                                        .serviceAddress(bytes(20))
-                                        .throttle(ClprThrottle.builder()
-                                                .maxGasPerMessage(1_000_000L)
-                                                .maxLocalEndpoints(10L)
-                                                .maxMessagePayloadBytes(6_000L)
-                                                .maxMessagesPerBundle(100L)
-                                                .maxPeerEndpoints(10L)
-                                                .maxQueueDepth(1_000L)
-                                                .maxSyncBytes(6_000_000L)
-                                                .build())
-                                        .build())
-                                .build())
-                        .build())
                 .messageData(bytes(256))
-                .messageId(number())
                 .messageType(ClprMessageType.DATA)
-                .runningHash(bytes(32))
                 .sender(bytes(20))
                 .targetApplication(bytes(20));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    // Shape mirrors ClprStateChangeHandler#toMessage's MESSAGE_REPLY case: replyToMessageId/replyStatus/messageData
+    // set, connectorId stays null since ClprMessageReply has no connector_id field on the wire.
+    public DomainWrapper<ClprMessage, ClprMessage.ClprMessageBuilder> clprResponseMessage() {
+        var builder = clprMessageBuilder()
+                .messageData(bytes(256))
+                .messageType(ClprMessageType.RESPONSE)
+                .replyStatus(ClprMessageReplyStatus.SUCCESS)
+                .replyToMessageId(number());
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -1615,6 +1638,14 @@ public class DomainBuilder {
 
     private long tinybar() {
         return number() * TINYBARS_IN_ONE_HBAR;
+    }
+
+    private ClprMessage.ClprMessageBuilder clprMessageBuilder() {
+        return ClprMessage.builder()
+                .channelId(bytes(32))
+                .consensusTimestamp(timestamp())
+                .messageId(number())
+                .runningHash(bytes(32));
     }
 
     private FallbackFee fallbackFee() {
