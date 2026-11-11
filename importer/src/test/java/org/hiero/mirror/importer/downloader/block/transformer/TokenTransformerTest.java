@@ -11,6 +11,7 @@ import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
+import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Token;
@@ -18,6 +19,7 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
+import java.util.HashSet;
 import java.util.List;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
@@ -52,6 +54,52 @@ class TokenTransformerTest extends AbstractTransformerTest {
         var recordFile = blockFileTransformer.transform(blockFile);
 
         // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void tokenAirdropAmountAbsent() {
+        // given
+        final var amountAbsent = new HashSet<PendingAirdropId>();
+        final var expectedRecordItem = recordItemBuilder
+                .tokenAirdrop()
+                .record(r -> {
+                    for (var pendingAirdrop : r.getNewPendingAirdropsBuilderList()) {
+                        if (pendingAirdrop.getPendingAirdropId().hasFungibleTokenType()) {
+                            // the transfer amount in the transaction body
+                            pendingAirdrop.getPendingAirdropValueBuilder().setAmount(100);
+                            amountAbsent.add(pendingAirdrop.getPendingAirdropId());
+                        }
+                    }
+                })
+                .recordItem(r -> r.pendingAirdropAmountAbsent(amountAbsent))
+                .customize(this::finalize)
+                .build();
+        // the pending airdrop's state change is partial without the amount, since the unit's net change is zero
+        final var blockTransaction = blockTransactionBuilder
+                .tokenAirdrop(expectedRecordItem)
+                .stateChanges(stateChangesList -> stateChangesList.replaceAll(stateChanges -> {
+                    final var builder = stateChanges.toBuilder();
+                    for (var stateChange : builder.getStateChangesBuilderList()) {
+                        final var mapUpdate = stateChange.getMapUpdateBuilder();
+                        if (amountAbsent.contains(mapUpdate.getKey().getPendingAirdropIdKey())) {
+                            mapUpdate
+                                    .setPartial(true)
+                                    .getValueBuilder()
+                                    .getAccountPendingAirdropValueBuilder()
+                                    .clearPendingAirdropValue();
+                        }
+                    }
+                    return builder.build();
+                }))
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertThat(amountAbsent).hasSize(1);
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 

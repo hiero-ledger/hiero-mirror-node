@@ -55,6 +55,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.commons.collections4.ListUtils;
@@ -648,12 +649,17 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                                         .setAccountID(receiver2)
                                         .setAmount(800)))
                         // there is preexisting pending airdrop, so amount should be accumulated. However since it's
-                        // cancelled afterward, there is no state changes to tell the exact amount, the best shot
-                        // would be the amount to transfer in the body
+                        // cancelled afterward, there is no state changes to tell the exact amount, so the record has
+                        // the amount to transfer in the body and the parser accumulates it onto the existing amount
                         .clearNewPendingAirdrops()
                         .addNewPendingAirdrops(fungiblePendingAirdropRecord(1200, receiver1, sender, tokenId1))
                         .addNewPendingAirdrops(fungiblePendingAirdropRecord(900, receiver1, sender, tokenId2)))
-                .recordItem(r -> r.transactionIndex(1))
+                .recordItem(r -> r.transactionIndex(1)
+                        .pendingAirdropAmountAbsent(Set.of(PendingAirdropId.newBuilder()
+                                .setReceiverId(receiver1)
+                                .setSenderId(sender)
+                                .setFungibleTokenType(tokenId1)
+                                .build())))
                 .customize(this::finalize)
                 .build();
         // cancels pending airdrop <receiver1, sender, tokenId1>

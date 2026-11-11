@@ -28,10 +28,12 @@ final class TokenAirdropTransformer extends AbstractBlockTransactionTransformer 
             return;
         }
 
-        var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
-        var pendingAirdrops = getPendingAirdrops(
+        final var recordItemBuilder = blockTransactionTransformation.recordItemBuilder();
+        final var recordBuilder = recordItemBuilder.transactionRecordBuilder();
+        final var pendingAirdrops = getPendingAirdrops(
                 blockTransactionTransformation.getTransactionBody().getTokenAirdrop(),
                 blockTransaction.getTransactionResult());
+        final var amountAbsent = new HashSet<PendingAirdropId>();
         for (var pendingAirdrop : pendingAirdrops) {
             var pendingAirdropId = pendingAirdrop.id();
             if (pendingAirdropId.hasFungibleTokenType()) {
@@ -39,10 +41,9 @@ final class TokenAirdropTransformer extends AbstractBlockTransactionTransformer 
                         .getStateChangeContext()
                         .trackPendingFungibleAirdrop(pendingAirdropId, pendingAirdrop.amount());
                 if (amount == null) {
-                    log.warn(
-                            "Fungible pending airdrop not found in state at {}",
-                            blockTransaction.getConsensusTimestamp());
+                    // The parser accumulates the change onto the existing pending amount
                     amount = pendingAirdrop.amount();
+                    amountAbsent.add(pendingAirdropId);
                 }
 
                 recordBuilder.addNewPendingAirdrops(PendingAirdropRecord.newBuilder()
@@ -52,6 +53,10 @@ final class TokenAirdropTransformer extends AbstractBlockTransactionTransformer 
                 recordBuilder.addNewPendingAirdrops(
                         PendingAirdropRecord.newBuilder().setPendingAirdropId(pendingAirdropId));
             }
+        }
+
+        if (!amountAbsent.isEmpty()) {
+            recordItemBuilder.pendingAirdropAmountAbsent(amountAbsent);
         }
     }
 

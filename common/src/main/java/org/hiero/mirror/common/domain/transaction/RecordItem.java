@@ -9,6 +9,7 @@ import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import com.google.protobuf.ByteString;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -24,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.AccessLevel;
@@ -75,6 +77,10 @@ public class RecordItem implements StreamItem {
     private final RecordItem hookParent;
     private final RecordItem parent;
     private final EntityId payerAccountId;
+    // Pending fungible airdrops whose total a block stream omits, their record amount is then the transaction's change
+    @Builder.Default
+    private final Set<PendingAirdropId> pendingAirdropAmountAbsent = Set.of();
+
     private final RecordItem previous;
     private final SignatureMap signatureMap;
     private final boolean successful;
