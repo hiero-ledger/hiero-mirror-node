@@ -17,9 +17,9 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "26.2.0")
-    set("blockNodeVersion", "0.44.3")
+    set("blockNodeVersion", "0.45.1")
     set("consensusNodeVersion", "0.78.2")
-    set("hederaCryptographyVersion", "3.24.0")
+    set("hederaCryptographyVersion", "3.27.0")
     set("jackson-bom.version", "3.2.4") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.22.4") // Temporary until next Spring Boot
     set("jooq.version", "3.21.9") // Must match buildSrc/build.gradle.kts
@@ -45,7 +45,7 @@ dependencies {
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.7.2-jre")
+        api("com.google.guava:guava:33.8.0-jre")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
@@ -54,7 +54,7 @@ dependencies {
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.2")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.4")
         api("com.hedera.hashgraph:sdk:2.79.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
@@ -84,7 +84,7 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.1.0")
         api("org.xerial.snappy:snappy-java:1.1.10.12") // Temporary until next Besu
-        api("software.amazon.awssdk:bom:2.57.6")
+        api("software.amazon.awssdk:bom:2.57.9")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

@@ -384,17 +384,13 @@ public class ContractFeature extends BaseContractFeature {
     }
 
     private ExecuteContractResult executeGetEvmAddressTransaction(int salt) {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
-                .addBytes(childContractBytecodeFromParent)
-                .addUint256(BigInteger.valueOf(salt));
+        final var parameters = new ContractFunctionParameters().addUint256(BigInteger.valueOf(salt));
 
         return executeContractCallTransaction(deployedParentContract.contractId(), "getAddress", parameters, null);
     }
 
     private ExecuteContractResult executeCreate2Transaction(int salt) {
-        ContractFunctionParameters parameters = new ContractFunctionParameters()
-                .addBytes(childContractBytecodeFromParent)
-                .addUint256(BigInteger.valueOf(salt));
+        final var parameters = new ContractFunctionParameters().addUint256(BigInteger.valueOf(salt));
 
         return executeContractCallTransaction(deployedParentContract.contractId(), "create2Deploy", parameters, null);
     }

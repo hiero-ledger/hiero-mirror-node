@@ -11,6 +11,7 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.RecordFileService;
+import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.frame.BlockValues;
@@ -59,7 +60,8 @@ class MirrorBlockHashOperation extends BlockHashOperation {
         final BlockValues blockValues = frame.getBlockValues();
         final long currentBlockNumber = blockValues.getNumber();
 
-        if (currentBlockNumber <= 0
+        if (soughtBlock < 0
+                || currentBlockNumber <= 0
                 || soughtBlock > currentBlockNumber
                 || soughtBlock <= currentBlockNumber - evmProperties.getBlockHashWindow()) {
             frame.pushStackItem(Bytes32.ZERO);
@@ -76,8 +78,23 @@ class MirrorBlockHashOperation extends BlockHashOperation {
     }
 
     private Hash getBlockHash(long blockNumber) {
+        final var earliest = recordFileService.findByBlockType(BlockType.EARLIEST);
+        if (earliest.isEmpty() || blockNumber < earliest.get().getIndex()) {
+            return Hash.ZERO;
+        }
+
+        final var missingBlockIndexes = ContractCallContext.get().getMissingBlockIndexes();
+        if (missingBlockIndexes.contains(blockNumber)) {
+            return Hash.ZERO;
+        }
+
         final var recordFile = recordFileService.findByIndex(blockNumber);
-        return recordFile.map(this::getBlockHash).orElse(Hash.ZERO);
+        if (recordFile.isEmpty()) {
+            missingBlockIndexes.add(blockNumber);
+            return Hash.ZERO;
+        }
+
+        return getBlockHash(recordFile.get());
     }
 
     private Hash getBlockHash(RecordFile recordFile) {
