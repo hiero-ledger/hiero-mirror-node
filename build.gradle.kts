@@ -54,7 +54,7 @@ dependencies {
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.2")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.5")
         api("com.hedera.hashgraph:sdk:2.79.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
@@ -90,26 +90,7 @@ dependencies {
     }
 }
 
-allprojects {
-    apply(plugin = "jacoco")
-
-    // Temporary until the state changes diffing protobuf is released. Built by JitPack from
-    // https://github.com/xin-hedera/hiero-consensus-node/tree/state-changes-diffing-jitpack
-    repositories {
-        exclusiveContent {
-            forRepository { maven { url = uri("https://jitpack.io") } }
-            filter { includeGroup("com.github.xin-hedera") }
-        }
-    }
-    configurations.configureEach {
-        resolutionStrategy.dependencySubstitution {
-            val commit = "10c608ce6de6843d5c908d30e66a041ea8c64c21"
-            substitute(module("com.hedera.hashgraph:hedera-protobuf-java-api"))
-                .using(module("com.github.xin-hedera:hiero-consensus-node:$commit"))
-                .because("Needs unreleased state changes diffing protobuf (#14441)")
-        }
-    }
-}
+allprojects { apply(plugin = "jacoco") }
 
 idea {
     module {
