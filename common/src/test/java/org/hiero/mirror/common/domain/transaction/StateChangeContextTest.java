@@ -346,9 +346,9 @@ final class StateChangeContextTest {
         final var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        assertThat(context.getClprChannel(channelId1)).get().returns(channelId1, ClprChannel::getChannelId);
-        assertThat(context.getClprChannel(channelId2)).get().returns(channelId2, ClprChannel::getChannelId);
-        assertThat(context.getClprChannel(bytes(32))).isEmpty();
+        assertThat(context.getClprChannel(channelId1)).returns(channelId1, ClprChannel::getChannelId);
+        assertThat(context.getClprChannel(channelId2)).returns(channelId2, ClprChannel::getChannelId);
+        assertThat(context.getClprChannel(bytes(32))).isNull();
     }
 
     @Test
@@ -375,13 +375,13 @@ final class StateChangeContextTest {
         final var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        assertThat(context.getClprConnector(key1)).get().returns(connectorId1, ClprConnector::getConnectorId);
-        assertThat(context.getClprConnector(key2)).get().returns(connectorId2, ClprConnector::getConnectorId);
+        assertThat(context.getClprConnector(key1)).returns(connectorId1, ClprConnector::getConnectorId);
+        assertThat(context.getClprConnector(key2)).returns(connectorId2, ClprConnector::getConnectorId);
         assertThat(context.getClprConnector(ClprConnectorKey.newBuilder()
                         .setChannelId(channelId)
                         .setConnectorId(bytes(32))
                         .build()))
-                .isEmpty();
+                .isNull();
         assertThat(context.getClprConnectors())
                 .extracting(ClprConnector::getConnectorId)
                 .containsExactlyInAnyOrder(connectorId1, connectorId2);
