@@ -152,7 +152,7 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
         setLatency(scheduled, 500);
 
         // then
-        final var endpoint = scheduled.blockNode().getStatusEndpoint();
+        final var endpoint = scheduled.blockNode().getSubscribeStreamEndpoint();
         assertThat(meterRegistry.find(LATENCY_METRIC_NAME).gauges()).hasSize(2);
         assertThat(meterRegistry
                         .get(LATENCY_METRIC_NAME)
@@ -162,7 +162,7 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
                 .isEqualTo(500.0);
         assertThat(meterRegistry
                         .get(LATENCY_METRIC_NAME)
-                        .tag("block_node", getLatencyCandidate().getStatusEndpoint())
+                        .tag("block_node", getLatencyCandidate().getSubscribeStreamEndpoint())
                         .gauge()
                         .value())
                 .isNaN();

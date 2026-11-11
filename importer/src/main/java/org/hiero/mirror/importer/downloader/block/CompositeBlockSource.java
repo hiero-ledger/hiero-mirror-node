@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,11 +22,14 @@ import org.springframework.scheduling.annotation.Scheduled;
 @Primary
 final class CompositeBlockSource implements BlockSource {
 
+    static final String FAILOVER_METRIC_NAME = "hiero.mirror.importer.block.failover";
+
     private final SourceHealth blockFileSourceHealth;
     private final BlockNodeDiscoveryService blockNodeDiscoveryService;
     private final SourceHealth blockNodeSubscriberSourceHealth;
     private final AtomicReference<SourceHealth> current;
     private final CutoverService cutoverService;
+    private final Counter failoverMetric;
     private final BlockProperties properties;
 
     CompositeBlockSource(
@@ -32,12 +37,16 @@ final class CompositeBlockSource implements BlockSource {
             final BlockNodeDiscoveryService blockNodeDiscoveryService,
             final BlockNodeSubscriber blockNodeSubscriber,
             final CutoverService cutoverService,
+            final MeterRegistry meterRegistry,
             final BlockProperties properties) {
         this.blockFileSourceHealth = new SourceHealth(blockFileSource, BlockSourceType.FILE);
         this.blockNodeDiscoveryService = blockNodeDiscoveryService;
         this.blockNodeSubscriberSourceHealth = new SourceHealth(blockNodeSubscriber, BlockSourceType.BLOCK_NODE);
         this.current = new AtomicReference<>(blockNodeSubscriberSourceHealth);
         this.cutoverService = cutoverService;
+        this.failoverMetric = Counter.builder(FAILOVER_METRIC_NAME)
+                .description("The number of times the importer switched from block nodes to cloud storage")
+                .register(meterRegistry);
         this.properties = properties;
     }
 
@@ -73,6 +82,9 @@ final class CompositeBlockSource implements BlockSource {
                             ? blockFileSourceHealth
                             : blockNodeSubscriberSourceHealth;
                     current.set(sourceHealth);
+                    if (sourceHealth == blockFileSourceHealth) {
+                        failoverMetric.increment();
+                    }
                 }
 
                 yield current.get();

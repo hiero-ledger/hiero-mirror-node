@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.downloader.block.BlockNode.CLOSE_METRIC_NAME;
 import static org.hiero.mirror.importer.downloader.block.BlockNode.ERROR_METRIC_NAME;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleServiceEndpoint;
@@ -434,6 +435,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
         // then
         assertThat(streamed).hasSize(1).first().satisfies(blockStream -> assertBlockStream(blockStream, 0));
+        assertThat(meterRegistry.find(CLOSE_METRIC_NAME).counters()).isEmpty();
     }
 
     @Test
@@ -451,6 +453,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         // then
         assertThat(node.isActive()).isTrue();
         assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isZero();
+        assertThat(meterRegistry.find(CLOSE_METRIC_NAME).counters()).isEmpty();
     }
 
     @Test
@@ -639,6 +642,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(StatusException.class);
+        assertCloseReason("error");
     }
 
     @Test
@@ -651,6 +655,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(StatusException.class);
         assertThat(node.isActive()).isFalse();
+        assertCloseReason("unreachable");
     }
 
     @Test
@@ -662,6 +667,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         // when, then
         assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
         assertThat(node.isActive()).isFalse();
+        assertCloseReason("rejected");
     }
 
     @Test
@@ -721,6 +727,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(TimeoutException.class);
         assertThat(node.isActive()).isTrue();
+        assertCloseReason("timeout");
         latch.countDown();
     }
 
@@ -954,7 +961,54 @@ final class BlockNodeTest extends BlockNodeTestBase {
         // when, then
         assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
         assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
-        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(2);
+        assertThat(meterRegistry
+                        .get(ERROR_METRIC_NAME)
+                        .tag("block_node", getSubscribeStreamEndpoint())
+                        .counter()
+                        .count())
+                .isEqualTo(2);
+    }
+
+    @Test
+    void streamClosedCompleted(final Resources resources) {
+        // given
+        final var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(0), eventHeader(), blockProof())),
+                subscribeStreamResponse(0),
+                subscribeStreamResponse(SubscribeStreamResponse.Code.SUCCESS));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when
+        final var blockNodes = new ArrayList<String>();
+        node.streamBlocks(
+                0,
+                null,
+                (_, blockNode) -> {
+                    blockNodes.add(blockNode);
+                    return false;
+                },
+                TIMEOUT);
+
+        // then
+        assertThat(blockNodes).containsExactly(getSubscribeStreamEndpoint());
+        assertCloseReason("completed");
+    }
+
+    @Test
+    void streamClosedRescheduled(final Resources resources) {
+        // given
+        final var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(0), eventHeader(), blockProof())),
+                subscribeStreamResponse(0),
+                subscribeStreamResponse(blockItemSet(blockHead(1), eventHeader(), blockProof())),
+                subscribeStreamResponse(1));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when
+        node.streamBlocks(0, null, (_, _) -> true, TIMEOUT);
+
+        // then
+        assertCloseReason("rescheduled");
     }
 
     /**
@@ -969,6 +1023,20 @@ final class BlockNodeTest extends BlockNodeTestBase {
         }
 
         return builder.build();
+    }
+
+    private void assertCloseReason(final String reason) {
+        assertThat(meterRegistry.find(CLOSE_METRIC_NAME).counters())
+                .singleElement()
+                .satisfies(counter -> {
+                    assertThat(counter.getId().getTag("block_node")).isEqualTo(getSubscribeStreamEndpoint());
+                    assertThat(counter.getId().getTag("reason")).isEqualTo(reason);
+                    assertThat(counter.count()).isOne();
+                });
+    }
+
+    private String getSubscribeStreamEndpoint() {
+        return blockNodeProperties.getEndpoints().first().toString();
     }
 
     private BiFunction<BlockStream, String, Boolean> accumulate(Collection<BlockStream> collection) {

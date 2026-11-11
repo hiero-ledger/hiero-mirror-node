@@ -429,7 +429,7 @@ final class LatencyServiceTest {
         assertThat(statusGauge(healthy, "not_available")).isOne();
         assertThat(meterRegistry
                         .find(STATUS_METRIC_NAME)
-                        .tags("block_node", healthy.getStatusEndpoint(), "status", "healthy")
+                        .tags("block_node", healthy.getSubscribeStreamEndpoint(), "status", "healthy")
                         .gauges())
                 .isEmpty();
 
@@ -458,7 +458,7 @@ final class LatencyServiceTest {
         doAnswer(_ -> {
                     firstGauges.set(meterRegistry
                             .find(STATUS_METRIC_NAME)
-                            .tags("block_node", first.getStatusEndpoint(), "status", "healthy")
+                            .tags("block_node", first.getSubscribeStreamEndpoint(), "status", "healthy")
                             .gauges()
                             .size());
                     return true;
@@ -535,7 +535,7 @@ final class LatencyServiceTest {
         final var latency = mock(Latency.class);
         lenient().doReturn(lastMeasuredMillis).when(latency).getLastMeasuredMillis();
         lenient().doReturn(latency).when(blockNode).getLatency();
-        lenient().doReturn("localhost:" + lastMeasuredMillis).when(blockNode).getStatusEndpoint();
+        lenient().doReturn("localhost:" + lastMeasuredMillis).when(blockNode).getSubscribeStreamEndpoint();
         lenient().doReturn(true).when(blockNode).hasBlock(anyLong());
         lenient()
                 .doAnswer(invocation -> {
@@ -575,7 +575,7 @@ final class LatencyServiceTest {
     private double statusGauge(final BlockNode blockNode, final String status) {
         return meterRegistry
                 .get(STATUS_METRIC_NAME)
-                .tags("block_node", blockNode.getStatusEndpoint(), "status", status)
+                .tags("block_node", blockNode.getSubscribeStreamEndpoint(), "status", status)
                 .gauge()
                 .value();
     }

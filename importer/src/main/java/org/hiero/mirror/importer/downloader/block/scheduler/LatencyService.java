@@ -143,7 +143,7 @@ public final class LatencyService implements AutoCloseable {
             rows.add(MultiGauge.Row.of(
                     Tags.of(
                             BLOCK_NODE_TAG,
-                            probe.node.getStatusEndpoint(),
+                            probe.node.getSubscribeStreamEndpoint(),
                             STATUS_TAG,
                             Objects.requireNonNull(STATUS_TAG_VALUES.get(status))),
                     1));
@@ -275,7 +275,7 @@ public final class LatencyService implements AutoCloseable {
                     .counter(
                             PROBE_METRIC_NAME,
                             BLOCK_NODE_TAG,
-                            node.getStatusEndpoint(),
+                            node.getSubscribeStreamEndpoint(),
                             STATUS_TAG,
                             Objects.requireNonNull(STATUS_TAG_VALUES.get(status)))
                     .increment();
