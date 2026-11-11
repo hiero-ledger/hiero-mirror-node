@@ -1074,7 +1074,7 @@ public class CallFeature extends AbstractFeature {
     }
 
     private boolean shouldUseStateOverrides() {
-        return web3Properties.isStateOverridesEnabled() && stateOverridesSupported.get();
+        return web3Properties.isStateOverrides() && stateOverridesSupported.get();
     }
 
     private ContractCallResponseWrapper callWithStateOverrides(

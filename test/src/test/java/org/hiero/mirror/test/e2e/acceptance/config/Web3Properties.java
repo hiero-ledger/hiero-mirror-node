@@ -21,7 +21,7 @@ public class Web3Properties implements ApiProperties {
 
     private boolean enabled = false;
 
-    private boolean stateOverridesEnabled = true;
+    private boolean stateOverrides = true;
 
     private OpcodeTracerProperties opcodeTracer = new OpcodeTracerProperties();
 
