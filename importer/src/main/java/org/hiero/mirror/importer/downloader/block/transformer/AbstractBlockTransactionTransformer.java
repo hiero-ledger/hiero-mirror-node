@@ -101,12 +101,13 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
         final var clprChannels = stateChangeContext.getClprChannels();
         final var clprConnectors = stateChangeContext.getClprConnectors();
-        final var clprContextBuilder =
-                blockTransactionTransformation.recordItemBuilder().clprContextBuilder();
-        clprContextBuilder.clprChannels(clprChannels);
-        clprContextBuilder.clprMessages(stateChangeContext.getClprMessages());
-        clprContextBuilder.clprConnectors(clprConnectors);
-        clprContextBuilder.clprConnectorsRemoved(stateChangeContext.getClprConnectorsRemoved());
+        final var clprContextBuilder = blockTransactionTransformation
+                .recordItemBuilder()
+                .clprContextBuilder()
+                .clprChannels(clprChannels)
+                .clprMessages(stateChangeContext.getClprMessages())
+                .clprConnectors(clprConnectors)
+                .clprConnectorsRemoved(stateChangeContext.getClprConnectorsRemoved());
     }
 
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
