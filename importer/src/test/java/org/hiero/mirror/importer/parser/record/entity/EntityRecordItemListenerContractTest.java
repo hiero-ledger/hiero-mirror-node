@@ -75,6 +75,7 @@ import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.repository.ClprChannelRepository;
@@ -1153,7 +1154,7 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
         final var recordItem = recordItemBuilder
                 .contractCall()
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(clprChannelValue))
+                        .clprChannels(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), clprChannelValue)))
                         .clprConnectorsRemoved(List.of(removedConnectorKey)))
                 .build();
 

@@ -199,7 +199,7 @@ final class StateChangeContextTest {
                         .build()))
                 .isNull();
         assertThat(context.getClprConnectors())
-                .extracting(ClprConnector::getConnectorId)
+                .extracting(entry -> entry.key().getConnectorId())
                 .containsExactlyInAnyOrder(connectorId1, connectorId2);
     }
 
