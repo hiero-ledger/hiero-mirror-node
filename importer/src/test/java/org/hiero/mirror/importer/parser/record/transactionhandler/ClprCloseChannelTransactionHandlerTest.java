@@ -20,6 +20,7 @@ import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -122,7 +123,10 @@ class ClprCloseChannelTransactionHandlerTest extends AbstractTransactionHandlerT
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
                 .clprContext(ClprContext.builder()
-                        .clprChannels(clprChannel == null ? List.of() : List.of(clprChannel))
+                        .clprChannels(
+                                clprChannel == null
+                                        ? List.of()
+                                        : List.of(new ClprChannelEntry(clprChannel.getChannelId(), clprChannel)))
                         .build())
                 .build();
     }

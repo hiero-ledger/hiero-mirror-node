@@ -33,17 +33,18 @@ class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
 
         final var transactionBody = recordItem.getTransactionBody().getClprCompleteChannel();
         final var clprContext = recordItem.getClprContext();
-        final var clprChannelValue = clprContext == null ? null : clprContext.getClprChannel();
+        final var entry = clprContext == null ? null : clprContext.getClprChannel();
         if (ClprStateChangeHandler.isMissingStateChange(
-                clprChannelValue, "clpr_channel_value", "ClprCompleteChannel", recordItem.getConsensusTimestamp())) {
+                entry, "clpr_channel_value", "ClprCompleteChannel", recordItem.getConsensusTimestamp())) {
             return;
         }
 
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var clprChannelValue = entry.value();
         final var publicKey = DomainUtils.toBytes(transactionBody.getPublicKey());
         final var verifierContractId = EntityId.of(clprChannelValue.getVerifierContract());
 
-        final var builder = ClprStateChangeHandler.populateFromStateChange(clprChannelValue);
+        final var builder = ClprStateChangeHandler.populateFromStateChange(entry.channelId(), clprChannelValue);
         final var clprChannel = builder.createdTimestamp(consensusTimestamp)
                 .chainId(clprChannelValue.getChainId())
                 .verifierContractId(verifierContractId)

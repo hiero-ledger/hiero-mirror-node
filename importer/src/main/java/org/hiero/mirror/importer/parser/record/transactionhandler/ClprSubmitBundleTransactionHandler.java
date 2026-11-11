@@ -24,9 +24,9 @@ class ClprSubmitBundleTransactionHandler extends AbstractTransactionHandler {
         }
 
         final var clprContext = recordItem.getClprContext();
-        final var clprChannelValue = clprContext == null ? null : clprContext.getClprChannel();
+        final var entry = clprContext == null ? null : clprContext.getClprChannel();
         if (ClprStateChangeHandler.isMissingStateChange(
-                clprChannelValue, "clpr_channel_value", "ClprSubmitBundle", recordItem.getConsensusTimestamp())) {
+                entry, "clpr_channel_value", "ClprSubmitBundle", recordItem.getConsensusTimestamp())) {
             return;
         }
     }

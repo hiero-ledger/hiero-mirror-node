@@ -13,6 +13,7 @@ import java.util.List;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.util.Version;
@@ -86,7 +87,10 @@ class ClprSubmitBundleTransactionHandlerTest extends AbstractTransactionHandlerT
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
                 .clprContext(ClprContext.builder()
-                        .clprChannels(clprChannel == null ? List.of() : List.of(clprChannel))
+                        .clprChannels(
+                                clprChannel == null
+                                        ? List.of()
+                                        : List.of(new ClprChannelEntry(clprChannel.getChannelId(), clprChannel)))
                         .build())
                 .build();
     }

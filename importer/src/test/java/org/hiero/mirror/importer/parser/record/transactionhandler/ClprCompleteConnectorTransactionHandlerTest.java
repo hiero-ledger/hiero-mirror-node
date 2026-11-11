@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.ClprCompleteConnectorTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
@@ -21,6 +22,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnectorEntry;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SignatureUtils;
 import org.junit.jupiter.api.Test;
@@ -64,10 +66,10 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
         final var transactionBody = getDefaultTransactionBody().build();
         final var body = transactionBody.getClprCompleteConnector();
 
-        // Fields deliberately differ from the tx body to prove the Connector is built from state, not the body.
+        // channel_id/connector_id are deliberately left out here and sourced from the map-update key instead (built
+        // from the tx body below), since they're never partial even once diffing lands. Other fields deliberately
+        // differ from the tx body to prove the Connector is built from state, not the body.
         final var clprConnectorValue = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
-                .setConnectorId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
-                .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                 .setConnectorContract(domainBuilder.entityNum(3000L).toContractID())
                 .setAdminKey(Key.newBuilder().setEd25519(DomainUtils.fromBytes(domainBuilder.key())))
                 .setLockedStake(200_000_000L)
@@ -75,8 +77,12 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 .setSlashCount(-1)
                 .setInFlightMessageCount(5)
                 .build();
+        final var key = ClprConnectorKey.newBuilder()
+                .setChannelId(body.getChannelId())
+                .setConnectorId(body.getConnectorId())
+                .build();
         final var recordItem =
-                buildRecordItem(transactionBody, getDefaultTransactionRecord().build(), clprConnectorValue);
+                buildRecordItem(transactionBody, getDefaultTransactionRecord().build(), key, clprConnectorValue);
         final var transaction = domainBuilder.transaction().get();
         final var connectorCaptor = ArgumentCaptor.forClass(ClprConnector.class);
         final var connectorContractId = EntityId.of(clprConnectorValue.getConnectorContract());
@@ -88,13 +94,13 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
         long consensusTimestamp = recordItem.getConsensusTimestamp();
         final var timestampRange = Range.atLeast(consensusTimestamp);
         final var expectedCommitment = SignatureUtils.keccak256(
-                DomainUtils.toBytes(clprConnectorValue.getConnectorId()), DomainUtils.toBytes(body.getPublicKey()));
+                DomainUtils.toBytes(body.getConnectorId()), DomainUtils.toBytes(body.getPublicKey()));
 
         verify(entityListener).onClprConnector(connectorCaptor.capture());
         assertThat(connectorCaptor.getValue())
-                .returns(DomainUtils.toBytes(clprConnectorValue.getChannelId()), ClprConnector::getChannelId)
+                .returns(DomainUtils.toBytes(body.getChannelId()), ClprConnector::getChannelId)
                 .returns(expectedCommitment, ClprConnector::getCommitment)
-                .returns(DomainUtils.toBytes(clprConnectorValue.getConnectorId()), ClprConnector::getConnectorId)
+                .returns(DomainUtils.toBytes(body.getConnectorId()), ClprConnector::getConnectorId)
                 .returns(connectorContractId, ClprConnector::getConnectorContractId)
                 .returns(clprConnectorValue.getAdminKey().toByteArray(), ClprConnector::getAdminKey)
                 .returns(clprConnectorValue.getLockedStake(), ClprConnector::getLockedStake)
@@ -120,6 +126,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
         final var recordItem = buildRecordItem(
                 getDefaultTransactionBody().build(),
                 getDefaultTransactionRecord().build(),
+                null,
                 null);
         final var transaction = domainBuilder.transaction().get();
 
@@ -134,6 +141,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
     private RecordItem buildRecordItem(
             TransactionBody body,
             TransactionRecord transactionRecord,
+            ClprConnectorKey key,
             com.hederahashgraph.api.proto.java.ClprConnector clprConnector) {
         final var transaction = Transaction.newBuilder()
                 .setSignedTransactionBytes(SignedTransaction.newBuilder()
@@ -148,7 +156,8 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
                 .clprContext(ClprContext.builder()
-                        .clprConnectors(clprConnector == null ? List.of() : List.of(clprConnector))
+                        .clprConnectors(
+                                clprConnector == null ? List.of() : List.of(new ClprConnectorEntry(key, clprConnector)))
                         .build())
                 .build();
     }

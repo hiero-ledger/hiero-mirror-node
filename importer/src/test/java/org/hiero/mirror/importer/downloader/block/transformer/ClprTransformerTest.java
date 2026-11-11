@@ -16,6 +16,7 @@ import com.hederahashgraph.api.proto.java.ClprChannelStatus;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.List;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.junit.jupiter.api.Test;
 
 class ClprTransformerTest extends AbstractTransformerTest {
@@ -407,7 +408,8 @@ class ClprTransformerTest extends AbstractTransformerTest {
         // then -- the parent claims the channel; the child must see no CLPR context at all
         final var items = recordFile.getItems();
         assertThat(items).hasSize(2);
-        assertThat(items.get(0).getClprContext().getClprChannels()).containsExactly(clprChannelValue);
+        assertThat(items.get(0).getClprContext().getClprChannels())
+                .containsExactly(new ClprChannelEntry(channelId, clprChannelValue));
         assertThat(items.get(1).getClprContext()).isNull();
     }
 }

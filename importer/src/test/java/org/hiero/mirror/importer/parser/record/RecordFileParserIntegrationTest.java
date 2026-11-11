@@ -28,6 +28,8 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnectorEntry;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
@@ -421,7 +423,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var complete = recordItemBuilder
                 .clprCompleteChannel()
                 .transactionBody(b -> b.setChannelId(channelId).setPublicKey(publicKey))
-                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelActive)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(channelId, clprChannelActive))))
                 .build();
 
         final var clprChannelAfterBundle =
@@ -429,7 +432,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var submitBundle = recordItemBuilder
                 .clprSubmitBundle()
                 .transactionBody(b -> b.setChannelId(channelId))
-                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelAfterBundle)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(channelId, clprChannelAfterBundle))))
                 .build();
 
         final var clprChannelClosing = clprChannelAfterBundle.toBuilder()
@@ -438,7 +442,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var closeChannel = recordItemBuilder
                 .clprCloseChannel()
                 .transactionBody(b -> b.setChannelId(channelId))
-                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelClosing)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(channelId, clprChannelClosing))))
                 .build();
 
         final var recordFile = recordFileWithItems(List.of(register, complete, submitBundle, closeChannel), null);
@@ -480,6 +485,10 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .transactionBody(b -> b.setCommitment(commitment).setChannelId(channelId))
                 .build();
 
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
         final var clprConnectorValue = ClprConnector.newBuilder()
                 .setConnectorId(connectorId)
                 .setChannelId(channelId)
@@ -489,7 +498,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprCompleteConnector()
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
-                .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of(clprConnectorValue)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprConnectors(List.of(new ClprConnectorEntry(connectorKey, clprConnectorValue))))
                 .build();
 
         final var stakeRecipient = domainBuilder.entityNum(5000L).toAccountID();
@@ -533,6 +543,10 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .transactionBody(b -> b.setCommitment(commitment).setChannelId(channelId))
                 .build();
 
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
         final var clprConnectorComplete = ClprConnector.newBuilder()
                 .setConnectorId(connectorId)
                 .setChannelId(channelId)
@@ -543,7 +557,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprCompleteConnector()
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
-                .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of(clprConnectorComplete)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprConnectors(List.of(new ClprConnectorEntry(connectorKey, clprConnectorComplete))))
                 .build();
 
         // Each ClprConnector state change is the connector's full current state, not a delta, so later snapshots
@@ -552,7 +567,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 clprConnectorComplete.toBuilder().setInFlightMessageCount(1).build();
         final var sendMessage = recordItemBuilder
                 .contractCall()
-                .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of(clprConnectorAfterSend)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprConnectors(List.of(new ClprConnectorEntry(connectorKey, clprConnectorAfterSend))))
                 .build();
 
         final var clprConnectorAfterBundle = clprConnectorAfterSend.toBuilder()
@@ -562,7 +578,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .build();
         final var submitBundle = recordItemBuilder
                 .clprSubmitBundle()
-                .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of(clprConnectorAfterBundle)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprConnectors(List.of(new ClprConnectorEntry(connectorKey, clprConnectorAfterBundle))))
                 .build();
 
         final var recordFile = recordFileWithItems(List.of(register, complete, sendMessage, submitBundle), null);
@@ -600,6 +617,10 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .transactionBody(b -> b.setCommitment(commitment).setChannelId(channelId))
                 .build();
 
+        final var removedConnectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
         final var clprConnectorComplete = ClprConnector.newBuilder()
                 .setConnectorId(connectorId)
                 .setChannelId(channelId)
@@ -610,13 +631,10 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprCompleteConnector()
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
-                .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of(clprConnectorComplete)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprConnectors(List.of(new ClprConnectorEntry(removedConnectorKey, clprConnectorComplete))))
                 .build();
 
-        final var removedConnectorKey = ClprConnectorKey.newBuilder()
-                .setChannelId(channelId)
-                .setConnectorId(connectorId)
-                .build();
         final var ban = recordItemBuilder
                 .clprSubmitBundle()
                 .recordItem(r -> r.clprContextBuilder().clprConnectorsRemoved(List.of(removedConnectorKey)))

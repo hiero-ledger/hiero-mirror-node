@@ -34,8 +34,8 @@ class ClprCloseChannelTransactionHandler extends AbstractTransactionHandler {
 
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         final var clprContext = recordItem.getClprContext();
-        final var clprChannelValue = clprContext == null ? null : clprContext.getClprChannel();
-        if (clprChannelValue == null) {
+        final var entry = clprContext == null ? null : clprContext.getClprChannel();
+        if (entry == null) {
             final var transactionBody = recordItem.getTransactionBody().getClprCloseChannel();
             log.info("Sweeping abandoned ClprChannelPendingCommitment at {}", consensusTimestamp);
             final var commitment = ClprChannelPendingCommitment.builder()
@@ -47,7 +47,7 @@ class ClprCloseChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        final var builder = ClprStateChangeHandler.populateFromStateChange(clprChannelValue);
+        final var builder = ClprStateChangeHandler.populateFromStateChange(entry.channelId(), entry.value());
         entityListener.onClprChannel(
                 builder.timestampRange(Range.atLeast(consensusTimestamp)).build());
     }

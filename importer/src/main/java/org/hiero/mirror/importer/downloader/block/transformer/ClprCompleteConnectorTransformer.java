@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import jakarta.inject.Named;
 import java.util.List;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnectorEntry;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 /**
@@ -32,7 +33,7 @@ final class ClprCompleteConnectorTransformer extends AbstractBlockTransactionTra
         final var clprContextBuilder =
                 blockTransactionTransformation.recordItemBuilder().clprContextBuilder();
         if (clprConnectorValue != null) {
-            clprContextBuilder.clprConnectors(List.of(clprConnectorValue));
+            clprContextBuilder.clprConnectors(List.of(new ClprConnectorEntry(key, clprConnectorValue)));
         }
     }
 

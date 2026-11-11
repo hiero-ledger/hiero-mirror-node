@@ -35,17 +35,15 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
 
         final var transactionBody = recordItem.getTransactionBody().getClprCompleteConnector();
         final var clprContext = recordItem.getClprContext();
-        final var clprConnectorValue = clprContext == null ? null : clprContext.getClprConnector();
+        final var entry = clprContext == null ? null : clprContext.getClprConnector();
         if (ClprStateChangeHandler.isMissingStateChange(
-                clprConnectorValue,
-                "clpr_connector_value",
-                "ClprCompleteConnector",
-                recordItem.getConsensusTimestamp())) {
+                entry, "clpr_connector_value", "ClprCompleteConnector", recordItem.getConsensusTimestamp())) {
             return;
         }
 
+        final var clprConnectorValue = entry.value();
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
-        final var connectorId = DomainUtils.toBytes(clprConnectorValue.getConnectorId());
+        final var connectorId = DomainUtils.toBytes(entry.key().getConnectorId());
         final var publicKey = DomainUtils.toBytes(transactionBody.getPublicKey());
         final var connectorContractId = EntityId.of(clprConnectorValue.getConnectorContract());
 
@@ -54,7 +52,7 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
         final var commitment = SignatureUtils.keccak256(connectorId, publicKey);
 
         final var connectorBuilder = ClprConnector.builder()
-                .channelId(DomainUtils.toBytes(clprConnectorValue.getChannelId()))
+                .channelId(DomainUtils.toBytes(entry.key().getChannelId()))
                 .commitment(commitment)
                 .connectorId(connectorId)
                 .createdTimestamp(consensusTimestamp)
