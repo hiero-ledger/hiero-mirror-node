@@ -515,14 +515,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             patchIfPresent(previous, current.getEndpointManifestVersion(), ClprChannel::setEndpointManifestVersion);
             patchIfPresent(previous, current.getLastConfigTimestamp(), ClprChannel::setLastConfigTimestamp);
             patchIfPresent(previous, current.getPeerConfigTimestamp(), ClprChannel::setPeerConfigTimestamp);
-            patchIfPresent(previous, current.getPeerMaxGasPerMessage(), ClprChannel::setPeerMaxGasPerMessage);
-            patchIfPresent(previous, current.getPeerMaxLocalEndpoints(), ClprChannel::setPeerMaxLocalEndpoints);
-            patchIfPresent(
-                    previous, current.getPeerMaxMessagePayloadBytes(), ClprChannel::setPeerMaxMessagePayloadBytes);
-            patchIfPresent(previous, current.getPeerMaxMessagesPerBundle(), ClprChannel::setPeerMaxMessagesPerBundle);
-            patchIfPresent(previous, current.getPeerMaxPeerEndpoints(), ClprChannel::setPeerMaxPeerEndpoints);
-            patchIfPresent(previous, current.getPeerMaxQueueDepth(), ClprChannel::setPeerMaxQueueDepth);
-            patchIfPresent(previous, current.getPeerMaxSyncBytes(), ClprChannel::setPeerMaxSyncBytes);
+            patchIfPresent(previous, current.getPeerThrottle(), ClprChannel::setPeerThrottle);
             patchIfPresent(previous, current.getEndpointManifest(), ClprChannel::setEndpointManifest);
 
             return previous;
@@ -556,18 +549,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         fillIfAbsent(previous, current, ClprChannel::getReceivedRunningHash, ClprChannel::setReceivedRunningHash);
         fillIfAbsent(previous, current, ClprChannel::getLastConfigTimestamp, ClprChannel::setLastConfigTimestamp);
         fillIfAbsent(previous, current, ClprChannel::getPeerConfigTimestamp, ClprChannel::setPeerConfigTimestamp);
-        fillIfAbsent(previous, current, ClprChannel::getPeerMaxGasPerMessage, ClprChannel::setPeerMaxGasPerMessage);
-        fillIfAbsent(previous, current, ClprChannel::getPeerMaxLocalEndpoints, ClprChannel::setPeerMaxLocalEndpoints);
-        fillIfAbsent(
-                previous,
-                current,
-                ClprChannel::getPeerMaxMessagePayloadBytes,
-                ClprChannel::setPeerMaxMessagePayloadBytes);
-        fillIfAbsent(
-                previous, current, ClprChannel::getPeerMaxMessagesPerBundle, ClprChannel::setPeerMaxMessagesPerBundle);
-        fillIfAbsent(previous, current, ClprChannel::getPeerMaxPeerEndpoints, ClprChannel::setPeerMaxPeerEndpoints);
-        fillIfAbsent(previous, current, ClprChannel::getPeerMaxQueueDepth, ClprChannel::setPeerMaxQueueDepth);
-        fillIfAbsent(previous, current, ClprChannel::getPeerMaxSyncBytes, ClprChannel::setPeerMaxSyncBytes);
+        fillIfAbsent(previous, current, ClprChannel::getPeerThrottle, ClprChannel::setPeerThrottle);
         fillIfAbsent(previous, current, ClprChannel::getEndpointManifest, ClprChannel::setEndpointManifest);
         fillIfAbsent(
                 previous, current, ClprChannel::getEndpointManifestVersion, ClprChannel::setEndpointManifestVersion);
@@ -593,8 +575,8 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         // This row is keyed by (channelId, commitment), and per HIP-1535 a connector commitment stays registered
         // permanently even after deregistration, so it can never be reused by a different registration -- every
         // later touch under this same key is a partial update of the one registration, hence no "fresh creation"
-        // branch needed. (connectorId alone CAN recur across distinct registrations since it's a hash of the
-        // registrant's own public key/salt, but that doesn't collide with this key.)
+        // branch needed. (connectorId alone CAN recur across different channels, since it's a hash of the
+        // registrant's own public key/salt and is independent of channelId, but that doesn't collide with this key.)
         fillIfAbsent(previous, current, ClprConnector::getCreatedTimestamp, ClprConnector::setCreatedTimestamp);
         fillIfAbsent(previous, current, ClprConnector::getConnectorId, ClprConnector::setConnectorId);
         fillIfAbsent(previous, current, ClprConnector::getAdminKey, ClprConnector::setAdminKey);
@@ -616,6 +598,8 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             ClprChannelPendingCommitment previous, ClprChannelPendingCommitment current) {
         previous.setTimestampUpper(current.getTimestampLower());
 
+        // This handles a sweep and re-registration landing in the same batch: ParserContext.merge collapses
+        // same-key writes in-memory before the SQL upsert ever runs, so the SQL layer never sees the swept state.
         if (current.getCreatedTimestamp() != null
                 && current.getCreatedTimestamp().equals(current.getTimestampLower())) {
             // Fresh registration -- possibly a re-registration of a commitment previously swept/deregistered -- so

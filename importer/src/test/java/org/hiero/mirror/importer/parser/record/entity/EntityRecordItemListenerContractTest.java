@@ -1153,7 +1153,6 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
         final var recordItem = recordItemBuilder
                 .contractCall()
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannel(clprChannelValue)
                         .clprChannels(List.of(clprChannelValue))
                         .clprConnectorsRemoved(List.of(removedConnectorKey)))
                 .build();

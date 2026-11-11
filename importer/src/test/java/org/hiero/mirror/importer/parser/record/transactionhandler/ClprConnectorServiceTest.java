@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 import java.util.Optional;
 import java.util.Set;
 import org.hiero.mirror.common.domain.DomainBuilder;
-import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,20 +20,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 
 @ExtendWith(MockitoExtension.class)
-final class ClprConnectorCommitmentServiceTest {
+final class ClprConnectorServiceTest {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock
     private ClprConnectorRepository clprConnectorRepository;
 
-    private ClprConnectorCommitmentService clprConnectorCommitmentService;
+    private ClprConnectorService clprConnectorService;
 
     @BeforeEach
     void setup() {
         final var cacheManager = new CaffeineCacheManager();
         cacheManager.setCacheNames(Set.of(CACHE_NAME));
-        clprConnectorCommitmentService = new ClprConnectorCommitmentService(cacheManager, clprConnectorRepository);
+        clprConnectorService = new ClprConnectorService(cacheManager, clprConnectorRepository);
     }
 
     @Test
@@ -43,16 +42,13 @@ final class ClprConnectorCommitmentServiceTest {
         final var channelId = domainBuilder.bytes(32);
         final var connectorId = domainBuilder.bytes(32);
         final var commitment = domainBuilder.bytes(32);
-        when(clprConnectorRepository.findByChannelIdAndConnectorId(channelId, connectorId))
-                .thenReturn(Optional.of(
-                        ClprConnector.builder().commitment(commitment).build()));
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(channelId, connectorId))
+                .thenReturn(Optional.of(commitment));
 
         // when, then -- a second lookup hits the cache, not the repository again
-        assertThat(clprConnectorCommitmentService.lookup(channelId, connectorId))
-                .isEqualTo(commitment);
-        assertThat(clprConnectorCommitmentService.lookup(channelId, connectorId))
-                .isEqualTo(commitment);
-        verify(clprConnectorRepository).findByChannelIdAndConnectorId(channelId, connectorId);
+        assertThat(clprConnectorService.lookup(channelId, connectorId)).isEqualTo(commitment);
+        assertThat(clprConnectorService.lookup(channelId, connectorId)).isEqualTo(commitment);
+        verify(clprConnectorRepository).findCommitmentByChannelIdAndConnectorId(channelId, connectorId);
     }
 
     @Test
@@ -60,15 +56,13 @@ final class ClprConnectorCommitmentServiceTest {
         // given
         final var channelId = domainBuilder.bytes(32);
         final var connectorId = domainBuilder.bytes(32);
-        when(clprConnectorRepository.findByChannelIdAndConnectorId(channelId, connectorId))
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(channelId, connectorId))
                 .thenReturn(Optional.empty());
 
         // when, then -- the miss itself is cached, so a second lookup still doesn't hit the repository again
-        assertThat(clprConnectorCommitmentService.lookup(channelId, connectorId))
-                .isNull();
-        assertThat(clprConnectorCommitmentService.lookup(channelId, connectorId))
-                .isNull();
-        verify(clprConnectorRepository).findByChannelIdAndConnectorId(channelId, connectorId);
+        assertThat(clprConnectorService.lookup(channelId, connectorId)).isNull();
+        assertThat(clprConnectorService.lookup(channelId, connectorId)).isNull();
+        verify(clprConnectorRepository).findCommitmentByChannelIdAndConnectorId(channelId, connectorId);
     }
 
     @Test
@@ -76,12 +70,11 @@ final class ClprConnectorCommitmentServiceTest {
         // given
         final var channelId = domainBuilder.bytes(32);
         final var connectorId = domainBuilder.bytes(32);
-        when(clprConnectorRepository.findByChannelIdAndConnectorId(channelId, connectorId))
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(channelId, connectorId))
                 .thenThrow(new RuntimeException("DB error"));
 
         // when, then
-        assertThat(clprConnectorCommitmentService.lookup(channelId, connectorId))
-                .isNull();
+        assertThat(clprConnectorService.lookup(channelId, connectorId)).isNull();
     }
 
     @Test
@@ -90,10 +83,10 @@ final class ClprConnectorCommitmentServiceTest {
         final var connector = domainBuilder.clprConnector().get();
 
         // when
-        clprConnectorCommitmentService.notify(connector);
+        clprConnectorService.notify(connector);
 
         // then
-        assertThat(clprConnectorCommitmentService.lookup(connector.getChannelId(), connector.getConnectorId()))
+        assertThat(clprConnectorService.lookup(connector.getChannelId(), connector.getConnectorId()))
                 .isEqualTo(connector.getCommitment());
         verifyNoInteractions(clprConnectorRepository);
     }
@@ -107,7 +100,7 @@ final class ClprConnectorCommitmentServiceTest {
                 .get();
 
         // when
-        clprConnectorCommitmentService.notify(connector);
+        clprConnectorService.notify(connector);
 
         // then
         verifyNoInteractions(clprConnectorRepository);

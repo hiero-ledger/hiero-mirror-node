@@ -168,8 +168,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .contractCall()
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
                 .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
-                .recordItem(r ->
-                        r.clprContextBuilder().clprChannel(clprChannelValue).clprChannels(List.of(clprChannelValue)))
+                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelValue)))
                 .customize(this::finalize)
                 .build();
         final var blockTransaction = blockTransactionBuilder
@@ -1232,8 +1231,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .build();
         final var atomicBatchRecordItem = recordItemBuilder
                 .atomicBatch()
-                .recordItem(r ->
-                        r.clprContextBuilder().clprChannel(clprChannelValue).clprChannels(List.of(clprChannelValue)))
+                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelValue)))
                 .customize(this::finalize)
                 .build();
         var atomicBatchBlockTransaction = blockTransactionBuilder
@@ -1502,8 +1500,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         // Parent transaction (CryptoTransfer that triggers hooks)
         final var parentRecordItem = recordItemBuilder
                 .cryptoTransfer()
-                .recordItem(r ->
-                        r.clprContextBuilder().clprChannel(clprChannelValue).clprChannels(List.of(clprChannelValue)))
+                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelValue)))
                 .customize(this::finalize)
                 .build();
         var parentBlockTransaction = blockTransactionBuilder

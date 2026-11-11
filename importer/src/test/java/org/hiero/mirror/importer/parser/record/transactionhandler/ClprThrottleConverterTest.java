@@ -6,9 +6,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
 import com.hederahashgraph.api.proto.java.ClprThrottles;
+import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.junit.jupiter.api.Test;
 
-class ClprThrottleValuesTest {
+class ClprThrottleConverterTest {
 
     @Test
     void fromThrottlesWidensUint32Fields() {
@@ -22,20 +23,20 @@ class ClprThrottleValuesTest {
                 .build();
 
         // when
-        final var throttleValues = ClprThrottleValues.from(throttles);
+        final var throttle = ClprThrottleConverter.from(throttles);
 
         // then
-        assertThat(throttleValues)
-                .returns(4_294_967_295L, ClprThrottleValues::maxLocalEndpoints)
-                .returns(4_294_967_295L, ClprThrottleValues::maxMessagePayloadBytes)
-                .returns(4_294_967_295L, ClprThrottleValues::maxMessagesPerBundle)
-                .returns(4_294_967_295L, ClprThrottleValues::maxPeerEndpoints)
-                .returns(4_294_967_295L, ClprThrottleValues::maxQueueDepth);
+        assertThat(throttle)
+                .returns(4_294_967_295L, ClprThrottle::getMaxLocalEndpoints)
+                .returns(4_294_967_295L, ClprThrottle::getMaxMessagePayloadBytes)
+                .returns(4_294_967_295L, ClprThrottle::getMaxMessagesPerBundle)
+                .returns(4_294_967_295L, ClprThrottle::getMaxPeerEndpoints)
+                .returns(4_294_967_295L, ClprThrottle::getMaxQueueDepth);
     }
 
     @Test
     void fromLedgerConfigurationWithoutThrottlesReturnsNull() {
-        assertThat(ClprThrottleValues.from(ClprLedgerConfiguration.getDefaultInstance()))
+        assertThat(ClprThrottleConverter.from(ClprLedgerConfiguration.getDefaultInstance()))
                 .isNull();
     }
 }

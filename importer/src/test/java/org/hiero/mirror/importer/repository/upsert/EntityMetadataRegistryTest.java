@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.token.CustomFee;
 import org.hiero.mirror.common.domain.token.Token;
@@ -89,6 +90,35 @@ class EntityMetadataRegistryTest extends ImporterIntegrationTest {
                 .map(ColumnMetadata::getDefaultValue)
                 .toList();
         assertThat(typeDefaultValues).containsExactly("'UNKNOWN'", "'FUNGIBLE_COMMON'");
+    }
+
+    @Test
+    void lookupEmbeddedAttributeOverride() {
+        // ClprChannel.peerThrottle is @Embedded with @AttributeOverride renaming each of ClprThrottle's columns to
+        // the real peer_max_* columns -- confirms the registry honors the override instead of the embeddable's own
+        // (unprefixed) attribute names.
+        var metadata = registry.lookup(ClprChannel.class);
+        assertThat(metadata)
+                .isNotNull()
+                .extracting(EntityMetadata::getColumns, InstanceOfAssertFactories.ITERABLE)
+                .extracting("name")
+                .contains(
+                        "peer_max_gas_per_message",
+                        "peer_max_local_endpoints",
+                        "peer_max_message_payload_bytes",
+                        "peer_max_messages_per_bundle",
+                        "peer_max_peer_endpoints",
+                        "peer_max_queue_depth",
+                        "peer_max_sync_bytes")
+                .doesNotContain(
+                        "peer_throttle",
+                        "max_gas_per_message",
+                        "max_local_endpoints",
+                        "max_message_payload_bytes",
+                        "max_messages_per_bundle",
+                        "max_peer_endpoints",
+                        "max_queue_depth",
+                        "max_sync_bytes");
     }
 
     @Test

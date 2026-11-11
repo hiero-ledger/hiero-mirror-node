@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.clpr;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.AccessLevel;
@@ -35,24 +36,13 @@ public class ClprLedgerConfiguration implements Persistable<Long> {
     @ToString.Exclude
     private byte[] initialTrustAnchorId;
 
-    private Long maxGasPerMessage;
-
-    private Long maxLocalEndpoints;
-
-    private Long maxMessagePayloadBytes;
-
-    private Long maxMessagesPerBundle;
-
-    private Long maxPeerEndpoints;
-
-    private Long maxQueueDepth;
-
-    private Long maxSyncBytes;
-
     private long protocolVersion;
 
     @ToString.Exclude
     private byte[] serviceAddress;
+
+    @Embedded
+    private ClprThrottle throttle;
 
     @JsonIgnore
     @Override

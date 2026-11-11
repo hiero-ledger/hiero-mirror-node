@@ -21,13 +21,7 @@ public class ClprControlConfiguration {
     private String chainId;
     private byte[] initialTrustAnchor;
     private byte[] initialTrustAnchorId;
-    private Long maxGasPerMessage;
-    private Long maxLocalEndpoints;
-    private Long maxMessagePayloadBytes;
-    private Long maxMessagesPerBundle;
-    private Long maxPeerEndpoints;
-    private Long maxQueueDepth;
-    private Long maxSyncBytes;
     private long protocolVersion;
     private byte[] serviceAddress;
+    private ClprThrottle throttle;
 }
