@@ -76,7 +76,7 @@ public class RecordItem implements StreamItem {
     private final boolean blockstream;
 
     @Nullable
-    private final ClprRecordContext clprContext;
+    private final ClprContext clprContext;
 
     private final Long congestionPricingMultiplier;
     private final RecordItem hookParent;
@@ -342,7 +342,7 @@ public class RecordItem implements StreamItem {
 
     public static class RecordItemBuilder {
 
-        private ClprRecordContext.ClprRecordContextBuilder clprContextBuilder;
+        private ClprContext.ClprContextBuilder clprContextBuilder;
         private TransactionRecord.Builder transactionRecordBuilder;
 
         public RecordItem build() {
@@ -364,9 +364,9 @@ public class RecordItem implements StreamItem {
             return buildInternal();
         }
 
-        public ClprRecordContext.ClprRecordContextBuilder clprContextBuilder() {
+        public ClprContext.ClprContextBuilder clprContextBuilder() {
             if (clprContextBuilder == null) {
-                clprContextBuilder = clprContext != null ? clprContext.toBuilder() : ClprRecordContext.builder();
+                clprContextBuilder = clprContext != null ? clprContext.toBuilder() : ClprContext.builder();
                 clprContext = null;
             }
 

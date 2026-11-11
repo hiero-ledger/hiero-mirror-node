@@ -18,8 +18,9 @@ public class CacheProperties {
     @NotBlank
     private String alias = "maximumSize=100000,expireAfterAccess=30m,recordStats";
 
+    // Connector commitments are permanent once assigned (HIP-1535), so no expiry is needed
     @NotBlank
-    private String clprConnectorCommitment = "maximumSize=100000,expireAfterAccess=30m,recordStats";
+    private String clprConnectorCommitment = "maximumSize=1000,recordStats";
 
     private boolean enabled = true;
 

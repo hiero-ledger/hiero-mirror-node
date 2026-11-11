@@ -118,6 +118,8 @@ public final class StateChangeContext {
                 } else if (stateChange.hasMapDelete()) {
                     final var key = stateChange.getMapDelete().getKey();
                     switch (key.getKeyChoiceCase()) {
+                        // No case for channels: closure is always a status transition
+                        // (CLOSING/DRAINED/CLOSED), never a removal from the clpr_channels map
                         case CLPR_CONNECTOR_KEY -> clprConnectorsRemoved.add(key.getClprConnectorKey());
                         case EVM_HOOK_SLOT_KEY -> processContractStorageDelete(key.getEvmHookSlotKey());
                         case SLOT_KEY_KEY -> processContractStorageDelete(key.getSlotKeyKey());
@@ -156,16 +158,16 @@ public final class StateChangeContext {
         return accountEthereumNonces.get(id);
     }
 
-    public Optional<ClprChannel> getClprChannel(ByteString channelId) {
-        return Optional.ofNullable(clprChannels.get(channelId));
+    public @Nullable ClprChannel getClprChannel(ByteString channelId) {
+        return clprChannels.get(channelId);
     }
 
     public List<ClprChannel> getClprChannels() {
         return List.copyOf(clprChannels.values());
     }
 
-    public Optional<ClprConnector> getClprConnector(ClprConnectorKey key) {
-        return Optional.ofNullable(clprConnectors.get(key));
+    public @Nullable ClprConnector getClprConnector(ClprConnectorKey key) {
+        return clprConnectors.get(key);
     }
 
     public List<ClprConnector> getClprConnectors() {

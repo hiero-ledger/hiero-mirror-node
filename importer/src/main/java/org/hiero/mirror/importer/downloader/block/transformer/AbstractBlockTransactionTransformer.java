@@ -103,14 +103,6 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         final var clprConnectors = stateChangeContext.getClprConnectors();
         final var clprContextBuilder =
                 blockTransactionTransformation.recordItemBuilder().clprContextBuilder();
-        // See ClprRecordContext for why the singular clprChannel/clprConnector are derived here alongside the
-        // plural lists.
-        if (!clprChannels.isEmpty()) {
-            clprContextBuilder.clprChannel(clprChannels.getFirst());
-        }
-        if (!clprConnectors.isEmpty()) {
-            clprContextBuilder.clprConnector(clprConnectors.getFirst());
-        }
         clprContextBuilder.clprChannels(clprChannels);
         clprContextBuilder.clprMessages(stateChangeContext.getClprMessages());
         clprContextBuilder.clprConnectors(clprConnectors);

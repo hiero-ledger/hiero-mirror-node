@@ -95,7 +95,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
-import org.hiero.mirror.common.domain.transaction.ClprRecordContext;
+import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -217,7 +217,7 @@ public class BlockTransactionBuilder {
     public BlockTransactionBuilder.Builder clprCloseChannel(RecordItem recordItem) {
         final var clprContext = recordItem.getClprContext();
         final var clprChannelValue = Optional.ofNullable(clprContext)
-                .map(ClprRecordContext::getClprChannel)
+                .map(ClprContext::getClprChannel)
                 .orElse(null);
         if (clprChannelValue == null) {
             // No Channel exists yet for this channel_id -- consensus never revealed one (the commit-reveal scheme

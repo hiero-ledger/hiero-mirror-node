@@ -55,7 +55,7 @@ public class ClprStateChangeHandler {
             TransactionType.CLPRDEREGISTERCONNECTOR,
             TransactionType.CLPRREGISTERCONNECTOR);
 
-    private final ClprConnectorCommitmentService clprConnectorCommitmentService;
+    private final ClprConnectorService clprConnectorService;
     private final EntityListener entityListener;
 
     public void process(RecordItem recordItem) {
@@ -162,14 +162,7 @@ public class ClprStateChangeHandler {
         }
 
         if (value.hasPeerThrottles()) {
-            final var throttleValues = ClprThrottleValues.from(value.getPeerThrottles());
-            builder.peerMaxGasPerMessage(throttleValues.maxGasPerMessage())
-                    .peerMaxLocalEndpoints(throttleValues.maxLocalEndpoints())
-                    .peerMaxMessagePayloadBytes(throttleValues.maxMessagePayloadBytes())
-                    .peerMaxMessagesPerBundle(throttleValues.maxMessagesPerBundle())
-                    .peerMaxPeerEndpoints(throttleValues.maxPeerEndpoints())
-                    .peerMaxQueueDepth(throttleValues.maxQueueDepth())
-                    .peerMaxSyncBytes(throttleValues.maxSyncBytes());
+            builder.peerThrottle(ClprThrottleConverter.from(value.getPeerThrottles()));
         }
 
         if (value.hasEndpointManifest()) {
@@ -213,7 +206,7 @@ public class ClprStateChangeHandler {
 
     private byte @Nullable [] lookupCommitment(
             byte[] channelId, byte[] connectorId, TransactionType transactionType, long consensusTimestamp) {
-        final var commitment = clprConnectorCommitmentService.lookup(channelId, connectorId);
+        final var commitment = clprConnectorService.lookup(channelId, connectorId);
         if (commitment == null) {
             Utility.handleRecoverableError(
                     "No clpr_connector commitment found via lookup for successful {} at {}",
@@ -260,25 +253,14 @@ public class ClprStateChangeHandler {
 
     private ClprControlConfiguration toControlConfiguration(
             com.hederahashgraph.api.proto.java.ClprLedgerConfiguration configuration) {
-        final var builder = ClprControlConfiguration.builder()
+        return ClprControlConfiguration.builder()
                 .protocolVersion(configuration.getProtocolVersion())
                 .chainId(configuration.getChainId())
                 .serviceAddress(DomainUtils.toBytes(configuration.getServiceAddress()))
                 .initialTrustAnchor(DomainUtils.toBytes(configuration.getInitialTrustAnchor()))
-                .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()));
-
-        final var throttleValues = ClprThrottleValues.from(configuration);
-        if (throttleValues != null) {
-            builder.maxGasPerMessage(throttleValues.maxGasPerMessage())
-                    .maxLocalEndpoints(throttleValues.maxLocalEndpoints())
-                    .maxMessagePayloadBytes(throttleValues.maxMessagePayloadBytes())
-                    .maxMessagesPerBundle(throttleValues.maxMessagesPerBundle())
-                    .maxPeerEndpoints(throttleValues.maxPeerEndpoints())
-                    .maxQueueDepth(throttleValues.maxQueueDepth())
-                    .maxSyncBytes(throttleValues.maxSyncBytes());
-        }
-
-        return builder.build();
+                .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()))
+                .throttle(ClprThrottleConverter.from(configuration))
+                .build();
     }
 
     private ClprControlMessage toControlMessage(com.hederahashgraph.api.proto.java.ClprControlMessage control) {

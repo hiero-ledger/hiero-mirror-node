@@ -77,6 +77,7 @@ import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
+import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -427,15 +428,17 @@ public class DomainBuilder {
                 .consensusTimestamp(timestamp())
                 .initialTrustAnchor(bytes(32))
                 .initialTrustAnchorId(bytes(32))
-                .maxGasPerMessage(1_000_000L)
-                .maxLocalEndpoints(10L)
-                .maxMessagePayloadBytes(6_000L)
-                .maxMessagesPerBundle(100L)
-                .maxPeerEndpoints(10L)
-                .maxQueueDepth(1_000L)
-                .maxSyncBytes(6_000_000L)
                 .protocolVersion(1L)
-                .serviceAddress(bytes(20));
+                .serviceAddress(bytes(20))
+                .throttle(ClprThrottle.builder()
+                        .maxGasPerMessage(1_000_000L)
+                        .maxLocalEndpoints(10L)
+                        .maxMessagePayloadBytes(6_000L)
+                        .maxMessagesPerBundle(100L)
+                        .maxPeerEndpoints(10L)
+                        .maxQueueDepth(1_000L)
+                        .maxSyncBytes(6_000_000L)
+                        .build());
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -450,15 +453,17 @@ public class DomainBuilder {
                                         .chainId("hedera:mainnet")
                                         .initialTrustAnchor(bytes(32))
                                         .initialTrustAnchorId(bytes(32))
-                                        .maxGasPerMessage(1_000_000L)
-                                        .maxLocalEndpoints(10L)
-                                        .maxMessagePayloadBytes(6_000L)
-                                        .maxMessagesPerBundle(100L)
-                                        .maxPeerEndpoints(10L)
-                                        .maxQueueDepth(1_000L)
-                                        .maxSyncBytes(6_000_000L)
                                         .protocolVersion(1L)
                                         .serviceAddress(bytes(20))
+                                        .throttle(ClprThrottle.builder()
+                                                .maxGasPerMessage(1_000_000L)
+                                                .maxLocalEndpoints(10L)
+                                                .maxMessagePayloadBytes(6_000L)
+                                                .maxMessagesPerBundle(100L)
+                                                .maxPeerEndpoints(10L)
+                                                .maxQueueDepth(1_000L)
+                                                .maxSyncBytes(6_000_000L)
+                                                .build())
                                         .build())
                                 .build())
                         .build())
