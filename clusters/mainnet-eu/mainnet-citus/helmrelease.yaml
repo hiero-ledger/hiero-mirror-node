@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.165.1'
+      version: '0.166.2'
   dependsOn:
     - name: mirror
       namespace: common
@@ -46,6 +46,11 @@ spec:
       name: mirror
   values:
     global:
+      config:
+        hiero:
+          mirror:
+            common:
+              clusterId: "b9b8f2f"
       hostname: "*.mirrornode.hedera.com"
     grpc:
       ingress:
@@ -54,6 +59,7 @@ spec:
       env:
         HIERO_MIRROR_IMPORTER_BLOCK_CUTOVER_FIRSTSTAGE_ENABLED: "true"
         HIERO_MIRROR_IMPORTER_BLOCK_SOURCETYPE: "BLOCK_NODE"
+        HIERO_MIRROR_IMPORTER_BLOCK_STREAM_RESPONSETIMEOUT: "1s"
         HIERO_MIRROR_IMPORTER_MIGRATION_BACKFILLTRANSACTIONHASHMIGRATION_PARAMS_STARTTIMESTAMP: "0"
         HIERO_MIRROR_IMPORTER_NETWORK: "MAINNET"
         HIERO_MIRROR_IMPORTER_PARSER_RECORD_SIDECAR_ENABLED: "true"
@@ -75,12 +81,6 @@ spec:
         HIERO_MIRROR_MONITOR_NETWORK: "MAINNET"
         HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_PROPERTIES_TOPICID: "0.0.368908"
         HIERO_MIRROR_MONITOR_SUBSCRIBE_GRPC_HCS_TOPICID: "0.0.368908"
-    rest:
-      config:
-        hiero:
-          mirror:
-            rest:
-              clusterId: "b9b8f2f"
       env:
         HIERO_MIRROR_REST_CHAINID: "0x127"
       ingress:
