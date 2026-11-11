@@ -2114,6 +2114,110 @@
             "type": "prometheus",
             "uid": "${prometheus}"
           },
+          "description": "The average time each block node took to stream a complete block, from its block header to its end of block. Latency probes aren't included.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisGridShow": false,
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "hue",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": 3600000,
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 55
+          },
+          "id": 328,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "10.2.0-59422pre",
+          "targets": [
+            {
+              "datasource": {
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "sum by (block_node) (rate(hiero_mirror_importer_block_stream_duration_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) / sum by (block_node) (rate(hiero_mirror_importer_block_stream_duration_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) >= 0",
+              "legendFormat": "{{block_node}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Block Node Streaming Duration",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
           "description": "The number of block node latency probes per minute",
           "fieldConfig": {
             "defaults": {
@@ -2176,7 +2280,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 55
+            "y": 63
           },
           "id": 323,
           "options": {
@@ -2281,7 +2385,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 63
+            "y": 71
           },
           "id": 324,
           "options": {
@@ -2386,7 +2490,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 71
+            "y": 79
           },
           "id": 325,
           "options": {
@@ -2491,7 +2595,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 79
+            "y": 87
           },
           "id": 326,
           "options": {

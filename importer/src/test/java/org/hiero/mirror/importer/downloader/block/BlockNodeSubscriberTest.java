@@ -455,7 +455,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         assertThat(actual)
                 .returns(null, BlockStream::bytes)
                 .returns(BlockFile.getFilename(blockNumber, false), BlockStream::filename)
-                .extracting(BlockStream::loadStart, InstanceOfAssertFactories.LONG)
+                .extracting(BlockStream::blockCompleteTime, InstanceOfAssertFactories.LONG)
                 .isGreaterThan(0L);
     }
 

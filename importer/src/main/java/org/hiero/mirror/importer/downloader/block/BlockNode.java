@@ -19,6 +19,7 @@ import io.grpc.stub.ClientCalls;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -63,6 +64,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     static final String CLOSE_METRIC_NAME = "hiero.mirror.importer.block.subscriber.close";
     static final String ERROR_METRIC_NAME = "hiero.mirror.importer.stream.error";
+    static final String STREAM_DURATION_METRIC_NAME = "hiero.mirror.importer.block.stream.duration";
 
     private static final String BLOCK_NODE_TAG = "block_node";
     private static final String CLOSE_REASON_COMPLETED = "completed";
@@ -99,6 +101,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     private final AtomicReference<Instant> readmitTime = new AtomicReference<>(Instant.now());
     private final ManagedChannel statusChannel;
+    private final MeterProvider<Timer> streamDurationMetric;
     private final StreamProperties streamProperties;
     private final ManagedChannel subscribeStreamChannel;
 
@@ -136,6 +139,9 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 .tag(BLOCK_NODE_TAG, this.subscribeStreamEndpoint)
                 .register(meterRegistry);
         name = String.format("BlockNode(%s)", statusEndpoint);
+        streamDurationMetric = Timer.builder(STREAM_DURATION_METRIC_NAME)
+                .description("The time it took to stream a complete block from a block node")
+                .withRegistry(meterRegistry);
         subscribeStreamName = String.format("BlockNode(%s)", subscribeStreamEndpoint);
     }
 
@@ -333,8 +339,8 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         try {
             final long effectiveEndBlockNumber = endBlockNumber == null ? -1L : endBlockNumber;
             final var uncompressedBytes = new AtomicLong();
-            final var assembler =
-                    new BlockAssembler(onBlockStream, effectiveEndBlockNumber, blockNumber, timeout, uncompressedBytes);
+            final var assembler = new BlockAssembler(
+                    onBlockStream, effectiveEndBlockNumber, trackErrors, blockNumber, timeout, uncompressedBytes);
             final var request = SubscribeStreamRequest.newBuilder()
                     .setEndBlockNumber(effectiveEndBlockNumber)
                     .setStartBlockNumber(blockNumber)
@@ -440,15 +446,16 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         private final BiFunction<BlockStream, String, Boolean> blockStreamConsumer;
         private final long endBlockNumber;
         private final List<List<BlockItemUnparsed>> pending = new ArrayList<>();
+        private final boolean recordStreamDuration;
         private final long startBlockNumber;
         private final Stopwatch stopwatch;
         private final Duration timeout;
         private final AtomicLong uncompressedBytes;
 
         private long blockStartBytes = 0;
+        private long blockStartTime;
         private int completedBlocks = 0;
         private @Nullable BlockHeader currentBlockHeader;
-        private long loadStart;
         private int pendingCount = 0;
 
         @Getter
@@ -457,11 +464,13 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         BlockAssembler(
                 final BiFunction<BlockStream, String, Boolean> blockStreamConsumer,
                 final long endBlockNumber,
+                final boolean recordStreamDuration,
                 final long startBlockNumber,
                 final Duration timeout,
                 final AtomicLong uncompressedBytes) {
             this.blockStreamConsumer = blockStreamConsumer;
             this.endBlockNumber = endBlockNumber;
+            this.recordStreamDuration = recordStreamDuration;
             this.startBlockNumber = startBlockNumber;
             this.stopwatch = Stopwatch.createUnstarted();
             this.timeout = timeout;
@@ -500,6 +509,12 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             }
 
             final long blockCompleteTime = System.currentTimeMillis();
+            if (recordStreamDuration) {
+                streamDurationMetric
+                        .withTag(BLOCK_NODE_TAG, subscribeStreamEndpoint)
+                        .record(blockCompleteTime - blockStartTime, TimeUnit.MILLISECONDS);
+            }
+
             final List<BlockItemUnparsed> block;
             if (pending.size() == 1) {
                 block = pending.getFirst();
@@ -518,7 +533,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             stopwatch.reset();
 
             final var filename = BlockFile.getFilename(blockNumber, false);
-            final var blockStream = new BlockStream(block, blockCompleteTime, null, filename, loadStart, blockSize);
+            final var blockStream = new BlockStream(block, blockCompleteTime, null, filename, blockSize);
             log.info("Streamed block {} from {}", blockNumber, subscribeStreamName);
 
             // when either condition becomes true, inform the caller to stop sending items for assembling
@@ -559,6 +574,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             }
 
             if (firstItemCase == BLOCK_HEADER) {
+                blockStartTime = System.currentTimeMillis();
                 currentBlockHeader = parseProtobuf(blockItems.getFirst().getBlockHeader(), BlockHeader::parseFrom);
                 if (completedBlocks == 0 && startBlockNumber != currentBlockHeader.getNumber()) {
                     // Validate only the first block's number in this session; subsequent blocks are validated by
@@ -567,8 +583,6 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                             "First block has incorrect block number: received %d, expected %d",
                             currentBlockHeader.getNumber(), startBlockNumber));
                 }
-
-                loadStart = System.currentTimeMillis();
             }
         }
 

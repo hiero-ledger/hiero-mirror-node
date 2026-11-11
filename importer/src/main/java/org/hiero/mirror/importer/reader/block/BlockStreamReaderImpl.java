@@ -70,7 +70,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         final byte[] bytes = blockStream.bytes();
         final var blockFileBuilder = context.getBlockFile()
                 .bytes(bytes)
-                .loadStart(blockStream.loadStart())
+                .loadStart(blockStream.blockCompleteTime())
                 .name(blockStream.filename())
                 .size(blockStream.size())
                 .version(VERSION);
@@ -115,7 +115,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             final var recordFile = recordFileItemReader.read(
                     parseItem(recordFileItem.getRecordFile(), RecordFileItem::parseFrom), recordFileVersion);
             blockFile.setRecordFile(recordFile);
-            recordFile.setLoadStart(blockStream.loadStart());
+            recordFile.setLoadStart(blockStream.blockCompleteTime());
             recordFile.setPreviousWrappedRecordBlockHash(blockFile.getRawPreviousHash());
             recordFile.setWrappedRecordBlockHash(rootHash);
 

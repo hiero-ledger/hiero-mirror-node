@@ -233,7 +233,7 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
     }
 
     private static BlockStream blockStream() {
-        return new BlockStream(List.of(), 500L, null, "test", 0L, 0);
+        return new BlockStream(List.of(), 500L, null, "test", 0);
     }
 
     private Scheduler createScheduler(final Duration minRescheduleInterval, final Duration rescheduleLatencyThreshold) {

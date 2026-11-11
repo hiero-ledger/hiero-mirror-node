@@ -543,7 +543,7 @@ final class LatencyServiceTest {
                     final BiFunction<BlockStream, String, Boolean> onBlockStream = invocation.getArgument(1);
                     onBlockStream.apply(
                             new BlockStream(
-                                    List.of(), System.currentTimeMillis(), null, String.valueOf(blockNumber), 0L, 0),
+                                    List.of(), System.currentTimeMillis(), null, String.valueOf(blockNumber), 0),
                             "test");
                     return null;
                 })
