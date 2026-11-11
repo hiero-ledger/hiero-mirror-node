@@ -39,6 +39,8 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
                     .withEqualsForType(Object::equals, ClprChannel.class)
                     .withEqualsForType(Object::equals, ClprEndpointManifest.class)
                     .withEqualsForType(Object::equals, ClprLedgerConfiguration.class)
+                    .withEqualsForType(Object::equals, StateChangeContext.ClprChannelEntry.class)
+                    .withEqualsForType(Object::equals, StateChangeContext.ClprConnectorEntry.class)
                     .withEqualsForType(Object::equals, StateChangeContext.ClprMessageEntry.class)
                     .build();
 

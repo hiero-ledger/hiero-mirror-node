@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.google.common.collect.Range;
+import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import jakarta.inject.Named;
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnectorEntry;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprMessageEntry;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -74,10 +76,10 @@ public class ClprStateChangeHandler {
         }
 
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
-        for (final var clprChannelValue : clprContext.getClprChannels()) {
+        for (final var entry : clprContext.getClprChannels()) {
             final var builder = ClprChannel.builder();
-            populateFromStateChange(builder, clprChannelValue);
-            if (channelHistorizes(clprChannelValue)) {
+            populateFromStateChange(builder, entry.channelId(), entry.value());
+            if (channelHistorizes(entry.value())) {
                 builder.timestampRange(Range.atLeast(consensusTimestamp));
             }
             entityListener.onClprChannel(builder.build());
@@ -93,8 +95,8 @@ public class ClprStateChangeHandler {
         // A connector can be banned and patched in the same transaction; index patches by key so the removal below
         // can carry fields forward instead of losing them.
         final var connectorsByKey = new HashMap<ClprConnectorKey, com.hederahashgraph.api.proto.java.ClprConnector>();
-        for (final var value : clprContext.getClprConnectors()) {
-            connectorsByKey.put(toConnectorKey(value), value);
+        for (final var entry : clprContext.getClprConnectors()) {
+            connectorsByKey.put(entry.key(), entry.value());
         }
 
         final var removedConnectorKeys = new HashSet<ClprConnectorKey>();
@@ -107,12 +109,12 @@ public class ClprStateChangeHandler {
             }
         }
 
-        for (final var value : clprContext.getClprConnectors()) {
-            if (removedConnectorKeys.contains(toConnectorKey(value))) {
+        for (final var entry : clprContext.getClprConnectors()) {
+            if (removedConnectorKeys.contains(entry.key())) {
                 continue;
             }
 
-            final var connector = toConnector(value, transactionType, consensusTimestamp);
+            final var connector = toConnector(entry, transactionType, consensusTimestamp);
             if (connector == null) {
                 continue;
             }
@@ -139,8 +141,9 @@ public class ClprStateChangeHandler {
 
     static void populateFromStateChange(
             AbstractClprChannel.AbstractClprChannelBuilder<?, ?> builder,
+            ByteString channelId,
             com.hederahashgraph.api.proto.java.ClprChannel value) {
-        builder.channelId(DomainUtils.toBytes(value.getChannelId()))
+        builder.channelId(DomainUtils.toBytes(channelId))
                 .status(toChannelStatus(value.getStatus()))
                 .nextMessageId(value.getNextMessageId())
                 .ackedMessageId(value.getAckedMessageId())
@@ -168,13 +171,6 @@ public class ClprStateChangeHandler {
         if (value.hasEndpointManifest()) {
             builder.endpointManifest(toEndpoints(value.getEndpointManifest().getEndpointsList()));
         }
-    }
-
-    static ClprConnectorKey toConnectorKey(com.hederahashgraph.api.proto.java.ClprConnector value) {
-        return ClprConnectorKey.newBuilder()
-                .setChannelId(value.getChannelId())
-                .setConnectorId(value.getConnectorId())
-                .build();
     }
 
     static List<ClprEndpoint> toEndpoints(List<com.hederahashgraph.api.proto.java.ClprEndpoint> endpoints) {
@@ -233,11 +229,10 @@ public class ClprStateChangeHandler {
     }
 
     private @Nullable ClprConnector toConnector(
-            com.hederahashgraph.api.proto.java.ClprConnector value,
-            TransactionType transactionType,
-            long consensusTimestamp) {
-        final var channelId = DomainUtils.toBytes(value.getChannelId());
-        final var connectorId = DomainUtils.toBytes(value.getConnectorId());
+            ClprConnectorEntry entry, TransactionType transactionType, long consensusTimestamp) {
+        final var key = entry.key();
+        final var channelId = DomainUtils.toBytes(key.getChannelId());
+        final var connectorId = DomainUtils.toBytes(key.getConnectorId());
         final var commitment = lookupCommitment(channelId, connectorId, transactionType, consensusTimestamp);
         if (commitment == null) {
             return null;
@@ -247,7 +242,7 @@ public class ClprStateChangeHandler {
                 .channelId(channelId)
                 .commitment(commitment)
                 .connectorId(connectorId);
-        applyConnectorFields(builder, value);
+        applyConnectorFields(builder, entry.value());
         return builder.build();
     }
 

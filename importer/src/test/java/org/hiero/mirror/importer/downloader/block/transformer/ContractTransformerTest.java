@@ -66,6 +66,7 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.junit.jupiter.api.Test;
@@ -168,7 +169,8 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .contractCall()
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
                 .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
-                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelValue)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(clprChannelValue.getChannelId(), clprChannelValue))))
                 .customize(this::finalize)
                 .build();
         final var blockTransaction = blockTransactionBuilder
@@ -1231,7 +1233,8 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .build();
         final var atomicBatchRecordItem = recordItemBuilder
                 .atomicBatch()
-                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelValue)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(clprChannelValue.getChannelId(), clprChannelValue))))
                 .customize(this::finalize)
                 .build();
         var atomicBatchBlockTransaction = blockTransactionBuilder
@@ -1500,7 +1503,8 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         // Parent transaction (CryptoTransfer that triggers hooks)
         final var parentRecordItem = recordItemBuilder
                 .cryptoTransfer()
-                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelValue)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(clprChannelValue.getChannelId(), clprChannelValue))))
                 .customize(this::finalize)
                 .build();
         var parentBlockTransaction = blockTransactionBuilder

@@ -38,6 +38,8 @@ import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnectorEntry;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprMessageEntry;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -105,7 +107,8 @@ final class ClprStateChangeHandlerTest {
                 .setNextMessageId(4)
                 .setAckedMessageId(2)
                 .build();
-        when(clprContext.getClprChannels()).thenReturn(List.of(clprChannelValue));
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), clprChannelValue)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -129,7 +132,8 @@ final class ClprStateChangeHandlerTest {
                 .setChannelId(DomainUtils.fromBytes(channelId))
                 .setStatusValue(99)
                 .build();
-        when(clprContext.getClprChannels()).thenReturn(List.of(clprChannelValue));
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), clprChannelValue)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -168,7 +172,8 @@ final class ClprStateChangeHandlerTest {
                                 .setTlsCertificate(DomainUtils.fromBytes(tlsCertificate))
                                 .setAccountId(DomainUtils.fromBytes(endpointAccountId))))
                 .build();
-        when(clprContext.getClprChannels()).thenReturn(List.of(clprChannelValue));
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), clprChannelValue)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -218,7 +223,10 @@ final class ClprStateChangeHandlerTest {
                 .setChannelId(DomainUtils.fromBytes(channelId2))
                 .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE)
                 .build();
-        when(clprContext.getClprChannels()).thenReturn(List.of(clprChannelValue1, clprChannelValue2));
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(
+                        new ClprChannelEntry(DomainUtils.fromBytes(channelId1), clprChannelValue1),
+                        new ClprChannelEntry(DomainUtils.fromBytes(channelId2), clprChannelValue2)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -398,6 +406,10 @@ final class ClprStateChangeHandlerTest {
                 .setSlashCount(1)
                 .setInFlightMessageCount(1)
                 .build();
+        final var patchedConnectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(patchedConnectorId)
+                .build();
 
         final var bannedConnectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
         final var bannedConnectorContract = domainBuilder.entityNum(2600L).toContractID();
@@ -425,7 +437,10 @@ final class ClprStateChangeHandlerTest {
         when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(bannedConnectorId)))
                 .thenReturn(bannedCommitment);
 
-        when(clprContext.getClprConnectors()).thenReturn(List.of(patchedConnectorValue, bannedConnectorValue));
+        when(clprContext.getClprConnectors())
+                .thenReturn(List.of(
+                        new ClprConnectorEntry(patchedConnectorKey, patchedConnectorValue),
+                        new ClprConnectorEntry(bannedConnectorKey, bannedConnectorValue)));
         when(clprContext.getClprConnectorsRemoved()).thenReturn(List.of(bannedConnectorKey));
 
         // when
@@ -471,10 +486,14 @@ final class ClprStateChangeHandlerTest {
                 .setConnectorId(connectorId)
                 .setSlashCount(-1)
                 .build();
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
         final var commitment = domainBuilder.bytes(32);
         when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(commitment);
-        when(clprContext.getClprConnectors()).thenReturn(List.of(connectorValue));
+        when(clprContext.getClprConnectors()).thenReturn(List.of(new ClprConnectorEntry(connectorKey, connectorValue)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -526,9 +545,13 @@ final class ClprStateChangeHandlerTest {
                 .setChannelId(channelId)
                 .setConnectorId(connectorId)
                 .build();
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
         when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(null);
-        when(clprContext.getClprConnectors()).thenReturn(List.of(connectorValue));
+        when(clprContext.getClprConnectors()).thenReturn(List.of(new ClprConnectorEntry(connectorKey, connectorValue)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -563,15 +586,15 @@ final class ClprStateChangeHandlerTest {
         // given -- exercises the real ClprContext RecordItemBuilder.clprSubmitBundle() builds, not mocks
         final var realRecordItem = recordItemBuilder.clprSubmitBundle().build();
         final var realClprContext = realRecordItem.getClprContext();
-        final var channelValue = realClprContext.getClprChannel();
-        final var connectorValue = realClprContext.getClprConnector();
+        final var channelEntry = realClprContext.getClprChannel();
+        final var connectorEntry = realClprContext.getClprConnector();
         final var removedConnectorKey =
                 realClprContext.getClprConnectorsRemoved().getFirst();
         final var connectorCommitment = domainBuilder.bytes(32);
         final var removedCommitment = domainBuilder.bytes(32);
         when(clprConnectorService.lookup(
-                        DomainUtils.toBytes(connectorValue.getChannelId()),
-                        DomainUtils.toBytes(connectorValue.getConnectorId())))
+                        DomainUtils.toBytes(connectorEntry.key().getChannelId()),
+                        DomainUtils.toBytes(connectorEntry.key().getConnectorId())))
                 .thenReturn(connectorCommitment);
         when(clprConnectorService.lookup(
                         DomainUtils.toBytes(removedConnectorKey.getChannelId()),
@@ -585,7 +608,7 @@ final class ClprStateChangeHandlerTest {
         final var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
         verify(entityListener).onClprChannel(channelCaptor.capture());
         assertThat(channelCaptor.getValue())
-                .returns(DomainUtils.toBytes(channelValue.getChannelId()), ClprChannel::getChannelId);
+                .returns(DomainUtils.toBytes(channelEntry.channelId()), ClprChannel::getChannelId);
 
         final var messageCaptor = ArgumentCaptor.forClass(ClprMessage.class);
         verify(entityListener).onClprMessage(messageCaptor.capture());
@@ -596,7 +619,9 @@ final class ClprStateChangeHandlerTest {
         assertThat(connectorCaptor.getAllValues())
                 .hasSize(2)
                 .anySatisfy(connector -> assertThat(connector)
-                        .returns(DomainUtils.toBytes(connectorValue.getConnectorId()), ClprConnector::getConnectorId)
+                        .returns(
+                                DomainUtils.toBytes(connectorEntry.key().getConnectorId()),
+                                ClprConnector::getConnectorId)
                         .returns(connectorCommitment, ClprConnector::getCommitment)
                         .returns(null, ClprConnector::getStatus))
                 .anySatisfy(connector -> assertThat(connector)

@@ -320,7 +320,8 @@ public final class RecordItemBuilder {
                 .setStatus(ClprChannelStatus.CLOSING)
                 .build();
         return new Builder<>(TransactionType.CLPRCLOSECHANNEL, builder)
-                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelValue)));
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(channelId, clprChannelValue))));
     }
 
     public Builder<ClprCompleteChannelTransactionBody.Builder> clprCompleteChannel() {
@@ -348,7 +349,8 @@ public final class RecordItemBuilder {
                 .setVerifierFingerprint(bytes(32))
                 .build();
         return new Builder<>(TransactionType.CLPRCOMPLETECHANNEL, builder)
-                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelValue)));
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(channelId, clprChannelValue))));
     }
 
     public Builder<ClprCompleteConnectorTransactionBody.Builder> clprCompleteConnector() {
@@ -373,8 +375,13 @@ public final class RecordItemBuilder {
                 .setConnectorId(connectorId)
                 .setLockedStake(100_000_000L)
                 .build();
+        final var key = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
         return new Builder<>(TransactionType.CLPRCOMPLETECONNECTOR, builder)
-                .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of(clprConnectorValue)));
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprConnectors(List.of(new StateChangeContext.ClprConnectorEntry(key, clprConnectorValue))));
     }
 
     public Builder<ClprDeregisterConnectorTransactionBody.Builder> clprDeregisterConnector() {
@@ -443,14 +450,19 @@ public final class RecordItemBuilder {
                                 .setTargetApplication(bytes(20))))
                 .setRunningHashAfterProcessing(bytes(32))
                 .build();
+        final var patchedConnectorId = bytes(32);
         final var patchedConnectorValue = ClprConnector.newBuilder()
                 .setAdminKey(key())
                 .setChannelId(channelId)
                 .setConnectorContract(contractId())
-                .setConnectorId(bytes(32))
+                .setConnectorId(patchedConnectorId)
                 .setInFlightMessageCount(1)
                 .setLockedStake(90_000_000L)
                 .setSlashCount(1)
+                .build();
+        final var patchedConnectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(patchedConnectorId)
                 .build();
         final var removedConnectorKey = ClprConnectorKey.newBuilder()
                 .setChannelId(channelId)
@@ -458,8 +470,9 @@ public final class RecordItemBuilder {
                 .build();
         return new Builder<>(TransactionType.CLPRSUBMITBUNDLE, builder)
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(clprChannelValue))
-                        .clprConnectors(List.of(patchedConnectorValue))
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(channelId, clprChannelValue)))
+                        .clprConnectors(List.of(
+                                new StateChangeContext.ClprConnectorEntry(patchedConnectorKey, patchedConnectorValue)))
                         .clprConnectorsRemoved(List.of(removedConnectorKey))
                         .clprMessages(List.of(new StateChangeContext.ClprMessageEntry(messageKey, messageValue))));
     }

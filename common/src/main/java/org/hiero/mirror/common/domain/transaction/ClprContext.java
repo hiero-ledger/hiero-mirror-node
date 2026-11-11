@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
-import com.hederahashgraph.api.proto.java.ClprChannel;
-import com.hederahashgraph.api.proto.java.ClprConnector;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
 import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
@@ -12,6 +10,8 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Value;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnectorEntry;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -27,10 +27,10 @@ import org.jspecify.annotations.Nullable;
 public class ClprContext {
 
     @Builder.Default
-    private final List<ClprChannel> clprChannels = List.of();
+    private final List<ClprChannelEntry> clprChannels = List.of();
 
     @Builder.Default
-    private final List<ClprConnector> clprConnectors = List.of();
+    private final List<ClprConnectorEntry> clprConnectors = List.of();
 
     @Builder.Default
     private final List<ClprConnectorKey> clprConnectorsRemoved = List.of();
@@ -48,7 +48,7 @@ public class ClprContext {
      * The first entry of {@link #clprChannels}, for single-entity handlers (e.g. {@code ClprCompleteChannel}) that
      * only expect one.
      */
-    public @Nullable ClprChannel getClprChannel() {
+    public @Nullable ClprChannelEntry getClprChannel() {
         return clprChannels.isEmpty() ? null : clprChannels.getFirst();
     }
 
@@ -56,7 +56,7 @@ public class ClprContext {
      * The first entry of {@link #clprConnectors}, for single-entity handlers (e.g. {@code ClprCompleteConnector})
      * that only expect one.
      */
-    public @Nullable ClprConnector getClprConnector() {
+    public @Nullable ClprConnectorEntry getClprConnector() {
         return clprConnectors.isEmpty() ? null : clprConnectors.getFirst();
     }
 }

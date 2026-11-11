@@ -162,16 +162,24 @@ public final class StateChangeContext {
         return clprChannels.get(channelId);
     }
 
-    public List<ClprChannel> getClprChannels() {
-        return List.copyOf(clprChannels.values());
+    public List<ClprChannelEntry> getClprChannels() {
+        final var result = new ArrayList<ClprChannelEntry>(clprChannels.size());
+        for (final var entry : clprChannels.entrySet()) {
+            result.add(new ClprChannelEntry(entry.getKey(), entry.getValue()));
+        }
+        return result;
     }
 
     public @Nullable ClprConnector getClprConnector(ClprConnectorKey key) {
         return clprConnectors.get(key);
     }
 
-    public List<ClprConnector> getClprConnectors() {
-        return List.copyOf(clprConnectors.values());
+    public List<ClprConnectorEntry> getClprConnectors() {
+        final var result = new ArrayList<ClprConnectorEntry>(clprConnectors.size());
+        for (final var entry : clprConnectors.entrySet()) {
+            result.add(new ClprConnectorEntry(entry.getKey(), entry.getValue()));
+        }
+        return result;
     }
 
     public List<ClprConnectorKey> getClprConnectorsRemoved() {
@@ -528,6 +536,10 @@ public final class StateChangeContext {
      * A storage slot and the value written to it, or null if the value is absent.
      */
     public record SlotValue(ByteString slot, @Nullable BytesValue valueWritten) {}
+
+    public record ClprChannelEntry(ByteString channelId, ClprChannel value) {}
+
+    public record ClprConnectorEntry(ClprConnectorKey key, ClprConnector value) {}
 
     public record ClprMessageEntry(ClprMessageKey key, ClprMessageValue value) {}
 }
