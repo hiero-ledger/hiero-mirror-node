@@ -120,7 +120,7 @@ public abstract class ContractCallService {
             }
         } catch (IllegalStateException | IllegalArgumentException e) {
             if (!estimate) {
-                log.error("Contract execution failed", e);
+                log.error("Contract execution failed: {}", e.getMessage());
             }
             throw new MirrorEvmTransactionException(ResponseCodeEnum.FAIL_INVALID, EMPTY, EMPTY);
         } catch (MirrorEvmTransactionException e) {
