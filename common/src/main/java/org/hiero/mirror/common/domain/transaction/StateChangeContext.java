@@ -62,8 +62,8 @@ public final class StateChangeContext {
     // A null value means the value written is absent from a partial state change
     private final Map<ContractSlotKey, @Nullable BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractSlotId, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
-    private final Map<ByteString, ClprChannel> clprChannels = new HashMap<>();
-    private final Map<ClprConnectorKey, ClprConnector> clprConnectors = new HashMap<>();
+    private final Map<ByteString, MapUpdateChange> clprChannels = new HashMap<>();
+    private final Map<ClprConnectorKey, MapUpdateChange> clprConnectors = new HashMap<>();
     private final List<ClprConnectorKey> clprConnectorsRemoved = new ArrayList<>();
 
     private @Nullable ClprEndpointManifest clprEndpointManifest;
@@ -159,25 +159,30 @@ public final class StateChangeContext {
     }
 
     public @Nullable ClprChannel getClprChannel(ByteString channelId) {
-        return clprChannels.get(channelId);
+        final var mapUpdate = clprChannels.get(channelId);
+        return mapUpdate == null ? null : mapUpdate.getValue().getClprChannelValue();
     }
 
     public List<ClprChannelEntry> getClprChannels() {
         final var result = new ArrayList<ClprChannelEntry>(clprChannels.size());
         for (final var entry : clprChannels.entrySet()) {
-            result.add(new ClprChannelEntry(entry.getKey(), entry.getValue()));
+            final var mapUpdate = entry.getValue();
+            result.add(new ClprChannelEntry(entry.getKey(), mapUpdate.getValue().getClprChannelValue(), mapUpdate));
         }
         return result;
     }
 
     public @Nullable ClprConnector getClprConnector(ClprConnectorKey key) {
-        return clprConnectors.get(key);
+        final var mapUpdate = clprConnectors.get(key);
+        return mapUpdate == null ? null : mapUpdate.getValue().getClprConnectorValue();
     }
 
     public List<ClprConnectorEntry> getClprConnectors() {
         final var result = new ArrayList<ClprConnectorEntry>(clprConnectors.size());
         for (final var entry : clprConnectors.entrySet()) {
-            result.add(new ClprConnectorEntry(entry.getKey(), entry.getValue()));
+            final var mapUpdate = entry.getValue();
+            result.add(
+                    new ClprConnectorEntry(entry.getKey(), mapUpdate.getValue().getClprConnectorValue(), mapUpdate));
         }
         return result;
     }
@@ -279,6 +284,23 @@ public final class StateChangeContext {
     }
 
     /**
+     * Whether a field of a state change value is present, i.e., the update is full, or the field is set or cleared
+     * in a partial update. Any other field in a partial update is unchanged, so its value is absent.
+     */
+    public static boolean isPresent(final MapUpdateChange mapUpdate, final Message value, final int fieldNumber) {
+        if (!mapUpdate.getPartial() || mapUpdate.getClearedFieldsList().contains(fieldNumber)) {
+            return true;
+        }
+
+        final var field = value.getDescriptorForType().findFieldByNumber(fieldNumber);
+        if (field == null) {
+            return false;
+        }
+
+        return field.isRepeated() ? value.getRepeatedFieldCount(field) > 0 : value.hasField(field);
+    }
+
+    /**
      * Get the current amount of a pending fungible airdrop and track its renaming amount.
      *
      * @param pendingAirdropId - The pending fungible airdrop id
@@ -375,7 +397,7 @@ public final class StateChangeContext {
         }
 
         final var channelId = mapUpdate.getKey().getProtoBytesKey().getValue();
-        clprChannels.put(channelId, mapUpdate.getValue().getClprChannelValue());
+        clprChannels.put(channelId, mapUpdate);
     }
 
     private void processClprConnectorStateChange(MapUpdateChange mapUpdate) {
@@ -383,8 +405,7 @@ public final class StateChangeContext {
             return;
         }
 
-        clprConnectors.put(
-                mapUpdate.getKey().getClprConnectorKey(), mapUpdate.getValue().getClprConnectorValue());
+        clprConnectors.put(mapUpdate.getKey().getClprConnectorKey(), mapUpdate);
     }
 
     private void processClprEndpointManifestStateChange(SingletonUpdateChange singletonUpdate) {
@@ -537,9 +558,9 @@ public final class StateChangeContext {
      */
     public record SlotValue(ByteString slot, @Nullable BytesValue valueWritten) {}
 
-    public record ClprChannelEntry(ByteString channelId, ClprChannel value) {}
+    public record ClprChannelEntry(ByteString channelId, ClprChannel value, MapUpdateChange mapUpdate) {}
 
-    public record ClprConnectorEntry(ClprConnectorKey key, ClprConnector value) {}
+    public record ClprConnectorEntry(ClprConnectorKey key, ClprConnector value, MapUpdateChange mapUpdate) {}
 
     public record ClprMessageEntry(ClprMessageKey key, ClprMessageValue value) {}
 }

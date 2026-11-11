@@ -3,6 +3,8 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprConnectorMapUpdate;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.lenient;
@@ -13,6 +15,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
+import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
+import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hederahashgraph.api.proto.java.ClprConfigUpdate;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ClprControlMessage;
@@ -108,7 +112,8 @@ final class ClprStateChangeHandlerTest {
                 .setAckedMessageId(2)
                 .build();
         when(clprContext.getClprChannels())
-                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), clprChannelValue)));
+                .thenReturn(List.of(new ClprChannelEntry(
+                        DomainUtils.fromBytes(channelId), clprChannelValue, clprChannelMapUpdate(clprChannelValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -133,7 +138,8 @@ final class ClprStateChangeHandlerTest {
                 .setStatusValue(99)
                 .build();
         when(clprContext.getClprChannels())
-                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), clprChannelValue)));
+                .thenReturn(List.of(new ClprChannelEntry(
+                        DomainUtils.fromBytes(channelId), clprChannelValue, clprChannelMapUpdate(clprChannelValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -157,7 +163,8 @@ final class ClprStateChangeHandlerTest {
                 .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.PENDING)
                 .build();
         when(clprContext.getClprChannels())
-                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), clprChannelValue)));
+                .thenReturn(List.of(new ClprChannelEntry(
+                        DomainUtils.fromBytes(channelId), clprChannelValue, clprChannelMapUpdate(clprChannelValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -197,7 +204,8 @@ final class ClprStateChangeHandlerTest {
                                 .setAccountId(DomainUtils.fromBytes(endpointAccountId))))
                 .build();
         when(clprContext.getClprChannels())
-                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), clprChannelValue)));
+                .thenReturn(List.of(new ClprChannelEntry(
+                        DomainUtils.fromBytes(channelId), clprChannelValue, clprChannelMapUpdate(clprChannelValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -218,6 +226,122 @@ final class ClprStateChangeHandlerTest {
                         .singleElement()
                         .returns(tlsCertificate, ClprEndpoint::getTlsCertificate)
                         .returns(endpointAccountId, ClprEndpoint::getAccountId));
+    }
+
+    @Test
+    void processChannelFullUpdateAlwaysHistorizes() {
+        // given -- a full update (partial=false) can't tell us which field actually changed, so it must always
+        // historize even when only counter-type fields (next_message_id, acked_message_id) are set
+        mockEmptyClprState();
+        final var channelId = domainBuilder.bytes(32);
+        long consensusTimestamp = domainBuilder.timestamp();
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+        final var fullValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(channelId))
+                .setNextMessageId(6)
+                .setAckedMessageId(3)
+                .build();
+        final var mapUpdate = MapUpdateChange.newBuilder()
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(fullValue))
+                .build();
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), fullValue, mapUpdate)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener).onClprChannel(channelCaptor.capture());
+        assertThat(channelCaptor.getValue()).returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
+    }
+
+    @Test
+    void processChannelPartialCounterOnlyDoesNotHistorizeAndLeavesOtherFieldsAbsent() {
+        // given -- a partial update touching only counter-type fields (next_message_id, acked_message_id) must not
+        // historize, and every field absent from the partial must be left unset so the merge/upsert layer carries
+        // the existing value forward instead of overwriting it with a default
+        mockEmptyClprState();
+        final var channelId = domainBuilder.bytes(32);
+        final var partialValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setNextMessageId(6)
+                .setAckedMessageId(3)
+                .build();
+        final var mapUpdate = MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(partialValue))
+                .build();
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), partialValue, mapUpdate)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener).onClprChannel(channelCaptor.capture());
+        assertThat(channelCaptor.getValue())
+                .returns(6L, ClprChannel::getNextMessageId)
+                .returns(3L, ClprChannel::getAckedMessageId)
+                .returns(null, ClprChannel::getStatus)
+                .returns(null, ClprChannel::getTimestampRange);
+    }
+
+    @Test
+    void processChannelPartialStatusChangeHistorizes() {
+        // given -- a partial update touching status (not a counter field) must historize
+        mockEmptyClprState();
+        final var channelId = domainBuilder.bytes(32);
+        long consensusTimestamp = domainBuilder.timestamp();
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+        final var partialValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.PAUSED)
+                .build();
+        final var mapUpdate = MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(partialValue))
+                .build();
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), partialValue, mapUpdate)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener).onClprChannel(channelCaptor.capture());
+        assertThat(channelCaptor.getValue()).returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
+    }
+
+    @Test
+    void processChannelPartialClearedFieldHistorizesWithDefaultValue() {
+        // given -- trust_anchor explicitly cleared (not just omitted) in an otherwise counter-only partial update
+        // must historize, and the cleared field must be set to its proto default rather than left absent
+        mockEmptyClprState();
+        final var channelId = domainBuilder.bytes(32);
+        long consensusTimestamp = domainBuilder.timestamp();
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+        final var partialValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setNextMessageId(7)
+                .build();
+        final var mapUpdate = MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .addClearedFields(com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_FIELD_NUMBER)
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(partialValue))
+                .build();
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), partialValue, mapUpdate)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener).onClprChannel(channelCaptor.capture());
+        assertThat(channelCaptor.getValue())
+                .returns(7L, ClprChannel::getNextMessageId)
+                .returns(new byte[0], ClprChannel::getTrustAnchor)
+                .returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
     }
 
     @Test
@@ -249,8 +373,14 @@ final class ClprStateChangeHandlerTest {
                 .build();
         when(clprContext.getClprChannels())
                 .thenReturn(List.of(
-                        new ClprChannelEntry(DomainUtils.fromBytes(channelId1), clprChannelValue1),
-                        new ClprChannelEntry(DomainUtils.fromBytes(channelId2), clprChannelValue2)));
+                        new ClprChannelEntry(
+                                DomainUtils.fromBytes(channelId1),
+                                clprChannelValue1,
+                                clprChannelMapUpdate(clprChannelValue1)),
+                        new ClprChannelEntry(
+                                DomainUtils.fromBytes(channelId2),
+                                clprChannelValue2,
+                                clprChannelMapUpdate(clprChannelValue2))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -473,7 +603,8 @@ final class ClprStateChangeHandlerTest {
                 .thenReturn(removedCommitment);
 
         when(clprContext.getClprConnectors())
-                .thenReturn(List.of(new ClprConnectorEntry(patchedConnectorKey, patchedConnectorValue)));
+                .thenReturn(List.of(new ClprConnectorEntry(
+                        patchedConnectorKey, patchedConnectorValue, clprConnectorMapUpdate(patchedConnectorValue))));
         when(clprContext.getClprConnectorsRemoved()).thenReturn(List.of(removedConnectorKey));
 
         // when
@@ -493,7 +624,7 @@ final class ClprStateChangeHandlerTest {
                         .returns(90_000_000L, ClprConnector::getLockedStake)
                         .returns(1L, ClprConnector::getSlashCount)
                         .returns(1L, ClprConnector::getInFlightMessageCount)
-                        .returns(null, ClprConnector::getTimestampRange)
+                        .returns(Range.atLeast(consensusTimestamp), ClprConnector::getTimestampRange)
                         .returns(null, ClprConnector::getStatus))
                 .anySatisfy(connector -> assertThat(connector)
                         .returns(DomainUtils.toBytes(channelId), ClprConnector::getChannelId)
@@ -523,7 +654,9 @@ final class ClprStateChangeHandlerTest {
         final var commitment = domainBuilder.bytes(32);
         when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(commitment);
-        when(clprContext.getClprConnectors()).thenReturn(List.of(new ClprConnectorEntry(connectorKey, connectorValue)));
+        when(clprContext.getClprConnectors())
+                .thenReturn(List.of(
+                        new ClprConnectorEntry(connectorKey, connectorValue, clprConnectorMapUpdate(connectorValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -532,6 +665,122 @@ final class ClprStateChangeHandlerTest {
         final var connectorCaptor = ArgumentCaptor.forClass(ClprConnector.class);
         verify(entityListener).onClprConnector(connectorCaptor.capture());
         assertThat(connectorCaptor.getValue()).returns(4_294_967_295L, ClprConnector::getSlashCount);
+    }
+
+    @Test
+    void processConnectorFullUpdateAlwaysHistorizes() {
+        // given -- a full update (partial=false) can't tell us which field actually changed, so it must always
+        // historize even when only counter-type fields (locked_stake, in_flight_message_count) are set
+        mockEmptyClprState();
+        long consensusTimestamp = domainBuilder.timestamp();
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+        final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final var fullValue = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .setLockedStake(80_000_000L)
+                .setInFlightMessageCount(2)
+                .build();
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
+        final var commitment = domainBuilder.bytes(32);
+        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+                .thenReturn(commitment);
+        final var mapUpdate = MapUpdateChange.newBuilder()
+                .setValue(MapChangeValue.newBuilder().setClprConnectorValue(fullValue))
+                .build();
+        when(clprContext.getClprConnectors())
+                .thenReturn(List.of(new ClprConnectorEntry(connectorKey, fullValue, mapUpdate)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var connectorCaptor = ArgumentCaptor.forClass(ClprConnector.class);
+        verify(entityListener).onClprConnector(connectorCaptor.capture());
+        assertThat(connectorCaptor.getValue())
+                .returns(80_000_000L, ClprConnector::getLockedStake)
+                .returns(Range.atLeast(consensusTimestamp), ClprConnector::getTimestampRange);
+    }
+
+    @Test
+    void processConnectorPartialCounterOnlyDoesNotHistorizeAndLeavesOtherFieldsAbsent() {
+        // given -- a partial update touching only counter-type fields (locked_stake, in_flight_message_count) must
+        // not historize, and admin_key -- absent from the partial -- must be left unset
+        mockEmptyClprState();
+        final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final var partialValue = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
+                .setLockedStake(80_000_000L)
+                .setInFlightMessageCount(2)
+                .build();
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
+        final var commitment = domainBuilder.bytes(32);
+        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+                .thenReturn(commitment);
+        final var mapUpdate = MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .setValue(MapChangeValue.newBuilder().setClprConnectorValue(partialValue))
+                .build();
+        when(clprContext.getClprConnectors())
+                .thenReturn(List.of(new ClprConnectorEntry(connectorKey, partialValue, mapUpdate)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var connectorCaptor = ArgumentCaptor.forClass(ClprConnector.class);
+        verify(entityListener).onClprConnector(connectorCaptor.capture());
+        assertThat(connectorCaptor.getValue())
+                .returns(80_000_000L, ClprConnector::getLockedStake)
+                .returns(2L, ClprConnector::getInFlightMessageCount)
+                .returns(null, ClprConnector::getAdminKey)
+                .returns(null, ClprConnector::getTimestampRange);
+    }
+
+    @Test
+    void processConnectorPartialAdminKeyChangeHistorizes() {
+        // given -- a partial update touching admin_key (not a counter field) must historize
+        mockEmptyClprState();
+        long consensusTimestamp = domainBuilder.timestamp();
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+        final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final var adminKey = Key.newBuilder()
+                .setEd25519(DomainUtils.fromBytes(domainBuilder.key()))
+                .build();
+        final var partialValue = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
+                .setAdminKey(adminKey)
+                .build();
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
+        final var commitment = domainBuilder.bytes(32);
+        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+                .thenReturn(commitment);
+        final var mapUpdate = MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .setValue(MapChangeValue.newBuilder().setClprConnectorValue(partialValue))
+                .build();
+        when(clprContext.getClprConnectors())
+                .thenReturn(List.of(new ClprConnectorEntry(connectorKey, partialValue, mapUpdate)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var connectorCaptor = ArgumentCaptor.forClass(ClprConnector.class);
+        verify(entityListener).onClprConnector(connectorCaptor.capture());
+        assertThat(connectorCaptor.getValue())
+                .returns(adminKey.toByteArray(), ClprConnector::getAdminKey)
+                .returns(Range.atLeast(consensusTimestamp), ClprConnector::getTimestampRange);
     }
 
     @Test
@@ -581,7 +830,9 @@ final class ClprStateChangeHandlerTest {
                 .build();
         when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(null);
-        when(clprContext.getClprConnectors()).thenReturn(List.of(new ClprConnectorEntry(connectorKey, connectorValue)));
+        when(clprContext.getClprConnectors())
+                .thenReturn(List.of(
+                        new ClprConnectorEntry(connectorKey, connectorValue, clprConnectorMapUpdate(connectorValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);

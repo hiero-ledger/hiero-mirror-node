@@ -2,8 +2,9 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static org.hiero.mirror.common.domain.transaction.StateChangeContext.isPresent;
+
 import com.google.common.collect.Range;
-import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import jakarta.inject.Named;
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnectorEntry;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprMessageEntry;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -75,8 +77,8 @@ public class ClprStateChangeHandler {
 
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         for (final var entry : clprContext.getClprChannels()) {
-            final var builder = populateFromStateChange(entry.channelId(), entry.value());
-            if (channelHistorizes(entry.value())) {
+            final var builder = populateFromStateChange(entry);
+            if (channelHistorizes(entry)) {
                 builder.timestampRange(Range.atLeast(consensusTimestamp));
             }
             entityListener.onClprChannel(builder.build());
@@ -106,13 +108,29 @@ public class ClprStateChangeHandler {
         }
     }
 
-    static void applyConnectorFields(
-            ClprConnector.ClprConnectorBuilder<?, ?> builder, com.hederahashgraph.api.proto.java.ClprConnector value) {
-        builder.connectorContractId(EntityId.of(value.getConnectorContract()))
-                .adminKey(value.getAdminKey().toByteArray())
-                .lockedStake(value.getLockedStake())
-                .slashCount(Integer.toUnsignedLong(value.getSlashCount()))
-                .inFlightMessageCount(value.getInFlightMessageCount());
+    static void applyConnectorFields(ClprConnector.ClprConnectorBuilder<?, ?> builder, ClprConnectorEntry entry) {
+        final var mapUpdate = entry.mapUpdate();
+        final var value = entry.value();
+
+        if (isPresent(
+                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprConnector.CONNECTOR_CONTRACT_FIELD_NUMBER)) {
+            builder.connectorContractId(EntityId.of(value.getConnectorContract()));
+        }
+        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprConnector.ADMIN_KEY_FIELD_NUMBER)) {
+            builder.adminKey(value.getAdminKey().toByteArray());
+        }
+        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprConnector.LOCKED_STAKE_FIELD_NUMBER)) {
+            builder.lockedStake(value.getLockedStake());
+        }
+        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprConnector.SLASH_COUNT_FIELD_NUMBER)) {
+            builder.slashCount(Integer.toUnsignedLong(value.getSlashCount()));
+        }
+        if (isPresent(
+                mapUpdate,
+                value,
+                com.hederahashgraph.api.proto.java.ClprConnector.IN_FLIGHT_MESSAGE_COUNT_FIELD_NUMBER)) {
+            builder.inFlightMessageCount(value.getInFlightMessageCount());
+        }
     }
 
     /**
@@ -131,36 +149,80 @@ public class ClprStateChangeHandler {
         return true;
     }
 
-    static ClprChannel.ClprChannelBuilder<?, ?> populateFromStateChange(
-            ByteString channelId, com.hederahashgraph.api.proto.java.ClprChannel value) {
-        final var builder = ClprChannel.builder();
-        builder.channelId(DomainUtils.toBytes(channelId))
-                .status(toChannelStatus(value.getStatus()))
-                .nextMessageId(value.getNextMessageId())
-                .ackedMessageId(value.getAckedMessageId())
-                .sentRunningHash(DomainUtils.toBytes(value.getSentRunningHash()))
-                .receivedMessageId(value.getReceivedMessageId())
-                .receivedRunningHash(DomainUtils.toBytes(value.getReceivedRunningHash()))
-                .ownershipCommitment(DomainUtils.toBytes(value.getOwnershipCommitment()))
-                .trustAnchor(DomainUtils.toBytes(value.getTrustAnchor()))
-                .trustAnchorId(DomainUtils.toBytes(value.getTrustAnchorId()))
-                .channelContext(DomainUtils.toBytes(value.getChannelContext()))
-                .endpointManifestVersion(value.getEndpointManifestVersion());
+    /**
+     * Populates every field present in {@code entry}'s state change. A full update has every field present; a
+     * partial update only has the top-level fields that changed or were explicitly cleared -- any field absent from
+     * a partial update is left unset on the builder so the upsert/merge layer carries the existing value forward.
+     */
+    static ClprChannel.ClprChannelBuilder<?, ?> populateFromStateChange(ClprChannelEntry entry) {
+        final var mapUpdate = entry.mapUpdate();
+        final var value = entry.value();
+        final var builder = ClprChannel.builder().channelId(DomainUtils.toBytes(entry.channelId()));
 
-        if (value.hasLastConfigTimestamp()) {
-            builder.lastConfigTimestamp(DomainUtils.timestampInNanosMax(value.getLastConfigTimestamp()));
+        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.STATUS_FIELD_NUMBER)) {
+            builder.status(toChannelStatus(value.getStatus()));
         }
-
-        if (value.hasPeerConfigTimestamp()) {
-            builder.peerConfigTimestamp(DomainUtils.timestampInNanosMax(value.getPeerConfigTimestamp()));
+        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.NEXT_MESSAGE_ID_FIELD_NUMBER)) {
+            builder.nextMessageId(value.getNextMessageId());
         }
-
-        if (value.hasPeerThrottles()) {
-            builder.peerThrottle(ClprThrottleConverter.from(value.getPeerThrottles()));
+        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.ACKED_MESSAGE_ID_FIELD_NUMBER)) {
+            builder.ackedMessageId(value.getAckedMessageId());
         }
-
-        if (value.hasEndpointManifest()) {
-            builder.endpointManifest(toEndpoints(value.getEndpointManifest().getEndpointsList()));
+        if (isPresent(
+                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.SENT_RUNNING_HASH_FIELD_NUMBER)) {
+            builder.sentRunningHash(DomainUtils.toBytes(value.getSentRunningHash()));
+        }
+        if (isPresent(
+                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.RECEIVED_MESSAGE_ID_FIELD_NUMBER)) {
+            builder.receivedMessageId(value.getReceivedMessageId());
+        }
+        if (isPresent(
+                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.RECEIVED_RUNNING_HASH_FIELD_NUMBER)) {
+            builder.receivedRunningHash(DomainUtils.toBytes(value.getReceivedRunningHash()));
+        }
+        if (isPresent(
+                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.OWNERSHIP_COMMITMENT_FIELD_NUMBER)) {
+            builder.ownershipCommitment(DomainUtils.toBytes(value.getOwnershipCommitment()));
+        }
+        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_FIELD_NUMBER)) {
+            builder.trustAnchor(DomainUtils.toBytes(value.getTrustAnchor()));
+        }
+        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_ID_FIELD_NUMBER)) {
+            builder.trustAnchorId(DomainUtils.toBytes(value.getTrustAnchorId()));
+        }
+        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.CHANNEL_CONTEXT_FIELD_NUMBER)) {
+            builder.channelContext(DomainUtils.toBytes(value.getChannelContext()));
+        }
+        if (isPresent(
+                mapUpdate,
+                value,
+                com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_VERSION_FIELD_NUMBER)) {
+            builder.endpointManifestVersion(value.getEndpointManifestVersion());
+        }
+        if (isPresent(
+                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.LAST_CONFIG_TIMESTAMP_FIELD_NUMBER)) {
+            builder.lastConfigTimestamp(
+                    value.hasLastConfigTimestamp()
+                            ? DomainUtils.timestampInNanosMax(value.getLastConfigTimestamp())
+                            : null);
+        }
+        if (isPresent(
+                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.PEER_CONFIG_TIMESTAMP_FIELD_NUMBER)) {
+            builder.peerConfigTimestamp(
+                    value.hasPeerConfigTimestamp()
+                            ? DomainUtils.timestampInNanosMax(value.getPeerConfigTimestamp())
+                            : null);
+        }
+        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.PEER_THROTTLES_FIELD_NUMBER)) {
+            builder.peerThrottle(
+                    value.hasPeerThrottles() ? ClprThrottleConverter.from(value.getPeerThrottles()) : null);
+        }
+        if (isPresent(
+                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_FIELD_NUMBER)) {
+            builder.endpointManifest(
+                    value.hasEndpointManifest()
+                            ? toEndpoints(value.getEndpointManifest().getEndpointsList())
+                            : List.of());
         }
 
         return builder;
@@ -179,22 +241,63 @@ public class ClprStateChangeHandler {
         return result;
     }
 
-    // Placeholder: always historize until hiero-ledger/hiero-consensus-node#27718 lands upstream and lets us see
-    // which field actually changed. Counter-type fields (next_message_id, acked_message_id, sent_running_hash,
-    // received_message_id, received_running_hash) churn on every message and shouldn't historize; other fields
-    // (status, peer_throttle, endpoint_manifest, trust_anchor, etc.) should keep historizing. Conservatively
-    // historizing everything for now is safe (no data loss) but will over-historize once that distinction is
-    // possible.
-    private static boolean channelHistorizes(com.hederahashgraph.api.proto.java.ClprChannel value) {
-        return true;
+    // A full update (partial=false) can't tell us which field actually changed, so conservatively always historize
+    // -- same as before hiero-ledger/hiero-consensus-node#27718. A partial update lists exactly the fields that
+    // changed or were cleared, so historize iff one of them is outside the counter-type fields (next_message_id,
+    // acked_message_id, sent_running_hash, received_message_id, received_running_hash) that churn on every message.
+    private static boolean channelHistorizes(ClprChannelEntry entry) {
+        final var mapUpdate = entry.mapUpdate();
+        if (!mapUpdate.getPartial()) {
+            return true;
+        }
+
+        final var value = entry.value();
+        return isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.STATUS_FIELD_NUMBER)
+                || isPresent(
+                        mapUpdate,
+                        value,
+                        com.hederahashgraph.api.proto.java.ClprChannel.OWNERSHIP_COMMITMENT_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_FIELD_NUMBER)
+                || isPresent(
+                        mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_ID_FIELD_NUMBER)
+                || isPresent(
+                        mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.CHANNEL_CONTEXT_FIELD_NUMBER)
+                || isPresent(
+                        mapUpdate,
+                        value,
+                        com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_VERSION_FIELD_NUMBER)
+                || isPresent(
+                        mapUpdate,
+                        value,
+                        com.hederahashgraph.api.proto.java.ClprChannel.LAST_CONFIG_TIMESTAMP_FIELD_NUMBER)
+                || isPresent(
+                        mapUpdate,
+                        value,
+                        com.hederahashgraph.api.proto.java.ClprChannel.PEER_CONFIG_TIMESTAMP_FIELD_NUMBER)
+                || isPresent(
+                        mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.PEER_THROTTLES_FIELD_NUMBER)
+                || isPresent(
+                        mapUpdate,
+                        value,
+                        com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_FIELD_NUMBER);
     }
 
-    // Placeholder: never historize until hiero-ledger/hiero-consensus-node#27718 lands upstream and lets us see
-    // which field actually changed. Counter-type fields (in_flight_message_count, locked_stake, slash_count) churn
-    // on every message/slash and must never historize; other fields (e.g. admin_key rotation) should historize once
-    // that distinction is possible.
-    private static boolean connectorHistorizes(com.hederahashgraph.api.proto.java.ClprConnector value) {
-        return false;
+    // A full update (partial=false) can't tell us which field actually changed, so conservatively always historize,
+    // same as channelHistorizes. A partial update lists exactly the fields that changed or were cleared, so
+    // historize iff one of them is outside the counter-type fields (in_flight_message_count, locked_stake,
+    // slash_count) that churn on every message/slash.
+    private static boolean connectorHistorizes(ClprConnectorEntry entry) {
+        final var mapUpdate = entry.mapUpdate();
+        if (!mapUpdate.getPartial()) {
+            return true;
+        }
+
+        final var value = entry.value();
+        return isPresent(
+                        mapUpdate,
+                        value,
+                        com.hederahashgraph.api.proto.java.ClprConnector.CONNECTOR_CONTRACT_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprConnector.ADMIN_KEY_FIELD_NUMBER);
     }
 
     private byte @Nullable [] lookupCommitment(
@@ -245,8 +348,8 @@ public class ClprStateChangeHandler {
                 .channelId(channelId)
                 .commitment(commitment)
                 .connectorId(connectorId);
-        applyConnectorFields(builder, entry.value());
-        if (connectorHistorizes(entry.value())) {
+        applyConnectorFields(builder, entry);
+        if (connectorHistorizes(entry)) {
             builder.timestampRange(Range.atLeast(consensusTimestamp));
         }
         return builder.build();
