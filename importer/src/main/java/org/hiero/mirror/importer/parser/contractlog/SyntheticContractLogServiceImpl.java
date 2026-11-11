@@ -55,8 +55,7 @@ final class SyntheticContractLogServiceImpl implements SyntheticContractLogServi
             transactionHash = contractRelatedParentRecordItem.getTransactionHash();
 
             final var parentTransactionRecord = contractRelatedParentRecordItem.getTransactionRecord();
-            contractId = EntityId.tryOf(
-                    contractRelatedParentRecordItem.getContractResult().getContractID());
+            contractId = log.getEntityId();
             rootContractId = EntityId.of(parentTransactionRecord.getReceipt().getContractID());
         } else {
             consensusTimestamp = recordItem.getConsensusTimestamp();
