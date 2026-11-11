@@ -163,6 +163,13 @@ public final class StateChangeContext {
         return mapUpdate == null ? null : mapUpdate.getValue().getClprChannelValue();
     }
 
+    public @Nullable ClprChannelEntry getClprChannelEntry(ByteString channelId) {
+        final var mapUpdate = clprChannels.get(channelId);
+        return mapUpdate == null
+                ? null
+                : new ClprChannelEntry(channelId, mapUpdate.getValue().getClprChannelValue(), mapUpdate);
+    }
+
     public List<ClprChannelEntry> getClprChannels() {
         final var result = new ArrayList<ClprChannelEntry>(clprChannels.size());
         for (final var entry : clprChannels.entrySet()) {
@@ -175,6 +182,13 @@ public final class StateChangeContext {
     public @Nullable ClprConnector getClprConnector(ClprConnectorKey key) {
         final var mapUpdate = clprConnectors.get(key);
         return mapUpdate == null ? null : mapUpdate.getValue().getClprConnectorValue();
+    }
+
+    public @Nullable ClprConnectorEntry getClprConnectorEntry(ClprConnectorKey key) {
+        final var mapUpdate = clprConnectors.get(key);
+        return mapUpdate == null
+                ? null
+                : new ClprConnectorEntry(key, mapUpdate.getValue().getClprConnectorValue(), mapUpdate);
     }
 
     public List<ClprConnectorEntry> getClprConnectors() {
