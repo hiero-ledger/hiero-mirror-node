@@ -40,8 +40,8 @@ import org.springframework.transaction.support.TransactionOperations;
  *
  * <p>Since services 0.77.0, an empty key list freeze or KYC key (the HIP-540 removal sentinel) on token create disables
  * the key, the same as if the key isn't set. Such a key can't be updated, so the freeze or KYC status of every snapshot
- * of these tokens is set to NOT_APPLICABLE, which the accounts associated with them inherit. These tokens are fixed
- * before the fee collectors, so the collectors of a token with a disabled key keep the NOT_APPLICABLE status.
+ * of these tokens and of the accounts associated with them, such as the treasury, is set to NOT_APPLICABLE. These
+ * tokens are fixed before the fee collectors, so the collectors of a token with a disabled key keep NOT_APPLICABLE.
  */
 @Named
 final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaMigration {
@@ -148,6 +148,12 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
                 or (kyc_key = :emptyKeyList and kyc_status <> :notApplicable))
             """;
 
+    private static final String SELECT_TOKEN_ACCOUNT_IDS = """
+            select account_id
+            from token_account
+            where token_id = :tokenId
+            """;
+
     private static final String SELECT_TOKEN_ACCOUNT_SNAPSHOTS = """
             select
               associated,
@@ -236,6 +242,13 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
               and lower(timestamp_range) = :lower
             """;
 
+    private static final String UPDATE_TOKEN_ACCOUNT_STATUS = """
+            update %s
+            set freeze_status = case when :freezeDisabled then :notApplicable else freeze_status end,
+              kyc_status = case when :kycDisabled then :notApplicable else kyc_status end
+            where account_id = any(:accountIds::bigint[]) and token_id = :tokenId
+            """;
+
     private static final String UPDATE_TOKEN_STATUS = """
             update %s
             set freeze_status = case when :freezeDisabled then :notApplicable else freeze_status end,
@@ -261,7 +274,7 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
     @Override
     public String getDescription() {
         return "Reset the freeze and KYC status of fee collectors automatically associated by token creates and of"
-                + " tokens created with the freeze or KYC key disabled";
+                + " tokens created with the freeze or KYC key disabled and their accounts";
     }
 
     @Override
@@ -445,6 +458,14 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
                     .addValue("kycDisabled", token.kycDisabled())
                     .addValue("tokenId", token.tokenId());
             transactionOperations.executeWithoutResult(s -> {
+                final var accountIds = jdbcOperations.queryForList(SELECT_TOKEN_ACCOUNT_IDS, tokenParams, Long.class);
+                for (final var batch : Lists.partition(accountIds, BATCH_SIZE)) {
+                    final var batchParams = new MapSqlParameterSource(tokenParams.getValues())
+                            .addValue("accountIds", batch.toArray(Long[]::new));
+                    jdbcOperations.update(UPDATE_TOKEN_ACCOUNT_STATUS.formatted(CURRENT_TABLE), batchParams);
+                    jdbcOperations.update(UPDATE_TOKEN_ACCOUNT_STATUS.formatted(HISTORY_TABLE), batchParams);
+                }
+
                 jdbcOperations.update(UPDATE_TOKEN_STATUS.formatted("token"), tokenParams);
                 jdbcOperations.update(UPDATE_TOKEN_STATUS.formatted("token_history"), tokenParams);
             });

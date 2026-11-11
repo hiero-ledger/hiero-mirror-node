@@ -215,6 +215,8 @@ class FixFeeCollectorTokenAccountStatusMigrationTest extends ImporterIntegration
                 .containsExactlyInAnyOrder(kycDisabledToken, freezeDisabledToken, keyToken);
 
         kycDisabledCollectorAccount.setFreezeStatus(TokenFreezeStatusEnum.FROZEN);
+        kycDisabledCollectorAccount.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
+        freezeDisabledCollectorAccount.setFreezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE);
         freezeDisabledCollectorAccount.setKycStatus(TokenKycStatusEnum.REVOKED);
         keyCollectorAccount.setFreezeStatus(TokenFreezeStatusEnum.FROZEN);
         keyCollectorAccount.setKycStatus(TokenKycStatusEnum.REVOKED);
@@ -299,10 +301,51 @@ class FixFeeCollectorTokenAccountStatusMigrationTest extends ImporterIntegration
                         .tokenId(removedHistory.getTokenId()))
                 .persist();
 
+        // the treasuries, imported as unfrozen and KYC granted
+        final var disabledTreasury = enabled(disabled, domainBuilder.entityId());
+        final var updatedTreasury = domainBuilder.entityId();
+        final var updatedTreasuryHistory = domainBuilder
+                .tokenAccountHistory()
+                .customize(t -> t.accountId(updatedTreasury.getId())
+                        .createdTimestamp(post0_77Timestamp)
+                        .freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
+                        .kycStatus(TokenKycStatusEnum.GRANTED)
+                        .timestampRange(Range.closedOpen(post0_77Timestamp, updateTimestamp))
+                        .tokenId(updated.getTokenId()))
+                .persist();
+        final var updatedTreasuryAccount = tokenAccount(
+                updated,
+                updatedTreasury,
+                TokenFreezeStatusEnum.UNFROZEN,
+                TokenKycStatusEnum.GRANTED,
+                Range.atLeast(updateTimestamp));
+        final var preKeyListTreasury = enabled(preKeyList, domainBuilder.entityId());
+        final var withKeyTreasury = enabled(withKey, domainBuilder.entityId());
+        final var freezeDisabledTreasury = enabled(freezeDisabled, domainBuilder.entityId());
+        final var bothDisabledTreasury = enabled(bothDisabled, domainBuilder.entityId());
+        final var removedTreasury = enabled(removed, domainBuilder.entityId());
+
         // when
         migration.doMigrate();
 
         // then
+        disabledTreasury.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
+        updatedTreasuryAccount.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
+        updatedTreasuryHistory.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
+        freezeDisabledTreasury.setFreezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE);
+        bothDisabledTreasury.setFreezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE);
+        bothDisabledTreasury.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
+        final var expectedTokenAccounts = List.of(
+                disabledTreasury,
+                updatedTreasuryAccount,
+                preKeyListTreasury,
+                withKeyTreasury,
+                freezeDisabledTreasury,
+                bothDisabledTreasury,
+                removedTreasury);
+        assertThat(tokenAccountRepository.findAll()).containsExactlyInAnyOrderElementsOf(expectedTokenAccounts);
+        assertThat(findHistory(TokenAccountHistory.class)).containsExactly(updatedTreasuryHistory);
+
         disabled.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
         updated.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
         updatedHistory.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
@@ -322,6 +365,8 @@ class FixFeeCollectorTokenAccountStatusMigrationTest extends ImporterIntegration
                 .containsExactlyInAnyOrder(
                         disabled, updated, preKeyList, withKey, removed, freezeDisabled, bothDisabled);
         assertThat(findHistory(TokenHistory.class)).containsExactlyInAnyOrder(updatedHistory, removedHistory);
+        assertThat(tokenAccountRepository.findAll()).containsExactlyInAnyOrderElementsOf(expectedTokenAccounts);
+        assertThat(findHistory(TokenAccountHistory.class)).containsExactly(updatedTreasuryHistory);
     }
 
     @Test
