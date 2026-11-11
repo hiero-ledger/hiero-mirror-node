@@ -48,6 +48,7 @@ spec:
   values:
     importer:
       env:
+        HIERO_MIRROR_IMPORTER_BLOCK_CUTOVER_ENABLED: "true"
         HIERO_MIRROR_IMPORTER_NETWORK: "PREVIEWNET"
         HIERO_MIRROR_IMPORTER_PARSER_RECORD_SIDECAR_ENABLED: "true"
     monitor:
