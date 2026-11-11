@@ -7,6 +7,7 @@ import static com.hederahashgraph.api.proto.java.ContractUpdateTransactionBody.S
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransaction;
@@ -1154,7 +1155,10 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
         final var recordItem = recordItemBuilder
                 .contractCall()
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), clprChannelValue)))
+                        .clprChannels(List.of(new ClprChannelEntry(
+                                DomainUtils.fromBytes(channelId),
+                                clprChannelValue,
+                                clprChannelMapUpdate(clprChannelValue))))
                         .clprConnectorsRemoved(List.of(removedConnectorKey)))
                 .build();
 

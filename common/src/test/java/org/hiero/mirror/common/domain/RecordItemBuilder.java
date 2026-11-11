@@ -10,6 +10,8 @@ import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 import static org.hiero.mirror.common.domain.DomainBuilder.KEY_LENGTH_ECDSA;
 import static org.hiero.mirror.common.domain.DomainBuilder.KEY_LENGTH_ED25519;
 import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_49_0;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprConnectorMapUpdate;
 import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
@@ -321,7 +323,8 @@ public final class RecordItemBuilder {
                 .build();
         return new Builder<>(TransactionType.CLPRCLOSECHANNEL, builder)
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(channelId, clprChannelValue))));
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
+                                channelId, clprChannelValue, clprChannelMapUpdate(clprChannelValue)))));
     }
 
     public Builder<ClprCompleteChannelTransactionBody.Builder> clprCompleteChannel() {
@@ -350,7 +353,8 @@ public final class RecordItemBuilder {
                 .build();
         return new Builder<>(TransactionType.CLPRCOMPLETECHANNEL, builder)
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(channelId, clprChannelValue))));
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
+                                channelId, clprChannelValue, clprChannelMapUpdate(clprChannelValue)))));
     }
 
     public Builder<ClprCompleteConnectorTransactionBody.Builder> clprCompleteConnector() {
@@ -381,7 +385,8 @@ public final class RecordItemBuilder {
                 .build();
         return new Builder<>(TransactionType.CLPRCOMPLETECONNECTOR, builder)
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(new StateChangeContext.ClprConnectorEntry(key, clprConnectorValue))));
+                        .clprConnectors(List.of(new StateChangeContext.ClprConnectorEntry(
+                                key, clprConnectorValue, clprConnectorMapUpdate(clprConnectorValue)))));
     }
 
     public Builder<ClprDeregisterConnectorTransactionBody.Builder> clprDeregisterConnector() {
@@ -470,9 +475,12 @@ public final class RecordItemBuilder {
                 .build();
         return new Builder<>(TransactionType.CLPRSUBMITBUNDLE, builder)
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(channelId, clprChannelValue)))
-                        .clprConnectors(List.of(
-                                new StateChangeContext.ClprConnectorEntry(patchedConnectorKey, patchedConnectorValue)))
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
+                                channelId, clprChannelValue, clprChannelMapUpdate(clprChannelValue))))
+                        .clprConnectors(List.of(new StateChangeContext.ClprConnectorEntry(
+                                patchedConnectorKey,
+                                patchedConnectorValue,
+                                clprConnectorMapUpdate(patchedConnectorValue))))
                         .clprConnectorsRemoved(List.of(removedConnectorKey))
                         .clprMessages(List.of(new StateChangeContext.ClprMessageEntry(messageKey, messageValue))));
     }

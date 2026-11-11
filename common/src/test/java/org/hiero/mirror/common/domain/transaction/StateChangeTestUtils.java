@@ -13,6 +13,8 @@ import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprConnector;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.SlotKey;
@@ -30,6 +32,18 @@ public final class StateChangeTestUtils {
 
     public static ByteString bytes(int size) {
         return ByteString.copyFrom(CommonUtils.nextBytes(size));
+    }
+
+    public static MapUpdateChange clprChannelMapUpdate(ClprChannel value) {
+        return MapUpdateChange.newBuilder()
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(value))
+                .build();
+    }
+
+    public static MapUpdateChange clprConnectorMapUpdate(ClprConnector value) {
+        return MapUpdateChange.newBuilder()
+                .setValue(MapChangeValue.newBuilder().setClprConnectorValue(value))
+                .build();
     }
 
     public static StateChange contractStorageMapDeleteChange(ContractID contractId, ByteString slot) {
