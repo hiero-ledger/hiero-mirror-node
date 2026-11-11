@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprConnectorMapUpdate;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -157,7 +158,10 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 .transactionRecord(transactionRecord)
                 .clprContext(ClprContext.builder()
                         .clprConnectors(
-                                clprConnector == null ? List.of() : List.of(new ClprConnectorEntry(key, clprConnector)))
+                                clprConnector == null
+                                        ? List.of()
+                                        : List.of(new ClprConnectorEntry(
+                                                key, clprConnector, clprConnectorMapUpdate(clprConnector))))
                         .build())
                 .build();
     }

@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import jakarta.inject.Named;
 import java.util.List;
-import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 /**
@@ -26,11 +25,11 @@ final class ClprCloseChannelTransformer extends AbstractBlockTransactionTransfor
         final var transactionBody =
                 blockTransactionTransformation.getTransactionBody().getClprCloseChannel();
         final var channelId = transactionBody.getChannelId();
-        final var clprChannelValue = blockTransaction.getStateChangeContext().getClprChannel(channelId);
+        final var entry = blockTransaction.getStateChangeContext().getClprChannelEntry(channelId);
         final var clprContextBuilder =
                 blockTransactionTransformation.recordItemBuilder().clprContextBuilder();
-        if (clprChannelValue != null) {
-            clprContextBuilder.clprChannels(List.of(new ClprChannelEntry(channelId, clprChannelValue)));
+        if (entry != null) {
+            clprContextBuilder.clprChannels(List.of(entry));
         }
     }
 

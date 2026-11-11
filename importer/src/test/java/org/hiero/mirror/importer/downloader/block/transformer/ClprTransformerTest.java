@@ -368,6 +368,10 @@ class ClprTransformerTest extends AbstractTransformerTest {
                 .setChannelId(channelId)
                 .setStatus(ClprChannelStatus.ACTIVE)
                 .build();
+        final var clprChannelMapUpdate = MapUpdateChange.newBuilder()
+                .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(channelId)))
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(clprChannelValue))
+                .build();
         final var parentRecordItem =
                 recordItemBuilder.contractCall().customize(this::finalize).build();
         final var parentBlockTransaction = blockTransactionBuilder
@@ -375,9 +379,7 @@ class ClprTransformerTest extends AbstractTransformerTest {
                 .stateChanges(stateChanges -> stateChanges.add(StateChanges.newBuilder()
                         .addStateChanges(StateChange.newBuilder()
                                 .setStateId(StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE)
-                                .setMapUpdate(MapUpdateChange.newBuilder()
-                                        .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(channelId)))
-                                        .setValue(MapChangeValue.newBuilder().setClprChannelValue(clprChannelValue))))
+                                .setMapUpdate(clprChannelMapUpdate))
                         .build()))
                 .build();
 
@@ -409,7 +411,7 @@ class ClprTransformerTest extends AbstractTransformerTest {
         final var items = recordFile.getItems();
         assertThat(items).hasSize(2);
         assertThat(items.get(0).getClprContext().getClprChannels())
-                .containsExactly(new ClprChannelEntry(channelId, clprChannelValue));
+                .containsExactly(new ClprChannelEntry(channelId, clprChannelValue, clprChannelMapUpdate));
         assertThat(items.get(1).getClprContext()).isNull();
     }
 }

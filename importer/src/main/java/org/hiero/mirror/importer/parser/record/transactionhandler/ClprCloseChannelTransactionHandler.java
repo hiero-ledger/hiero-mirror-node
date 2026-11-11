@@ -47,7 +47,7 @@ class ClprCloseChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        final var builder = ClprStateChangeHandler.populateFromStateChange(entry.channelId(), entry.value());
+        final var builder = ClprStateChangeHandler.populateFromStateChange(entry);
         entityListener.onClprChannel(
                 builder.timestampRange(Range.atLeast(consensusTimestamp)).build());
     }

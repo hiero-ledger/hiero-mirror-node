@@ -44,7 +44,7 @@ class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
         final var publicKey = DomainUtils.toBytes(transactionBody.getPublicKey());
         final var verifierContractId = EntityId.of(clprChannelValue.getVerifierContract());
 
-        final var builder = ClprStateChangeHandler.populateFromStateChange(entry.channelId(), clprChannelValue);
+        final var builder = ClprStateChangeHandler.populateFromStateChange(entry);
         final var clprChannel = builder.createdTimestamp(consensusTimestamp)
                 .chainId(clprChannelValue.getChainId())
                 .verifierContractId(verifierContractId)

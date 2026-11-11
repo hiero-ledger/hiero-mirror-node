@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
@@ -126,7 +127,10 @@ class ClprCloseChannelTransactionHandlerTest extends AbstractTransactionHandlerT
                         .clprChannels(
                                 clprChannel == null
                                         ? List.of()
-                                        : List.of(new ClprChannelEntry(clprChannel.getChannelId(), clprChannel)))
+                                        : List.of(new ClprChannelEntry(
+                                                clprChannel.getChannelId(),
+                                                clprChannel,
+                                                clprChannelMapUpdate(clprChannel))))
                         .build())
                 .build();
     }

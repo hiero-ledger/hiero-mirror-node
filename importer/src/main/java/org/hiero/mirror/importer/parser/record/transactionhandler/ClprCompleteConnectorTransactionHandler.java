@@ -62,7 +62,7 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
                 .signature(DomainUtils.toBytes(transactionBody.getSignature()))
                 .signatureScheme(ClprEnums.toSignatureScheme(transactionBody.getSignatureScheme()))
                 .timestampRange(Range.atLeast(consensusTimestamp));
-        ClprStateChangeHandler.applyConnectorFields(connectorBuilder, clprConnectorValue);
+        ClprStateChangeHandler.applyConnectorFields(connectorBuilder, entry);
         final var connector = connectorBuilder.build();
         entityListener.onClprConnector(connector);
         clprConnectorService.notify(connector);

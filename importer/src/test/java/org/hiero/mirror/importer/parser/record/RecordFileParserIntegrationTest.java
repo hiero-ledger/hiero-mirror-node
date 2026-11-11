@@ -4,6 +4,8 @@ package org.hiero.mirror.importer.parser.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.RecordItemBuilder.DEFAULT_GAS_USED;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprConnectorMapUpdate;
 
 import com.hederahashgraph.api.proto.java.ClprChannel;
 import com.hederahashgraph.api.proto.java.ClprChannelStatus;
@@ -424,7 +426,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprCompleteChannel()
                 .transactionBody(b -> b.setChannelId(channelId).setPublicKey(publicKey))
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new ClprChannelEntry(channelId, clprChannelActive))))
+                        .clprChannels(List.of(new ClprChannelEntry(
+                                channelId, clprChannelActive, clprChannelMapUpdate(clprChannelActive)))))
                 .build();
 
         final var clprChannelAfterBundle =
@@ -433,7 +436,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprSubmitBundle()
                 .transactionBody(b -> b.setChannelId(channelId))
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new ClprChannelEntry(channelId, clprChannelAfterBundle))))
+                        .clprChannels(List.of(new ClprChannelEntry(
+                                channelId, clprChannelAfterBundle, clprChannelMapUpdate(clprChannelAfterBundle)))))
                 .build();
 
         final var clprChannelClosing = clprChannelAfterBundle.toBuilder()
@@ -443,7 +447,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprCloseChannel()
                 .transactionBody(b -> b.setChannelId(channelId))
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new ClprChannelEntry(channelId, clprChannelClosing))))
+                        .clprChannels(List.of(new ClprChannelEntry(
+                                channelId, clprChannelClosing, clprChannelMapUpdate(clprChannelClosing)))))
                 .build();
 
         final var recordFile = recordFileWithItems(List.of(register, complete, submitBundle, closeChannel), null);
@@ -499,7 +504,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(new ClprConnectorEntry(connectorKey, clprConnectorValue))))
+                        .clprConnectors(List.of(new ClprConnectorEntry(
+                                connectorKey, clprConnectorValue, clprConnectorMapUpdate(clprConnectorValue)))))
                 .build();
 
         final var stakeRecipient = domainBuilder.entityNum(5000L).toAccountID();
@@ -558,7 +564,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(new ClprConnectorEntry(connectorKey, clprConnectorComplete))))
+                        .clprConnectors(List.of(new ClprConnectorEntry(
+                                connectorKey, clprConnectorComplete, clprConnectorMapUpdate(clprConnectorComplete)))))
                 .build();
 
         // Each ClprConnector state change is the connector's full current state, not a delta, so later snapshots
@@ -568,7 +575,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var sendMessage = recordItemBuilder
                 .contractCall()
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(new ClprConnectorEntry(connectorKey, clprConnectorAfterSend))))
+                        .clprConnectors(List.of(new ClprConnectorEntry(
+                                connectorKey, clprConnectorAfterSend, clprConnectorMapUpdate(clprConnectorAfterSend)))))
                 .build();
 
         final var clprConnectorAfterBundle = clprConnectorAfterSend.toBuilder()
@@ -579,7 +587,10 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var submitBundle = recordItemBuilder
                 .clprSubmitBundle()
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(new ClprConnectorEntry(connectorKey, clprConnectorAfterBundle))))
+                        .clprConnectors(List.of(new ClprConnectorEntry(
+                                connectorKey,
+                                clprConnectorAfterBundle,
+                                clprConnectorMapUpdate(clprConnectorAfterBundle)))))
                 .build();
 
         final var recordFile = recordFileWithItems(List.of(register, complete, sendMessage, submitBundle), null);
@@ -632,7 +643,10 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(new ClprConnectorEntry(removedConnectorKey, clprConnectorComplete))))
+                        .clprConnectors(List.of(new ClprConnectorEntry(
+                                removedConnectorKey,
+                                clprConnectorComplete,
+                                clprConnectorMapUpdate(clprConnectorComplete)))))
                 .build();
 
         final var ban = recordItemBuilder

@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
 
 import com.hederahashgraph.api.proto.java.ClprSubmitBundleTransactionBody;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -90,7 +91,10 @@ class ClprSubmitBundleTransactionHandlerTest extends AbstractTransactionHandlerT
                         .clprChannels(
                                 clprChannel == null
                                         ? List.of()
-                                        : List.of(new ClprChannelEntry(clprChannel.getChannelId(), clprChannel)))
+                                        : List.of(new ClprChannelEntry(
+                                                clprChannel.getChannelId(),
+                                                clprChannel,
+                                                clprChannelMapUpdate(clprChannel))))
                         .build())
                 .build();
     }
