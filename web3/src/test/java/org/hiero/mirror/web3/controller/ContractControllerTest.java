@@ -66,6 +66,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EmptySource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -647,7 +648,7 @@ final class ContractControllerTest {
     void callWithStateOverrideBalance() throws Exception {
         final var override = new StateOverride();
         override.setAddress("0x00000000000000000000000000000000000004e2");
-        override.setBalance("0xde0b6b3a7640000"); // 1 HBAR in tinybars hex
+        override.setBalance(100_000_000L); // 1 HBAR in tinybars
         final var request = request();
         request.setStateOverrides(List.of(override));
         contractCall(request).andExpect(status().isOk());
@@ -657,7 +658,7 @@ final class ContractControllerTest {
     void callWithStateOverrideNonce() throws Exception {
         final var override = new StateOverride();
         override.setAddress("0x00000000000000000000000000000000000004e2");
-        override.setNonce("0x2a");
+        override.setNonce(42L);
         final var request = request();
         request.setStateOverrides(List.of(override));
         contractCall(request).andExpect(status().isOk());
@@ -735,7 +736,7 @@ final class ContractControllerTest {
     void callWithStateOverrideInvalidAddressKey() throws Exception {
         final var override = new StateOverride();
         override.setAddress("0x1234"); // too short (not 40 hex chars)
-        override.setBalance("0x1");
+        override.setBalance(1L);
         final var request = request();
         request.setStateOverrides(List.of(override));
 
@@ -746,7 +747,7 @@ final class ContractControllerTest {
     void callWithStateOverrideUpperCaseAddressPrefix() throws Exception {
         final var override = new StateOverride();
         override.setAddress("0X00000000000000000000000000000000000004e4");
-        override.setBalance("0x1");
+        override.setBalance(1L);
         final var request = request();
         request.setStateOverrides(List.of(override));
 
@@ -755,16 +756,67 @@ final class ContractControllerTest {
         web3Properties.setEnableStateOverrides(false);
     }
 
-    @Test
-    void callWithStateOverrideInvalidNonce() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"balance", "nonce"})
+    void callWithStateOverrideNegativeNumber(final String field) throws Exception {
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e2");
+        if ("balance".equals(field)) {
+            override.setBalance(-1L);
+        } else {
+            override.setNonce(-1L);
+        }
+        final var request = request();
+        request.setStateOverrides(List.of(override));
+
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains(
+                                "stateOverrides[0]." + field + " field must be greater than or equal to 0")));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "balance, \"0x1\"",
+        "balance, \"abc\"",
+        "balance, 9223372036854775808",
+        "balance, 18446744073709551615",
+        "balance, true",
+        "balance, []",
+        "nonce, \"0x2a\"",
+        "nonce, \"abc\"",
+        "nonce, 9223372036854775808",
+        "nonce, 18446744073709551615",
+        "nonce, true",
+        "nonce, {}"
+    })
+    void callWithStateOverrideInvalidNumber(final String field, final String value) throws Exception {
         mockMvc.perform(post(CALL_URI)
                         .accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"to\": \"0x00000000000000000000000000000000000004e4\","
-                                + "\"state_overrides\": [{\"address\":"
-                                + "\"0x00000000000000000000000000000000000004e2\","
-                                + "\"nonce\": \"-1\"}]}"))
+                        .content(stateOverrideJson(field, value)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"balance, 0", "balance, 9223372036854775807", "nonce, 0", "nonce, 9223372036854775807"})
+    void callWithStateOverrideBoundaryNumber(final String field, final String value) throws Exception {
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(stateOverrideJson(field, value)))
+                .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"balance", "nonce"})
+    void callWithStateOverrideNullNumber(final String field) throws Exception {
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(stateOverrideJson(field, "null")))
+                .andExpect(status().isOk());
     }
 
     private ContractCallRequest request() {
@@ -777,6 +829,13 @@ final class ContractControllerTest {
         request.setTo("0x00000000000000000000000000000000000004e4");
         request.setValue(23);
         return request;
+    }
+
+    private String stateOverrideJson(final String field, final String value) {
+        return """
+                {"to": "0x00000000000000000000000000000000000004e4",
+                 "state_overrides": [{"address": "0x00000000000000000000000000000000000004e2", "%s": %s}]}
+                """.formatted(field, value);
     }
 
     private String numberErrorString(String field, String direction, long num) {

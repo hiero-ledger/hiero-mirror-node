@@ -7,7 +7,6 @@ import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.state.Utils.ZERO_ADDRESS;
-import static org.hiero.mirror.web3.state.Utils.hexStringToLong;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
@@ -160,8 +159,8 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return account;
         }
 
-        final var hasBalance = stateOverride.getBalance() != null;
-        final var hasNonce = stateOverride.getNonce() != null;
+        final var balance = stateOverride.getBalance();
+        final var nonce = stateOverride.getNonce();
         // Only a bytecode override should mark the account as a smart contract. Storage-only
         // overrides must not flip a delegated EOA to a contract, or the EIP-7702 / HIP-1340
         // delegation proxy is skipped and the call executes no delegated code.
@@ -179,11 +178,11 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             builder = account.copyBuilder();
         }
 
-        if (hasBalance) {
-            builder.tinybarBalance(hexStringToLong(stateOverride.getBalance()));
+        if (balance != null) {
+            builder.tinybarBalance(balance);
         }
-        if (hasNonce) {
-            builder.ethereumNonce(hexStringToLong(stateOverride.getNonce()));
+        if (nonce != null) {
+            builder.ethereumNonce(nonce);
         }
         if (isSmartContract) {
             builder.smartContract(true);
