@@ -3,9 +3,7 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import jakarta.inject.Named;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -26,10 +24,10 @@ class ClprSubmitBundleTransactionHandler extends AbstractTransactionHandler {
         }
 
         final var clprContext = recordItem.getClprContext();
-        final var clprChannelValue = Optional.ofNullable(clprContext)
-                .map(ClprContext::getClprChannel)
-                .orElse(null);
-        ClprStateChangeHandler.isMissingStateChange(
-                clprChannelValue, "clpr_channel_value", "ClprSubmitBundle", recordItem.getConsensusTimestamp());
+        final var clprChannelValue = clprContext == null ? null : clprContext.getClprChannel();
+        if (ClprStateChangeHandler.isMissingStateChange(
+                clprChannelValue, "clpr_channel_value", "ClprSubmitBundle", recordItem.getConsensusTimestamp())) {
+            return;
+        }
     }
 }

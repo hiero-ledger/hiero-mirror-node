@@ -8,9 +8,9 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 /**
  * Reads the verifier-derived {@code clpr_channel_value} state change ({@code trust_anchor}, {@code channel_context},
- * {@code endpoint_manifest_version}, etc.) off {@code StateChangeContext} and populates {@link
- * org.hiero.mirror.common.domain.transaction.RecordItem}'s new CLPR channel field, since neither
- * {@code TransactionRecord} nor {@code TransactionSidecarRecord} has a slot for this data.
+ * {@code endpoint_manifest_version}, etc.) off {@code StateChangeContext} and populates
+ * {@link org.hiero.mirror.common.domain.transaction.RecordItem#getClprContext()}'s {@code clprChannels} list, since
+ * neither {@code TransactionRecord} nor {@code TransactionSidecarRecord} has a slot for this data.
  */
 @Named
 final class ClprCompleteChannelTransformer extends AbstractBlockTransactionTransformer {

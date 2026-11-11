@@ -111,7 +111,7 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
             assertThat(connector.getSlashCount()).isZero();
             assertThat(connector.getInFlightMessageCount()).isZero();
             assertThat(connector.getConnectorContractId()).isNotNull();
-            assertThat(connector.getStatus()).isNotEqualTo(ClprConnectorStatus.DELETED);
+            assertThat(connector.getStatus()).isEqualTo(ClprConnectorStatus.ACTIVE);
         });
         assertThat(clprLedgerConfigurationRepository.count()).isZero();
         assertThat(clprMessageRepository.count()).isZero();
@@ -188,6 +188,13 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         assertThat(clprMessageRepository.findAll())
                 .filteredOn(m -> m.getMessageType() == ClprMessageType.DATA)
                 .hasSize(6);
+    }
+
+    @Test
+    void clprCloseChannelAdminSweep() {
+        // TODO: no real or synthetic block built yet for an admin ClprCloseChannel sweeping an abandoned,
+        // never-completed channel registration; replace with real assertions once one exists.
+        fail("No block exercises CLPR admin sweep of an abandoned channel commitment end-to-end yet");
     }
 
     @Test

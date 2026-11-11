@@ -4,18 +4,17 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
-import java.util.Optional;
+import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
-import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
+@CustomLog
 @Named
 @RequiredArgsConstructor
 class ClprCloseChannelTransactionHandler extends AbstractTransactionHandler {
@@ -35,13 +34,10 @@ class ClprCloseChannelTransactionHandler extends AbstractTransactionHandler {
 
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         final var clprContext = recordItem.getClprContext();
-        final var clprChannelValue = Optional.ofNullable(clprContext)
-                .map(ClprContext::getClprChannel)
-                .orElse(null);
+        final var clprChannelValue = clprContext == null ? null : clprContext.getClprChannel();
         if (clprChannelValue == null) {
-            // No Channel exists yet for this channel_id -- an admin sweep of an abandoned commitment, not a real
-            // closure; the only branch that ever marks a commitment DELETED
             final var transactionBody = recordItem.getTransactionBody().getClprCloseChannel();
+            log.info("Sweeping abandoned ClprChannelPendingCommitment at {}", consensusTimestamp);
             final var commitment = ClprChannelPendingCommitment.builder()
                     .ownershipCommitment(DomainUtils.toBytes(transactionBody.getOwnershipCommitment()))
                     .status(ClprPendingCommitmentStatus.DELETED)
@@ -51,8 +47,7 @@ class ClprCloseChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        final var builder = ClprChannel.builder();
-        ClprStateChangeHandler.populateFromStateChange(builder, clprChannelValue);
+        final var builder = ClprStateChangeHandler.populateFromStateChange(clprChannelValue);
         entityListener.onClprChannel(
                 builder.timestampRange(Range.atLeast(consensusTimestamp)).build());
     }

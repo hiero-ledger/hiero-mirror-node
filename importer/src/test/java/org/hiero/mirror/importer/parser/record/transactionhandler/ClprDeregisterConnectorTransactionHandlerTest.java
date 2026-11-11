@@ -69,6 +69,10 @@ class ClprDeregisterConnectorTransactionHandlerTest extends AbstractTransactionH
                 .returns(ClprConnectorStatus.DELETED, ClprConnector::getStatus)
                 .returns(EntityId.of(body.getStakeRecipient()), ClprConnector::getStakeRecipientId)
                 .returns(Range.atLeast(recordItem.getConsensusTimestamp()), ClprConnector::getTimestampRange);
+
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        getExpectedEntityTransactions(recordItem, transaction, EntityId.of(body.getStakeRecipient())));
     }
 
     @Test

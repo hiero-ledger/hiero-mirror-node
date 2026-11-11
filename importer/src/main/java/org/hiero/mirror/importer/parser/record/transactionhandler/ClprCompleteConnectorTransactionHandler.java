@@ -4,12 +4,10 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -37,9 +35,7 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
 
         final var transactionBody = recordItem.getTransactionBody().getClprCompleteConnector();
         final var clprContext = recordItem.getClprContext();
-        final var clprConnectorValue = Optional.ofNullable(clprContext)
-                .map(ClprContext::getClprConnector)
-                .orElse(null);
+        final var clprConnectorValue = clprContext == null ? null : clprContext.getClprConnector();
         if (ClprStateChangeHandler.isMissingStateChange(
                 clprConnectorValue,
                 "clpr_connector_value",
@@ -57,23 +53,19 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
         // it's what identifies the PENDING row (from ClprRegisterConnector) this completion updates.
         final var commitment = SignatureUtils.keccak256(connectorId, publicKey);
 
-        final var connector = ClprConnector.builder()
+        final var connectorBuilder = ClprConnector.builder()
                 .channelId(DomainUtils.toBytes(clprConnectorValue.getChannelId()))
                 .commitment(commitment)
                 .connectorId(connectorId)
                 .createdTimestamp(consensusTimestamp)
-                .connectorContractId(connectorContractId)
-                .adminKey(clprConnectorValue.getAdminKey().toByteArray())
-                .lockedStake(clprConnectorValue.getLockedStake())
-                .slashCount((long) clprConnectorValue.getSlashCount())
-                .inFlightMessageCount(clprConnectorValue.getInFlightMessageCount())
                 .status(ClprConnectorStatus.ACTIVE)
                 .publicKey(publicKey)
                 .salt(DomainUtils.toBytes(transactionBody.getSalt()))
                 .signature(DomainUtils.toBytes(transactionBody.getSignature()))
                 .signatureScheme(ClprEnums.toSignatureScheme(transactionBody.getSignatureScheme()))
-                .timestampRange(Range.atLeast(consensusTimestamp))
-                .build();
+                .timestampRange(Range.atLeast(consensusTimestamp));
+        ClprStateChangeHandler.applyConnectorFields(connectorBuilder, clprConnectorValue);
+        final var connector = connectorBuilder.build();
         entityListener.onClprConnector(connector);
         clprConnectorService.notify(connector);
         recordItem.addEntityId(connectorContractId);

@@ -4,13 +4,10 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -36,9 +33,7 @@ class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
 
         final var transactionBody = recordItem.getTransactionBody().getClprCompleteChannel();
         final var clprContext = recordItem.getClprContext();
-        final var clprChannelValue = Optional.ofNullable(clprContext)
-                .map(ClprContext::getClprChannel)
-                .orElse(null);
+        final var clprChannelValue = clprContext == null ? null : clprContext.getClprChannel();
         if (ClprStateChangeHandler.isMissingStateChange(
                 clprChannelValue, "clpr_channel_value", "ClprCompleteChannel", recordItem.getConsensusTimestamp())) {
             return;
@@ -48,8 +43,7 @@ class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
         final var publicKey = DomainUtils.toBytes(transactionBody.getPublicKey());
         final var verifierContractId = EntityId.of(clprChannelValue.getVerifierContract());
 
-        final var builder = ClprChannel.builder();
-        ClprStateChangeHandler.populateFromStateChange(builder, clprChannelValue);
+        final var builder = ClprStateChangeHandler.populateFromStateChange(clprChannelValue);
         final var clprChannel = builder.createdTimestamp(consensusTimestamp)
                 .chainId(clprChannelValue.getChainId())
                 .verifierContractId(verifierContractId)

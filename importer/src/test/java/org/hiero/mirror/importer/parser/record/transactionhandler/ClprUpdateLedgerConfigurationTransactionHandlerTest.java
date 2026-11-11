@@ -120,6 +120,30 @@ class ClprUpdateLedgerConfigurationTransactionHandlerTest extends AbstractTransa
     }
 
     @Test
+    void updateTransactionWithoutThrottles() {
+        // given -- configuration is present, but hasThrottles() is false
+        final var transactionBody = getDefaultTransactionBody().build();
+        final var configuration = com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.newBuilder()
+                .setProtocolVersion(1)
+                .setChainId("hedera:mainnet")
+                .setServiceAddress(DomainUtils.fromBytes(domainBuilder.bytes(20)))
+                .setInitialTrustAnchor(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setInitialTrustAnchorId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .build();
+        final var recordItem =
+                buildRecordItem(transactionBody, getDefaultTransactionRecord().build(), configuration);
+        final var transaction = domainBuilder.transaction().get();
+        final var captor = ArgumentCaptor.forClass(ClprLedgerConfiguration.class);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener).onClprLedgerConfiguration(captor.capture());
+        assertThat(captor.getValue()).returns(null, ClprLedgerConfiguration::getThrottle);
+    }
+
+    @Test
     void updateTransactionMissingStateChange() {
         // given
         final var recordItem = buildRecordItem(

@@ -71,7 +71,8 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 .setConnectorContract(domainBuilder.entityNum(3000L).toContractID())
                 .setAdminKey(Key.newBuilder().setEd25519(DomainUtils.fromBytes(domainBuilder.key())))
                 .setLockedStake(200_000_000L)
-                .setSlashCount(2)
+                // -1 is uint32 max; a plain (long) cast would sign-extend it to -1 instead of 4294967295
+                .setSlashCount(-1)
                 .setInFlightMessageCount(5)
                 .build();
         final var recordItem =
@@ -97,7 +98,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 .returns(connectorContractId, ClprConnector::getConnectorContractId)
                 .returns(clprConnectorValue.getAdminKey().toByteArray(), ClprConnector::getAdminKey)
                 .returns(clprConnectorValue.getLockedStake(), ClprConnector::getLockedStake)
-                .returns(2L, ClprConnector::getSlashCount)
+                .returns(4_294_967_295L, ClprConnector::getSlashCount)
                 .returns(5L, ClprConnector::getInFlightMessageCount)
                 .returns(ClprConnectorStatus.ACTIVE, ClprConnector::getStatus)
                 .returns(DomainUtils.toBytes(body.getPublicKey()), ClprConnector::getPublicKey)

@@ -8,6 +8,7 @@ import static org.hiero.mirror.common.domain.RecordItemBuilder.DEFAULT_GAS_USED;
 import com.hederahashgraph.api.proto.java.ClprChannel;
 import com.hederahashgraph.api.proto.java.ClprChannelStatus;
 import com.hederahashgraph.api.proto.java.ClprConnector;
+import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -581,6 +582,62 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         // connectorContractId was only set at completion time; merging the sendMessage/submitBundle patches must
         // carry it forward rather than null it out
         assertThat(connector.getConnectorContractId()).isNotNull();
+    }
+
+    @Test
+    void clprConnectorBanRemoval() {
+        // given -- register + complete establish the connector, then a SubmitBundle's own state change carries a
+        // map-delete (full ban) for the connector's key rather than a status patch; exercises the generic
+        // connectorsRemoved path backfilling fields from the prior completion rather than nulling them out
+        final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final var publicKey = DomainUtils.fromBytes(domainBuilder.bytes(64));
+        final var commitment = DomainUtils.fromBytes(
+                SignatureUtils.keccak256(DomainUtils.toBytes(connectorId), DomainUtils.toBytes(publicKey)));
+
+        final var register = recordItemBuilder
+                .clprRegisterConnector()
+                .transactionBody(b -> b.setCommitment(commitment).setChannelId(channelId))
+                .build();
+
+        final var clprConnectorComplete = ClprConnector.newBuilder()
+                .setConnectorId(connectorId)
+                .setChannelId(channelId)
+                .setConnectorContract(domainBuilder.entityNum(4200L).toContractID())
+                .setLockedStake(100_000_000L)
+                .build();
+        final var complete = recordItemBuilder
+                .clprCompleteConnector()
+                .transactionBody(b ->
+                        b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
+                .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of(clprConnectorComplete)))
+                .build();
+
+        final var removedConnectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
+        final var ban = recordItemBuilder
+                .clprSubmitBundle()
+                .recordItem(r -> r.clprContextBuilder().clprConnectorsRemoved(List.of(removedConnectorKey)))
+                .build();
+
+        final var recordFile = recordFileWithItems(List.of(register, complete, ban), null);
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertRecordFile(recordFile);
+
+        final var connector = clprConnectorRepository
+                .findById(new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(commitment)))
+                .orElseThrow();
+        assertThat(connector.getStatus()).isEqualTo(ClprConnectorStatus.DELETED);
+        // connectorContractId/lockedStake were only set at completion time; the ban's map-delete carries no patch
+        // of its own, so mergeClprConnector's fillIfAbsent must backfill them rather than leave them null
+        assertThat(connector.getConnectorContractId()).isNotNull();
+        assertThat(connector.getLockedStake()).isEqualTo(100_000_000L);
     }
 
     @Test
