@@ -250,7 +250,7 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(ERC, IERC721_TOKEN_NAME_SELECTOR, asAddress(tokenId));
         var stateOverride = new StateOverride()
                 .address("0x00000000000000000000000000000000000004e2")
-                .balance("0x1")
+                .balance(1L)
                 .state(List.of())
                 .addStateDiffItem(new StorageEntry()
                         .key("0x0000000000000000000000000000000000000000000000000000000000000001")
