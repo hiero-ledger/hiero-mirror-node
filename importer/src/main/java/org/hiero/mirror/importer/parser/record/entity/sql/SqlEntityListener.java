@@ -508,10 +508,8 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             patchIfPresent(previous, current.getReceivedMessageId(), ClprChannel::setReceivedMessageId);
             patchIfPresent(previous, current.getSentRunningHash(), ClprChannel::setSentRunningHash);
             patchIfPresent(previous, current.getReceivedRunningHash(), ClprChannel::setReceivedRunningHash);
-            patchIfPresent(previous, current.getOwnershipCommitment(), ClprChannel::setOwnershipCommitment);
             patchIfPresent(previous, current.getTrustAnchor(), ClprChannel::setTrustAnchor);
             patchIfPresent(previous, current.getTrustAnchorId(), ClprChannel::setTrustAnchorId);
-            patchIfPresent(previous, current.getChannelContext(), ClprChannel::setChannelContext);
             patchIfPresent(previous, current.getEndpointManifestVersion(), ClprChannel::setEndpointManifestVersion);
             patchIfPresent(previous, current.getLastConfigTimestamp(), ClprChannel::setLastConfigTimestamp);
             patchIfPresent(previous, current.getPeerConfigTimestamp(), ClprChannel::setPeerConfigTimestamp);
