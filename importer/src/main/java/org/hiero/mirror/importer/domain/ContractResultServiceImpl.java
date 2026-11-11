@@ -317,7 +317,6 @@ final class ContractResultServiceImpl implements ContractResultService {
             var contractId = EntityId.of(contractLogInfo.getContractID());
             var rootContractId = EntityId.of(contractResult.getContractId());
             contractLog.setBloom(DomainUtils.toBytes(contractLogInfo.getBloom()));
-            contractLog.setChild(recordItem.isEvmChild());
             contractLog.setConsensusTimestamp(contractResult.getConsensusTimestamp());
             contractLog.setContractId(contractId);
             contractLog.setData(DomainUtils.toBytes(contractLogInfo.getData()));

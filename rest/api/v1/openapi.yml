@@ -1980,9 +1980,9 @@ components:
           type: string
           format: binary
         balance:
-          description: The account balance as a hex-encoded quantity in weibars
-          type: string
-          format: binary
+          description: The account balance in tinybars
+          type: integer
+          format: int64
         code:
           description: the bytecode of the account
           type: string
@@ -2737,11 +2737,6 @@ components:
           allOf:
             - $ref: "#/components/schemas/Bloom"
             - description: The hex encoded bloom filter of the contract log
-        child:
-          description: >-
-            Whether the transaction that emitted this log was executed as part of another transaction's EVM execution
-            (e.g. a system contract call or a call dispatched by a hook).
-          type: boolean
         contract_id:
           $ref: "#/components/schemas/EntityId"
         data:

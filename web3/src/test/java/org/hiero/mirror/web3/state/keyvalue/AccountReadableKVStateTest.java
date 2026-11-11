@@ -62,6 +62,8 @@ import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Spy;
@@ -260,11 +262,19 @@ class AccountReadableKVStateTest {
                         .returns(EMPTY_KEY_LIST, Account::key));
     }
 
-    @Test
-    void missingContractKeyMatchesDefaultValues() {
-        final var contractEntity = entity.toBuilder().type(EntityType.CONTRACT).build();
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void contractWithoutAdminKeyUsesContractIdKey(final boolean emptyKeyList) {
+        final byte[] key = emptyKeyList
+                ? com.hederahashgraph.api.proto.java.Key.newBuilder()
+                        .setKeyList(com.hederahashgraph.api.proto.java.KeyList.getDefaultInstance())
+                        .build()
+                        .toByteArray()
+                : null;
+        final var contractEntity =
+                entity.toBuilder().type(EntityType.CONTRACT).key(key).build();
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
-        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(contractEntity));
+        when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.of(contractEntity));
         final var mockedConfiguration = mock(VersionedConfiguration.class);
         final var mockedContractsConfig = mock(ContractsConfig.class);
         when(evmProperties.getVersionedConfiguration()).thenReturn(mockedConfiguration);

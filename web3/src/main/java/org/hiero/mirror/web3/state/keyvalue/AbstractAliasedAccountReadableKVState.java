@@ -137,18 +137,17 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
 
     private Key getKey(final Entity entity, final boolean isSmartContract) {
         final var key = parseKey(entity.getKey());
+        if (isSmartContract && (key == null || EMPTY_KEY_LIST.equals(key))) {
+            return Key.newBuilder()
+                    .contractID(ContractID.newBuilder()
+                            .shardNum(entity.getShard())
+                            .realmNum(entity.getRealm())
+                            .contractNum(entity.getNum())
+                            .build())
+                    .build();
+        }
         if (key == null) {
-            if (isSmartContract) {
-                return Key.newBuilder()
-                        .contractID(ContractID.newBuilder()
-                                .shardNum(entity.getShard())
-                                .realmNum(entity.getRealm())
-                                .contractNum(entity.getNum())
-                                .build())
-                        .build();
-            } else {
-                return getDefaultKey();
-            }
+            return getDefaultKey();
         }
         return key;
     }

@@ -8,7 +8,7 @@ plugins {
 }
 
 dependencies {
-    val vertxVersion = "5.2.2"
+    val vertxVersion = "5.2.3"
     implementation(platform("io.fabric8:kubernetes-client-bom"))
     implementation(project(":common")) { isTransitive = false }
     implementation("com.fasterxml.jackson.core:jackson-databind")
