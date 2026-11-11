@@ -38,19 +38,6 @@ public class HexUtils {
         return Long.parseUnsignedLong(trimmed, 10);
     }
 
-    /**
-     * Converts a non-negative JSON number to a {@code 0x}-prefixed hexadecimal quantity. A string is kept as is.
-     */
-    public static String toHexQuantity(final Object value) {
-        return switch (value) {
-            case String text -> text;
-            case Integer number when number >= 0 -> HEX_PREFIX + Integer.toHexString(number);
-            case Long number when number >= 0 -> HEX_PREFIX + Long.toHexString(number);
-            case BigInteger number when number.signum() >= 0 -> HEX_PREFIX + number.toString(16);
-            default -> throw new IllegalArgumentException("expected a non-negative integer or a hexadecimal string");
-        };
-    }
-
     private static boolean isHex(final String value) {
         return value.startsWith(HEX_PREFIX) || value.startsWith(HEX_PREFIX_CAPITAL);
     }

@@ -478,7 +478,7 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
     private static StateOverride codeOverride(final String address, final String code) {
         final var stateOverride = new StateOverride();
         stateOverride.setAddress(address);
-        stateOverride.setBalance("0x5f5e100");
+        stateOverride.setBalance(100_000_000L);
         stateOverride.setCode(code);
         return stateOverride;
     }

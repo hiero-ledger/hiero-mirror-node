@@ -84,9 +84,7 @@ class AccountReadableKVStateTest {
     private static final EntityId AUTO_RENEW_ACCOUNT_ID = EntityId.of(SHARD, REALM, NUM + 1);
     private static final long EXPIRATION_TIMESTAMP = 2_000_000_000L;
     private static final long BALANCE = 3L;
-    private static final String OVERRIDE_BALANCE_HEX = "0x64";
     private static final long OVERRIDE_BALANCE = 100L;
-    private static final String OVERRIDE_NONCE_HEX = "0x2a";
     private static final long OVERRIDE_NONCE = 42L;
     private static final long AUTO_RENEW_PERIOD = 4_000_000_000L;
     private static final EntityId PROXY_ACCOUNT_ID = EntityId.of(SHARD, REALM, 5L);
@@ -743,7 +741,7 @@ class AccountReadableKVStateTest {
         when(commonEntityAccessor.get(missingAccount, Optional.empty())).thenReturn(Optional.empty());
         contractCallContext.setStateOverrides(Map.of(
                 missingAccountBytes,
-                stateOverride(missingAccountBytes.toHex(), OVERRIDE_BALANCE_HEX, OVERRIDE_NONCE_HEX, null)));
+                stateOverride(missingAccountBytes.toHex(), OVERRIDE_BALANCE, OVERRIDE_NONCE, null)));
 
         assertThat(accountReadableKVState.get(missingAccount))
                 .satisfies(account -> assertThat(account)
@@ -758,8 +756,7 @@ class AccountReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
         contractCallContext.setStateOverrides(Map.of(
-                LONG_ZERO_ADDRESS_BYTES,
-                stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), null, OVERRIDE_NONCE_HEX, null)));
+                LONG_ZERO_ADDRESS_BYTES, stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), null, OVERRIDE_NONCE, null)));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID))
                 .satisfies(account -> assertThat(account).returns(OVERRIDE_NONCE, Account::ethereumNonce));
@@ -772,7 +769,7 @@ class AccountReadableKVStateTest {
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
         contractCallContext.setStateOverrides(Map.of(
                 LONG_ZERO_ADDRESS_BYTES,
-                stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), OVERRIDE_BALANCE_HEX, OVERRIDE_NONCE_HEX, null)));
+                stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), OVERRIDE_BALANCE, OVERRIDE_NONCE, null)));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID))
                 .satisfies(account -> assertThat(account)
@@ -786,8 +783,7 @@ class AccountReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
         contractCallContext.setStateOverrides(Map.of(
-                LONG_ZERO_ADDRESS_BYTES,
-                stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), OVERRIDE_BALANCE_HEX, null, null)));
+                LONG_ZERO_ADDRESS_BYTES, stateOverride(LONG_ZERO_ADDRESS_BYTES.toHex(), OVERRIDE_BALANCE, null, null)));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID))
                 .satisfies(account -> assertThat(account)
@@ -888,8 +884,8 @@ class AccountReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
         final var nonExistingAddress = Bytes.fromHex("000000000000000000000000000000000000dead");
-        contractCallContext.setStateOverrides(Map.of(
-                nonExistingAddress, stateOverride(nonExistingAddress.toHex(), OVERRIDE_BALANCE_HEX, null, null)));
+        contractCallContext.setStateOverrides(
+                Map.of(nonExistingAddress, stateOverride(nonExistingAddress.toHex(), OVERRIDE_BALANCE, null, null)));
 
         assertThat(accountReadableKVState.get(ACCOUNT_ID))
                 .satisfies(account -> assertThat(account).returns(BALANCE, Account::tinybarBalance));
@@ -899,7 +895,7 @@ class AccountReadableKVStateTest {
         return new AccountID(0L, 0L, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, num));
     }
 
-    private StateOverride stateOverride(String address, String balance, String nonce, String code) {
+    private StateOverride stateOverride(String address, Long balance, Long nonce, String code) {
         final var override = new StateOverride();
         override.setAddress(address);
         override.setBalance(balance);

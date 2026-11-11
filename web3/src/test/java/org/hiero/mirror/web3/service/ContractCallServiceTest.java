@@ -1594,10 +1594,10 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             meterRegistry.clear();
             final var functionCall = contract.call_getAccountBalance(accountAddress.toHexString());
 
-            final var overrideBalanceHex = "0x64";
+            final long overrideBalance = 100L;
             final var stateOverride = new StateOverride();
             stateOverride.setAddress(accountAddress.toHexString());
-            stateOverride.setBalance(overrideBalanceHex);
+            stateOverride.setBalance(overrideBalance);
 
             final var params = contractExecutionParametersBuilder(
                             BlockType.LATEST,
@@ -1614,7 +1614,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
             // Then
             assertThat(decodeFirst(result.result(), Uint256.class).getValue())
-                    .isEqualTo(new BigInteger(overrideBalanceHex.substring(2), 16));
+                    .isEqualTo(BigInteger.valueOf(overrideBalance));
             assertThat(decodeFirst(result.result(), Uint256.class).getValue())
                     .isNotEqualTo(BigInteger.valueOf(DEFAULT_SMALL_ACCOUNT_BALANCE));
             assertThat(result.gasUsed()).isPositive();
@@ -1630,8 +1630,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
             final var stateOverride = new StateOverride();
             stateOverride.setAddress(missingAccountAddress.toHexString());
-            stateOverride.setBalance("0x64");
-            stateOverride.setNonce("0x2a");
+            stateOverride.setBalance(100L);
+            stateOverride.setNonce(42L);
 
             final var params = contractExecutionParametersBuilder(
                             BlockType.LATEST,
@@ -1676,7 +1676,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final var stateOverride = new StateOverride();
             stateOverride.setAddress(
                     unhex ? accountAddress.getBytes().toUnprefixedHexString() : accountAddress.toHexString());
-            stateOverride.setNonce("0x2a");
+            stateOverride.setNonce(42L);
             final var params = contractExecutionParametersBuilder(
                             BlockType.LATEST,
                             contract.call_getAccountBalance(accountAddress.toHexString())

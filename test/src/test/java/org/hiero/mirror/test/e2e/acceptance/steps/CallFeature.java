@@ -59,7 +59,6 @@ import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.StateOverride;
-import org.hiero.mirror.rest.model.StateOverrideBalance;
 import org.hiero.mirror.rest.model.StorageEntry;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
@@ -251,7 +250,7 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(ERC, IERC721_TOKEN_NAME_SELECTOR, asAddress(tokenId));
         var stateOverride = new StateOverride()
                 .address("0x00000000000000000000000000000000000004e2")
-                .balance(new StateOverrideBalance("0x1"))
+                .balance(1L)
                 .state(List.of())
                 .addStateDiffItem(new StorageEntry()
                         .key("0x0000000000000000000000000000000000000000000000000000000000000001")

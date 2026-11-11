@@ -9,10 +9,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.Data;
-import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.validation.Hex;
 import org.springframework.validation.annotation.Validated;
 
@@ -25,7 +25,6 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class StateOverride {
 
-    private static final int DECIMAL_MAX_LENGTH = 16;
     public static final int CODE_MAX_LENGTH = 24576 * 2;
 
     /** EVM address (40 hex characters, optional {@code 0x} prefix) of the account to override. */
@@ -33,17 +32,17 @@ public class StateOverride {
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH)
     private String address;
 
-    /** Balance override in tinybars (Hedera's smallest denomination), stored hex-encoded. */
-    @Hex(maxLength = DECIMAL_MAX_LENGTH)
-    private String balance;
+    /** Balance override in tinybars. */
+    @PositiveOrZero
+    private Long balance;
 
     /** Hex-encoded runtime bytecode override. */
     @Hex(maxLength = CODE_MAX_LENGTH)
     private String code;
 
-    /** Hex-encoded Ethereum nonce override. */
-    @Hex(maxLength = DECIMAL_MAX_LENGTH)
-    private String nonce;
+    /** Ethereum nonce override. */
+    @PositiveOrZero
+    private Long nonce;
 
     /**
      * Full storage replacement: list of slot key-value pairs.
@@ -63,11 +62,6 @@ public class StateOverride {
     @NotNull
     @Size(max = 100)
     private List<@Valid StorageEntry> stateDiff = List.of();
-
-    // Plain setter, as the Jackson 3 HTTP binding ignores Jackson 2's @JsonDeserialize.
-    public void setBalance(final Object balance) {
-        this.balance = balance != null ? HexUtils.toHexQuantity(balance) : null;
-    }
 
     @AssertTrue(message = "state and state_diff are mutually exclusive")
     private boolean hasValidStorage() {

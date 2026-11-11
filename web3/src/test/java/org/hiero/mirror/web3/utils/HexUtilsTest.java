@@ -31,21 +31,4 @@ class HexUtilsTest {
     void parseValueRejectsOtherTypes() {
         assertThatThrownBy(() -> HexUtils.parseValue((Object) 1.5)).isInstanceOf(IllegalArgumentException.class);
     }
-
-    @Test
-    void toHexQuantity() {
-        assertThat(HexUtils.toHexQuantity(0)).isEqualTo("0x0");
-        assertThat(HexUtils.toHexQuantity(1_208_925_819L)).isEqualTo("0x480ebe7b");
-        assertThat(HexUtils.toHexQuantity(BigInteger.valueOf(255))).isEqualTo("0xff");
-        assertThat(HexUtils.toHexQuantity("0x1")).isEqualTo("0x1");
-    }
-
-    @Test
-    void toHexQuantityRejectsNegativeAndOtherTypes() {
-        assertThatThrownBy(() -> HexUtils.toHexQuantity(-1)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> HexUtils.toHexQuantity(-1L)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> HexUtils.toHexQuantity(BigInteger.valueOf(-1)))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> HexUtils.toHexQuantity(1.5)).isInstanceOf(IllegalArgumentException.class);
-    }
 }
