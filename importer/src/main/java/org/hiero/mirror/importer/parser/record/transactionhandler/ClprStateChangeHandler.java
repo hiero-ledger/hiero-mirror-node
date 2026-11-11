@@ -10,8 +10,6 @@ import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -101,28 +99,14 @@ public class ClprStateChangeHandler {
             }
         }
 
-        // A connector can be banned and patched in the same transaction; index patches by key so the removal below
-        // can carry fields forward instead of losing them.
-        final var connectorsByKey = new HashMap<ClprConnectorKey, ClprConnectorEntry>();
-        for (final var entry : clprContext.getClprConnectors()) {
-            connectorsByKey.put(entry.key(), entry);
-        }
-
-        final var removedConnectorKeys = new HashSet<ClprConnectorKey>();
         for (final var key : clprContext.getClprConnectorsRemoved()) {
-            removedConnectorKeys.add(key);
-            final var removedConnector =
-                    toRemovedConnector(key, connectorsByKey.get(key), transactionType, consensusTimestamp);
+            final var removedConnector = toRemovedConnector(key, transactionType, consensusTimestamp);
             if (removedConnector != null) {
                 entityListener.onClprConnector(removedConnector);
             }
         }
 
         for (final var entry : clprContext.getClprConnectors()) {
-            if (removedConnectorKeys.contains(entry.key())) {
-                continue;
-            }
-
             final var connector = toConnector(entry, transactionType, consensusTimestamp);
             if (connector == null) {
                 continue;
@@ -605,10 +589,7 @@ public class ClprStateChangeHandler {
     }
 
     private @Nullable ClprConnector toRemovedConnector(
-            ClprConnectorKey key,
-            @Nullable ClprConnectorEntry patchedEntry,
-            TransactionType transactionType,
-            long consensusTimestamp) {
+            ClprConnectorKey key, TransactionType transactionType, long consensusTimestamp) {
         final var channelId = DomainUtils.toBytes(key.getChannelId());
         final var connectorId = DomainUtils.toBytes(key.getConnectorId());
         final var commitment = lookupCommitment(channelId, connectorId, transactionType, consensusTimestamp);
@@ -616,18 +597,12 @@ public class ClprStateChangeHandler {
             return null;
         }
 
-        final var builder = ClprConnector.builder()
+        return ClprConnector.builder()
                 .channelId(channelId)
                 .commitment(commitment)
                 .connectorId(connectorId)
                 .status(ClprConnectorStatus.DELETED)
-                .timestampRange(Range.atLeast(consensusTimestamp));
-
-        // Carry the same-transaction patch's fields forward, otherwise mergeClprConnector backfills stale values.
-        if (patchedEntry != null) {
-            applyConnectorFields(builder, patchedEntry);
-        }
-
-        return builder.build();
+                .timestampRange(Range.atLeast(consensusTimestamp))
+                .build();
     }
 }

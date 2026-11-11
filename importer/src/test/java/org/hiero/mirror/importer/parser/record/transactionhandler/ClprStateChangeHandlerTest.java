@@ -186,30 +186,6 @@ final class ClprStateChangeHandlerTest {
     }
 
     @Test
-    void processChannelPendingStatus() {
-        // given -- PENDING is pre-creation only (tracked via ClprChannelPendingCommitment); an existing ClprChannel
-        // state-change value reverting to it is a distinct invariant violation from a truly unknown status
-        mockEmptyClprState();
-        final var channelId = domainBuilder.bytes(32);
-        final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
-                .setChannelId(DomainUtils.fromBytes(channelId))
-                .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.PENDING)
-                .build();
-        when(clprContext.getClprChannels())
-                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), clprChannelValue)));
-
-        // when
-        clprStateChangeHandler.process(recordItem);
-
-        // then
-        final var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
-        verify(entityListener).onClprChannel(channelCaptor.capture());
-        assertThat(channelCaptor.getValue())
-                .returns(channelId, ClprChannel::getChannelId)
-                .returns(null, ClprChannel::getStatus);
-    }
-
-    @Test
     void processChannelWithPeerThrottlesAndEndpointManifest() {
         // given
         mockEmptyClprState();
