@@ -13,12 +13,12 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@google-cloud/logging": "12.3.0",
+    "@google-cloud/logging": "12.3.1",
     "parse-duration": "2.1.11",
     "yargs": "18.2.0"
   },
   "peerDependencies": {
-    "ansi-regex": "6.4.0",
+    "ansi-regex": "6.6.0",
     "ansi-styles": "7.0.0",
     "debug": "4.4.3",
     "strip-ansi": "7.2.0",

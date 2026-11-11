@@ -2,7 +2,7 @@
 # Importer, Rosetta and PostgreSQL into one image
 # and run the services using supervisord
 
-FROM ubuntu:noble-20260917@sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55 AS builder
+FROM ubuntu:noble-20261024.1@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852 AS builder
 ENV LANG=C.UTF-8
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y --no-install-recommends && apt-get install -y gcc git openjdk-25-jdk-headless wget
@@ -28,7 +28,7 @@ RUN mkdir importer rosetta scripts \
 # --------------------------- Runner Container --------------------------- #
 # ######################################################################## #
 
-FROM ubuntu:noble-20260917@sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55 AS runner
+FROM ubuntu:noble-20261024.1@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852 AS runner
 
 # ---------------------- Install Deps & PostgreSQL ------------------------ #
 # Add the PostgreSQL PGP key to verify their Debian packages.
