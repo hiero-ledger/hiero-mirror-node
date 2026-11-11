@@ -93,9 +93,9 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
 
     // Metrics
     private final MeterRegistry meterRegistry;
-    private final MeterProvider<Counter> signatureVerificationMetric;
     private final Timer cloudStorageLatencyMetric;
     private final Timer downloadLatencyMetric;
+    private final MeterProvider<Counter> signatureVerificationMetric;
     private final Timer streamCloseMetric;
     private final Timer.Builder streamVerificationMetric;
 
@@ -136,15 +136,15 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                 .tag("type", streamType.toString())
                 .register(meterRegistry);
 
-        streamCloseMetric = Timer.builder(STREAM_CLOSE_LATENCY_METRIC_NAME)
-                .description("The difference between the consensus start of the current and the last stream file")
-                .tag("type", streamType.toString())
-                .register(meterRegistry);
-
         signatureVerificationMetric = Counter.builder(SIGNATURE_VERIFICATION_METRIC_NAME)
                 .description("The number of signatures verified from a particular node")
                 .tag("type", streamType.toString())
                 .withRegistry(meterRegistry);
+
+        streamCloseMetric = Timer.builder(STREAM_CLOSE_LATENCY_METRIC_NAME)
+                .description("The difference between the consensus start of the current and the last stream file")
+                .tag("type", streamType.toString())
+                .register(meterRegistry);
 
         streamVerificationMetric = Timer.builder("hiero.mirror.importer.stream.verification")
                 .description("The duration in seconds it took to verify consensus and hash chain of a stream file")
