@@ -157,7 +157,7 @@ class FixFeeCollectorTokenAccountStatusMigrationTest extends ImporterIntegration
     }
 
     @Test
-    void migrateEmptyKeyListKycKey() {
+    void migrateEmptyKeyList() {
         // given
         final long post0_77Timestamp = LATER_TIMESTAMP * 20;
         recordFile(0, 77, LATER_TIMESTAMP * 10 + 1, post0_77Timestamp * 2);
@@ -167,7 +167,7 @@ class FixFeeCollectorTokenAccountStatusMigrationTest extends ImporterIntegration
                 .toByteArray();
 
         // since services 0.77.0, the empty key list KYC key disables KYC, so only the freeze status is fixed
-        final var disabledToken = domainBuilder
+        final var kycDisabledToken = domainBuilder
                 .token()
                 .customize(t -> t.createdTimestamp(post0_77Timestamp)
                         .freezeStatus(TokenFreezeStatusEnum.FROZEN)
@@ -175,9 +175,22 @@ class FixFeeCollectorTokenAccountStatusMigrationTest extends ImporterIntegration
                         .kycStatus(TokenKycStatusEnum.REVOKED)
                         .timestampRange(Range.atLeast(post0_77Timestamp)))
                 .persist();
-        final var disabledCollector = domainBuilder.entityId();
-        fixedFee(disabledToken, disabledCollector, disabledToken.getTokenId());
-        final var disabledCollectorAccount = enabled(disabledToken, disabledCollector);
+        final var kycDisabledCollector = domainBuilder.entityId();
+        fixedFee(kycDisabledToken, kycDisabledCollector, kycDisabledToken.getTokenId());
+        final var kycDisabledCollectorAccount = enabled(kycDisabledToken, kycDisabledCollector);
+
+        // since services 0.77.0, the empty key list freeze key disables freeze, so only the KYC status is fixed
+        final var freezeDisabledToken = domainBuilder
+                .token()
+                .customize(t -> t.createdTimestamp(post0_77Timestamp)
+                        .freezeKey(emptyKeyList)
+                        .freezeStatus(TokenFreezeStatusEnum.FROZEN)
+                        .kycStatus(TokenKycStatusEnum.REVOKED)
+                        .timestampRange(Range.atLeast(post0_77Timestamp)))
+                .persist();
+        final var freezeDisabledCollector = domainBuilder.entityId();
+        fixedFee(freezeDisabledToken, freezeDisabledCollector, freezeDisabledToken.getTokenId());
+        final var freezeDisabledCollectorAccount = enabled(freezeDisabledToken, freezeDisabledCollector);
 
         // prior to services 0.77.0, the empty key list KYC key is a KYC key
         final var keyToken = domainBuilder
@@ -196,17 +209,23 @@ class FixFeeCollectorTokenAccountStatusMigrationTest extends ImporterIntegration
         migration.doMigrate();
 
         // then
-        disabledCollectorAccount.setFreezeStatus(TokenFreezeStatusEnum.FROZEN);
+        kycDisabledToken.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
+        freezeDisabledToken.setFreezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE);
+        assertThat(tokenRepository.findAll())
+                .containsExactlyInAnyOrder(kycDisabledToken, freezeDisabledToken, keyToken);
+
+        kycDisabledCollectorAccount.setFreezeStatus(TokenFreezeStatusEnum.FROZEN);
+        freezeDisabledCollectorAccount.setKycStatus(TokenKycStatusEnum.REVOKED);
         keyCollectorAccount.setFreezeStatus(TokenFreezeStatusEnum.FROZEN);
         keyCollectorAccount.setKycStatus(TokenKycStatusEnum.REVOKED);
         assertThat(tokenAccountRepository.findAll())
-                .contains(disabledCollectorAccount, keyCollectorAccount)
-                .hasSize(2);
+                .containsExactlyInAnyOrder(
+                        kycDisabledCollectorAccount, freezeDisabledCollectorAccount, keyCollectorAccount);
         assertThat(findHistory(TokenAccountHistory.class)).isEmpty();
     }
 
     @Test
-    void migrateKycDisabledTokens() {
+    void migrateKeyDisabledTokens() {
         // given
         final long post0_77Timestamp = LATER_TIMESTAMP * 20;
         final long updateTimestamp = post0_77Timestamp + 10;
@@ -242,6 +261,27 @@ class FixFeeCollectorTokenAccountStatusMigrationTest extends ImporterIntegration
         // created with a KYC key
         final var withKey = kycToken(post0_77Timestamp, domainBuilder.key(), Range.atLeast(post0_77Timestamp));
 
+        // created with freeze disabled since services 0.77.0
+        final var freezeDisabled = domainBuilder
+                .token()
+                .customize(t -> t.createdTimestamp(post0_77Timestamp)
+                        .freezeDefault(true)
+                        .freezeKey(emptyKeyList)
+                        .freezeStatus(TokenFreezeStatusEnum.FROZEN)
+                        .timestampRange(Range.atLeast(post0_77Timestamp)))
+                .persist();
+
+        // created with both freeze and KYC disabled since services 0.77.0
+        final var bothDisabled = domainBuilder
+                .token()
+                .customize(t -> t.createdTimestamp(post0_77Timestamp)
+                        .freezeKey(emptyKeyList)
+                        .freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
+                        .kycKey(emptyKeyList)
+                        .kycStatus(TokenKycStatusEnum.REVOKED)
+                        .timestampRange(Range.atLeast(post0_77Timestamp)))
+                .persist();
+
         // created with a KYC key, which is removed by a token update, so the accounts associated before the removal
         // keep their KYC status
         final var removedHistory = domainBuilder
@@ -263,11 +303,15 @@ class FixFeeCollectorTokenAccountStatusMigrationTest extends ImporterIntegration
         migration.doMigrate();
 
         // then
-        disabled.setKycStatus(TokenKycStatusEnum.GRANTED);
-        updated.setKycStatus(TokenKycStatusEnum.GRANTED);
-        updatedHistory.setKycStatus(TokenKycStatusEnum.GRANTED);
+        disabled.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
+        updated.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
+        updatedHistory.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
+        freezeDisabled.setFreezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE);
+        bothDisabled.setFreezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE);
+        bothDisabled.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
         assertThat(tokenRepository.findAll())
-                .containsExactlyInAnyOrder(disabled, updated, preKeyList, withKey, removed);
+                .containsExactlyInAnyOrder(
+                        disabled, updated, preKeyList, withKey, removed, freezeDisabled, bothDisabled);
         assertThat(findHistory(TokenHistory.class)).containsExactlyInAnyOrder(updatedHistory, removedHistory);
 
         // when run again
@@ -275,7 +319,8 @@ class FixFeeCollectorTokenAccountStatusMigrationTest extends ImporterIntegration
 
         // then nothing changes
         assertThat(tokenRepository.findAll())
-                .containsExactlyInAnyOrder(disabled, updated, preKeyList, withKey, removed);
+                .containsExactlyInAnyOrder(
+                        disabled, updated, preKeyList, withKey, removed, freezeDisabled, bothDisabled);
         assertThat(findHistory(TokenHistory.class)).containsExactlyInAnyOrder(updatedHistory, removedHistory);
     }
 

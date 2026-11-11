@@ -271,21 +271,24 @@ final class TokenCreateTransactionHandlerTest extends AbstractTransactionHandler
     }
 
     @CsvSource(textBlock = """
-                0.76.0, REVOKED, REVOKED
-                0.77.0, GRANTED, GRANTED
+                0.76.0, FROZEN,         REVOKED,        UNFROZEN,       GRANTED
+                0.77.0, NOT_APPLICABLE, NOT_APPLICABLE, NOT_APPLICABLE, NOT_APPLICABLE
                 """)
     @ParameterizedTest
-    void updateTransactionEmptyKeyListKycKey(
+    void updateTransactionEmptyKeyList(
             @ConvertWith(VersionConverter.class) Version hapiVersion,
-            TokenKycStatusEnum expectedTokenKycStatus,
-            TokenKycStatusEnum expectedCollectorKycStatus) {
+            TokenFreezeStatusEnum expectedFreezeStatus,
+            TokenKycStatusEnum expectedKycStatus,
+            TokenFreezeStatusEnum expectedTreasuryFreezeStatus,
+            TokenKycStatusEnum expectedTreasuryKycStatus) {
         // Given
         final var collector = recordItemBuilder.accountId();
         final var emptyKeyList = Key.newBuilder().setKeyList(KeyList.getDefaultInstance());
         final var recordItem = recordItemBuilder
                 .tokenCreate()
                 .recordItem(r -> r.hapiVersion(hapiVersion))
-                .transactionBody(b -> b.setKycKey(emptyKeyList))
+                .transactionBody(
+                        b -> b.setFreezeDefault(true).setFreezeKey(emptyKeyList).setKycKey(emptyKeyList))
                 .record(r -> r.addAutomaticTokenAssociations(
                         r.getAutomaticTokenAssociations(0).toBuilder().setAccountId(collector)))
                 .build();
@@ -309,13 +312,15 @@ final class TokenCreateTransactionHandlerTest extends AbstractTransactionHandler
         verify(entityListener).onToken(token.capture());
         verify(entityListener, times(2)).onTokenAccount(tokenAccount.capture());
         assertThat(token.getValue())
+                .returns(emptyKeyList.build().toByteArray(), Token::getFreezeKey)
+                .returns(expectedFreezeStatus, Token::getFreezeStatus)
                 .returns(emptyKeyList.build().toByteArray(), Token::getKycKey)
-                .returns(expectedTokenKycStatus, Token::getKycStatus);
+                .returns(expectedKycStatus, Token::getKycStatus);
         assertThat(tokenAccount.getAllValues())
-                .extracting(TokenAccount::getAccountId, TokenAccount::getKycStatus)
+                .extracting(TokenAccount::getAccountId, TokenAccount::getFreezeStatus, TokenAccount::getKycStatus)
                 .containsExactlyInAnyOrder(
-                        tuple(treasuryId, TokenKycStatusEnum.GRANTED),
-                        tuple(EntityId.of(collector).getId(), expectedCollectorKycStatus));
+                        tuple(treasuryId, expectedTreasuryFreezeStatus, expectedTreasuryKycStatus),
+                        tuple(EntityId.of(collector).getId(), expectedFreezeStatus, expectedKycStatus));
     }
 
     @Test

@@ -8,6 +8,7 @@ import static org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum.UNFROZE
 import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_49_0;
 import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_77_0;
 
+import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.TokenAssociation;
 import jakarta.inject.Named;
 import lombok.CustomLog;
@@ -119,19 +120,20 @@ final class TokenCreateTransactionHandler extends AbstractEntityCrudTransactionH
 
         if (transactionBody.hasFreezeKey()) {
             token.setFreezeKey(transactionBody.getFreezeKey().toByteArray());
+        }
+
+        if (isKeyEnabled(transactionBody.hasFreezeKey(), transactionBody.getFreezeKey(), recordItem)) {
             token.setFreezeStatus(freezeDefault ? FROZEN : UNFROZEN);
         } else {
             token.setFreezeStatus(NOT_APPLICABLE);
         }
 
         if (transactionBody.hasKycKey()) {
-            final var kycKey = transactionBody.getKycKey();
-            token.setKycKey(kycKey.toByteArray());
-            // Since services 0.77.0, an empty key list disables KYC, so accounts are KYC granted when associated
-            final boolean kycDisabled = kycKey.hasKeyList()
-                    && kycKey.getKeyList().getKeysCount() == 0
-                    && recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_77_0);
-            token.setKycStatus(kycDisabled ? TokenKycStatusEnum.GRANTED : TokenKycStatusEnum.REVOKED);
+            token.setKycKey(transactionBody.getKycKey().toByteArray());
+        }
+
+        if (isKeyEnabled(transactionBody.hasKycKey(), transactionBody.getKycKey(), recordItem)) {
+            token.setKycStatus(TokenKycStatusEnum.REVOKED);
         } else {
             token.setKycStatus(TokenKycStatusEnum.NOT_APPLICABLE);
         }
@@ -175,8 +177,10 @@ final class TokenCreateTransactionHandler extends AbstractEntityCrudTransactionH
                     .forEach(autoAssociatedAccounts::add);
         }
 
-        var freezeStatus = token.getFreezeKey() != null ? UNFROZEN : NOT_APPLICABLE;
-        var kycStatus = token.getKycKey() != null ? TokenKycStatusEnum.GRANTED : TokenKycStatusEnum.NOT_APPLICABLE;
+        final var freezeStatus = token.getFreezeStatus() != NOT_APPLICABLE ? UNFROZEN : NOT_APPLICABLE;
+        final var kycStatus = token.getKycStatus() != TokenKycStatusEnum.NOT_APPLICABLE
+                ? TokenKycStatusEnum.GRANTED
+                : TokenKycStatusEnum.NOT_APPLICABLE;
         // Prior to services 0.49.0 (mono-service), every automatically associated account got an enabled relationship.
         // Since then, only the treasury does, and other accounts such as fee collectors get the token defaults.
         final boolean treasuryOnly = recordItem.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_49_0);
@@ -200,5 +204,19 @@ final class TokenCreateTransactionHandler extends AbstractEntityCrudTransactionH
         });
 
         entityListener.onToken(token);
+    }
+
+    /**
+     * Whether the token create sets the key. Since services 0.77.0, an empty key list (the HIP-540 removal sentinel)
+     * disables the key, so the token behaves as if the key isn't set and its status is NOT_APPLICABLE.
+     */
+    private static boolean isKeyEnabled(final boolean hasKey, final Key key, final RecordItem recordItem) {
+        if (!hasKey) {
+            return false;
+        }
+
+        return !key.hasKeyList()
+                || key.getKeyList().getKeysCount() != 0
+                || recordItem.getHapiVersion().isLessThan(HAPI_VERSION_0_77_0);
     }
 }

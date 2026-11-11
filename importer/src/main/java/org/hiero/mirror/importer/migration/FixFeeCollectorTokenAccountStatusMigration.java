@@ -7,7 +7,6 @@ import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import jakarta.inject.Named;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -39,9 +38,10 @@ import org.springframework.transaction.support.TransactionOperations;
  * in effect at the treasury change is split so the snapshot from the treasury change keeps the unfrozen and KYC
  * granted statuses.
  *
- * <p>Since services 0.77.0, an empty key list KYC key (the HIP-540 removal sentinel) on token create disables KYC, so
- * every account associated with the token is KYC granted. Such a key can't be updated, so the KYC status of every
- * snapshot of these tokens is set to granted, which the accounts associated with them inherit.
+ * <p>Since services 0.77.0, an empty key list freeze or KYC key (the HIP-540 removal sentinel) on token create disables
+ * the key, the same as if the key isn't set. Such a key can't be updated, so the freeze or KYC status of every snapshot
+ * of these tokens is set to NOT_APPLICABLE, which the accounts associated with them inherit. These tokens are fixed
+ * before the fee collectors, so the collectors of a token with a disabled key keep the NOT_APPLICABLE status.
  */
 @Named
 final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaMigration {
@@ -50,13 +50,11 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
 
     private static final String CURRENT_TABLE = "token_account";
 
-    // The empty key list (the HIP-540 removal sentinel), which disables KYC since services 0.77.0
+    // The empty key list (the HIP-540 removal sentinel), which disables a freeze or KYC key since services 0.77.0
     private static final byte[] EMPTY_KEY_LIST =
             Key.newBuilder().setKeyList(KeyList.getDefaultInstance()).build().toByteArray();
 
     private static final int FROZEN = TokenFreezeStatusEnum.FROZEN.ordinal();
-
-    private static final int GRANTED = TokenKycStatusEnum.GRANTED.ordinal();
 
     private static final String HISTORY_TABLE = "token_account_history";
 
@@ -90,6 +88,8 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
               and token_id = :tokenId
               and lower(timestamp_range) = :timestamp
             """;
+
+    private static final int NOT_APPLICABLE = TokenKycStatusEnum.NOT_APPLICABLE.ordinal();
 
     private static final int REVOKED = TokenKycStatusEnum.REVOKED.ordinal();
 
@@ -125,15 +125,27 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
             where consensus_start <= :timestamp
             """;
 
-    // Tokens created with an empty key list KYC key whose KYC status hasn't been fixed
-    private static final String SELECT_KYC_DISABLED_TOKENS = """
-            select token_id, created_timestamp
+    // Tokens created with an empty key list freeze or KYC key whose status hasn't been fixed
+    private static final String SELECT_KEY_DISABLED_TOKENS = """
+            select
+              token_id,
+              created_timestamp,
+              coalesce(freeze_key = :emptyKeyList, false) as freeze_disabled,
+              coalesce(kyc_key = :emptyKeyList, false) as kyc_disabled
             from token
-            where lower(timestamp_range) = created_timestamp and kyc_key = :emptyKeyList and kyc_status = :revoked
+            where lower(timestamp_range) = created_timestamp
+              and ((freeze_key = :emptyKeyList and freeze_status <> :notApplicable)
+                or (kyc_key = :emptyKeyList and kyc_status <> :notApplicable))
             union all
-            select token_id, created_timestamp
+            select
+              token_id,
+              created_timestamp,
+              coalesce(freeze_key = :emptyKeyList, false) as freeze_disabled,
+              coalesce(kyc_key = :emptyKeyList, false) as kyc_disabled
             from token_history
-            where lower(timestamp_range) = created_timestamp and kyc_key = :emptyKeyList and kyc_status = :revoked
+            where lower(timestamp_range) = created_timestamp
+              and ((freeze_key = :emptyKeyList and freeze_status <> :notApplicable)
+                or (kyc_key = :emptyKeyList and kyc_status <> :notApplicable))
             """;
 
     private static final String SELECT_TOKEN_ACCOUNT_SNAPSHOTS = """
@@ -161,13 +173,13 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
 
     // The token snapshots at the token creation with a status that differs from the treasury's
     private static final String SELECT_TOKEN_CREATIONS = """
-            select token_id, created_timestamp, freeze_status, kyc_key, kyc_status, treasury_account_id
+            select token_id, created_timestamp, freeze_status, kyc_status, treasury_account_id
             from token
             where token_id = any(:tokenIds::bigint[])
               and lower(timestamp_range) = created_timestamp
               and (freeze_status = :frozen or kyc_status = :revoked)
             union all
-            select token_id, created_timestamp, freeze_status, kyc_key, kyc_status, treasury_account_id
+            select token_id, created_timestamp, freeze_status, kyc_status, treasury_account_id
             from token_history
             where token_id = any(:tokenIds::bigint[])
               and lower(timestamp_range) = created_timestamp
@@ -224,10 +236,11 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
               and lower(timestamp_range) = :lower
             """;
 
-    private static final String UPDATE_TOKEN_KYC_STATUS = """
+    private static final String UPDATE_TOKEN_STATUS = """
             update %s
-            set kyc_status = :granted
-            where token_id = :tokenId and kyc_status = :revoked
+            set freeze_status = case when :freezeDisabled then :notApplicable else freeze_status end,
+              kyc_status = case when :kycDisabled then :notApplicable else kyc_status end
+            where token_id = :tokenId
             """;
 
     private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
@@ -247,8 +260,8 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
 
     @Override
     public String getDescription() {
-        return "Reset the freeze and KYC status of fee collectors automatically associated by token creates and grant"
-                + " KYC for tokens created with KYC disabled";
+        return "Reset the freeze and KYC status of fee collectors automatically associated by token creates and of"
+                + " tokens created with the freeze or KYC key disabled";
     }
 
     @Override
@@ -260,12 +273,13 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
     protected void doMigrate() {
         final var jdbcOperations = jdbcOperationsProvider.getObject();
         final var transactionOperations = transactionOperationsProvider.getObject();
+        final var hapiVersions = new HashMap<Long, Version>();
+        fixKeyDisabledTokens(jdbcOperations, transactionOperations, hapiVersions);
         final var collectors = jdbcOperations.query(
                 SELECT_COLLECTORS,
                 (rs, rowNum) ->
                         new Collector(rs.getLong("account_id"), rs.getLong("token_id"), rs.getLong("timestamp")));
         final var tokenCreations = getTokenCreations(jdbcOperations, collectors);
-        final var hapiVersions = new HashMap<Long, Version>();
 
         long count = 0;
         for (final var collector : collectors) {
@@ -284,30 +298,22 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
                 continue;
             }
 
-            // Since services 0.77.0, an empty key list KYC key disables KYC, so the collector is KYC granted
-            final boolean kycDisabled =
-                    tokenCreation.emptyKycKey() && hapiVersion.isGreaterThanOrEqualTo(RecordFile.HAPI_VERSION_0_77_0);
-
             // The JDBC operations don't participate in the Flyway transaction, so each repair is made atomic on its
             // own. A retry after a failure then sees a repair either fully applied, and skips it, or not applied.
-            final var fixed = transactionOperations.execute(
-                    s -> fixCollector(jdbcOperations, collector, tokenCreation, kycDisabled));
+            final var fixed =
+                    transactionOperations.execute(s -> fixCollector(jdbcOperations, collector, tokenCreation));
             if (Boolean.TRUE.equals(fixed)) {
                 count++;
             }
         }
 
         log.info("Fixed freeze and KYC status of {} fee collector token accounts", count);
-
-        final long kycDisabledCount = fixKycDisabledTokens(jdbcOperations, transactionOperations, hapiVersions);
-        log.info("Granted KYC for {} tokens created with KYC disabled", kycDisabledCount);
     }
 
     private boolean fixCollector(
             final NamedParameterJdbcOperations jdbcOperations,
             final Collector collector,
-            final TokenCreation tokenCreation,
-            final boolean kycDisabled) {
+            final TokenCreation tokenCreation) {
         final long createdTimestamp = tokenCreation.createdTimestamp();
         final var params = new MapSqlParameterSource()
                 .addValue("accountId", collector.accountId())
@@ -343,9 +349,8 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
 
         final boolean freeze =
                 tokenCreation.freezeStatus() == FROZEN && !Objects.equals(atCreation.freezeStatus(), FROZEN);
-        final boolean revokeKyc = !kycDisabled
-                && tokenCreation.kycStatus() == REVOKED
-                && !Objects.equals(atCreation.kycStatus(), REVOKED);
+        final boolean revokeKyc =
+                tokenCreation.kycStatus() == REVOKED && !Objects.equals(atCreation.kycStatus(), REVOKED);
         if (!freeze && !revokeKyc) {
             return false;
         }
@@ -411,36 +416,39 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
         return true;
     }
 
-    private static long fixKycDisabledTokens(
+    private static void fixKeyDisabledTokens(
             final NamedParameterJdbcOperations jdbcOperations,
             final TransactionOperations transactionOperations,
             final Map<Long, Version> hapiVersions) {
         final var params = new MapSqlParameterSource()
                 .addValue("emptyKeyList", EMPTY_KEY_LIST)
-                .addValue("granted", GRANTED)
-                .addValue("revoked", REVOKED);
+                .addValue("notApplicable", NOT_APPLICABLE);
         final var tokens = jdbcOperations.query(
-                SELECT_KYC_DISABLED_TOKENS,
+                SELECT_KEY_DISABLED_TOKENS,
                 params,
-                (rs, rowNum) -> new TokenCreated(rs.getLong("token_id"), rs.getLong("created_timestamp")));
+                (rs, rowNum) -> new KeyDisabledToken(
+                        rs.getLong("token_id"),
+                        rs.getLong("created_timestamp"),
+                        rs.getBoolean("freeze_disabled"),
+                        rs.getBoolean("kyc_disabled")));
 
-        long count = 0;
         for (final var token : tokens) {
-            // Prior to services 0.77.0, an empty key list KYC key is a KYC key
+            // Prior to services 0.77.0, an empty key list freeze or KYC key is an enabled key
             final var hapiVersion = hapiVersions.computeIfAbsent(
                     token.createdTimestamp(), timestamp -> getHapiVersion(jdbcOperations, timestamp));
             if (hapiVersion.isLessThan(RecordFile.HAPI_VERSION_0_77_0)) {
                 continue;
             }
 
-            final var tokenParams = new MapSqlParameterSource(params.getValues()).addValue("tokenId", token.tokenId());
+            final var tokenParams = new MapSqlParameterSource(params.getValues())
+                    .addValue("freezeDisabled", token.freezeDisabled())
+                    .addValue("kycDisabled", token.kycDisabled())
+                    .addValue("tokenId", token.tokenId());
             transactionOperations.executeWithoutResult(s -> {
-                jdbcOperations.update(UPDATE_TOKEN_KYC_STATUS.formatted("token"), tokenParams);
-                jdbcOperations.update(UPDATE_TOKEN_KYC_STATUS.formatted("token_history"), tokenParams);
+                jdbcOperations.update(UPDATE_TOKEN_STATUS.formatted("token"), tokenParams);
+                jdbcOperations.update(UPDATE_TOKEN_STATUS.formatted("token_history"), tokenParams);
             });
-            count++;
         }
-        return count;
     }
 
     private static Version getHapiVersion(final NamedParameterJdbcOperations jdbcOperations, final long timestamp) {
@@ -471,7 +479,6 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
                     new TokenCreation(
                             rs.getLong("created_timestamp"),
                             rs.getInt("freeze_status"),
-                            Arrays.equals(rs.getBytes("kyc_key"), EMPTY_KEY_LIST),
                             rs.getInt("kyc_status"),
                             rs.getLong("treasury_account_id"))));
         }
@@ -537,6 +544,8 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
 
     private record Collector(long accountId, long tokenId, long timestamp) {}
 
+    private record KeyDisabledToken(long tokenId, long createdTimestamp, boolean freezeDisabled, boolean kycDisabled) {}
+
     private record TokenAccountSnapshot(
             boolean associated,
             @Nullable Long createdTimestamp,
@@ -545,8 +554,5 @@ final class FixFeeCollectorTokenAccountStatusMigration extends ConfigurableJavaM
             @Nullable Integer kycStatus,
             long timestampLower) {}
 
-    private record TokenCreated(long tokenId, long createdTimestamp) {}
-
-    private record TokenCreation(
-            long createdTimestamp, int freezeStatus, boolean emptyKycKey, int kycStatus, long treasuryAccountId) {}
+    private record TokenCreation(long createdTimestamp, int freezeStatus, int kycStatus, long treasuryAccountId) {}
 }
