@@ -14,13 +14,13 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
+import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.validation.Hex;
 import org.jspecify.annotations.Nullable;
 
@@ -80,19 +80,19 @@ public class ContractCallRequest {
     // Plain setters, as the Jackson 3 HTTP binding ignores Jackson 2's @JsonDeserialize.
     public void setGas(final Object gas) {
         if (gas != null) {
-            this.gas = parseValue(gas);
+            this.gas = HexUtils.parseValue(gas);
         }
     }
 
     public void setGasPrice(final Object gasPrice) {
         if (gasPrice != null) {
-            this.gasPrice = parseValue(gasPrice);
+            this.gasPrice = HexUtils.parseValue(gasPrice);
         }
     }
 
     public void setValue(final Object value) {
         if (value != null) {
-            this.value = parseValue(value);
+            this.value = HexUtils.parseValue(value);
         }
     }
 
@@ -105,16 +105,5 @@ public class ContractCallRequest {
     private boolean hasTo() {
         boolean isValidToField = value <= 0 || from == null || StringUtils.isNotEmpty(to);
         return BytecodeUtils.isValidInitBytecode(data) || isValidToField;
-    }
-
-    private long parseValue(final Object value) {
-        return switch (value) {
-            case Integer intValue -> intValue;
-            case Long longValue -> longValue;
-            case BigInteger bigInteger -> bigInteger.longValueExact();
-            case String text when text.regionMatches(true, 0, "0x", 0, 2) -> Long.parseLong(text.substring(2), 16);
-            case String text -> Long.parseLong(text);
-            default -> throw new IllegalArgumentException("expected a number or a hexadecimal/decimal string");
-        };
     }
 }

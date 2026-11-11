@@ -3119,12 +3119,6 @@ components:
           example: 0
           minimum: 0
           type: [integer, string, "null"]
-        max_fee_per_gas:
-          description: Accepted for compatibility with the HIP's example request, but unused - Mirror Node has no EIP-1559 fee market.
-          example: "0xf"
-          format: binary
-          maxLength: 66
-          type: [string, "null"]
         to:
           description: The 20-byte hexadecimal EVM address the call is directed to.
           example: "0x014d023e954bAae7F21E56ed8a5d81b12902684D"
@@ -3203,12 +3197,10 @@ components:
         data:
           format: binary
           type: string
-        log_index:
+        index:
           description: Position of this log within its block_state_calls entry, restarting at 0 for every entry.
           example: 0
           type: integer
-        removed:
-          type: boolean
         topics:
           items:
             format: binary
@@ -3222,14 +3214,33 @@ components:
           description: Position of the call within its block_state_calls entry, restarting at 0 for every entry.
           example: 0
           type: integer
+    SimulateCallError:
+      description: Why a call failed. Empty for a successful call.
+      type: object
+      properties:
+        code:
+          description: 3 for a reverted call, -32015 for any other failed execution.
+          example: 3
+          type: integer
+        data:
+          description: Raw revert data for a reverted call, otherwise 0x.
+          example: "0x08c379a0"
+          format: binary
+          type: string
+        message:
+          description: '"execution reverted", followed by the reason when it can be decoded, or the failure status.'
+          example: "execution reverted: Insufficient balance"
+          type: string
     SimulateCallResult:
       type: object
       properties:
+        error:
+          $ref: "#/components/schemas/SimulateCallError"
         gas_used:
-          description: Hexadecimal gas consumed by this call.
-          example: "0x5208"
-          format: binary
-          type: string
+          description: Gas consumed by this call.
+          example: 21000
+          format: int64
+          type: integer
         logs:
           items:
             $ref: "#/components/schemas/SimulateLog"
@@ -3239,10 +3250,10 @@ components:
           example: "0x"
           format: binary
           type: string
-        status:
-          description: '"0x1" on success, "0x0" on revert. A reverted call does not abort the rest of the batch.'
-          example: "0x1"
-          type: string
+        success:
+          description: Whether the call succeeded. A failed call does not abort the rest of the batch.
+          example: true
+          type: boolean
     SimulateResponse:
       type: object
       properties:

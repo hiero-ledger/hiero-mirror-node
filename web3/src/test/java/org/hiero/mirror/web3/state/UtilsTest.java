@@ -198,12 +198,6 @@ class UtilsTest {
     }
 
     @Test
-    void toHex() {
-        assertThat(Utils.toHex(0L)).isEqualTo("0x0");
-        assertThat(Utils.toHex(255L)).isEqualTo("0xff");
-    }
-
-    @Test
     void withHexPrefixAddsPrefixWhenMissing() {
         assertThat(Utils.withHexPrefix("ff")).isEqualTo("0xff");
     }

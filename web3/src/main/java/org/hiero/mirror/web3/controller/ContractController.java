@@ -112,7 +112,6 @@ class ContractController {
 
     @PostMapping(value = "/simulate")
     SimulateResponse simulate(@RequestBody @Valid SimulateRequest request) {
-        // Ordered before throttling: tokens consumed for a rejected request are never restored.
         if (!web3Properties.getApi(SIMULATE).isEnabled()) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }

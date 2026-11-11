@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID;
 import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.BYTECODE_STATE_ID;
@@ -44,6 +45,7 @@ import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
+import org.hiero.mirror.web3.viewmodel.SimulateCallError;
 import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
 import org.hiero.mirror.web3.viewmodel.SimulateLog;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
@@ -57,8 +59,9 @@ import org.springframework.dao.QueryTimeoutException;
 @Named
 public class ContractSimulateService extends ContractCallService {
 
-    private static final String REVERT_STATUS = "0x0";
-    private static final String SUCCESS_STATUS = "0x1";
+    // Error codes of Ethereum JSON-RPC clients for a reverted call and for any other failed execution.
+    private static final int EXECUTION_ERROR_CODE = -32015;
+    private static final int REVERT_ERROR_CODE = 3;
 
     private static final Address TRANSFER_EVENT_EMITTER =
             Address.fromHexString("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
@@ -209,7 +212,7 @@ public class ContractSimulateService extends ContractCallService {
         logs.addAll(contractLogs);
         logs.addAll(transferLogs);
         return new SimulateCallResult(
-                Utils.toHex(result.gasUsed() + accessListGas), logs, result.contractCallResult(), SUCCESS_STATUS);
+                SimulateCallError.NONE, result.gasUsed() + accessListGas, logs, result.contractCallResult(), true);
     }
 
     private void failIfTimedOut(final ContractCallContext context) {
@@ -268,7 +271,6 @@ public class ContractSimulateService extends ContractCallService {
                     block.number(),
                     Utils.withHexPrefix(logInfo.data().toHex()),
                     index,
-                    false,
                     topics(logInfo.topic()),
                     transactionHash,
                     transactionIndex));
@@ -297,7 +299,6 @@ public class ContractSimulateService extends ContractCallService {
                     block.number(),
                     transfer.value().toHexString(),
                     index,
-                    false,
                     List.of(TRANSFER_EVENT_TOPIC0, addressTopic(transfer.from()), addressTopic(transfer.to())),
                     transactionHash,
                     transactionIndex));
@@ -352,6 +353,7 @@ public class ContractSimulateService extends ContractCallService {
                     final long accessListGas = accessListGas(call);
                     context.setAccessList(Objects.requireNonNullElse(call.getAccessList(), List.of()));
                     final var params = toExecutionParameters(request.getBlock(), call, accessListGas);
+                    updateGasLimitMetric(params);
                     context.getCapturedTransfers().clear();
                     context.getTransferFrameStarts().clear();
                     remainingGas.addAndGet(-call.getGas());
@@ -363,11 +365,13 @@ public class ContractSimulateService extends ContractCallService {
                         logIndex += callResult.logs().size();
                     } catch (final MirrorEvmTransactionException e) {
                         final var partialResult = e.getResult();
+                        final var returnData = StringUtils.defaultIfEmpty(e.getData(), HEX_PREFIX);
                         results.add(new SimulateCallResult(
-                                Utils.toHex(partialResult != null ? partialResult.gasUsed() + accessListGas : 0L),
+                                toCallError(e, returnData),
+                                partialResult != null ? partialResult.gasUsed() + accessListGas : 0L,
                                 List.of(),
-                                StringUtils.defaultIfEmpty(e.getData(), HEX_PREFIX),
-                                REVERT_STATUS));
+                                returnData,
+                                false));
                     }
 
                     transactionIndex++;
@@ -387,6 +391,15 @@ public class ContractSimulateService extends ContractCallService {
                 org.apache.tuweni.bytes.Bytes.fromHexString(result.contractCallResult()),
                 org.apache.tuweni.bytes.Bytes.ofUnsignedLong(requestCallIndex));
         return Hash.keccak256(seed).toHexString();
+    }
+
+    private SimulateCallError toCallError(final MirrorEvmTransactionException e, final String returnData) {
+        if (!CONTRACT_REVERT_EXECUTED.protoName().equals(e.getMessage())) {
+            return new SimulateCallError(EXECUTION_ERROR_CODE, HEX_PREFIX, e.getMessage());
+        }
+        final var message =
+                StringUtils.isBlank(e.getDetail()) ? "execution reverted" : "execution reverted: " + e.getDetail();
+        return new SimulateCallError(REVERT_ERROR_CODE, returnData, message);
     }
 
     private ContractExecutionParameters toExecutionParameters(

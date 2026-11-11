@@ -6,7 +6,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 public record SimulateCallResult(
-        @JsonProperty("gas_used") String gasUsed,
+        SimulateCallError error,
+        @JsonProperty("gas_used") long gasUsed,
         List<SimulateLog> logs,
         @JsonProperty("return_data") String returnData,
-        String status) {}
+        boolean success) {}

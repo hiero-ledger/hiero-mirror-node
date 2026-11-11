@@ -26,6 +26,7 @@ import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
+import org.hiero.mirror.web3.viewmodel.SimulateCallError;
 import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
 import org.hiero.mirror.web3.viewmodel.SimulateLog;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
@@ -84,8 +85,8 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
         final var results = response.result();
         assertThat(results).hasSize(2);
-        assertThat(results.get(0).status()).isEqualTo("0x1");
-        assertThat(results.get(1).status()).isEqualTo("0x1");
+        assertThat(results.get(0).success()).isTrue();
+        assertThat(results.get(1).success()).isTrue();
         assertThat(decodeUint256(results.get(1).returnData())).isEqualTo(BigInteger.valueOf(42));
         assertThat(meterRegistry
                         .find(ContractCallService.EVM_INVOCATION_METRIC)
@@ -94,6 +95,13 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
                 .isNotNull()
                 .extracting(counter -> counter.count())
                 .isEqualTo(2.0);
+        assertThat(meterRegistry
+                        .find(ContractCallService.GAS_LIMIT_METRIC)
+                        .tag(ContractCallService.TAG_TYPE, "ETH_SIMULATE")
+                        .counter())
+                .isNotNull()
+                .extracting(counter -> counter.count())
+                .isEqualTo(2 * 15_000_000.0);
     }
 
     @Test
@@ -104,7 +112,7 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         final var response = contractSimulateService.simulate(request);
 
         assertThat(response.result()).hasSize(2);
-        assertThat(response.result().get(0).status()).isEqualTo("0x1");
+        assertThat(response.result().get(0).success()).isTrue();
         assertThat(decodeUint256(response.result().get(1).returnData())).isEqualTo(BigInteger.valueOf(42));
     }
 
@@ -168,7 +176,7 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
         final var response = contractSimulateService.simulate(request);
 
-        assertThat(response.result().get(1).status()).isEqualTo("0x1");
+        assertThat(response.result().get(1).success()).isTrue();
         assertThat(decodeUint256(response.result().get(1).returnData())).isEqualTo(BigInteger.valueOf(1000));
     }
 
@@ -189,10 +197,14 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
         final var results = response.result();
         assertThat(results).hasSize(3);
-        assertThat(results.get(0).status()).isEqualTo("0x1");
-        assertThat(results.get(1).status()).isEqualTo("0x0");
+        assertThat(results.get(0).success()).isTrue();
+        assertThat(results.get(0).error()).isEqualTo(SimulateCallError.NONE);
+        assertThat(results.get(1).success()).isFalse();
         assertThat(results.get(1).logs()).isEmpty();
-        assertThat(results.get(2).status()).isEqualTo("0x1");
+        assertThat(results.get(1).error().code()).isEqualTo(3);
+        assertThat(results.get(1).error().message()).startsWith("execution reverted: ");
+        assertThat(results.get(1).error().data()).isEqualTo(results.get(1).returnData());
+        assertThat(results.get(2).success()).isTrue();
         assertThat(decodeUint256(results.get(2).returnData())).isEqualTo(BigInteger.valueOf(7));
     }
 
@@ -204,8 +216,8 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
         final var results = response.result();
         assertThat(results).hasSize(2);
-        assertThat(results.get(0).status()).isEqualTo("0x1");
-        assertThat(results.get(1).status()).isEqualTo("0x1");
+        assertThat(results.get(0).success()).isTrue();
+        assertThat(results.get(1).success()).isTrue();
         assertThat(createdAddress(results.get(0))).isNotEqualTo(createdAddress(results.get(1)));
     }
 
@@ -222,8 +234,8 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
         final var results = response.result();
         assertThat(results).hasSize(2);
-        assertThat(results.get(0).status()).isEqualTo("0x1");
-        assertThat(results.get(1).status()).isEqualTo("0x1");
+        assertThat(results.get(0).success()).isTrue();
+        assertThat(results.get(1).success()).isTrue();
     }
 
     @Test
@@ -234,8 +246,8 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
         final var results = response.result();
         assertThat(results).hasSize(2);
-        assertThat(results.get(0).status()).isEqualTo("0x1");
-        assertThat(results.get(1).status()).isEqualTo("0x1");
+        assertThat(results.get(0).success()).isTrue();
+        assertThat(results.get(1).success()).isTrue();
         assertThat(createdAddress(results.get(0))).isNotEqualTo(createdAddress(results.get(1)));
     }
 
@@ -279,9 +291,7 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
                 .result();
 
         // 2400 per address and 1900 per storage key are charged, while reading the warm slot costs 2000 less.
-        assertThat(Long.decode(results.get(1).gasUsed())
-                        - Long.decode(results.get(0).gasUsed()))
-                .isEqualTo(2_300L);
+        assertThat(results.get(1).gasUsed() - results.get(0).gasUsed()).isEqualTo(2_300L);
     }
 
     @Test
@@ -326,7 +336,7 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         final var response = contractSimulateService.simulate(request);
 
         final var results = response.result();
-        assertThat(results).extracting(SimulateCallResult::status).containsExactly("0x1", "0x1");
+        assertThat(results).extracting(SimulateCallResult::success).containsExactly(true, true);
         // Parent transfer first, then the sub-call's transfer to an account without code.
         assertThat(results.get(0).logs())
                 .extracting(ContractSimulateServiceTest::describeTransfer)
@@ -359,11 +369,11 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         final var secondEntryLog = results.get(2).logs().getFirst();
 
         assertThat(firstEntryFirstLog.transactionIndex()).isZero();
-        assertThat(firstEntryFirstLog.logIndex()).isZero();
+        assertThat(firstEntryFirstLog.index()).isZero();
         assertThat(firstEntrySecondLog.transactionIndex()).isEqualTo(1L);
-        assertThat(firstEntrySecondLog.logIndex()).isEqualTo(1L);
+        assertThat(firstEntrySecondLog.index()).isEqualTo(1L);
         assertThat(secondEntryLog.transactionIndex()).isZero();
-        assertThat(secondEntryLog.logIndex()).isZero();
+        assertThat(secondEntryLog.index()).isZero();
         assertThat(secondEntryLog.blockNumber()).isEqualTo(firstEntryFirstLog.blockNumber() + 1);
         assertThat(secondEntryLog.transactionHash()).isNotEqualTo(firstEntryFirstLog.transactionHash());
     }

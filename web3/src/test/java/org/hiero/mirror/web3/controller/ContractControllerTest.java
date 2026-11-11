@@ -59,6 +59,7 @@ import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
+import org.hiero.mirror.web3.viewmodel.SimulateCallError;
 import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
 import org.hiero.mirror.web3.viewmodel.SimulateLog;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
@@ -1034,7 +1035,7 @@ final class ContractControllerTest {
     }
 
     @Test
-    void simulateResponseIsFlatWithIntegerIndices() throws Exception {
+    void simulateResponseMatchesTheHipShape() throws Exception {
         enableSimulate(true);
         final var log = new SimulateLog(
                 "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
@@ -1042,20 +1043,32 @@ final class ContractControllerTest {
                 20784968L,
                 "0x01",
                 1L,
-                false,
                 List.of(),
                 "0xe7217784e0c3f7b35d39303b1165046e9b7e8af9b9cf80d5d5f96c3163de8f51",
                 0L);
         final var response = new SimulateResponse(List.of(
-                new SimulateCallResult("0x5208", List.of(), "0x", "0x1"),
-                new SimulateCallResult("0x6308", List.of(log), "0x", "0x1")));
+                new SimulateCallResult(
+                        new SimulateCallError(3, "0x08c379a0", "execution reverted"),
+                        21_000L,
+                        List.of(),
+                        "0x08c379a0",
+                        false),
+                new SimulateCallResult(SimulateCallError.NONE, 25_352L, List.of(log), "0x", true)));
         given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(response);
 
         simulate(simulateRequest(1))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.length()").value(2))
+                .andExpect(jsonPath("$.result[0].success").value(false))
+                .andExpect(jsonPath("$.result[0].gas_used").value(21_000))
+                .andExpect(jsonPath("$.result[0].error.code").value(3))
+                .andExpect(jsonPath("$.result[0].error.message").value("execution reverted"))
+                .andExpect(jsonPath("$.result[0].error.data").value("0x08c379a0"))
+                .andExpect(jsonPath("$.result[1].success").value(true))
+                .andExpect(jsonPath("$.result[1].error").isEmpty())
                 .andExpect(jsonPath("$.result[1].logs[0].block_number").value(20784968L))
-                .andExpect(jsonPath("$.result[1].logs[0].log_index").value(1))
+                .andExpect(jsonPath("$.result[1].logs[0].index").value(1))
+                .andExpect(jsonPath("$.result[1].logs[0].removed").doesNotExist())
                 .andExpect(jsonPath("$.result[1].logs[0].transaction_index").value(0));
     }
 
@@ -1087,7 +1100,9 @@ final class ContractControllerTest {
                         + "]}]}",
                 "{\"block_state_calls\": [{\"calls\": [" + call
                         + "], \"state_overrides\": [{\"address\": \"0x00000000000000000000000000000000000004e4\", \"balance\": -1}]}]}",
-                "{\"block_state_calls\": [{\"calls\": [{\"access_list\": [{\"storage_keys\": []}], \"to\": \"0x00000000000000000000000000000000000004e4\"}]}]}");
+                "{\"block_state_calls\": [{\"calls\": [{\"access_list\": [{\"storage_keys\": []}], \"to\": \"0x00000000000000000000000000000000000004e4\"}]}]}",
+                "{\"block_state_calls\": [{\"calls\": [{\"state_overrides\": [" + override
+                        + "], \"to\": \"0x00000000000000000000000000000000000004e4\"}]}]}");
     }
 
     @Test

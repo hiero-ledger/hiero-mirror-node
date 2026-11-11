@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.viewmodel;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
@@ -31,4 +32,17 @@ public class SimulateBlockStateCall {
     @Size(max = 10)
     @Valid
     private List<@NotNull StateOverride> stateOverrides = List.of();
+
+    @AssertTrue(message = "state_overrides are only supported on the entry, not on a call")
+    private boolean hasNoCallStateOverrides() {
+        if (calls == null) {
+            return true;
+        }
+        for (final var call : calls) {
+            if (call != null && !call.getStateOverrides().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

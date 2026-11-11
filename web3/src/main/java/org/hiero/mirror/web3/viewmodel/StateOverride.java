@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ADDRESS_LENGTH;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -11,9 +10,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import java.math.BigInteger;
 import java.util.List;
 import lombok.Data;
+import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.validation.Hex;
 import org.springframework.validation.annotation.Validated;
 
@@ -66,16 +65,8 @@ public class StateOverride {
     private List<@Valid StorageEntry> stateDiff = List.of();
 
     // Plain setter, as the Jackson 3 HTTP binding ignores Jackson 2's @JsonDeserialize.
-    // A JSON number is decimal, while a string stays hexadecimal.
     public void setBalance(final Object balance) {
-        this.balance = switch (balance) {
-            case null -> null;
-            case String text -> text;
-            case Integer number when number >= 0 -> HEX_PREFIX + Integer.toHexString(number);
-            case Long number when number >= 0 -> HEX_PREFIX + Long.toHexString(number);
-            case BigInteger number when number.signum() >= 0 -> HEX_PREFIX + number.toString(16);
-            default -> throw new IllegalArgumentException("expected a non-negative integer or a hexadecimal string");
-        };
+        this.balance = balance != null ? HexUtils.toHexQuantity(balance) : null;
     }
 
     @AssertTrue(message = "state and state_diff are mutually exclusive")

@@ -159,10 +159,6 @@ public class Utils {
                 .build();
     }
 
-    public static String toHex(final long value) {
-        return HEX_PREFIX + Long.toHexString(value);
-    }
-
     public static String withHexPrefix(final String hex) {
         if (hex == null) {
             return null;

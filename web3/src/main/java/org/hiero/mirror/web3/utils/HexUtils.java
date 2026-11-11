@@ -2,46 +2,28 @@
 
 package org.hiero.mirror.web3.utils;
 
-import java.util.HexFormat;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX_CAPITAL;
+
+import java.math.BigInteger;
 import lombok.experimental.UtilityClass;
-import org.hyperledger.besu.datatypes.Wei;
-import org.jspecify.annotations.Nullable;
 
 @UtilityClass
 public class HexUtils {
 
-    private static final HexFormat HEX = HexFormat.of();
-    private static final String ZERO_HEX = "0x0";
-
-    public static String convertValueToHexString(final @Nullable Wei value) {
-        if (value == null || value.isZero()) {
-            return ZERO_HEX;
-        }
-        return value.toShortHexString();
-    }
-
-    public static String convertLongToHexString(final long number) {
-        if (number == 0L) {
-            return ZERO_HEX;
-        }
-        final var hex = HEX.toHexDigits(number);
-        int start = 0;
-        final var last = hex.length() - 1;
-        while (start < last && hex.charAt(start) == '0') {
-            start++;
-        }
-        return "0x" + hex.substring(start);
-    }
-
-    public static long parseHexLong(final @Nullable String hex) {
-        if (hex == null || hex.isEmpty()) {
-            return 0L;
-        }
-        final var value = hex.startsWith("0x") || hex.startsWith("0X") ? hex.substring(2) : hex;
-        if (value.isEmpty()) {
-            return 0L;
-        }
-        return Long.parseUnsignedLong(value, 16);
+    /**
+     * Parses a JSON number, or a string that is hexadecimal when {@code 0x}-prefixed and decimal otherwise.
+     */
+    public static long parseValue(final Object value) {
+        return switch (value) {
+            case Integer intValue -> intValue;
+            case Long longValue -> longValue;
+            case BigInteger bigInteger -> bigInteger.longValueExact();
+            case String text when isHex(text.trim()) -> parseValue(text);
+            // Signed, so a negative value reaches the request's range validation.
+            case String text -> Long.parseLong(text.trim());
+            default -> throw new IllegalArgumentException("expected a number or a hexadecimal/decimal string");
+        };
     }
 
     /**
@@ -49,9 +31,27 @@ public class HexUtils {
      */
     public static long parseValue(final String value) {
         final var trimmed = value.trim();
-        if (trimmed.startsWith("0x") || trimmed.startsWith("0X")) {
-            return parseHexLong(trimmed);
+        if (isHex(trimmed)) {
+            final var digits = trimmed.substring(2);
+            return digits.isEmpty() ? 0L : Long.parseUnsignedLong(digits, 16);
         }
         return Long.parseUnsignedLong(trimmed, 10);
+    }
+
+    /**
+     * Converts a non-negative JSON number to a {@code 0x}-prefixed hexadecimal quantity. A string is kept as is.
+     */
+    public static String toHexQuantity(final Object value) {
+        return switch (value) {
+            case String text -> text;
+            case Integer number when number >= 0 -> HEX_PREFIX + Integer.toHexString(number);
+            case Long number when number >= 0 -> HEX_PREFIX + Long.toHexString(number);
+            case BigInteger number when number.signum() >= 0 -> HEX_PREFIX + number.toString(16);
+            default -> throw new IllegalArgumentException("expected a non-negative integer or a hexadecimal string");
+        };
+    }
+
+    private static boolean isHex(final String value) {
+        return value.startsWith(HEX_PREFIX) || value.startsWith(HEX_PREFIX_CAPITAL);
     }
 }
