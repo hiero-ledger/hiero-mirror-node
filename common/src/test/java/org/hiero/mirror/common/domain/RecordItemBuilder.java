@@ -324,7 +324,7 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.CLPRCLOSECHANNEL, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
-                                channelId, clprChannelValue, clprChannelMapUpdate(clprChannelValue)))));
+                                channelId, clprChannelValue, clprChannelMapUpdate(channelId, clprChannelValue)))));
     }
 
     public Builder<ClprCompleteChannelTransactionBody.Builder> clprCompleteChannel() {
@@ -354,7 +354,7 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.CLPRCOMPLETECHANNEL, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
-                                channelId, clprChannelValue, clprChannelMapUpdate(clprChannelValue)))));
+                                channelId, clprChannelValue, clprChannelMapUpdate(channelId, clprChannelValue)))));
     }
 
     public Builder<ClprCompleteConnectorTransactionBody.Builder> clprCompleteConnector() {
@@ -386,7 +386,7 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.CLPRCOMPLETECONNECTOR, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprConnectors(List.of(new StateChangeContext.ClprConnectorEntry(
-                                key, clprConnectorValue, clprConnectorMapUpdate(clprConnectorValue)))));
+                                key, clprConnectorValue, clprConnectorMapUpdate(key, clprConnectorValue)))));
     }
 
     public Builder<ClprDeregisterConnectorTransactionBody.Builder> clprDeregisterConnector() {
@@ -476,11 +476,11 @@ public final class RecordItemBuilder {
         return new Builder<>(TransactionType.CLPRSUBMITBUNDLE, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
-                                channelId, clprChannelValue, clprChannelMapUpdate(clprChannelValue))))
+                                channelId, clprChannelValue, clprChannelMapUpdate(channelId, clprChannelValue))))
                         .clprConnectors(List.of(new StateChangeContext.ClprConnectorEntry(
                                 patchedConnectorKey,
                                 patchedConnectorValue,
-                                clprConnectorMapUpdate(patchedConnectorValue))))
+                                clprConnectorMapUpdate(patchedConnectorKey, patchedConnectorValue))))
                         .clprConnectorsRemoved(List.of(removedConnectorKey))
                         .clprMessages(List.of(new StateChangeContext.ClprMessageEntry(messageKey, messageValue))));
     }
