@@ -145,8 +145,8 @@ class AliasedAccountCacheManagerTest {
     private static StateOverride override(Bytes address) {
         final var override = new StateOverride();
         override.setAddress(address.toHex());
-        override.setBalance("0xc8");
-        override.setNonce("0x2a");
+        override.setBalance(200L);
+        override.setNonce(42L);
         return override;
     }
 

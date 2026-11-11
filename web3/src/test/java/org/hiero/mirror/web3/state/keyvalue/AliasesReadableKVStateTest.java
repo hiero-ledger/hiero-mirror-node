@@ -204,8 +204,8 @@ class AliasesReadableKVStateTest {
                 .build();
         final var override = new StateOverride();
         override.setAddress(address.toHex());
-        override.setBalance("0xc8");
-        override.setNonce("0x2a");
+        override.setBalance(200L);
+        override.setNonce(42L);
         contractCallContext.setStateOverrides(Map.of(address, override));
         when(commonEntityAccessor.get(address, Optional.empty())).thenReturn(Optional.of(entity));
 

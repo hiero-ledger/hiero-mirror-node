@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import org.hiero.mirror.rest.model.StateOverride;
 import org.hiero.mirror.rest.model.StorageEntry;
 
-/** Builds one address override, encoding numeric values as hex and storage entries as 32-byte words. */
+/** Builds one address override, encoding storage entries as 32-byte words. */
 public final class StateOverrideBuilder {
 
     private final StateOverride override;
@@ -21,12 +21,12 @@ public final class StateOverrideBuilder {
     }
 
     public StateOverrideBuilder balance(long tinybars) {
-        override.balance(hex(tinybars));
+        override.balance(requireNonNegative(tinybars));
         return this;
     }
 
     public StateOverrideBuilder nonce(long nonce) {
-        override.nonce(hex(nonce));
+        override.nonce(requireNonNegative(nonce));
         return this;
     }
 
@@ -65,11 +65,11 @@ public final class StateOverrideBuilder {
                 .stateDiff(source.getStateDiff() == null ? new ArrayList<>() : new ArrayList<>(source.getStateDiff())));
     }
 
-    private static String hex(long value) {
+    private static long requireNonNegative(long value) {
         if (value < 0) {
             throw new IllegalArgumentException("Override values must be nonnegative");
         }
-        return "0x" + Long.toHexString(value);
+        return value;
     }
 
     private static StorageEntry storageEntry(long slot, long value) {

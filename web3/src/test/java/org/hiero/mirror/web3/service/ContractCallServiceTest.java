@@ -1559,7 +1559,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             stateOverride.setCode(BytecodeUtils.extractRuntimeBytecode(StorageContract.BINARY));
             if (aliasedAccount) {
                 stateOverride.setStateDiff(List.of(storageEntry));
-                stateOverride.setBalance("0xc8");
+                stateOverride.setBalance(200L);
             } else {
                 stateOverride.setState(List.of(storageEntry));
             }
@@ -1731,10 +1731,10 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
             final var numericOverride = new StateOverride();
             numericOverride.setAddress(numericAddress.toHexString());
-            numericOverride.setBalance("0x64");
+            numericOverride.setBalance(100L);
             final var aliasOverride = new StateOverride();
             aliasOverride.setAddress(aliasAddress.toHexString());
-            aliasOverride.setBalance("0xc8");
+            aliasOverride.setBalance(200L);
             final var overrides = List.of(numericOverride, aliasOverride);
 
             // When
