@@ -19,7 +19,7 @@ import org.hiero.mirror.importer.util.Utility;
 @RequiredArgsConstructor
 class ClprDeregisterConnectorTransactionHandler extends AbstractTransactionHandler {
 
-    private final ClprConnectorCommitmentService clprConnectorCommitmentService;
+    private final ClprConnectorService clprConnectorService;
     private final EntityListener entityListener;
 
     @Override
@@ -40,7 +40,7 @@ class ClprDeregisterConnectorTransactionHandler extends AbstractTransactionHandl
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         final var channelId = DomainUtils.toBytes(transactionBody.getChannelId());
         final var connectorId = DomainUtils.toBytes(transactionBody.getConnectorId());
-        final var commitment = clprConnectorCommitmentService.lookup(channelId, connectorId);
+        final var commitment = clprConnectorService.lookup(channelId, connectorId);
         if (commitment == null) {
             Utility.handleRecoverableError(
                     "No clpr_connector found for channelId/connectorId pair for successful "

@@ -182,7 +182,7 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                     assertThat(control.getControlMessage()).isNotNull();
                     final var configUpdate = control.getControlMessage().getConfigUpdate();
                     assertThat(configUpdate).isNotNull();
-                    assertThat(configUpdate.getConfiguration().getMaxMessagesPerBundle())
+                    assertThat(configUpdate.getConfiguration().getThrottle().getMaxMessagesPerBundle())
                             .isEqualTo(6L);
                 });
         assertThat(clprMessageRepository.findAll())

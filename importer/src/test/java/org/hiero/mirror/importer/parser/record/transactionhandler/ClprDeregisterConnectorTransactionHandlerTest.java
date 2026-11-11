@@ -22,11 +22,11 @@ import org.mockito.Mock;
 class ClprDeregisterConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Mock
-    private ClprConnectorCommitmentService clprConnectorCommitmentService;
+    private ClprConnectorService clprConnectorService;
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ClprDeregisterConnectorTransactionHandler(clprConnectorCommitmentService, entityListener);
+        return new ClprDeregisterConnectorTransactionHandler(clprConnectorService, entityListener);
     }
 
     @Override
@@ -51,7 +51,7 @@ class ClprDeregisterConnectorTransactionHandlerTest extends AbstractTransactionH
                 getDefaultTransactionRecord().build());
         final var body = recordItem.getTransactionBody().getClprDeregisterConnector();
         final var commitment = domainBuilder.bytes(32);
-        when(clprConnectorCommitmentService.lookup(
+        when(clprConnectorService.lookup(
                         DomainUtils.toBytes(body.getChannelId()), DomainUtils.toBytes(body.getConnectorId())))
                 .thenReturn(commitment);
         final var transaction = domainBuilder.transaction().get();

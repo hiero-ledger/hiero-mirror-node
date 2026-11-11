@@ -4,12 +4,13 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import jakarta.inject.Named;
+import java.util.List;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 /**
  * Reads the {@code clpr_connector_value} state change off {@code StateChangeContext} and populates
  * {@link org.hiero.mirror.common.domain.transaction.RecordItem#getClprContext()}'s
- * {@link org.hiero.mirror.common.domain.transaction.ClprRecordContext#getClprConnector()}.
+ * {@link org.hiero.mirror.common.domain.transaction.ClprContext#getClprConnector()}.
  */
 @Named
 final class ClprCompleteConnectorTransformer extends AbstractBlockTransactionTransformer {
@@ -27,10 +28,12 @@ final class ClprCompleteConnectorTransformer extends AbstractBlockTransactionTra
                 .setChannelId(transactionBody.getChannelId())
                 .setConnectorId(transactionBody.getConnectorId())
                 .build();
-        blockTransaction
-                .getStateChangeContext()
-                .getClprConnector(key)
-                .ifPresent(blockTransactionTransformation.recordItemBuilder().clprContextBuilder()::clprConnector);
+        final var clprConnectorValue = blockTransaction.getStateChangeContext().getClprConnector(key);
+        final var clprContextBuilder =
+                blockTransactionTransformation.recordItemBuilder().clprContextBuilder();
+        if (clprConnectorValue != null) {
+            clprContextBuilder.clprConnectors(List.of(clprConnectorValue));
+        }
     }
 
     @Override

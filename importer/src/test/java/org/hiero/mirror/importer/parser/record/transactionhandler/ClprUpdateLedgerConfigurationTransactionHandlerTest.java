@@ -14,7 +14,7 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.transaction.ClprRecordContext;
+import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
@@ -96,15 +96,27 @@ class ClprUpdateLedgerConfigurationTransactionHandlerTest extends AbstractTransa
                 .returns(
                         DomainUtils.toBytes(configuration.getInitialTrustAnchorId()),
                         ClprLedgerConfiguration::getInitialTrustAnchorId)
-                .returns(throttles.getMaxGasPerMessage(), ClprLedgerConfiguration::getMaxGasPerMessage)
-                .returns((long) throttles.getMaxLocalEndpoints(), ClprLedgerConfiguration::getMaxLocalEndpoints)
+                .returns(
+                        throttles.getMaxGasPerMessage(),
+                        config -> config.getThrottle().getMaxGasPerMessage())
+                .returns(
+                        (long) throttles.getMaxLocalEndpoints(),
+                        config -> config.getThrottle().getMaxLocalEndpoints())
                 .returns(
                         (long) throttles.getMaxMessagePayloadBytes(),
-                        ClprLedgerConfiguration::getMaxMessagePayloadBytes)
-                .returns((long) throttles.getMaxMessagesPerBundle(), ClprLedgerConfiguration::getMaxMessagesPerBundle)
-                .returns((long) throttles.getMaxPeerEndpoints(), ClprLedgerConfiguration::getMaxPeerEndpoints)
-                .returns((long) throttles.getMaxQueueDepth(), ClprLedgerConfiguration::getMaxQueueDepth)
-                .returns(throttles.getMaxSyncBytes(), ClprLedgerConfiguration::getMaxSyncBytes);
+                        config -> config.getThrottle().getMaxMessagePayloadBytes())
+                .returns(
+                        (long) throttles.getMaxMessagesPerBundle(),
+                        config -> config.getThrottle().getMaxMessagesPerBundle())
+                .returns(
+                        (long) throttles.getMaxPeerEndpoints(),
+                        config -> config.getThrottle().getMaxPeerEndpoints())
+                .returns(
+                        (long) throttles.getMaxQueueDepth(),
+                        config -> config.getThrottle().getMaxQueueDepth())
+                .returns(
+                        throttles.getMaxSyncBytes(),
+                        config -> config.getThrottle().getMaxSyncBytes());
     }
 
     @Test
@@ -139,7 +151,7 @@ class ClprUpdateLedgerConfigurationTransactionHandlerTest extends AbstractTransa
                 .hapiVersion(new Version(0, 28, 0))
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
-                .clprContext(ClprRecordContext.builder()
+                .clprContext(ClprContext.builder()
                         .clprLedgerConfiguration(configuration)
                         .build())
                 .build();

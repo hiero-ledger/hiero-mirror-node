@@ -13,12 +13,13 @@ import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import java.util.List;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.transaction.ClprRecordContext;
+import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SignatureUtils;
@@ -30,11 +31,11 @@ import org.springframework.data.util.Version;
 class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Mock
-    private ClprConnectorCommitmentService clprConnectorCommitmentService;
+    private ClprConnectorService clprConnectorService;
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ClprCompleteConnectorTransactionHandler(clprConnectorCommitmentService, entityListener);
+        return new ClprCompleteConnectorTransactionHandler(clprConnectorService, entityListener);
     }
 
     @Override
@@ -105,7 +106,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 .returns(ClprSignatureScheme.ECDSA_SECP256K1, ClprConnector::getSignatureScheme)
                 .returns(timestampRange, ClprConnector::getTimestampRange);
 
-        verify(clprConnectorCommitmentService).notify(connectorCaptor.getValue());
+        verify(clprConnectorService).notify(connectorCaptor.getValue());
 
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(
@@ -126,7 +127,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
 
         // then
         verifyNoInteractions(entityListener);
-        verifyNoInteractions(clprConnectorCommitmentService);
+        verifyNoInteractions(clprConnectorService);
     }
 
     private RecordItem buildRecordItem(
@@ -145,8 +146,9 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 .hapiVersion(new Version(0, 28, 0))
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
-                .clprContext(
-                        ClprRecordContext.builder().clprConnector(clprConnector).build())
+                .clprContext(ClprContext.builder()
+                        .clprConnectors(clprConnector == null ? List.of() : List.of(clprConnector))
+                        .build())
                 .build();
     }
 }

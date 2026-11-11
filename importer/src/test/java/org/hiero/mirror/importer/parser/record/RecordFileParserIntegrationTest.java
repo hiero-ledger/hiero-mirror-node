@@ -420,7 +420,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var complete = recordItemBuilder
                 .clprCompleteChannel()
                 .transactionBody(b -> b.setChannelId(channelId).setPublicKey(publicKey))
-                .recordItem(r -> r.clprContextBuilder().clprChannel(clprChannelActive))
+                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelActive)))
                 .build();
 
         final var clprChannelAfterBundle =
@@ -428,7 +428,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var submitBundle = recordItemBuilder
                 .clprSubmitBundle()
                 .transactionBody(b -> b.setChannelId(channelId))
-                .recordItem(r -> r.clprContextBuilder().clprChannel(clprChannelAfterBundle))
+                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelAfterBundle)))
                 .build();
 
         final var clprChannelClosing = clprChannelAfterBundle.toBuilder()
@@ -437,7 +437,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var closeChannel = recordItemBuilder
                 .clprCloseChannel()
                 .transactionBody(b -> b.setChannelId(channelId))
-                .recordItem(r -> r.clprContextBuilder().clprChannel(clprChannelClosing))
+                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of(clprChannelClosing)))
                 .build();
 
         final var recordFile = recordFileWithItems(List.of(register, complete, submitBundle, closeChannel), null);
@@ -488,7 +488,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprCompleteConnector()
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
-                .recordItem(r -> r.clprContextBuilder().clprConnector(clprConnectorValue))
+                .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of(clprConnectorValue)))
                 .build();
 
         final var stakeRecipient = domainBuilder.entityNum(5000L).toAccountID();
@@ -542,7 +542,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprCompleteConnector()
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
-                .recordItem(r -> r.clprContextBuilder().clprConnector(clprConnectorComplete))
+                .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of(clprConnectorComplete)))
                 .build();
 
         // Each ClprConnector state change is the connector's full current state, not a delta, so later snapshots

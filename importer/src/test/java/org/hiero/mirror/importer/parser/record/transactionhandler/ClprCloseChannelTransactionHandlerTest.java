@@ -12,12 +12,13 @@ import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import java.util.List;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.transaction.ClprRecordContext;
+import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
@@ -120,8 +121,9 @@ class ClprCloseChannelTransactionHandlerTest extends AbstractTransactionHandlerT
                 .hapiVersion(new Version(0, 28, 0))
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
-                .clprContext(
-                        ClprRecordContext.builder().clprChannel(clprChannel).build())
+                .clprContext(ClprContext.builder()
+                        .clprChannels(clprChannel == null ? List.of() : List.of(clprChannel))
+                        .build())
                 .build();
     }
 }

@@ -16,7 +16,7 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.transaction.ClprRecordContext;
+import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
@@ -113,9 +113,8 @@ class ClprMaintenanceTransactionHandlerTest extends AbstractTransactionHandlerTe
                 .hapiVersion(new Version(0, 28, 0))
                 .transaction(transaction)
                 .transactionRecord(transactionRecord)
-                .clprContext(ClprRecordContext.builder()
-                        .clprEndpointManifest(manifest)
-                        .build())
+                .clprContext(
+                        ClprContext.builder().clprEndpointManifest(manifest).build())
                 .build();
     }
 }

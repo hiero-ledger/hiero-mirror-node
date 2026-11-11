@@ -30,8 +30,8 @@ class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        // ownership_commitment is on the transaction body itself -- reading it from there instead of off the
-        // shared, per-batch StateChangeContext stays correct when a batch registers more than one channel.
+        // ownership_commitment is already on the transaction body itself, so there's no need to round-trip it
+        // through the per-RecordItem ClprContext.
         final var transactionBody = recordItem.getTransactionBody().getClprRegisterChannel();
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
 

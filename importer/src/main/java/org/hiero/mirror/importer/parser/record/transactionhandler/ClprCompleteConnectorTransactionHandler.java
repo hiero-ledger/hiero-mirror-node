@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.transaction.ClprRecordContext;
+import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -21,7 +21,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 @RequiredArgsConstructor
 class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler {
 
-    private final ClprConnectorCommitmentService clprConnectorCommitmentService;
+    private final ClprConnectorService clprConnectorService;
     private final EntityListener entityListener;
 
     @Override
@@ -38,7 +38,7 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
         final var transactionBody = recordItem.getTransactionBody().getClprCompleteConnector();
         final var clprContext = recordItem.getClprContext();
         final var clprConnectorValue = Optional.ofNullable(clprContext)
-                .map(ClprRecordContext::getClprConnector)
+                .map(ClprContext::getClprConnector)
                 .orElse(null);
         if (ClprStateChangeHandler.isMissingStateChange(
                 clprConnectorValue,
@@ -75,7 +75,7 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprConnector(connector);
-        clprConnectorCommitmentService.notify(connector);
+        clprConnectorService.notify(connector);
         recordItem.addEntityId(connectorContractId);
     }
 }

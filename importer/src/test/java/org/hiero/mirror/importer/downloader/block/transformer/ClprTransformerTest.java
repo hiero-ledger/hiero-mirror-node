@@ -154,7 +154,7 @@ class ClprTransformerTest extends AbstractTransformerTest {
         // change to read back; the transformer should leave RecordItem.clprContext.clprChannel unset
         final var expectedRecordItem = recordItemBuilder
                 .clprCloseChannel()
-                .recordItem(r -> r.clprContextBuilder().clprChannel(null).clprChannels(List.of()))
+                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of()))
                 .customize(this::finalize)
                 .build();
         final var blockTransaction =

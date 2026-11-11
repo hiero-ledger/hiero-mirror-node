@@ -10,7 +10,7 @@ import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.transaction.ClprRecordContext;
+import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -37,7 +37,7 @@ class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
         final var transactionBody = recordItem.getTransactionBody().getClprCompleteChannel();
         final var clprContext = recordItem.getClprContext();
         final var clprChannelValue = Optional.ofNullable(clprContext)
-                .map(ClprRecordContext::getClprChannel)
+                .map(ClprContext::getClprChannel)
                 .orElse(null);
         if (ClprStateChangeHandler.isMissingStateChange(
                 clprChannelValue, "clpr_channel_value", "ClprCompleteChannel", recordItem.getConsensusTimestamp())) {

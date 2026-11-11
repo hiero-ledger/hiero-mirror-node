@@ -40,25 +40,16 @@ class ClprUpdateLedgerConfigurationTransactionHandler extends AbstractTransactio
 
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
 
-        final var builder = ClprLedgerConfiguration.builder()
+        final var ledgerConfiguration = ClprLedgerConfiguration.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .protocolVersion(configuration.getProtocolVersion())
                 .chainId(configuration.getChainId())
                 .serviceAddress(DomainUtils.toBytes(configuration.getServiceAddress()))
                 .initialTrustAnchor(DomainUtils.toBytes(configuration.getInitialTrustAnchor()))
-                .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()));
+                .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()))
+                .throttle(ClprThrottleConverter.from(configuration))
+                .build();
 
-        final var throttleValues = ClprThrottleValues.from(configuration);
-        if (throttleValues != null) {
-            builder.maxGasPerMessage(throttleValues.maxGasPerMessage())
-                    .maxLocalEndpoints(throttleValues.maxLocalEndpoints())
-                    .maxMessagePayloadBytes(throttleValues.maxMessagePayloadBytes())
-                    .maxMessagesPerBundle(throttleValues.maxMessagesPerBundle())
-                    .maxPeerEndpoints(throttleValues.maxPeerEndpoints())
-                    .maxQueueDepth(throttleValues.maxQueueDepth())
-                    .maxSyncBytes(throttleValues.maxSyncBytes());
-        }
-
-        entityListener.onClprLedgerConfiguration(builder.build());
+        entityListener.onClprLedgerConfiguration(ledgerConfiguration);
     }
 }
