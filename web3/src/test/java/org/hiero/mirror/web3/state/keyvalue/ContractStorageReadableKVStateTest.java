@@ -238,7 +238,7 @@ class ContractStorageReadableKVStateTest {
     @Test
     void whenStateOverrideExistsButNoStorageFieldsFallsThroughToDatabase() {
         contractCallContext.setStateOverrides(
-                Map.of(Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS), stateOverrideWithBalance("0x1")));
+                Map.of(Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS), stateOverrideWithBalance(1L)));
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(contractStateService.findStorage(ENTITY_ID, BYTES.toByteArray()))
                 .thenReturn(Optional.of(BYTES.toByteArray()));
@@ -281,9 +281,9 @@ class ContractStorageReadableKVStateTest {
         return override;
     }
 
-    private StateOverride stateOverrideWithBalance(String balanceHex) {
+    private StateOverride stateOverrideWithBalance(long balance) {
         final var override = new StateOverride();
-        override.setBalance(balanceHex);
+        override.setBalance(balance);
         return override;
     }
 

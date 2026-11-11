@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.state;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.state.Utils.ZERO_ADDRESS;
-import static org.hiero.mirror.web3.state.Utils.hexStringToLong;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
@@ -89,10 +88,10 @@ public class AccountStateOverrideApplier {
         }
 
         if (hasBalance) {
-            builder.tinybarBalance(hexStringToLong(stateOverride.getBalance()));
+            builder.tinybarBalance(stateOverride.getBalance());
         }
         if (hasNonce) {
-            builder.ethereumNonce(hexStringToLong(stateOverride.getNonce()));
+            builder.ethereumNonce(stateOverride.getNonce());
         }
         if (isSmartContract) {
             builder.smartContract(true);
