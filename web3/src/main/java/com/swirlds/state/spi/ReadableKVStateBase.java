@@ -12,7 +12,9 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A base class for implementations of {@link ReadableKVState} and {@link WritableKVState}.
+ * A base class for implementations of {@link ReadableKVState} and {@link WritableKVState}. Copy of the class from
+ * hedera-app. Differences: the read cache is stored in the per-request {@link ContractCallContext}, and committed values
+ * are read first.
  *
  * @param <K> The key type
  * @param <V> The value type
@@ -61,6 +63,12 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
         // We need to cache the item because somebody may perform business logic basic on this
         // contains call, even if they never need the value itself!
         Objects.requireNonNull(key);
+        // The change from the copied class is here - committed values take precedence.
+        final var committedCache = getCommittedCache();
+        if (committedCache.containsKey(key)) {
+            final var committed = committedCache.get(key);
+            return committed == ContractCallContext.TOMBSTONE ? null : (V) committed;
+        }
         if (!hasBeenRead(key)) {
             final var value = readFromDataSource(key);
             markRead(key, value);
@@ -116,6 +124,10 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      */
     protected final boolean hasBeenRead(@NonNull K key) {
         return getReadCache().containsKey(key);
+    }
+
+    private Map<Object, Object> getCommittedCache() {
+        return ContractCallContext.get().getCommittedCacheState(getStateId());
     }
 
     private Map<Object, Object> getReadCache() {

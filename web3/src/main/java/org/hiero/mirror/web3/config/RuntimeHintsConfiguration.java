@@ -13,10 +13,20 @@ import com.hedera.node.app.hapi.utils.sysfiles.domain.throttling.ThrottleGroup;
 import com.swirlds.config.api.ConfigData;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
+import org.hiero.mirror.web3.viewmodel.AccessListEntry;
+import org.hiero.mirror.web3.viewmodel.AuthorizationListEntry;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
+import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
+import org.hiero.mirror.web3.viewmodel.SimulateCallError;
+import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
+import org.hiero.mirror.web3.viewmodel.SimulateLog;
+import org.hiero.mirror.web3.viewmodel.SimulateRequest;
+import org.hiero.mirror.web3.viewmodel.SimulateResponse;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.hyperledger.besu.evm.MainnetEVMs;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -56,12 +66,22 @@ final class RuntimeHintsConfiguration {
 
             registerReflectionTypes(
                     hints,
+                    AccessListEntry.class.getName(),
+                    AuthorizationListEntry.class.getName(),
+                    BlockOverride.class.getName(),
                     ContractCallContext.class.getName(),
                     ContractCallRequest.class.getName(),
                     ContractCallResponse.class.getName(),
                     GenericErrorResponse.class.getName(),
                     GenericErrorResponse.ErrorMessage.class.getName(),
+                    SimulateBlockStateCall.class.getName(),
+                    SimulateCallError.class.getName(),
+                    SimulateCallResult.class.getName(),
+                    SimulateLog.class.getName(),
+                    SimulateRequest.class.getName(),
+                    SimulateResponse.class.getName(),
                     StateOverride.class.getName(),
+                    StorageEntry.class.getName(),
                     TransactionIdOrHashParameter.class.getName());
 
             registerResourcePatterns(

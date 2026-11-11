@@ -45,4 +45,27 @@ class ReadableKVStateBaseTest {
         readableKVStateBase.reset();
         assertThat(readableKVStateBase.hasBeenRead(accountID)).isFalse();
     }
+
+    @Test
+    void committedValueTakesPrecedenceOverDataSource() {
+        final var accountID = mock(AccountID.class);
+        final var committedAccount = mock(Account.class);
+        final ReadableKVStateBase<AccountID, Account> readableKVStateBase = new MapReadableKVState<>(
+                TokenService.NAME, AccountReadableKVState.STATE_ID, Map.of(accountID, mock(Account.class)));
+        ContractCallContext.get()
+                .getCommittedCacheState(AccountReadableKVState.STATE_ID)
+                .put(accountID, committedAccount);
+        assertThat(readableKVStateBase.get(accountID)).isSameAs(committedAccount);
+    }
+
+    @Test
+    void committedTombstoneReadsAsRemoved() {
+        final var accountID = mock(AccountID.class);
+        final ReadableKVStateBase<AccountID, Account> readableKVStateBase = new MapReadableKVState<>(
+                TokenService.NAME, AccountReadableKVState.STATE_ID, Map.of(accountID, mock(Account.class)));
+        ContractCallContext.get()
+                .getCommittedCacheState(AccountReadableKVState.STATE_ID)
+                .put(accountID, ContractCallContext.TOMBSTONE);
+        assertThat(readableKVStateBase.get(accountID)).isNull();
+    }
 }

@@ -13,8 +13,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A convenient base class for mutable singletons.
- * Copy of the class from hedera-app. Differences: get() does not return null values, and the modification buffer is
- * stored in the per-request {@link ContractCallContext} rather than on this process-wide instance.
+ * Copy of the class from hedera-app. Differences: get() does not return null values, the modification buffer is
+ * stored in the per-request {@link ContractCallContext} rather than on this process-wide instance, and a committed
+ * value is read first.
  * @param <T> The type
  */
 @SuppressWarnings("unchecked")
@@ -65,6 +66,10 @@ public abstract class WritableSingletonStateBase<T> extends ReadableSingletonSta
             // as they cause NullPointerExceptions in some various places in the code.
             final var currentValue = currentValue();
             return currentValue != null ? currentValue : super.get();
+        }
+        // The change from the copied class is here - a committed value takes precedence.
+        if (getCommittedCache().get(SINGLETON_KEY) instanceof Object committed && committed != NULL_VALUE) {
+            return (T) committed;
         }
         return super.get();
     }
@@ -129,6 +134,10 @@ public abstract class WritableSingletonStateBase<T> extends ReadableSingletonSta
      * Removes the value related to this singleton from the underlying data source.
      */
     protected abstract void removeFromDataSource();
+
+    private Map<Object, Object> getCommittedCache() {
+        return ContractCallContext.get().getCommittedCacheState(getStateId());
+    }
 
     private Map<Object, Object> getWriteCacheState() {
         return ContractCallContext.get().getWriteCacheState(getStateId());

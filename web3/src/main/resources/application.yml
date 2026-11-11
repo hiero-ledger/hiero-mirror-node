@@ -35,6 +35,14 @@ hiero:
             headers:
               "Access-Control-Allow-Origin": "*"
               "Cache-Control": "public, max-age=600"
+        simulate:
+          enabled: false
+          request:
+            throttle: 32
+          response:
+            timeout: 4s
+            headers:
+              "Access-Control-Allow-Origin": "*"
       db:
         host: 127.0.0.1
         name: mirror_node

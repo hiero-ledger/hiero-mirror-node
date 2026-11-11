@@ -101,4 +101,19 @@ class ContractCallContextTest {
 
         assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(consensusEnd + 1));
     }
+
+    @Test
+    void commitWriteCacheMovesPendingWritesToCommittedState() {
+        final var context = ContractCallContext.get();
+        context.getWriteCacheState(1).put("written", "value");
+        context.getWriteCacheState(1).put("removed", null);
+
+        context.commitWriteCache();
+
+        assertThat(context.getWriteCacheState(1)).isEmpty();
+        assertThat(context.getCommittedCacheState(1))
+                .containsEntry("written", "value")
+                .containsEntry("removed", ContractCallContext.TOMBSTONE);
+        assertThat(context.getCommittedCacheState(2)).isEmpty();
+    }
 }
