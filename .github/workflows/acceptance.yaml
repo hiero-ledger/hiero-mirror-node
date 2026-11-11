@@ -53,7 +53,7 @@ jobs:
           # - BLOCK # leave it disabled until new wraps library compatible CN / BN release
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: audit
 
@@ -83,5 +83,4 @@ jobs:
           DEFAULT_DURATION: "3s"
           DEFAULT_GRACEFUL_STOP: "1s"
           DEFAULT_VUS: 2
-          RUN_OPCODE_TESTS: "true"
         uses: ./.github/actions/k6

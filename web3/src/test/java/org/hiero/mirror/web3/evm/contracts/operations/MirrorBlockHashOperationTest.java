@@ -3,9 +3,13 @@
 package org.hiero.mirror.web3.evm.contracts.operations;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
@@ -15,6 +19,7 @@ import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.RecordFileService;
+import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.fluent.SimpleBlockValues;
 import org.hyperledger.besu.evm.frame.MessageFrame;
@@ -52,6 +57,96 @@ class MirrorBlockHashOperationTest {
     @BeforeEach
     void setup() {
         lenient().when(evmProperties.getBlockHashWindow()).thenReturn(256L);
+        final var earliest =
+                domainBuilder.recordFile().customize(r -> r.index(0L)).get();
+        lenient().when(recordFileService.findByBlockType(BlockType.EARLIEST)).thenReturn(Optional.of(earliest));
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {-1L, -155L, Long.MIN_VALUE})
+    void negativeSoughtBlock(final long soughtBlock) {
+        // Given
+        final var blockValues = new SimpleBlockValues();
+        blockValues.setNumber(100L);
+        given(messageFrame.popStackItem()).willReturn(Bytes.ofUnsignedLong(soughtBlock));
+        given(messageFrame.getBlockValues()).willReturn(blockValues);
+
+        // When
+        final var result = operation.execute(messageFrame, null);
+
+        // Then
+        assertThat(result)
+                .isNotNull()
+                .extracting(OperationResult::getHaltReason)
+                .isNull();
+        verify(messageFrame).pushStackItem(UInt256.ZERO);
+        verifyNoInteractions(recordFileService);
+    }
+
+    @Test
+    void beforeEarliest() {
+        // Given
+        final var earliest =
+                domainBuilder.recordFile().customize(r -> r.index(1000L)).get();
+        given(recordFileService.findByBlockType(BlockType.EARLIEST)).willReturn(Optional.of(earliest));
+        final var blockValues = new SimpleBlockValues();
+        blockValues.setNumber(earliest.getIndex() + 10);
+        given(messageFrame.popStackItem()).willReturn(Bytes.ofUnsignedLong(earliest.getIndex() - 1));
+        given(messageFrame.getBlockValues()).willReturn(blockValues);
+
+        // When
+        final var result = operation.execute(messageFrame, null);
+
+        // Then
+        assertThat(result)
+                .isNotNull()
+                .extracting(OperationResult::getHaltReason)
+                .isNull();
+        verify(messageFrame).pushStackItem(Hash.ZERO.getBytes());
+        verify(recordFileService, never()).findByIndex(anyLong());
+    }
+
+    @Test
+    void missingIndexQueriedOncePerCall() {
+        // Given a stale earliest of 900 while retention has already removed everything below 1000
+        final var earliest =
+                domainBuilder.recordFile().customize(r -> r.index(900L)).get();
+        given(recordFileService.findByBlockType(BlockType.EARLIEST)).willReturn(Optional.of(earliest));
+        given(recordFileService.findByIndex(999L)).willReturn(Optional.empty());
+        final var blockValues = new SimpleBlockValues();
+        blockValues.setNumber(1010L);
+        given(messageFrame.popStackItem()).willReturn(Bytes.ofUnsignedLong(999L));
+        given(messageFrame.getBlockValues()).willReturn(blockValues);
+
+        // When
+        for (int i = 0; i < 3; i++) {
+            operation.execute(messageFrame, null);
+        }
+
+        // Then
+        verify(messageFrame, times(3)).pushStackItem(Hash.ZERO.getBytes());
+        verify(recordFileService, times(1)).findByIndex(999L);
+    }
+
+    @Test
+    void earliestNotFound() {
+        // Given
+        given(recordFileService.findByBlockType(BlockType.EARLIEST)).willReturn(Optional.empty());
+        final var blockValues = new SimpleBlockValues();
+        blockValues.setNumber(10L);
+        given(messageFrame.popStackItem()).willReturn(Bytes.ofUnsignedLong(5L));
+        given(messageFrame.getBlockValues()).willReturn(blockValues);
+
+        // When
+        final var result = operation.execute(messageFrame, null);
+
+        // Then
+        assertThat(result)
+                .isNotNull()
+                .extracting(OperationResult::getHaltReason)
+                .isNull();
+        verify(messageFrame).pushStackItem(Hash.ZERO.getBytes());
+        verify(recordFileService, never()).findByIndex(anyLong());
     }
 
     @Test

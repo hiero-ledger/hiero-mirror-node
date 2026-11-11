@@ -8,9 +8,11 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.AccessLevel;
@@ -46,6 +48,12 @@ public class ContractCallContext {
     /** Writes committed by earlier blocks of a simulate request. */
     @Getter(AccessLevel.NONE)
     private final Map<Integer, Map<Object, Object>> committedCache = new HashMap<>();
+
+    /**
+     * Record file indexes found to be absent during this call. Absent indexes are not cached across requests, so this
+     * keeps repeated BLOCKHASH lookups of the same absent index to a single query per call.
+     */
+    private final Set<Long> missingBlockIndexes = new HashSet<>();
 
     @Getter(AccessLevel.NONE)
     private final Map<Integer, Map<Object, Object>> readCache = new HashMap<>();
@@ -119,6 +127,12 @@ public class ContractCallContext {
      */
     @Setter
     private @Nullable Long blockOverrideTimeNanos;
+
+    /**
+     * Approximate serialized size of the trace data of the current execution.
+     */
+    @Setter
+    private long traceDataBytes;
 
     private ContractCallContext() {}
 

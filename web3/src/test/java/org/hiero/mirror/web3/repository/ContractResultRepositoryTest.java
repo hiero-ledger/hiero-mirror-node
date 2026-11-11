@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
@@ -47,6 +48,26 @@ class ContractResultRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         final var contractIds = List.of(executed.getContractId(), notExecuted.getContractId());
+        assertThat(contractResultRepository.findLatestExecutedTimestamp(List.of(1L, 2L), contractIds))
+                .contains(executed.getConsensusTimestamp());
+    }
+
+    @Test
+    void findLatestExecutedTimestampIgnoresZeroGasConsumed() {
+        final var executed = domainBuilder
+                .contractResult()
+                .customize(c -> c.consensusTimestamp(1L))
+                .persist();
+        // A later WRONG_NONCE duplicate with a function result but no gas consumed
+        final var wrongNonce = domainBuilder
+                .contractResult()
+                .customize(c -> c.consensusTimestamp(2L)
+                        .gasConsumed(0L)
+                        .gasUsed(0L)
+                        .transactionResult(ResponseCodeEnum.WRONG_NONCE_VALUE))
+                .persist();
+
+        final var contractIds = List.of(executed.getContractId(), wrongNonce.getContractId());
         assertThat(contractResultRepository.findLatestExecutedTimestamp(List.of(1L, 2L), contractIds))
                 .contains(executed.getConsensusTimestamp());
     }

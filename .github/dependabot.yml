@@ -4,7 +4,7 @@ version: 2
 updates:
   - directory: "/"
     groups:
-      dependencies:
+      actions:
         patterns:
           - "*"
     open-pull-requests-limit: 10
@@ -20,7 +20,7 @@ updates:
           - "org.hiero.*"
         exclude-patterns:
           - "com.hedera.hashgraph:sdk"
-      dependencies:
+      java:
         patterns:
           - "*"
     open-pull-requests-limit: 10
@@ -43,7 +43,7 @@ updates:
       - "/test"
       - "/web3"
     groups:
-      dependencies:
+      docker:
         patterns:
           - "*"
     ignore:
@@ -59,7 +59,7 @@ updates:
   - directories:
       - "/charts/*"
     groups:
-      dependencies:
+      chart:
         patterns:
           - "*"
     open-pull-requests-limit: 10
@@ -69,7 +69,7 @@ updates:
 
   - directory: "/pinger"
     groups:
-      dependencies:
+      pinger:
         patterns:
           - "*"
     open-pull-requests-limit: 10
@@ -79,7 +79,7 @@ updates:
 
   - directory: "/rest"
     groups:
-      dependencies:
+      rest:
         patterns:
           - "*"
     ignore:
@@ -92,7 +92,7 @@ updates:
 
   - directory: "/rest/monitoring"
     groups:
-      dependencies:
+      monitoring:
         patterns:
           - "*"
     open-pull-requests-limit: 10
@@ -102,7 +102,7 @@ updates:
 
   - directory: "/rosetta"
     groups:
-      dependencies:
+      rosetta:
         patterns:
           - "*"
     open-pull-requests-limit: 10
@@ -112,7 +112,7 @@ updates:
 
   - directory: "/tools/bootstrap"
     groups:
-      dependencies:
+      bootstrap:
         patterns:
           - "*"
     open-pull-requests-limit: 10
@@ -122,7 +122,7 @@ updates:
 
   - directory: "/tools/log-downloader"
     groups:
-      dependencies:
+      log-downloader:
         patterns:
           - "*"
     open-pull-requests-limit: 10
@@ -132,7 +132,7 @@ updates:
 
   - directory: "/tools/mirror-report"
     groups:
-      dependencies:
+      mirror-report:
         patterns:
           - "*"
     open-pull-requests-limit: 10

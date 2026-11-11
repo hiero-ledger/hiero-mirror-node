@@ -106,9 +106,9 @@ configuration used for GitOps-based deployment.
 
 ## Conventions
 
-- **Formatting** is enforced via Spotless (`./gradlew spotlessApply`). Java uses palantirJavaFormat; Kotlin uses ktfmt;
-  JS/JSON/MD/YAML use Prettier with the project's Node.js setup. Spotless is configured to ratchet against `origin/main`
-  outside CI, so it only formats what you've changed.
+- **Formatting** is applied by Spotless in the git `pre-commit` hook, so don't run Spotless yourself. Java uses
+  palantirJavaFormat; Kotlin uses ktfmt; JS/JSON/MD/YAML use Prettier with the project's Node.js setup. Spotless is
+  configured to ratchet against `origin/main` outside CI, so it only formats what you've changed.
 - **License headers**: `// SPDX-License-Identifier: Apache-2.0` is required at the top of source files. Spotless adds it
   automatically.
 - **Java style**: Lombok and MapStruct are used heavily across JVM modules. Errorprone and NullAway are wired into

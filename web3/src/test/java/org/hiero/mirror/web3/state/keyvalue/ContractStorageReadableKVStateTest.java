@@ -116,6 +116,7 @@ class ContractStorageReadableKVStateTest {
                 .thenReturn(Optional.of(BYTES.toByteArray()));
         assertThat(contractStorageReadableKVState.get(SLOT_KEY))
                 .satisfies(slotValue -> assertThat(slotValue).returns(BYTES, SlotValue::value));
+        verify(contractStateService, never()).findStorage(any(), any());
     }
 
     @Test
@@ -134,6 +135,7 @@ class ContractStorageReadableKVStateTest {
                 .thenReturn(Optional.empty());
         assertThat(contractStorageReadableKVState.get(SLOT_KEY))
                 .satisfies(slotValue -> assertThat(slotValue).isNull());
+        verify(contractStateService, never()).findStorage(any(), any());
     }
 
     @Test

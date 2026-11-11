@@ -87,7 +87,7 @@ final class ContractStorageReadableKVState extends AbstractContractReadableKVSta
         return timestamp
                 .map(t -> contractStateService.findStorageByBlockTimestamp(
                         entityId, Bytes32.wrap(keyBytes).trimLeadingZeros().toArrayUnsafe(), t))
-                .orElse(contractStateService.findStorage(entityId, keyBytes))
+                .orElseGet(() -> contractStateService.findStorage(entityId, keyBytes))
                 .map(byteArr ->
                         new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))
                 .orElse(null);

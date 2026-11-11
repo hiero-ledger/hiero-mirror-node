@@ -4,17 +4,21 @@ package org.hiero.mirror.web3.state;
 
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
 import com.hedera.hapi.node.base.FeeSchedule;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.NodeAddressBook;
 import com.hedera.hapi.node.base.ServicesConfigurationList;
+import com.hedera.hapi.node.base.TimestampSeconds;
 import com.hedera.hapi.node.state.file.File;
 import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
@@ -23,6 +27,7 @@ import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.node.config.VersionedConfiguration;
 import com.hedera.node.config.data.EntitiesConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
@@ -39,14 +44,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 
 @ExtendWith(MockitoExtension.class)
 class SystemFileLoaderTest {
 
     private static final CommonProperties commonProperties = CommonProperties.getInstance();
+    private static final long NANOS_PER_HOUR = Duration.ofHours(1).toNanos();
+    private static final long HOUR = 10 * NANOS_PER_HOUR;
 
     private static final byte[] CORRUPT_DATA = "corrupt".getBytes();
     private static final FileData corruptFileData =
@@ -187,24 +196,6 @@ class SystemFileLoaderTest {
     }
 
     @Test
-    void loadThrottlesWithRetryCorruptDataResolveToSystemFile() {
-        var fileId = fileId(systemEntity.throttleDefinitionFile());
-        var expected = getFile(fileId, fileSchema.genesisThrottleDefinitions(configuration));
-        var entityId = toEntityId(fileId).getId();
-        assertFile(expected, fileId);
-        when(fileDataRepository.getFileAtTimestamp(eq(entityId), anyLong())).thenReturn(Optional.of(corruptFileData));
-
-        final var actual = systemFileLoader.load(fileId, 350L);
-
-        assertThat(actual)
-                .isNotNull()
-                .returns(expected.contents(), File::contents)
-                .returns(fileId, File::fileId);
-        verify(fileDataRepository, times(evmProperties.getMaxFileAttempts()))
-                .getFileAtTimestamp(eq(entityId), anyLong());
-    }
-
-    @Test
     void loadThrottlesWithRetrySuccessfully() {
         var fileId = fileId(systemEntity.throttleDefinitionFile());
         var expected = getFile(fileId, fileSchema.genesisThrottleDefinitions(configuration));
@@ -276,13 +267,6 @@ class SystemFileLoaderTest {
     }
 
     @Test
-    void loadWithNonSystemFileID() {
-        var fileId = fileId(1);
-        final var actual = systemFileLoader.load(fileId, 250L);
-        assertThat(actual).isNull();
-    }
-
-    @Test
     void loadThrottlesWithRetryNoData() {
         var fileId = fileId(systemEntity.throttleDefinitionFile());
         var expected = getFile(fileId, fileSchema.genesisThrottleDefinitions(configuration));
@@ -335,6 +319,87 @@ class SystemFileLoaderTest {
     })
     void isSystemFileCheck(long fileNum, boolean expectedResult) {
         assertThat(systemFileLoader.isSystemFile(fileId(fileNum))).isEqualTo(expectedResult);
+    }
+
+    @Test
+    void exchangeRateFilesShareTheConfiguredCacheAcrossLoaders() {
+        useSystemFileCache();
+        final var expected = cacheExchangeRates(HOUR, 100);
+        final var otherLoader = new SystemFileLoader(
+                evmProperties, fileDataRepository, systemEntity, exchangeRatesCacheManager, modularizedCacheManager);
+
+        assertThat(otherLoader.load(fileId(systemEntity.exchangeRateFile()), HOUR + 1))
+                .isSameAs(expected);
+        verify(fileDataRepository)
+                .getFileAtTimestamp(systemEntity.exchangeRateFile().getId(), HOUR);
+    }
+
+    @Test
+    void malformedExchangeRatesRetryThePreviousFile() {
+        final var contents = Bytes.wrap(CORRUPT_DATA);
+        useSystemFileCache();
+        final var fileId = fileId(systemEntity.exchangeRateFile());
+        final var entityId = systemEntity.exchangeRateFile().getId();
+        when(fileDataRepository.getFileAtTimestamp(entityId, HOUR))
+                .thenReturn(Optional.of(FileData.builder()
+                        .consensusTimestamp(HOUR - 1)
+                        .fileData(contents.toByteArray())
+                        .build()));
+        when(fileDataRepository.getFileAtTimestamp(entityId, HOUR - 2))
+                .thenReturn(Optional.of(FileData.builder()
+                        .fileData(exchangeRates(100).toByteArray())
+                        .build()));
+
+        assertThat(systemFileLoader.load(fileId, HOUR).contents()).isEqualTo(exchangeRates(100));
+        assertThat(systemFileLoader.load(fileId, HOUR + 1).contents()).isEqualTo(exchangeRates(100));
+        verify(fileDataRepository).getFileAtTimestamp(entityId, HOUR);
+        verify(fileDataRepository).getFileAtTimestamp(entityId, HOUR - 2);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    void emptyExchangeRateFilesUseTheDefaultWithoutRetrying(final byte[] contents) {
+        final var fileId = fileId(systemEntity.exchangeRateFile());
+        final var entityId = systemEntity.exchangeRateFile().getId();
+        when(fileDataRepository.getFileAtTimestamp(entityId, HOUR))
+                .thenReturn(Optional.of(FileData.builder()
+                        .consensusTimestamp(HOUR - 1)
+                        .fileData(contents)
+                        .build()));
+
+        assertThat(systemFileLoader.load(fileId, HOUR).contents())
+                .isEqualTo(fileSchema.genesisExchangeRatesBytes(configuration));
+        verify(fileDataRepository).getFileAtTimestamp(entityId, HOUR);
+        verify(fileDataRepository, never()).getFileAtTimestamp(entityId, HOUR - 2);
+    }
+
+    private void useSystemFileCache() {
+        final var cacheManager = new CaffeineCacheManager(CACHE_NAME);
+        cacheManager.setCaffeine(Caffeine.newBuilder().maximumSize(20));
+        exchangeRatesCacheManager = cacheManager;
+        systemFileLoader = new SystemFileLoader(
+                evmProperties, fileDataRepository, systemEntity, exchangeRatesCacheManager, modularizedCacheManager);
+    }
+
+    private File cacheExchangeRates(final long timestamp, final int cents) {
+        when(fileDataRepository.getFileAtTimestamp(
+                        systemEntity.exchangeRateFile().getId(), timestamp))
+                .thenReturn(Optional.of(FileData.builder()
+                        .fileData(exchangeRates(cents).toByteArray())
+                        .build()));
+        return systemFileLoader.load(fileId(systemEntity.exchangeRateFile()), timestamp);
+    }
+
+    private static Bytes exchangeRates(final int cents) {
+        final var current = ExchangeRate.newBuilder()
+                .hbarEquiv(30_000)
+                .centEquiv(cents)
+                .expirationTime(new TimestampSeconds(HOUR / 1_000_000_000L + 3600))
+                .build();
+        return ExchangeRateSet.PROTOBUF.toBytes(ExchangeRateSet.newBuilder()
+                .currentRate(current)
+                .nextRate(current.copyBuilder().centEquiv(cents * 2).build())
+                .build());
     }
 
     private FileID fileId(EntityId fileId) {

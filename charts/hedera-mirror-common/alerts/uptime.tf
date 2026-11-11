@@ -345,6 +345,7 @@ resource "grafana_rule_group" "uptime_clusters" {
     labels = {
       area         = "uptime"
       env_category = "production"
+      paging       = "rootly"
       severity     = "critical"
     }
     is_paused = false
@@ -433,6 +434,93 @@ resource "grafana_rule_group" "uptime_clusters" {
       area         = "uptime"
       env_category = "production"
       severity     = "critical"
+    }
+    is_paused = false
+  }
+
+  rule {
+    name      = "ClusterReleaseInProgress"
+    condition = "C"
+
+    data {
+      ref_id = "A"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = var.prometheus_datasource_uid
+      model = jsonencode({
+        editorMode    = "code"
+        expr          = "max by (cluster, env_category) (hiero_mirror_monitor_health{type=\"release\",cluster=~\"${local.individual_clusters}\"}) == bool 0"
+        instant       = true
+        intervalMs    = 1000
+        legendFormat  = "__auto"
+        maxDataPoints = 43200
+        range         = false
+        refId         = "A"
+      })
+    }
+
+    data {
+      ref_id = "B"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = "__expr__"
+      model = jsonencode({
+        expression    = "A"
+        intervalMs    = 1000
+        maxDataPoints = 43200
+        reducer       = "last"
+        refId         = "B"
+        settings = {
+          mode = "dropNN"
+        }
+        type = "reduce"
+      })
+    }
+
+    data {
+      ref_id = "C"
+
+      relative_time_range {
+        from = 600
+        to   = 0
+      }
+
+      datasource_uid = "__expr__"
+      model = jsonencode({
+        conditions = [
+          {
+            evaluator = {
+              params = [0.5]
+              type   = "gt"
+            }
+          }
+        ]
+        expression    = "B"
+        intervalMs    = 1000
+        maxDataPoints = 43200
+        refId         = "C"
+        type          = "threshold"
+      })
+    }
+
+    no_data_state  = "OK"
+    exec_err_state = "OK"
+    for            = "0s"
+    annotations = {
+      summary = "Release rollout in progress on {{ $labels.cluster }}: other alerts for this cluster are muted until the release is ready."
+    }
+    labels = {
+      area         = "release"
+      env_category = "production"
+      severity     = "info"
     }
     is_paused = false
   }

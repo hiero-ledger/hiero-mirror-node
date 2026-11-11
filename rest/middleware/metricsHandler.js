@@ -4,9 +4,13 @@ import {parse} from 'basic-auth';
 import {PrometheusExporter, PrometheusSerializer} from '@opentelemetry/exporter-prometheus';
 import {MeterProvider} from '@opentelemetry/sdk-metrics';
 import tsscmp from 'tsscmp';
+import url from 'url';
 
 import config from '../config.js';
 import {apiPrefix, requestPathLabel} from '../constants';
+
+// 499 when the client closes the connection before a response is sent.
+const CLIENT_CLOSED_REQUEST = 499;
 
 // Converts Express :param route patterns to OpenAPI {param} style
 const toOpenApiPath = (req, res) => {
@@ -184,23 +188,31 @@ const metricsHandler = () => {
       return originalEnd(chunk, ...args);
     };
 
-    res.on('finish', () => {
+    // 'finish' does not fire when the client closes the connection before the response is sent, and the
+    // in-flight gauge would otherwise stay elevated. Record once for either event.
+    let metricsRecorded = false;
+    const recordRequestMetrics = (statusCode) => {
+      if (metricsRecorded) {
+        return;
+      }
+      metricsRecorded = true;
+
       inFlightCounter.add(-1);
 
       const duration = Date.now() - startTime;
       const path = toOpenApiPath(req, res);
-      const code = String(res.statusCode);
+      const code = String(statusCode);
       const method = req.method;
       const labels = {method, path, code};
 
       // Aggregate counters
       allRequestCounter.add(1);
-      if (res.statusCode >= 200 && res.statusCode < 300) {
+      if (statusCode >= 200 && statusCode < 300) {
         allSuccessCounter.add(1);
-      } else if (res.statusCode >= 400 && res.statusCode < 500) {
+      } else if (statusCode >= 400 && statusCode < 500) {
         allClientErrorCounter.add(1);
         allErrorCounter.add(1);
-      } else if (res.statusCode >= 500) {
+      } else if (statusCode >= 500) {
         allServerErrorCounter.add(1);
         allErrorCounter.add(1);
       }
@@ -210,6 +222,13 @@ const metricsHandler = () => {
       durationHistogram.record(duration, labels);
       requestSizeHistogram.record(parseInt(req.headers['content-length'] ?? '0', 10) || 0, labels);
       responseSizeHistogram.record(responseSize, labels);
+    };
+
+    res.on('finish', () => recordRequestMetrics(res.statusCode));
+    res.on('close', () => {
+      if (!res.writableFinished) {
+        recordRequestMetrics(CLIENT_CLOSED_REQUEST);
+      }
     });
 
     next();

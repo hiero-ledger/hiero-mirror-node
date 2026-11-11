@@ -29,7 +29,10 @@ data:
     # Configurable environment variables
     CONFIG_MAP_NAME="{{ include "hedera-mirror-common.fullname" . }}-zfs-node-status"
     CONFIG_MAP_KEY="zfs-node-status.json"
+    DISK_DEVICE_NAME="${DISK_DEVICE_NAME:-sdb}"
+    DISK_PERFORMANCE="${DISK_PERFORMANCE:-}"
     DISK_PREFIX="${DISK_PREFIX:-citus}"
+    DISK_TYPE="${DISK_TYPE:-pd-balanced}"
     DEFAULT_DISK_SIZE_COORDINATOR="${DEFAULT_DISK_SIZE_COORDINATOR:-75GB}"
     DEFAULT_DISK_SIZE_WORKER="${DEFAULT_DISK_SIZE_WORKER:-152GB}"
     K8S_NAMESPACE="${K8S_NAMESPACE:-common}"
@@ -60,6 +63,41 @@ data:
       echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") ${1}" >&2
     }
 
+    function resolveDiskDevice() {
+      local byId device
+      for byId in "/dev/disk/by-id/google-${DISK_DEVICE_NAME}" \
+                  "/dev/disk/by-id/scsi-0Google_PersistentDisk_${DISK_DEVICE_NAME}"; do
+        if device="$(chroot "${ROOT_MOUNT_DIR}" /bin/bash -c "test -b \"${byId}\" && readlink -f \"${byId}\"" 2>/dev/null)"; then
+          # Existing pools record /dev/sdb - keep that path when it is the same disk
+          if [[ "${device}" == "/dev/${DISK_DEVICE_NAME}" ]]; then
+            echo "${device}"
+          else
+            echo "${byId}"
+          fi
+          return 0
+        fi
+      done
+      return 1
+    }
+
+    function waitForDiskDevice() {
+      local attempts=0
+
+      until ZFS_DEVICE="$(resolveDiskDevice)"; do
+        attempts=$((attempts + 1))
+        if [[ ${attempts} -ge 30 ]]; then
+          log "Unable to find block device for ${DISK_NAME} (device name ${DISK_DEVICE_NAME}) on ${NODE_NAME} after ${attempts} attempts. Exiting ..."
+          exit 1
+        fi
+        log "Block device for ${DISK_NAME} not found yet attempt ${attempts}. Waiting ..."
+        chroot "${ROOT_MOUNT_DIR}" /bin/bash -c "udevadm settle" &>/dev/null || true
+        sleep 2
+      done
+
+      export ZFS_DEVICE
+      log "Using block device ${ZFS_DEVICE} for ${DISK_NAME}"
+    }
+
     function forceSizeScan() {
       log "Expanding pool to disk size"
 
@@ -68,7 +106,7 @@ data:
         zfs list || true
         partprobe || true
 
-        zpool online -e \"${POOL}\" /dev/sdb
+        zpool online -e \"${POOL}\" \"${ZFS_DEVICE}\"
         rc=\$?
 
         zfs list || true
@@ -159,8 +197,13 @@ data:
       # During bootstrap this runs before ensureDiskAttached/setupZFSPool, so the
       # disk may not be attached to this node yet and there's no local pool to
       # scan. Only require the scan to succeed once the device is actually here.
-      if ! chroot "${ROOT_MOUNT_DIR}" /bin/bash -c "test -b /dev/sdb" &>/dev/null; then
-        log "/dev/sdb not attached to this node yet; skipping pool expand for now"
+      if ! ZFS_DEVICE="$(resolveDiskDevice)"; then
+        log "${DISK_DEVICE_NAME} not attached to this node yet; skipping pool expand for now"
+        return 0
+      fi
+
+      if ! chroot "${ROOT_MOUNT_DIR}" /bin/bash -c "zpool list \"${POOL}\"" &>/dev/null; then
+        log "Pool ${POOL} is not imported yet; setupZFSPool expands it after import"
         return 0
       fi
 
@@ -366,7 +409,7 @@ data:
       log "Attaching ${DISK_NAME} to ${NODE_NAME}"
       local attempts=0
 
-      until gcloud compute instances attach-disk "${NODE_NAME}" --device-name=sdb --disk "${DISK_NAME}" --zone "${ZONE}"; do
+      until gcloud compute instances attach-disk "${NODE_NAME}" --device-name="${DISK_DEVICE_NAME}" --disk "${DISK_NAME}" --zone "${ZONE}"; do
         attempts=$((attempts + 1))
         if [[ ${attempts} -ge 15 ]]; then
           log "Unable to attach ${DISK_NAME} to ${NODE_NAME} in ${ZONE} after ${attempts} attempts. Exiting ..."
@@ -379,21 +422,78 @@ data:
       return 0
     }
 
+    function getDiskPerformance() {
+      local field="${1}" role="coordinator"
+      if [[ "${CITUS_ROLE}" == *"worker"* ]]; then
+        role="worker"
+      fi
+
+      echo "${DISK_PERFORMANCE}" | jq -r --arg NODE_ID "${NODE_ID}" --arg ROLE "${role}" --arg FIELD "${field}" '
+        [.nodes[$NODE_ID][$FIELD]?, .[$ROLE][$FIELD]?] | map(select(. != null and . != "") | tostring) | first // ""
+      '
+    }
+
+    function raiseDiskPerformance() {
+      if [[ -z "${DISK_PROVISIONED_IOPS}${DISK_PROVISIONED_THROUGHPUT}" ]]; then
+        return 0
+      fi
+
+      local current diskType currentIops currentThroughput
+      local updateArgs=()
+      if ! current="$(gcloud compute disks describe "${DISK_NAME}" --zone "${ZONE}" --format='csv[no-heading](type.basename(),provisionedIops,provisionedThroughput)')"; then
+        log "Unable to read performance of ${DISK_NAME}; skipping performance check"
+        return 0
+      fi
+
+      IFS=',' read -r diskType currentIops currentThroughput <<<"${current}"
+      if [[ "${diskType}" != "hyperdisk-balanced" ]]; then
+        return 0
+      fi
+
+      if [[ -n "${DISK_PROVISIONED_IOPS}" ]] && (( ${currentIops:-0} < DISK_PROVISIONED_IOPS )); then
+        updateArgs+=(--provisioned-iops="${DISK_PROVISIONED_IOPS}")
+      fi
+      if [[ -n "${DISK_PROVISIONED_THROUGHPUT}" ]] && (( ${currentThroughput:-0} < DISK_PROVISIONED_THROUGHPUT )); then
+        updateArgs+=(--provisioned-throughput="${DISK_PROVISIONED_THROUGHPUT}")
+      fi
+
+      if [[ ${#updateArgs[@]} -eq 0 ]]; then
+        log "${DISK_NAME} has ${currentIops} IOPS and ${currentThroughput} MiB/s; no increase needed"
+        return 0
+      fi
+
+      log "Raising ${DISK_NAME} performance from ${currentIops} IOPS and ${currentThroughput} MiB/s with ${updateArgs[*]}"
+      if ! gcloud compute disks update "${DISK_NAME}" --zone "${ZONE}" "${updateArgs[@]}"; then
+        log "Failed to raise ${DISK_NAME} performance; continuing with current values"
+      fi
+    }
+
     function bootstrapZFSDisk() {
       DISK_NAME="${DISK_PREFIX}-${NODE_ID}-zfs"
+      DISK_PROVISIONED_IOPS="$(getDiskPerformance provisionedIops)"
+      DISK_PROVISIONED_THROUGHPUT="$(getDiskPerformance provisionedThroughput)"
 
       local actual
       actual="$(gcloud compute disks list --filter="name:${DISK_NAME}" --format="value(sizeGb)" 2>/dev/null || true)"
 
       if [[ -z "${actual}" ]]; then
-        log "Creating ${DISK_NAME} for ${CITUS_ROLE} with size ${DISK_SIZE}"
-        gcloud compute disks create "${DISK_NAME}" --size="${DISK_SIZE}" --zone="${ZONE}" --type=pd-balanced --quiet
+        local createArgs=(--size="${DISK_SIZE}" --zone="${ZONE}" --type="${DISK_TYPE}" --quiet)
+        if [[ -n "${DISK_PROVISIONED_IOPS}" ]]; then
+          createArgs+=(--provisioned-iops="${DISK_PROVISIONED_IOPS}")
+        fi
+        if [[ -n "${DISK_PROVISIONED_THROUGHPUT}" ]]; then
+          createArgs+=(--provisioned-throughput="${DISK_PROVISIONED_THROUGHPUT}")
+        fi
+        log "Creating ${DISK_NAME} for ${CITUS_ROLE} with ${createArgs[*]}"
+        gcloud compute disks create "${DISK_NAME}" "${createArgs[@]}"
       else
         log "${DISK_NAME} already exists for ${CITUS_ROLE}"
+        raiseDiskPerformance
         growDiskToSizeGb "${DISK_SIZE}"
       fi
 
       ensureDiskAttached
+      waitForDiskDevice
     }
 
     function setupZFSPool() {
@@ -412,15 +512,34 @@ data:
         echo "${ARC_MIN}" >> /sys/module/zfs/parameters/zfs_arc_min
         echo "${ARC_MAX}" >> /sys/module/zfs/parameters/zfs_arc_max
 
+        udevadm settle || true
+
+        # A plain import records whichever path it finds first, which may not be ZFS_DEVICE's partition (like after a restore).
+        # zpool online -e only matches the recorded path, so import from the partition path it expects
+        if [[ "${ZFS_DEVICE}" == /dev/disk/* ]]; then
+          ZFS_PARTITION="${ZFS_DEVICE}-part1"
+        elif [[ "${ZFS_DEVICE}" == *[0-9] ]]; then
+          ZFS_PARTITION="${ZFS_DEVICE}p1"
+        else
+          ZFS_PARTITION="${ZFS_DEVICE}1"
+        fi
+
         if zfs list | grep -q "${POOL}"; then
           echo "Found existing pool. Skipping creation"
-        elif zpool create -o autoexpand=on "${POOL}" /dev/sdb; then
-          echo "Successfully created pool"
-        elif zpool import -f "${POOL}"; then
+        elif zpool import -f -d "${ZFS_PARTITION}" "${POOL}" || zpool import -f "${POOL}"; then
           echo "Successfully imported pool"
         else
-          echo "Unable to create pool. Manual intervention necessary"
-          exit 1
+          # blkid exits 2 only when the disk has no partition table or signature
+          blkid -p "${ZFS_DEVICE}"
+          if [[ $? -ne 2 ]]; then
+            echo "${ZFS_DEVICE} is not blank and has no importable pool ${POOL}. Manual intervention necessary"
+            exit 1
+          elif zpool create -o autoexpand=on "${POOL}" "${ZFS_DEVICE}"; then
+            echo "Successfully created pool"
+          else
+            echo "Unable to create pool. Manual intervention necessary"
+            exit 1
+          fi
         fi
 
         ATTACHED_CACHE_DEVICE="$(zpool status "${POOL}" | grep -A1 -E '^\s*cache\s*$' | grep -v cache | awk '{print $1;}')"
@@ -455,7 +574,7 @@ data:
 
         zfs set primarycache=metadata xattr=sa "${POOL}"
         zpool set autoexpand=on "${POOL}"
-        zpool online -e "${POOL}" /dev/sdb
+        zpool online -e "${POOL}" "${ZFS_DEVICE}"
         zfs list
     EOF
     }
@@ -899,6 +1018,7 @@ data:
     log "Starting disk autogrow loop: interval=${DISK_AUTOGROW_INTERVAL_SECONDS}s, threshold=${DISK_AUTOGROW_THRESHOLD_PERCENT}%, maxStepGb=${DISK_AUTOGROW_MAX_STEP_GB}GB, percentStep=${DISK_AUTOGROW_PERCENT}%"
 
     while true; do
+      raiseDiskPerformance
       checkAndGrowDatasets || log "checkAndGrowDatasets failed. Will retry after ${DISK_AUTOGROW_INTERVAL_SECONDS}s"
       sleep "${DISK_AUTOGROW_INTERVAL_SECONDS}"
     done
