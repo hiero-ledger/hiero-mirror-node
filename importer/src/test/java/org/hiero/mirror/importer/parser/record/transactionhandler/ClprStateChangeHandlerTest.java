@@ -431,8 +431,10 @@ final class ClprStateChangeHandlerTest {
 
     @Test
     void processConnectors() {
-        // given -- a connector banned and patched in the same transaction; the DELETED row must carry the patch's
-        // fields forward rather than keep the connector's pre-transaction values.
+        // given -- an update for one connector and a removal for a different connector in the same transaction.
+        // A single connector key can never appear in both getClprConnectors() and getClprConnectorsRemoved() for
+        // the same transaction -- consensus-node collapses same-key put/remove pairs into a single net state
+        // change before StateChanges is ever populated (see CLPR_QA.md).
         mockEmptyClprState();
         long consensusTimestamp = domainBuilder.timestamp();
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
@@ -457,37 +459,22 @@ final class ClprStateChangeHandlerTest {
                 .setConnectorId(patchedConnectorId)
                 .build();
 
-        final var bannedConnectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
-        final var bannedConnectorContract = domainBuilder.entityNum(2600L).toContractID();
-        final var bannedAdminKey = Key.newBuilder()
-                .setEd25519(DomainUtils.fromBytes(domainBuilder.key()))
-                .build();
-        final var bannedConnectorValue = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
+        final var removedConnectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final var removedConnectorKey = ClprConnectorKey.newBuilder()
                 .setChannelId(channelId)
-                .setConnectorId(bannedConnectorId)
-                .setConnectorContract(bannedConnectorContract)
-                .setAdminKey(bannedAdminKey)
-                .setLockedStake(0L)
-                .setSlashCount(5)
-                .setInFlightMessageCount(2)
-                .build();
-        final var bannedConnectorKey = ClprConnectorKey.newBuilder()
-                .setChannelId(channelId)
-                .setConnectorId(bannedConnectorId)
+                .setConnectorId(removedConnectorId)
                 .build();
 
         final var patchedCommitment = domainBuilder.bytes(32);
-        final var bannedCommitment = domainBuilder.bytes(32);
+        final var removedCommitment = domainBuilder.bytes(32);
         when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(patchedConnectorId)))
                 .thenReturn(patchedCommitment);
-        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(bannedConnectorId)))
-                .thenReturn(bannedCommitment);
+        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(removedConnectorId)))
+                .thenReturn(removedCommitment);
 
         when(clprContext.getClprConnectors())
-                .thenReturn(List.of(
-                        new ClprConnectorEntry(patchedConnectorKey, patchedConnectorValue),
-                        new ClprConnectorEntry(bannedConnectorKey, bannedConnectorValue)));
-        when(clprContext.getClprConnectorsRemoved()).thenReturn(List.of(bannedConnectorKey));
+                .thenReturn(List.of(new ClprConnectorEntry(patchedConnectorKey, patchedConnectorValue)));
+        when(clprContext.getClprConnectorsRemoved()).thenReturn(List.of(removedConnectorKey));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -510,13 +497,10 @@ final class ClprStateChangeHandlerTest {
                         .returns(null, ClprConnector::getStatus))
                 .anySatisfy(connector -> assertThat(connector)
                         .returns(DomainUtils.toBytes(channelId), ClprConnector::getChannelId)
-                        .returns(bannedCommitment, ClprConnector::getCommitment)
-                        .returns(DomainUtils.toBytes(bannedConnectorId), ClprConnector::getConnectorId)
-                        .returns(EntityId.of(bannedConnectorContract), ClprConnector::getConnectorContractId)
-                        .returns(bannedAdminKey.toByteArray(), ClprConnector::getAdminKey)
-                        .returns(0L, ClprConnector::getLockedStake)
-                        .returns(5L, ClprConnector::getSlashCount)
-                        .returns(2L, ClprConnector::getInFlightMessageCount)
+                        .returns(removedCommitment, ClprConnector::getCommitment)
+                        .returns(DomainUtils.toBytes(removedConnectorId), ClprConnector::getConnectorId)
+                        .returns(null, ClprConnector::getLockedStake)
+                        .returns(null, ClprConnector::getSlashCount)
                         .returns(ClprConnectorStatus.DELETED, ClprConnector::getStatus)
                         .returns(Range.atLeast(consensusTimestamp), ClprConnector::getTimestampRange));
     }
@@ -551,8 +535,8 @@ final class ClprStateChangeHandlerTest {
     }
 
     @Test
-    void processRemovedConnectorWithoutSameTransactionPatch() {
-        // given -- a plain removal with no same-transaction patch; mergeClprConnector backfills from prior state
+    void processRemovedConnector() {
+        // given -- a plain removal; mergeClprConnector backfills from prior state
         mockEmptyClprState();
         long consensusTimestamp = domainBuilder.timestamp();
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
