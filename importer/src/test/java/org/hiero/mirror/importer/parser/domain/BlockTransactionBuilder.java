@@ -239,10 +239,17 @@ public class BlockTransactionBuilder {
     }
 
     public BlockTransactionBuilder.Builder clprCompleteChannel(RecordItem recordItem) {
+        final var clprContext = recordItem.getClprContext();
+        final var clprChannelEntry = Optional.ofNullable(clprContext)
+                .map(ClprContext::getClprChannel)
+                .orElse(null);
+        if (clprChannelEntry == null) {
+            return defaultBlockItem(recordItem);
+        }
+
         final var channelId =
                 recordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
-        final var stateChange = clprChannelStateChange(
-                channelId, recordItem.getClprContext().getClprChannel().value());
+        final var stateChange = clprChannelStateChange(channelId, clprChannelEntry.value());
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
@@ -252,6 +259,14 @@ public class BlockTransactionBuilder {
     }
 
     public BlockTransactionBuilder.Builder clprCompleteConnector(RecordItem recordItem) {
+        final var clprContext = recordItem.getClprContext();
+        final var clprConnectorEntry = Optional.ofNullable(clprContext)
+                .map(ClprContext::getClprConnector)
+                .orElse(null);
+        if (clprConnectorEntry == null) {
+            return defaultBlockItem(recordItem);
+        }
+
         final var body = recordItem.getTransactionBody().getClprCompleteConnector();
         final var key = ClprConnectorKey.newBuilder()
                 .setChannelId(body.getChannelId())
@@ -261,11 +276,7 @@ public class BlockTransactionBuilder {
                 .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))
-                        .setValue(MapChangeValue.newBuilder()
-                                .setClprConnectorValue(recordItem
-                                        .getClprContext()
-                                        .getClprConnector()
-                                        .value())))
+                        .setValue(MapChangeValue.newBuilder().setClprConnectorValue(clprConnectorEntry.value())))
                 .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
