@@ -828,6 +828,66 @@ function getDiskPrefix() {
   echo "${diskPrefix}"
 }
 
+function getZfsManagerEnv() {
+  local name="${1}"
+  kubectl get daemonsets -n "${COMMON_NAMESPACE}" -l 'app=zfs-manager' -o json |
+    jq -r --arg NAME "${name}" '.items[0].spec.template.spec.containers[0].env[] | select (.name == $NAME) | .value // ""'
+}
+
+function describeDiskSpec() {
+  local diskName="${1}" diskZone="${2}"
+  local spec error
+
+  if spec="$(gcloud compute disks describe "${diskName}" \
+              --project "${GCP_TARGET_PROJECT}" \
+              --zone "${diskZone}" \
+              --format='csv[no-heading](type.basename(),provisionedIops,provisionedThroughput)' 2>/dev/null)"; then
+    echo "${spec}"
+    return 0
+  fi
+
+  error="$(gcloud compute disks describe "${diskName}" \
+            --project "${GCP_TARGET_PROJECT}" \
+            --zone "${diskZone}" 2>&1 >/dev/null || true)"
+  if [[ "${error}" == *"/disks/${diskName}' was not found"* ]]; then
+    return 0
+  fi
+
+  log "Unable to describe disk ${diskName} in ${diskZone}: ${error}"
+  exit 1
+}
+
+function getDiskPerformance() {
+  local diskPerformance="${1}" nodeId="${2}" field="${3}" role="coordinator"
+  if [[ "${nodeId}" == *"worker"* ]]; then
+    role="worker"
+  fi
+
+  jq -r --arg NODE_ID "${nodeId}" --arg ROLE "${role}" --arg FIELD "${field}" '
+    [.nodes[$NODE_ID][$FIELD]?, .[$ROLE][$FIELD]?] | map(select(. != null and . != "") | tostring) | first // ""
+  ' <<<"${diskPerformance}"
+}
+function getDiskSpecArgs() {
+  local diskSpec="${1}" sizeGb="${2:-}"
+  local diskType provisionedIops provisionedThroughput
+  local performanceArgs=()
+  IFS=',' read -r diskType provisionedIops provisionedThroughput <<<"${diskSpec}"
+
+  echo "--type=${diskType:-pd-balanced}"
+  if [[ "${diskType}" == "hyperdisk-balanced" && -n "${provisionedIops}" ]]; then
+    performanceArgs+=("--provisioned-iops=${provisionedIops}")
+  fi
+  if [[ "${diskType}" == "hyperdisk-balanced" && -n "${provisionedThroughput}" ]]; then
+    performanceArgs+=("--provisioned-throughput=${provisionedThroughput}")
+  fi
+  if [[ ${#performanceArgs[@]} -gt 0 ]]; then
+    printf '%s\n' "${performanceArgs[@]}"
+    if [[ -n "${sizeGb}" ]]; then
+      echo "--size=${sizeGb}GB"
+    fi
+  fi
+}
+
 function getZFSVolumes() {
   kubectl get pv -o json |
     jq -r --arg CITUS_CLUSTERS "$(getCitusClusters)" \

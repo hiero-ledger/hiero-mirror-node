@@ -24,7 +24,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
+import com.hederahashgraph.api.proto.java.KeyList;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -1424,6 +1426,60 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
     }
 
+    @Test
+    void transferTokenFromContractWithAllowance() throws Exception {
+        // Given
+        final var tokenEntity = tokenEntityPersist();
+        final var treasuryAccount = accountEntityPersist();
+        fungibleTokenPersist(tokenEntity, treasuryAccount);
+
+        final var ownerContract = domainBuilder
+                .entity()
+                .customize(e -> e.type(CONTRACT).alias(null).evmAddress(null).key(null))
+                .persist();
+        final var receiver = accountEntityWithEvmAddressPersist();
+
+        final var tokenId = tokenEntity.getId();
+        tokenAccountPersist(tokenId, ownerContract.getId());
+        tokenAccountPersist(tokenId, receiver.getId());
+
+        accountBalanceRecordsPersist(
+                ownerContract.toEntityId(), ownerContract.getCreatedTimestamp(), ownerContract.getBalance());
+        accountBalanceRecordsPersist(receiver.toEntityId(), receiver.getCreatedTimestamp(), receiver.getBalance());
+        tokenBalancePersist(ownerContract.toEntityId(), tokenEntity.toEntityId(), ownerContract.getBalanceTimestamp());
+        tokenBalancePersist(receiver.toEntityId(), tokenEntity.toEntityId(), receiver.getBalanceTimestamp());
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contractEntityId = entityIdFromEvmAddress(Address.fromHexString(contract.getContractAddress()));
+
+        tokenAllowancePersistCustomizable(e -> e.owner(ownerContract.getId())
+                .amount(1L)
+                .amountGranted(1L)
+                .spender(contractEntityId.getId())
+                .tokenId(tokenId));
+
+        // When transfer amount is within the allowance granted by ownerContract, it succeeds via approval switch
+        final var allowedCall = contract.call_transferTokenExternal(
+                getAddressFromEntity(tokenEntity),
+                getAddressFromEntity(ownerContract),
+                getAliasFromEntity(receiver),
+                BigInteger.ONE);
+
+        // Then
+        verifyEthCallAndEstimateGas(allowedCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(allowedCall.encodeFunctionCall(), contract);
+
+        // When transfer amount exceeds the allowance granted by ownerContract, it reverts because ownerContract's
+        // CONTRACT_ID key is not active for the caller contract and ApprovalSwitchHelper requires an allowance spend
+        final var exceedingAllowanceCall = contract.call_transferTokenExternal(
+                getAddressFromEntity(tokenEntity),
+                getAddressFromEntity(ownerContract),
+                getAliasFromEntity(receiver),
+                BigInteger.TWO);
+
+        assertThatThrownBy(exceedingAllowanceCall::send).isInstanceOf(MirrorEvmTransactionException.class);
+    }
+
     @ParameterizedTest
     @CsvSource({"single", "multiple"})
     void transferNft(final String type) throws Exception {
@@ -1566,6 +1622,62 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 new AccountAmount(getAliasFromEntity(receiver), BigInteger.valueOf(5L), false)));
 
         final var functionCall = contract.call_cryptoTransferExternal(transferList, new ArrayList<>());
+
+        // Then
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(
+                functionCall.encodeFunctionCall(),
+                getContractFunctionProviderWithSender(contract.getContractAddress(), payer));
+    }
+
+    @Test
+    void transferTokenFromContractWithEmptyKeyList() throws Exception {
+        // Given
+        final var emptyKeyList = Key.newBuilder()
+                .setKeyList(KeyList.getDefaultInstance())
+                .build()
+                .toByteArray();
+        final var evmAddress = domainBuilder.evmAddress();
+        final var contractEntityId = domainBuilder.entityId();
+        contractPersistCustomizable(
+                BytecodeUtils.extractRuntimeBytecode(ModificationPrecompileTestContract.BINARY),
+                contractEntityId,
+                e -> e.alias(evmAddress)
+                        .balance(DEFAULT_ACCOUNT_BALANCE)
+                        .delegationAddress(null)
+                        .evmAddress(evmAddress)
+                        .key(emptyKeyList)
+                        .receiverSigRequired(false));
+        // The alias is the account's canonical address. A long-zero reference is non-canonical and never reaches
+        // hollow-account signature verification.
+        final var canonicalAddress = Bytes.wrap(evmAddress).toHexString();
+        final var contract = ModificationPrecompileTestContract.load(
+                canonicalAddress,
+                testWeb3jService.getWeb3j(),
+                testWeb3jService.getCredentials(),
+                testWeb3jService.getContractGasProvider());
+
+        final var tokenEntity = tokenEntityPersist();
+        final var treasuryAccount = accountEntityPersist();
+        fungibleTokenPersist(tokenEntity, treasuryAccount);
+        final var receiver = accountEntityPersistCustomizable(
+                e -> e.type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE).receiverSigRequired(false));
+        final var payer = accountEntityWithEvmAddressPersist();
+        tokenAccount(ta -> ta.tokenId(tokenEntity.getId())
+                .accountId(contractEntityId.getId())
+                .balance(1_000L));
+        tokenAccount(ta ->
+                ta.tokenId(tokenEntity.getId()).accountId(receiver.getId()).balance(0L));
+
+        final long timestampForBalances = payer.getCreatedTimestamp();
+        accountBalancePersist(payer, timestampForBalances);
+        accountBalancePersist(treasuryEntity, timestampForBalances);
+
+        // The contract's empty key list is its admin key, so the child transfer authorizes the contract id
+        // and does not try to complete a hollow account.
+        testWeb3jService.setSender(getAliasFromEntity(payer));
+        final var functionCall = contract.call_transferTokenExternal(
+                getAddressFromEntity(tokenEntity), canonicalAddress, getAliasFromEntity(receiver), BigInteger.ONE);
 
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);

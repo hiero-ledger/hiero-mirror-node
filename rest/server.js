@@ -23,8 +23,8 @@ import {isTestEnv} from './utils';
 
 import {
   authHandler,
+  createConcurrencyLimiter,
   handleError,
-  limitConcurrency,
   openApiValidator,
   requestLogger,
   requestQueryParser,
@@ -98,22 +98,21 @@ if (applicationCacheEnabled) {
   app.useExt(responseCacheCheckHandler);
 }
 
-// accounts routes
 // Cap how many requests with account.balance filter can run at once to keep them from exhausting the connection
-// pool. Query keys are already lowercased by requestQueryParser.
-app.getExt(
-  `${apiPrefix}/accounts`,
-  limitConcurrency(accounts.getAccounts, {
-    applies: (req) => req.query[constants.filterKeys.ACCOUNT_BALANCE] !== undefined,
-    max: config.query.maxAccountBalanceConcurrency,
-    name: constants.filterKeys.ACCOUNT_BALANCE,
-  })
-);
+// pool. The limit is shared by all routes it wraps. Query keys are already lowercased by requestQueryParser.
+const limitAccountBalanceConcurrency = createConcurrencyLimiter({
+  applies: (req) => req.query[constants.filterKeys.ACCOUNT_BALANCE] !== undefined,
+  max: config.query.maxAccountBalanceConcurrency,
+  name: constants.filterKeys.ACCOUNT_BALANCE,
+});
+
+// accounts routes
+app.getExt(`${apiPrefix}/accounts`, limitAccountBalanceConcurrency(accounts.getAccounts));
 app.getExt(`${apiPrefix}/accounts/:${constants.filterKeys.ID_OR_ALIAS_OR_EVM_ADDRESS}`, accounts.getOneAccount);
 app.use(`${apiPrefix}/${AccountRoutes.resource}`, AccountRoutes.router);
 
 // balances routes
-app.getExt(`${apiPrefix}/balances`, balances.getBalances);
+app.getExt(`${apiPrefix}/balances`, limitAccountBalanceConcurrency(balances.getBalances));
 
 // contracts routes
 app.use(`${apiPrefix}/${ContractRoutes.resource}`, ContractRoutes.router);

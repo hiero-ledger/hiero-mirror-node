@@ -95,8 +95,10 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
-        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
+        assertThat(contractLog.isSynthetic()).isTrue();
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -108,8 +110,10 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferIndexedContractLog(recordItem, entityTokenId, senderEntityId, receiverEntityId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
-        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
+        assertThat(contractLog.isSynthetic()).isTrue();
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -118,7 +122,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new ApproveAllowanceContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.isSynthetic()).isTrue();
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -127,7 +133,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new ApproveAllowanceIndexedContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.isSynthetic()).isTrue();
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -136,7 +144,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new ApproveForAllAllowanceContractLog(recordItem, entityTokenId, senderId, receiverId, true));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().isSynthetic()).isTrue();
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.isSynthetic()).isTrue();
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -203,42 +213,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
-        assertThat(contractLogCaptor.getValue().isChild()).isFalse();
-    }
-
-    @Test
-    @DisplayName("Should set child from the contract related parent's own child status, not the current record item")
-    void createUsesContractRelatedParentChildStatus() {
-        var grandparentRecordItem = recordItemBuilder
-                .contractCall()
-                .recordItem(r -> r.hapiVersion(OLD_HAPI_VERSION))
-                .build();
-
-        var parentRecordItem = recordItemBuilder
-                .contractCall()
-                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
-                        .setSeconds(grandparentRecordItem.getConsensusTimestamp() / 1_000_000_000)
-                        .setNanos((int) (grandparentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
-                .recordItem(r -> r.previous(grandparentRecordItem).hapiVersion(OLD_HAPI_VERSION))
-                .build();
-
-        recordItem = recordItemBuilder
-                .contractCall()
-                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
-                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
-                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
-                .recordItem(r -> r.previous(parentRecordItem).hapiVersion(OLD_HAPI_VERSION))
-                .build();
-        parentRecordItem.setEvmChild(true);
-
-        syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getConsensusTimestamp())
-                .isEqualTo(parentRecordItem.getConsensusTimestamp());
-        assertThat(recordItem.isEvmChild()).isFalse();
-        assertThat(contractLogCaptor.getValue().isChild()).isTrue();
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -289,9 +266,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
-        assertThat(recordItem.isChild()).isFalse();
-        assertThat(contractLogCaptor.getValue().isChild()).isFalse();
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -314,25 +291,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
-        assertThat(recordItem.getContractRelatedParent()).isNull();
-        assertThat(contractLogCaptor.getValue().isChild()).isFalse();
-    }
-
-    @Test
-    @DisplayName("Should set child from the record item when the log is not attributed to a contract related parent")
-    void createWithoutContractRelatedParentUsesRecordItemChildStatus() {
-        recordItem = recordItemBuilder
-                .contractCall()
-                .recordItem(r -> r.hapiVersion(OLD_HAPI_VERSION))
-                .build();
-        recordItem.setEvmChild(true);
-
-        syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getConsensusTimestamp()).isEqualTo(recordItem.getConsensusTimestamp());
-        assertThat(contractLogCaptor.getValue().isChild()).isTrue();
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.getTransactionHash()).isEqualTo(recordItem.getTransactionHash());
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -359,6 +320,7 @@ final class SyntheticContractLogServiceImplTest {
         final var capturedLog = contractLogCaptor.getValue();
 
         assertThat(capturedLog.getBloom()).isEqualTo(SyntheticContractLogServiceImpl.CONTRACT_LOG_MARKER);
+        assertContractIds(capturedLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -368,9 +330,10 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
 
         verify(entityListener).onContractLog(contractLogCaptor.capture());
-        var capturedLog = contractLogCaptor.getValue();
+        final var capturedLog = contractLogCaptor.getValue();
 
         assertThat(capturedLog.getBloom()).isEqualTo(new byte[] {0});
+        assertContractIds(capturedLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -413,6 +376,7 @@ final class SyntheticContractLogServiceImplTest {
 
         assertThat(capturedLog.getConsensusTimestamp()).isEqualTo(parentTimestamp);
         assertThat(capturedLog.getContractResult()).isSameAs(contractResult);
+        assertContractIds(capturedLog, recordItem, entityTokenId);
 
         // Simulate SyntheticLogListener replacing the marker bloom with the computed log bloom; ContractLog.setBloom
         // merges that into the parent's ContractResult (same behavior as end-of-record processing).
@@ -444,6 +408,7 @@ final class SyntheticContractLogServiceImplTest {
         var capturedLog = contractLogCaptor.getValue();
 
         assertThat(capturedLog.getConsensusTimestamp()).isEqualTo(childTimestamp);
+        assertContractIds(capturedLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -477,7 +442,9 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
 
         verify(entityListener).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(parentHash);
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.getTransactionHash()).isEqualTo(parentHash);
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -503,7 +470,9 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
 
         verify(entityListener).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(recordHash);
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.getTransactionHash()).isEqualTo(recordHash);
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -602,10 +571,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getTransactionHash())
-                .isEqualTo(parentContractCallRecordItem.getTransactionHash());
-        assertThat(contractLogCaptor.getValue().getConsensusTimestamp()).isEqualTo(parentContractCallTimestamp);
-        assertThat(contractLogCaptor.getValue().isChild()).isFalse();
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.getTransactionHash()).isEqualTo(parentContractCallRecordItem.getTransactionHash());
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -728,7 +696,11 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferContractLog(child3RecordItem, entityTokenId, senderId, receiverId, amount));
 
-        verify(entityListener, times(3)).onContractLog(any());
+        verify(entityListener, times(3)).onContractLog(contractLogCaptor.capture());
+        final var capturedLogs = contractLogCaptor.getAllValues();
+        assertContractIds(capturedLogs.get(0), child1RecordItem, entityTokenId);
+        assertContractIds(capturedLogs.get(1), child2RecordItem, entityTokenId);
+        assertContractIds(capturedLogs.get(2), child3RecordItem, entityTokenId);
     }
 
     @Test
@@ -783,6 +755,8 @@ final class SyntheticContractLogServiceImplTest {
                 .isEqualTo(firstChildContractCallRecordItem.getTransactionHash());
         assertThat(capturedLogs.get(1).getTransactionHash())
                 .isEqualTo(secondChildContractCallRecordItem.getTransactionHash());
+        assertContractIds(capturedLogs.get(0), firstChildContractCallRecordItem, entityTokenId);
+        assertContractIds(capturedLogs.get(1), secondChildContractCallRecordItem, entityTokenId);
     }
 
     @Test
@@ -830,7 +804,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(transferLog);
         syntheticContractLogService.create(transferLog);
 
-        verify(entityListener, times(2)).onContractLog(any());
+        verify(entityListener, times(2)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getAllValues())
+                .allSatisfy(contractLog -> assertContractIds(contractLog, recordItem, entityTokenId));
     }
 
     @Test
@@ -894,7 +870,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(transferLog);
         syntheticContractLogService.create(transferLog);
 
-        verify(entityListener, times(3)).onContractLog(any());
+        verify(entityListener, times(3)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getAllValues())
+                .allSatisfy(contractLog -> assertContractIds(contractLog, recordItem, entityTokenId));
     }
 
     @Test
@@ -948,7 +926,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, secondReceiverId, secondAmount));
 
-        verify(entityListener, times(2)).onContractLog(any());
+        verify(entityListener, times(2)).onContractLog(contractLogCaptor.capture());
+        assertThat(contractLogCaptor.getAllValues())
+                .allSatisfy(contractLog -> assertContractIds(contractLog, recordItem, entityTokenId));
     }
 
     @Test
@@ -1015,7 +995,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -1047,7 +1029,9 @@ final class SyntheticContractLogServiceImplTest {
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.getTransactionHash()).isEqualTo(parentRecordItem.getTransactionHash());
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -1135,7 +1119,9 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
 
         verify(entityListener).onContractLog(contractLogCaptor.capture());
-        assertThat(contractLogCaptor.getValue().getTransactionHash()).isEqualTo(ethereumHash);
+        final var contractLog = contractLogCaptor.getValue();
+        assertThat(contractLog.getTransactionHash()).isEqualTo(ethereumHash);
+        assertContractIds(contractLog, recordItem, entityTokenId);
     }
 
     @Test
@@ -1153,6 +1139,8 @@ final class SyntheticContractLogServiceImplTest {
         assertThat(contractLogCaptor.getAllValues())
                 .extracting(ContractLog::getTransactionIndex)
                 .containsOnly(0);
+        assertThat(contractLogCaptor.getAllValues())
+                .allSatisfy(contractLog -> assertContractIds(contractLog, recordItem, entityTokenId));
         assertThat(counter.get()).isEqualTo(1);
     }
 
@@ -1171,10 +1159,22 @@ final class SyntheticContractLogServiceImplTest {
                 new TransferContractLog(secondRecordItem, entityTokenId, senderId, receiverId, amount));
 
         verify(entityListener, times(2)).onContractLog(contractLogCaptor.capture());
-        final var indices = contractLogCaptor.getAllValues().stream()
-                .map(ContractLog::getTransactionIndex)
-                .toList();
+        final var capturedLogs = contractLogCaptor.getAllValues();
+        final var indices =
+                capturedLogs.stream().map(ContractLog::getTransactionIndex).toList();
         assertThat(indices).containsExactly(0, 1);
+        assertContractIds(capturedLogs.get(0), recordItem, entityTokenId);
+        assertContractIds(capturedLogs.get(1), secondRecordItem, entityTokenId);
+    }
+
+    private static void assertContractIds(
+            final ContractLog contractLog, final RecordItem source, final EntityId tokenId) {
+        final var parent = source.getContractRelatedParent();
+        final var expectedRoot = parent == null
+                ? tokenId
+                : EntityId.of(parent.getTransactionRecord().getReceipt().getContractID());
+        assertThat(contractLog.getContractId()).isEqualTo(tokenId);
+        assertThat(contractLog.getRootContractId()).isEqualTo(expectedRoot);
     }
 
     private static AccountAmount tokenTransferWithZeroPaddedEvmAlias(byte[] evmAddress, long amount) {

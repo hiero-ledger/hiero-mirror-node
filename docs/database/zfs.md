@@ -53,6 +53,49 @@ gcloud beta container --project "${PROJECT}" node-pools create "coordinator" --c
 gcloud beta container --project "${PROJECT}" node-pools create "worker" --cluster "citus" --region "us-central1" --node-version "${VERSION}" --machine-type "n2-custom-10-32768" --image-type "UBUNTU_CONTAINERD" --disk-type "pd-balanced" --disk-size "100" --node-labels csi-type=zfs,citus-role=worker --metadata disable-legacy-endpoints=true --node-taints zfs=true:NoSchedule --scopes "https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" --num-nodes "1" --no-enable-autoupgrade --enable-autorepair --max-surge-upgrade 1 --max-unavailable-upgrade 0 --node-locations "us-central1-a","us-central1-b","us-central1-c" --workload-metadata=GKE_METADATA
 ```
 
+### Hyperdisk-only machine types
+
+Newer machine series such as C4, C4D, N4 and N4D only support
+[Hyperdisk](https://cloud.google.com/compute/docs/disks/hyperdisks) and attach disks over NVMe. To run the Citus node
+pools on them, configure the ZFS disk in the `hedera-mirror-common` chart:
+
+```yaml
+zfs:
+  init:
+    disk:
+      type: hyperdisk-balanced
+      coordinator:
+        provisionedIops: 3000
+        provisionedThroughput: 140
+      worker:
+        provisionedIops: 6000
+        provisionedThroughput: 180
+      nodes:
+        worker-us-central1-a-0:
+          provisionedIops: 9000
+```
+
+- `provisionedIops` and `provisionedThroughput` (MiB/s) are set per role, and `nodes` overrides them for a single node
+  by its ZFS node ID (the `<role>-<zone>-<index>` part of the disk name). Unset fields fall back to the role value.
+- Each field that is left empty gets the Compute Engine size-based default, which can be considerably more expensive on
+  large disks, so set both.
+- `provisionedIops` and `provisionedThroughput` are only supported with `type: hyperdisk-balanced`. Setting either with
+  another type fails the chart render.
+- For `hyperdisk-balanced`, throughput must be between `provisionedIops / 256` (at least 140) and `provisionedIops / 4`,
+  and IOPS can be at most 500 per GiB of disk size. Values outside these limits fail when the disk is created or raised.
+- `type` and the performance values are applied when a disk is created. An existing disk keeps its type, and each of its
+  performance values is only ever raised to the configured one, never lowered. zfs-manager checks this when it starts
+  and then every `zfs.autoGrow.intervalSeconds`, retrying failed raises. Compute Engine allows one change of each every
+  four hours.
+- Hyperdisk size can only be changed twice per four hours, so consider a larger `zfs.autoGrow.maxStepGb`.
+- The disk is attached with the Compute Engine device name `zfs.init.disk.deviceName` (default `sdb`) and found through
+  `/dev/disk/by-id/google-<deviceName>` or `/dev/disk/by-id/scsi-0Google_PersistentDisk_<deviceName>`. When that link
+  points to `/dev/<deviceName>`, as on N2 nodes, zfs-manager uses `/dev/<deviceName>`, the path existing pools were
+  created with. Do not change the device name on an existing cluster, since existing disks stay attached under the
+  previous name.
+- Other persistent volumes in the charts (e.g. `minio.persistence.storageClass` and
+  `testkube.test.artifactStorageClassName`) must also use a StorageClass that provisions Hyperdisk.
+
 ## Install
 
 ### Install the ZFS Driver

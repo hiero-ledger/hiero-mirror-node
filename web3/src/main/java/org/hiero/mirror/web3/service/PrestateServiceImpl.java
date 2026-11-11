@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.service;
 
-import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS_BIGINT;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
@@ -16,7 +15,6 @@ import static org.hiero.mirror.web3.utils.Constants.MAX_TRANSACTION_CONSENSUS_TI
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import jakarta.inject.Named;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -329,7 +327,7 @@ final class PrestateServiceImpl implements PrestateService {
             final long nonce) {
         final var accountTrace = new PrestateAccountTrace();
         accountTrace.setAddress(resolveAddress(entity));
-        accountTrace.setBalance(toWeibarHex(balance));
+        accountTrace.setBalance(balance);
         accountTrace.setNonce(nonce);
 
         if (entity.getType() == CONTRACT) {
@@ -341,13 +339,6 @@ final class PrestateServiceImpl implements PrestateService {
         }
 
         return accountTrace;
-    }
-
-    private static String toWeibarHex(final long tinybars) {
-        return HEX_PREFIX
-                + BigInteger.valueOf(tinybars)
-                        .multiply(WEIBARS_TO_TINYBARS_BIGINT)
-                        .toString(16);
     }
 
     private Map<Long, byte[]> loadBytecodes(

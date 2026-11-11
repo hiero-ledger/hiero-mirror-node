@@ -123,6 +123,7 @@ class ExchangeRateUpdaterTest {
 
     @Test
     void missingFileLeavesRatesUnchanged() {
+        when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
         final var initialRates = exchangeRateManager.exchangeRates();
         when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(null);
 
@@ -133,6 +134,7 @@ class ExchangeRateUpdaterTest {
 
     @Test
     void ignoresUnparseableFile() {
+        when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
         final var initialRates = exchangeRateManager.exchangeRates();
         final var garbage = File.newBuilder()
                 .fileId(exchangeRateFileId)
@@ -186,6 +188,31 @@ class ExchangeRateUpdaterTest {
         exchangeRateUpdater.refresh();
 
         assertThat(exchangeRateManager.exchangeRates()).isEqualTo(newRates);
+    }
+
+    @Test
+    void scheduledRefreshRetriesInvalidRatesWithFutureExpiration() {
+        final var expiry = Instant.now().plus(Duration.ofHours(1));
+        final var validRates = rates(120_000, expiry);
+        final var invalidRates = validRates
+                .copyBuilder()
+                .nextRate(rate(120_000, expiry).copyBuilder().centEquiv(0).build())
+                .build();
+        when(transactionExecutorFactory.getExchangeRateManagers()).thenReturn(List.of(exchangeRateManager));
+        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(file(invalidRates), file(validRates));
+
+        exchangeRateUpdater.refresh();
+        exchangeRateUpdater.refresh();
+
+        verify(systemFileLoader, times(2)).load(eq(exchangeRateFileId), anyLong());
+        assertThat(exchangeRateManager.exchangeRates()).isEqualTo(validRates);
+    }
+
+    @Test
+    void skipsDatabaseWhenNoExecutorsExist() {
+        exchangeRateUpdater.refresh();
+
+        verify(systemFileLoader, never()).load(any(), anyLong());
     }
 
     private ExchangeRateManager newExchangeRateManager(final ExchangeRateSet initialRates) {

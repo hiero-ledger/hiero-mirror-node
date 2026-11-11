@@ -33,7 +33,7 @@ There are two simple steps. And step 2 can be repeated to replay the traffic wit
    (default to 10s). The logs will be converted and saved to a disk file. Example usage:
 
    ```bash
-   $ node log-downloader/index.js --filter $CLUSTER_FILTER -f 2024-10-05T00:00:00Z -d 10m -o demo-2024-10-05-gor.log -p demo-project
+   $ node index.js --filter $CLUSTER_FILTER -f 2024-10-05T00:00:00Z -d 10m -o demo-2024-10-05-gor.log -p demo-project
    ```
 
    Please refer to internal documentation for the available cluster filters.

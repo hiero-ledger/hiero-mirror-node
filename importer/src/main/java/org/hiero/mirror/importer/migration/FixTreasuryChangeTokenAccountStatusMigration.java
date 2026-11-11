@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.migration;
 
+import com.google.common.collect.Lists;
 import jakarta.inject.Named;
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +31,8 @@ import org.springframework.transaction.support.TransactionOperations;
  */
 @Named
 final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJavaMigration {
+
+    private static final int BATCH_SIZE = 200;
 
     private static final String CURRENT_TABLE = "token_account";
 
@@ -94,7 +97,8 @@ final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJav
     private static final String SELECT_TRANSACTION_TYPES = """
             select consensus_timestamp, type
             from transaction
-            where consensus_timestamp in (:timestamps)
+            where consensus_timestamp = any(:timestamps::bigint[])
+              and consensus_timestamp between :minTimestamp and :maxTimestamp
             """;
 
     private static final String SELECT_TREASURY_CHANGES = """
@@ -281,12 +285,19 @@ final class FixTreasuryChangeTokenAccountStatusMigration extends ConfigurableJav
             return Map.of();
         }
 
-        final var timestamps =
-                snapshots.stream().map(TokenAccountSnapshot::timestampLower).toList();
         final var transactionTypes = new HashMap<Long, Integer>();
-        jdbcOperations.query(
-                SELECT_TRANSACTION_TYPES, new MapSqlParameterSource("timestamps", timestamps), (RowCallbackHandler)
-                        rs -> transactionTypes.put(rs.getLong("consensus_timestamp"), rs.getInt("type")));
+        for (final var batch : Lists.partition(snapshots, BATCH_SIZE)) {
+            final var timestamps = new Long[batch.size()];
+            for (int i = 0; i < timestamps.length; i++) {
+                timestamps[i] = batch.get(i).timestampLower();
+            }
+
+            final var params = new MapSqlParameterSource("timestamps", timestamps)
+                    .addValue("minTimestamp", timestamps[0])
+                    .addValue("maxTimestamp", timestamps[timestamps.length - 1]);
+            jdbcOperations.query(SELECT_TRANSACTION_TYPES, params, (RowCallbackHandler)
+                    rs -> transactionTypes.put(rs.getLong("consensus_timestamp"), rs.getInt("type")));
+        }
         return transactionTypes;
     }
 

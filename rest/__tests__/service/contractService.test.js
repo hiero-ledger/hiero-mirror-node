@@ -217,7 +217,6 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
     const expected = `
       with synth_raw as (
         select distinct on (cl.consensus_timestamp)
-          cl.child,
           cl.consensus_timestamp,
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id
@@ -233,7 +232,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       )
       select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
-        synth_raw.child,
+        false as child,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
         null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
@@ -259,7 +258,6 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
     const expected = `
       with synth_raw as (
         select distinct on (cl.consensus_timestamp)
-          cl.child,
           cl.consensus_timestamp,
           coalesce(cl.root_contract_id, cl.contract_id) as contract_id,
           cl.transaction_hash, cl.transaction_index, cl.payer_account_id
@@ -276,7 +274,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       )
       select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
-        synth_raw.child,
+        false as child,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
         null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
@@ -569,7 +567,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
     assertSqlQueryEqual(
       query,
       `with entity as (select evm_address, id from entity)
-      select cl.bloom, cl.child, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,
              evm_address
       from contract_log cl
@@ -610,7 +608,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
     assertSqlQueryEqual(
       query,
       `with entity as (select evm_address, id from entity)
-      select cl.bloom, cl.child, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,evm_address
       from contract_log cl
       left join entity e on id = contract_id
@@ -642,7 +640,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
       query,
       `(
         with entity as (select evm_address, id from entity)
-        select cl.bloom,cl.child,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
+        select cl.bloom,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
           cl.topic1,cl.topic2,cl.topic3,cl.transaction_hash,cl.transaction_index,evm_address
         from contract_log cl
         left join entity e on id = contract_id
@@ -651,7 +649,7 @@ describe('ContractService.getContractLogsQuery tests', () => {
         limit $5
       ) union (
         with entity as (select evm_address, id from entity)
-        select cl.bloom,cl.child,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
+        select cl.bloom,cl.contract_id,cl.consensus_timestamp,cl.data,cl.index,cl.root_contract_id,cl.topic0,
           cl.topic1,cl.topic2,cl.topic3,cl.transaction_hash,cl.transaction_index,evm_address
         from contract_log cl
         left join entity e on id = contract_id
@@ -694,7 +692,6 @@ describe('ContractService.getContractLogsQuery tests', () => {
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
-          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -723,7 +720,6 @@ describe('ContractService.getContractLogsQuery tests', () => {
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
-          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -753,7 +749,6 @@ describe('ContractService.getContractLogsQuery tests', () => {
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
-          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -2289,6 +2284,23 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
 
   test('Prefers the real execution over a later pre-execution failure sharing the hash', async () => {
     await integrationDomainOps.loadContractResults([executedResult, stubResult]);
+
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([
+      {
+        consensusTimestamp: 1,
+        entityId: entityId1.getEncodedId(),
+        hash: ethereumTxHashBuffer,
+        payerAccountId: entityId10.getEncodedId(),
+        transactionResult: Number.parseInt(contractRevertResult),
+      },
+    ]);
+  });
+
+  test('Prefers the real execution over a later WRONG_NONCE duplicate with zero gas_consumed', async () => {
+    const wrongNonceResult = TransactionResult.getProtoId('WRONG_NONCE');
+    const wrongNonce = {...stubResult, transaction_result: wrongNonceResult, gas_consumed: 0, gas_used: 0};
+    await integrationDomainOps.loadContractResults([executedResult, wrongNonce]);
 
     const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
     expect(transactionDetails).toEqual([

@@ -145,7 +145,9 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     this.chain_id = this.chain_id ?? config.chainId;
     this.type ??= ContractResultDetailsViewModel._LEGACY_TYPE;
     if (this.gas_price == null && gasPrice != null) {
-      this.gas_price = utils.toHexStringQuantity(gasPrice);
+      const convertedGasPrice =
+        isNil(ethTransaction) && !convertToHbar ? BigInt(gasPrice) * WEIBARS_TO_TINYBARS : gasPrice;
+      this.gas_price = utils.toHexStringQuantity(convertedGasPrice);
     }
     if (isNil(ethTransaction) && !convertToHbar && !isNil(contractResult.amount)) {
       this.amount = BigInt(contractResult.amount) * WEIBARS_TO_TINYBARS;

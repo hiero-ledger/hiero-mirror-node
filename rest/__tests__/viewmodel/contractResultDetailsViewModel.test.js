@@ -486,74 +486,80 @@ describe('ContractResultDetailsViewModel', () => {
       expect(viewModel.chain_id).toBe('0x128');
     });
 
-    test('gas_price is set from fee schedule when ethTransaction is null', () => {
-      const gasPriceFromFeeSchedule = 86n; // Example gas price in tinybars
+    describe.each([null, undefined])('fee schedule gas price with ethTransaction=%s', (ethTransaction) => {
+      test.each([
+        [true, 86n, '0x56'],
+        [true, 0n, '0x0'],
+        [true, null, null],
+        [true, undefined, null],
+        [undefined, 86n, '0x56'],
+        [false, 86n, '0xc83bfe9800'],
+        [false, 0n, '0x0'],
+        [false, 1n, '0x2540be400'],
+        [false, 9_007_199_254_740_993n, '0x4a817c80000002540be400'],
+        [false, null, null],
+        [false, undefined, null],
+      ])('convertToHbar=%s, gasPrice=%s returns %s', (convertToHbar, gasPrice, expected) => {
+        const viewModel = new ContractResultDetailsViewModel(
+          mockContractResult,
+          mockRecordFile,
+          ethTransaction,
+          [],
+          [],
+          null,
+          convertToHbar,
+          gasPrice
+        );
 
-      const viewModel = new ContractResultDetailsViewModel(
-        mockContractResult,
-        mockRecordFile,
-        null, // no ethTransaction
-        [],
-        [],
-        null,
-        true,
-        gasPriceFromFeeSchedule
-      );
-
-      expect(viewModel.gas_price).toBe('0x56'); // 86 in hex
+        expect(viewModel.gas_price).toBe(expected);
+      });
     });
 
-    test('gas_price remains null when ethTransaction is null and no fee schedule gas price', () => {
-      const viewModel = new ContractResultDetailsViewModel(
-        mockContractResult,
-        mockRecordFile,
-        null, // no ethTransaction
-        [],
-        [],
-        null,
-        true,
-        null
-      );
+    test.each([
+      [true, 'ad78ebc5ac620000', '0x4a817c80'],
+      [false, 'ad78ebc5ac620000', '0xad78ebc5ac620000'],
+      [true, '00', '0x0'],
+      [false, '00', '0x0'],
+      [true, null, '0x'],
+      [false, null, '0x'],
+    ])(
+      'fee schedule gas price is ignored with convertToHbar=%s and Ethereum gasPrice=%s',
+      (convertToHbar, ethereumGasPrice, expected) => {
+        const ethTransaction = {
+          accessList: null,
+          callData: null,
+          chainId: '012a',
+          consensusTimestamp: '187654000123456',
+          gasLimit: 1234556,
+          gasPrice: ethereumGasPrice,
+          hash: '185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+          maxFeePerGas: 'cf38224400',
+          maxPriorityFeePerGas: '76be5e6c00',
+          nonce: 5,
+          payerAccountId: 5000,
+          recoveryId: 1,
+          signatureR: 'b5c21ab4dfd336e30ac2106cad4aa8888b1873a99bce35d50f64d2ec2cc5f6d9',
+          signatureS: '1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110',
+          signatureV: Buffer.from('1b', 'hex'),
+          toAddress: '0000000000000000000000000000000000001389',
+          type: 2,
+          value: '2e90edd000',
+        };
 
-      // gas_price should be null when there's no ethTransaction and no fee schedule gas price
-      expect(viewModel.gas_price).toBeNull();
-    });
+        const viewModel = new ContractResultDetailsViewModel(
+          mockContractResult,
+          mockRecordFile,
+          ethTransaction,
+          [],
+          [],
+          null,
+          convertToHbar,
+          86n
+        );
 
-    test('fee schedule gas price is ignored when ethTransaction provides gas price', () => {
-      const ethTransaction = {
-        accessList: null,
-        callData: null,
-        chainId: '012a',
-        consensusTimestamp: '187654000123456',
-        gasLimit: 1234556,
-        gasPrice: 'ad78ebc5ac620000',
-        hash: '185602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
-        maxFeePerGas: 'cf38224400',
-        maxPriorityFeePerGas: '76be5e6c00',
-        nonce: 5,
-        payerAccountId: 5000,
-        recoveryId: 1,
-        signatureR: 'b5c21ab4dfd336e30ac2106cad4aa8888b1873a99bce35d50f64d2ec2cc5f6d9',
-        signatureS: '1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110',
-        signatureV: Buffer.from('1b', 'hex'),
-        toAddress: '0000000000000000000000000000000000001389',
-        type: 2,
-        value: '2e90edd000',
-      };
-
-      const viewModel = new ContractResultDetailsViewModel(
-        mockContractResult,
-        mockRecordFile,
-        ethTransaction,
-        [],
-        [],
-        null,
-        true,
-        86n
-      );
-
-      expect(viewModel.gas_price).toBe('0x4a817c80');
-    });
+        expect(viewModel.gas_price).toBe(expected);
+      }
+    );
 
     test('returns access_list from db jsonb', () => {
       const accessList = [
