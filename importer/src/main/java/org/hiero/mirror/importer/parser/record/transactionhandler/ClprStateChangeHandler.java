@@ -13,7 +13,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.clpr.AbstractClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConfigUpdate;
@@ -37,9 +36,10 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Patches whatever CLPR Channel/Message/Connector state changes are present on a {@link RecordItem}. Connector
- * patches are non-historical; channel patches historize per {@link #channelHistorizes}. Called generically from
- * {@code EntityRecordItemListener} for every transaction; no-op when none of these fields are present.
+ * Patches whatever CLPR Channel/Message/Connector state changes are present on a {@link RecordItem}. Channel
+ * patches historize per {@link #channelHistorizes}; connector patches historize per {@link #connectorHistorizes}.
+ * Called generically from {@code EntityRecordItemListener} for every transaction; no-op when none of these fields
+ * are present.
  */
 @NullMarked
 @Named
@@ -77,8 +77,7 @@ public class ClprStateChangeHandler {
 
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         for (final var entry : clprContext.getClprChannels()) {
-            final var builder = ClprChannel.builder();
-            populateFromStateChange(builder, entry.channelId(), entry.value());
+            final var builder = populateFromStateChange(entry.channelId(), entry.value());
             if (channelHistorizes(entry.value())) {
                 builder.timestampRange(Range.atLeast(consensusTimestamp));
             }
@@ -123,6 +122,15 @@ public class ClprStateChangeHandler {
         }
     }
 
+    static void applyConnectorFields(
+            ClprConnector.ClprConnectorBuilder<?, ?> builder, com.hederahashgraph.api.proto.java.ClprConnector value) {
+        builder.connectorContractId(EntityId.of(value.getConnectorContract()))
+                .adminKey(value.getAdminKey().toByteArray())
+                .lockedStake(value.getLockedStake())
+                .slashCount(Integer.toUnsignedLong(value.getSlashCount()))
+                .inFlightMessageCount(value.getInFlightMessageCount());
+    }
+
     /**
      * Logs and reports a missing state change for a successful transaction that depends on one. {@code value} is
      * typed {@code Object} since callers pass whichever state-change shape (a protobuf message, a commitment byte
@@ -139,10 +147,9 @@ public class ClprStateChangeHandler {
         return true;
     }
 
-    static void populateFromStateChange(
-            AbstractClprChannel.AbstractClprChannelBuilder<?, ?> builder,
-            ByteString channelId,
-            com.hederahashgraph.api.proto.java.ClprChannel value) {
+    static ClprChannel.ClprChannelBuilder<?, ?> populateFromStateChange(
+            ByteString channelId, com.hederahashgraph.api.proto.java.ClprChannel value) {
+        final var builder = ClprChannel.builder();
         builder.channelId(DomainUtils.toBytes(channelId))
                 .status(toChannelStatus(value.getStatus()))
                 .nextMessageId(value.getNextMessageId())
@@ -171,6 +178,8 @@ public class ClprStateChangeHandler {
         if (value.hasEndpointManifest()) {
             builder.endpointManifest(toEndpoints(value.getEndpointManifest().getEndpointsList()));
         }
+
+        return builder;
     }
 
     static List<ClprEndpoint> toEndpoints(List<com.hederahashgraph.api.proto.java.ClprEndpoint> endpoints) {
@@ -186,18 +195,22 @@ public class ClprStateChangeHandler {
         return result;
     }
 
-    private static void applyConnectorFields(
-            ClprConnector.ClprConnectorBuilder<?, ?> builder, com.hederahashgraph.api.proto.java.ClprConnector value) {
-        builder.connectorContractId(EntityId.of(value.getConnectorContract()))
-                .adminKey(value.getAdminKey().toByteArray())
-                .lockedStake(value.getLockedStake())
-                .slashCount(Integer.toUnsignedLong(value.getSlashCount()))
-                .inFlightMessageCount(value.getInFlightMessageCount());
-    }
-
-    // Placeholder: always historize until hiero-ledger/hiero-consensus-node#27718 lands upstream.
+    // Placeholder: always historize until hiero-ledger/hiero-consensus-node#27718 lands upstream and lets us see
+    // which field actually changed. Counter-type fields (next_message_id, acked_message_id, sent_running_hash,
+    // received_message_id, received_running_hash) churn on every message and shouldn't historize; other fields
+    // (status, peer_throttle, endpoint_manifest, trust_anchor, etc.) should keep historizing. Conservatively
+    // historizing everything for now is safe (no data loss) but will over-historize once that distinction is
+    // possible.
     private static boolean channelHistorizes(com.hederahashgraph.api.proto.java.ClprChannel value) {
         return true;
+    }
+
+    // Placeholder: never historize until hiero-ledger/hiero-consensus-node#27718 lands upstream and lets us see
+    // which field actually changed. Counter-type fields (in_flight_message_count, locked_stake, slash_count) churn
+    // on every message/slash and must never historize; other fields (e.g. admin_key rotation) should historize once
+    // that distinction is possible.
+    private static boolean connectorHistorizes(com.hederahashgraph.api.proto.java.ClprConnector value) {
+        return false;
     }
 
     private byte @Nullable [] lookupCommitment(
@@ -221,6 +234,12 @@ public class ClprStateChangeHandler {
             case CLOSING -> ClprChannelStatus.CLOSING;
             case DRAINED -> ClprChannelStatus.DRAINED;
             case CLOSED -> ClprChannelStatus.CLOSED;
+            case PENDING -> {
+                // PENDING is pre-creation only, tracked via ClprChannelPendingCommitment; an existing ClprChannel
+                // state-change value should never revert to it.
+                Utility.handleRecoverableError("ClprChannel state change unexpectedly reverted to PENDING status");
+                yield null;
+            }
             default -> {
                 Utility.handleRecoverableError("Unexpected CLPR channel status {}", status);
                 yield null;
@@ -243,6 +262,9 @@ public class ClprStateChangeHandler {
                 .commitment(commitment)
                 .connectorId(connectorId);
         applyConnectorFields(builder, entry.value());
+        if (connectorHistorizes(entry.value())) {
+            builder.timestampRange(Range.atLeast(consensusTimestamp));
+        }
         return builder.build();
     }
 
@@ -258,15 +280,25 @@ public class ClprStateChangeHandler {
                 .build();
     }
 
-    private ClprControlMessage toControlMessage(com.hederahashgraph.api.proto.java.ClprControlMessage control) {
-        final var builder = ClprControlMessage.builder();
-        if (control.hasConfigUpdate()) {
-            builder.configUpdate(ClprConfigUpdate.builder()
-                    .configuration(
-                            toControlConfiguration(control.getConfigUpdate().getConfiguration()))
-                    .build());
-        }
-        return builder.build();
+    private @Nullable ClprControlMessage toControlMessage(
+            com.hederahashgraph.api.proto.java.ClprControlMessage control, long consensusTimestamp) {
+        return switch (control.getPayloadCase()) {
+            case CONFIG_UPDATE ->
+                ClprControlMessage.builder()
+                        .configUpdate(ClprConfigUpdate.builder()
+                                .configuration(toControlConfiguration(
+                                        control.getConfigUpdate().getConfiguration()))
+                                .build())
+                        .build();
+            default -> {
+                // PAYLOAD_NOT_SET would indicate a future, not-yet-understood protocol version
+                Utility.handleRecoverableError(
+                        "Unexpected CLPR control message payload case {} at {}",
+                        control.getPayloadCase(),
+                        consensusTimestamp);
+                yield null;
+            }
+        };
     }
 
     private @Nullable ClprMessage toMessage(ClprMessageEntry entry, long consensusTimestamp) {
@@ -299,9 +331,11 @@ public class ClprStateChangeHandler {
                         .messageData(DomainUtils.toBytes(reply.getMessageReplyData()));
             }
             case CONTROL -> {
-                messageBuilder
-                        .messageType(ClprMessageType.CONTROL)
-                        .controlMessage(toControlMessage(payload.getControl()));
+                final var controlMessage = toControlMessage(payload.getControl(), consensusTimestamp);
+                if (controlMessage == null) {
+                    return null;
+                }
+                messageBuilder.messageType(ClprMessageType.CONTROL).controlMessage(controlMessage);
             }
             default -> {
                 // PAYLOAD_NOT_SET would indicate a future, not-yet-understood protocol version
