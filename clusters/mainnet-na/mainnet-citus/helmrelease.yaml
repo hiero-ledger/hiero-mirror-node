@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.165.1'
+      version: '0.166.2'
   dependsOn:
     - name: mirror
       namespace: common
@@ -46,6 +46,11 @@ spec:
       name: mirror
   values:
     global:
+      config:
+        hiero:
+          mirror:
+            common:
+              clusterId: "a722379"
       hostname: "*.mirrornode.hedera.com"
     importer:
       env:
@@ -70,12 +75,6 @@ spec:
         HIERO_MIRROR_MONITOR_NETWORK: "MAINNET"
         HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_PROPERTIES_TOPICID: "0.0.368908"
         HIERO_MIRROR_MONITOR_SUBSCRIBE_GRPC_HCS_TOPICID: "0.0.368908"
-    rest:
-      config:
-        hiero:
-          mirror:
-            rest:
-              clusterId: "a722379"
       env:
         HIERO_MIRROR_REST_CHAINID: "0x127"
       monitor:
