@@ -86,7 +86,6 @@ import reactor.core.publisher.Mono;
 @Import(CommonConfiguration.class)
 @RequiredArgsConstructor
 @SpringBootTest
-@SuppressWarnings("deprecation")
 @TestPropertySource(
         properties = {"hiero.mirror.importer.downloader.bucketName=", "spring.flyway.baselineVersion=2.999.999"})
 final class BlockStreamVerificationTest {

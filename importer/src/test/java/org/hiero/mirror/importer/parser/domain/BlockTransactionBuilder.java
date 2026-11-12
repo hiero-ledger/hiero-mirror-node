@@ -170,6 +170,7 @@ public class BlockTransactionBuilder {
         return StateChanges.newBuilder().addAllStateChanges(changes).build();
     }
 
+    @SuppressWarnings("deprecation")
     public static EvmTransactionResult fromContractResult(ContractFunctionResult contractResult) {
         var builder = EvmTransactionResult.newBuilder()
                 .setErrorMessage(contractResult.getErrorMessage())

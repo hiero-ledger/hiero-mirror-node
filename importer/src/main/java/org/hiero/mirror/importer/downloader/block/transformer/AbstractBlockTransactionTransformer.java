@@ -174,7 +174,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                 blockTransaction, contractResultBuilder.getContractID(), recordItemBuilder, evmTransactionResult);
     }
 
-    @SuppressWarnings("deprecated")
+    @SuppressWarnings("deprecation")
     private void transformSmartContractResult(BlockTransactionTransformation transformation) {
         var blockTransaction = transformation.blockTransaction();
         var evmTransactionInfo = getEvmTransactionInfo(blockTransaction);
