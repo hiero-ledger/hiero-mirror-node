@@ -173,6 +173,7 @@ final class CompositeBlockSourceTest {
         // then
         verify(blockNodeSubscriber, times(5)).get();
         verifyNoInteractions(blockFileSource);
+        assertThat(failovers()).isZero();
     }
 
     @Test
@@ -191,6 +192,7 @@ final class CompositeBlockSourceTest {
         // then
         verify(blockFileSource).get();
         verifyNoInteractions(blockNodeSubscriber);
+        assertThat(failovers()).isZero();
     }
 
     @Test
@@ -206,6 +208,7 @@ final class CompositeBlockSourceTest {
         // then
         verify(blockFileSource).get();
         verifyNoInteractions(blockNodeSubscriber);
+        assertThat(failovers()).isZero();
     }
 
     @Test
