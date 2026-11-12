@@ -8,8 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Range;
 import java.util.List;
 import java.util.Map;
-import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprChannelData;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
@@ -30,7 +29,7 @@ final class ClprChannelMapperTest {
     void map() {
         // given
         final var verifierContractId = EntityId.of(456L);
-        final var channel = ClprChannel.builder()
+        final var channel = ClprChannelData.builder()
                 .ackedMessageId(47L)
                 .chainId("eip155:1")
                 .channelContext(new byte[] {0x1a, 0x2b})
@@ -59,7 +58,7 @@ final class ClprChannelMapperTest {
                 .sentRunningHash(new byte[] {(byte) 0xaa})
                 .signature(new byte[] {(byte) 0x9f, (byte) 0x8e})
                 .signatureScheme(ClprSignatureScheme.ED25519)
-                .status(ClprChannelStatus.ACTIVE)
+                .status("ACTIVE")
                 .timestampRange(Range.atLeast(4_000_000_000L))
                 .trustAnchor(new byte[] {0x33})
                 .trustAnchorId(new byte[] {(byte) 0x9f})
@@ -88,8 +87,8 @@ final class ClprChannelMapperTest {
         assertThat(actual.getReceivedRunningHash()).isEqualTo("0xbb");
         assertThat(actual.getSentRunningHash()).isEqualTo("0xaa");
         assertThat(actual.getSignature()).isEqualTo("0x9f8e");
-        assertThat(actual.getSignatureScheme()).isEqualTo(org.hiero.mirror.rest.model.ClprSignatureScheme.ED25519);
-        assertThat(actual.getStatus()).isEqualTo(org.hiero.mirror.rest.model.ClprChannelStatus.ACTIVE);
+        assertThat(actual.getSignatureScheme().getValue()).isEqualTo("ED25519");
+        assertThat(actual.getStatus().getValue()).isEqualTo("ACTIVE");
         assertThat(actual.getTimestamp().getFrom()).isEqualTo("4.000000000");
         assertThat(actual.getTimestamp().getTo()).isNull();
         assertThat(actual.getTrustAnchor()).isEqualTo("0x33");
@@ -115,9 +114,33 @@ final class ClprChannelMapperTest {
     }
 
     @Test
+    void mapPending() {
+        // given
+        final var pending = ClprChannelData.builder()
+                .createdTimestamp(1_000_000_000L)
+                .ownershipCommitment(new byte[] {0x7a, (byte) 0xb3})
+                .status("PENDING")
+                .build();
+
+        // when
+        final var actual = mapper.map(pending);
+
+        // then
+        assertThat(actual.getCreatedTimestamp()).isEqualTo("1.000000000");
+        assertThat(actual.getOwnershipCommitment()).isEqualTo("0x7ab3");
+        assertThat(actual.getStatus().getValue()).isEqualTo("PENDING");
+        assertThat(actual.getAckedMessageId()).isNull();
+        assertThat(actual.getChainId()).isNull();
+        assertThat(actual.getChannelId()).isNull();
+        assertThat(actual.getEndpointManifest()).isNull();
+        assertThat(actual.getPeerThrottles()).isNull();
+        assertThat(actual.getTimestamp()).isNull();
+    }
+
+    @Test
     void mapSerializesToDesignDocResponse() throws Exception {
         // given: the channel from the design doc's response example
-        final var channel = ClprChannel.builder()
+        final var channel = ClprChannelData.builder()
                 .ackedMessageId(47L)
                 .chainId("eip155:1")
                 .channelContext(new byte[] {0x1a, 0x2b, 0x3c})
@@ -146,7 +169,7 @@ final class ClprChannelMapperTest {
                 .sentRunningHash(new byte[] {(byte) 0xaa, 0x11})
                 .signature(new byte[] {(byte) 0x9f, (byte) 0x8e, 0x7d, 0x6c})
                 .signatureScheme(ClprSignatureScheme.ED25519)
-                .status(ClprChannelStatus.ACTIVE)
+                .status("ACTIVE")
                 .timestampRange(Range.atLeast(1726874345_123456789L))
                 .trustAnchor(new byte[] {0x33, 0x44})
                 .trustAnchorId(new byte[] {(byte) 0x9f, (byte) 0x8e})
@@ -206,7 +229,7 @@ final class ClprChannelMapperTest {
     @Test
     void mapEndpointManifestIncludesOptionalEndpointFields() {
         // given
-        final var channel = ClprChannel.builder()
+        final var channel = ClprChannelData.builder()
                 .endpointManifest(List.of(ClprEndpoint.builder()
                         .accountId(new byte[] {0x01})
                         .serviceEndpoint(new ClprServiceEndpoint("10.0.0.5", 50211))
@@ -233,17 +256,18 @@ final class ClprChannelMapperTest {
     void mapSignatureSchemes() {
         // when / then
         assertThat(mapper.mapSignatureScheme(ClprSignatureScheme.ECDSA_SECP256K1))
-                .isEqualTo(org.hiero.mirror.rest.model.ClprSignatureScheme.ECDSA_SECP256_K1);
-        assertThat(mapper.mapSignatureScheme(ClprSignatureScheme.ED25519))
-                .isEqualTo(org.hiero.mirror.rest.model.ClprSignatureScheme.ED25519);
-        assertThat(org.hiero.mirror.rest.model.ClprSignatureScheme.ECDSA_SECP256_K1.getValue())
+                .extracting(scheme -> scheme.getValue())
                 .isEqualTo("ECDSA_SECP256K1");
+        assertThat(mapper.mapSignatureScheme(ClprSignatureScheme.ED25519))
+                .extracting(scheme -> scheme.getValue())
+                .isEqualTo("ED25519");
     }
 
     @Test
     void mapDoesNotPadShortBytes() {
         // given
-        final var channel = ClprChannel.builder().signature(new byte[] {0x01}).build();
+        final var channel =
+                ClprChannelData.builder().signature(new byte[] {0x01}).build();
 
         // when / then
         assertThat(mapper.map(channel).getSignature()).isEqualTo("0x01");
@@ -252,9 +276,9 @@ final class ClprChannelMapperTest {
     @Test
     void mapNullableFields() {
         // given
-        final var channel = ClprChannel.builder()
+        final var channel = ClprChannelData.builder()
                 .channelId(new byte[] {0x01})
-                .status(ClprChannelStatus.PAUSED)
+                .status("PAUSED")
                 .build();
 
         // when
@@ -262,7 +286,7 @@ final class ClprChannelMapperTest {
 
         // then
         assertThat(actual.getChannelId()).isEqualTo("0x01");
-        assertThat(actual.getStatus()).isEqualTo(org.hiero.mirror.rest.model.ClprChannelStatus.PAUSED);
+        assertThat(actual.getStatus().getValue()).isEqualTo("PAUSED");
         assertThat(actual.getEndpointManifest()).isNull();
         assertThat(actual.getPeerThrottles()).isNull();
         assertThat(actual.getPublicKey()).isNull();

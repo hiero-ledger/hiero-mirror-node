@@ -5,12 +5,16 @@ package org.hiero.mirror.restjava.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
+import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.AbstractClprChannel.AbstractClprChannelBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelData;
 import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -38,7 +42,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         final var actual = repository.findByChannelIdAndTimestampBetween(channel.getChannelId(), 100L, 100L, null);
 
         // then
-        assertThat(actual).containsExactly(channel);
+        assertThat(ids(actual)).containsExactly(channel.getChannelId());
     }
 
     @Test
@@ -127,7 +131,67 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         final var actual = repository.findByCreatedTimestampBetween(200L, 400L, null, pageable);
 
         // then
-        assertThat(actual).containsExactlyElementsOf(expected);
+        assertThat(ids(actual)).containsExactlyElementsOf(channelIds(expected));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Direction.class)
+    void findAllChannelsByCreatedTimestampBetween(Direction order) {
+        // given
+        persistChannel(100L, ClprChannelStatus.ACTIVE); // out of range
+        final var channel1 = persistChannel(200L, ClprChannelStatus.ACTIVE);
+        final var pending = domainBuilder
+                .clprChannelPendingCommitment()
+                .customize(p -> p.createdTimestamp(300L).status(ClprPendingCommitmentStatus.OPEN))
+                .persist();
+        domainBuilder
+                .clprChannelPendingCommitment()
+                .customize(p -> p.createdTimestamp(350L).status(ClprPendingCommitmentStatus.COMPLETED))
+                .persist(); // already a channel
+        final var channel2 = persistChannel(400L, ClprChannelStatus.CLOSED);
+        persistChannel(500L, ClprChannelStatus.ACTIVE); // out of range
+
+        final var expected = order.isAscending()
+                ? List.of(channel1.getChannelId(), pending.getOwnershipCommitment(), channel2.getChannelId())
+                : List.of(channel2.getChannelId(), pending.getOwnershipCommitment(), channel1.getChannelId());
+        final var pageable = PageRequest.of(0, 10, Sort.by(order, CREATED_TIMESTAMP));
+
+        // when
+        final var actual = repository.findAllChannelsByCreatedTimestampBetween(200L, 400L, pageable);
+
+        // then
+        assertThat(actual)
+                .extracting(i -> i.getChannelId() != null ? i.getChannelId() : i.getOwnershipCommitment())
+                .containsExactlyElementsOf(expected);
+        assertThat(actual)
+                .filteredOn(i -> i.getChannelId() == null)
+                .singleElement()
+                .satisfies(i -> {
+                    assertThat(i.getStatus()).isEqualTo("PENDING");
+                    assertThat(i.getChainId()).isNull();
+                    assertThat(i.getEndpointManifest()).isNull();
+                });
+        assertThat(actual)
+                .filteredOn(i -> i.getChannelId() != null)
+                .allSatisfy(i -> assertThat(i.getChainId()).isNotNull());
+    }
+
+    @Test
+    void findAllChannelsByCreatedTimestampBetweenLimits() {
+        // given
+        persistChannel(200L, ClprChannelStatus.ACTIVE);
+        domainBuilder
+                .clprChannelPendingCommitment()
+                .customize(p -> p.createdTimestamp(300L).status(ClprPendingCommitmentStatus.OPEN))
+                .persist();
+        persistChannel(400L, ClprChannelStatus.ACTIVE);
+        final var pageable = PageRequest.of(0, 2, Sort.by(Direction.ASC, CREATED_TIMESTAMP));
+
+        // when
+        final var actual = repository.findAllChannelsByCreatedTimestampBetween(0L, Long.MAX_VALUE, pageable);
+
+        // then
+        assertThat(actual).extracting(i -> i.getCreatedTimestamp()).containsExactly(200L, 300L);
     }
 
     @Test
@@ -144,7 +208,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
                 repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, ClprChannelStatus.PAUSED.name(), pageable);
 
         // then
-        assertThat(actual).containsExactly(paused);
+        assertThat(ids(actual)).containsExactly(paused.getChannelId());
     }
 
     @Test
@@ -160,7 +224,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         final var actual = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, null, pageable);
 
         // then
-        assertThat(actual).containsExactly(current);
+        assertThat(ids(actual)).containsExactly(current.getChannelId());
     }
 
     @ParameterizedTest
@@ -184,8 +248,101 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
                 repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, null, PageRequest.of(1, LIMIT, sort));
 
         // then
-        assertThat(page0).containsExactlyElementsOf(all.subList(0, LIMIT));
-        assertThat(page1).containsExactlyElementsOf(all.subList(LIMIT, all.size()));
+        assertThat(ids(page0)).containsExactlyElementsOf(channelIds(all.subList(0, LIMIT)));
+        assertThat(ids(page1)).containsExactlyElementsOf(channelIds(all.subList(LIMIT, all.size())));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Direction.class)
+    void findPendingByCreatedTimestampBetween(Direction order) {
+        // given
+        persistPending(100L, ClprPendingCommitmentStatus.OPEN); // out of range
+        final var pending1 = persistPending(200L, ClprPendingCommitmentStatus.OPEN);
+        final var pending2 = persistPending(300L, ClprPendingCommitmentStatus.OPEN);
+        final var pending3 = persistPending(400L, ClprPendingCommitmentStatus.OPEN);
+        persistPending(500L, ClprPendingCommitmentStatus.OPEN); // out of range
+
+        final var expected =
+                order.isAscending() ? List.of(pending1, pending2, pending3) : List.of(pending3, pending2, pending1);
+        final var pageable = PageRequest.of(0, 10, Sort.by(order, CREATED_TIMESTAMP));
+
+        // when
+        final var actual = repository.findPendingByCreatedTimestampBetween(200L, 400L, pageable);
+
+        // then
+        assertThat(actual)
+                .extracting(ClprChannelData::getOwnershipCommitment)
+                .containsExactlyElementsOf(expected.stream()
+                        .map(ClprChannelPendingCommitment::getOwnershipCommitment)
+                        .toList());
+        assertThat(actual).allSatisfy(data -> {
+            assertThat(data.getStatus()).isEqualTo("PENDING");
+            assertThat(data.getChannelId()).isNull();
+            assertThat(data.getChainId()).isNull();
+        });
+    }
+
+    @ParameterizedTest
+    @EnumSource(Direction.class)
+    void findPendingByCreatedTimestampBetweenExcludesCompletedAndDeleted(Direction order) {
+        // given
+        final var open1 = persistPending(100L, ClprPendingCommitmentStatus.OPEN);
+        persistPending(200L, ClprPendingCommitmentStatus.COMPLETED);
+        persistPending(300L, ClprPendingCommitmentStatus.DELETED);
+        final var open2 = persistPending(400L, ClprPendingCommitmentStatus.OPEN);
+
+        final var expected = order.isAscending() ? List.of(open1, open2) : List.of(open2, open1);
+        final var pageable = PageRequest.of(0, 10, Sort.by(order, CREATED_TIMESTAMP));
+
+        // when
+        final var actual = repository.findPendingByCreatedTimestampBetween(0L, Long.MAX_VALUE, pageable);
+
+        // then
+        assertThat(actual)
+                .extracting(ClprChannelData::getOwnershipCommitment)
+                .containsExactlyElementsOf(expected.stream()
+                        .map(ClprChannelPendingCommitment::getOwnershipCommitment)
+                        .toList());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Direction.class)
+    void findPendingByCreatedTimestampBetweenRespectsOrderLimitAndPagination(Direction order) {
+        // given
+        final var pending1 = persistPending(100L, ClprPendingCommitmentStatus.OPEN);
+        final var pending2 = persistPending(200L, ClprPendingCommitmentStatus.OPEN);
+        final var pending3 = persistPending(300L, ClprPendingCommitmentStatus.OPEN);
+        final var pending4 = persistPending(400L, ClprPendingCommitmentStatus.OPEN);
+
+        final var sort = Sort.by(order, CREATED_TIMESTAMP);
+        final var all = order.isAscending()
+                ? List.of(pending1, pending2, pending3, pending4)
+                : List.of(pending4, pending3, pending2, pending1);
+        final var commitments = all.stream()
+                .map(ClprChannelPendingCommitment::getOwnershipCommitment)
+                .toList();
+
+        // when
+        final var page0 =
+                repository.findPendingByCreatedTimestampBetween(0L, Long.MAX_VALUE, PageRequest.of(0, LIMIT, sort));
+        final var page1 =
+                repository.findPendingByCreatedTimestampBetween(0L, Long.MAX_VALUE, PageRequest.of(1, LIMIT, sort));
+
+        // then
+        assertThat(page0)
+                .extracting(ClprChannelData::getOwnershipCommitment)
+                .containsExactlyElementsOf(commitments.subList(0, LIMIT));
+        assertThat(page1)
+                .extracting(ClprChannelData::getOwnershipCommitment)
+                .containsExactlyElementsOf(commitments.subList(LIMIT, commitments.size()));
+    }
+
+    private static List<byte[]> channelIds(List<ClprChannel> channels) {
+        return channels.stream().map(ClprChannel::getChannelId).toList();
+    }
+
+    private static List<byte[]> ids(List<ClprChannelData> data) {
+        return data.stream().map(ClprChannelData::getChannelId).toList();
     }
 
     private void assertStatuses(
@@ -196,10 +353,21 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
             ClprChannelStatus... expected) {
         final var status = statusFilter != null ? statusFilter.name() : null;
         final var actual = repository.findByChannelIdAndTimestampBetween(channelId, lowerBound, upperBound, status);
-        assertThat(actual).extracting(ClprChannel::getStatus).containsExactly(expected);
+        assertThat(actual)
+                .extracting(ClprChannelData::getStatus)
+                .containsExactly(Arrays.stream(expected).map(Enum::name).toArray(String[]::new));
     }
 
     /** Persists a current channel created at {@code createdTimestamp} and valid from then on. */
+    private ClprChannelPendingCommitment persistPending(long createdTimestamp, ClprPendingCommitmentStatus status) {
+        final var builder = ClprChannelPendingCommitment.builder()
+                .createdTimestamp(createdTimestamp)
+                .ownershipCommitment(domainBuilder.bytes(32))
+                .status(status)
+                .timestampRange(Range.atLeast(createdTimestamp));
+        return domainBuilder.wrap(builder, builder::build).persist();
+    }
+
     private ClprChannel persistChannel(long createdTimestamp, ClprChannelStatus status) {
         return persistChannel(domainBuilder.bytes(32), createdTimestamp, status, Range.atLeast(createdTimestamp));
     }

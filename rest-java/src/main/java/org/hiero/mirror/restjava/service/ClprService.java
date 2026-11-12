@@ -13,7 +13,8 @@ public interface ClprService {
      * completed or abandoned, which have no {@code channel_id}, so a request also carrying one is rejected. Otherwise,
      * with a {@code channelId} and no timestamp, that channel's current state; with a {@code channelId} and a
      * timestamp, its state as of that timestamp; without a {@code channelId}, the channels whose creation timestamp is
-     * within the timestamp bounds, ordered by creation timestamp.
+     * within the timestamp bounds, ordered by creation timestamp. Without a status and a {@code channelId}, those
+     * channels are merged with the open pending channel commitments.
      */
     List<ClprChannel> getChannels(ClprChannelsRequest request);
 }

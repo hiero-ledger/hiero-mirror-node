@@ -10,19 +10,16 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.Optional;
-import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprChannelData;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapperImpl;
-import org.hiero.mirror.restjava.mapper.ClprPendingChannelMapperImpl;
 import org.hiero.mirror.restjava.mapper.CommonMapperImpl;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
-import org.hiero.mirror.restjava.repository.ClprPendingChannelRepository;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
@@ -35,28 +32,21 @@ final class ClprServiceTest {
     private static final String CREATED_TIMESTAMP = "created_timestamp";
 
     private ClprChannelRepository channelRepository;
-    private ClprPendingChannelRepository pendingChannelRepository;
     private final RestJavaProperties properties = new RestJavaProperties();
     private ClprService service;
 
     @BeforeEach
     void setup() {
         channelRepository = mock(ClprChannelRepository.class);
-        pendingChannelRepository = mock(ClprPendingChannelRepository.class);
         final var channelMapper = new ClprChannelMapperImpl(new CommonMapperImpl());
-        service = new ClprServiceImpl(
-                channelMapper,
-                channelRepository,
-                new ClprPendingChannelMapperImpl(new CommonMapperImpl()),
-                pendingChannelRepository,
-                properties);
+        service = new ClprServiceImpl(channelMapper, channelRepository, properties);
     }
 
     @Test
     void getChannelsByIdWithoutTimestamp() {
         // given
-        final var channel = channel(org.hiero.mirror.common.domain.clpr.ClprChannelStatus.ACTIVE);
-        when(channelRepository.findById(CHANNEL_ID)).thenReturn(Optional.of(channel));
+        final var channel = channel("ACTIVE");
+        when(channelRepository.findByChannelId(CHANNEL_ID)).thenReturn(channel);
         final var request = ClprChannelsRequest.builder().channelId(CHANNEL_ID).build();
 
         // when / then
@@ -69,8 +59,7 @@ final class ClprServiceTest {
     @Test
     void getChannelsByIdWithoutTimestampFiltersByStatus() {
         // given
-        when(channelRepository.findById(CHANNEL_ID))
-                .thenReturn(Optional.of(channel(org.hiero.mirror.common.domain.clpr.ClprChannelStatus.ACTIVE)));
+        when(channelRepository.findByChannelId(CHANNEL_ID)).thenReturn(channel("ACTIVE"));
 
         // when / then
         assertThat(service.getChannels(ClprChannelsRequest.builder()
@@ -88,7 +77,7 @@ final class ClprServiceTest {
     @Test
     void getChannelsByIdNotFound() {
         // given
-        when(channelRepository.findById(CHANNEL_ID)).thenReturn(Optional.empty());
+        when(channelRepository.findByChannelId(CHANNEL_ID)).thenReturn(null);
 
         // when / then
         assertThat(service.getChannels(
@@ -100,7 +89,7 @@ final class ClprServiceTest {
     void getChannelsByIdAsOfTimestamp() {
         // given: eq becomes lte, so the as-of range is (0, 150]
         when(channelRepository.findByChannelIdAndTimestampBetween(CHANNEL_ID, 0L, 150L, null))
-                .thenReturn(List.of(channel(org.hiero.mirror.common.domain.clpr.ClprChannelStatus.PAUSED)));
+                .thenReturn(List.of(channel("PAUSED")));
         final var request = ClprChannelsRequest.builder()
                 .channelId(CHANNEL_ID)
                 .timestamp(timestamp(param(RangeOperator.EQ, 150L)))
@@ -132,14 +121,29 @@ final class ClprServiceTest {
     void getChannelsList() {
         // given
         final var page = PageRequest.of(0, 25, Sort.by(Direction.DESC, CREATED_TIMESTAMP));
-        when(channelRepository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, null, page))
-                .thenReturn(List.of(channel(org.hiero.mirror.common.domain.clpr.ClprChannelStatus.CLOSED)));
+        final var items = List.of(
+                item(CHANNEL_ID, 3_000L, "ACTIVE"),
+                item(null, 2_000L, "PENDING"),
+                item(new byte[] {9, 9}, 1_000L, "CLOSED"));
+        when(channelRepository.findAllChannelsByCreatedTimestampBetween(0L, Long.MAX_VALUE, page))
+                .thenReturn(items);
 
         // when / then
         assertThat(service.getChannels(ClprChannelsRequest.builder().build()))
-                .singleElement()
-                .satisfies(c -> assertThat(c.getStatus()).isEqualTo(ClprChannelStatus.CLOSED));
-        verifyNoInteractions(pendingChannelRepository);
+                .extracting(c -> c.getStatus())
+                .containsExactly(ClprChannelStatus.ACTIVE, ClprChannelStatus.PENDING, ClprChannelStatus.CLOSED);
+    }
+
+    @Test
+    void getChannelsListRejectsRangeOverMaximumWithoutStatus() {
+        // given
+        final long max = properties.getMaxClprChannelsTimestampRange().toNanos();
+        final var request = ClprChannelsRequest.builder()
+                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 101L + max)))
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getChannels(request)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -200,12 +204,9 @@ final class ClprServiceTest {
     @Test
     void getChannelsPending() {
         // given
-        final var pending = ClprChannelPendingCommitment.builder()
-                .createdTimestamp(1_000_000_000L)
-                .ownershipCommitment(new byte[] {(byte) 0xab, (byte) 0xcd})
-                .build();
+        final var pending = item(null, 1_000_000_000L, "PENDING", new byte[] {(byte) 0xab, (byte) 0xcd});
         final var page = PageRequest.of(0, 25, Sort.by(Direction.DESC, CREATED_TIMESTAMP));
-        when(pendingChannelRepository.findOpenByCreatedTimestampBetween(0L, Long.MAX_VALUE, page))
+        when(channelRepository.findPendingByCreatedTimestampBetween(0L, Long.MAX_VALUE, page))
                 .thenReturn(List.of(pending));
         final var request =
                 ClprChannelsRequest.builder().status(ClprChannelStatus.PENDING).build();
@@ -217,7 +218,6 @@ final class ClprServiceTest {
             assertThat(c.getCreatedTimestamp()).isEqualTo("1.000000000");
             assertThat(c.getChannelId()).isNull();
         });
-        verifyNoInteractions(channelRepository);
     }
 
     @Test
@@ -234,8 +234,8 @@ final class ClprServiceTest {
         service.getChannels(request);
 
         // then
-        verify(pendingChannelRepository)
-                .findOpenByCreatedTimestampBetween(
+        verify(channelRepository)
+                .findPendingByCreatedTimestampBetween(
                         100L, 200L, PageRequest.of(0, 5, Sort.by(Direction.ASC, CREATED_TIMESTAMP)));
     }
 
@@ -249,7 +249,7 @@ final class ClprServiceTest {
 
         // when / then
         assertThatThrownBy(() -> service.getChannels(request)).isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(channelRepository, pendingChannelRepository);
+        verifyNoInteractions(channelRepository);
     }
 
     @Test
@@ -262,7 +262,7 @@ final class ClprServiceTest {
 
         // when / then
         assertThatThrownBy(() -> service.getChannels(request)).isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(pendingChannelRepository);
+        verifyNoInteractions(channelRepository);
     }
 
     @Test
@@ -292,7 +292,7 @@ final class ClprServiceTest {
 
         // when / then
         assertThatThrownBy(() -> service.getChannels(request)).isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(pendingChannelRepository);
+        verifyNoInteractions(channelRepository);
     }
 
     @Test
@@ -311,8 +311,8 @@ final class ClprServiceTest {
         verify(channelRepository).findByChannelIdAndTimestampBetween(CHANNEL_ID, 100L, 101L + max, null);
     }
 
-    private static ClprChannel channel(org.hiero.mirror.common.domain.clpr.ClprChannelStatus status) {
-        return ClprChannel.builder().channelId(CHANNEL_ID).status(status).build();
+    private static ClprChannelData channel(String status) {
+        return item(CHANNEL_ID, 0L, status);
     }
 
     private static TimestampParameter param(RangeOperator operator, long value) {
@@ -321,5 +321,19 @@ final class ClprServiceTest {
 
     private static Bound timestamp(TimestampParameter... params) {
         return Bound.of(params, "timestamp", null);
+    }
+
+    private static ClprChannelData item(byte @Nullable [] channelId, long created, String status) {
+        return item(channelId, created, status, new byte[] {1});
+    }
+
+    private static ClprChannelData item(
+            byte @Nullable [] channelId, long created, String status, byte[] ownershipCommitment) {
+        final var item = new ClprChannelData();
+        item.setChannelId(channelId);
+        item.setCreatedTimestamp(created);
+        item.setOwnershipCommitment(ownershipCommitment);
+        item.setStatus(status);
+        return item;
     }
 }

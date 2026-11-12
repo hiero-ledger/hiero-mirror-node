@@ -5,17 +5,19 @@ package org.hiero.mirror.restjava.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
+import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.clpr.AbstractClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelData;
 import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
-import org.hiero.mirror.restjava.mapper.ClprPendingChannelMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,7 +32,6 @@ import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 final class ClprControllerTest extends ControllerTest {
 
     private final ClprChannelMapper channelMapper;
-    private final ClprPendingChannelMapper pendingChannelMapper;
 
     @DisplayName("/api/v1/clpr/channels")
     @Nested
@@ -58,7 +59,7 @@ final class ClprControllerTest extends ControllerTest {
 
             // then
             assertThat(actual.getBody()).isNotNull().satisfies(response -> {
-                assertThat(response.getChannels()).isEqualTo(channelMapper.map(List.of(channel2, channel1)));
+                assertThat(response.getChannels()).isEqualTo(channelMapper.map(asData(channel2, channel1)));
                 assertThat(response.getLinks().getNext()).isNull();
             });
             assertThat(actual.getHeaders().containsHeader(HttpHeaders.LINK)).isFalse();
@@ -91,7 +92,7 @@ final class ClprControllerTest extends ControllerTest {
 
             // then
             assertThat(actual).isNotNull();
-            assertThat(actual.getChannels()).isEqualTo(channelMapper.map(List.of(active1, active2)));
+            assertThat(actual.getChannels()).isEqualTo(channelMapper.map(asData(active1, active2)));
         }
 
         @ParameterizedTest
@@ -105,7 +106,7 @@ final class ClprControllerTest extends ControllerTest {
 
             // then
             assertThat(actual).isNotNull();
-            assertThat(actual.getChannels()).isEqualTo(channelMapper.map(List.of(channel)));
+            assertThat(actual.getChannels()).isEqualTo(channelMapper.map(asData(channel)));
         }
 
         @Test
@@ -124,7 +125,7 @@ final class ClprControllerTest extends ControllerTest {
 
             // then
             assertThat(actual).isNotNull();
-            assertThat(actual.getChannels()).isEqualTo(channelMapper.map(List.of(inRange)));
+            assertThat(actual.getChannels()).isEqualTo(channelMapper.map(asData(inRange)));
         }
 
         @Test
@@ -139,7 +140,7 @@ final class ClprControllerTest extends ControllerTest {
 
             // then
             assertThat(actual.getBody()).isNotNull().satisfies(response -> {
-                assertThat(response.getChannels()).isEqualTo(channelMapper.map(List.of(channel3, channel2)));
+                assertThat(response.getChannels()).isEqualTo(channelMapper.map(asData(channel3, channel2)));
                 assertThat(response.getLinks().getNext())
                         .isEqualTo("/api/v1/clpr/channels?limit=2&timestamp=lt:0.000000200");
             });
@@ -161,7 +162,7 @@ final class ClprControllerTest extends ControllerTest {
 
             // then
             assertThat(actual.getBody()).isNotNull().satisfies(response -> {
-                assertThat(response.getChannels()).isEqualTo(channelMapper.map(List.of(channel)));
+                assertThat(response.getChannels()).isEqualTo(channelMapper.map(asData(channel)));
                 assertThat(response.getLinks().getNext()).isNull();
             });
         }
@@ -180,7 +181,7 @@ final class ClprControllerTest extends ControllerTest {
 
             // then
             assertThat(actual).isNotNull();
-            assertThat(actual.getChannels()).isEqualTo(channelMapper.map(List.of(channel)));
+            assertThat(actual.getChannels()).isEqualTo(channelMapper.map(asData(channel)));
         }
 
         @Test
@@ -213,7 +214,7 @@ final class ClprControllerTest extends ControllerTest {
 
             // then
             assertThat(actual).isNotNull();
-            assertThat(actual.getChannels()).isEqualTo(channelMapper.map(List.of(asChannel(history))));
+            assertThat(actual.getChannels()).isEqualTo(channelMapper.map(asData(history)));
         }
 
         @Test
@@ -230,10 +231,12 @@ final class ClprControllerTest extends ControllerTest {
 
             // then
             assertThat(actual).isNotNull();
-            assertThat(actual.getChannels()).isEqualTo(pendingChannelMapper.map(List.of(open2, open1)));
             assertThat(actual.getChannels())
-                    .allSatisfy(channel -> assertThat(channel.getStatus())
-                            .isEqualTo(org.hiero.mirror.rest.model.ClprChannelStatus.PENDING));
+                    .extracting(channel -> channel.getOwnershipCommitment())
+                    .containsExactly(hex(open2.getOwnershipCommitment()), hex(open1.getOwnershipCommitment()));
+            assertThat(actual.getChannels())
+                    .allSatisfy(channel ->
+                            assertThat(channel.getStatus().getValue()).isEqualTo("PENDING"));
         }
 
         @Test
@@ -284,19 +287,21 @@ final class ClprControllerTest extends ControllerTest {
         return "0x" + HexFormat.of().formatHex(bytes);
     }
 
-    private static ClprChannel asChannel(ClprChannelHistory history) {
-        return ClprChannel.builder()
-                .ackedMessageId(history.getAckedMessageId())
-                .chainId(history.getChainId())
-                .channelId(history.getChannelId())
-                .createdTimestamp(history.getCreatedTimestamp())
-                .endpointManifestVersion(history.getEndpointManifestVersion())
-                .nextMessageId(history.getNextMessageId())
-                .ownershipCommitment(history.getOwnershipCommitment())
-                .receivedMessageId(history.getReceivedMessageId())
-                .status(history.getStatus())
-                .timestampRange(history.getTimestampRange())
-                .build();
+    private static List<ClprChannelData> asData(AbstractClprChannel... channels) {
+        return Arrays.stream(channels)
+                .map(channel -> ClprChannelData.builder()
+                        .ackedMessageId(channel.getAckedMessageId())
+                        .chainId(channel.getChainId())
+                        .channelId(channel.getChannelId())
+                        .createdTimestamp(channel.getCreatedTimestamp())
+                        .endpointManifestVersion(channel.getEndpointManifestVersion())
+                        .nextMessageId(channel.getNextMessageId())
+                        .ownershipCommitment(channel.getOwnershipCommitment())
+                        .receivedMessageId(channel.getReceivedMessageId())
+                        .status(channel.getStatus().name())
+                        .timestampRange(channel.getTimestampRange())
+                        .build())
+                .toList();
     }
 
     private ClprChannel persistChannel(long createdTimestamp, ClprChannelStatus status) {

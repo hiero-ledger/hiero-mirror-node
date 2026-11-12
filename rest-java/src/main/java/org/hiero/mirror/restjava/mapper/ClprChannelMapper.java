@@ -10,9 +10,10 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelData;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
+import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelEndpointManifest;
 import org.hiero.mirror.rest.model.ClprPeerThrottles;
 import org.mapstruct.Mapper;
@@ -20,10 +21,11 @@ import org.mapstruct.Mapping;
 import org.mapstruct.ValueMapping;
 
 /**
- * Maps channels to the API model. See {@link ClprPendingChannelMapper} for pending channel commitments.
+ * Maps channels and open pending channel commitments to the API model. A pending commitment only has
+ * {@code created_timestamp}, {@code ownership_commitment}, and a {@code PENDING} status, so the rest is null.
  */
 @Mapper(config = MapperConfiguration.class)
-public interface ClprChannelMapper extends CollectionMapper<ClprChannel, org.hiero.mirror.rest.model.ClprChannel> {
+public interface ClprChannelMapper extends CollectionMapper<ClprChannelData, ClprChannel> {
 
     @Mapping(target = "channelContext", qualifiedByName = QUALIFIER_BYTES)
     @Mapping(target = "channelId", qualifiedByName = QUALIFIER_BYTES)
@@ -38,13 +40,13 @@ public interface ClprChannelMapper extends CollectionMapper<ClprChannel, org.hie
     @Mapping(target = "trustAnchorId", qualifiedByName = QUALIFIER_BYTES)
     @Mapping(target = "verifierFingerprint", qualifiedByName = QUALIFIER_BYTES)
     @Mapping(target = "createdTimestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
-    @Mapping(target = "endpointManifest", expression = "java(mapEndpointManifest(channel))")
     @Mapping(target = "lastConfigTimestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
     @Mapping(target = "peerConfigTimestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
+    @Mapping(target = "endpointManifest", expression = "java(mapEndpointManifest(channel))")
     @Mapping(target = "peerThrottles", expression = "java(mapPeerThrottles(channel))")
     @Mapping(source = "timestampRange", target = "timestamp")
     @Override
-    org.hiero.mirror.rest.model.ClprChannel map(ClprChannel channel);
+    ClprChannel map(ClprChannelData channel);
 
     default Map<String, Object> mapEndpoint(ClprEndpoint endpoint) {
         final var map = new LinkedHashMap<String, Object>();
@@ -64,7 +66,7 @@ public interface ClprChannelMapper extends CollectionMapper<ClprChannel, org.hie
     }
 
     /** Builds the API's {@code {endpoints, version}} object from the stored endpoint list and version. */
-    default ClprChannelEndpointManifest mapEndpointManifest(ClprChannel channel) {
+    default ClprChannelEndpointManifest mapEndpointManifest(ClprChannelData channel) {
         final var endpoints = channel.getEndpointManifest();
         if (endpoints == null) {
             return null;
@@ -78,7 +80,7 @@ public interface ClprChannelMapper extends CollectionMapper<ClprChannel, org.hie
         return new ClprChannelEndpointManifest().endpoints(mapped).version(channel.getEndpointManifestVersion());
     }
 
-    default ClprPeerThrottles mapPeerThrottles(ClprChannel channel) {
+    default ClprPeerThrottles mapPeerThrottles(ClprChannelData channel) {
         if (channel.getPeerMaxGasPerMessage() == null
                 && channel.getPeerMaxLocalEndpoints() == null
                 && channel.getPeerMaxMessagePayloadBytes() == null
