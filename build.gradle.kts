@@ -18,10 +18,11 @@ plugins {
 extra.apply {
     set("besuVersion", "26.2.0")
     set("blockNodeVersion", "0.45.1")
+    set("commons-codec.version", "1.23.0") // Temporary until next Spring Boot
     set("consensusNodeVersion", "0.78.2")
     set("hederaCryptographyVersion", "3.27.0")
-    set("jackson-bom.version", "3.2.4") // Temporary until next Spring Boot
-    set("jackson-2-bom.version", "2.22.4") // Temporary until next Spring Boot
+    set("jackson-bom.version", "3.3.0") // Temporary until next Spring Boot
+    set("jackson-2-bom.version", "2.23.0") // Temporary until next Spring Boot
     set("jooq.version", "3.21.9") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.22.2")
@@ -79,6 +80,7 @@ dependencies {
         api("org.hyperledger.besu.internal:besu-crypto-algorithms:$besuVersion")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
         api("org.hyperledger.besu:evm:$besuVersion")
+        api("org.json:json:20260814") // Temporary until next hedera-app
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
