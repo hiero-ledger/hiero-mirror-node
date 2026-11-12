@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.clpr;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -42,6 +43,7 @@ public class ClprLedgerConfiguration implements Persistable<Long> {
     private byte[] serviceAddress;
 
     @Embedded
+    @JsonUnwrapped
     private ClprThrottle throttle;
 
     @JsonIgnore
