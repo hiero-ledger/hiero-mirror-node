@@ -160,8 +160,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                         .clprConnectors(
                                 clprConnector == null
                                         ? List.of()
-                                        : List.of(new ClprConnectorEntry(
-                                                key, clprConnector, clprConnectorMapUpdate(clprConnector))))
+                                        : List.of(new ClprConnectorEntry(key, clprConnectorMapUpdate(clprConnector))))
                         .build())
                 .build();
     }

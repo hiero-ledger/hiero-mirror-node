@@ -157,9 +157,7 @@ class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandl
                                 clprChannel == null
                                         ? List.of()
                                         : List.of(new ClprChannelEntry(
-                                                clprChannel.getChannelId(),
-                                                clprChannel,
-                                                clprChannelMapUpdate(clprChannel))))
+                                                clprChannel.getChannelId(), clprChannelMapUpdate(clprChannel))))
                         .build())
                 .build();
     }

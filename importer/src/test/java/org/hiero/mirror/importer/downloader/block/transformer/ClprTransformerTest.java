@@ -411,7 +411,7 @@ class ClprTransformerTest extends AbstractTransformerTest {
         final var items = recordFile.getItems();
         assertThat(items).hasSize(2);
         assertThat(items.get(0).getClprContext().getClprChannels())
-                .containsExactly(new ClprChannelEntry(channelId, clprChannelValue, clprChannelMapUpdate));
+                .containsExactly(new ClprChannelEntry(channelId, clprChannelMapUpdate));
         assertThat(items.get(1).getClprContext()).isNull();
     }
 }

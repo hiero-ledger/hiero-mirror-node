@@ -426,8 +426,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprCompleteChannel()
                 .transactionBody(b -> b.setChannelId(channelId).setPublicKey(publicKey))
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new ClprChannelEntry(
-                                channelId, clprChannelActive, clprChannelMapUpdate(clprChannelActive)))))
+                        .clprChannels(
+                                List.of(new ClprChannelEntry(channelId, clprChannelMapUpdate(clprChannelActive)))))
                 .build();
 
         final var clprChannelAfterBundle =
@@ -436,8 +436,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprSubmitBundle()
                 .transactionBody(b -> b.setChannelId(channelId))
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new ClprChannelEntry(
-                                channelId, clprChannelAfterBundle, clprChannelMapUpdate(clprChannelAfterBundle)))))
+                        .clprChannels(
+                                List.of(new ClprChannelEntry(channelId, clprChannelMapUpdate(clprChannelAfterBundle)))))
                 .build();
 
         final var clprChannelClosing = clprChannelAfterBundle.toBuilder()
@@ -447,8 +447,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprCloseChannel()
                 .transactionBody(b -> b.setChannelId(channelId))
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new ClprChannelEntry(
-                                channelId, clprChannelClosing, clprChannelMapUpdate(clprChannelClosing)))))
+                        .clprChannels(
+                                List.of(new ClprChannelEntry(channelId, clprChannelMapUpdate(clprChannelClosing)))))
                 .build();
 
         final var recordFile = recordFileWithItems(List.of(register, complete, submitBundle, closeChannel), null);
@@ -504,8 +504,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(new ClprConnectorEntry(
-                                connectorKey, clprConnectorValue, clprConnectorMapUpdate(clprConnectorValue)))))
+                        .clprConnectors(List.of(
+                                new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(clprConnectorValue)))))
                 .build();
 
         final var stakeRecipient = domainBuilder.entityNum(5000L).toAccountID();
@@ -564,8 +564,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(new ClprConnectorEntry(
-                                connectorKey, clprConnectorComplete, clprConnectorMapUpdate(clprConnectorComplete)))))
+                        .clprConnectors(List.of(
+                                new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(clprConnectorComplete)))))
                 .build();
 
         // Each ClprConnector state change is the connector's full current state, not a delta, so later snapshots
@@ -575,8 +575,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var sendMessage = recordItemBuilder
                 .contractCall()
                 .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(new ClprConnectorEntry(
-                                connectorKey, clprConnectorAfterSend, clprConnectorMapUpdate(clprConnectorAfterSend)))))
+                        .clprConnectors(List.of(
+                                new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(clprConnectorAfterSend)))))
                 .build();
 
         final var clprConnectorAfterBundle = clprConnectorAfterSend.toBuilder()
@@ -588,9 +588,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprSubmitBundle()
                 .recordItem(r -> r.clprContextBuilder()
                         .clprConnectors(List.of(new ClprConnectorEntry(
-                                connectorKey,
-                                clprConnectorAfterBundle,
-                                clprConnectorMapUpdate(clprConnectorAfterBundle)))))
+                                connectorKey, clprConnectorMapUpdate(clprConnectorAfterBundle)))))
                 .build();
 
         final var recordFile = recordFileWithItems(List.of(register, complete, sendMessage, submitBundle), null);
@@ -644,9 +642,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                         b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
                 .recordItem(r -> r.clprContextBuilder()
                         .clprConnectors(List.of(new ClprConnectorEntry(
-                                removedConnectorKey,
-                                clprConnectorComplete,
-                                clprConnectorMapUpdate(clprConnectorComplete)))))
+                                removedConnectorKey, clprConnectorMapUpdate(clprConnectorComplete)))))
                 .build();
 
         final var ban = recordItemBuilder
