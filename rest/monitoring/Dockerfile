@@ -1,4 +1,4 @@
-FROM node:24.22.3-trixie-slim@sha256:0a085df29353bca2c119e8fa2171773a4c7eab2a13330ee88b5e91ee4b21de9e
+FROM node:24.22.3-trixie-slim@sha256:af02d57b57719b9657a45199a79264a9437940cd55b3c7b3fc99615654f124a0
 LABEL maintainer="mirrornode@hedera.com"
 
 # Setup
