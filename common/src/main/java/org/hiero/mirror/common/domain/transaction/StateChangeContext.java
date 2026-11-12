@@ -165,16 +165,14 @@ public final class StateChangeContext {
 
     public @Nullable ClprChannelEntry getClprChannelEntry(ByteString channelId) {
         final var mapUpdate = clprChannels.get(channelId);
-        return mapUpdate == null
-                ? null
-                : new ClprChannelEntry(channelId, mapUpdate.getValue().getClprChannelValue(), mapUpdate);
+        return mapUpdate == null ? null : new ClprChannelEntry(channelId, mapUpdate);
     }
 
     public List<ClprChannelEntry> getClprChannels() {
         final var result = new ArrayList<ClprChannelEntry>(clprChannels.size());
         for (final var entry : clprChannels.entrySet()) {
             final var mapUpdate = entry.getValue();
-            result.add(new ClprChannelEntry(entry.getKey(), mapUpdate.getValue().getClprChannelValue(), mapUpdate));
+            result.add(new ClprChannelEntry(entry.getKey(), mapUpdate));
         }
         return result;
     }
@@ -186,17 +184,14 @@ public final class StateChangeContext {
 
     public @Nullable ClprConnectorEntry getClprConnectorEntry(ClprConnectorKey key) {
         final var mapUpdate = clprConnectors.get(key);
-        return mapUpdate == null
-                ? null
-                : new ClprConnectorEntry(key, mapUpdate.getValue().getClprConnectorValue(), mapUpdate);
+        return mapUpdate == null ? null : new ClprConnectorEntry(key, mapUpdate);
     }
 
     public List<ClprConnectorEntry> getClprConnectors() {
         final var result = new ArrayList<ClprConnectorEntry>(clprConnectors.size());
         for (final var entry : clprConnectors.entrySet()) {
             final var mapUpdate = entry.getValue();
-            result.add(
-                    new ClprConnectorEntry(entry.getKey(), mapUpdate.getValue().getClprConnectorValue(), mapUpdate));
+            result.add(new ClprConnectorEntry(entry.getKey(), mapUpdate));
         }
         return result;
     }
@@ -572,9 +567,17 @@ public final class StateChangeContext {
      */
     public record SlotValue(ByteString slot, @Nullable BytesValue valueWritten) {}
 
-    public record ClprChannelEntry(ByteString channelId, ClprChannel value, MapUpdateChange mapUpdate) {}
+    public record ClprChannelEntry(ByteString channelId, MapUpdateChange mapUpdate) {
+        public ClprChannel value() {
+            return mapUpdate.getValue().getClprChannelValue();
+        }
+    }
 
-    public record ClprConnectorEntry(ClprConnectorKey key, ClprConnector value, MapUpdateChange mapUpdate) {}
+    public record ClprConnectorEntry(ClprConnectorKey key, MapUpdateChange mapUpdate) {
+        public ClprConnector value() {
+            return mapUpdate.getValue().getClprConnectorValue();
+        }
+    }
 
     public record ClprMessageEntry(ClprMessageKey key, ClprMessageValue value) {}
 }
