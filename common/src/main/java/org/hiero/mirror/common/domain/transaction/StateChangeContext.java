@@ -49,9 +49,9 @@ public final class StateChangeContext {
     private final Map<AccountID, Long> accountEthereumNonces = new HashMap<>();
     private final Map<ContractID, ByteString> contractBytecodes = new HashMap<>();
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
-    private final Map<ContractSlotKey, BytesValue> contractStorageChanges = new HashMap<>();
+    // A null value means the value written is absent from a partial state change
+    private final Map<ContractSlotKey, @Nullable BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractSlotId, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
-    private final Set<ContractSlotKey> contractStorageSlotsWithAbsentValue = new HashSet<>();
     private final List<Long> nodeIds = new ArrayList<>();
     private final List<FileID> fileIds = new ArrayList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
@@ -178,7 +178,8 @@ public final class StateChangeContext {
      * the slot has no net change in the transactional unit.
      */
     public boolean isContractStorageValueWrittenAbsent(final ContractSlotKey slotKey) {
-        return contractStorageSlotsWithAbsentValue.contains(normalize(slotKey));
+        final var normalized = normalize(slotKey);
+        return contractStorageChanges.get(normalized) == null && contractStorageChanges.containsKey(normalized);
     }
 
     /**
@@ -317,11 +318,7 @@ public final class StateChangeContext {
     private void processContractStorageChange(ContractSlotKey slotKey, @Nullable BytesValue valueWritten) {
         slotKey = normalize(slotKey);
         final var trimmed = valueWritten != null ? DomainUtils.trim(valueWritten) : null;
-        if (trimmed != null) {
-            contractStorageChanges.put(slotKey, trimmed);
-        } else {
-            contractStorageSlotsWithAbsentValue.add(slotKey);
-        }
+        contractStorageChanges.put(slotKey, trimmed);
 
         contractStorageChangesIndexed
                 .computeIfAbsent(slotKey.slotId(), _ -> new ArrayList<>())

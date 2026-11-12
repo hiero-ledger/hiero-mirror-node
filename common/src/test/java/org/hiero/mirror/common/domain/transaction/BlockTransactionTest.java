@@ -620,6 +620,80 @@ final class BlockTransactionTest {
     }
 
     @Test
+    void getValueWrittenAbsentHookExecutionWithContractStorage() {
+        // given a hook execution reading the same slot of hook storage and of a regular contract it calls, both with no
+        // net change in the transactional unit
+        final var contractId = getContractId();
+        final var hookId = getEvmHookSlotKey(1L, ByteString.EMPTY).getHookId();
+        final var slot = ByteString.copyFrom(new byte[] {1}).concat(bytes(23));
+        final var hookValue = ByteString.copyFrom(new byte[] {10});
+        final var contractValue = ByteString.copyFrom(new byte[] {20});
+        final var hookStateChange =
+                hookStorageMapUpdateChange(
+                        EvmHookSlotKey.newBuilder()
+                                .setHookId(hookId)
+                                .setKey(slot)
+                                .build(),
+                        hookValue)
+                        .toBuilder();
+        final var contractStateChange = contractStorageMapUpdateChange(contractId, slot, contractValue).toBuilder();
+        for (final var stateChange : List.of(hookStateChange, contractStateChange)) {
+            stateChange
+                    .getMapUpdateBuilder()
+                    .setPartial(true)
+                    .getValueBuilder()
+                    .getSlotValueValueBuilder()
+                    .clearValue();
+        }
+
+        final var parent = defaultBuilder()
+                .stateChanges(List.of(StateChanges.newBuilder()
+                        .addStateChanges(hookStateChange)
+                        .addStateChanges(contractStateChange)
+                        .build()))
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12345L))
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+        final var output = TransactionOutput.newBuilder()
+                .setContractCall(CallContractOutput.newBuilder()
+                        .setEvmTransactionResult(
+                                EvmTransactionResult.newBuilder().setExecutedHookId(hookId)))
+                .build();
+        final var hookExecution = defaultBuilder()
+                .previous(parent)
+                .traceData(List.of(TraceData.newBuilder()
+                        .setEvmTraceData(EvmTraceData.newBuilder()
+                                .addContractSlotUsages(ContractSlotUsage.newBuilder()
+                                        .setContractId(HOOK_SYSTEM_CONTRACT_ID)
+                                        .addSlotReads(SlotRead.newBuilder()
+                                                .setKey(slot)
+                                                .setReadValue(hookValue)))
+                                .addContractSlotUsages(ContractSlotUsage.newBuilder()
+                                        .setContractId(contractId)
+                                        .addSlotReads(SlotRead.newBuilder()
+                                                .setKey(slot)
+                                                .setReadValue(contractValue))))
+                        .build()))
+                .transactionOutputs(Map.of(TransactionCase.CONTRACT_CALL, output))
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(parent.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(
+                                parent.getTransactionResult().getConsensusTimestamp())
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+
+        // when, then
+        final var hookSlotKey = new ContractSlotKey(ContractSlotId.of(null, hookId), slot);
+        final var contractSlotKey = new ContractSlotKey(ContractSlotId.of(contractId, null), slot);
+        assertThat(hookExecution.getValueWritten(hookSlotKey)).returns(hookValue, BytesValue::getValue);
+        assertThat(hookExecution.getValueWritten(contractSlotKey)).returns(contractValue, BytesValue::getValue);
+    }
+
+    @Test
     void allTraceData() {
         // given
         var topicId = StateChangeTestUtils.getTopicId();

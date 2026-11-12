@@ -80,6 +80,12 @@ public class BlockTransaction implements StreamItem {
 
     private final boolean successful;
     private final List<TraceData> traceData;
+
+    // The first value read of each storage slot, resolved from this transaction's EVM trace data
+    @EqualsAndHashCode.Exclude
+    @Getter(value = AccessLevel.PRIVATE, lazy = true)
+    private final Map<ContractSlotKey, ByteString> tracedValueReads = parseTracedValueReads();
+
     private final TransactionBody transactionBody;
 
     @Getter(lazy = true)
@@ -257,7 +263,7 @@ public class BlockTransaction implements StreamItem {
         for (var transaction = this;
                 transaction != null && transaction.getRoot() == root;
                 transaction = transaction.previous) {
-            final var valueRead = transaction.getTracedValueRead(slotKey);
+            final var valueRead = transaction.getTracedValueReads().get(slotKey);
             if (valueRead != null) {
                 firstValueRead = valueRead;
             }
@@ -277,37 +283,6 @@ public class BlockTransaction implements StreamItem {
 
         final var slotValue = getStateChangeContext().getContractStorageChange(slotId, index);
         return slotValue != null ? slotValue.slot() : null;
-    }
-
-    /**
-     * Get the value read from the storage slot by this transaction, resolved from its EVM trace data.
-     */
-    private @Nullable ByteString getTracedValueRead(final ContractSlotKey slotKey) {
-        if (evmTraceData == null) {
-            return null;
-        }
-
-        final var executedHookId = getExecutedHookId();
-        for (final var slotUsage : evmTraceData.getContractSlotUsagesList()) {
-            final var slotId = ContractSlotId.of(slotUsage.getContractId(), executedHookId);
-            if (!slotKey.slotId().equals(slotId)) {
-                continue;
-            }
-
-            final var writtenSlotKeys = slotUsage.getWrittenSlotKeys().getKeysList();
-            for (final var slotRead : slotUsage.getSlotReadsList()) {
-                final var slot = switch (slotRead.getIdentifierCase()) {
-                    case INDEX -> getSlot(slotId, slotRead.getIndex(), writtenSlotKeys);
-                    case KEY -> slotRead.getKey();
-                    default -> null;
-                };
-                if (slot != null && normalize(new ContractSlotKey(slotId, slot)).equals(slotKey)) {
-                    return DomainUtils.trim(slotRead.getReadValue());
-                }
-            }
-        }
-
-        return null;
     }
 
     private ByteString getValueRead(final ContractSlotKey slotKey) {
@@ -364,6 +339,36 @@ public class BlockTransaction implements StreamItem {
         }
 
         return result;
+    }
+
+    private Map<ContractSlotKey, ByteString> parseTracedValueReads() {
+        if (evmTraceData == null || evmTraceData.getContractSlotUsagesCount() == 0) {
+            return Collections.emptyMap();
+        }
+
+        final var executedHookId = getExecutedHookId();
+        final var valueReads = new HashMap<ContractSlotKey, ByteString>();
+        for (final var slotUsage : evmTraceData.getContractSlotUsagesList()) {
+            final var slotId = ContractSlotId.of(slotUsage.getContractId(), executedHookId);
+            if (slotId == null) {
+                continue;
+            }
+
+            final var writtenSlotKeys = slotUsage.getWrittenSlotKeys().getKeysList();
+            for (final var slotRead : slotUsage.getSlotReadsList()) {
+                final var slot = switch (slotRead.getIdentifierCase()) {
+                    case INDEX -> getSlot(slotId, slotRead.getIndex(), writtenSlotKeys);
+                    case KEY -> slotRead.getKey();
+                    default -> null;
+                };
+                if (slot != null) {
+                    valueReads.putIfAbsent(
+                            normalize(new ContractSlotKey(slotId, slot)), DomainUtils.trim(slotRead.getReadValue()));
+                }
+            }
+        }
+
+        return valueReads;
     }
 
     private static ByteString digest(final byte[] data) {
