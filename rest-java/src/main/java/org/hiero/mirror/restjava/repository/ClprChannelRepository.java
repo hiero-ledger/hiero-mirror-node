@@ -130,21 +130,24 @@ public interface ClprChannelRepository extends Repository<ClprChannelData, byte[
     /**
      * Returns the channel's state as of the given bounds, from the current or the history table: the latest version
      * whose {@code timestamp_range} overlaps {@code [lowerBound, upperBound]}, then filtered by {@code status} if
-     * given. The two tables share the same layout and a channel's timestamp ranges never overlap. Overlap is
+     * given. Both tables are selected through the same explicit column list, so their physical column order doesn't
+     * matter, and a channel's timestamp ranges never overlap. Overlap is
      * expressed with explicit comparisons rather than {@code int8range(..., '[]')}, which overflows when the service
      * passes {@code Long.MAX_VALUE} as an open upper bound.
      */
     @Query(value = """
-            select
-            """ + CHANNEL_COLUMNS + """
-            from (
+            select * from (
                 select * from (
-                    select * from clpr_channel
+                    select
+            """ + CHANNEL_COLUMNS + """
+                    from clpr_channel
                     where channel_id = :channelId
                     and lower(timestamp_range) <= :upperBound
                     and (upper(timestamp_range) is null or upper(timestamp_range) > :lowerBound)
                     union all
-                    select * from clpr_channel_history
+                    select
+            """ + CHANNEL_COLUMNS + """
+                    from clpr_channel_history
                     where channel_id = :channelId
                     and lower(timestamp_range) <= :upperBound
                     and (upper(timestamp_range) is null or upper(timestamp_range) > :lowerBound)
@@ -152,7 +155,7 @@ public interface ClprChannelRepository extends Repository<ClprChannelData, byte[
                 order by v.timestamp_range desc
                 limit 1
             ) as c
-            where cast(:status as clpr_channel_status) is null or c.status = cast(:status as clpr_channel_status)
+            where cast(:status as varchar) is null or c.status = cast(:status as varchar)
             """, nativeQuery = true)
     List<ClprChannelData> findByChannelIdAndTimestampBetween(
             byte[] channelId, long lowerBound, long upperBound, @Nullable String status);

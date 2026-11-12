@@ -468,9 +468,11 @@ paths:
     get:
       summary: List CLPR channels
       description: >-
-        Returns a list of CLPR channels. When `channel.id` is supplied together with `timestamp`, returns that channel's
-        state as of the given consensus timestamp. `status=eq:PENDING` lists channels whose ownership commitment has
-        been registered but not yet completed; such rows have no `channel_id` and cannot be combined with `channel.id`.
+        Returns a list of CLPR channels. Without `status` or `channel.id`, channels in every status are returned
+        together with pending ones, ordered by `created_timestamp`. When `channel.id` is supplied together with
+        `timestamp`, returns that channel's state as of the given consensus timestamp. `status=eq:PENDING` lists channels
+        whose ownership commitment has been registered but not yet completed; such rows have no `channel_id` and
+        cannot be combined with `channel.id`.
       operationId: getClprChannels
       parameters:
         - $ref: "#/components/parameters/clprChannelIdQueryParam"
