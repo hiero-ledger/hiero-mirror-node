@@ -20,12 +20,17 @@ import java.util.Map;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.ImporterProperties.HederaNetwork;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.SourceType;
+import org.hiero.mirror.importer.downloader.StreamSourceProperties;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -44,18 +49,21 @@ final class CompositeBlockSourceTest {
     @Mock(strictness = LENIENT)
     private BlockNodeDiscoveryService blockNodeDiscoveryService;
 
+    private CommonDownloaderProperties commonDownloaderProperties;
+    private ImporterProperties importerProperties;
     private BlockProperties properties;
     private CompositeBlockSource source;
     private Map<BlockSourceType, BlockSource> sources;
 
     @BeforeEach
     void setup() {
-        properties = new BlockProperties(new ImporterProperties());
+        importerProperties = new ImporterProperties();
+        commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
+        properties = new BlockProperties(importerProperties);
         properties.setEnabled(true);
         properties.setNodes(List.of(new BlockNodeProperties()));
         when(blockNodeDiscoveryService.getBlockNodes()).thenReturn(List.of(new BlockNodeProperties()));
-        source = new CompositeBlockSource(
-                blockFileSource, blockNodeDiscoveryService, blockNodeSubscriber, cutoverService, properties);
+        source = newCompositeBlockSource();
         sources = Map.of(
                 BlockSourceType.AUTO,
                 blockNodeSubscriber,
@@ -137,6 +145,60 @@ final class CompositeBlockSourceTest {
         verify(blockNodeSubscriber, never()).get();
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void getAutoNoBlockFileSource(final boolean hasBlockNodes) {
+        // given
+        importerProperties.setNetwork(HederaNetwork.OTHER);
+        source = newCompositeBlockSource();
+        if (!hasBlockNodes) {
+            when(blockNodeDiscoveryService.getBlockNodes()).thenReturn(Collections.emptyList());
+        }
+        doThrow(new RuntimeException()).when(blockNodeSubscriber).get();
+
+        // when
+        for (int i = 0; i < 5; i++) {
+            source.get();
+        }
+
+        // then
+        verify(blockNodeSubscriber, times(5)).get();
+        verifyNoInteractions(blockFileSource);
+    }
+
+    @Test
+    void getAutoNoBucketWithLocalSource() {
+        // given
+        importerProperties.setNetwork(HederaNetwork.OTHER);
+        final var localSource = new StreamSourceProperties();
+        localSource.setType(SourceType.LOCAL);
+        commonDownloaderProperties.getSources().add(localSource);
+        source = newCompositeBlockSource();
+        when(blockNodeDiscoveryService.getBlockNodes()).thenReturn(Collections.emptyList());
+
+        // when
+        source.get();
+
+        // then
+        verify(blockFileSource).get();
+        verifyNoInteractions(blockNodeSubscriber);
+    }
+
+    @Test
+    void getFileNoBucket() {
+        // given
+        importerProperties.setNetwork(HederaNetwork.OTHER);
+        properties.setSourceType(BlockSourceType.FILE);
+        source = newCompositeBlockSource();
+
+        // when
+        source.get();
+
+        // then
+        verify(blockFileSource).get();
+        verifyNoInteractions(blockNodeSubscriber);
+    }
+
     @Test
     void getAutoSwitchOnError() {
         // given
@@ -198,5 +260,15 @@ final class CompositeBlockSourceTest {
         // then
         verify(blockFileSource, times(5)).get();
         verify(blockNodeSubscriber, times(8)).get();
+    }
+
+    private CompositeBlockSource newCompositeBlockSource() {
+        return new CompositeBlockSource(
+                blockFileSource,
+                blockNodeDiscoveryService,
+                blockNodeSubscriber,
+                commonDownloaderProperties,
+                cutoverService,
+                properties);
     }
 }

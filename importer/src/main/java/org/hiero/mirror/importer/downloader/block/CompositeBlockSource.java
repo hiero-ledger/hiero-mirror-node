@@ -8,8 +8,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.SourceType;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.exception.NoBlockNodeAvailableException;
 import org.springframework.context.annotation.Primary;
@@ -25,12 +28,14 @@ final class CompositeBlockSource implements BlockSource {
     private final SourceHealth blockNodeSubscriberSourceHealth;
     private final AtomicReference<SourceHealth> current;
     private final CutoverService cutoverService;
+    private final boolean hasBlockFileSource;
     private final BlockProperties properties;
 
     CompositeBlockSource(
             final BlockFileSource blockFileSource,
             final BlockNodeDiscoveryService blockNodeDiscoveryService,
             final BlockNodeSubscriber blockNodeSubscriber,
+            final CommonDownloaderProperties commonDownloaderProperties,
             final CutoverService cutoverService,
             final BlockProperties properties) {
         this.blockFileSourceHealth = new SourceHealth(blockFileSource, BlockSourceType.FILE);
@@ -39,6 +44,15 @@ final class CompositeBlockSource implements BlockSource {
         this.current = new AtomicReference<>(blockNodeSubscriberSourceHealth);
         this.cutoverService = cutoverService;
         this.properties = properties;
+
+        // The local stream file provider ignores bucket names
+        hasBlockFileSource = StringUtils.isNotBlank(properties.getBucketName())
+                || commonDownloaderProperties.getSources().stream().anyMatch(s -> s.getType() == SourceType.LOCAL);
+        if (!hasBlockFileSource) {
+            log.info(
+                    "No block stream bucket configured for network {}, block file source disabled in AUTO mode",
+                    properties.getImporterProperties().getNetwork());
+        }
     }
 
     @Override
@@ -64,6 +78,10 @@ final class CompositeBlockSource implements BlockSource {
     private SourceHealth getSourceHealth() {
         return switch (properties.getSourceType()) {
             case AUTO -> {
+                if (!hasBlockFileSource) {
+                    yield blockNodeSubscriberSourceHealth;
+                }
+
                 if (blockNodeDiscoveryService.getBlockNodes().isEmpty()) {
                     yield blockFileSourceHealth;
                 }

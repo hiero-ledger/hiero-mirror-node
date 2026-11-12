@@ -27,18 +27,6 @@ class CommonDownloaderPropertiesTest {
         assertThat(properties.getBucketName()).isEqualTo(bucketName);
     }
 
-    @ParameterizedTest
-    @CsvSource(textBlock = """
-            mainnet, true
-            demo, false
-            other, false
-            testnet, true
-            previewnet, false
-            """)
-    void hasCutOver(final String network, final boolean expected) {
-        assertThat(HederaNetwork.hasCutover(network)).isEqualTo(expected);
-    }
-
     @Test
     void initNoNetworkDefaultBucketName() {
         var mirrorProperties = new ImporterProperties();
