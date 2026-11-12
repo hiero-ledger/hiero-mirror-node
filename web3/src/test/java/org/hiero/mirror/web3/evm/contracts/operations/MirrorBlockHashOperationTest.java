@@ -29,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -250,10 +251,23 @@ class MirrorBlockHashOperationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(longs = {1L, -255L, -256L})
-    void lookbackWindow(long offset) {
+    @CsvSource({
+        "10000, 256, 1, false",
+        "10000, 256, -1, true",
+        "10000, 256, -255, true",
+        "10000, 256, -256, true",
+        "10000, 256, -257, false",
+        "256, 256, -256, true",
+        "257, 256, -257, false",
+        "100, 2, -1, true",
+        "100, 2, -2, true",
+        "100, 2, -3, false",
+        "1, 1, -1, true",
+        "100, 256, -100, true"
+    })
+    void lookbackWindow(long currentBlockNumber, long window, long offset, boolean withinWindow) {
         // Given
-        var currentBlockNumber = 10_000L;
+        lenient().when(evmProperties.getBlockHashWindow()).thenReturn(window);
         var soughtBlock = currentBlockNumber + offset;
         var recordFile =
                 domainBuilder.recordFile().customize(r -> r.index(soughtBlock)).get();
@@ -261,7 +275,9 @@ class MirrorBlockHashOperationTest {
         blockValues.setNumber(currentBlockNumber);
         given(messageFrame.popStackItem()).willReturn(Bytes.ofUnsignedLong(soughtBlock));
         given(messageFrame.getBlockValues()).willReturn(blockValues);
-        lenient().when(recordFileService.findByIndex(soughtBlock)).thenReturn(Optional.of(recordFile));
+        if (withinWindow) {
+            given(recordFileService.findByIndex(soughtBlock)).willReturn(Optional.of(recordFile));
+        }
 
         // When
         var result = operation.execute(messageFrame, null);
@@ -271,13 +287,14 @@ class MirrorBlockHashOperationTest {
                 .isNotNull()
                 .extracting(OperationResult::getHaltReason)
                 .isNull();
-        boolean withinWindow = soughtBlock <= currentBlockNumber && offset > -256L;
         if (withinWindow) {
+            verify(recordFileService).findByIndex(soughtBlock);
             verify(messageFrame)
                     .pushStackItem(Hash.fromHexString(recordFile.getHash().substring(0, 64))
                             .getBytes());
         } else {
             verify(messageFrame).pushStackItem(UInt256.ZERO);
+            verifyNoInteractions(recordFileService);
         }
     }
 
