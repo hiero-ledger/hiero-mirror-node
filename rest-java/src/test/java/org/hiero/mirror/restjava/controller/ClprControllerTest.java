@@ -63,6 +63,8 @@ final class ClprControllerTest extends ControllerTest {
                 assertThat(response.getLinks().getNext()).isNull();
             });
             assertThat(actual.getHeaders().containsHeader(HttpHeaders.LINK)).isFalse();
+            // Based on application.yml response headers configuration
+            assertThat(actual.getHeaders().getCacheControl()).isEqualTo("public, max-age=5");
         }
 
         @Test
