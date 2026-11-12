@@ -364,8 +364,8 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             var valueRead = DomainUtils.trim(slotRead.getReadValue());
             var storageChangeBuilder = StorageChange.newBuilder().setValueRead(valueRead);
             if (slotRead.getIdentifierCase() == SlotRead.IdentifierCase.INDEX) {
-                int index = slotRead.getIndex();
-                var slotValue = resolveIndexedSlotValue(blockTransaction, slotId, slotRead, writtenSlotKeys, valueRead);
+                final var slotValue =
+                        resolveIndexedSlotValue(blockTransaction, slotId, slotRead, writtenSlotKeys, valueRead);
                 if (slotValue != null) {
                     slot = slotValue.slot();
                     if (slotValue.valueWritten() != null) {
@@ -377,7 +377,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                         missingValueWritten = true;
                     }
                 } else {
-                    missingIndices.add(index);
+                    missingIndices.add(slotRead.getIndex());
                 }
             } else if (slotRead.getIdentifierCase() == SlotRead.IdentifierCase.KEY) {
                 slot = DomainUtils.trim(slotRead.getKey());
