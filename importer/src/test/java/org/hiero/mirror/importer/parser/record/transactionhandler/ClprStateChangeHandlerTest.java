@@ -113,7 +113,7 @@ final class ClprStateChangeHandlerTest {
                 .build();
         when(clprContext.getClprChannels())
                 .thenReturn(List.of(new ClprChannelEntry(
-                        DomainUtils.fromBytes(channelId), clprChannelValue, clprChannelMapUpdate(clprChannelValue))));
+                        DomainUtils.fromBytes(channelId), clprChannelMapUpdate(clprChannelValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -139,7 +139,7 @@ final class ClprStateChangeHandlerTest {
                 .build();
         when(clprContext.getClprChannels())
                 .thenReturn(List.of(new ClprChannelEntry(
-                        DomainUtils.fromBytes(channelId), clprChannelValue, clprChannelMapUpdate(clprChannelValue))));
+                        DomainUtils.fromBytes(channelId), clprChannelMapUpdate(clprChannelValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -164,7 +164,7 @@ final class ClprStateChangeHandlerTest {
                 .build();
         when(clprContext.getClprChannels())
                 .thenReturn(List.of(new ClprChannelEntry(
-                        DomainUtils.fromBytes(channelId), clprChannelValue, clprChannelMapUpdate(clprChannelValue))));
+                        DomainUtils.fromBytes(channelId), clprChannelMapUpdate(clprChannelValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -205,7 +205,7 @@ final class ClprStateChangeHandlerTest {
                 .build();
         when(clprContext.getClprChannels())
                 .thenReturn(List.of(new ClprChannelEntry(
-                        DomainUtils.fromBytes(channelId), clprChannelValue, clprChannelMapUpdate(clprChannelValue))));
+                        DomainUtils.fromBytes(channelId), clprChannelMapUpdate(clprChannelValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -245,7 +245,7 @@ final class ClprStateChangeHandlerTest {
                 .setValue(MapChangeValue.newBuilder().setClprChannelValue(fullValue))
                 .build();
         when(clprContext.getClprChannels())
-                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), fullValue, mapUpdate)));
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), mapUpdate)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -272,7 +272,7 @@ final class ClprStateChangeHandlerTest {
                 .setValue(MapChangeValue.newBuilder().setClprChannelValue(partialValue))
                 .build();
         when(clprContext.getClprChannels())
-                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), partialValue, mapUpdate)));
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), mapUpdate)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -302,7 +302,7 @@ final class ClprStateChangeHandlerTest {
                 .setValue(MapChangeValue.newBuilder().setClprChannelValue(partialValue))
                 .build();
         when(clprContext.getClprChannels())
-                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), partialValue, mapUpdate)));
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), mapUpdate)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -330,7 +330,7 @@ final class ClprStateChangeHandlerTest {
                 .setValue(MapChangeValue.newBuilder().setClprChannelValue(partialValue))
                 .build();
         when(clprContext.getClprChannels())
-                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), partialValue, mapUpdate)));
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), mapUpdate)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -374,13 +374,9 @@ final class ClprStateChangeHandlerTest {
         when(clprContext.getClprChannels())
                 .thenReturn(List.of(
                         new ClprChannelEntry(
-                                DomainUtils.fromBytes(channelId1),
-                                clprChannelValue1,
-                                clprChannelMapUpdate(clprChannelValue1)),
+                                DomainUtils.fromBytes(channelId1), clprChannelMapUpdate(clprChannelValue1)),
                         new ClprChannelEntry(
-                                DomainUtils.fromBytes(channelId2),
-                                clprChannelValue2,
-                                clprChannelMapUpdate(clprChannelValue2))));
+                                DomainUtils.fromBytes(channelId2), clprChannelMapUpdate(clprChannelValue2))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -603,8 +599,8 @@ final class ClprStateChangeHandlerTest {
                 .thenReturn(removedCommitment);
 
         when(clprContext.getClprConnectors())
-                .thenReturn(List.of(new ClprConnectorEntry(
-                        patchedConnectorKey, patchedConnectorValue, clprConnectorMapUpdate(patchedConnectorValue))));
+                .thenReturn(List.of(
+                        new ClprConnectorEntry(patchedConnectorKey, clprConnectorMapUpdate(patchedConnectorValue))));
         when(clprContext.getClprConnectorsRemoved()).thenReturn(List.of(removedConnectorKey));
 
         // when
@@ -655,8 +651,7 @@ final class ClprStateChangeHandlerTest {
         when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(commitment);
         when(clprContext.getClprConnectors())
-                .thenReturn(List.of(
-                        new ClprConnectorEntry(connectorKey, connectorValue, clprConnectorMapUpdate(connectorValue))));
+                .thenReturn(List.of(new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(connectorValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -692,8 +687,7 @@ final class ClprStateChangeHandlerTest {
         final var mapUpdate = MapUpdateChange.newBuilder()
                 .setValue(MapChangeValue.newBuilder().setClprConnectorValue(fullValue))
                 .build();
-        when(clprContext.getClprConnectors())
-                .thenReturn(List.of(new ClprConnectorEntry(connectorKey, fullValue, mapUpdate)));
+        when(clprContext.getClprConnectors()).thenReturn(List.of(new ClprConnectorEntry(connectorKey, mapUpdate)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -728,8 +722,7 @@ final class ClprStateChangeHandlerTest {
                 .setPartial(true)
                 .setValue(MapChangeValue.newBuilder().setClprConnectorValue(partialValue))
                 .build();
-        when(clprContext.getClprConnectors())
-                .thenReturn(List.of(new ClprConnectorEntry(connectorKey, partialValue, mapUpdate)));
+        when(clprContext.getClprConnectors()).thenReturn(List.of(new ClprConnectorEntry(connectorKey, mapUpdate)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -769,8 +762,7 @@ final class ClprStateChangeHandlerTest {
                 .setPartial(true)
                 .setValue(MapChangeValue.newBuilder().setClprConnectorValue(partialValue))
                 .build();
-        when(clprContext.getClprConnectors())
-                .thenReturn(List.of(new ClprConnectorEntry(connectorKey, partialValue, mapUpdate)));
+        when(clprContext.getClprConnectors()).thenReturn(List.of(new ClprConnectorEntry(connectorKey, mapUpdate)));
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -831,8 +823,7 @@ final class ClprStateChangeHandlerTest {
         when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(null);
         when(clprContext.getClprConnectors())
-                .thenReturn(List.of(
-                        new ClprConnectorEntry(connectorKey, connectorValue, clprConnectorMapUpdate(connectorValue))));
+                .thenReturn(List.of(new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(connectorValue))));
 
         // when
         clprStateChangeHandler.process(recordItem);

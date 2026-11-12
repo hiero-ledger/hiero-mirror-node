@@ -1156,9 +1156,7 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
                 .contractCall()
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new ClprChannelEntry(
-                                DomainUtils.fromBytes(channelId),
-                                clprChannelValue,
-                                clprChannelMapUpdate(clprChannelValue))))
+                                DomainUtils.fromBytes(channelId), clprChannelMapUpdate(clprChannelValue))))
                         .clprConnectorsRemoved(List.of(removedConnectorKey)))
                 .build();
 

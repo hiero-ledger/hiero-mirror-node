@@ -172,7 +172,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new ClprChannelEntry(
                                 clprChannelValue.getChannelId(),
-                                clprChannelValue,
                                 clprChannelMapUpdate(clprChannelValue).getMapUpdate()))))
                 .customize(this::finalize)
                 .build();
@@ -1239,7 +1238,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new ClprChannelEntry(
                                 clprChannelValue.getChannelId(),
-                                clprChannelValue,
                                 clprChannelMapUpdate(clprChannelValue).getMapUpdate()))))
                 .customize(this::finalize)
                 .build();
@@ -1512,7 +1510,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new ClprChannelEntry(
                                 clprChannelValue.getChannelId(),
-                                clprChannelValue,
                                 clprChannelMapUpdate(clprChannelValue).getMapUpdate()))))
                 .customize(this::finalize)
                 .build();
