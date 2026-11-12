@@ -824,6 +824,38 @@ final class StateChangeContextTest {
     }
 
     @Test
+    void hookStorageChangeByIdAndIndex() {
+        // given
+        final var hookSlotKey1 = getEvmHookSlotKey(1L, bytes(32));
+        final var hookSlot1Value = bytes(8);
+        final var hookSlotKey2 = hookSlotKey1.toBuilder().setKey(bytes(32)).build();
+        final var hookSlot2Value = bytes(12);
+        final var hookSlotKey3 = hookSlotKey1.toBuilder().setKey(bytes(32)).build();
+        // a pointer-only update of slot 1 is identical, so it's excluded from the implicit list of writes
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(makeIdentical(hookStorageMapUpdateChange(hookSlotKey1, hookSlot1Value)))
+                .addStateChanges(hookStorageMapUpdateChange(hookSlotKey2, hookSlot2Value))
+                .addStateChanges(hookStorageMapDeleteChange(hookSlotKey3))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        final var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        final var slotId = convert(hookSlotKey1).slotId();
+        assertThat(context.getContractStorageChange(slotId, 0))
+                .isEqualTo(new StateChangeContext.SlotValue(
+                        DomainUtils.trim(hookSlotKey2.getKey()), BytesValue.of(hookSlot2Value)));
+        assertThat(context.getContractStorageChange(slotId, 1))
+                .isEqualTo(new StateChangeContext.SlotValue(
+                        DomainUtils.trim(hookSlotKey3.getKey()), BytesValue.getDefaultInstance()));
+        assertThat(context.getContractStorageChange(slotId, 2)).isNull();
+        assertThat(context.getContractStorageValueWritten(convert(hookSlotKey1)))
+                .isNull();
+    }
+
+    @Test
     void getHookStorageValueWrittenWithEmptyContext() {
         // given
         var hookSlotKey = getEvmHookSlotKey(1L, bytes(32));

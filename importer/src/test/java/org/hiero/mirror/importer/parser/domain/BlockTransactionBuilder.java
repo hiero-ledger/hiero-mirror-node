@@ -56,6 +56,7 @@ import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
+import com.hederahashgraph.api.proto.java.CreatedContractIds;
 import com.hederahashgraph.api.proto.java.EvmTransactionResult;
 import com.hederahashgraph.api.proto.java.InternalCallContext;
 import com.hederahashgraph.api.proto.java.NftID;
@@ -189,6 +190,11 @@ public class BlockTransactionBuilder {
 
         if (contractResult.hasSignerNonce()) {
             builder.setSignerNonce(contractResult.getSignerNonce());
+        }
+
+        if (contractResult.getCreatedContractIDsCount() > 0) {
+            builder.setCreatedContractIds(
+                    CreatedContractIds.newBuilder().addAllContractIds(contractResult.getCreatedContractIDsList()));
         }
 
         return builder.build();

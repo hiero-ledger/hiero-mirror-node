@@ -102,7 +102,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
     /**
      * Whether consensus node sets the contract id of the EVM transaction result in the receipt. For a contract call,
-     * only when it's top level, an inner batch transaction, or a hook execution, and uses gas.
+     * only when it's top level, an inner batch transaction, a hook execution, or a scheduled transaction, and uses gas.
      */
     protected boolean hasReceiptContractId(
             final BlockTransaction blockTransaction, final EvmTransactionResult evmTransactionResult) {
@@ -111,19 +111,23 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             return false;
         }
 
-        return transactionBody.getTransactionID().getNonce() == 0 || evmTransactionResult.hasExecutedHookId();
+        return transactionBody.getTransactionID().getNonce() == 0
+                || evmTransactionResult.hasExecutedHookId()
+                || blockTransaction.getTransactionResult().hasScheduleRef();
     }
 
     /**
-     * Resolves the slot and the value written of a slot read by its index. When the value written is absent because
-     * the slot has no net change in the transactional unit, the value read is the value written.
+     * Resolves the slot and the value written of a slot read by its index. An explicit written value takes precedence.
+     * Otherwise, when the value written is absent because the slot has no net change in the transactional unit, the
+     * value read is the value written.
      */
     private SlotValue resolveIndexedSlotValue(
             final BlockTransaction blockTransaction,
             final ContractSlotId slotId,
-            final int index,
+            final SlotRead slotRead,
             final List<ByteString> writtenSlotKeys,
             final ByteString valueRead) {
+        final int index = slotRead.getIndex();
         if (index < 0) {
             return null;
         }
@@ -135,6 +139,10 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                 return null;
             }
             final var contractSlotKey = normalize(new ContractSlotKey(slotId, writtenSlotKeys.get(index)));
+            if (slotRead.hasWrittenValue()) {
+                return new SlotValue(contractSlotKey.key(), DomainUtils.trim(slotRead.getWrittenValue()));
+            }
+
             final var valueWritten = blockTransaction.getValueWritten(contractSlotKey);
             if (valueWritten == null && stateChangeContext.isContractStorageValueWrittenAbsent(contractSlotKey)) {
                 return new SlotValue(contractSlotKey.key(), BytesValue.of(valueRead));
@@ -145,6 +153,10 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
         // implicit, get it from statechanges
         final var slotValue = stateChangeContext.getContractStorageChange(slotId, index);
+        if (slotValue != null && slotRead.hasWrittenValue()) {
+            return new SlotValue(slotValue.slot(), DomainUtils.trim(slotRead.getWrittenValue()));
+        }
+
         if (slotValue != null && slotValue.valueWritten() == null) {
             return new SlotValue(slotValue.slot(), BytesValue.of(valueRead));
         }
@@ -162,6 +174,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                 blockTransaction, contractResultBuilder.getContractID(), recordItemBuilder, evmTransactionResult);
     }
 
+    @SuppressWarnings("deprecated")
     private void transformSmartContractResult(BlockTransactionTransformation transformation) {
         var blockTransaction = transformation.blockTransaction();
         var evmTransactionInfo = getEvmTransactionInfo(blockTransaction);
@@ -182,6 +195,11 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
         if (evmTransactionResult.getContractNoncesCount() > 0) {
             contractResultbuilder.addAllContractNonces(evmTransactionResult.getContractNoncesList());
+        }
+
+        if (evmTransactionResult.hasCreatedContractIds()) {
+            contractResultbuilder.addAllCreatedContractIDs(
+                    evmTransactionResult.getCreatedContractIds().getContractIdsList());
         }
 
         if (evmTransactionResult.hasContractId()) {
@@ -347,7 +365,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             var storageChangeBuilder = StorageChange.newBuilder().setValueRead(valueRead);
             if (slotRead.getIdentifierCase() == SlotRead.IdentifierCase.INDEX) {
                 int index = slotRead.getIndex();
-                var slotValue = resolveIndexedSlotValue(blockTransaction, slotId, index, writtenSlotKeys, valueRead);
+                var slotValue = resolveIndexedSlotValue(blockTransaction, slotId, slotRead, writtenSlotKeys, valueRead);
                 if (slotValue != null) {
                     slot = slotValue.slot();
                     if (slotValue.valueWritten() != null) {
@@ -362,7 +380,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                     missingIndices.add(index);
                 }
             } else if (slotRead.getIdentifierCase() == SlotRead.IdentifierCase.KEY) {
-                slot = slotRead.getKey();
+                slot = DomainUtils.trim(slotRead.getKey());
                 storageChanges.add(storageChangeBuilder.setSlot(slot).build());
             }
 

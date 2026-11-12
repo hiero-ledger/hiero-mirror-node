@@ -304,8 +304,8 @@ public final class StateChangeContext {
         processContractStorageChange(contractSlotKey, getValueWritten(mapUpdate));
     }
 
-    private void processHookStorageChange(MapUpdateChange mapUpdate) {
-        if (!mapUpdate.getKey().hasEvmHookSlotKey()) {
+    private void processHookStorageChange(final MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasEvmHookSlotKey() || mapUpdate.getIdentical()) {
             return;
         }
 
