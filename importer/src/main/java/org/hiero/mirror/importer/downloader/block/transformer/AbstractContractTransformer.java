@@ -9,14 +9,20 @@ import org.hiero.mirror.common.util.DomainUtils;
 
 abstract class AbstractContractTransformer extends AbstractBlockTransactionTransformer {
 
-    void resolveEvmAddress(
-            ContractID contractId, TransactionReceipt.Builder receiptBuilder, StateChangeContext stateChangeContext) {
+    /**
+     * Sets the receipt contract id from the transaction body, resolving an EVM address from its long-zero form or the
+     * state changes on a best-effort basis. An unresolved EVM address is left for the parser to resolve.
+     */
+    void setReceiptContractId(
+            final ContractID contractId,
+            final TransactionReceipt.Builder receiptBuilder,
+            final StateChangeContext stateChangeContext) {
         if (!contractId.hasEvmAddress()) {
             receiptBuilder.setContractID(contractId);
             return;
         }
 
-        var entityId = DomainUtils.fromEvmAddress(DomainUtils.toBytes(contractId.getEvmAddress()));
+        final var entityId = DomainUtils.fromEvmAddress(DomainUtils.toBytes(contractId.getEvmAddress()));
         if (entityId != null
                 && entityId.getShard() == contractId.getShardNum()
                 && entityId.getRealm() == contractId.getRealmNum()) {
@@ -24,9 +30,9 @@ abstract class AbstractContractTransformer extends AbstractBlockTransactionTrans
             return;
         }
 
-        stateChangeContext
-                .getContractId(contractId.getEvmAddress())
-                .map(receiptBuilder::setContractID)
-                .orElseThrow();
+        final var resolved = stateChangeContext.getContractId(contractId.getEvmAddress());
+        if (resolved != null) {
+            receiptBuilder.setContractID(resolved);
+        }
     }
 }

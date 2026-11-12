@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
+import com.hederahashgraph.api.proto.java.EvmTransactionResult;
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -32,5 +33,11 @@ final class ContractCreateTransformer extends AbstractBlockTransactionTransforme
                     return EvmTransactionInfo.ofContractCreate(createContractOutput.getEvmTransactionResult());
                 })
                 .orElse(null);
+    }
+
+    @Override
+    protected boolean hasReceiptContractId(
+            final BlockTransaction blockTransaction, final EvmTransactionResult evmTransactionResult) {
+        return true;
     }
 }

@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.domain;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ALIASES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
@@ -168,7 +169,7 @@ public class BlockTransactionBuilder {
         return StateChanges.newBuilder().addAllStateChanges(changes).build();
     }
 
-    private static EvmTransactionResult fromContractResult(ContractFunctionResult contractResult) {
+    public static EvmTransactionResult fromContractResult(ContractFunctionResult contractResult) {
         var builder = EvmTransactionResult.newBuilder()
                 .setErrorMessage(contractResult.getErrorMessage())
                 .setGasUsed(contractResult.getGasUsed())
@@ -353,25 +354,25 @@ public class BlockTransactionBuilder {
     }
 
     public BlockTransactionBuilder.Builder contractDeleteOrUpdate(RecordItem recordItem) {
+        return contractDeleteOrUpdate(
+                recordItem, recordItem.getTransactionRecord().getReceipt().getContractID());
+    }
+
+    public BlockTransactionBuilder.Builder contractDeleteOrUpdate(
+            final RecordItem recordItem, final ContractID contractId) {
         if (!recordItem.isSuccessful()) {
             return unsuccessfulTransaction(recordItem);
         }
 
-        var contractId = recordItem.getTransactionRecord().getReceipt().getContractID();
-        ContractID contractIdInBody;
-        boolean deleted = false;
-        if (recordItem.getTransactionType() == TransactionType.CONTRACTDELETEINSTANCE.getProtoId()) {
-            contractIdInBody =
-                    recordItem.getTransactionBody().getContractDeleteInstance().getContractID();
-            deleted = true;
-        } else {
-            contractIdInBody =
-                    recordItem.getTransactionBody().getContractUpdateInstance().getContractID();
-        }
-
-        var accountId = toAccountId(contractId);
-        var evmAddress = getEvmAddress(contractIdInBody);
-        var stateChanges = StateChanges.newBuilder()
+        final boolean deleted = recordItem.getTransactionType() == TransactionType.CONTRACTDELETEINSTANCE.getProtoId();
+        final var transactionBody = recordItem.getTransactionBody();
+        final var contractIdInBody = deleted
+                ? transactionBody.getContractDeleteInstance().getContractID()
+                : transactionBody.getContractUpdateInstance().getContractID();
+        final var accountId = toAccountId(contractId);
+        final var evmAddress = getEvmAddress(contractIdInBody);
+        // Consensus node clears the alias of a deleted contract and removes its alias mapping
+        final var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(StateChange.newBuilder()
                         .setStateId(STATE_ID_ACCOUNTS_VALUE)
                         .setMapUpdate(MapUpdateChange.newBuilder()
@@ -379,15 +380,21 @@ public class BlockTransactionBuilder {
                                 .setValue(MapChangeValue.newBuilder()
                                         .setAccountValue(Account.newBuilder()
                                                 .setAccountId(accountId)
-                                                .setAlias(evmAddress)
+                                                .setAlias(deleted ? ByteString.EMPTY : evmAddress)
                                                 .setDeleted(deleted)
-                                                .setSmartContract(true)))))
-                .build();
+                                                .setSmartContract(true)))));
+        if (deleted && !evmAddress.isEmpty()) {
+            stateChanges.addStateChanges(StateChange.newBuilder()
+                    .setStateId(STATE_ID_ALIASES_VALUE)
+                    .setMapDelete(MapDeleteChange.newBuilder()
+                            .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(evmAddress)))));
+        }
+
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Collections.emptyMap(),
-                List.of(stateChanges),
+                List.of(stateChanges.build()),
                 Collections.emptyList());
     }
 
@@ -445,15 +452,10 @@ public class BlockTransactionBuilder {
     }
 
     public BlockTransactionBuilder.Builder cryptoUpdate(RecordItem recordItem) {
-        final var accountIdToUpdate =
-                recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate();
         final var accountId = recordItem.getTransactionRecord().getReceipt().getAccountID();
         final var account = Account.newBuilder().setAccountId(accountId);
         if (recordItem.getAccountEthereumNonce() != null) {
             account.setEthereumNonce(recordItem.getAccountEthereumNonce());
-        }
-        if (accountIdToUpdate.hasAlias()) {
-            account.setAlias(accountIdToUpdate.getAlias());
         }
 
         final var stateChanges = StateChanges.newBuilder()

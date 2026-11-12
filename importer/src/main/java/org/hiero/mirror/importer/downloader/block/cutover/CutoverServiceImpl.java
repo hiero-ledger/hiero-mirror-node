@@ -22,7 +22,6 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -130,14 +129,6 @@ public final class CutoverServiceImpl implements CutoverService {
         return recordFileRepository.findFirst();
     }
 
-    private boolean hasCutover() {
-        final var network =
-                recordDownloaderProperties.getCommon().getImporterProperties().getNetwork();
-        return cutoverProperties.getEnabled() != null
-                ? cutoverProperties.getEnabled()
-                : ImporterProperties.HederaNetwork.hasCutover(network);
-    }
-
     private boolean isActive(final StreamType streamType) {
         if (streamType != BLOCK && streamType != RECORD) {
             throw new IllegalArgumentException("StreamType must be BLOCK or RECORD");
@@ -148,7 +139,7 @@ public final class CutoverServiceImpl implements CutoverService {
             return false;
         }
 
-        if (!hasCutover() || isCutoverComplete()) {
+        if (!cutoverProperties.isEnabled() || isCutoverComplete()) {
             return streamType == BLOCK ? blockProperties.isEnabled() : recordDownloaderProperties.isEnabled();
         }
 

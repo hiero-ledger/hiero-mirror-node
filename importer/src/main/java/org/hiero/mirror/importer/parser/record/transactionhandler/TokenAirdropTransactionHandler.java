@@ -45,8 +45,10 @@ class TokenAirdropTransactionHandler extends AbstractTransactionHandler {
             TokenID tokenId;
             if (pendingAirdropId.hasFungibleTokenType()) {
                 tokenId = pendingAirdropId.getFungibleTokenType();
-                var amount = pendingAirdrop.getPendingAirdropValue().getAmount();
-                tokenAirdrop.setAmount(amount);
+                final long amount = pendingAirdrop.getPendingAirdropValue().getAmount();
+                // A negative amount is a change the upsert adds to the existing pending amount
+                tokenAirdrop.setAmount(
+                        recordItem.getPendingAirdropAmountAbsent().contains(pendingAirdropId) ? -amount : amount);
             } else {
                 tokenId = pendingAirdropId.getNonFungibleToken().getTokenID();
                 var serialNumber = pendingAirdropId.getNonFungibleToken().getSerialNumber();
