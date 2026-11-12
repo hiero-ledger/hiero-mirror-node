@@ -453,7 +453,7 @@ resource "grafana_rule_group" "uptime_clusters" {
       datasource_uid = var.prometheus_datasource_uid
       model = jsonencode({
         editorMode    = "code"
-        expr          = "max by (cluster, env_category) (hiero_mirror_monitor_health{type=\"release\",cluster=~\"${local.individual_clusters}\"}) == bool 0"
+        expr          = "(max by (cluster, env_category) (hiero_mirror_monitor_health{type=\"release\",cluster=~\"${local.individual_clusters}\"}) == bool 0) * on (cluster, env_category) (max by (cluster, env_category) (max_over_time(hiero_mirror_monitor_health{type=\"release\",cluster=~\"${local.individual_clusters}\"}[60m])))"
         instant       = true
         intervalMs    = 1000
         legendFormat  = "__auto"
