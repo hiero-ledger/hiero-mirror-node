@@ -20,13 +20,8 @@ final class UtilsTest {
         var blockFile = BlockFile.builder().consensusEnd(consensusEnd).build();
         long expectedDelay = 1000;
         long completeTime = consensusEnd / 1_000_000 + expectedDelay;
-        var blockStream = new BlockStream(
-                Collections.emptyList(),
-                completeTime,
-                null,
-                BlockFile.getFilename(0, false),
-                System.currentTimeMillis(),
-                1024);
+        var blockStream =
+                new BlockStream(Collections.emptyList(), completeTime, null, BlockFile.getFilename(0, false), 1024);
 
         // when, then
         assertThat(Utils.getLatency(blockFile, blockStream)).isEqualTo(expectedDelay);

@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.downloader.block.CompositeBlockSource.FAILOVER_METRIC_NAME;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
@@ -14,6 +16,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +55,8 @@ final class CompositeBlockSourceTest {
 
     private CommonDownloaderProperties commonDownloaderProperties;
     private ImporterProperties importerProperties;
+    private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     private BlockProperties properties;
     private CompositeBlockSource source;
     private Map<BlockSourceType, BlockSource> sources;
@@ -109,6 +115,7 @@ final class CompositeBlockSourceTest {
         // then
         verify(delegate).get();
         verifyNoInteractions(other);
+        assertThat(failovers()).isZero();
     }
 
     @ParameterizedTest
@@ -130,6 +137,7 @@ final class CompositeBlockSourceTest {
         // then
         verify(delegate, times(4)).get();
         verifyNoInteractions(other);
+        assertThat(failovers()).isZero();
     }
 
     @Test
@@ -143,6 +151,7 @@ final class CompositeBlockSourceTest {
         // then
         verify(blockFileSource).get();
         verify(blockNodeSubscriber, never()).get();
+        assertThat(failovers()).isZero();
     }
 
     @ParameterizedTest
@@ -213,6 +222,7 @@ final class CompositeBlockSourceTest {
         // then
         verifyNoInteractions(blockFileSource);
         verify(blockNodeSubscriber, times(3)).get();
+        assertThat(failovers()).isZero();
 
         // when
         source.get();
@@ -220,6 +230,7 @@ final class CompositeBlockSourceTest {
         // then
         verify(blockFileSource).get();
         verify(blockNodeSubscriber, times(3)).get();
+        assertThat(failovers()).isOne();
 
         // when
         source.get();
@@ -235,6 +246,7 @@ final class CompositeBlockSourceTest {
         // then
         verify(blockFileSource, times(3)).get();
         verify(blockNodeSubscriber, times(4)).get();
+        assertThat(failovers()).isOne();
 
         // when
         source.get();
@@ -242,6 +254,7 @@ final class CompositeBlockSourceTest {
         // then
         verify(blockFileSource, times(4)).get();
         verify(blockNodeSubscriber, times(4)).get();
+        assertThat(failovers()).isEqualTo(2);
 
         // when blockNodeSubscriber.get() succeeds then keeps throwing
         // the successful get() should clear the unhealthy state
@@ -260,6 +273,11 @@ final class CompositeBlockSourceTest {
         // then
         verify(blockFileSource, times(5)).get();
         verify(blockNodeSubscriber, times(8)).get();
+        assertThat(failovers()).isEqualTo(3);
+    }
+
+    private double failovers() {
+        return meterRegistry.get(FAILOVER_METRIC_NAME).counter().count();
     }
 
     private CompositeBlockSource newCompositeBlockSource() {
@@ -269,6 +287,7 @@ final class CompositeBlockSourceTest {
                 blockNodeSubscriber,
                 commonDownloaderProperties,
                 cutoverService,
+                meterRegistry,
                 properties);
     }
 }

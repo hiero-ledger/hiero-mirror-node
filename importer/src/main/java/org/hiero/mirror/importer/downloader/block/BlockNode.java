@@ -17,13 +17,16 @@ import io.grpc.protobuf.ProtoUtils;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ClientCalls;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -59,7 +62,14 @@ import org.jspecify.annotations.Nullable;
 @NullMarked
 public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
+    static final String CLOSE_METRIC_NAME = "hiero.mirror.importer.block.subscriber.close";
     static final String ERROR_METRIC_NAME = "hiero.mirror.importer.stream.error";
+    static final String STREAM_DURATION_METRIC_NAME = "hiero.mirror.importer.block.stream.duration";
+
+    private static final String BLOCK_NODE_TAG = "block_node";
+    private static final String CLOSE_REASON_COMPLETED = "completed";
+    private static final String CLOSE_REASON_RESCHEDULED = "rescheduled";
+    private static final String REASON_TAG = "reason";
 
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(BlockNode::getProperties);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
@@ -71,6 +81,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                             ProtoUtils.marshaller(SubscribeStreamResponseUnparsed.getDefaultInstance()))
                     .build();
 
+    private final MeterProvider<Counter> closeMetric;
     private final AtomicInteger errors = new AtomicInteger();
     private final Counter errorsMetric;
     private final BiConsumer<String, BlockingClientCall<?, ?>> grpcBufferDisposer;
@@ -80,7 +91,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private final Latency latency = new Latency();
 
     @Getter
-    private final String statusEndpoint;
+    private final String subscribeStreamEndpoint;
 
     @Getter
     private final String subscribeStreamName;
@@ -90,6 +101,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     private final AtomicReference<Instant> readmitTime = new AtomicReference<>(Instant.now());
     private final ManagedChannel statusChannel;
+    private final MeterProvider<Timer> streamDurationMetric;
     private final StreamProperties streamProperties;
     private final ManagedChannel subscribeStreamChannel;
 
@@ -109,7 +121,6 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         final var statusEndpoint = getEndpoint(BlockNodeApi.STATUS, properties.getEndpoints());
         final var subscribeStreamEndpoint = getEndpoint(BlockNodeApi.SUBSCRIBE_STREAM, properties.getEndpoints());
         statusChannel = buildChannel(channelBuilderProvider, statusEndpoint, streamProperties);
-        this.statusEndpoint = statusEndpoint.toString();
 
         if (subscribeStreamEndpoint == statusEndpoint) {
             subscribeStreamChannel = statusChannel;
@@ -117,12 +128,20 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             subscribeStreamChannel = buildChannel(channelBuilderProvider, subscribeStreamEndpoint, streamProperties);
         }
 
+        this.subscribeStreamEndpoint = subscribeStreamEndpoint.toString();
+        closeMetric = Counter.builder(CLOSE_METRIC_NAME)
+                .description("The number of block stream subscriptions that ended")
+                .tag(BLOCK_NODE_TAG, this.subscribeStreamEndpoint)
+                .withRegistry(meterRegistry);
         errorsMetric = Counter.builder(ERROR_METRIC_NAME)
                 .description("The number of errors that occurred while communicating with a particular block node.")
                 .tag("type", StreamType.BLOCK.toString())
-                .tag("block_node", this.statusEndpoint)
+                .tag(BLOCK_NODE_TAG, this.subscribeStreamEndpoint)
                 .register(meterRegistry);
-        name = String.format("BlockNode(%s)", this.statusEndpoint);
+        name = String.format("BlockNode(%s)", statusEndpoint);
+        streamDurationMetric = Timer.builder(STREAM_DURATION_METRIC_NAME)
+                .description("The time it took to stream a complete block from a block node")
+                .withRegistry(meterRegistry);
         subscribeStreamName = String.format("BlockNode(%s)", subscribeStreamEndpoint);
     }
 
@@ -226,6 +245,10 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         return earliest;
     }
 
+    private static @Nullable String getCloseReason(final BlockNodeStatus status) {
+        return status != BlockNodeStatus.IGNORED ? status.name().toLowerCase(Locale.ROOT) : null;
+    }
+
     private static BlockNodeProperties.ServiceEndpoint getEndpoint(
             final BlockNodeApi api, final Collection<BlockNodeProperties.ServiceEndpoint> endpoints) {
         for (final var endpoint : endpoints) {
@@ -310,13 +333,14 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final Duration timeout,
             final boolean trackErrors) {
         BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponseUnparsed> grpcCall = null;
+        @Nullable String closeReason = null;
         boolean responded = false;
 
         try {
             final long effectiveEndBlockNumber = endBlockNumber == null ? -1L : endBlockNumber;
             final var uncompressedBytes = new AtomicLong();
-            final var assembler =
-                    new BlockAssembler(onBlockStream, effectiveEndBlockNumber, blockNumber, timeout, uncompressedBytes);
+            final var assembler = new BlockAssembler(
+                    onBlockStream, effectiveEndBlockNumber, trackErrors, blockNumber, timeout, uncompressedBytes);
             final var request = SubscribeStreamRequest.newBuilder()
                     .setEndBlockNumber(effectiveEndBlockNumber)
                     .setStartBlockNumber(blockNumber)
@@ -358,6 +382,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 }
             }
 
+            closeReason = assembler.isRescheduled() ? CLOSE_REASON_RESCHEDULED : CLOSE_REASON_COMPLETED;
             if (trackErrors) {
                 // Only clear errors when the subscription ends gracefully
                 errors.set(0);
@@ -365,6 +390,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         } catch (final BlockStreamException ex) {
             if (trackErrors) {
                 onError(BlockNodeStatus.ERROR);
+                closeReason = getCloseReason(BlockNodeStatus.ERROR);
             }
 
             throw ex;
@@ -376,11 +402,18 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             if (trackErrors) {
                 final var failure = BlockNodeStatus.of(ex);
                 // A node that drops the connection mid-stream was reachable, e.g. it may be restarting
-                onError(responded && failure == BlockNodeStatus.UNREACHABLE ? BlockNodeStatus.ERROR : failure);
+                final var status =
+                        responded && failure == BlockNodeStatus.UNREACHABLE ? BlockNodeStatus.ERROR : failure;
+                onError(status);
+                closeReason = getCloseReason(status);
             }
 
             throw new BlockStreamException(ex);
         } finally {
+            if (trackErrors && closeReason != null) {
+                closeMetric.withTag(REASON_TAG, closeReason).increment();
+            }
+
             if (grpcCall != null) {
                 grpcCall.cancel("unsubscribe", null);
                 grpcBufferDisposer.accept(subscribeStreamName, grpcCall);
@@ -413,25 +446,31 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         private final BiFunction<BlockStream, String, Boolean> blockStreamConsumer;
         private final long endBlockNumber;
         private final List<List<BlockItemUnparsed>> pending = new ArrayList<>();
+        private final boolean recordStreamDuration;
         private final long startBlockNumber;
         private final Stopwatch stopwatch;
         private final Duration timeout;
         private final AtomicLong uncompressedBytes;
 
         private long blockStartBytes = 0;
+        private long blockStartTime;
         private int completedBlocks = 0;
         private @Nullable BlockHeader currentBlockHeader;
-        private long loadStart;
         private int pendingCount = 0;
+
+        @Getter
+        private boolean rescheduled;
 
         BlockAssembler(
                 final BiFunction<BlockStream, String, Boolean> blockStreamConsumer,
                 final long endBlockNumber,
+                final boolean recordStreamDuration,
                 final long startBlockNumber,
                 final Duration timeout,
                 final AtomicLong uncompressedBytes) {
             this.blockStreamConsumer = blockStreamConsumer;
             this.endBlockNumber = endBlockNumber;
+            this.recordStreamDuration = recordStreamDuration;
             this.startBlockNumber = startBlockNumber;
             this.stopwatch = Stopwatch.createUnstarted();
             this.timeout = timeout;
@@ -470,6 +509,12 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             }
 
             final long blockCompleteTime = System.currentTimeMillis();
+            if (recordStreamDuration) {
+                streamDurationMetric
+                        .withTag(BLOCK_NODE_TAG, subscribeStreamEndpoint)
+                        .record(blockCompleteTime - blockStartTime, TimeUnit.MILLISECONDS);
+            }
+
             final List<BlockItemUnparsed> block;
             if (pending.size() == 1) {
                 block = pending.getFirst();
@@ -488,11 +533,12 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             stopwatch.reset();
 
             final var filename = BlockFile.getFilename(blockNumber, false);
-            final var blockStream = new BlockStream(block, blockCompleteTime, null, filename, loadStart, blockSize);
+            final var blockStream = new BlockStream(block, blockCompleteTime, null, filename, blockSize);
             log.info("Streamed block {} from {}", blockNumber, subscribeStreamName);
 
             // when either condition becomes true, inform the caller to stop sending items for assembling
-            return blockStreamConsumer.apply(blockStream, subscribeStreamName) || blockNumber == endBlockNumber;
+            rescheduled = blockStreamConsumer.apply(blockStream, subscribeStreamEndpoint);
+            return rescheduled || blockNumber == endBlockNumber;
         }
 
         long timeout() {
@@ -528,6 +574,7 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             }
 
             if (firstItemCase == BLOCK_HEADER) {
+                blockStartTime = System.currentTimeMillis();
                 currentBlockHeader = parseProtobuf(blockItems.getFirst().getBlockHeader(), BlockHeader::parseFrom);
                 if (completedBlocks == 0 && startBlockNumber != currentBlockHeader.getNumber()) {
                     // Validate only the first block's number in this session; subsequent blocks are validated by
@@ -536,8 +583,6 @@ public final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                             "First block has incorrect block number: received %d, expected %d",
                             currentBlockHeader.getNumber(), startBlockNumber));
                 }
-
-                loadStart = System.currentTimeMillis();
             }
         }
 
