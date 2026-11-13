@@ -1,15 +1,13 @@
 # CLPR block-stream fixtures
 
-Real blocks captured from a local `hiero-consensus-node` subprocess network (not synthetic fixtures built via
-`RecordItemBuilder`), used by `ClprBlockFileE2ETest`. Update this table whenever a file here is added, replaced, or
-re-sourced from a different consensus-node version or test run.
+Real blocks captured from a local `hiero-consensus-node` local network, generated from the relevant HAPI test run
+and then filtered down to only CLPR-related transactions.
 
 ## `0000/0000/0000/0000/001.blk.zstd`
 
-- **Source**: `hiero-consensus-node` alpha5 (`build-00423`), single-network `hapiTestClpr` gradle task (a full rerun
-  of the whole single-network CLPR HAPI suite, not a single filtered test method).
+- **Source**: `hiero-consensus-node` alpha5 (`build-00423`), single-network `hapiTestClpr` gradle task
 - **Block number**: 106 (of node0's run output) — the block immediately before `002.blk.zstd`.
-- **Contents** (in order; non-CLPR consensus housekeeping omitted):
+- **Contents** (in order):
 
   1. `ClprRegisterChannel` — ownershipCommitment `29a90d6e...9f6b`, the commit half of the commit-reveal completed
      by `002.blk.zstd`'s `ClprCompleteChannel` (channelId `9632b28a...f330`).
@@ -27,7 +25,7 @@ re-sourced from a different consensus-node version or test run.
   very next real block (107), parsed immediately after `001.blk.zstd` in `ClprBlockFileE2ETest` as a genuine
   sequential block stream (real hash-chain linkage, not synthetic).
 - **Block number**: 107.
-- **Contents** (in order; non-CLPR consensus housekeeping omitted):
+- **Contents** (in order):
 
   1. `ClprCompleteChannel` — channelId `9632b28a...f330`, verifierContract `11.12.1113` (the reveal half of the
      register from `001.blk.zstd`).
@@ -56,7 +54,7 @@ re-sourced from a different consensus-node version or test run.
   `hapiTestClpr`) — the very next real block (108), parsed immediately after `002.blk.zstd` in
   `ClprBlockFileE2ETest` as a genuine sequential block stream (real hash-chain linkage, not synthetic).
 - **Block number**: 108.
-- **Contents** (in order; non-CLPR consensus housekeeping omitted):
+- **Contents** (in order):
 
   1. `ClprSubmitBundle` — same channelId, replying to the `sendMessage` from block 107. Produces `clpr_message`
      messageId 2, type `RESPONSE`, `replyStatus=CONNECTOR_NOT_FOUND`, `replyToMessageId=1` (auto-generated because
@@ -80,7 +78,7 @@ re-sourced from a different consensus-node version or test run.
 ## `0000/0000/0000/0000/004.blk.zstd`
 
 - **Source**: `hiero-consensus-node` alpha5 (`build-00423`), two-network `hapiTestClprMultinetwork` gradle task
-  (`ledgerA-test` bucket, a full rerun of the multi-network CLPR HAPI suite, not a single filtered test method).
+  (`ledgerA-test` bucket).
 - **Block number**: 125 of ledgerA node0's run (ledgerA is the side with the app contract that calls
   `sendMessages`).
 - **Captured standalone**, not chained to any other file here: like the alpha3 capture it replaces, this block's own
