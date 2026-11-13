@@ -14,10 +14,14 @@ import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprMessage;
+import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
+import org.hiero.mirror.rest.model.ClprMessagesResponse;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
+import org.hiero.mirror.restjava.mapper.ClprMessageMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -32,6 +36,7 @@ import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 final class ClprControllerTest extends ControllerTest {
 
     private final ClprChannelMapper channelMapper;
+    private final ClprMessageMapper messageMapper;
 
     @DisplayName("/api/v1/clpr/channels")
     @Nested
@@ -283,6 +288,227 @@ final class ClprControllerTest extends ControllerTest {
             org.assertj.core.api.Assertions.assertThatThrownBy(callable)
                     .isInstanceOf(HttpClientErrorException.BadRequest.class);
         }
+    }
+
+    @DisplayName("/api/v1/clpr/channels/{channelId}/messages")
+    @Nested
+    final class MessagesEndpointTest extends EndpointTest {
+
+        private static final String RANGE = "timestamp=gte:0&timestamp=lte:1";
+
+        private byte[] channelId;
+
+        @Override
+        protected String getUrl() {
+            return "clpr/channels";
+        }
+
+        @Override
+        protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
+            channelId = domainBuilder.bytes(32);
+            persistMessage(channelId, 100L, ClprMessageType.DATA);
+            return uriSpec.uri("/{id}/messages?timestamp=gte:0", hex(channelId));
+        }
+
+        @Test
+        void list() {
+            // given
+            channelId = domainBuilder.bytes(32);
+            final var message1 = persistMessage(channelId, 100L, ClprMessageType.DATA);
+            final var message2 = persistMessage(channelId, 200L, ClprMessageType.RESPONSE);
+            persistMessage(domainBuilder.bytes(32), 150L, ClprMessageType.DATA); // another channel
+
+            // when
+            final var actual = get("timestamp=gte:0");
+
+            // then
+            assertThat(actual.getBody()).isNotNull().satisfies(response -> {
+                assertThat(response.getMessages()).isEqualTo(messageMapper.map(asData(message2, message1)));
+                assertThat(response.getLinks().getNext()).isNull();
+            });
+            assertThat(actual.getHeaders().getCacheControl()).isNotBlank();
+        }
+
+        @Test
+        void empty() {
+            // given
+            channelId = domainBuilder.bytes(32);
+
+            // when
+            final var actual = get("timestamp=gte:0");
+
+            // then
+            assertThat(actual.getBody()).isNotNull().satisfies(response -> {
+                assertThat(response.getMessages()).isEmpty();
+                assertThat(response.getLinks().getNext()).isNull();
+            });
+        }
+
+        @Test
+        void acknowledged() {
+            // given
+            channelId = domainBuilder.bytes(32);
+            final var builder = ClprChannel.builder()
+                    .ackedMessageId(1L)
+                    .chainId("eip155:1")
+                    .channelId(channelId)
+                    .createdTimestamp(1L)
+                    .endpointManifestVersion(0L)
+                    .nextMessageId(3L)
+                    .ownershipCommitment(domainBuilder.bytes(32))
+                    .receivedMessageId(0L)
+                    .status(ClprChannelStatus.ACTIVE)
+                    .timestampRange(Range.atLeast(1L));
+            domainBuilder.wrap(builder, builder::build).persist();
+            persistMessage(channelId, 100L, 1L, ClprMessageType.DATA);
+            persistMessage(channelId, 200L, 2L, ClprMessageType.DATA);
+
+            // when
+            final var actual = get("timestamp=gte:0&order=asc");
+
+            // then
+            assertThat(actual.getBody().getMessages())
+                    .extracting(m -> m.getAcknowledged())
+                    .containsExactly(true, false);
+        }
+
+        @Test
+        void orderTypeAndTimestamp() {
+            // given
+            channelId = domainBuilder.bytes(32);
+            persistMessage(channelId, 100L, ClprMessageType.DATA);
+            final var data = persistMessage(channelId, 200L, ClprMessageType.DATA);
+            persistMessage(channelId, 300L, ClprMessageType.RESPONSE);
+            persistMessage(channelId, 400L, ClprMessageType.DATA);
+
+            // when
+            final var actual = get("timestamp=gt:0.000000100&timestamp=lt:0.000000400&type=data");
+
+            // then
+            assertThat(actual.getBody().getMessages()).isEqualTo(messageMapper.map(asData(data)));
+        }
+
+        @Test
+        void byConnectorId() {
+            // given
+            channelId = domainBuilder.bytes(32);
+            final var message = persistMessage(channelId, 100L, ClprMessageType.DATA);
+            persistMessage(channelId, 200L, ClprMessageType.DATA);
+
+            // when
+            final var actual = get("timestamp=gte:0&connector.id=eq:" + hex(message.getConnectorId()));
+
+            // then
+            assertThat(actual.getBody().getMessages()).isEqualTo(messageMapper.map(asData(message)));
+        }
+
+        @Test
+        void limitAndNextLink() {
+            // given
+            channelId = domainBuilder.bytes(32);
+            persistMessage(channelId, 100L, ClprMessageType.DATA);
+            final var message2 = persistMessage(channelId, 200L, ClprMessageType.DATA);
+            final var message3 = persistMessage(channelId, 300L, ClprMessageType.DATA);
+
+            // when
+            final var actual = get("timestamp=gte:0&limit=2");
+
+            // then
+            assertThat(actual.getBody()).isNotNull().satisfies(response -> {
+                assertThat(response.getMessages()).isEqualTo(messageMapper.map(asData(message3, message2)));
+                assertThat(response.getLinks().getNext()).startsWith("/api/v1/clpr/channels/");
+                assertThat(response.getLinks().getNext())
+                        .endsWith("/messages?timestamp=gte:0&timestamp=lt:0.000000200&limit=2");
+            });
+            assertThat(actual.getHeaders().containsHeader(HttpHeaders.LINK)).isTrue();
+        }
+
+        @ParameterizedTest
+        @ValueSource(
+                strings = {
+                    "",
+                    "timestamp=gte:0&connector.id=0x1234",
+                    "timestamp=gte:0&limit=0",
+                    "timestamp=gte:0&limit=101",
+                    "timestamp=gte:0&order=up",
+                    "timestamp=gte:0&type=unknown",
+                    "timestamp=gte:0&type=ne:DATA",
+                    "timestamp=ne:1",
+                    "timestamp=abc",
+                    "timestamp=gt:1&timestamp=gt:2",
+                    "timestamp=gte:2&timestamp=lte:1",
+                    "timestamp=1&timestamp=2&timestamp=3",
+                    "timestamp=gte:0&timestamp=lte:2592001", // over the 30d maximum
+                })
+        void invalidParameters(String query) {
+            // when
+            final var callable = (org.assertj.core.api.ThrowableAssert.ThrowingCallable) () -> restClient
+                    .get()
+                    .uri("/{id}/messages?" + query, hex(domainBuilder.bytes(32)))
+                    .retrieve()
+                    .toBodilessEntity();
+
+            // then
+            org.assertj.core.api.Assertions.assertThatThrownBy(callable)
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"0x1234", "eq:0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809"})
+        void invalidChannelId(String id) {
+            // when
+            final var callable = (org.assertj.core.api.ThrowableAssert.ThrowingCallable) () -> restClient
+                    .get()
+                    .uri("/{id}/messages?timestamp=gte:0", id)
+                    .retrieve()
+                    .toBodilessEntity();
+
+            // then
+            org.assertj.core.api.Assertions.assertThatThrownBy(callable)
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        }
+
+        private org.springframework.http.ResponseEntity<ClprMessagesResponse> get(String query) {
+            return restClient
+                    .get()
+                    .uri("/{id}/messages?" + query, hex(channelId))
+                    .retrieve()
+                    .toEntity(ClprMessagesResponse.class);
+        }
+    }
+
+    private static List<org.hiero.mirror.restjava.dto.ClprMessageDto> asData(ClprMessage... messages) {
+        return Arrays.stream(messages)
+                .map(m -> org.hiero.mirror.restjava.dto.ClprMessageDto.builder()
+                        .channelId(m.getChannelId())
+                        .connectorId(m.getConnectorId())
+                        .consensusTimestamp(m.getConsensusTimestamp())
+                        .messageData(m.getMessageData())
+                        .messageId(m.getMessageId())
+                        .messageType(m.getMessageType().name())
+                        .replyStatus(
+                                m.getReplyStatus() != null ? m.getReplyStatus().name() : null)
+                        .replyToMessageId(m.getReplyToMessageId())
+                        .runningHash(m.getRunningHash())
+                        .sender(m.getSender())
+                        .targetApplication(m.getTargetApplication())
+                        .build())
+                .toList();
+    }
+
+    private ClprMessage persistMessage(byte[] channelId, long timestamp, ClprMessageType type) {
+        return persistMessage(channelId, timestamp, domainBuilder.number(), type);
+    }
+
+    private ClprMessage persistMessage(byte[] channelId, long timestamp, long messageId, ClprMessageType type) {
+        return domainBuilder
+                .clprMessage()
+                .customize(m -> m.channelId(channelId)
+                        .consensusTimestamp(timestamp)
+                        .controlMessage(null)
+                        .messageId(messageId)
+                        .messageType(type))
+                .persist();
     }
 
     private static String hex(byte[] bytes) {
