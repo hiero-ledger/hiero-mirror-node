@@ -16,9 +16,13 @@ import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapperImpl;
+import org.hiero.mirror.restjava.mapper.ClprEndpointManifestMapper;
+import org.hiero.mirror.restjava.mapper.ClprLedgerConfigurationMapper;
 import org.hiero.mirror.restjava.mapper.CommonMapperImpl;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
+import org.hiero.mirror.restjava.repository.ClprEndpointManifestRepository;
+import org.hiero.mirror.restjava.repository.ClprLedgerConfigurationRepository;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +43,14 @@ final class ClprServiceTest {
     void setup() {
         channelRepository = mock(ClprChannelRepository.class);
         final var channelMapper = new ClprChannelMapperImpl(new CommonMapperImpl());
-        service = new ClprServiceImpl(channelMapper, channelRepository, properties);
+        service = new ClprServiceImpl(
+                channelMapper,
+                channelRepository,
+                mock(ClprEndpointManifestMapper.class),
+                mock(ClprEndpointManifestRepository.class),
+                mock(ClprLedgerConfigurationMapper.class),
+                mock(ClprLedgerConfigurationRepository.class),
+                properties);
     }
 
     @Test

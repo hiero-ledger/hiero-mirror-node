@@ -497,6 +497,52 @@ paths:
           $ref: "#/components/responses/InvalidParameterError"
       tags:
         - clpr
+  /api/v1/clpr/configuration:
+    get:
+      summary: Get the CLPR ledger configuration
+      description: >-
+        Returns the CLPR ledger configuration. Without `timestamp`, the latest configuration is returned. With
+        `timestamp`, the latest configuration whose consensus timestamp is within the range is returned, so a single
+        upper bound gives the configuration in effect at that time.
+      operationId: getClprLedgerConfiguration
+      parameters:
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClprLedgerConfiguration"
+        400:
+          $ref: "#/components/responses/InvalidParameterError"
+        404:
+          $ref: "#/components/responses/NotFoundError"
+      tags:
+        - clpr
+  /api/v1/clpr/endpoint-manifest:
+    get:
+      summary: Get the CLPR endpoint manifest
+      description: >-
+        Returns the CLPR endpoint manifest. Without `timestamp`, the latest manifest is returned. With `timestamp`,
+        the latest manifest whose consensus timestamp is within the range is returned, so a single upper bound gives
+        the manifest in effect at that time.
+      operationId: getClprEndpointManifest
+      parameters:
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClprEndpointManifest"
+        400:
+          $ref: "#/components/responses/InvalidParameterError"
+        404:
+          $ref: "#/components/responses/NotFoundError"
+      tags:
+        - clpr
   /api/v1/contracts/call:
     post:
       summary: Invoke a smart contract
@@ -2577,11 +2623,54 @@ components:
       enum: [PENDING, ACTIVE, PAUSED, CLOSING, DRAINED, CLOSED]
       example: ACTIVE
       type: string
+    ClprEndpointManifest:
+      type: object
+      required:
+        - consensus_timestamp
+        - endpoints
+        - service_address
+        - version
+      properties:
+        consensus_timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        endpoints:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        service_address:
+          $ref: "#/components/schemas/ClprHexBytes"
+        version:
+          format: int64
+          type: integer
     ClprHexBytes:
       description: Hex encoded bytes with a 0x prefix
       type: [string, "null"]
       pattern: "^0x[0-9a-fA-F]*$"
       example: "0x1a2b3c"
+    ClprLedgerConfiguration:
+      type: object
+      required:
+        - chain_id
+        - consensus_timestamp
+        - protocol_version
+      properties:
+        chain_id:
+          type: [string, "null"]
+          example: "eip155:1"
+        consensus_timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        initial_trust_anchor:
+          $ref: "#/components/schemas/ClprHexBytes"
+        initial_trust_anchor_id:
+          $ref: "#/components/schemas/ClprHexBytes"
+        protocol_version:
+          format: int64
+          type: integer
+        service_address:
+          $ref: "#/components/schemas/ClprHexBytes"
+        throttles:
+          $ref: "#/components/schemas/ClprPeerThrottles"
     ClprPeerThrottles:
       description: The throttle limits advertised by the peer ledger
       type: [object, "null"]

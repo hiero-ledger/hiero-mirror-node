@@ -21,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
+import org.hiero.mirror.rest.model.ClprEndpointManifest;
+import org.hiero.mirror.rest.model.ClprLedgerConfiguration;
 import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.restjava.common.LinkFactory;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
@@ -39,7 +41,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @NullMarked
-@RequestMapping(value = "/api/v1/clpr/channels", produces = APPLICATION_JSON)
+@RequestMapping(value = "/api/v1/clpr", produces = APPLICATION_JSON)
 @RequiredArgsConstructor
 @RestController
 final class ClprController {
@@ -53,7 +55,7 @@ final class ClprController {
     private final ClprService clprService;
     private final LinkFactory linkFactory;
 
-    @GetMapping
+    @GetMapping("/channels")
     ResponseEntity<ClprChannelsResponse> getChannels(
             @RequestParam(name = CHANNEL_ID, required = false) @Nullable @Pattern(regexp = CHANNEL_ID_PATTERN)
                     String channelId,
@@ -87,6 +89,20 @@ final class ClprController {
         response.setChannels(channels);
         response.setLinks(links);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/endpoint-manifest")
+    ClprEndpointManifest getEndpointManifest(
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
+                    TimestampParameter[] timestamps) {
+        return clprService.getEndpointManifest(Bound.of(timestamps, TIMESTAMP, null));
+    }
+
+    @GetMapping("/configuration")
+    ClprLedgerConfiguration getLedgerConfiguration(
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
+                    TimestampParameter[] timestamps) {
+        return clprService.getLedgerConfiguration(Bound.of(timestamps, TIMESTAMP, null));
     }
 
     private static String stripEq(String value) {
