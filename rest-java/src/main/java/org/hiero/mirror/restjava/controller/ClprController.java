@@ -63,10 +63,16 @@ final class ClprController {
             @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
                     TimestampParameter[] timestamps) {
         final var request = ClprChannelsRequest.builder()
-                .channelId(channelId != null ? parseChannelId(channelId) : null)
+                .channelId(
+                        channelId != null
+                                ? HexFormat.of().parseHex(stripEq(channelId).substring(2))
+                                : null)
                 .limit(limit)
                 .order(order)
-                .status(status != null ? parseStatus(status) : null)
+                .status(
+                        status != null
+                                ? ClprChannelStatus.fromValue(stripEq(status).toUpperCase())
+                                : null)
                 .timestamp(Bound.of(timestamps, TIMESTAMP, null))
                 .build();
 
@@ -81,14 +87,6 @@ final class ClprController {
         response.setChannels(channels);
         response.setLinks(links);
         return ResponseEntity.ok(response);
-    }
-
-    private static byte[] parseChannelId(String channelId) {
-        return HexFormat.of().parseHex(stripEq(channelId).substring(2));
-    }
-
-    private static ClprChannelStatus parseStatus(String status) {
-        return ClprChannelStatus.fromValue(stripEq(status).toUpperCase());
     }
 
     private static String stripEq(String value) {
