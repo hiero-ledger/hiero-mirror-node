@@ -20,4 +20,16 @@ class ClprLedgerConfigurationRepositoryTest extends ImporterIntegrationTest {
                 .get()
                 .isEqualTo(clprLedgerConfiguration);
     }
+
+    @Test
+    void findLatest() {
+        domainBuilder.clprLedgerConfiguration().persist();
+        var latest = domainBuilder.clprLedgerConfiguration().persist();
+        assertThat(clprLedgerConfigurationRepository.findLatest()).get().isEqualTo(latest);
+    }
+
+    @Test
+    void findLatestEmpty() {
+        assertThat(clprLedgerConfigurationRepository.findLatest()).isEmpty();
+    }
 }

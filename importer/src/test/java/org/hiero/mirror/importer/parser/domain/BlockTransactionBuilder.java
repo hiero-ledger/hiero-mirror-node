@@ -33,7 +33,6 @@ import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapDeleteChange;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.SignScheduleOutput;
-import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
@@ -289,9 +288,7 @@ public class BlockTransactionBuilder {
     public BlockTransactionBuilder.Builder clprMaintenance(RecordItem recordItem) {
         final var stateChange = StateChange.newBuilder()
                 .setStateId(StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE)
-                .setSingletonUpdate(SingletonUpdateChange.newBuilder()
-                        .setClprEndpointManifestValue(
-                                recordItem.getClprContext().getClprEndpointManifest()))
+                .setSingletonUpdate(recordItem.getClprContext().getClprEndpointManifestUpdate())
                 .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
@@ -380,9 +377,10 @@ public class BlockTransactionBuilder {
     public BlockTransactionBuilder.Builder clprUpdateLedgerConfiguration(RecordItem recordItem) {
         final var stateChange = StateChange.newBuilder()
                 .setStateId(StateIdentifier.STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE)
-                .setSingletonUpdate(SingletonUpdateChange.newBuilder()
-                        .setClprLedgerConfigurationValue(
-                                recordItem.getClprContext().getClprLedgerConfiguration()))
+                .setSingletonUpdate(
+                        recordItem.getClprContext() == null
+                                ? null
+                                : recordItem.getClprContext().getClprLedgerConfigurationUpdate())
                 .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),

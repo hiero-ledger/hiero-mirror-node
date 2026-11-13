@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static org.hiero.mirror.common.domain.transaction.StateChangeContext.isPresent;
 
 import com.google.common.collect.Range;
+import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import jakarta.inject.Named;
 import java.util.ArrayList;
@@ -20,6 +21,8 @@ import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprControlMessage;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
@@ -36,8 +39,10 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Patches whatever CLPR Channel/Message/Connector state changes are present on a {@link RecordItem}. Channel
- * patches historize per {@link #channelHistorizes}; connector patches historize per {@link #connectorHistorizes}.
+ * Patches whatever CLPR Channel/Message/Connector/singleton state changes are present on a {@link RecordItem}.
+ * Channel patches historize per {@link #channelHistorizes}; connector patches historize per
+ * {@link #connectorHistorizes}. A partial singleton (endpoint manifest/ledger configuration) update is merged
+ * against the last known full value via {@link #clprEndpointManifestService}/{@link #clprLedgerConfigurationService}.
  * Called generically from {@code EntityRecordItemListener} for every transaction; no-op when none of these fields
  * are present.
  */
@@ -48,7 +53,8 @@ public class ClprStateChangeHandler {
 
     /**
      * Excluded from process() since their own handler already writes onClprChannel/onClprConnector directly.
-     * CLPRMAINTENANCE isn't listed -- it only carries the endpoint-manifest singleton, so process() no-ops on it.
+     * CLPRMAINTENANCE and CLPRUPDATELEDGERCONFIGURATION aren't listed -- they only carry the singleton state
+     * changes, which process() always handles generically.
      */
     private static final Set<TransactionType> SELF_PROCESSED_TYPES = EnumSet.of(
             TransactionType.CLPRCLOSECHANNEL,
@@ -58,6 +64,8 @@ public class ClprStateChangeHandler {
             TransactionType.CLPRREGISTERCONNECTOR);
 
     private final ClprConnectorService clprConnectorService;
+    private final ClprEndpointManifestService clprEndpointManifestService;
+    private final ClprLedgerConfigurationService clprLedgerConfigurationService;
     private final EntityListener entityListener;
 
     public void process(RecordItem recordItem) {
@@ -105,6 +113,24 @@ public class ClprStateChangeHandler {
             }
 
             entityListener.onClprConnector(connector);
+        }
+
+        final var endpointManifestUpdate = clprContext.getClprEndpointManifestUpdate();
+        if (endpointManifestUpdate != null) {
+            final var manifest = toEndpointManifest(endpointManifestUpdate, consensusTimestamp);
+            if (manifest != null) {
+                entityListener.onClprEndpointManifest(manifest);
+                clprEndpointManifestService.notify(manifest);
+            }
+        }
+
+        final var ledgerConfigurationUpdate = clprContext.getClprLedgerConfigurationUpdate();
+        if (ledgerConfigurationUpdate != null) {
+            final var configuration = toLedgerConfiguration(ledgerConfigurationUpdate, consensusTimestamp);
+            if (configuration != null) {
+                entityListener.onClprLedgerConfiguration(configuration);
+                clprLedgerConfigurationService.notify(configuration);
+            }
         }
     }
 
@@ -386,6 +412,136 @@ public class ClprStateChangeHandler {
                 yield null;
             }
         };
+    }
+
+    /**
+     * Builds the full {@link ClprEndpointManifest} row for a singleton state change. A full update replaces every
+     * field; a partial update only carries the fields that changed -- any other field is merged in from the last
+     * known full value, since this is an append-only, no-history domain object and every write must be complete.
+     */
+    private @Nullable ClprEndpointManifest toEndpointManifest(SingletonUpdateChange update, long consensusTimestamp) {
+        final var value = update.getClprEndpointManifestValue();
+        if (!update.getPartial()) {
+            return ClprEndpointManifest.builder()
+                    .consensusTimestamp(consensusTimestamp)
+                    .endpoints(toEndpoints(value.getEndpointsList()))
+                    .serviceAddress(DomainUtils.toBytes(value.getServiceAddress()))
+                    .version(value.getVersion())
+                    .build();
+        }
+
+        final var baseline = clprEndpointManifestService.lookup();
+        if (baseline == null) {
+            Utility.handleRecoverableError(
+                    "No clpr_endpoint_manifest baseline found for partial singleton update at {}", consensusTimestamp);
+            return null;
+        }
+
+        return ClprEndpointManifest.builder()
+                .consensusTimestamp(consensusTimestamp)
+                .endpoints(
+                        isPresent(
+                                        update,
+                                        value,
+                                        com.hederahashgraph.api.proto.java.ClprEndpointManifest.ENDPOINTS_FIELD_NUMBER)
+                                ? toEndpoints(value.getEndpointsList())
+                                : baseline.getEndpoints())
+                .serviceAddress(
+                        isPresent(
+                                        update,
+                                        value,
+                                        com.hederahashgraph.api.proto.java.ClprEndpointManifest
+                                                .SERVICE_ADDRESS_FIELD_NUMBER)
+                                ? DomainUtils.toBytes(value.getServiceAddress())
+                                : baseline.getServiceAddress())
+                .version(
+                        isPresent(
+                                        update,
+                                        value,
+                                        com.hederahashgraph.api.proto.java.ClprEndpointManifest.VERSION_FIELD_NUMBER)
+                                ? value.getVersion()
+                                : baseline.getVersion())
+                .build();
+    }
+
+    /**
+     * Builds the full {@link ClprLedgerConfiguration} row for a singleton state change. Same merge rule as
+     * {@link #toEndpointManifest}.
+     */
+    private @Nullable ClprLedgerConfiguration toLedgerConfiguration(
+            SingletonUpdateChange update, long consensusTimestamp) {
+        final var value = update.getClprLedgerConfigurationValue();
+        if (!update.getPartial()) {
+            return ClprLedgerConfiguration.builder()
+                    .chainId(value.getChainId())
+                    .consensusTimestamp(consensusTimestamp)
+                    .initialTrustAnchor(DomainUtils.toBytes(value.getInitialTrustAnchor()))
+                    .initialTrustAnchorId(DomainUtils.toBytes(value.getInitialTrustAnchorId()))
+                    .protocolVersion(Integer.toUnsignedLong(value.getProtocolVersion()))
+                    .serviceAddress(DomainUtils.toBytes(value.getServiceAddress()))
+                    .throttle(ClprThrottleConverter.from(value))
+                    .build();
+        }
+
+        final var baseline = clprLedgerConfigurationService.lookup();
+        if (baseline == null) {
+            Utility.handleRecoverableError(
+                    "No clpr_ledger_configuration baseline found for partial singleton update at {}",
+                    consensusTimestamp);
+            return null;
+        }
+
+        return ClprLedgerConfiguration.builder()
+                .chainId(
+                        isPresent(
+                                        update,
+                                        value,
+                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
+                                                .CHAIN_ID_FIELD_NUMBER)
+                                ? value.getChainId()
+                                : baseline.getChainId())
+                .consensusTimestamp(consensusTimestamp)
+                .initialTrustAnchor(
+                        isPresent(
+                                        update,
+                                        value,
+                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
+                                                .INITIAL_TRUST_ANCHOR_FIELD_NUMBER)
+                                ? DomainUtils.toBytes(value.getInitialTrustAnchor())
+                                : baseline.getInitialTrustAnchor())
+                .initialTrustAnchorId(
+                        isPresent(
+                                        update,
+                                        value,
+                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
+                                                .INITIAL_TRUST_ANCHOR_ID_FIELD_NUMBER)
+                                ? DomainUtils.toBytes(value.getInitialTrustAnchorId())
+                                : baseline.getInitialTrustAnchorId())
+                .protocolVersion(
+                        isPresent(
+                                        update,
+                                        value,
+                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
+                                                .PROTOCOL_VERSION_FIELD_NUMBER)
+                                ? Integer.toUnsignedLong(value.getProtocolVersion())
+                                : baseline.getProtocolVersion())
+                .serviceAddress(
+                        isPresent(
+                                        update,
+                                        value,
+                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
+                                                .SERVICE_ADDRESS_FIELD_NUMBER)
+                                ? DomainUtils.toBytes(value.getServiceAddress())
+                                : baseline.getServiceAddress())
+                .throttle(
+                        isPresent(
+                                        update,
+                                        value,
+                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
+                                                .THROTTLES_FIELD_NUMBER)
+                                ? ClprThrottleConverter.from(value)
+                                : baseline.getThrottle())
+                .build();
     }
 
     private @Nullable ClprMessage toMessage(ClprMessageEntry entry, long consensusTimestamp) {
