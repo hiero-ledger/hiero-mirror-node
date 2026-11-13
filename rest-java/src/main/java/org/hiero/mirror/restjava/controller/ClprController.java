@@ -21,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
+import org.hiero.mirror.rest.model.ClprEndpointManifest;
+import org.hiero.mirror.rest.model.ClprLedgerConfiguration;
 import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.restjava.common.LinkFactory;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
@@ -87,6 +89,20 @@ final class ClprController {
         response.setChannels(channels);
         response.setLinks(links);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/endpoint-manifest")
+    ClprEndpointManifest getEndpointManifest(
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
+                    TimestampParameter[] timestamps) {
+        return clprService.getEndpointManifest(Bound.of(timestamps, TIMESTAMP, null));
+    }
+
+    @GetMapping("/configuration")
+    ClprLedgerConfiguration getLedgerConfiguration(
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
+                    TimestampParameter[] timestamps) {
+        return clprService.getLedgerConfiguration(Bound.of(timestamps, TIMESTAMP, null));
     }
 
     /**
