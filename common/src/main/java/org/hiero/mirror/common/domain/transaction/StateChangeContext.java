@@ -212,7 +212,6 @@ public final class StateChangeContext {
         return Collections.unmodifiableList(clprMessages);
     }
 
-
     public @Nullable ByteString getContractBytecode(final ContractID id) {
         return contractBytecodes.get(id);
     }
@@ -340,23 +339,6 @@ public final class StateChangeContext {
         }
 
         return totalSupply;
-    }
-
-    /**
-     * Whether a field of a state change value is present, i.e., the update is full, or the field is set or cleared in a
-     * partial update. Any other field in a partial update is unchanged, so its value is absent.
-     */
-    static boolean isPresent(final MapUpdateChange mapUpdate, final Message value, final int fieldNumber) {
-        if (!mapUpdate.getPartial() || mapUpdate.getClearedFieldsList().contains(fieldNumber)) {
-            return true;
-        }
-
-        final var field = value.getDescriptorForType().findFieldByNumber(fieldNumber);
-        if (field == null) {
-            return false;
-        }
-
-        return field.isRepeated() ? value.getRepeatedFieldCount(field) > 0 : value.hasField(field);
     }
 
     /**
