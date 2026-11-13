@@ -4,6 +4,13 @@ name: Rosetta API
 on:
   schedule:
     - cron: "0 1 * * *" # Daily at 1:00 AM
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+    paths:
+      - ".github/workflows/rosetta.yml"
+      - "rosetta/**"
   push:
     branches:
       - "main"
@@ -25,6 +32,8 @@ env:
 
 jobs:
   validate:
+    # Fork PRs don't get the importer config secret
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 30
     env:
