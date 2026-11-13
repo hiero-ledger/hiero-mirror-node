@@ -10,12 +10,12 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.AbstractClprChannel.AbstractClprChannelBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelData;
 import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
+import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,7 +27,7 @@ import org.springframework.data.domain.Sort.Direction;
 @RequiredArgsConstructor
 final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
-    private static final String CREATED_TIMESTAMP = "created_timestamp";
+    private static final String CREATED_TIMESTAMP = "createdTimestamp";
     private static final int LIMIT = 2;
 
     private final ClprChannelRepository repository;
@@ -161,19 +161,19 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(actual)
-                .extracting(i -> i.getChannelId() != null ? i.getChannelId() : i.getOwnershipCommitment())
+                .extracting(i -> i.channelId() != null ? i.channelId() : i.ownershipCommitment())
                 .containsExactlyElementsOf(expected);
         assertThat(actual)
-                .filteredOn(i -> i.getChannelId() == null)
+                .filteredOn(i -> i.channelId() == null)
                 .singleElement()
                 .satisfies(i -> {
-                    assertThat(i.getStatus()).isEqualTo("PENDING");
-                    assertThat(i.getChainId()).isNull();
-                    assertThat(i.getEndpointManifest()).isNull();
+                    assertThat(i.status()).isEqualTo("PENDING");
+                    assertThat(i.chainId()).isNull();
+                    assertThat(i.endpointManifest()).isNull();
                 });
         assertThat(actual)
-                .filteredOn(i -> i.getChannelId() != null)
-                .allSatisfy(i -> assertThat(i.getChainId()).isNotNull());
+                .filteredOn(i -> i.channelId() != null)
+                .allSatisfy(i -> assertThat(i.chainId()).isNotNull());
     }
 
     @Test
@@ -191,7 +191,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         final var actual = repository.findAllChannelsByCreatedTimestampBetween(0L, Long.MAX_VALUE, pageable);
 
         // then
-        assertThat(actual).extracting(i -> i.getCreatedTimestamp()).containsExactly(200L, 300L);
+        assertThat(actual).extracting(i -> i.createdTimestamp()).containsExactly(200L, 300L);
     }
 
     @Test
@@ -271,14 +271,14 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(actual)
-                .extracting(ClprChannelData::getOwnershipCommitment)
+                .extracting(ClprChannelDto::ownershipCommitment)
                 .containsExactlyElementsOf(expected.stream()
                         .map(ClprChannelPendingCommitment::getOwnershipCommitment)
                         .toList());
         assertThat(actual).allSatisfy(data -> {
-            assertThat(data.getStatus()).isEqualTo("PENDING");
-            assertThat(data.getChannelId()).isNull();
-            assertThat(data.getChainId()).isNull();
+            assertThat(data.status()).isEqualTo("PENDING");
+            assertThat(data.channelId()).isNull();
+            assertThat(data.chainId()).isNull();
         });
     }
 
@@ -299,7 +299,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(actual)
-                .extracting(ClprChannelData::getOwnershipCommitment)
+                .extracting(ClprChannelDto::ownershipCommitment)
                 .containsExactlyElementsOf(expected.stream()
                         .map(ClprChannelPendingCommitment::getOwnershipCommitment)
                         .toList());
@@ -330,10 +330,10 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(page0)
-                .extracting(ClprChannelData::getOwnershipCommitment)
+                .extracting(ClprChannelDto::ownershipCommitment)
                 .containsExactlyElementsOf(commitments.subList(0, LIMIT));
         assertThat(page1)
-                .extracting(ClprChannelData::getOwnershipCommitment)
+                .extracting(ClprChannelDto::ownershipCommitment)
                 .containsExactlyElementsOf(commitments.subList(LIMIT, commitments.size()));
     }
 
@@ -341,8 +341,8 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         return channels.stream().map(ClprChannel::getChannelId).toList();
     }
 
-    private static List<byte[]> ids(List<ClprChannelData> data) {
-        return data.stream().map(ClprChannelData::getChannelId).toList();
+    private static List<byte[]> ids(List<ClprChannelDto> data) {
+        return data.stream().map(ClprChannelDto::channelId).toList();
     }
 
     private void assertStatuses(
@@ -354,7 +354,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         final var status = statusFilter != null ? statusFilter.name() : null;
         final var actual = repository.findByChannelIdAndTimestampBetween(channelId, lowerBound, upperBound, status);
         assertThat(actual)
-                .extracting(ClprChannelData::getStatus)
+                .extracting(ClprChannelDto::status)
                 .containsExactly(Arrays.stream(expected).map(Enum::name).toArray(String[]::new));
     }
 

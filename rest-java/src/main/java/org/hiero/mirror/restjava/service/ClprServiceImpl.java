@@ -5,11 +5,11 @@ package org.hiero.mirror.restjava.service;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.clpr.ClprChannelData;
 import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.hiero.mirror.restjava.common.RangeOperator;
+import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
@@ -20,7 +20,7 @@ import org.springframework.data.domain.Sort;
 @RequiredArgsConstructor
 final class ClprServiceImpl implements ClprService {
 
-    private static final String CREATED_TIMESTAMP = "created_timestamp";
+    private static final String CREATED_TIMESTAMP = "createdTimestamp";
 
     private final ClprChannelMapper channelMapper;
     private final ClprChannelRepository channelRepository;
@@ -42,20 +42,20 @@ final class ClprServiceImpl implements ClprService {
      * Without a status or channel id, returns channels together with open pending commitments, ordered by creation
      * timestamp, from a single union query.
      */
-    private List<ClprChannelData> findAllChannels(ClprChannelsRequest request) {
+    private List<ClprChannelDto> findAllChannels(ClprChannelsRequest request) {
         final var bounds = getBounds(request.getTimestamp(), true);
         return channelRepository.findAllChannelsByCreatedTimestampBetween(
                 bounds.lower(), bounds.upper(), getPage(request));
     }
 
-    private List<ClprChannelData> findChannels(ClprChannelsRequest request) {
+    private List<ClprChannelDto> findChannels(ClprChannelsRequest request) {
         final var channelId = request.getChannelId();
         final var status = request.getStatus();
         final var timestamp = request.getTimestamp();
 
         if (channelId != null && timestamp.isEmpty()) {
             final var channel = channelRepository.findByChannelId(channelId);
-            if (channel == null || status != null && !status.name().equals(channel.getStatus())) {
+            if (channel == null || status != null && !status.name().equals(channel.status())) {
                 return List.of();
             }
 
@@ -74,7 +74,7 @@ final class ClprServiceImpl implements ClprService {
                 bounds.lower(), bounds.upper(), statusName, getPage(request));
     }
 
-    private List<ClprChannelData> findPendingChannels(ClprChannelsRequest request) {
+    private List<ClprChannelDto> findPendingChannels(ClprChannelsRequest request) {
         if (request.getChannelId() != null) {
             throw new IllegalArgumentException("channel.id can't be combined with status PENDING");
         }

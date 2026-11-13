@@ -4,15 +4,15 @@ package org.hiero.mirror.restjava.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Range;
 import java.util.List;
 import java.util.Map;
-import org.hiero.mirror.common.domain.clpr.ClprChannelData;
+import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
-import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -29,14 +29,14 @@ final class ClprChannelMapperTest {
     void map() {
         // given
         final var verifierContractId = EntityId.of(456L);
-        final var channel = ClprChannelData.builder()
+        final var channel = ClprChannelDto.builder()
                 .ackedMessageId(47L)
                 .chainId("eip155:1")
                 .channelContext(new byte[] {0x1a, 0x2b})
                 .channelId(new byte[] {0x01, 0x02, 0x03})
                 .configProofBytes(new byte[] {0x11})
                 .createdTimestamp(1_000_000_000L)
-                .endpointManifest(List.of(ClprEndpoint.builder()
+                .endpointManifest(json(ClprEndpoint.builder()
                         .serviceEndpoint(new ClprServiceEndpoint("10.0.0.5", 50211))
                         .build()))
                 .endpointManifestProofBytes(new byte[] {0x33, 0x44})
@@ -57,12 +57,12 @@ final class ClprChannelMapperTest {
                 .receivedRunningHash(new byte[] {(byte) 0xbb})
                 .sentRunningHash(new byte[] {(byte) 0xaa})
                 .signature(new byte[] {(byte) 0x9f, (byte) 0x8e})
-                .signatureScheme(ClprSignatureScheme.ED25519)
+                .signatureScheme("ED25519")
                 .status("ACTIVE")
-                .timestampRange(Range.atLeast(4_000_000_000L))
+                .timestampLower(4_000_000_000L)
                 .trustAnchor(new byte[] {0x33})
                 .trustAnchorId(new byte[] {(byte) 0x9f})
-                .verifierContractId(verifierContractId)
+                .verifierContractId(verifierContractId.getId())
                 .verifierFingerprint(new byte[] {0x55, (byte) 0xaa, (byte) 0xbb})
                 .build();
 
@@ -116,7 +116,7 @@ final class ClprChannelMapperTest {
     @Test
     void mapPending() {
         // given
-        final var pending = ClprChannelData.builder()
+        final var pending = ClprChannelDto.builder()
                 .createdTimestamp(1_000_000_000L)
                 .ownershipCommitment(new byte[] {0x7a, (byte) 0xb3})
                 .status("PENDING")
@@ -140,14 +140,14 @@ final class ClprChannelMapperTest {
     @Test
     void mapSerializesToDesignDocResponse() throws Exception {
         // given: the channel from the design doc's response example
-        final var channel = ClprChannelData.builder()
+        final var channel = ClprChannelDto.builder()
                 .ackedMessageId(47L)
                 .chainId("eip155:1")
                 .channelContext(new byte[] {0x1a, 0x2b, 0x3c})
                 .channelId(new byte[] {0x1a, 0x2b, 0x3c})
                 .configProofBytes(new byte[] {0x11, 0x22})
                 .createdTimestamp(1726874200_000000000L)
-                .endpointManifest(List.of(ClprEndpoint.builder()
+                .endpointManifest(json(ClprEndpoint.builder()
                         .serviceEndpoint(new ClprServiceEndpoint("10.0.0.5", 50211))
                         .build()))
                 .endpointManifestProofBytes(new byte[] {0x33, 0x44})
@@ -168,12 +168,12 @@ final class ClprChannelMapperTest {
                 .receivedRunningHash(new byte[] {(byte) 0xbb, 0x22})
                 .sentRunningHash(new byte[] {(byte) 0xaa, 0x11})
                 .signature(new byte[] {(byte) 0x9f, (byte) 0x8e, 0x7d, 0x6c})
-                .signatureScheme(ClprSignatureScheme.ED25519)
+                .signatureScheme("ED25519")
                 .status("ACTIVE")
-                .timestampRange(Range.atLeast(1726874345_123456789L))
+                .timestampLower(1726874345_123456789L)
                 .trustAnchor(new byte[] {0x33, 0x44})
                 .trustAnchorId(new byte[] {(byte) 0x9f, (byte) 0x8e})
-                .verifierContractId(EntityId.of(456L))
+                .verifierContractId(456L)
                 .verifierFingerprint(new byte[] {0x55, (byte) 0xaa, (byte) 0xbb})
                 .build();
         final var expected = """
@@ -229,8 +229,8 @@ final class ClprChannelMapperTest {
     @Test
     void mapEndpointManifestIncludesOptionalEndpointFields() {
         // given
-        final var channel = ClprChannelData.builder()
-                .endpointManifest(List.of(ClprEndpoint.builder()
+        final var channel = ClprChannelDto.builder()
+                .endpointManifest(json(ClprEndpoint.builder()
                         .accountId(new byte[] {0x01})
                         .serviceEndpoint(new ClprServiceEndpoint("10.0.0.5", 50211))
                         .tlsCertificate(new byte[] {0x02, 0x03})
@@ -255,19 +255,20 @@ final class ClprChannelMapperTest {
     @Test
     void mapSignatureSchemes() {
         // when / then
-        assertThat(mapper.mapSignatureScheme(ClprSignatureScheme.ECDSA_SECP256K1))
+        assertThat(mapper.mapSignatureScheme("ECDSA_SECP256K1"))
                 .extracting(scheme -> scheme.getValue())
                 .isEqualTo("ECDSA_SECP256K1");
-        assertThat(mapper.mapSignatureScheme(ClprSignatureScheme.ED25519))
+        assertThat(mapper.mapSignatureScheme("ED25519"))
                 .extracting(scheme -> scheme.getValue())
                 .isEqualTo("ED25519");
+        assertThat(mapper.mapSignatureScheme(null)).isNull();
     }
 
     @Test
     void mapDoesNotPadShortBytes() {
         // given
         final var channel =
-                ClprChannelData.builder().signature(new byte[] {0x01}).build();
+                ClprChannelDto.builder().signature(new byte[] {0x01}).build();
 
         // when / then
         assertThat(mapper.map(channel).getSignature()).isEqualTo("0x01");
@@ -276,7 +277,7 @@ final class ClprChannelMapperTest {
     @Test
     void mapNullableFields() {
         // given
-        final var channel = ClprChannelData.builder()
+        final var channel = ClprChannelDto.builder()
                 .channelId(new byte[] {0x01})
                 .status("PAUSED")
                 .build();
@@ -293,5 +294,14 @@ final class ClprChannelMapperTest {
         assertThat(actual.getSignatureScheme()).isNull();
         assertThat(actual.getTimestamp()).isNull();
         assertThat(actual.getVerifierContractId()).isNull();
+    }
+
+    /** Serializes the endpoints the way they're stored in the jsonb column. */
+    private static String json(ClprEndpoint... endpoints) {
+        try {
+            return ObjectToStringSerializer.OBJECT_MAPPER.writeValueAsString(List.of(endpoints));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

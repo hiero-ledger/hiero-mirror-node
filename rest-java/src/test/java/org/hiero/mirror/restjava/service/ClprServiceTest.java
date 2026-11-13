@@ -10,10 +10,10 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import org.hiero.mirror.common.domain.clpr.ClprChannelData;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.hiero.mirror.restjava.common.RangeOperator;
+import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapperImpl;
 import org.hiero.mirror.restjava.mapper.CommonMapperImpl;
@@ -29,7 +29,7 @@ import org.springframework.data.domain.Sort.Direction;
 final class ClprServiceTest {
 
     private static final byte[] CHANNEL_ID = new byte[] {1, 2, 3};
-    private static final String CREATED_TIMESTAMP = "created_timestamp";
+    private static final String CREATED_TIMESTAMP = "createdTimestamp";
 
     private ClprChannelRepository channelRepository;
     private final RestJavaProperties properties = new RestJavaProperties();
@@ -311,7 +311,7 @@ final class ClprServiceTest {
         verify(channelRepository).findByChannelIdAndTimestampBetween(CHANNEL_ID, 100L, 101L + max, null);
     }
 
-    private static ClprChannelData channel(String status) {
+    private static ClprChannelDto channel(String status) {
         return item(CHANNEL_ID, 0L, status);
     }
 
@@ -323,17 +323,17 @@ final class ClprServiceTest {
         return Bound.of(params, "timestamp", null);
     }
 
-    private static ClprChannelData item(byte @Nullable [] channelId, long created, String status) {
+    private static ClprChannelDto item(byte @Nullable [] channelId, long created, String status) {
         return item(channelId, created, status, new byte[] {1});
     }
 
-    private static ClprChannelData item(
+    private static ClprChannelDto item(
             byte @Nullable [] channelId, long created, String status, byte[] ownershipCommitment) {
-        final var item = new ClprChannelData();
-        item.setChannelId(channelId);
-        item.setCreatedTimestamp(created);
-        item.setOwnershipCommitment(ownershipCommitment);
-        item.setStatus(status);
-        return item;
+        return ClprChannelDto.builder()
+                .channelId(channelId)
+                .createdTimestamp(created)
+                .ownershipCommitment(ownershipCommitment)
+                .status(status)
+                .build();
     }
 }

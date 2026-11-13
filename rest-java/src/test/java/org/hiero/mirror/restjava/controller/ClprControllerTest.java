@@ -11,12 +11,12 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.AbstractClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelData;
 import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
+import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -289,9 +289,9 @@ final class ClprControllerTest extends ControllerTest {
         return "0x" + HexFormat.of().formatHex(bytes);
     }
 
-    private static List<ClprChannelData> asData(AbstractClprChannel... channels) {
+    private static List<ClprChannelDto> asData(AbstractClprChannel... channels) {
         return Arrays.stream(channels)
-                .map(channel -> ClprChannelData.builder()
+                .map(channel -> ClprChannelDto.builder()
                         .ackedMessageId(channel.getAckedMessageId())
                         .chainId(channel.getChainId())
                         .channelId(channel.getChannelId())
@@ -301,7 +301,11 @@ final class ClprControllerTest extends ControllerTest {
                         .ownershipCommitment(channel.getOwnershipCommitment())
                         .receivedMessageId(channel.getReceivedMessageId())
                         .status(channel.getStatus().name())
-                        .timestampRange(channel.getTimestampRange())
+                        .timestampLower(channel.getTimestampRange().lowerEndpoint())
+                        .timestampUpper(
+                                channel.getTimestampRange().hasUpperBound()
+                                        ? channel.getTimestampRange().upperEndpoint()
+                                        : null)
                         .build())
                 .toList();
     }
