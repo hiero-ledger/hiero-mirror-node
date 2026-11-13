@@ -50,13 +50,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class ClprController {
 
-    private static final String ID_PATTERN = "^(?i)(eq:)?0x[0-9a-f]{64}$";
     private static final Function<ClprConnector, Map<String, String>> CONNECTOR_EXTRACTOR =
             connector -> ImmutableSortedMap.of(TIMESTAMP, connector.getCreatedTimestamp());
     private static final String CONNECTOR_STATUS_PATTERN = "^(?i)(eq:)?(PENDING|ACTIVE|DELETED)$";
     private static final String EQ_PREFIX = "eq:";
     private static final Function<ClprChannel, Map<String, String>> EXTRACTOR =
             channel -> ImmutableSortedMap.of(TIMESTAMP, channel.getCreatedTimestamp());
+    private static final String ID_PATTERN = "^(?i)(eq:)?0x[0-9a-f]{64}$";
+    // A path variable is the id itself, so unlike a query parameter it doesn't accept the eq: prefix
+    private static final String PATH_ID_PATTERN = "^(?i)0x[0-9a-f]{64}$";
     private static final String STATUS_PATTERN = "^(?i)(eq:)?(PENDING|ACTIVE|PAUSED|CLOSING|DRAINED|CLOSED)$";
 
     private final ClprService clprService;
@@ -96,7 +98,7 @@ final class ClprController {
 
     @GetMapping("/{channelId}/connectors")
     ResponseEntity<ClprConnectorsResponse> getConnectors(
-            @PathVariable @Pattern(regexp = ID_PATTERN) String channelId,
+            @PathVariable @Pattern(regexp = PATH_ID_PATTERN) String channelId,
             @RequestParam(name = CONNECTOR_ID, required = false) @Nullable @Pattern(regexp = ID_PATTERN)
                     String connectorId,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,

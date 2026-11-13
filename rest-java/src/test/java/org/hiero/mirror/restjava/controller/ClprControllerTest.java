@@ -550,6 +550,20 @@ final class ClprControllerTest extends ControllerTest {
             org.assertj.core.api.Assertions.assertThatThrownBy(callable)
                     .isInstanceOf(HttpClientErrorException.BadRequest.class);
         }
+
+        @Test
+        void invalidChannelIdWithEqPrefix() {
+            // given an eq: prefix, which is only valid on query parameters and not in the path
+            persistConnector(channelId, 100L, ClprConnectorStatus.ACTIVE);
+
+            // when
+            final var callable = (org.assertj.core.api.ThrowableAssert.ThrowingCallable) () ->
+                    restClient.get().uri("", "eq:" + hex(channelId)).retrieve().toBodilessEntity();
+
+            // then
+            org.assertj.core.api.Assertions.assertThatThrownBy(callable)
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        }
     }
 
     private static String hex(byte[] bytes) {

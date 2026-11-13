@@ -60,8 +60,8 @@ final class ClprServiceImpl implements ClprService {
      */
     private List<ClprChannelDto> findAllChannels(ClprChannelsRequest request) {
         final var bounds = getBounds(request.getTimestamp(), properties.getMaxClprChannelsTimestampRange());
-        return channelRepository.findAllChannelsByCreatedTimestampBetween(
-                bounds.lower(), bounds.upper(), getPage(request));
+        final var page = PageRequest.of(0, request.getLimit(), Sort.by(request.getOrder(), CREATED_TIMESTAMP));
+        return channelRepository.findAllChannelsByCreatedTimestampBetween(bounds.lower(), bounds.upper(), page);
     }
 
     private List<ClprChannelDto> findChannels(ClprChannelsRequest request) {
@@ -87,8 +87,8 @@ final class ClprServiceImpl implements ClprService {
                     channelId, bounds.lower(), bounds.upper(), statusName);
         }
 
-        return channelRepository.findByCreatedTimestampBetween(
-                bounds.lower(), bounds.upper(), statusName, getPage(request));
+        final var page = PageRequest.of(0, request.getLimit(), Sort.by(request.getOrder(), CREATED_TIMESTAMP));
+        return channelRepository.findByCreatedTimestampBetween(bounds.lower(), bounds.upper(), statusName, page);
     }
 
     private List<org.hiero.mirror.common.domain.clpr.ClprConnector> findConnectors(ClprConnectorsRequest request) {
@@ -119,8 +119,10 @@ final class ClprServiceImpl implements ClprService {
         }
 
         final var bounds = getBounds(timestamp, properties.getMaxClprConnectorsTimestampRange());
+        final var page =
+                PageRequest.of(0, request.getLimit(), Sort.by(request.getOrder(), CONNECTOR_CREATED_TIMESTAMP));
         return connectorRepository.findByChannelIdAndCreatedTimestampBetween(
-                channelId, bounds.lower(), bounds.upper(), statusName, getPage(request));
+                channelId, bounds.lower(), bounds.upper(), statusName, page);
     }
 
     private List<ClprChannelDto> findPendingChannels(ClprChannelsRequest request) {
@@ -129,15 +131,8 @@ final class ClprServiceImpl implements ClprService {
         }
 
         final var bounds = getBounds(request.getTimestamp(), properties.getMaxClprChannelsTimestampRange());
-        return channelRepository.findPendingByCreatedTimestampBetween(bounds.lower(), bounds.upper(), getPage(request));
-    }
-
-    private static PageRequest getPage(ClprChannelsRequest request) {
-        return PageRequest.of(0, request.getLimit(), Sort.by(request.getOrder(), CREATED_TIMESTAMP));
-    }
-
-    private static PageRequest getPage(ClprConnectorsRequest request) {
-        return PageRequest.of(0, request.getLimit(), Sort.by(request.getOrder(), CONNECTOR_CREATED_TIMESTAMP));
+        final var page = PageRequest.of(0, request.getLimit(), Sort.by(request.getOrder(), CREATED_TIMESTAMP));
+        return channelRepository.findPendingByCreatedTimestampBetween(bounds.lower(), bounds.upper(), page);
     }
 
     /**
