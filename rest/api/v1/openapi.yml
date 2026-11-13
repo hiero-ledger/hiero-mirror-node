@@ -497,6 +497,34 @@ paths:
           $ref: "#/components/responses/InvalidParameterError"
       tags:
         - clpr
+  /api/v1/clpr/channels/{channelId}/messages:
+    get:
+      summary: List CLPR messages on a channel
+      description: >-
+        Returns the messages (Data, Response and Control) of a channel's queue, ordered by consensus `timestamp`.
+        `timestamp` is required, and a range with both a lower and an upper bound can't exceed the configured maximum.
+        `connector.id` only matches Data messages since Response and Control messages have no connector.
+        `acknowledged` is true when the peer ledger has acknowledged the message. A page boundary inside a group of
+        messages dispatched by one bundle, which share a timestamp, can skip or repeat messages in that group.
+      operationId: getClprMessages
+      parameters:
+        - $ref: "#/components/parameters/clprChannelIdPathParam"
+        - $ref: "#/components/parameters/clprConnectorIdQueryParam"
+        - $ref: "#/components/parameters/clprMessageTypeQueryParam"
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamDesc"
+        - $ref: "#/components/parameters/clprMessageTimestampQueryParam"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClprMessagesResponse"
+        400:
+          $ref: "#/components/responses/InvalidParameterError"
+      tags:
+        - clpr
   /api/v1/contracts/call:
     post:
       summary: Invoke a smart contract
@@ -2582,6 +2610,78 @@ components:
       type: [string, "null"]
       pattern: "^0x[0-9a-fA-F]*$"
       example: "0x1a2b3c"
+    ClprMessage:
+      type: object
+      required:
+        - acknowledged
+        - channel_id
+        - message_id
+        - timestamp
+        - type
+      properties:
+        acknowledged:
+          description: Whether the peer ledger has acknowledged the message, i.e. its id is at most the channel's `acked_message_id`
+          type: boolean
+        channel_id:
+          $ref: "#/components/schemas/ClprHexBytes"
+        connector_id:
+          $ref: "#/components/schemas/ClprHexBytes"
+        message_data:
+          $ref: "#/components/schemas/ClprHexBytes"
+        message_id:
+          format: int64
+          type: integer
+        reply_status:
+          $ref: "#/components/schemas/ClprMessageReplyStatus"
+        reply_to_message_id:
+          description: The id of the Data message a Response message answers
+          format: int64
+          type: [integer, "null"]
+        running_hash:
+          $ref: "#/components/schemas/ClprHexBytes"
+        sender:
+          $ref: "#/components/schemas/ClprHexBytes"
+        target_application:
+          $ref: "#/components/schemas/ClprHexBytes"
+        timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        type:
+          $ref: "#/components/schemas/ClprMessageType"
+      example:
+        acknowledged: false
+        channel_id: "0x1a2b3c"
+        connector_id: "0x4d5e6f"
+        message_data: "0xdeadbeef"
+        message_id: 5
+        reply_status: null
+        reply_to_message_id: null
+        running_hash: "0xaa11"
+        sender: "0x4d5e6f"
+        target_application: "0x7788"
+        timestamp: "1726874345.123456789"
+        type: DATA
+    ClprMessageReplyStatus:
+      description: The status of a Response message
+      enum:
+        [SUCCESS, APPLICATION_ERROR, CONNECTOR_NOT_FOUND, CONNECTOR_UNDERFUNDED]
+      example: SUCCESS
+      type: [string, "null"]
+    ClprMessagesResponse:
+      type: object
+      required:
+        - links
+        - messages
+      properties:
+        links:
+          $ref: "#/components/schemas/Links"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClprMessage"
+    ClprMessageType:
+      enum: [DATA, RESPONSE, CONTROL]
+      example: DATA
+      type: string
     ClprPeerThrottles:
       description: The throttle limits advertised by the peer ledger
       type: [object, "null"]
@@ -5348,6 +5448,15 @@ components:
         eqOperator:
           summary: Example of channel.id equals operator
           value: eq:0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809
+    clprChannelIdPathParam:
+      name: channelId
+      description: The 32 byte channel id as 0x prefixed hex
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^0x[0-9a-fA-F]{64}$
+      example: "0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809"
     clprChannelStatusQueryParam:
       name: status
       description: Filter by channel status. Only the `eq` operator is supported.
@@ -5362,6 +5471,55 @@ components:
         active:
           summary: Example of status equals operator
           value: eq:ACTIVE
+    clprConnectorIdQueryParam:
+      name: connector.id
+      description: The 32 byte connector id as 0x prefixed hex. Only the `eq` operator is supported.
+      in: query
+      schema:
+        type: string
+        pattern: ^((eq):)?0x[0-9a-fA-F]{64}$
+      examples:
+        noValue:
+          summary: --
+          value: ""
+        eqOperator:
+          summary: Example of connector.id equals operator
+          value: eq:0x4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c
+    clprMessageTimestampQueryParam:
+      description: The consensus timestamp as a Unix timestamp in seconds.nanoseconds format with an optional comparison operator. Required, since messages are partitioned by timestamp. A range with both a lower and an upper bound can't exceed the configured maximum.
+      name: timestamp
+      in: query
+      required: true
+      explode: true
+      examples:
+        gteOperator:
+          summary: Example of timestamp greater than or equals operator
+          value: gte:1234567890.000000500
+        ltOperator:
+          summary: Example of timestamp less than operator
+          value: lt:1234567890.000000600
+        range:
+          summary: Example of a bounded timestamp range
+          value: [gte:1234567890.000000000, lt:1234567990.000000000]
+      schema:
+        type: array
+        items:
+          type: string
+          pattern: ^((eq|gt|gte|lt|lte):)?\d{1,10}(\.\d{1,9})?$
+    clprMessageTypeQueryParam:
+      name: type
+      description: Filter by message type. Only the `eq` operator is supported.
+      in: query
+      schema:
+        type: string
+        pattern: ^((eq):)?(DATA|RESPONSE|CONTROL)$
+      examples:
+        noValue:
+          summary: --
+          value: ""
+        data:
+          summary: Example of type equals operator
+          value: eq:DATA
     limitQueryParam:
       name: limit
       in: query
