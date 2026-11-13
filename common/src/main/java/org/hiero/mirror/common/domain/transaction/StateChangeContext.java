@@ -38,7 +38,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -200,12 +199,12 @@ public final class StateChangeContext {
         return Collections.unmodifiableList(clprConnectorsRemoved);
     }
 
-    public Optional<ClprEndpointManifest> getClprEndpointManifest() {
-        return Optional.ofNullable(clprEndpointManifest);
+    public @Nullable ClprEndpointManifest getClprEndpointManifest() {
+        return clprEndpointManifest;
     }
 
-    public Optional<ClprLedgerConfiguration> getClprLedgerConfiguration() {
-        return Optional.ofNullable(clprLedgerConfiguration);
+    public @Nullable ClprLedgerConfiguration getClprLedgerConfiguration() {
+        return clprLedgerConfiguration;
     }
 
     public List<ClprMessageEntry> getClprMessages() {
