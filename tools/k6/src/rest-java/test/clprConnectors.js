@@ -7,7 +7,7 @@ import {connectors} from '../libex/constants.js';
 
 const urlTag = '/clpr/channels/{channelId}/connectors';
 
-// Unlike isValidListResponse, an empty list is valid since a channel may not have any connectors yet
+// Unlike isValidListResponse, an empty list is valid since a channel may not exist or have any connectors yet
 const isValidConnectorsResponse = (response) =>
   isSuccess(response) && Array.isArray(JSON.parse(response.body)[connectors]);
 
@@ -21,7 +21,6 @@ const {options, run, setup} = new RestJavaTestScenarioBuilder()
     const url = `${testParameters['BASE_URL_PREFIX']}${getUrl(testParameters)}`;
     return http.get(url);
   })
-  .requiredParameters('DEFAULT_CLPR_CHANNEL_ID')
   .check('CLPR Connectors OK', isValidConnectorsResponse)
   .build();
 
