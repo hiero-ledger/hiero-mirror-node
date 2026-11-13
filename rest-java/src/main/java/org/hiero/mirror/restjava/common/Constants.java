@@ -16,6 +16,7 @@ public class Constants {
     // Parameter names
     public static final String ACCOUNT_ID = "account.id";
     public static final String CHANNEL_ID = "channel.id";
+    public static final String CONNECTOR_ID = "connector.id";
     public static final String FILE_ID = "file.id";
     public static final String HIGH_VOLUME_THROTTLE = "high_volume_throttle";
     public static final String HOOK_ID = "hook.id";
@@ -32,6 +33,7 @@ public class Constants {
     public static final String STATUS = "status";
     public static final String TIMESTAMP = "timestamp";
     public static final String TOKEN_ID = "token.id";
+    public static final String TYPE = "type";
 
     // Defaults and constraints
     public static final String DEFAULT_LIMIT = "25";

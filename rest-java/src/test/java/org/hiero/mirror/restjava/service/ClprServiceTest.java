@@ -11,14 +11,19 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
+import org.hiero.mirror.rest.model.ClprMessageType;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
+import org.hiero.mirror.restjava.dto.ClprMessageDto;
+import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapperImpl;
+import org.hiero.mirror.restjava.mapper.ClprMessageMapperImpl;
 import org.hiero.mirror.restjava.mapper.CommonMapperImpl;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
+import org.hiero.mirror.restjava.repository.ClprMessageRepository;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,9 +34,12 @@ import org.springframework.data.domain.Sort.Direction;
 final class ClprServiceTest {
 
     private static final byte[] CHANNEL_ID = new byte[] {1, 2, 3};
+    private static final byte[] CONNECTOR_ID = new byte[] {4, 5, 6};
+    private static final String CONSENSUS_TIMESTAMP = "consensusTimestamp";
     private static final String CREATED_TIMESTAMP = "createdTimestamp";
 
     private ClprChannelRepository channelRepository;
+    private ClprMessageRepository messageRepository;
     private final RestJavaProperties properties = new RestJavaProperties();
     private ClprService service;
 
@@ -39,7 +47,14 @@ final class ClprServiceTest {
     void setup() {
         channelRepository = mock(ClprChannelRepository.class);
         final var channelMapper = new ClprChannelMapperImpl(new CommonMapperImpl());
-        service = new ClprServiceImpl(channelMapper, channelRepository, properties);
+        messageRepository = mock(ClprMessageRepository.class);
+        final var commonMapper = new CommonMapperImpl();
+        service = new ClprServiceImpl(
+                channelMapper,
+                channelRepository,
+                new ClprMessageMapperImpl(commonMapper),
+                messageRepository,
+                properties);
     }
 
     @Test
@@ -309,6 +324,124 @@ final class ClprServiceTest {
 
         // then
         verify(channelRepository).findByChannelIdAndTimestampBetween(CHANNEL_ID, 100L, 101L + max, null);
+    }
+
+    @Test
+    void getMessages() {
+        // given
+        final var page = PageRequest.of(0, 25, Sort.by(Direction.DESC, CONSENSUS_TIMESTAMP));
+        when(messageRepository.findByChannelIdAndTimestampBetween(CHANNEL_ID, 100L, 200L, null, page))
+                .thenReturn(List.of(message(150L, "DATA")));
+        final var request = ClprMessagesRequest.builder()
+                .channelId(CHANNEL_ID)
+                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 200L)))
+                .build();
+
+        // when / then
+        assertThat(service.getMessages(request)).singleElement().satisfies(m -> {
+            assertThat(m.getChannelId()).isEqualTo("0x010203");
+            assertThat(m.getTimestamp()).isEqualTo("0.000000150");
+            assertThat(m.getType()).isEqualTo(ClprMessageType.DATA);
+        });
+        verifyNoInteractions(channelRepository);
+    }
+
+    @Test
+    void getMessagesByConnectorAndType() {
+        // given
+        final var page = PageRequest.of(0, 10, Sort.by(Direction.ASC, CONSENSUS_TIMESTAMP));
+        when(messageRepository.findByChannelIdAndConnectorIdAndTimestampBetween(
+                        CHANNEL_ID, CONNECTOR_ID, 100L, 200L, "DATA", page))
+                .thenReturn(List.of(message(150L, "DATA")));
+        final var request = ClprMessagesRequest.builder()
+                .channelId(CHANNEL_ID)
+                .connectorId(CONNECTOR_ID)
+                .limit(10)
+                .order(Direction.ASC)
+                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 200L)))
+                .type(ClprMessageType.DATA)
+                .build();
+
+        // when / then
+        assertThat(service.getMessages(request)).hasSize(1);
+        verify(messageRepository)
+                .findByChannelIdAndConnectorIdAndTimestampBetween(CHANNEL_ID, CONNECTOR_ID, 100L, 200L, "DATA", page);
+    }
+
+    @Test
+    void getMessagesWithExclusiveBounds() {
+        // given
+        final var request = ClprMessagesRequest.builder()
+                .channelId(CHANNEL_ID)
+                .timestamp(timestamp(param(RangeOperator.GT, 100L), param(RangeOperator.LT, 200L)))
+                .build();
+
+        // when
+        service.getMessages(request);
+
+        // then
+        verify(messageRepository)
+                .findByChannelIdAndTimestampBetween(
+                        CHANNEL_ID,
+                        101L,
+                        199L,
+                        null,
+                        PageRequest.of(0, 25, Sort.by(Direction.DESC, CONSENSUS_TIMESTAMP)));
+    }
+
+    @Test
+    void getMessagesRequiresTimestamp() {
+        // given
+        final var request = ClprMessagesRequest.builder().channelId(CHANNEL_ID).build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getMessages(request)).isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(messageRepository);
+    }
+
+    @Test
+    void getMessagesRejectsRangeOverMaximum() {
+        // given
+        final long max = properties.getMaxClprMessagesTimestampRange().toNanos();
+        final var allowed = ClprMessagesRequest.builder()
+                .channelId(CHANNEL_ID)
+                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 100L + max)))
+                .build();
+        final var tooLong = ClprMessagesRequest.builder()
+                .channelId(CHANNEL_ID)
+                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 101L + max)))
+                .build();
+
+        // when / then
+        service.getMessages(allowed);
+        assertThatThrownBy(() -> service.getMessages(tooLong)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void getMessagesRejectsInvalidTimestamp() {
+        // given
+        final var notEqual = ClprMessagesRequest.builder()
+                .channelId(CHANNEL_ID)
+                .timestamp(timestamp(param(RangeOperator.NE, 100L)))
+                .build();
+        final var inverted = ClprMessagesRequest.builder()
+                .channelId(CHANNEL_ID)
+                .timestamp(timestamp(param(RangeOperator.GTE, 200L), param(RangeOperator.LTE, 100L)))
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getMessages(notEqual)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.getMessages(inverted)).isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(messageRepository);
+    }
+
+    private static ClprMessageDto message(long consensusTimestamp, String type) {
+        return ClprMessageDto.builder()
+                .channelId(CHANNEL_ID)
+                .consensusTimestamp(consensusTimestamp)
+                .messageId(1L)
+                .messageType(type)
+                .build();
     }
 
     private static ClprChannelDto channel(String status) {
