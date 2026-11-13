@@ -65,8 +65,8 @@ public final class StateChangeContext {
     private final Map<ClprConnectorKey, MapUpdateChange> clprConnectors = new HashMap<>();
     private final List<ClprConnectorKey> clprConnectorsRemoved = new ArrayList<>();
 
-    private @Nullable ClprEndpointManifest clprEndpointManifest;
-    private @Nullable ClprLedgerConfiguration clprLedgerConfiguration;
+    private @Nullable SingletonUpdateChange clprEndpointManifestUpdate;
+    private @Nullable SingletonUpdateChange clprLedgerConfigurationUpdate;
 
     private final List<ClprMessageEntry> clprMessages = new ArrayList<>();
     private final List<Long> nodeIds = new ArrayList<>();
@@ -200,11 +200,29 @@ public final class StateChangeContext {
     }
 
     public @Nullable ClprEndpointManifest getClprEndpointManifest() {
-        return clprEndpointManifest;
+        return clprEndpointManifestUpdate == null ? null : clprEndpointManifestUpdate.getClprEndpointManifestValue();
+    }
+
+    /**
+     * Get the raw singleton state change for the endpoint manifest, so a caller can tell whether it's a partial
+     * update and merge it against the last known full value accordingly.
+     */
+    public @Nullable SingletonUpdateChange getClprEndpointManifestUpdate() {
+        return clprEndpointManifestUpdate;
     }
 
     public @Nullable ClprLedgerConfiguration getClprLedgerConfiguration() {
-        return clprLedgerConfiguration;
+        return clprLedgerConfigurationUpdate == null
+                ? null
+                : clprLedgerConfigurationUpdate.getClprLedgerConfigurationValue();
+    }
+
+    /**
+     * Get the raw singleton state change for the ledger configuration, so a caller can tell whether it's a partial
+     * update and merge it against the last known full value accordingly.
+     */
+    public @Nullable SingletonUpdateChange getClprLedgerConfigurationUpdate() {
+        return clprLedgerConfigurationUpdate;
     }
 
     public List<ClprMessageEntry> getClprMessages() {
@@ -295,16 +313,17 @@ public final class StateChangeContext {
      * in a partial update. Any other field in a partial update is unchanged, so its value is absent.
      */
     public static boolean isPresent(final MapUpdateChange mapUpdate, final Message value, final int fieldNumber) {
-        if (!mapUpdate.getPartial() || mapUpdate.getClearedFieldsList().contains(fieldNumber)) {
-            return true;
-        }
+        return isPresent(mapUpdate.getPartial(), mapUpdate.getClearedFieldsList(), value, fieldNumber);
+    }
 
-        final var field = value.getDescriptorForType().findFieldByNumber(fieldNumber);
-        if (field == null) {
-            return false;
-        }
-
-        return field.isRepeated() ? value.getRepeatedFieldCount(field) > 0 : value.hasField(field);
+    /**
+     * Same as {@link #isPresent(MapUpdateChange, Message, int)}, for a singleton state change. Per
+     * {@code SingletonUpdateChange.partial}'s own documentation, the same partial/cleared-fields reader rules
+     * apply as for {@code MapUpdateChange.partial}.
+     */
+    public static boolean isPresent(
+            final SingletonUpdateChange singletonUpdate, final Message value, final int fieldNumber) {
+        return isPresent(singletonUpdate.getPartial(), singletonUpdate.getClearedFieldsList(), value, fieldNumber);
     }
 
     /**
@@ -349,6 +368,20 @@ public final class StateChangeContext {
         return isPresent(mapUpdate, slotValue, com.hederahashgraph.api.proto.java.SlotValue.VALUE_FIELD_NUMBER)
                 ? BytesValue.of(slotValue.getValue())
                 : null;
+    }
+
+    private static boolean isPresent(
+            final boolean partial, final List<Integer> clearedFields, final Message value, final int fieldNumber) {
+        if (!partial || clearedFields.contains(fieldNumber)) {
+            return true;
+        }
+
+        final var field = value.getDescriptorForType().findFieldByNumber(fieldNumber);
+        if (field == null) {
+            return false;
+        }
+
+        return field.isRepeated() ? value.getRepeatedFieldCount(field) > 0 : value.hasField(field);
     }
 
     private void processAccountStateChange(final MapUpdateChange mapUpdate) {
@@ -403,7 +436,7 @@ public final class StateChangeContext {
             return;
         }
 
-        clprEndpointManifest = singletonUpdate.getClprEndpointManifestValue();
+        clprEndpointManifestUpdate = singletonUpdate;
     }
 
     private void processClprLedgerConfigurationStateChange(SingletonUpdateChange singletonUpdate) {
@@ -411,7 +444,7 @@ public final class StateChangeContext {
             return;
         }
 
-        clprLedgerConfiguration = singletonUpdate.getClprLedgerConfigurationValue();
+        clprLedgerConfigurationUpdate = singletonUpdate;
     }
 
     private void processClprMessageStateChange(MapUpdateChange mapUpdate) {

@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
+import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hederahashgraph.api.proto.java.ClprConfigUpdate;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ClprControlMessage;
@@ -36,6 +37,7 @@ import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprThrottle;
@@ -66,6 +68,12 @@ final class ClprStateChangeHandlerTest {
 
     @Mock
     private ClprContext clprContext;
+
+    @Mock
+    private ClprEndpointManifestService clprEndpointManifestService;
+
+    @Mock
+    private ClprLedgerConfigurationService clprLedgerConfigurationService;
 
     @Mock
     private EntityListener entityListener;
@@ -902,6 +910,171 @@ final class ClprStateChangeHandlerTest {
                                 ClprConnector::getConnectorId)
                         .returns(removedCommitment, ClprConnector::getCommitment)
                         .returns(ClprConnectorStatus.DELETED, ClprConnector::getStatus));
+    }
+
+    @Test
+    void processEndpointManifestFullUpdate() {
+        // given
+        mockEmptyClprState();
+        final var serviceAddress = domainBuilder.bytes(20);
+        final var value = com.hederahashgraph.api.proto.java.ClprEndpointManifest.newBuilder()
+                .setVersion(3L)
+                .setServiceAddress(DomainUtils.fromBytes(serviceAddress))
+                .build();
+        when(clprContext.getClprEndpointManifestUpdate())
+                .thenReturn(SingletonUpdateChange.newBuilder()
+                        .setClprEndpointManifestValue(value)
+                        .build());
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var captor = ArgumentCaptor.forClass(ClprEndpointManifest.class);
+        verify(entityListener).onClprEndpointManifest(captor.capture());
+        assertThat(captor.getValue())
+                .returns(3L, ClprEndpointManifest::getVersion)
+                .returns(serviceAddress, ClprEndpointManifest::getServiceAddress)
+                .returns(List.of(), ClprEndpointManifest::getEndpoints);
+        verify(clprEndpointManifestService).notify(captor.getValue());
+        verifyNoInteractions(clprLedgerConfigurationService);
+    }
+
+    @Test
+    void processEndpointManifestPartialMergesWithBaseline() {
+        // given -- only version is set on the partial update; serviceAddress/endpoints carry forward from baseline
+        mockEmptyClprState();
+        final var baseline = domainBuilder.clprEndpointManifest().get();
+        when(clprEndpointManifestService.lookup()).thenReturn(baseline);
+        final var value = com.hederahashgraph.api.proto.java.ClprEndpointManifest.newBuilder()
+                .setVersion(4L)
+                .build();
+        when(clprContext.getClprEndpointManifestUpdate())
+                .thenReturn(SingletonUpdateChange.newBuilder()
+                        .setPartial(true)
+                        .setClprEndpointManifestValue(value)
+                        .build());
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var captor = ArgumentCaptor.forClass(ClprEndpointManifest.class);
+        verify(entityListener).onClprEndpointManifest(captor.capture());
+        assertThat(captor.getValue())
+                .returns(4L, ClprEndpointManifest::getVersion)
+                .returns(baseline.getServiceAddress(), ClprEndpointManifest::getServiceAddress)
+                .returns(baseline.getEndpoints(), ClprEndpointManifest::getEndpoints);
+    }
+
+    @Test
+    void processEndpointManifestPartialMissingBaselineDropped() {
+        // given -- no baseline to merge against (shouldn't happen in practice since CLPR always emits a full update
+        // before any partial one), so the update is dropped rather than persisted with missing fields
+        mockEmptyClprState();
+        when(clprEndpointManifestService.lookup()).thenReturn(null);
+        final var value = com.hederahashgraph.api.proto.java.ClprEndpointManifest.newBuilder()
+                .setVersion(4L)
+                .build();
+        when(clprContext.getClprEndpointManifestUpdate())
+                .thenReturn(SingletonUpdateChange.newBuilder()
+                        .setPartial(true)
+                        .setClprEndpointManifestValue(value)
+                        .build());
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        verify(entityListener, never()).onClprEndpointManifest(any());
+    }
+
+    @Test
+    void processLedgerConfigurationFullUpdate() {
+        // given
+        mockEmptyClprState();
+        final var serviceAddress = domainBuilder.bytes(20);
+        final var value = ClprLedgerConfiguration.newBuilder()
+                .setChainId("hedera:mainnet")
+                .setProtocolVersion(1)
+                .setServiceAddress(DomainUtils.fromBytes(serviceAddress))
+                .build();
+        when(clprContext.getClprLedgerConfigurationUpdate())
+                .thenReturn(SingletonUpdateChange.newBuilder()
+                        .setClprLedgerConfigurationValue(value)
+                        .build());
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var captor = ArgumentCaptor.forClass(org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration.class);
+        verify(entityListener).onClprLedgerConfiguration(captor.capture());
+        assertThat(captor.getValue())
+                .returns("hedera:mainnet", org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getChainId)
+                .returns(1L, org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getProtocolVersion)
+                .returns(serviceAddress, org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getServiceAddress)
+                .returns(null, org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getThrottle);
+        verify(clprLedgerConfigurationService).notify(captor.getValue());
+    }
+
+    @Test
+    void processLedgerConfigurationPartialMergesWithBaseline() {
+        // given -- only chainId is set on the partial update; everything else carries forward from baseline
+        mockEmptyClprState();
+        final var baseline = domainBuilder.clprLedgerConfiguration().get();
+        when(clprLedgerConfigurationService.lookup()).thenReturn(baseline);
+        final var value =
+                ClprLedgerConfiguration.newBuilder().setChainId("eip155:1").build();
+        when(clprContext.getClprLedgerConfigurationUpdate())
+                .thenReturn(SingletonUpdateChange.newBuilder()
+                        .setPartial(true)
+                        .setClprLedgerConfigurationValue(value)
+                        .build());
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var captor = ArgumentCaptor.forClass(org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration.class);
+        verify(entityListener).onClprLedgerConfiguration(captor.capture());
+        assertThat(captor.getValue())
+                .returns("eip155:1", org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getChainId)
+                .returns(
+                        baseline.getProtocolVersion(),
+                        org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getProtocolVersion)
+                .returns(
+                        baseline.getServiceAddress(),
+                        org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getServiceAddress)
+                .returns(
+                        baseline.getInitialTrustAnchor(),
+                        org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getInitialTrustAnchor)
+                .returns(
+                        baseline.getInitialTrustAnchorId(),
+                        org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getInitialTrustAnchorId)
+                .returns(
+                        baseline.getThrottle(),
+                        org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getThrottle);
+    }
+
+    @Test
+    void processLedgerConfigurationPartialMissingBaselineDropped() {
+        // given
+        mockEmptyClprState();
+        when(clprLedgerConfigurationService.lookup()).thenReturn(null);
+        final var value =
+                ClprLedgerConfiguration.newBuilder().setChainId("eip155:1").build();
+        when(clprContext.getClprLedgerConfigurationUpdate())
+                .thenReturn(SingletonUpdateChange.newBuilder()
+                        .setPartial(true)
+                        .setClprLedgerConfigurationValue(value)
+                        .build());
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        verify(entityListener, never()).onClprLedgerConfiguration(any());
     }
 
     private void mockEmptyClprState() {

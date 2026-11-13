@@ -2,9 +2,8 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
+import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
-import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
-import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -17,8 +16,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * CLPR state-change payloads attached to a {@link RecordItem}.
  *
- * <p>{@code clprEndpointManifest}/{@code clprLedgerConfiguration} have no plural counterpart since their transaction
- * types can't batch. {@code ClprStateChangeHandler.process()} iterates the plural lists directly, since a
+ * <p>{@code clprEndpointManifestUpdate}/{@code clprLedgerConfigurationUpdate} have no plural counterpart since their
+ * transaction types can't batch. They carry the raw singleton state change rather than its resolved value since a
+ * partial update must be merged against the last known full value -- see {@code ClprStateChangeHandler.process()},
+ * which does that merge. {@code ClprStateChangeHandler.process()} iterates the plural lists directly, since a
  * batch/hook-aggregated transaction (e.g. {@code ClprSubmitBundle}) can touch more than one.
  */
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -36,10 +37,10 @@ public class ClprContext {
     private final List<ClprConnectorKey> clprConnectorsRemoved = List.of();
 
     @Nullable
-    private final ClprEndpointManifest clprEndpointManifest;
+    private final SingletonUpdateChange clprEndpointManifestUpdate;
 
     @Nullable
-    private final ClprLedgerConfiguration clprLedgerConfiguration;
+    private final SingletonUpdateChange clprLedgerConfigurationUpdate;
 
     @Builder.Default
     private final List<StateChangeContext.ClprMessageEntry> clprMessages = List.of();

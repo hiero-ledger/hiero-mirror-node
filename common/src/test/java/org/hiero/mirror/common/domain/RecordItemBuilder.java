@@ -25,6 +25,7 @@ import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
+import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hedera.hapi.node.hooks.legacy.EvmHook;
 import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
 import com.hedera.hapi.node.hooks.legacy.EvmHookStorageSlot;
@@ -411,7 +412,10 @@ public final class RecordItemBuilder {
                         .setTlsCertificate(bytes(64)))
                 .build();
         return new Builder<>(TransactionType.CLPRMAINTENANCE, builder)
-                .recordItem(r -> r.clprContextBuilder().clprEndpointManifest(manifest));
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprEndpointManifestUpdate(SingletonUpdateChange.newBuilder()
+                                .setClprEndpointManifestValue(manifest)
+                                .build()));
     }
 
     public Builder<ClprRegisterChannelTransactionBody.Builder> clprRegisterChannel() {
@@ -503,7 +507,10 @@ public final class RecordItemBuilder {
         final var builder =
                 ClprUpdateLedgerConfigurationTransactionBody.newBuilder().setConfiguration(configuration);
         return new Builder<>(TransactionType.CLPRUPDATELEDGERCONFIGURATION, builder)
-                .recordItem(r -> r.clprContextBuilder().clprLedgerConfiguration(configuration));
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
+                                .setClprLedgerConfigurationValue(configuration)
+                                .build()));
     }
 
     public Builder<ConsensusCreateTopicTransactionBody.Builder> consensusCreateTopic() {

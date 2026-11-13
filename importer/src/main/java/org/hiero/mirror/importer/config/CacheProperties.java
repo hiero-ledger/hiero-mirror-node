@@ -22,6 +22,16 @@ public class CacheProperties {
     @NotBlank
     private String clprConnectorCommitment = "maximumSize=1000,recordStats";
 
+    // Only one entry is ever cached: the last known full endpoint manifest, used as the merge baseline for partial
+    // singleton state changes
+    @NotBlank
+    private String clprEndpointManifest = "maximumSize=1,recordStats";
+
+    // Only one entry is ever cached: the last known full ledger configuration, used as the merge baseline for
+    // partial singleton state changes
+    @NotBlank
+    private String clprLedgerConfiguration = "maximumSize=1,recordStats";
+
     private boolean enabled = true;
 
     @NotBlank
