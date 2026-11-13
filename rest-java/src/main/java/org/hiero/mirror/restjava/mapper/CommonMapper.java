@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.commons.codec.binary.Hex;
@@ -33,6 +34,7 @@ public interface CommonMapper {
             .setKeyList(KeyList.getDefaultInstance())
             .build()
             .toByteArray();
+    String QUALIFIER_BYTES = "bytes";
     String QUALIFIER_TIMESTAMP = "timestamp";
     String QUALIFIER_TIMESTAMP_RANGE = "timestampRange";
     int NANO_DIGITS = 9;
@@ -47,6 +49,15 @@ public interface CommonMapper {
             return null;
         }
         return "0x" + StringUtils.leftPad(Hex.encodeHexString(source), 64, '0');
+    }
+
+    /**
+     * Unlike {@link #mapByteArrayToHexString(byte[])}, doesn't left-pad to 32 bytes, for values that aren't fixed length
+     * (signatures, proofs, keys).
+     */
+    @Named(QUALIFIER_BYTES)
+    default String mapBytes(byte[] source) {
+        return source != null ? "0x" + HexFormat.of().formatHex(source) : null;
     }
 
     default String mapEntityId(Long source) {
