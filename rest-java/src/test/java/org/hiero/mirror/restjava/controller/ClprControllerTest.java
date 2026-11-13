@@ -16,8 +16,12 @@ import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
+import org.hiero.mirror.rest.model.ClprEndpointManifest;
+import org.hiero.mirror.rest.model.ClprLedgerConfiguration;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
+import org.hiero.mirror.restjava.mapper.ClprEndpointManifestMapper;
+import org.hiero.mirror.restjava.mapper.ClprLedgerConfigurationMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -32,6 +36,8 @@ import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 final class ClprControllerTest extends ControllerTest {
 
     private final ClprChannelMapper channelMapper;
+    private final ClprEndpointManifestMapper endpointManifestMapper;
+    private final ClprLedgerConfigurationMapper ledgerConfigurationMapper;
 
     @DisplayName("/api/v1/clpr/channels")
     @Nested
@@ -282,6 +288,170 @@ final class ClprControllerTest extends ControllerTest {
             // then
             org.assertj.core.api.Assertions.assertThatThrownBy(callable)
                     .isInstanceOf(HttpClientErrorException.BadRequest.class);
+        }
+    }
+
+    @DisplayName("/api/v1/clpr/configuration")
+    @Nested
+    final class LedgerConfigurationEndpointTest extends EndpointTest {
+
+        @Override
+        protected String getUrl() {
+            return "clpr/configuration";
+        }
+
+        @Override
+        protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
+            domainBuilder.clprLedgerConfiguration().persist();
+            return uriSpec.uri("");
+        }
+
+        @Test
+        void latest() {
+            // given
+            domainBuilder
+                    .clprLedgerConfiguration()
+                    .customize(c -> c.consensusTimestamp(100L))
+                    .persist();
+            final var latest = domainBuilder
+                    .clprLedgerConfiguration()
+                    .customize(c -> c.consensusTimestamp(200L))
+                    .persist();
+
+            // when
+            final var actual = restClient.get().uri("").retrieve().body(ClprLedgerConfiguration.class);
+
+            // then
+            assertThat(actual).isEqualTo(ledgerConfigurationMapper.map(latest));
+        }
+
+        @Test
+        void timestamp() {
+            // given
+            final var older = domainBuilder
+                    .clprLedgerConfiguration()
+                    .customize(c -> c.consensusTimestamp(100L))
+                    .persist();
+            domainBuilder
+                    .clprLedgerConfiguration()
+                    .customize(c -> c.consensusTimestamp(200L))
+                    .persist();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?timestamp=lte:0.000000150")
+                    .retrieve()
+                    .body(ClprLedgerConfiguration.class);
+
+            // then
+            assertThat(actual).isEqualTo(ledgerConfigurationMapper.map(older));
+        }
+
+        @Test
+        void notFound() {
+            validateError(
+                    () -> restClient.get().uri("").retrieve().body(ClprLedgerConfiguration.class),
+                    HttpClientErrorException.NotFound.class,
+                    "CLPR ledger configuration not found");
+        }
+
+        @Test
+        void notFoundInRange() {
+            // given
+            domainBuilder
+                    .clprLedgerConfiguration()
+                    .customize(c -> c.consensusTimestamp(200L))
+                    .persist();
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .get()
+                            .uri("?timestamp=lt:0.000000100")
+                            .retrieve()
+                            .body(ClprLedgerConfiguration.class),
+                    HttpClientErrorException.NotFound.class,
+                    "CLPR ledger configuration not found");
+        }
+
+        @Test
+        void invalidRange() {
+            validateError(
+                    () -> restClient
+                            .get()
+                            .uri("?timestamp=gt:0.000000200&timestamp=lt:0.000000100")
+                            .retrieve()
+                            .body(ClprLedgerConfiguration.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid range provided for timestamp");
+        }
+    }
+
+    @DisplayName("/api/v1/clpr/endpoint-manifest")
+    @Nested
+    final class EndpointManifestEndpointTest extends EndpointTest {
+
+        @Override
+        protected String getUrl() {
+            return "clpr/endpoint-manifest";
+        }
+
+        @Override
+        protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
+            domainBuilder.clprEndpointManifest().persist();
+            return uriSpec.uri("");
+        }
+
+        @Test
+        void latest() {
+            // given
+            domainBuilder
+                    .clprEndpointManifest()
+                    .customize(m -> m.consensusTimestamp(100L))
+                    .persist();
+            final var latest = domainBuilder
+                    .clprEndpointManifest()
+                    .customize(m -> m.consensusTimestamp(200L))
+                    .persist();
+
+            // when
+            final var actual = restClient.get().uri("").retrieve().body(ClprEndpointManifest.class);
+
+            // then
+            assertThat(actual).isEqualTo(endpointManifestMapper.map(latest));
+            assertThat(actual.getEndpoints()).hasSize(1);
+        }
+
+        @Test
+        void timestamp() {
+            // given
+            final var older = domainBuilder
+                    .clprEndpointManifest()
+                    .customize(m -> m.consensusTimestamp(100L))
+                    .persist();
+            domainBuilder
+                    .clprEndpointManifest()
+                    .customize(m -> m.consensusTimestamp(200L))
+                    .persist();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?timestamp=lte:0.000000150")
+                    .retrieve()
+                    .body(ClprEndpointManifest.class);
+
+            // then
+            assertThat(actual).isEqualTo(endpointManifestMapper.map(older));
+        }
+
+        @Test
+        void notFound() {
+            validateError(
+                    () -> restClient.get().uri("").retrieve().body(ClprEndpointManifest.class),
+                    HttpClientErrorException.NotFound.class,
+                    "CLPR endpoint manifest not found");
         }
     }
 

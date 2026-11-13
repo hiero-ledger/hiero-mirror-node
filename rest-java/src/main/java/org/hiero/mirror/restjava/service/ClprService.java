@@ -4,6 +4,8 @@ package org.hiero.mirror.restjava.service;
 
 import java.util.List;
 import org.hiero.mirror.rest.model.ClprChannel;
+import org.hiero.mirror.rest.model.ClprEndpointManifest;
+import org.hiero.mirror.rest.model.ClprLedgerConfiguration;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 
 public interface ClprService {
@@ -17,4 +19,18 @@ public interface ClprService {
      * channels are merged with the open pending channel commitments.
      */
     List<ClprChannel> getChannels(ClprChannelsRequest request);
+
+    /**
+     * Returns the latest endpoint manifest within the timestamp bounds.
+     *
+     * @throws jakarta.persistence.EntityNotFoundException if there is none
+     */
+    ClprEndpointManifest getEndpointManifest(Bound timestamp);
+
+    /**
+     * Returns the latest ledger configuration within the timestamp bounds.
+     *
+     * @throws jakarta.persistence.EntityNotFoundException if there is none
+     */
+    ClprLedgerConfiguration getLedgerConfiguration(Bound timestamp);
 }

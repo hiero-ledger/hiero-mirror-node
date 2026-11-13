@@ -3,16 +3,23 @@
 package org.hiero.mirror.restjava.service;
 
 import jakarta.inject.Named;
+import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
+import org.hiero.mirror.rest.model.ClprEndpointManifest;
+import org.hiero.mirror.rest.model.ClprLedgerConfiguration;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
+import org.hiero.mirror.restjava.mapper.ClprEndpointManifestMapper;
+import org.hiero.mirror.restjava.mapper.ClprLedgerConfigurationMapper;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
+import org.hiero.mirror.restjava.repository.ClprEndpointManifestRepository;
+import org.hiero.mirror.restjava.repository.ClprLedgerConfigurationRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
@@ -24,6 +31,10 @@ final class ClprServiceImpl implements ClprService {
 
     private final ClprChannelMapper channelMapper;
     private final ClprChannelRepository channelRepository;
+    private final ClprEndpointManifestMapper endpointManifestMapper;
+    private final ClprEndpointManifestRepository endpointManifestRepository;
+    private final ClprLedgerConfigurationMapper ledgerConfigurationMapper;
+    private final ClprLedgerConfigurationRepository ledgerConfigurationRepository;
     private final RestJavaProperties properties;
 
     @Override
@@ -36,6 +47,32 @@ final class ClprServiceImpl implements ClprService {
         final var data =
                 status != null || request.getChannelId() != null ? findChannels(request) : findAllChannels(request);
         return channelMapper.map(data);
+    }
+
+    @Override
+    public ClprEndpointManifest getEndpointManifest(Bound timestamp) {
+        final var bounds = getBounds(timestamp, false);
+        final var manifest =
+                endpointManifestRepository.findFirstByConsensusTimestampBetweenOrderByConsensusTimestampDesc(
+                        bounds.lower(), bounds.upper());
+        if (manifest == null) {
+            throw new EntityNotFoundException("CLPR endpoint manifest not found");
+        }
+
+        return endpointManifestMapper.map(manifest);
+    }
+
+    @Override
+    public ClprLedgerConfiguration getLedgerConfiguration(Bound timestamp) {
+        final var bounds = getBounds(timestamp, false);
+        final var configuration =
+                ledgerConfigurationRepository.findFirstByConsensusTimestampBetweenOrderByConsensusTimestampDesc(
+                        bounds.lower(), bounds.upper());
+        if (configuration == null) {
+            throw new EntityNotFoundException("CLPR ledger configuration not found");
+        }
+
+        return ledgerConfigurationMapper.map(configuration);
     }
 
     /**
