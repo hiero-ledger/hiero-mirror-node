@@ -31,6 +31,9 @@ public class RestJavaProperties {
     @NotNull
     private Duration maxClprChannelsTimestampRange = Duration.ofDays(30);
 
+    @NotNull
+    private Duration maxClprConnectorsTimestampRange = Duration.ofDays(30);
+
     @DataSizeMax(Integer.MAX_VALUE)
     @DataSizeMin(1L)
     @DataSizeUnit(DataUnit.KILOBYTES)

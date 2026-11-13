@@ -497,6 +497,34 @@ paths:
           $ref: "#/components/responses/InvalidParameterError"
       tags:
         - clpr
+  /api/v1/clpr/channels/{channelId}/connectors:
+    get:
+      summary: List CLPR connectors on a channel
+      description: >-
+        Returns a list of the connectors registered on a channel, ordered by `created_timestamp`. `status=eq:PENDING`
+        lists connectors that have been registered but not yet completed; such rows have no `connector_id` or
+        `connector_contract_id` and are identified by `commitment`. When `connector.id` is supplied together with
+        `timestamp`, returns that connector's state as of the given consensus timestamp. `connector.id` can't be
+        combined with `status=PENDING`.
+      operationId: getClprConnectors
+      parameters:
+        - $ref: "#/components/parameters/clprChannelIdPathParam"
+        - $ref: "#/components/parameters/clprConnectorIdQueryParam"
+        - $ref: "#/components/parameters/clprConnectorStatusQueryParam"
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamDesc"
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClprConnectorsResponse"
+        400:
+          $ref: "#/components/responses/InvalidParameterError"
+      tags:
+        - clpr
   /api/v1/contracts/call:
     post:
       summary: Invoke a smart contract
@@ -2575,6 +2603,92 @@ components:
     ClprChannelStatus:
       description: The channel status. `PENDING` is a registered but not yet completed ownership commitment.
       enum: [PENDING, ACTIVE, PAUSED, CLOSING, DRAINED, CLOSED]
+      example: ACTIVE
+      type: string
+    ClprConnector:
+      type: object
+      required:
+        - channel_id
+        - commitment
+        - created_timestamp
+        - status
+      properties:
+        admin_key:
+          $ref: "#/components/schemas/Key"
+        channel_id:
+          $ref: "#/components/schemas/ClprHexBytes"
+        commitment:
+          $ref: "#/components/schemas/ClprHexBytes"
+        connector_contract_id:
+          $ref: "#/components/schemas/EntityId"
+        connector_id:
+          $ref: "#/components/schemas/ClprHexBytes"
+        created_timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        in_flight_message_count:
+          description: The number of messages the connector has authorized that haven't been acknowledged yet
+          format: int64
+          type: [integer, "null"]
+        locked_stake:
+          description: The stake locked by the connector
+          type: [string, "null"]
+          pattern: ^\d+$
+        public_key:
+          $ref: "#/components/schemas/ClprHexBytes"
+        salt:
+          $ref: "#/components/schemas/ClprHexBytes"
+        signature:
+          $ref: "#/components/schemas/ClprHexBytes"
+        signature_scheme:
+          $ref: "#/components/schemas/ClprSignatureScheme"
+        slash_count:
+          description: The number of times the connector has been slashed
+          format: int64
+          type: [integer, "null"]
+        stake_recipient_id:
+          $ref: "#/components/schemas/EntityId"
+        status:
+          $ref: "#/components/schemas/ClprConnectorStatus"
+        timestamp:
+          $ref: "#/components/schemas/TimestampRangeNullable"
+      example:
+        admin_key:
+          _type: ED25519
+          key: "e5b2c4f1a0d3b6e9172839a4b5c6d7e8f9011223344556677889900aabbccddee"
+        channel_id: "0x1a2b3c"
+        commitment: "0x9c2e4a"
+        connector_contract_id: "0.0.789"
+        connector_id: "0x4d5e6f"
+        created_timestamp: "1726874345.123456789"
+        in_flight_message_count: 2
+        locked_stake: "100000000"
+        public_key: "0x04a1b2c3"
+        salt: "0x0000000000000000000000000000000000000000000000000000000000000001"
+        signature: "0x9f8e7d6c"
+        signature_scheme: ED25519
+        slash_count: 0
+        stake_recipient_id: null
+        status: ACTIVE
+        timestamp:
+          from: "1726874345.123456789"
+          to: null
+    ClprConnectorsResponse:
+      type: object
+      required:
+        - connectors
+        - links
+      properties:
+        connectors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClprConnector"
+        links:
+          $ref: "#/components/schemas/Links"
+    ClprConnectorStatus:
+      description: >-
+        The connector status. `PENDING` is registered but not yet completed, and `DELETED` is deregistered or banned
+        by slashing.
+      enum: [PENDING, ACTIVE, DELETED]
       example: ACTIVE
       type: string
     ClprHexBytes:
@@ -5348,6 +5462,15 @@ components:
         eqOperator:
           summary: Example of channel.id equals operator
           value: eq:0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809
+    clprChannelIdPathParam:
+      name: channelId
+      description: The 32 byte channel id as 0x prefixed hex
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^0x[0-9a-fA-F]{64}$
+      example: "0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809"
     clprChannelStatusQueryParam:
       name: status
       description: Filter by channel status. Only the `eq` operator is supported.
@@ -5355,6 +5478,34 @@ components:
       schema:
         type: string
         pattern: ^((eq):)?(PENDING|ACTIVE|PAUSED|CLOSING|DRAINED|CLOSED)$
+      examples:
+        noValue:
+          summary: --
+          value: ""
+        active:
+          summary: Example of status equals operator
+          value: eq:ACTIVE
+    clprConnectorIdQueryParam:
+      name: connector.id
+      description: The 32 byte connector id as 0x prefixed hex. Only the `eq` operator is supported.
+      in: query
+      schema:
+        type: string
+        pattern: ^((eq):)?0x[0-9a-fA-F]{64}$
+      examples:
+        noValue:
+          summary: --
+          value: ""
+        eqOperator:
+          summary: Example of connector.id equals operator
+          value: eq:0x4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c
+    clprConnectorStatusQueryParam:
+      name: status
+      description: Filter by connector status. Only the `eq` operator is supported.
+      in: query
+      schema:
+        type: string
+        pattern: ^((eq):)?(PENDING|ACTIVE|DELETED)$
       examples:
         noValue:
           summary: --
