@@ -20,12 +20,14 @@ final class ClprUpdateLedgerConfigurationTransformer extends AbstractBlockTransa
             return;
         }
 
-        blockTransaction
-                .getStateChangeContext()
-                .getClprLedgerConfiguration()
-                .ifPresent(
-                        blockTransactionTransformation.recordItemBuilder().clprContextBuilder()
-                                ::clprLedgerConfiguration);
+        final var ledgerConfigurationUpdate =
+                blockTransaction.getStateChangeContext().getClprLedgerConfigurationUpdate();
+        if (ledgerConfigurationUpdate != null) {
+            blockTransactionTransformation
+                    .recordItemBuilder()
+                    .clprContextBuilder()
+                    .clprLedgerConfigurationUpdate(ledgerConfigurationUpdate);
+        }
     }
 
     @Override

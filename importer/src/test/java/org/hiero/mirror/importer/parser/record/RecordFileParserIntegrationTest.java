@@ -7,6 +7,7 @@ import static org.hiero.mirror.common.domain.RecordItemBuilder.DEFAULT_GAS_USED;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprConnectorMapUpdate;
 
+import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hederahashgraph.api.proto.java.ClprChannel;
 import com.hederahashgraph.api.proto.java.ClprChannelStatus;
 import com.hederahashgraph.api.proto.java.ClprConnector;
@@ -683,7 +684,10 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .clprUpdateLedgerConfiguration()
                 .transactionBody(
                         b -> b.getConfigurationBuilder().setProtocolVersion(999).setChainId("submitted-garbage"))
-                .recordItem(r -> r.clprContextBuilder().clprLedgerConfiguration(realConfiguration))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
+                                .setClprLedgerConfigurationValue(realConfiguration)
+                                .build()))
                 .build();
 
         final var recordFile = recordFileWithItems(List.of(updateLedgerConfiguration), null);

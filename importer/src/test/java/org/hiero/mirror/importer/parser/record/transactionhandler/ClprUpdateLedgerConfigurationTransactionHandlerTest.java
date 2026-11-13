@@ -2,30 +2,17 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-
 import com.hederahashgraph.api.proto.java.ClprThrottles;
 import com.hederahashgraph.api.proto.java.ClprUpdateLedgerConfigurationTransactionBody;
-import com.hederahashgraph.api.proto.java.SignedTransaction;
-import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
-import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.transaction.ClprContext;
-import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.springframework.data.util.Version;
 
 class ClprUpdateLedgerConfigurationTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ClprUpdateLedgerConfigurationTransactionHandler(entityListener);
+        return new ClprUpdateLedgerConfigurationTransactionHandler();
     }
 
     @Override
@@ -51,133 +38,5 @@ class ClprUpdateLedgerConfigurationTransactionHandlerTest extends AbstractTransa
     @Override
     protected EntityType getExpectedEntityIdType() {
         return null;
-    }
-
-    @Test
-    void updateTransaction() {
-        // given -- state-change value diverges from the submitted body's protocol_version/chain_id
-        final var transactionBody = getDefaultTransactionBody().build();
-        final var configuration = com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.newBuilder()
-                .setProtocolVersion(2)
-                .setChainId("hedera:testnet")
-                .setServiceAddress(DomainUtils.fromBytes(domainBuilder.bytes(20)))
-                .setInitialTrustAnchor(DomainUtils.fromBytes(domainBuilder.bytes(32)))
-                .setInitialTrustAnchorId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
-                .setThrottles(ClprThrottles.newBuilder()
-                        .setMaxMessagesPerBundle(200)
-                        .setMaxMessagePayloadBytes(16384)
-                        .setMaxGasPerMessage(30_000_000L)
-                        .setMaxQueueDepth(2000)
-                        .setMaxSyncBytes(8_388_608L)
-                        .setMaxLocalEndpoints(78)
-                        .setMaxPeerEndpoints(78))
-                .build();
-        final var throttles = configuration.getThrottles();
-        final var recordItem =
-                buildRecordItem(transactionBody, getDefaultTransactionRecord().build(), configuration);
-        final var transaction = domainBuilder.transaction().get();
-        final var captor = ArgumentCaptor.forClass(ClprLedgerConfiguration.class);
-
-        // when
-        transactionHandler.updateTransaction(transaction, recordItem);
-
-        // then
-        verify(entityListener).onClprLedgerConfiguration(captor.capture());
-        assertThat(captor.getValue())
-                .returns(recordItem.getConsensusTimestamp(), ClprLedgerConfiguration::getConsensusTimestamp)
-                .returns((long) configuration.getProtocolVersion(), ClprLedgerConfiguration::getProtocolVersion)
-                .returns(configuration.getChainId(), ClprLedgerConfiguration::getChainId)
-                .returns(
-                        DomainUtils.toBytes(configuration.getServiceAddress()),
-                        ClprLedgerConfiguration::getServiceAddress)
-                .returns(
-                        DomainUtils.toBytes(configuration.getInitialTrustAnchor()),
-                        ClprLedgerConfiguration::getInitialTrustAnchor)
-                .returns(
-                        DomainUtils.toBytes(configuration.getInitialTrustAnchorId()),
-                        ClprLedgerConfiguration::getInitialTrustAnchorId)
-                .returns(
-                        throttles.getMaxGasPerMessage(),
-                        config -> config.getThrottle().getMaxGasPerMessage())
-                .returns(
-                        (long) throttles.getMaxLocalEndpoints(),
-                        config -> config.getThrottle().getMaxLocalEndpoints())
-                .returns(
-                        (long) throttles.getMaxMessagePayloadBytes(),
-                        config -> config.getThrottle().getMaxMessagePayloadBytes())
-                .returns(
-                        (long) throttles.getMaxMessagesPerBundle(),
-                        config -> config.getThrottle().getMaxMessagesPerBundle())
-                .returns(
-                        (long) throttles.getMaxPeerEndpoints(),
-                        config -> config.getThrottle().getMaxPeerEndpoints())
-                .returns(
-                        (long) throttles.getMaxQueueDepth(),
-                        config -> config.getThrottle().getMaxQueueDepth())
-                .returns(
-                        throttles.getMaxSyncBytes(),
-                        config -> config.getThrottle().getMaxSyncBytes());
-    }
-
-    @Test
-    void updateTransactionWithoutThrottles() {
-        // given -- configuration is present, but hasThrottles() is false
-        final var transactionBody = getDefaultTransactionBody().build();
-        final var configuration = com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.newBuilder()
-                .setProtocolVersion(1)
-                .setChainId("hedera:mainnet")
-                .setServiceAddress(DomainUtils.fromBytes(domainBuilder.bytes(20)))
-                .setInitialTrustAnchor(DomainUtils.fromBytes(domainBuilder.bytes(32)))
-                .setInitialTrustAnchorId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
-                .build();
-        final var recordItem =
-                buildRecordItem(transactionBody, getDefaultTransactionRecord().build(), configuration);
-        final var transaction = domainBuilder.transaction().get();
-        final var captor = ArgumentCaptor.forClass(ClprLedgerConfiguration.class);
-
-        // when
-        transactionHandler.updateTransaction(transaction, recordItem);
-
-        // then
-        verify(entityListener).onClprLedgerConfiguration(captor.capture());
-        assertThat(captor.getValue()).returns(null, ClprLedgerConfiguration::getThrottle);
-    }
-
-    @Test
-    void updateTransactionMissingStateChange() {
-        // given
-        final var recordItem = buildRecordItem(
-                getDefaultTransactionBody().build(),
-                getDefaultTransactionRecord().build(),
-                null);
-        final var transaction = domainBuilder.transaction().get();
-
-        // when
-        transactionHandler.updateTransaction(transaction, recordItem);
-
-        // then
-        verifyNoInteractions(entityListener);
-    }
-
-    private RecordItem buildRecordItem(
-            TransactionBody body,
-            TransactionRecord transactionRecord,
-            com.hederahashgraph.api.proto.java.ClprLedgerConfiguration configuration) {
-        final var transaction = Transaction.newBuilder()
-                .setSignedTransactionBytes(SignedTransaction.newBuilder()
-                        .setBodyBytes(body.toByteString())
-                        .setSigMap(getDefaultSigMap())
-                        .build()
-                        .toByteString())
-                .build();
-        return RecordItem.builder()
-                .entityTransactionPredicate(entityProperties.getPersist()::shouldPersistEntityTransaction)
-                .hapiVersion(new Version(0, 28, 0))
-                .transaction(transaction)
-                .transactionRecord(transactionRecord)
-                .clprContext(ClprContext.builder()
-                        .clprLedgerConfiguration(configuration)
-                        .build())
-                .build();
     }
 }

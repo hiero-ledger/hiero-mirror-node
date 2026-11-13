@@ -335,7 +335,8 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         recordFileParser.parse(recordFile);
 
         // then
-        final var expectedManifest = recordItem.getClprContext().getClprEndpointManifest();
+        final var expectedManifest =
+                recordItem.getClprContext().getClprEndpointManifestUpdate().getClprEndpointManifestValue();
         assertThat(clprEndpointManifestRepository.findAll()).singleElement().satisfies(manifest -> {
             assertThat(manifest.getConsensusTimestamp()).isEqualTo(recordItem.getConsensusTimestamp());
             assertThat(manifest.getVersion()).isEqualTo(expectedManifest.getVersion());
@@ -505,12 +506,7 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         final var block = Block.parseFrom(streamFileData.getInputStream());
         final var loadStart = System.currentTimeMillis();
         final var blockStream = new BlockStream(
-                BlockStreamTestUtils.toUnparsed(block.getItemsList()),
-                loadStart,
-                bytes,
-                file.getName(),
-                loadStart - 1000,
-                bytes.length);
+                BlockStreamTestUtils.toUnparsed(block.getItemsList()), loadStart, bytes, file.getName(), bytes.length);
         final var blockFile = blockStreamReader.read(blockStream);
         final var recordFile = blockFileTransformer.transform(blockFile);
         recordFileParser.parse(recordFile);

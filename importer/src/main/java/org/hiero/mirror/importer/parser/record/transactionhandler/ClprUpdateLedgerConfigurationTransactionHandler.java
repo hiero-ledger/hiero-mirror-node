@@ -3,53 +3,18 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import jakarta.inject.Named;
-import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
-import org.hiero.mirror.common.domain.transaction.RecordItem;
-import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
-import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
+/**
+ * The new ledger configuration only exists in its singleton state change, which
+ * {@link ClprStateChangeHandler#process} already handles generically (merging a partial update against the cached
+ * baseline and persisting it). This class exists only for transaction-type dispatch.
+ */
 @Named
-@RequiredArgsConstructor
 class ClprUpdateLedgerConfigurationTransactionHandler extends AbstractTransactionHandler {
-
-    private final EntityListener entityListener;
 
     @Override
     public TransactionType getType() {
         return TransactionType.CLPRUPDATELEDGERCONFIGURATION;
-    }
-
-    @Override
-    protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
-        if (!recordItem.isSuccessful()) {
-            return;
-        }
-
-        final var clprContext = recordItem.getClprContext();
-        final var configuration = clprContext != null ? clprContext.getClprLedgerConfiguration() : null;
-        if (ClprStateChangeHandler.isMissingStateChange(
-                configuration,
-                "clpr_ledger_configuration_value",
-                "ClprUpdateLedgerConfiguration",
-                recordItem.getConsensusTimestamp())) {
-            return;
-        }
-
-        final long consensusTimestamp = recordItem.getConsensusTimestamp();
-
-        final var ledgerConfiguration = ClprLedgerConfiguration.builder()
-                .consensusTimestamp(consensusTimestamp)
-                .protocolVersion(configuration.getProtocolVersion())
-                .chainId(configuration.getChainId())
-                .serviceAddress(DomainUtils.toBytes(configuration.getServiceAddress()))
-                .initialTrustAnchor(DomainUtils.toBytes(configuration.getInitialTrustAnchor()))
-                .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()))
-                .throttle(ClprThrottleConverter.from(configuration))
-                .build();
-
-        entityListener.onClprLedgerConfiguration(ledgerConfiguration);
     }
 }
