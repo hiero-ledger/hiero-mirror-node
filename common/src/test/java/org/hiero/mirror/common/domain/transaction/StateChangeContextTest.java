@@ -240,8 +240,8 @@ final class StateChangeContextTest {
         final var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        assertThat(context.getClprEndpointManifest()).contains(manifest);
-        assertThat(EMPTY_CONTEXT.getClprEndpointManifest()).isEmpty();
+        assertThat(context.getClprEndpointManifest()).isEqualTo(manifest);
+        assertThat(EMPTY_CONTEXT.getClprEndpointManifest()).isNull();
     }
 
     @Test
@@ -260,8 +260,8 @@ final class StateChangeContextTest {
         final var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        assertThat(context.getClprLedgerConfiguration()).contains(configuration);
-        assertThat(EMPTY_CONTEXT.getClprLedgerConfiguration()).isEmpty();
+        assertThat(context.getClprLedgerConfiguration()).isEqualTo(configuration);
+        assertThat(EMPTY_CONTEXT.getClprLedgerConfiguration()).isNull();
     }
 
     @Test
