@@ -3,7 +3,7 @@
 import {jest} from '@jest/globals';
 
 import {TooManyRequestsError} from '../../errors';
-import {limitConcurrency} from '../../middleware';
+import {createConcurrencyLimiter} from '../../middleware';
 
 // A handler whose invocations stay in flight until released, so concurrency can be controlled by the test
 const pendingHandler = () => {
@@ -22,10 +22,10 @@ const limitedRequest = {query: {limited: true}};
 const unlimitedRequest = {query: {}};
 const res = {};
 
-describe('limitConcurrency', () => {
+describe('createConcurrencyLimiter', () => {
   test('rejects matching requests above max and allows them once a slot is freed', async () => {
     const {handler, releases} = pendingHandler();
-    const limited = limitConcurrency(handler, {applies, max: 2, name: 'test'});
+    const limited = createConcurrencyLimiter({applies, max: 2, name: 'test'})(handler);
 
     const first = limited(limitedRequest, res);
     const second = limited(limitedRequest, res);
@@ -43,9 +43,31 @@ describe('limitConcurrency', () => {
     await Promise.all([second, third]);
   });
 
+  test('shares the limit across all wrapped handlers', async () => {
+    const {handler: first, releases: firstReleases} = pendingHandler();
+    const {handler: second, releases: secondReleases} = pendingHandler();
+    const limit = createConcurrencyLimiter({applies, max: 2, name: 'test'});
+    const limitedFirst = limit(first);
+    const limitedSecond = limit(second);
+
+    const pending = [limitedFirst(limitedRequest, res), limitedSecond(limitedRequest, res)];
+    await expect(limitedFirst(limitedRequest, res)).rejects.toThrow(TooManyRequestsError);
+    await expect(limitedSecond(limitedRequest, res)).rejects.toThrow(TooManyRequestsError);
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+
+    firstReleases[0].resolve();
+    await pending[0];
+    const next = limitedSecond(limitedRequest, res);
+    expect(second).toHaveBeenCalledTimes(2);
+
+    secondReleases.forEach((release) => release.resolve());
+    await Promise.all([pending[1], next]);
+  });
+
   test('frees the slot when the handler throws', async () => {
     const {handler, releases} = pendingHandler();
-    const limited = limitConcurrency(handler, {applies, max: 1, name: 'test'});
+    const limited = createConcurrencyLimiter({applies, max: 1, name: 'test'})(handler);
 
     const failing = limited(limitedRequest, res);
     releases[0].reject(new Error('query failed'));
@@ -59,7 +81,7 @@ describe('limitConcurrency', () => {
 
   test('does not count requests the limit does not apply to', async () => {
     const {handler, releases} = pendingHandler();
-    const limited = limitConcurrency(handler, {applies, max: 1, name: 'test'});
+    const limited = createConcurrencyLimiter({applies, max: 1, name: 'test'})(handler);
 
     const pending = [limited(unlimitedRequest, res), limited(unlimitedRequest, res), limited(limitedRequest, res)];
     expect(handler).toHaveBeenCalledTimes(3);
@@ -72,7 +94,7 @@ describe('limitConcurrency', () => {
   test('passes next through to the handler', async () => {
     const handler = jest.fn();
     const next = jest.fn();
-    const limited = limitConcurrency(handler, {applies, max: 1, name: 'test'});
+    const limited = createConcurrencyLimiter({applies, max: 1, name: 'test'})(handler);
 
     await limited(limitedRequest, res, next);
     await limited(unlimitedRequest, res, next);
@@ -82,6 +104,6 @@ describe('limitConcurrency', () => {
 
   test('max of 0 disables the limit', () => {
     const handler = jest.fn();
-    expect(limitConcurrency(handler, {applies, max: 0, name: 'test'})).toBe(handler);
+    expect(createConcurrencyLimiter({applies, max: 0, name: 'test'})(handler)).toBe(handler);
   });
 });

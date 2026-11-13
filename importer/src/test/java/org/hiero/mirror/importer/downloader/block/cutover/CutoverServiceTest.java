@@ -62,10 +62,8 @@ final class CutoverServiceTest {
     @BeforeEach
     void setup() {
         importerProperties = new ImporterProperties();
-        importerProperties.setNetwork(ImporterProperties.HederaNetwork.MAINNET);
         blockProperties = new BlockProperties(importerProperties);
         cutoverProperties = new CutoverProperties();
-        cutoverProperties.setEnabled(null);
         cutoverProperties.setThreshold(CUTOVER_THRESHOLD);
         recordDownloaderProperties = new RecordDownloaderProperties(new CommonDownloaderProperties(importerProperties));
         cutoverService = new CutoverServiceImpl(
@@ -314,24 +312,17 @@ final class CutoverServiceTest {
 
     @ParameterizedTest
     @CsvSource(textBlock = """
-            false, true, false, 0, 1, mainnet
-            true, false, false, 1, 0, mainnet
-            false, true, , 0, 1, other
-            true, false, , 1, 0, other
-            false, true, false, 0, 1, other
-            true, false, false, 1, 0, other
+            false, true, 0, 1
+            true, false, 1, 0
             """)
     void getWithoutCutover(
             final boolean isBlockStreamEnabled,
             final boolean isRecordStreamEnabled,
-            final Boolean cutoverOverride,
             final int expectedBlockStreamTaskCount,
-            final int expectedRecordStreamTaskCount,
-            final String network) {
+            final int expectedRecordStreamTaskCount) {
         // given
-        cutoverProperties.setEnabled(cutoverOverride);
+        cutoverProperties.setEnabled(false);
         blockProperties.setEnabled(isBlockStreamEnabled);
-        recordDownloaderProperties.getCommon().getImporterProperties().setNetwork(network);
         recordDownloaderProperties.setEnabled(isRecordStreamEnabled);
 
         // when
@@ -348,7 +339,6 @@ final class CutoverServiceTest {
     @CsvSource({",", "74"})
     void getFirstStageAlwaysRecordStream(final Integer hapiVersionMinor) {
         // given
-        cutoverProperties.setEnabled(true);
         cutoverProperties.getFirstStage().setEnabled(true);
 
         if (hapiVersionMinor == null) {
@@ -373,7 +363,6 @@ final class CutoverServiceTest {
     @Test
     void getFirstStageSwitchToBlockStream() {
         // given
-        cutoverProperties.setEnabled(true);
         cutoverProperties.getFirstStage().setEnabled(true);
 
         final var last = recordFile(100, false);
@@ -405,7 +394,6 @@ final class CutoverServiceTest {
     @Test
     void getFirstStageSwitchToBlockStreamAndFallback() {
         // given
-        cutoverProperties.setEnabled(true);
         final var firstStage = cutoverProperties.getFirstStage();
         firstStage.setBaseBackoff(Duration.ofMillis(10));
         firstStage.setEnabled(true);
@@ -485,7 +473,6 @@ final class CutoverServiceTest {
     @Test
     void getFirstStageBlockBackoff() {
         // given
-        cutoverProperties.setEnabled(true);
         final var firstStage = cutoverProperties.getFirstStage();
         firstStage.setEnabled(true);
         firstStage.setBaseBackoff(BASE_BACKOFF);
@@ -545,7 +532,6 @@ final class CutoverServiceTest {
     @Test
     void getTwoStages() {
         // given
-        cutoverProperties.setEnabled(true);
         cutoverProperties.getFirstStage().setEnabled(true);
         doReturn(Optional.of(recordFile(0, false))).when(recordFileRepository).findFirst();
 

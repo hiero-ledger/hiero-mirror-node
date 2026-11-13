@@ -7,6 +7,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -64,6 +65,10 @@ abstract class AbstractSchedulerTest {
     void setup() {
         streamProperties = new StreamProperties();
         streamProperties.setShutdownTimeout(Duration.ofMillis(100));
+        lenient()
+                .doReturn(Duration.ofSeconds(30).toMillis())
+                .when(latencyService)
+                .getMaxLatencyAgeMillis();
     }
 
     @Test
@@ -73,7 +78,7 @@ abstract class AbstractSchedulerTest {
         doReturn(List.of(nodeA)).when(blockNodeDiscoveryService).getBlockNodes();
         scheduler = createScheduler();
         final var removed = scheduler.getNode(0).blockNode();
-        assertThat(removed.getBlockOrEarliest(0)).contains(0L);
+        assertThat(removed.getBlockOrEarliest(0)).isEqualTo(0L);
 
         // when nodeA is no longer discovered (replaced by nodeB)
         final var nodeB = runBlockNodeService(0, resources, withAllBlocks());
@@ -82,7 +87,7 @@ abstract class AbstractSchedulerTest {
 
         // then the removed node's channel is shut down so its status request now fails and yields no block
         await().atMost(Duration.ofSeconds(2))
-                .untilAsserted(() -> assertThat(removed.getBlockOrEarliest(0)).isEmpty());
+                .untilAsserted(() -> assertThat(removed.getBlockOrEarliest(0)).isNull());
     }
 
     @Test

@@ -47,9 +47,18 @@ class NodeStakeUpdateTransactionHandler extends AbstractTransactionHandler {
         long epochDay = Utility.getEpochDay(consensusTimestamp) - 1L;
         var transactionBody = recordItem.getTransactionBody().getNodeStakeUpdate();
         long stakingPeriod = DomainUtils.timestampInNanosMax(transactionBody.getEndOfStakingPeriod());
-        long stakeTotal = transactionBody.getNodeStakeList().stream()
-                .map(nodeStake -> nodeStake.getStakeRewarded() + nodeStake.getStakeNotRewarded())
-                .reduce(0L, Long::sum);
+        long stakeTotal = 0L;
+
+        for (final var n : transactionBody.getNodeStakeList()) {
+            try {
+                long stakeRewarded = Math.max(0L, n.getStakeRewarded());
+                long stakeNotRewarded = Math.max(0L, n.getStakeNotRewarded());
+                long stake = Math.addExact(stakeRewarded, stakeNotRewarded);
+                stakeTotal = Math.addExact(stakeTotal, stake);
+            } catch (ArithmeticException e) {
+                logRecoverableError("Ignoring bad stake {}: {}", n, e.getMessage());
+            }
+        }
 
         final var networkStake = new NetworkStake();
         networkStake.setConsensusTimestamp(consensusTimestamp);
@@ -86,6 +95,13 @@ class NodeStakeUpdateTransactionHandler extends AbstractTransactionHandler {
         final var nodeIds = new HashSet<Long>(nodeStakesProtos.size());
 
         for (var nodeStakeProto : nodeStakesProtos) {
+            if (nodeStakeProto.getStake() < 0
+                    || nodeStakeProto.getStakeRewarded() < 0
+                    || nodeStakeProto.getStakeNotRewarded() < 0) {
+                logRecoverableError("Invalid node stake at {}: {}", consensusTimestamp, nodeStakeProto);
+                continue;
+            }
+
             long nodeId = nodeStakeProto.getNodeId();
             final var nodeStake = new NodeStake();
             nodeStake.setConsensusTimestamp(consensusTimestamp);

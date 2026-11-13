@@ -128,7 +128,8 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
                 mock(TssVerifier.class));
         schedulerProperties.setMinRescheduleInterval(Duration.ofMillis(500));
         schedulerProperties.setRescheduleLatencyThreshold(Duration.ofMillis(5));
-        latencyService = new LatencyService(blockStreamReader, cutoverService, new LatencyServiceProperties());
+        latencyService =
+                new LatencyService(blockStreamReader, cutoverService, new LatencyServiceProperties(), meterRegistry);
         executor = Executors.newSingleThreadScheduledExecutor();
         executor.scheduleWithFixedDelay(() -> latencyService.schedule(), 5, 5, TimeUnit.MILLISECONDS);
     }

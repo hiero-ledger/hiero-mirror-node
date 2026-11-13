@@ -11,7 +11,7 @@
     "url": "https://github.com/hiero-ledger/hiero-mirror-node/issues"
   },
   "dependencies": {
-    "commander": "15.0.0",
+    "commander": "15.1.0",
     "json-bigint": "1.0.0"
   },
   "description": "Generates a report showing an account's hbar transfers",
@@ -38,8 +38,9 @@
   "name": "@hiero-ledger/mirror-report",
   "overrides": {
     "brace-expansion": "5.0.12",
-    "glob": "13.0.6",
-    "js-yaml": "5.5.0"
+    "glob": "14.0.4",
+    "js-yaml": "5.5.0",
+    "minimatch": "11.0.5"
   },
   "repository": {
     "type": "git",

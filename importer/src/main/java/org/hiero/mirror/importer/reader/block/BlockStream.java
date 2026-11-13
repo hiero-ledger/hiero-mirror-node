@@ -16,5 +16,4 @@ public record BlockStream(
         long blockCompleteTime,
         byte @Nullable [] bytes,
         String filename,
-        long loadStart,
         int size) {}

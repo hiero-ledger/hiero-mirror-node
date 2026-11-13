@@ -1,4 +1,4 @@
-FROM node:24.22.2-trixie-slim@sha256:54f84b4cf8432b21aaffd5d3ce8d41e12cea0d10d33c09d2f3c9879d49d6b446 AS builder
+FROM node:24.22.3-trixie-slim@sha256:af02d57b57719b9657a45199a79264a9437940cd55b3c7b3fc99615654f124a0 AS builder
 WORKDIR /dist
 
 RUN apt-get update && \
@@ -19,7 +19,7 @@ RUN npm run build && \
         -type d \( -name tests -o -name __tests__ \) \
     \) -exec rm -rf {} + 2>/dev/null || true
 
-FROM node:24.22.2-trixie-slim@sha256:54f84b4cf8432b21aaffd5d3ce8d41e12cea0d10d33c09d2f3c9879d49d6b446
+FROM node:24.22.3-trixie-slim@sha256:af02d57b57719b9657a45199a79264a9437940cd55b3c7b3fc99615654f124a0
 LABEL maintainer="mirrornode@hedera.com"
 
 ENV NODE_ENV=production
@@ -32,11 +32,13 @@ COPY --from=builder --chown=node:node /dist/buildDist ./
 COPY --from=builder /usr/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2
 COPY --from=builder /etc/ld.so.preload /etc/ld.so.preload
 
-# Temporarily install latest OS updates until next Node.js
+# Temporarily install latest OS updates until next Node.js. Remove the bundled npm since it's not needed at runtime and
+# its vendored dependencies (e.g. undici) get flagged by vulnerability scanners.
 RUN apt-get update && \
     apt-get upgrade -y --no-install-recommends && \
     apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 USER node
 

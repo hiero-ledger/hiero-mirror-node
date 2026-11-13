@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_VALUE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
@@ -30,9 +31,12 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedG
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.longValueOf;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -80,24 +84,31 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.web3j.abi.FunctionReturnDecoder;
 import org.web3j.abi.TypeReference;
 import org.web3j.abi.datatypes.Type;
 import org.web3j.abi.datatypes.generated.Uint256;
+import org.web3j.crypto.ECKeyPair;
+import org.web3j.crypto.Keys;
 import org.web3j.protocol.core.DefaultBlockParameter;
+import org.web3j.utils.Numeric;
 
 @RequiredArgsConstructor
 final class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTest {
 
     private static final int HBAR_EQUIV = 30_000;
     private static final int HISTORICAL_CENT_EQUIV = 100_000;
+    private static final String INTERNAL_DETAIL = "Internal state failure: org.example.PrivateState key=123";
     private static final int LATEST_CENT_EQUIV = 1_000_000;
     private static final long SECONDS_PER_HOUR = 3_600L;
 
@@ -1184,6 +1195,37 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         assertThat(result).isEqualTo("0x0000000000000000000000000000000000000000000000000000000000000001");
     }
 
+    @ParameterizedTest
+    @CsvSource({"false,false", "false,true", "true,false", "true,true"})
+    @ExtendWith(OutputCaptureExtension.class)
+    void runtimeErrorsDoNotLeakDetails(
+            final boolean estimate, final boolean illegalState, final CapturedOutput output) {
+        // Given
+        final var failure = illegalState
+                ? new IllegalStateException(INTERNAL_DETAIL)
+                : new IllegalArgumentException(INTERNAL_DETAIL);
+        final var mockedTransactionExecutionService = mock(TransactionExecutionService.class);
+        given(mockedTransactionExecutionService.execute(any(), anyLong())).willThrow(failure);
+        final var service = new ContractExecutionService(
+                meterRegistry,
+                binaryGasEstimator,
+                recordFileService,
+                throttleProperties,
+                throttleManager,
+                evmProperties,
+                mockedTransactionExecutionService);
+        final var params = getContractExecutionParameters(HEX_PREFIX, Address.ZERO);
+
+        // When / Then
+        assertThatThrownBy(() -> service.doProcessCall(params, params.getGas(), estimate))
+                .isInstanceOfSatisfying(MirrorEvmTransactionException.class, exception -> {
+                    assertThat(exception.getResponseCode()).isEqualTo(FAIL_INVALID);
+                    assertThat(exception.getDetail()).isEmpty();
+                    assertThat(exception.getData()).isEmpty();
+                });
+        assertThat(output.getAll().contains(INTERNAL_DETAIL)).isEqualTo(!estimate);
+    }
+
     private double getGasUsedBeforeExecution(final CallType callType) {
         final var callCounter = meterRegistry.find(GAS_USED_METRIC).counters().stream()
                 .filter(c -> callType.name().equals(c.getId().getTag("type")))
@@ -1291,6 +1333,17 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .processCallWithGas(
                         getContractExecutionParametersWithValue(block, HEX_PREFIX, sender, hollowAlias, ETH_CALL, 1L))
                 .gasUsed();
+    }
+
+    private Address persistAliasedAccountAddress() {
+        final var keyPair = ECKeyPair.create(BigInteger.TWO);
+        final var alias = Numeric.hexStringToByteArray(Keys.getAddress(keyPair.getPublicKey()));
+        final var aliasedAccount = accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
+                .key(getProtobufKeyECDSA(keyPair.getPublicKey()))
+                .alias(alias)
+                .evmAddress(alias)
+                .delegationAddress(null));
+        return getAliasAddressFromEntity(aliasedAccount);
     }
 
     @SuppressWarnings("unchecked")
@@ -1523,12 +1576,17 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             assertThat(result.gasUsed()).isPositive();
         }
 
-        @Test
-        void processCallWithGasAppliesBytecodeAndStorageOverridesForMissingContract() {
-            // Given: The contract address is not persisted, but overrides provide bytecode and storage
+        @ParameterizedTest(name = "aliasedAccount={0}")
+        @ValueSource(booleans = {false, true})
+        void processCallWithGasAppliesBytecodeAndStorageOverrides(final boolean aliasedAccount) {
+            // Given: The target is either a non-persisted contract address or an existing EOA addressed by its ECDSA
+            // alias; in both cases the overrides provide contract bytecode and storage
             final var contract = testWeb3jService.deployWithoutPersist(StorageContract::deploy);
             meterRegistry.clear();
             final var functionCall = contract.call_slot0();
+            final var targetAddress = aliasedAccount
+                    ? persistAliasedAccountAddress()
+                    : Address.fromHexString(contract.getContractAddress());
 
             final var storageEntry = new StorageEntry();
             final var slotValue = "33".repeat(32);
@@ -1536,15 +1594,20 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             storageEntry.setValue(HEX_PREFIX + slotValue);
 
             final var stateOverride = new StateOverride();
-            stateOverride.setAddress(contract.getContractAddress().toLowerCase());
+            stateOverride.setAddress(targetAddress.toHexString());
             stateOverride.setCode(BytecodeUtils.extractRuntimeBytecode(StorageContract.BINARY));
-            stateOverride.setState(List.of(storageEntry));
+            if (aliasedAccount) {
+                stateOverride.setStateDiff(List.of(storageEntry));
+                stateOverride.setBalance(200L);
+            } else {
+                stateOverride.setState(List.of(storageEntry));
+            }
 
             final var params = contractExecutionParametersBuilder(
                             BlockType.LATEST,
                             functionCall.encodeFunctionCall(),
                             Address.ZERO,
-                            Address.fromHexString(contract.getContractAddress()),
+                            targetAddress,
                             ETH_CALL,
                             0L)
                     .stateOverrides(List.of(stateOverride))
@@ -1553,7 +1616,48 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             // When
             final var result = contractExecutionService.processCallWithGas(params);
 
-            // Then
+            // Then: Alias resolution must not bypass the code and storage overrides
+            assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(new BigInteger(slotValue, 16));
+            assertThat(result.gasUsed()).isPositive();
+        }
+
+        @ParameterizedTest(name = "aliasedAccount={0}")
+        @ValueSource(booleans = {false, true})
+        void processCallWithGasAppliesBytecodeAndStorageOverridesToNonExistingAddress(final boolean aliasedAccount) {
+            // Given: The target address does not correspond to any entity in the database; the overrides provide
+            // both the contract bytecode and its storage
+            final var targetAddress =
+                    aliasedAccount ? Address.fromHexString("0x" + "ab".repeat(20)) : toAddress(9_999_999L);
+            // The contract is not persisted; it is only used to encode the slot0() call
+            final var functionCall = testWeb3jService
+                    .deployWithoutPersist(StorageContract::deploy)
+                    .call_slot0();
+            meterRegistry.clear();
+
+            final var storageEntry = new StorageEntry();
+            final var slotValue = "44".repeat(32);
+            storageEntry.setKey(STORAGE_SLOT_0_KEY);
+            storageEntry.setValue(HEX_PREFIX + slotValue);
+
+            final var stateOverride = new StateOverride();
+            stateOverride.setAddress(targetAddress.toHexString());
+            stateOverride.setCode(BytecodeUtils.extractRuntimeBytecode(StorageContract.BINARY));
+            stateOverride.setState(List.of(storageEntry));
+
+            final var params = contractExecutionParametersBuilder(
+                            BlockType.LATEST,
+                            functionCall.encodeFunctionCall(),
+                            Address.ZERO,
+                            targetAddress,
+                            ETH_CALL,
+                            0L)
+                    .stateOverrides(List.of(stateOverride))
+                    .build();
+
+            // When
+            final var result = contractExecutionService.processCallWithGas(params);
+
+            // Then: The overridden code runs at the non-existing address and reads the overridden storage
             assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(new BigInteger(slotValue, 16));
             assertThat(result.gasUsed()).isPositive();
         }
@@ -1594,10 +1698,10 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             meterRegistry.clear();
             final var functionCall = contract.call_getAccountBalance(accountAddress.toHexString());
 
-            final var overrideBalanceHex = "0x64";
+            final long overrideBalance = 100L;
             final var stateOverride = new StateOverride();
             stateOverride.setAddress(accountAddress.toHexString());
-            stateOverride.setBalance(overrideBalanceHex);
+            stateOverride.setBalance(overrideBalance);
 
             final var params = contractExecutionParametersBuilder(
                             BlockType.LATEST,
@@ -1614,10 +1718,85 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
             // Then
             assertThat(decodeFirst(result.result(), Uint256.class).getValue())
-                    .isEqualTo(new BigInteger(overrideBalanceHex.substring(2), 16));
+                    .isEqualTo(BigInteger.valueOf(overrideBalance));
             assertThat(decodeFirst(result.result(), Uint256.class).getValue())
                     .isNotEqualTo(BigInteger.valueOf(DEFAULT_SMALL_ACCOUNT_BALANCE));
             assertThat(result.gasUsed()).isPositive();
+        }
+
+        @Test
+        void applyBalanceStateOverridesOverridesToNumericAndAliasedAccounts() {
+            // Given
+            final var initialBalance = 83_333_334L;
+            final var numericAccount = accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
+                    .alias(null)
+                    .evmAddress(null)
+                    .delegationAddress(null)
+                    .balance(initialBalance));
+            final var keyPair = ECKeyPair.create(BigInteger.ONE);
+            final var publicKey = getProtobufKeyECDSA(keyPair.getPublicKey());
+            final var alias = Numeric.hexStringToByteArray(Keys.getAddress(keyPair.getPublicKey()));
+            final var aliasedAccount = accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT)
+                    .key(publicKey)
+                    .alias(alias)
+                    .evmAddress(alias)
+                    .delegationAddress(null)
+                    .balance(initialBalance));
+            final var numericAddress = toAddress(numericAccount.getNum());
+            final var aliasAddress = getAliasAddressFromEntity(aliasedAccount);
+            final var contract = testWeb3jService.deploy(EthCall::deploy);
+            final var contractAddress = Address.fromHexString(contract.getContractAddress());
+            final var numericParams = contractExecutionParametersBuilder(
+                    BlockType.LATEST,
+                    contract.call_getAccountBalance(numericAddress.toHexString())
+                            .encodeFunctionCall(),
+                    Address.ZERO,
+                    contractAddress,
+                    ETH_CALL,
+                    0L);
+            final var aliasParams = contractExecutionParametersBuilder(
+                    BlockType.LATEST,
+                    contract.call_getAccountBalance(aliasAddress.toHexString()).encodeFunctionCall(),
+                    Address.ZERO,
+                    contractAddress,
+                    ETH_CALL,
+                    0L);
+            final var numericBalance = contractExecutionService.processCallWithGas(numericParams.build());
+            final var aliasBalance = contractExecutionService.processCallWithGas(aliasParams.build());
+            assertThat(decodeFirst(numericBalance.result(), Uint256.class).getValue())
+                    .isEqualTo(BigInteger.valueOf(initialBalance));
+            assertThat(decodeFirst(aliasBalance.result(), Uint256.class).getValue())
+                    .isEqualTo(BigInteger.valueOf(initialBalance));
+
+            final var numericOverride = new StateOverride();
+            numericOverride.setAddress(numericAddress.toHexString());
+            numericOverride.setBalance(100L);
+            final var aliasOverride = new StateOverride();
+            aliasOverride.setAddress(aliasAddress.toHexString());
+            aliasOverride.setBalance(200L);
+            final var overrides = List.of(numericOverride, aliasOverride);
+
+            // When
+            final var numericResult = contractExecutionService.processCallWithGas(
+                    numericParams.stateOverrides(overrides).build());
+            final var aliasResult = contractExecutionService.processCallWithGas(
+                    aliasParams.stateOverrides(overrides).build());
+
+            // Then: Alias resolution must not bypass the account balance override.
+            assertThat(decodeFirst(numericResult.result(), Uint256.class).getValue())
+                    .isEqualTo(BigInteger.valueOf(100L));
+            assertThat(decodeFirst(aliasResult.result(), Uint256.class).getValue())
+                    .isEqualTo(BigInteger.valueOf(200L));
+
+            // Overrides must not change the balances returned by subsequent ordinary requests.
+            final var numericBalanceAfter = contractExecutionService.processCallWithGas(
+                    numericParams.stateOverrides(List.of()).build());
+            final var aliasBalanceAfter = contractExecutionService.processCallWithGas(
+                    aliasParams.stateOverrides(List.of()).build());
+            assertThat(decodeFirst(numericBalanceAfter.result(), Uint256.class).getValue())
+                    .isEqualTo(BigInteger.valueOf(initialBalance));
+            assertThat(decodeFirst(aliasBalanceAfter.result(), Uint256.class).getValue())
+                    .isEqualTo(BigInteger.valueOf(initialBalance));
         }
 
         @Test
@@ -1630,8 +1809,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
             final var stateOverride = new StateOverride();
             stateOverride.setAddress(missingAccountAddress.toHexString());
-            stateOverride.setBalance("0x64");
-            stateOverride.setNonce("0x2a");
+            stateOverride.setBalance(100L);
+            stateOverride.setNonce(42L);
 
             final var params = contractExecutionParametersBuilder(
                             BlockType.LATEST,
@@ -1676,7 +1855,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final var stateOverride = new StateOverride();
             stateOverride.setAddress(
                     unhex ? accountAddress.getBytes().toUnprefixedHexString() : accountAddress.toHexString());
-            stateOverride.setNonce("0x2a");
+            stateOverride.setNonce(42L);
             final var params = contractExecutionParametersBuilder(
                             BlockType.LATEST,
                             contract.call_getAccountBalance(accountAddress.toHexString())

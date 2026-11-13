@@ -7,12 +7,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.base.Stopwatch;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
+import com.hedera.hashgraph.sdk.EthereumTransaction;
 import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import com.hedera.hashgraph.sdk.PublicKey;
 import com.hedera.hashgraph.sdk.Query;
 import com.hedera.hashgraph.sdk.Status;
+import com.hedera.hashgraph.sdk.TokenAirdropTransaction;
 import com.hedera.hashgraph.sdk.Transaction;
 import com.hedera.hashgraph.sdk.TransactionId;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
@@ -30,6 +32,8 @@ import java.util.function.Supplier;
 import lombok.Data;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.rest.model.FeeEstimateResponse;
+import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
@@ -110,9 +114,7 @@ abstract class AbstractNetworkClient implements Cleanable {
         }
     }
 
-    public TransactionId executeTransaction(Transaction<?> transaction, KeyList keyList, ExpandedAccountId payer) {
-        final var stopwatch = Stopwatch.createStarted();
-
+    private void signTransaction(Transaction<?> transaction, KeyList keyList, ExpandedAccountId payer) {
         if (payer != null) {
             transaction.setTransactionId(TransactionId.generate(payer.getAccountId()));
             transaction.freezeWith(client);
@@ -127,6 +129,10 @@ abstract class AbstractNetworkClient implements Cleanable {
                 }
             }
         }
+    }
+
+    private TransactionId submitTransaction(Transaction<?> transaction) {
+        final var stopwatch = Stopwatch.createStarted();
 
         try {
             var transactionResponse = retryTemplate.execute(() -> transaction.execute(client));
@@ -158,18 +164,74 @@ abstract class AbstractNetworkClient implements Cleanable {
         }
     }
 
-    public TransactionId executeTransaction(Transaction<?> transaction, KeyList keyList) {
-        return executeTransaction(transaction, keyList, null);
+    /**
+     * Estimates the fee of the transaction about to be executed against the mirror node's REST Java fee estimation
+     * endpoint, if fee estimation is enabled. Returns {@code null} when verification should be skipped, either because
+     * it is disabled, the transaction type is not comparable to the estimate, or the mirror node could not estimate
+     * the fee. A failed estimate never prevents the transaction itself from being executed.
+     */
+    private FeeEstimateResponse estimateFee(final Transaction<?> transaction) {
+        final var feeEstimation =
+                acceptanceTestProperties.getRestJavaProperties().getFeeEstimation();
+        if (!feeEstimation.isEnabled() || isFeeEstimationUnsupported(transaction)) {
+            return null;
+        }
+
+        try {
+            transaction.freezeWith(client);
+
+            // Mirror the SDK, which signs with the operator on execute only when the operator is the payer
+            final var operatorId = client.getOperatorAccountId();
+            if (operatorId != null && operatorId.equals(transaction.getTransactionId().accountId)) {
+                transaction.signWithOperator(client);
+            }
+
+            final var estimate = sdkClient.getMirrorNodeClient().estimateFees(transaction);
+            if (estimate == null || estimate.getTotal() <= 0) {
+                return null;
+            }
+
+            return estimate;
+        } catch (Exception e) {
+            log.warn(
+                    "Unable to estimate fees for {}, skipping fee verification: {}",
+                    transaction.getClass().getSimpleName(),
+                    e.getMessage());
+            return null;
+        }
+    }
+
+    private boolean isFeeEstimationUnsupported(final Transaction<?> transaction) {
+        // An ethereum transaction charges gas, and a value transfer can also charge a hollow-account create. The fee
+        // endpoint prices neither. A token airdrop also charges pending-airdrop and association fees that depend on
+        // receiver state. Contract create is estimated: its gas is removed from the charged fee before comparison.
+        return transaction instanceof EthereumTransaction || transaction instanceof TokenAirdropTransaction;
     }
 
     public NetworkTransactionResponse executeTransactionAndRetrieveReceipt(
             Transaction<?> transaction, KeyList keyList, ExpandedAccountId payer) {
         final var stopwatch = Stopwatch.createStarted();
-        var transactionId = executeTransaction(transaction, keyList, payer);
+        signTransaction(transaction, keyList, payer);
+        final var feeEstimate = estimateFee(transaction);
+        var transactionId = submitTransaction(transaction);
         var transactionReceipt = getTransactionReceipt(transactionId);
         log.debug("Executed {} {} in {}", transaction.getClass().getSimpleName(), transactionId, stopwatch);
 
-        return new NetworkTransactionResponse(stopwatch, transactionId, transactionReceipt);
+        TransactionByIdResponse transactions = null;
+        if (feeEstimate != null) {
+            transactions = sdkClient
+                    .getMirrorNodeClient()
+                    .verifyFeeEstimate(
+                            transactionId,
+                            transactionReceipt.exchangeRate,
+                            feeEstimate,
+                            acceptanceTestProperties
+                                    .getRestJavaProperties()
+                                    .getFeeEstimation()
+                                    .getTolerancePercent());
+        }
+
+        return new NetworkTransactionResponse(stopwatch, transactionId, transactionReceipt, transactions);
     }
 
     public NetworkTransactionResponse executeTransactionAndRetrieveReceipt(

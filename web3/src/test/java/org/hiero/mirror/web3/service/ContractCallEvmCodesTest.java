@@ -150,6 +150,25 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     }
 
     @Test
+    void getBlockHashAtLookbackWindowBoundary() throws Exception {
+        testWeb3jService.setUseContractCallDeploy(true);
+        final var oldestInWindow =
+                domainBuilder.recordFile().customize(r -> r.index(43L)).persist();
+        final var outsideWindow =
+                domainBuilder.recordFile().customize(r -> r.index(42L)).persist();
+        domainBuilder.recordFile().customize(r -> r.index(299L)).persist();
+        final var contract = testWeb3jService.deploy(EvmCodes::deploy);
+
+        final var inWindowResult = contract.call_getBlockHash(BigInteger.valueOf(oldestInWindow.getIndex()))
+                .send();
+        final var outsideWindowResult = contract.call_getBlockHash(BigInteger.valueOf(outsideWindow.getIndex()))
+                .send();
+
+        assertThat(inWindowResult).isEqualTo(Hex.decode(oldestInWindow.getHash().substring(0, 64)));
+        assertThat(outsideWindowResult).isEqualTo(Hex.decode(EMPTY_BLOCK_HASH));
+    }
+
+    @Test
     void getGenesisBlockHashReturnsCorrectBlock() throws Exception {
         testWeb3jService.setUseContractCallDeploy(true);
         domainBuilder.recordFile().customize(r -> r.index(1L)).persist();

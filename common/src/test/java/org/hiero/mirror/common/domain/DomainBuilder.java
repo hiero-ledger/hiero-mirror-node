@@ -503,7 +503,6 @@ public class DomainBuilder {
     public DomainWrapper<ContractLog, ContractLog.ContractLogBuilder> contractLog() {
         var builder = ContractLog.builder()
                 .bloom(bytes(256))
-                .child(false)
                 .consensusTimestamp(timestamp())
                 .contractId(entityId())
                 .data(bytes(128))

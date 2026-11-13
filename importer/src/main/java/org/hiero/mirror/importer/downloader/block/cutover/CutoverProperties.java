@@ -9,7 +9,6 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Data;
 import org.hibernate.validator.constraints.time.DurationMin;
-import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.data.util.Version;
 import org.springframework.validation.annotation.Validated;
@@ -19,8 +18,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public final class CutoverProperties {
 
-    @Nullable
-    private Boolean enabled;
+    private boolean enabled = true;
 
     @NotNull
     @Valid

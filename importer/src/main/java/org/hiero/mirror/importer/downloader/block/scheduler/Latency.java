@@ -2,39 +2,51 @@
 
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
-import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.AccessLevel;
+import lombok.Getter;
 
 /**
  * Records the latency in milliseconds and calculates the exponential moving average using a factor of 0.3
  */
-public final class Latency implements Comparable<Latency> {
+public final class Latency {
 
-    private static final Comparator<Latency> COMPARATOR = Comparator.comparing(Latency::getAverage);
+    private static final long NO_MAX_AGE = Long.MAX_VALUE;
 
     // A smoothing factor of 0.3 gives faster reaction and is also noisier
     private static final double SMOOTHING_FACTOR = 0.3;
 
     private volatile double average;
-    private boolean initialized;
+    private volatile boolean initialized;
+
+    @Getter(value = AccessLevel.PACKAGE)
     private volatile long lastMeasuredMillis;
+
     private final AtomicBoolean stale = new AtomicBoolean(false);
 
-    @Override
-    public int compareTo(final Latency other) {
-        return COMPARATOR.compare(this, other);
-    }
-
     double getAverage() {
-        return initialized && !stale.get() ? average : Double.MAX_VALUE;
+        return getAverage(NO_MAX_AGE);
     }
 
-    boolean isFresh(final long maxAgeMillis) {
-        return initialized && !stale.get() && System.currentTimeMillis() - lastMeasuredMillis <= maxAgeMillis;
+    /**
+     * Gets the average, treating a latency last measured longer than maxAgeMillis ago as unmeasured.
+     */
+    double getAverage(final long maxAgeMillis) {
+        return isFresh(maxAgeMillis) ? average : Double.MAX_VALUE;
     }
 
-    void markStale() {
-        stale.set(true);
+    double getMetricValue() {
+        final var average = getAverage(NO_MAX_AGE);
+        return average != Double.MAX_VALUE ? average : Double.NaN;
+    }
+
+    /**
+     * Marks the latency stale.
+     *
+     * @return true if the latency wasn't already stale
+     */
+    boolean markStale() {
+        return !stale.getAndSet(true);
     }
 
     synchronized void record(final long latency) {
@@ -46,5 +58,11 @@ public final class Latency implements Comparable<Latency> {
         } else {
             average = SMOOTHING_FACTOR * latency + (1.0 - SMOOTHING_FACTOR) * average;
         }
+    }
+
+    private boolean isFresh(final long maxAgeMillis) {
+        return initialized
+                && !stale.get()
+                && (maxAgeMillis == NO_MAX_AGE || System.currentTimeMillis() - lastMeasuredMillis <= maxAgeMillis);
     }
 }

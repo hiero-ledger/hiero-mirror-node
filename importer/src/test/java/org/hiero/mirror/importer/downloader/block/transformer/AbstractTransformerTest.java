@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
+import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
     private static final RecursiveComparisonConfiguration RECORD_ITEMS_COMPARISON_CONFIG =
             RecursiveComparisonConfiguration.builder()
                     .withIgnoredFields("parent", "hookParent", "previous", "transactionBody", "signatureMap")
+                    .withEqualsForType(Object::equals, PendingAirdropId.class)
                     .withEqualsForType(Object::equals, TransactionRecord.class)
                     .withEqualsForType(Object::equals, TransactionSidecarRecord.class)
                     .build();

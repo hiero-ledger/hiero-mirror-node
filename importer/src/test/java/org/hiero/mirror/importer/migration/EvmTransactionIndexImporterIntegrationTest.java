@@ -255,8 +255,17 @@ final class EvmTransactionIndexImporterIntegrationTest
 
     @Test
     void scheduledCallWithPresetNonceClaimsItsOwnIndex() {
-        // given - executed at expiry, so its effects are parented to the scheduled call itself
-        final var scheduleId = scheduleCreate();
+        // given - scheduled by a contract with the nonce of its ScheduleCreate child and executed at expiry in a later
+        // file, so its effects are parented to the scheduled call itself
+        final var scheduler = add(recordItemBuilder.contractCall(), result(100), 0, null, false);
+        final var scheduleId = recordItemBuilder.scheduleId();
+        add(
+                recordItemBuilder.scheduleCreate().receipt(r -> r.setScheduleID(scheduleId)),
+                scheduleServiceResult(),
+                53,
+                scheduler,
+                false);
+        parse();
         final var scheduledCall = add(scheduled(scheduleId), result(8000000), 53, null, true);
         final var effect = add(recordItemBuilder.cryptoTransfer(), precompileResult(15284), 54, scheduledCall, false);
         final var call = add(recordItemBuilder.contractCall(), result(100), 0, null, false);
@@ -395,12 +404,6 @@ final class EvmTransactionIndexImporterIntegrationTest
                         consensusTimestamp))
                 .as("contract result child at %d", consensusTimestamp)
                 .containsExactly(expected);
-        assertThat(jdbcOperations.queryForList(
-                        "select child from contract_log where consensus_timestamp = ?",
-                        Boolean.class,
-                        consensusTimestamp))
-                .as("contract log child at %d", consensusTimestamp)
-                .doesNotContain(!expected);
     }
 
     // The child backfill must reproduce exactly what the importer stored
@@ -408,7 +411,6 @@ final class EvmTransactionIndexImporterIntegrationTest
     private void assertChildBackfillMatchesImporter() {
         final var before = children();
         jdbcOperations.update("update contract_result set child = false");
-        jdbcOperations.update("update contract_log set child = false");
         jdbcOperations.update(
                 "update flyway_schema_history set checksum = -1 where description = ?",
                 childMigration.getDescription());
@@ -430,9 +432,6 @@ final class EvmTransactionIndexImporterIntegrationTest
         final var result = new HashMap<String, Boolean>();
         jdbcOperations.query("select consensus_timestamp, child from contract_result", rs -> {
             result.put("result " + rs.getLong(1), rs.getBoolean(2));
-        });
-        jdbcOperations.query("select consensus_timestamp, index, child from contract_log", rs -> {
-            result.put("log " + rs.getLong(1) + "/" + rs.getInt(2), rs.getBoolean(3));
         });
         return result;
     }
@@ -497,6 +496,13 @@ final class EvmTransactionIndexImporterIntegrationTest
         return ContractFunctionResult.newBuilder()
                 .setContractID(PRECOMPILE_ID)
                 .setGasUsed(gasUsed)
+                .build();
+    }
+
+    private ContractFunctionResult scheduleServiceResult() {
+        return ContractFunctionResult.newBuilder()
+                .setContractID(recordItemBuilder.contractId(363))
+                .setGasUsed(100)
                 .build();
     }
 
