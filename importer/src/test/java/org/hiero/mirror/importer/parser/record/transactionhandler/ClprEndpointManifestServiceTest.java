@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import java.util.Optional;
 import java.util.Set;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.importer.repository.ClprEndpointManifestRepository;
@@ -40,7 +39,7 @@ final class ClprEndpointManifestServiceTest {
     void lookupCacheMiss() {
         // given
         final var manifest = domainBuilder.clprEndpointManifest().get();
-        when(clprEndpointManifestRepository.findLatest()).thenReturn(Optional.of(manifest));
+        when(clprEndpointManifestRepository.findLatest()).thenReturn(manifest);
 
         // when, then -- a second lookup hits the cache, not the repository again
         assertThat(clprEndpointManifestService.lookup()).isEqualTo(manifest);
@@ -51,7 +50,7 @@ final class ClprEndpointManifestServiceTest {
     @Test
     void lookupCacheMissNotFound() {
         // given
-        when(clprEndpointManifestRepository.findLatest()).thenReturn(Optional.empty());
+        when(clprEndpointManifestRepository.findLatest()).thenReturn(null);
 
         // when, then -- the miss itself is cached, so a second lookup still doesn't hit the repository again
         assertThat(clprEndpointManifestService.lookup()).isNull();

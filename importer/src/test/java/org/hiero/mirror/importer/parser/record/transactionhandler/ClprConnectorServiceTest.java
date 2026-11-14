@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import java.util.Optional;
 import java.util.Set;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.importer.repository.ClprConnectorRepository;
@@ -43,7 +42,7 @@ final class ClprConnectorServiceTest {
         final var connectorId = domainBuilder.bytes(32);
         final var commitment = domainBuilder.bytes(32);
         when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(channelId, connectorId))
-                .thenReturn(Optional.of(commitment));
+                .thenReturn(commitment);
 
         // when, then -- a second lookup hits the cache, not the repository again
         assertThat(clprConnectorService.lookup(channelId, connectorId)).isEqualTo(commitment);
@@ -57,7 +56,7 @@ final class ClprConnectorServiceTest {
         final var channelId = domainBuilder.bytes(32);
         final var connectorId = domainBuilder.bytes(32);
         when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(channelId, connectorId))
-                .thenReturn(Optional.empty());
+                .thenReturn(null);
 
         // when, then -- the miss itself is cached, so a second lookup still doesn't hit the repository again
         assertThat(clprConnectorService.lookup(channelId, connectorId)).isNull();
