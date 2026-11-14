@@ -184,6 +184,44 @@ class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
+    void clprMaintenanceLedgerConfiguration() {
+        // given -- e.g. GENESIS_INITIALIZATION creating clpr_ledger_configuration's very first row with no
+        // endpoint manifest change alongside it
+        final var expectedRecordItem = recordItemBuilder
+                .clprMaintenanceLedgerConfiguration()
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction =
+                blockTransactionBuilder.clprMaintenance(expectedRecordItem).build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertRecordItems(items, List.of(expectedRecordItem)));
+    }
+
+    @Test
+    void clprMaintenanceEndpointManifestAndLedgerConfiguration() {
+        // given -- a single firing touching both singletons together, e.g. GENESIS_INITIALIZATION creating both
+        // tables' very first rows at once
+        final var expectedRecordItem = recordItemBuilder
+                .clprMaintenanceEndpointManifestAndLedgerConfiguration()
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction =
+                blockTransactionBuilder.clprMaintenance(expectedRecordItem).build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertRecordItems(items, List.of(expectedRecordItem)));
+    }
+
+    @Test
     void clprRegisterChannel() {
         // given
         final var expectedRecordItem = recordItemBuilder

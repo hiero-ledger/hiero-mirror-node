@@ -6,10 +6,12 @@ import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 /**
- * Reads the {@code clpr_endpoint_manifest_value} singleton state change off {@code StateChangeContext} and
- * populates {@link org.hiero.mirror.common.domain.transaction.RecordItem}'s CLPR Endpoint Manifest field.
- * {@code ClprMaintenance} is a system-initiated transaction with no meaningful body of its own -- the finalized
- * manifest only exists in its state change.
+ * Reads whichever of the {@code clpr_endpoint_manifest_value}/{@code clpr_ledger_configuration_value} singleton
+ * state changes are present off {@code StateChangeContext} and populates
+ * {@link org.hiero.mirror.common.domain.transaction.RecordItem}'s corresponding CLPR fields. {@code ClprMaintenance}
+ * is a system-initiated transaction with no meaningful body of its own -- a single firing can touch either
+ * singleton, both, or (for {@code GENESIS_INITIALIZATION}) create the ledger configuration's very first row, so each
+ * must be checked independently rather than assuming a fixed shape.
  */
 @Named
 final class ClprMaintenanceTransformer extends AbstractBlockTransactionTransformer {
@@ -21,13 +23,18 @@ final class ClprMaintenanceTransformer extends AbstractBlockTransactionTransform
             return;
         }
 
-        final var endpointManifestUpdate =
-                blockTransaction.getStateChangeContext().getClprEndpointManifestUpdate();
+        final var stateChangeContext = blockTransaction.getStateChangeContext();
+        final var clprContextBuilder =
+                blockTransactionTransformation.recordItemBuilder().clprContextBuilder();
+
+        final var endpointManifestUpdate = stateChangeContext.getClprEndpointManifestUpdate();
         if (endpointManifestUpdate != null) {
-            blockTransactionTransformation
-                    .recordItemBuilder()
-                    .clprContextBuilder()
-                    .clprEndpointManifestUpdate(endpointManifestUpdate);
+            clprContextBuilder.clprEndpointManifestUpdate(endpointManifestUpdate);
+        }
+
+        final var ledgerConfigurationUpdate = stateChangeContext.getClprLedgerConfigurationUpdate();
+        if (ledgerConfigurationUpdate != null) {
+            clprContextBuilder.clprLedgerConfigurationUpdate(ledgerConfigurationUpdate);
         }
     }
 
