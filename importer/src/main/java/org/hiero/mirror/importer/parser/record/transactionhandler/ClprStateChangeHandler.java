@@ -341,23 +341,20 @@ public class ClprStateChangeHandler {
 
     private static @Nullable ClprChannelStatus toChannelStatus(
             com.hederahashgraph.api.proto.java.ClprChannelStatus status) {
-        return switch (status) {
-            case ACTIVE -> ClprChannelStatus.ACTIVE;
-            case PAUSED -> ClprChannelStatus.PAUSED;
-            case CLOSING -> ClprChannelStatus.CLOSING;
-            case DRAINED -> ClprChannelStatus.DRAINED;
-            case CLOSED -> ClprChannelStatus.CLOSED;
-            case PENDING -> {
-                // PENDING is pre-creation only, tracked via ClprChannelPendingCommitment; an existing ClprChannel
-                // state-change value should never revert to it.
-                Utility.handleRecoverableError("ClprChannel state change unexpectedly reverted to PENDING status");
-                yield null;
-            }
-            default -> {
-                Utility.handleRecoverableError("Unexpected CLPR channel status {}", status);
-                yield null;
-            }
-        };
+
+        if (status == com.hederahashgraph.api.proto.java.ClprChannelStatus.PENDING) {
+            // PENDING is pre-creation only, tracked via ClprChannelPendingCommitment;
+            // an existing ClprChannel state-change value should never revert to it.
+            Utility.handleRecoverableError("ClprChannel state change unexpectedly reverted to PENDING status");
+            return null;
+        }
+
+        try {
+            return ClprChannelStatus.valueOf(status.name());
+        } catch (IllegalArgumentException e) {
+            Utility.handleRecoverableError("Unexpected CLPR channel status {}", status);
+            return null;
+        }
     }
 
     private @Nullable ClprConnector toConnector(
