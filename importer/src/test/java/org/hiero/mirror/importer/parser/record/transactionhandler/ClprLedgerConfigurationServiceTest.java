@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import java.util.Optional;
 import java.util.Set;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.importer.repository.ClprLedgerConfigurationRepository;
@@ -41,7 +40,7 @@ final class ClprLedgerConfigurationServiceTest {
     void lookupCacheMiss() {
         // given
         final var configuration = domainBuilder.clprLedgerConfiguration().get();
-        when(clprLedgerConfigurationRepository.findLatest()).thenReturn(Optional.of(configuration));
+        when(clprLedgerConfigurationRepository.findLatest()).thenReturn(configuration);
 
         // when, then -- a second lookup hits the cache, not the repository again
         assertThat(clprLedgerConfigurationService.lookup()).isEqualTo(configuration);
@@ -52,7 +51,7 @@ final class ClprLedgerConfigurationServiceTest {
     @Test
     void lookupCacheMissNotFound() {
         // given
-        when(clprLedgerConfigurationRepository.findLatest()).thenReturn(Optional.empty());
+        when(clprLedgerConfigurationRepository.findLatest()).thenReturn(null);
 
         // when, then -- the miss itself is cached, so a second lookup still doesn't hit the repository again
         assertThat(clprLedgerConfigurationService.lookup()).isNull();

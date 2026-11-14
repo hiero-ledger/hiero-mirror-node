@@ -60,11 +60,11 @@ class ClprEndpointManifestRepositoryTest extends ImporterIntegrationTest {
     void findLatest() {
         domainBuilder.clprEndpointManifest().persist();
         var latest = domainBuilder.clprEndpointManifest().persist();
-        assertThat(clprEndpointManifestRepository.findLatest()).get().isEqualTo(latest);
+        assertThat(clprEndpointManifestRepository.findLatest()).isEqualTo(latest);
     }
 
     @Test
     void findLatestEmpty() {
-        assertThat(clprEndpointManifestRepository.findLatest()).isEmpty();
+        assertThat(clprEndpointManifestRepository.findLatest()).isNull();
     }
 }

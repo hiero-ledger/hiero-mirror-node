@@ -42,10 +42,7 @@ class ClprConnectorService {
         final var key = toKey(channelId, connectorId);
         try {
             return cache.get(
-                    key,
-                    () -> clprConnectorRepository
-                            .findCommitmentByChannelIdAndConnectorId(channelId, connectorId)
-                            .orElse(null));
+                    key, () -> clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(channelId, connectorId));
         } catch (Cache.ValueRetrievalException e) {
             Utility.handleRecoverableError("Error looking up clpr_connector commitment", e);
             return null;

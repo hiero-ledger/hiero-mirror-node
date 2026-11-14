@@ -41,9 +41,7 @@ class ClprLedgerConfigurationService {
 
     public @Nullable ClprLedgerConfiguration lookup() {
         try {
-            return cache.get(
-                    CACHE_KEY,
-                    () -> clprLedgerConfigurationRepository.findLatest().orElse(null));
+            return cache.get(CACHE_KEY, clprLedgerConfigurationRepository::findLatest);
         } catch (Cache.ValueRetrievalException e) {
             Utility.handleRecoverableError("Error looking up latest clpr_ledger_configuration", e);
             return null;

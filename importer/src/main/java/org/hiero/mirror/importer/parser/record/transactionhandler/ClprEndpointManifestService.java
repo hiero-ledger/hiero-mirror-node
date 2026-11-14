@@ -41,8 +41,7 @@ class ClprEndpointManifestService {
 
     public @Nullable ClprEndpointManifest lookup() {
         try {
-            return cache.get(
-                    CACHE_KEY, () -> clprEndpointManifestRepository.findLatest().orElse(null));
+            return cache.get(CACHE_KEY, clprEndpointManifestRepository::findLatest);
         } catch (Cache.ValueRetrievalException e) {
             Utility.handleRecoverableError("Error looking up latest clpr_endpoint_manifest", e);
             return null;
