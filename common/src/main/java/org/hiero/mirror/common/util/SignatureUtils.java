@@ -39,7 +39,7 @@ public final class SignatureUtils {
             digest.update(part, 0, part.length);
         }
 
-        final var hash = new byte[32];
+        final var hash = new byte[digest.getDigestSize()];
         digest.doFinal(hash, 0);
         return hash;
     }

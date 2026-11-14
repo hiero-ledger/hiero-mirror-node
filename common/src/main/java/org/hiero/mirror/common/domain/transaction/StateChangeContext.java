@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -61,8 +62,8 @@ public final class StateChangeContext {
     // A null value means the value written is absent from a partial state change
     private final Map<ContractSlotKey, @Nullable BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractSlotId, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
-    private final Map<ByteString, MapUpdateChange> clprChannels = new HashMap<>();
-    private final Map<ClprConnectorKey, MapUpdateChange> clprConnectors = new HashMap<>();
+    private final Map<ByteString, ClprChannelEntry> clprChannels = new LinkedHashMap<>();
+    private final Map<ClprConnectorKey, ClprConnectorEntry> clprConnectors = new LinkedHashMap<>();
     private final List<ClprConnectorKey> clprConnectorsRemoved = new ArrayList<>();
 
     private @Nullable SingletonUpdateChange clprEndpointManifestUpdate;
@@ -158,41 +159,29 @@ public final class StateChangeContext {
     }
 
     public @Nullable ClprChannel getClprChannel(ByteString channelId) {
-        final var mapUpdate = clprChannels.get(channelId);
-        return mapUpdate == null ? null : mapUpdate.getValue().getClprChannelValue();
+        final var entry = clprChannels.get(channelId);
+        return entry == null ? null : entry.value();
     }
 
     public @Nullable ClprChannelEntry getClprChannelEntry(ByteString channelId) {
-        final var mapUpdate = clprChannels.get(channelId);
-        return mapUpdate == null ? null : new ClprChannelEntry(channelId, mapUpdate);
+        return clprChannels.get(channelId);
     }
 
     public List<ClprChannelEntry> getClprChannels() {
-        final var result = new ArrayList<ClprChannelEntry>(clprChannels.size());
-        for (final var entry : clprChannels.entrySet()) {
-            final var mapUpdate = entry.getValue();
-            result.add(new ClprChannelEntry(entry.getKey(), mapUpdate));
-        }
-        return result;
+        return List.copyOf(clprChannels.values());
     }
 
     public @Nullable ClprConnector getClprConnector(ClprConnectorKey key) {
-        final var mapUpdate = clprConnectors.get(key);
-        return mapUpdate == null ? null : mapUpdate.getValue().getClprConnectorValue();
+        final var entry = clprConnectors.get(key);
+        return entry == null ? null : entry.value();
     }
 
     public @Nullable ClprConnectorEntry getClprConnectorEntry(ClprConnectorKey key) {
-        final var mapUpdate = clprConnectors.get(key);
-        return mapUpdate == null ? null : new ClprConnectorEntry(key, mapUpdate);
+        return clprConnectors.get(key);
     }
 
     public List<ClprConnectorEntry> getClprConnectors() {
-        final var result = new ArrayList<ClprConnectorEntry>(clprConnectors.size());
-        for (final var entry : clprConnectors.entrySet()) {
-            final var mapUpdate = entry.getValue();
-            result.add(new ClprConnectorEntry(entry.getKey(), mapUpdate));
-        }
-        return result;
+        return List.copyOf(clprConnectors.values());
     }
 
     public List<ClprConnectorKey> getClprConnectorsRemoved() {
@@ -300,7 +289,7 @@ public final class StateChangeContext {
         return tokensWithAbsentTotalSupply.contains(tokenId);
     }
 
-    /** Cheap presence check against the backing maps/list directly, without the allocations the getters make. */
+    /** Cheap presence check against the backing collections, without creating unmodifiable views. */
     public boolean hasClprState() {
         return !clprChannels.isEmpty()
                 || !clprMessages.isEmpty()
@@ -420,7 +409,7 @@ public final class StateChangeContext {
         }
 
         final var channelId = mapUpdate.getKey().getProtoBytesKey().getValue();
-        clprChannels.put(channelId, mapUpdate);
+        clprChannels.put(channelId, new ClprChannelEntry(channelId, mapUpdate));
     }
 
     private void processClprConnectorStateChange(MapUpdateChange mapUpdate) {
@@ -428,7 +417,8 @@ public final class StateChangeContext {
             return;
         }
 
-        clprConnectors.put(mapUpdate.getKey().getClprConnectorKey(), mapUpdate);
+        final var key = mapUpdate.getKey().getClprConnectorKey();
+        clprConnectors.put(key, new ClprConnectorEntry(key, mapUpdate));
     }
 
     private void processClprEndpointManifestStateChange(SingletonUpdateChange singletonUpdate) {
