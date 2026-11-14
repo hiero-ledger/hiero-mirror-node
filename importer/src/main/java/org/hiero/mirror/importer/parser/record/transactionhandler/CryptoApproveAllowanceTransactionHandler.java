@@ -138,10 +138,8 @@ class CryptoApproveAllowanceTransactionHandler extends AbstractTransactionHandle
 
                 if (nftSerialAllowanceState.putIfAbsent(nft.getId(), nft) == null) {
                     entityListener.onNft(nft);
-                    if (!nftApproval.hasApprovedForAll()) {
-                        syntheticContractLogService.create(new ApproveAllowanceIndexedContractLog(
-                                recordItem, tokenId, ownerAccountId, spenderId, serialNumber));
-                    }
+                    syntheticContractLogService.create(new ApproveAllowanceIndexedContractLog(
+                            recordItem, tokenId, ownerAccountId, spenderId, serialNumber));
                 }
             }
 
