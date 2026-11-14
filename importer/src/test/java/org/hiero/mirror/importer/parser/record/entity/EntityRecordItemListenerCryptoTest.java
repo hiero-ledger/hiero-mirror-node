@@ -80,6 +80,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.parser.contractlog.ApproveAllowanceIndexedContractLog;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.importer.repository.HookRepository;
@@ -257,6 +258,27 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
 
         // then
         assertThat(nftRepository.findAll()).containsExactly(expectedNft);
+
+        var expectedLog = new ApproveAllowanceIndexedContractLog(
+                recordItem,
+                EntityId.of(nft.getTokenId()),
+                nft.getAccountId(),
+                EntityId.of(nftAllowance.getSpender()),
+                nft.getSerialNumber());
+        assertThat(contractLogRepository.findAll())
+                .hasSize(preHapi077 ? 2 : 1)
+                .filteredOn(log -> log.getTopic3() != null)
+                .singleElement()
+                .satisfies(log -> {
+                    assertThat(log.isSynthetic()).isTrue();
+                    assertThat(log.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
+                    assertThat(log.getContractId()).isEqualTo(EntityId.of(nft.getTokenId()));
+                    assertThat(log.getIndex()).isEqualTo(preHapi077 ? 1 : 0);
+                    assertThat(log.getTopic0()).isEqualTo(expectedLog.getTopic0());
+                    assertThat(DomainUtils.trim(log.getTopic1())).isEqualTo(expectedLog.getTopic1());
+                    assertThat(DomainUtils.trim(log.getTopic2())).isEqualTo(expectedLog.getTopic2());
+                    assertThat(log.getTopic3()).isEqualTo(expectedLog.getTopic3());
+                });
 
         final var nftAllowanceHistory = findHistory(org.hiero.mirror.common.domain.entity.NftAllowance.class);
         if (!preHapi077) {

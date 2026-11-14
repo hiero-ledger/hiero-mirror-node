@@ -36,11 +36,13 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.parser.contractlog.ApproveAllowanceIndexedContractLog;
 import org.hiero.mirror.importer.parser.contractlog.ApproveForAllAllowanceContractLog;
 import org.hiero.mirror.importer.parser.contractresult.SyntheticContractResultService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.springframework.data.util.Version;
@@ -149,8 +151,8 @@ final class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransac
         // then
         verify(entityListener).onNft(assertArg(t -> assertEquals(expectedNft, t)));
         verify(entityListener, never()).onNftAllowance(any());
-        // The per-serial approval log is skipped whenever approvedForAll is set, a separate issue
-        verifyNoInteractions(syntheticContractLogService);
+        verify(syntheticContractLogService).create(isA(ApproveAllowanceIndexedContractLog.class));
+        verifyNoMoreInteractions(syntheticContractLogService);
     }
 
     @Test
@@ -178,6 +180,7 @@ final class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransac
         verify(entityListener).onNft(assertArg(t -> assertEquals(expectedNft, t)));
         verify(entityListener).onNftAllowance(assertArg(t -> assertEquals(expectedNftAllowance, t)));
         verify(syntheticContractLogService).create(isA(ApproveForAllAllowanceContractLog.class));
+        verify(syntheticContractLogService).create(isA(ApproveAllowanceIndexedContractLog.class));
         verifyNoMoreInteractions(syntheticContractLogService);
     }
 
@@ -222,6 +225,49 @@ final class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransac
         verify(entityListener).onNftAllowance(assertArg(t -> assertEquals(expectedNftAllowance, t)));
         verify(syntheticContractLogService).create(isA(ApproveForAllAllowanceContractLog.class));
         verifyNoMoreInteractions(syntheticContractLogService);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "76, false,", "76, false, false", "76, false, true", "76, true,", "76, true, false",
+        "77, false,", "77, false, false", "77, false, true", "77, true,", "77, true, false"
+    })
+    void updateTransactionSerialApprovals(int minorVersion, boolean delegated, Boolean approvedForAll) {
+        var delegatingSpender = recordItemBuilder.accountId();
+        var recordItem = nftAllowanceRecordItem(new Version(0, minorVersion, 0), b -> {
+            b.addSerialNumbers(1).addSerialNumbers(2).addSerialNumbers(1);
+            if (approvedForAll != null) {
+                b.setApprovedForAll(BoolValue.of(approvedForAll));
+            }
+            if (delegated) {
+                b.setDelegatingSpender(delegatingSpender);
+            }
+        });
+        if (delegated) {
+            var id = EntityId.of(delegatingSpender);
+            when(entityIdService.lookup(delegatingSpender)).thenReturn(Optional.of(id));
+            expectedNft.setDelegatingSpender(id.getId());
+        }
+        var transaction = domainBuilder.transaction().get();
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        var tokenId = EntityId.of(expectedNft.getTokenId());
+        var owner = expectedNft.getAccountId();
+        var spender = EntityId.of(expectedNft.getSpender());
+        for (long serial : new long[] {1, 2}) {
+            verify(entityListener)
+                    .onNft(expectedNft.toBuilder().serialNumber(serial).build());
+            verify(syntheticContractLogService)
+                    .create(new ApproveAllowanceIndexedContractLog(recordItem, tokenId, owner, spender, serial));
+        }
+        if (approvedForAll != null && (!delegated || minorVersion < 77)) {
+            expectedNftAllowance.setApprovedForAll(approvedForAll);
+            verify(entityListener).onNftAllowance(expectedNftAllowance);
+            verify(syntheticContractLogService)
+                    .create(new ApproveForAllAllowanceContractLog(recordItem, tokenId, owner, spender, approvedForAll));
+        }
+        verifyNoMoreInteractions(entityListener, syntheticContractLogService);
     }
 
     @Test
@@ -411,6 +457,7 @@ final class CryptoApproveAllowanceTransactionHandlerTest extends AbstractTransac
         verify(entityListener, times(1)).onNft(assertArg(t -> assertEquals(expectedNft, t)));
         verify(entityListener, times(1)).onNftAllowance(assertArg(t -> assertEquals(expectedNftAllowance, t)));
         verify(entityListener, times(1)).onTokenAllowance(assertArg(t -> assertEquals(expectedTokenAllowance, t)));
+        verify(syntheticContractLogService).create(isA(ApproveAllowanceIndexedContractLog.class));
     }
 
     private void customizeTransactionBody(CryptoApproveAllowanceTransactionBody.Builder builder) {
