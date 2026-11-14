@@ -80,6 +80,32 @@ final class BackfillNftApprovalContractLogMigrationTest
     }
 
     @Test
+    void customBatchInterval() {
+        long start = domainBuilder.timestamp();
+        block(start);
+        transaction(start + 100);
+        nft(start + 100, 1, EntityId.of(1001), 1002);
+        // Out of reach of the first batch with the default batch interval
+        long next = start + BackfillNftApprovalContractLogMigration.DEFAULT_BATCH_INTERVAL.toNanos() * 2;
+        block(next);
+        transaction(next + 100);
+        nft(next + 100, 2, EntityId.of(1001), 1002);
+        migration.migrationProperties.getParams().put("batchInterval", "3h");
+
+        try {
+            assertThat(migration.performSynchronousSteps()).isTrue();
+            migration
+                    .getTransactionOperations()
+                    .executeWithoutResult(_ -> migration.migratePartial(migration.getInitial()));
+        } finally {
+            migration.migrationProperties.getParams().remove("batchInterval");
+        }
+
+        assertThat(logs()).extracting(ContractLog::getConsensusTimestamp).containsExactly(start + 100, next + 100);
+        assertThat(tableExists("nft_approval_snapshot_temp")).isFalse();
+    }
+
+    @Test
     void disabled() {
         // An earlier run interrupted after creating its progress and snapshot tables
         block(domainBuilder.timestamp());
@@ -353,6 +379,28 @@ final class BackfillNftApprovalContractLogMigrationTest
     }
 
     @Test
+    void skipsApprovalsWithoutRecordFile() {
+        long start = domainBuilder.timestamp();
+        block(start);
+        // The transaction is retained while its record file is not, so it falls in the gap between the two blocks
+        transaction(start + 3000);
+        nft(start + 3000, 1, EntityId.of(1001), 1002);
+        block(start + 5000);
+        transaction(start + 5100);
+        nft(start + 5100, 2, EntityId.of(1001), 1002);
+
+        runMigration();
+        waitForCompletion();
+
+        assertThat(logs()).singleElement().satisfies(l -> {
+            assertThat(l.getConsensusTimestamp()).isEqualTo(start + 5100);
+            assertThat(l.getIndex()).isZero();
+            assertThat(l.getTopic3()).isEqualTo(new byte[] {2});
+            assertThat(l.getTransactionIndex()).isZero();
+        });
+    }
+
+    @Test
     void skipsFailedContractOriginAndOtherTransactions() {
         long start = domainBuilder.timestamp();
         block(start);
@@ -373,6 +421,29 @@ final class BackfillNftApprovalContractLogMigrationTest
         waitForCompletion();
 
         assertThat(logs()).isEmpty();
+    }
+
+    @Test
+    void usesLongZeroAddressesWhenEvmAddressLookupIsDisabled() {
+        long start = domainBuilder.timestamp();
+        block(start);
+        transaction(start + 100);
+        var owner = domainBuilder.entity().persist();
+        var spender = domainBuilder.entity().persist();
+        nft(start + 100, 1, owner.toEntityId(), spender.getId());
+        entityProperties.getPersist().setSyntheticContractLogEvmAddressLookup(false);
+
+        try {
+            runMigration();
+            waitForCompletion();
+        } finally {
+            entityProperties.getPersist().setSyntheticContractLogEvmAddressLookup(true);
+        }
+
+        assertThat(logs()).singleElement().satisfies(l -> {
+            assertThat(l.getTopic1()).isEqualTo(trim(DomainUtils.toEvmAddress(owner.toEntityId())));
+            assertThat(l.getTopic2()).isEqualTo(trim(DomainUtils.toEvmAddress(spender.toEntityId())));
+        });
     }
 
     private ContractLog approvalForAll(long timestamp, long tokenId, int index, int transactionIndex) {

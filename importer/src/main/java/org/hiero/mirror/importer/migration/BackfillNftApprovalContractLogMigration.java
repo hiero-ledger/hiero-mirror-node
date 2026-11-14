@@ -177,7 +177,6 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
             where spender is not null and account_id is not null and lower(timestamp_range) <= ?
             """;
 
-    private final long batchInterval;
     private final EntityProperties entityProperties;
     private long initialUpperBound;
     private long lowerBound;
@@ -194,13 +193,6 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
             final ImporterProperties importerProperties,
             @Owner final ObjectProvider<JdbcOperations> jdbcOperationsProvider) {
         super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
-        this.batchInterval = DurationStyle.SIMPLE
-                .parse(
-                        migrationProperties
-                                .getParams()
-                                .getOrDefault(BATCH_INTERVAL_PROPERTIES_KEY, DEFAULT_BATCH_INTERVAL.toHours() + "h"),
-                        ChronoUnit.HOURS)
-                .toNanos();
         this.entityProperties = entityProperties;
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
     }
@@ -230,7 +222,7 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
 
     @Override
     protected Optional<Long> migratePartial(final Long upperBound) {
-        final long next = Math.max(0, upperBound - batchInterval);
+        final long next = Math.max(0, upperBound - batchInterval());
         final var jdbcOperations = getJdbcOperations();
         final var blocks = jdbcOperations.query(SELECT_BLOCKS, BLOCK_ROW_MAPPER, next, upperBound);
 
@@ -320,6 +312,13 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
                             result.put(rs.getLong(1), trim(rs.getBytes(2)));
                         });
         return result;
+    }
+
+    private long batchInterval() {
+        final var value = migrationProperties
+                .getParams()
+                .getOrDefault(BATCH_INTERVAL_PROPERTIES_KEY, DEFAULT_BATCH_INTERVAL.toHours() + "h");
+        return DurationStyle.SIMPLE.parse(value, ChronoUnit.HOURS).toNanos();
     }
 
     private static MapSqlParameterSource range(final long start, final long end) {
