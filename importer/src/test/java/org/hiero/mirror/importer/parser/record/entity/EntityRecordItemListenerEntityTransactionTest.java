@@ -34,14 +34,12 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.TestUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.data.util.Version;
 
 @RequiredArgsConstructor
-@Disabled // This will be re-enabled in the transaction handler pr (check there to confirm). Needs handler wiring
 class EntityRecordItemListenerEntityTransactionTest extends AbstractEntityRecordItemListenerTest {
 
     @BeforeEach
