@@ -62,6 +62,8 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
 
     static final String SIGNATURE_VERIFICATION_METRIC_NAME = "hiero.mirror.importer.stream.signature.verification";
 
+    static final String STREAM_VERIFICATION_METRIC_NAME = "hiero.mirror.importer.stream.verification";
+
     private static final String HASH_TYPE_FILE = "File";
     private static final String HASH_TYPE_METADATA = "Metadata";
     private static final String HASH_TYPE_RUNNING = "Running";
@@ -97,7 +99,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
     private final Timer downloadLatencyMetric;
     private final MeterProvider<Counter> signatureVerificationMetric;
     private final Timer streamCloseMetric;
-    private final Timer.Builder streamVerificationMetric;
+    private final MeterProvider<Timer> streamVerificationMetric;
 
     @SuppressWarnings({"java:S107", "java:S3740"})
     protected Downloader(
@@ -146,9 +148,10 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                 .tag("type", streamType.toString())
                 .register(meterRegistry);
 
-        streamVerificationMetric = Timer.builder("hiero.mirror.importer.stream.verification")
+        streamVerificationMetric = Timer.builder(STREAM_VERIFICATION_METRIC_NAME)
                 .description("The duration in seconds it took to verify consensus and hash chain of a stream file")
-                .tag("type", streamType.toString());
+                .tag("type", streamType.toString())
+                .withRegistry(meterRegistry);
     }
 
     public abstract void download();
@@ -303,8 +306,13 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                 earliestFilename = sigFilename;
             }
 
+            boolean valid = false;
             try {
                 nodeSignatureVerifier.verify(signatures);
+                valid = verifySignatures(signatures, earliestFilename);
+                if (!valid) {
+                    log.error("None of the data files could be verified, signatures: {}", signatures);
+                }
             } catch (SignatureVerificationException ex) {
                 var statusMapMessage = statusMap(signatures, nodeIds);
                 if (sigFilenameIter.hasNext()) {
@@ -313,19 +321,12 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                 }
 
                 throw new SignatureVerificationException(ex.getMessage() + ": " + statusMapMessage);
-            }
-
-            boolean valid = verifySignatures(signatures, earliestFilename);
-            if (valid) {
+            } finally {
                 recordSignatureStatuses(signatures, nodeIds);
-            } else {
-                log.error("None of the data files could be verified, signatures: {}", signatures);
+                streamVerificationMetric
+                        .withTags("success", String.valueOf(valid))
+                        .record(Duration.between(startTime, Instant.now()));
             }
-
-            streamVerificationMetric
-                    .tag("success", String.valueOf(valid))
-                    .register(meterRegistry)
-                    .record(Duration.between(startTime, Instant.now()));
         }
     }
 
@@ -476,7 +477,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
     }
 
     /**
-     * Counts the signature status of each node that was asked for the signature file of a verified stream file.
+     * Counts the signature status of each node that was asked for the signature file of a stream file.
      */
     private void recordSignatureStatuses(final Collection<StreamFileSignature> signatures, final Set<Long> nodeIds) {
         final var missingNodeIds = new HashSet<>(nodeIds);
