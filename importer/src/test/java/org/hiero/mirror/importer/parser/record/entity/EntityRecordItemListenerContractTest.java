@@ -7,6 +7,7 @@ import static com.hederahashgraph.api.proto.java.ContractUpdateTransactionBody.S
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransaction;
@@ -58,6 +59,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.ObjectAssert;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -72,8 +76,11 @@ import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.repository.ClprChannelRepository;
+import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.hiero.mirror.importer.repository.ContractActionRepository;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.ContractStateChangeRepository;
@@ -95,6 +102,8 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
 
     private static final Version HAPI_VERSION_0_23_0 = new Version(0, 23, 0);
     private final @Qualifier(CACHE_ALIAS) CacheManager cacheManager;
+    private final ClprChannelRepository clprChannelRepository;
+    private final ClprConnectorRepository clprConnectorRepository;
     private final ContractActionRepository contractActionRepository;
     private final ContractLogRepository contractLogRepository;
     private final ContractStateChangeRepository contractStateChangeRepository;
@@ -1126,6 +1135,43 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
                 () -> assertContractCallResult(contractCallTransactionBody, txnRecord),
                 () -> assertContractStateChanges(recordItem),
                 () -> assertEntityTransactions(recordItem));
+    }
+
+    @Test
+    void contractCallWithClprStateChangeWiring() {
+        // given -- confirms EntityRecordItemListener actually invokes ClprStateChangeHandler.process(). The channel
+        // and connector must pre-exist since skipPartialUpdate drops a patch/removal with no prior create.
+        final var existingChannel = domainBuilder.clprChannel().persist();
+        final var channelId = existingChannel.getChannelId();
+        final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(channelId))
+                .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.PAUSED)
+                .build();
+        final var existingConnector = domainBuilder.clprConnector().persist();
+        final var removedConnectorKey = com.hederahashgraph.api.proto.java.ClprConnectorKey.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(existingConnector.getChannelId()))
+                .setConnectorId(DomainUtils.fromBytes(existingConnector.getConnectorId()))
+                .build();
+        final var recordItem = recordItemBuilder
+                .contractCall()
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(
+                                DomainUtils.fromBytes(channelId), clprChannelMapUpdate(clprChannelValue))))
+                        .clprConnectorsRemoved(List.of(removedConnectorKey)))
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(clprChannelRepository.findAll())
+                .singleElement()
+                .returns(channelId, ClprChannel::getChannelId)
+                .returns(org.hiero.mirror.common.domain.clpr.ClprChannelStatus.PAUSED, ClprChannel::getStatus);
+        assertThat(clprConnectorRepository.findAll())
+                .singleElement()
+                .returns(existingConnector.getConnectorId(), ClprConnector::getConnectorId)
+                .returns(ClprConnectorStatus.DELETED, ClprConnector::getStatus);
     }
 
     @Test

@@ -5,6 +5,8 @@ package org.hiero.mirror.importer.repository.upsert;
 import static org.hiero.mirror.importer.util.Utility.toSnakeCase;
 
 import jakarta.inject.Named;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Table;
@@ -13,6 +15,7 @@ import jakarta.persistence.metamodel.EmbeddableType;
 import jakarta.persistence.metamodel.EntityType;
 import jakarta.persistence.metamodel.SingularAttribute;
 import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -29,6 +32,7 @@ import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.exception.FieldInaccessibleException;
+import org.jspecify.annotations.Nullable;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.jdbc.core.JdbcOperations;
 
@@ -67,11 +71,12 @@ public final class EntityMetadataRegistry {
             if (attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.EMBEDDED) {
                 var persistentAttribute = (SingularPersistentAttribute) attribute;
                 var embeddableType = (EmbeddableType<?>) persistentAttribute.getType();
+                var overrides = attributeOverrides((Field) attribute.getJavaMember());
                 embeddableType
                         .getDeclaredSingularAttributes()
-                        .forEach(a -> columnMetadata.add(columnMetadata(schema, a, id)));
+                        .forEach(a -> columnMetadata.add(columnMetadata(schema, a, id, overrides.get(a.getName()))));
             } else {
-                columnMetadata.add(columnMetadata(schema, attribute, id));
+                columnMetadata.add(columnMetadata(schema, attribute, id, null));
             }
         }
 
@@ -80,16 +85,47 @@ public final class EntityMetadataRegistry {
         return entityMetadata;
     }
 
+    /**
+     * Maps each overridden attribute name declared via {@code @AttributeOverride}/{@code @AttributeOverrides} on an
+     * {@code @Embedded} field to its target column name. The embeddable type's own declared attributes carry no
+     * {@code @Column} of their own, so without this, every entity embedding the same {@code @Embeddable} would
+     * collide on the same default column names.
+     */
+    private Map<String, String> attributeOverrides(Field embeddedField) {
+        Map<String, String> overrides = new HashMap<>();
+        AttributeOverride single = embeddedField.getAnnotation(AttributeOverride.class);
+        if (single != null) {
+            overrides.put(single.name(), single.column().name());
+        }
+
+        AttributeOverrides multiple = embeddedField.getAnnotation(AttributeOverrides.class);
+        if (multiple != null) {
+            for (AttributeOverride override : multiple.value()) {
+                overrides.put(override.name(), override.column().name());
+            }
+        }
+
+        return overrides;
+    }
+
     @SuppressWarnings("java:S4276")
     private ColumnMetadata columnMetadata(
-            Map<String, InformationSchemaColumns> schema, Attribute<?, ?> attribute, boolean id) {
+            Map<String, InformationSchemaColumns> schema,
+            Attribute<?, ?> attribute,
+            boolean id,
+            @Nullable String columnNameOverride) {
         String name = attribute.getName();
         Field field = (Field) attribute.getJavaMember();
         Column column = field.getAnnotation(Column.class);
         UpsertColumn upsertColumn = field.getAnnotation(UpsertColumn.class);
-        String columnName = column != null && StringUtils.isNotBlank(column.name())
-                ? toSnakeCase(column.name())
-                : toSnakeCase(name);
+        String columnName;
+        if (StringUtils.isNotBlank(columnNameOverride)) {
+            columnName = toSnakeCase(columnNameOverride);
+        } else if (column != null && StringUtils.isNotBlank(column.name())) {
+            columnName = toSnakeCase(column.name());
+        } else {
+            columnName = toSnakeCase(name);
+        }
 
         InformationSchemaColumns columnSchema = schema.get(columnName);
 

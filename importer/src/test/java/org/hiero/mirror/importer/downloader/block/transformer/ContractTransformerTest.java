@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_STORAGE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
@@ -65,6 +66,7 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.junit.jupiter.api.Test;
@@ -151,6 +153,81 @@ final class ContractTransformerTest extends AbstractTransformerTest {
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void contractCallWithClprSendMessage() {
+        // given -- CLPR's sendMessage system contract runs synchronously inside ContractCall
+        final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(recordItemBuilder.bytes(32))
+                .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE)
+                .build();
+        final var expectedRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(
+                                clprChannelValue.getChannelId(),
+                                clprChannelMapUpdate(clprChannelValue).getMapUpdate()))))
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction = blockTransactionBuilder
+                .contractCall(expectedRecordItem, false)
+                .stateChanges(s -> {
+                    final var stateChangesBuilder =
+                            s.isEmpty() ? StateChanges.newBuilder() : s.removeFirst().toBuilder();
+                    s.add(stateChangesBuilder
+                            .addStateChanges(clprChannelMapUpdate(clprChannelValue))
+                            .build());
+                })
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void contractCallWithClprSendMessageUnsuccessful() {
+        // given -- a failed transaction's StateChanges can't be trusted, so clprContext must stay unattached even
+        // though the raw CLPR state change is present on the block transaction
+        final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(recordItemBuilder.bytes(32))
+                .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE)
+                .build();
+        final var expectedRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.getContractCallResultBuilder()
+                        .clearBloom()
+                        .clearLogInfo()
+                        .clearContractNonces()
+                        .clearSignerNonce())
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .status(ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION)
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction = blockTransactionBuilder
+                .contractCall(expectedRecordItem, false)
+                .stateChanges(s -> {
+                    final var stateChangesBuilder =
+                            s.isEmpty() ? StateChanges.newBuilder() : s.removeFirst().toBuilder();
+                    s.add(stateChangesBuilder
+                            .addStateChanges(clprChannelMapUpdate(clprChannelValue))
+                            .build());
+                })
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
@@ -1141,6 +1218,12 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var contractBSlot1Value = recordItemBuilder.nonZeroBytes(16);
         var contractBSlot2 = recordItemBuilder.slot();
         var contractBSlot2Values = List.of(recordItemBuilder.nonZeroBytes(10), recordItemBuilder.nonZeroBytes(16));
+        // CLPR's sendMessage system contract could run inside any of the inner contract calls; the resulting state
+        // change still lands on the batch parent's shared StateChangeContext, same as the contract storage changes
+        final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(recordItemBuilder.bytes(32))
+                .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE)
+                .build();
         // statechanges only have the final values
         var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(
@@ -1148,9 +1231,16 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .addStateChanges(contractStorageMapDeleteChange(contractIdA, contractASlot2))
                 .addStateChanges(
                         contractStorageMapUpdateChange(contractIdB, contractBSlot2, contractBSlot2Values.getLast()))
+                .addStateChanges(clprChannelMapUpdate(clprChannelValue))
                 .build();
-        var atomicBatchRecordItem =
-                recordItemBuilder.atomicBatch().customize(this::finalize).build();
+        final var atomicBatchRecordItem = recordItemBuilder
+                .atomicBatch()
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(
+                                clprChannelValue.getChannelId(),
+                                clprChannelMapUpdate(clprChannelValue).getMapUpdate()))))
+                .customize(this::finalize)
+                .build();
         var atomicBatchBlockTransaction = blockTransactionBuilder
                 .atomicBatch(atomicBatchRecordItem)
                 .stateChanges(s -> s.add(stateChanges))
@@ -1398,6 +1488,12 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var contractBSlot2 = recordItemBuilder.slot();
         var contractBSlot2Values = List.of(recordItemBuilder.nonZeroBytes(10), recordItemBuilder.nonZeroBytes(16));
 
+        // CLPR's sendMessage system contract could run inside any hook execution; the resulting state change still
+        // lands on the parent's shared StateChangeContext, same as the contract storage changes
+        final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(recordItemBuilder.bytes(32))
+                .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE)
+                .build();
         // statechanges only have the final values
         var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(
@@ -1405,11 +1501,18 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .addStateChanges(contractStorageMapDeleteChange(contractIdA, contractASlot2))
                 .addStateChanges(
                         contractStorageMapUpdateChange(contractIdB, contractBSlot2, contractBSlot2Values.getLast()))
+                .addStateChanges(clprChannelMapUpdate(clprChannelValue))
                 .build();
 
         // Parent transaction (CryptoTransfer that triggers hooks)
-        var parentRecordItem =
-                recordItemBuilder.cryptoTransfer().customize(this::finalize).build();
+        final var parentRecordItem = recordItemBuilder
+                .cryptoTransfer()
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(
+                                clprChannelValue.getChannelId(),
+                                clprChannelMapUpdate(clprChannelValue).getMapUpdate()))))
+                .customize(this::finalize)
+                .build();
         var parentBlockTransaction = blockTransactionBuilder
                 .cryptoTransfer(parentRecordItem)
                 .stateChanges(s -> s.add(stateChanges))
@@ -1732,6 +1835,15 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .setIndex(index)
                 .setReadValue(valueRead)
                 .setWrittenValue(BytesValue.of(valueWritten))
+                .build();
+    }
+
+    private StateChange clprChannelMapUpdate(com.hederahashgraph.api.proto.java.ClprChannel value) {
+        return StateChange.newBuilder()
+                .setStateId(STATE_ID_CLPR_CHANNELS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(value.getChannelId())))
+                        .setValue(MapChangeValue.newBuilder().setClprChannelValue(value)))
                 .build();
     }
 

@@ -8,11 +8,19 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -105,6 +113,39 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onAssessedCustomFee(AssessedCustomFee assessedCustomFee) throws ImporterException {
         context.add(assessedCustomFee);
+    }
+
+    @Override
+    public void onClprChannel(ClprChannel clprChannel) {
+        context.merge(ByteBuffer.wrap(clprChannel.getChannelId()), clprChannel, this::mergeClprChannel);
+    }
+
+    @Override
+    public void onClprChannelPendingCommitment(ClprChannelPendingCommitment clprChannelPendingCommitment) {
+        context.merge(
+                ByteBuffer.wrap(clprChannelPendingCommitment.getOwnershipCommitment()),
+                clprChannelPendingCommitment,
+                this::mergeClprPendingCommitment);
+    }
+
+    @Override
+    public void onClprConnector(ClprConnector clprConnector) {
+        context.merge(clprConnector.getId(), clprConnector, this::mergeClprConnector);
+    }
+
+    @Override
+    public void onClprEndpointManifest(ClprEndpointManifest clprEndpointManifest) {
+        context.add(clprEndpointManifest);
+    }
+
+    @Override
+    public void onClprLedgerConfiguration(ClprLedgerConfiguration clprLedgerConfiguration) {
+        context.add(clprLedgerConfiguration);
+    }
+
+    @Override
+    public void onClprMessage(ClprMessage clprMessage) {
+        context.add(clprMessage);
     }
 
     @Override
@@ -452,8 +493,126 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         }
     }
 
-    private CustomFee mergeCustomFee(CustomFee previous, CustomFee current) {
+    /** Carries a field from {@code previous} to {@code current} if {@code current} doesn't already have one. */
+    private static <T, V> void fillIfAbsent(T previous, T current, Function<T, V> getter, BiConsumer<T, V> setter) {
+        if (getter.apply(current) == null) {
+            setter.accept(current, getter.apply(previous));
+        }
+    }
+
+    private ClprChannel mergeClprChannel(ClprChannel previous, ClprChannel current) {
+        if (!current.hasHistory()) {
+            patchIfPresent(previous, current.getStatus(), ClprChannel::setStatus);
+            patchIfPresent(previous, current.getNextMessageId(), ClprChannel::setNextMessageId);
+            patchIfPresent(previous, current.getAckedMessageId(), ClprChannel::setAckedMessageId);
+            patchIfPresent(previous, current.getReceivedMessageId(), ClprChannel::setReceivedMessageId);
+            patchIfPresent(previous, current.getSentRunningHash(), ClprChannel::setSentRunningHash);
+            patchIfPresent(previous, current.getReceivedRunningHash(), ClprChannel::setReceivedRunningHash);
+            patchIfPresent(previous, current.getTrustAnchor(), ClprChannel::setTrustAnchor);
+            patchIfPresent(previous, current.getTrustAnchorId(), ClprChannel::setTrustAnchorId);
+            patchIfPresent(previous, current.getEndpointManifestVersion(), ClprChannel::setEndpointManifestVersion);
+            patchIfPresent(previous, current.getLastConfigTimestamp(), ClprChannel::setLastConfigTimestamp);
+            patchIfPresent(previous, current.getPeerConfigTimestamp(), ClprChannel::setPeerConfigTimestamp);
+            patchIfPresent(previous, current.getPeerThrottle(), ClprChannel::setPeerThrottle);
+            patchIfPresent(previous, current.getEndpointManifest(), ClprChannel::setEndpointManifest);
+
+            return previous;
+        }
+
         previous.setTimestampUpper(current.getTimestampLower());
+
+        // Channels are only ever created once: per HIP-1535 closing is irreversible and channel_id is permanently
+        // occupied once completed (consensus rejects a second ClprCompleteChannel for the same channel_id even
+        // after CLOSED), so every later touch here is a partial update -- no "fresh creation" branch needed.
+        fillIfAbsent(previous, current, ClprChannel::getCreatedTimestamp, ClprChannel::setCreatedTimestamp);
+        fillIfAbsent(previous, current, ClprChannel::getChainId, ClprChannel::setChainId);
+        fillIfAbsent(previous, current, ClprChannel::getChannelContext, ClprChannel::setChannelContext);
+        fillIfAbsent(previous, current, ClprChannel::getOwnershipCommitment, ClprChannel::setOwnershipCommitment);
+        fillIfAbsent(previous, current, ClprChannel::getVerifierContractId, ClprChannel::setVerifierContractId);
+        fillIfAbsent(previous, current, ClprChannel::getVerifierFingerprint, ClprChannel::setVerifierFingerprint);
+        fillIfAbsent(previous, current, ClprChannel::getConfigProofBytes, ClprChannel::setConfigProofBytes);
+        fillIfAbsent(
+                previous,
+                current,
+                ClprChannel::getEndpointManifestProofBytes,
+                ClprChannel::setEndpointManifestProofBytes);
+        fillIfAbsent(previous, current, ClprChannel::getPublicKey, ClprChannel::setPublicKey);
+        fillIfAbsent(previous, current, ClprChannel::getSignature, ClprChannel::setSignature);
+        fillIfAbsent(previous, current, ClprChannel::getSignatureScheme, ClprChannel::setSignatureScheme);
+        fillIfAbsent(previous, current, ClprChannel::getStatus, ClprChannel::setStatus);
+        fillIfAbsent(previous, current, ClprChannel::getNextMessageId, ClprChannel::setNextMessageId);
+        fillIfAbsent(previous, current, ClprChannel::getAckedMessageId, ClprChannel::setAckedMessageId);
+        fillIfAbsent(previous, current, ClprChannel::getReceivedMessageId, ClprChannel::setReceivedMessageId);
+        fillIfAbsent(previous, current, ClprChannel::getSentRunningHash, ClprChannel::setSentRunningHash);
+        fillIfAbsent(previous, current, ClprChannel::getReceivedRunningHash, ClprChannel::setReceivedRunningHash);
+        fillIfAbsent(previous, current, ClprChannel::getLastConfigTimestamp, ClprChannel::setLastConfigTimestamp);
+        fillIfAbsent(previous, current, ClprChannel::getPeerConfigTimestamp, ClprChannel::setPeerConfigTimestamp);
+        fillIfAbsent(previous, current, ClprChannel::getPeerThrottle, ClprChannel::setPeerThrottle);
+        fillIfAbsent(previous, current, ClprChannel::getEndpointManifest, ClprChannel::setEndpointManifest);
+        fillIfAbsent(
+                previous, current, ClprChannel::getEndpointManifestVersion, ClprChannel::setEndpointManifestVersion);
+        fillIfAbsent(previous, current, ClprChannel::getTrustAnchor, ClprChannel::setTrustAnchor);
+        fillIfAbsent(previous, current, ClprChannel::getTrustAnchorId, ClprChannel::setTrustAnchorId);
+
+        return current;
+    }
+
+    private ClprConnector mergeClprConnector(ClprConnector previous, ClprConnector current) {
+        if (!current.hasHistory()) {
+            patchIfPresent(previous, current.getConnectorContractId(), ClprConnector::setConnectorContractId);
+            patchIfPresent(previous, current.getAdminKey(), ClprConnector::setAdminKey);
+            patchIfPresent(previous, current.getLockedStake(), ClprConnector::setLockedStake);
+            patchIfPresent(previous, current.getSlashCount(), ClprConnector::setSlashCount);
+            patchIfPresent(previous, current.getInFlightMessageCount(), ClprConnector::setInFlightMessageCount);
+
+            return previous;
+        }
+
+        previous.setTimestampUpper(current.getTimestampLower());
+
+        // This row is keyed by (channelId, commitment), and per HIP-1535 a connector commitment stays registered
+        // permanently even after deregistration, so it can never be reused by a different registration -- every
+        // later touch under this same key is a partial update of the one registration, hence no "fresh creation"
+        // branch needed. (connectorId alone CAN recur across different channels, since it's a hash of the
+        // registrant's own public key/salt and is independent of channelId, but that doesn't collide with this key.)
+        fillIfAbsent(previous, current, ClprConnector::getCreatedTimestamp, ClprConnector::setCreatedTimestamp);
+        fillIfAbsent(previous, current, ClprConnector::getConnectorId, ClprConnector::setConnectorId);
+        fillIfAbsent(previous, current, ClprConnector::getAdminKey, ClprConnector::setAdminKey);
+        fillIfAbsent(previous, current, ClprConnector::getConnectorContractId, ClprConnector::setConnectorContractId);
+        fillIfAbsent(previous, current, ClprConnector::getLockedStake, ClprConnector::setLockedStake);
+        fillIfAbsent(previous, current, ClprConnector::getPublicKey, ClprConnector::setPublicKey);
+        fillIfAbsent(previous, current, ClprConnector::getSalt, ClprConnector::setSalt);
+        fillIfAbsent(previous, current, ClprConnector::getSignature, ClprConnector::setSignature);
+        fillIfAbsent(previous, current, ClprConnector::getSignatureScheme, ClprConnector::setSignatureScheme);
+        fillIfAbsent(previous, current, ClprConnector::getInFlightMessageCount, ClprConnector::setInFlightMessageCount);
+        fillIfAbsent(previous, current, ClprConnector::getSlashCount, ClprConnector::setSlashCount);
+        fillIfAbsent(previous, current, ClprConnector::getStakeRecipientId, ClprConnector::setStakeRecipientId);
+        fillIfAbsent(previous, current, ClprConnector::getStatus, ClprConnector::setStatus);
+
+        return current;
+    }
+
+    private ClprChannelPendingCommitment mergeClprPendingCommitment(
+            ClprChannelPendingCommitment previous, ClprChannelPendingCommitment current) {
+        previous.setTimestampUpper(current.getTimestampLower());
+
+        // This handles a sweep and re-registration landing in the same batch: ParserContext.merge collapses
+        // same-key writes in-memory before the SQL upsert ever runs, so the SQL layer never sees the swept state.
+        if (current.getCreatedTimestamp() != null
+                && current.getCreatedTimestamp().equals(current.getTimestampLower())) {
+            // Fresh registration -- possibly a re-registration of a commitment previously swept/deregistered -- so
+            // don't carry stale fields forward from the abandoned commitment.
+            return current;
+        }
+
+        fillIfAbsent(
+                previous,
+                current,
+                ClprChannelPendingCommitment::getCreatedTimestamp,
+                ClprChannelPendingCommitment::setCreatedTimestamp);
+        fillIfAbsent(
+                previous, current, ClprChannelPendingCommitment::getStatus, ClprChannelPendingCommitment::setStatus);
+
         return current;
     }
 
@@ -461,6 +620,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         previous.setValue(current.getValue());
         previous.setModifiedTimestamp(current.getModifiedTimestamp());
         return previous;
+    }
+
+    private CustomFee mergeCustomFee(CustomFee previous, CustomFee current) {
+        previous.setTimestampUpper(current.getTimestampLower());
+        return current;
     }
 
     @SuppressWarnings("java:S3776")
@@ -1034,6 +1198,13 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
                 tokenAccount.setBalanceTimestamp(transaction.getConsensusTimestamp());
                 onTokenAccount(tokenAccount);
             }
+        }
+    }
+
+    /** Sets {@code value} on {@code target} via {@code setter} if {@code value} is non-null. */
+    private static <T, V> void patchIfPresent(T target, V value, BiConsumer<T, V> setter) {
+        if (value != null) {
+            setter.accept(target, value);
         }
     }
 }
