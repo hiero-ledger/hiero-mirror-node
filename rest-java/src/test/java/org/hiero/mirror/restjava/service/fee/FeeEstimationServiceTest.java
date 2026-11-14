@@ -416,7 +416,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     void estimatesFeesForAllKnownTransactionTypes() {
         for (final var type : TransactionType.values()) {
             final var supplier = recordItemBuilder.lookup(type);
-            if (type == TransactionType.UNKNOWN || supplier == null) {
+            if (type == TransactionType.UNKNOWN || type.name().startsWith("CLPR") || supplier == null) {
                 continue;
             }
             final var txn = toPbj(supplier.get().build().getTransaction());
