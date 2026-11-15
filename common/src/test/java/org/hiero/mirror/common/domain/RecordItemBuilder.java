@@ -391,11 +391,23 @@ public final class RecordItemBuilder {
     }
 
     public Builder<ClprDeregisterConnectorTransactionBody.Builder> clprDeregisterConnector() {
+        final var channelId = bytes(32);
+        final var connectorId = bytes(32);
         final var builder = ClprDeregisterConnectorTransactionBody.newBuilder()
-                .setChannelId(bytes(32))
-                .setConnectorId(bytes(32))
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
                 .setStakeRecipient(accountId());
-        return new Builder<>(TransactionType.CLPRDEREGISTERCONNECTOR, builder);
+        // Real consensus state removes the Connector from its map entirely on deregistration
+        // (ClprDeregisterConnectorHandler's connectorStore.remove(key)), so the shared sendMessage side-effect hook
+        // still generically captures the resulting clpr_connectors deletion -- even though
+        // ClprDeregisterConnectorTransactionHandler ignores ClprContext entirely and rebuilds the DELETED row
+        // straight from this transaction's own body instead.
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
+        return new Builder<>(TransactionType.CLPRDEREGISTERCONNECTOR, builder)
+                .recordItem(r -> r.clprContextBuilder().clprConnectorsRemoved(List.of(connectorKey)));
     }
 
     public Builder<ClprMaintenanceTransactionBody.Builder> clprMaintenance() {
