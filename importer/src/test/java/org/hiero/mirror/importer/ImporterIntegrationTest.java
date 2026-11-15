@@ -10,11 +10,16 @@ import com.google.common.base.CaseFormat;
 import com.google.common.collect.Range;
 import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import jakarta.annotation.Resource;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Arrays;
@@ -22,7 +27,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -54,11 +61,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.postgresql.jdbc.PgArray;
 import org.postgresql.util.PGobject;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -121,25 +131,53 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
     }
 
     protected static <T> RowMapper<T> rowMapper(Class<T> entityClass) {
-        DefaultConversionService defaultConversionService = new DefaultConversionService();
-        defaultConversionService.addConverter(
+        final var conversionService = new DefaultConversionService();
+        conversionService.addConverter(
                 PGobject.class, ServiceEndpoint.class, s -> convertJsonb(s, ServiceEndpoint.class));
-        defaultConversionService.addConverter(
+        conversionService.addConverter(
                 PGobject.class, Range.class, source -> PostgreSQLGuavaRangeType.longRange(source.getValue()));
-        defaultConversionService.addConverter(
+        conversionService.addConverter(
                 Long.class, EntityId.class, EntityIdConverter.INSTANCE::convertToEntityAttribute);
-        defaultConversionService.addConverter(PgArray.class, List.class, array -> {
+        conversionService.addConverter(PgArray.class, List.class, array -> {
             try {
                 return Arrays.asList((Object[]) array.getArray());
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
         });
-        defaultConversionService.addConverter(new JsonbToListConverter());
+        conversionService.addConverter(new JsonbToListConverter());
 
-        DataClassRowMapper<T> dataClassRowMapper = new DataClassRowMapper<>(entityClass);
-        dataClassRowMapper.setConversionService(defaultConversionService);
-        return dataClassRowMapper;
+        final var dataClassRowMapper = new DataClassRowMapper<>(entityClass);
+        dataClassRowMapper.setConversionService(conversionService);
+
+        // DataClassRowMapper can't populate @Embedded fields (e.g. ClprChannel.peerThrottle), since their columns
+        // don't match any constructor parameter by name; map those separately onto the row it already built.
+        final var embeddedFields = Arrays.stream(FieldUtils.getAllFields(entityClass))
+                .filter(field -> field.isAnnotationPresent(Embedded.class))
+                .toList();
+        if (embeddedFields.isEmpty()) {
+            return dataClassRowMapper;
+        }
+
+        return (rs, rowNum) -> {
+            final var entity = dataClassRowMapper.mapRow(rs, rowNum);
+            final var entityWrapper = new BeanWrapperImpl(entity);
+            final var columns = resultSetColumns(rs.getMetaData());
+            for (final var embeddedField : embeddedFields) {
+                final var embedded = mapEmbedded(embeddedField, rs, columns, conversionService);
+                if (embedded != null) {
+                    entityWrapper.setPropertyValue(embeddedField.getName(), embedded);
+                }
+            }
+            return entity;
+        };
+    }
+
+    private static String columnName(Field field) {
+        final var columnAnnotation = field.getAnnotation(Column.class);
+        return columnAnnotation != null && !columnAnnotation.name().isEmpty()
+                ? columnAnnotation.name()
+                : CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName());
     }
 
     private static <T> T convertJsonb(PGobject pgObject, Class<T> entityClass) {
@@ -148,6 +186,48 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    // Returns null, matching Hibernate's own behavior of leaving an @Embedded field null when every one of its
+    // columns is null, rather than setting it to an all-null instance.
+    private static Object mapEmbedded(
+            Field embeddedField, ResultSet rs, Set<String> columns, ConversionService conversionService)
+            throws SQLException {
+        final var overrides = Arrays.stream(embeddedField.getAnnotationsByType(AttributeOverride.class))
+                .collect(Collectors.toMap(
+                        AttributeOverride::name, override -> override.column().name()));
+
+        final var embedded = BeanUtils.instantiateClass(embeddedField.getType());
+        final var embeddedWrapper = new BeanWrapperImpl(embedded);
+        embeddedWrapper.setConversionService(conversionService);
+
+        boolean hasValues = false;
+        for (final var field : FieldUtils.getAllFields(embeddedField.getType())) {
+            if (Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+
+            final var column = overrides.getOrDefault(field.getName(), columnName(field));
+            if (!columns.contains(column.toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+
+            final var value = rs.getObject(column);
+            if (value != null) {
+                embeddedWrapper.setPropertyValue(field.getName(), value);
+                hasValues = true;
+            }
+        }
+
+        return hasValues ? embedded : null;
+    }
+
+    private static Set<String> resultSetColumns(ResultSetMetaData metadata) throws SQLException {
+        final var columns = new HashSet<String>();
+        for (int i = 1; i <= metadata.getColumnCount(); i++) {
+            columns.add(metadata.getColumnLabel(i).toLowerCase(Locale.ROOT));
+        }
+        return columns;
     }
 
     @BeforeEach
