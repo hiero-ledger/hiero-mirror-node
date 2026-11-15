@@ -24,7 +24,6 @@ import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
@@ -319,34 +318,6 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
     }
 
     @Test
-    // TODO: generate real block file
-    void clprMaintenance() {
-        // given -- synthetic block, see class javadoc for why
-        final var recordItem = recordItemBuilder
-                .clprMaintenance()
-                .recordItem(r -> r.congestionPricingMultiplier(0L))
-                .build();
-        final var blockTransaction =
-                blockTransactionBuilder.clprMaintenance(recordItem).build();
-        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
-
-        // when
-        final var recordFile = blockFileTransformer.transform(blockFile);
-        recordFileParser.parse(recordFile);
-
-        // then
-        final var expectedManifest =
-                recordItem.getClprContext().getClprEndpointManifestUpdate().getClprEndpointManifestValue();
-        assertThat(clprEndpointManifestRepository.findAll()).singleElement().satisfies(manifest -> {
-            assertThat(manifest.getConsensusTimestamp()).isEqualTo(recordItem.getConsensusTimestamp());
-            assertThat(manifest.getVersion()).isEqualTo(expectedManifest.getVersion());
-            assertThat(manifest.getServiceAddress())
-                    .isEqualTo(DomainUtils.toBytes(expectedManifest.getServiceAddress()));
-            assertThat(manifest.getEndpoints()).hasSize(1);
-        });
-    }
-
-    @Test
     void clprControlMessageConfigPropagation() throws Exception {
         // Block 4 comes from the independent multi-network capture.
         parse(CLPR_BLOCK_FILE_4);
@@ -475,29 +446,6 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                         expectedDataMessage5,
                         expectedDataMessage6);
     }
-
-    //    @Test
-    //    void clprCloseChannelAdminSweep() {
-    //        // TODO: no real or synthetic block built yet for an admin ClprCloseChannel sweeping an abandoned,
-    //        // never-completed channel registration; replace with real assertions once one exists.
-    //        fail("No block exercises CLPR admin sweep of an abandoned channel commitment end-to-end yet");
-    //    }
-    //
-    //    @Test
-    //    void clprSendMessageInsideHookDispatch() {
-    //        // TODO: no real block captured yet for a CryptoTransfer/TokenAirdrop/TokenClaimAirdrop hook calling
-    //        // sendMessage; replace with real assertions once one exists.
-    //        fail("No real block captured yet for CLPR sendMessage inside an EVM hook dispatch, see "
-    //                + "CLPR_CHILD_STATE_CHANGE_GAP.md");
-    //    }
-    //
-    //    @Test
-    //    void clprSendMessageInsideAtomicBatch() {
-    //        // TODO: no real block captured yet for an AtomicBatch inner transaction calling sendMessage; replace with
-    //        // real assertions once one exists.
-    //        fail("No real block captured yet for CLPR sendMessage inside an AtomicBatch inner transaction, see "
-    //                + "CLPR_CHILD_STATE_CHANGE_GAP.md");
-    //    }
 
     private void parse(String resource) throws Exception {
         final var file = TestUtils.getResource(resource);

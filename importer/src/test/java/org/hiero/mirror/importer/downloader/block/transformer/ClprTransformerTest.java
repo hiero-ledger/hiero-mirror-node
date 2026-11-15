@@ -259,6 +259,28 @@ class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
+    void clprDeregisterConnector() {
+        // given -- no dedicated transformer, falls back to DefaultTransformer; see
+        // RecordItemBuilder.clprDeregisterConnector() for why clprContext still ends up with the connector-removal
+        // state change via the shared sendMessage side-effect hook, even though
+        // ClprDeregisterConnectorTransactionHandler itself never reads it back
+        final var expectedRecordItem = recordItemBuilder
+                .clprDeregisterConnector()
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction = blockTransactionBuilder
+                .clprDeregisterConnector(expectedRecordItem)
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertRecordItems(items, List.of(expectedRecordItem)));
+    }
+
+    @Test
     void clprUpdateLedgerConfiguration() {
         // given
         final var expectedRecordItem = recordItemBuilder
@@ -376,9 +398,11 @@ class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void clprCloseChannelAbandonedCommitment() {
-        // given -- no Channel existed yet for the supplied channel_id, so there's no clpr_channel_value state
-        // change to read back; the transformer should leave RecordItem.clprContext.clprChannel unset
+    void clprCloseChannelAdminSweep() {
+        // given -- no Channel existed yet for the supplied channel_id (consensus never revealed one), so this is an
+        // admin sweep of an abandoned, never-completed registration rather than a real Channel closure; there's no
+        // clpr_channel_value state change to read back, and the transformer should leave
+        // RecordItem.clprContext.clprChannel unset
         final var expectedRecordItem = recordItemBuilder
                 .clprCloseChannel()
                 .recordItem(r -> r.clprContextBuilder().clprChannels(List.of()))
