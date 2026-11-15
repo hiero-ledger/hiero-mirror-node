@@ -11,6 +11,8 @@ public interface ClprChannelHistoryRepository extends CrudRepository<ClprChannel
 
     @Modifying
     @Override
-    @Query(nativeQuery = true, value = "delete from clpr_channel_history where timestamp_range << int8range(?1, null)")
+    @Query(
+            nativeQuery = true,
+            value = "delete from clpr_channel_history where timestamp_range << int8range(:consensusTimestamp, null)")
     int prune(long consensusTimestamp);
 }

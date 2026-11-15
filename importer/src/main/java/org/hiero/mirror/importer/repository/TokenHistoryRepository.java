@@ -10,6 +10,8 @@ import org.springframework.data.repository.CrudRepository;
 public interface TokenHistoryRepository extends CrudRepository<TokenHistory, Long>, RetentionRepository {
 
     @Modifying
-    @Query(nativeQuery = true, value = "delete from token_history where timestamp_range << int8range(?1, null)")
+    @Query(
+            nativeQuery = true,
+            value = "delete from token_history where timestamp_range << int8range(:consensusTimestamp, null)")
     int prune(long consensusTimestamp);
 }

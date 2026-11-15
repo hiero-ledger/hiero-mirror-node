@@ -11,6 +11,6 @@ public interface EthereumTransactionRepository extends CrudRepository<EthereumTr
 
     @Modifying
     @Override
-    @Query("delete from EthereumTransaction where consensusTimestamp <= ?1")
+    @Query("delete from EthereumTransaction where consensusTimestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

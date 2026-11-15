@@ -15,6 +15,6 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
 
     @Modifying
     @Override
-    @Query("delete from Transaction where consensusTimestamp <= ?1")
+    @Query("delete from Transaction where consensusTimestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

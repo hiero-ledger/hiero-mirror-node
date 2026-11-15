@@ -11,6 +11,6 @@ public interface NetworkFreezeRepository extends CrudRepository<NetworkFreeze, L
 
     @Modifying
     @Override
-    @Query("delete from NetworkFreeze where consensusTimestamp <= ?1")
+    @Query("delete from NetworkFreeze where consensusTimestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }
