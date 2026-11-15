@@ -424,6 +424,29 @@ final class BackfillNftApprovalContractLogMigrationTest
     }
 
     @Test
+    void stopsAtOldestApproval() {
+        long start = domainBuilder.timestamp();
+        // Blocks older than every serial approval are not visited
+        block(start);
+        transaction(start + 100);
+        long next = start + BackfillNftApprovalContractLogMigration.DEFAULT_BATCH_INTERVAL.toNanos() * 5;
+        block(next);
+        transaction(next + 100);
+        nft(next + 100, 1, EntityId.of(1001), 1002);
+        assertThat(migration.performSynchronousSteps()).isTrue();
+
+        var last = migration.getTransactionOperations().execute(_ -> migration.migratePartial(migration.getInitial()));
+
+        assertThat(last).isEmpty();
+        assertThat(logs())
+                .singleElement()
+                .extracting(ContractLog::getConsensusTimestamp)
+                .isEqualTo(next + 100);
+        assertThat(tableExists("nft_approval_contract_log_progress_temp")).isFalse();
+        assertThat(tableExists("nft_approval_snapshot_temp")).isFalse();
+    }
+
+    @Test
     void usesLongZeroAddressesWhenEvmAddressLookupIsDisabled() {
         long start = domainBuilder.timestamp();
         block(start);

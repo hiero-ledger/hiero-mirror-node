@@ -70,6 +70,10 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
 
     private static final RowMapper<ExistingLog> EXISTING_LOG_ROW_MAPPER = new DataClassRowMapper<>(ExistingLog.class);
 
+    private static final String HAS_APPROVALS = """
+            select exists(select * from nft_approval_snapshot_temp where consensus_timestamp <= ?)
+            """;
+
     private static final RowMapper<IndexedTransaction> INDEXED_TRANSACTION_ROW_MAPPER =
             new DataClassRowMapper<>(IndexedTransaction.class);
 
@@ -118,18 +122,26 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
             ) logs
             """;
 
-    // Materialize the transaction subset before joining the local snapshot in v2.
+    private static final String SELECT_APPROVAL_TIMESTAMPS = """
+            select distinct consensus_timestamp from nft_approval_snapshot_temp
+            where consensus_timestamp between :start and :end
+            """;
+
+    // Materialize the transaction subset before joining the local snapshot in v2. Serial approvals are sparse, so
+    // look the transactions up by the snapshot timestamps instead of scanning every transaction in the range.
     // NFT history retains the effective, deduplicated serial approvals even when transaction bytes were not saved.
     private static final String SELECT_APPROVALS = """
             with approvals as materialized (
               select consensus_timestamp, payer_account_id, transaction_hash
               from transaction
               where consensus_timestamp between :start and :end
+                and consensus_timestamp = any(:timestamps::bigint[])
                 and type = :type and result = :success
                 and (coalesce(nonce, 0) = 0 or scheduled)
                 and consensus_timestamp not in (
                   select consensus_timestamp from contract_result
                   where consensus_timestamp between :start and :end
+                    and consensus_timestamp = any(:timestamps::bigint[])
                     and (gas_used is not null or child)
                 )
             )
@@ -231,8 +243,13 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
                             blocks.getFirst().consensusStart(), blocks.getLast().consensusEnd())
                     .addValue("type", TransactionType.CRYPTOAPPROVEALLOWANCE.getProtoId())
                     .addValue("success", SUCCESS.getNumber());
-            final var approvals =
-                    getNamedParameterJdbcOperations().query(SELECT_APPROVALS, params, APPROVAL_ROW_MAPPER);
+            final var jdbc = getNamedParameterJdbcOperations();
+            final var timestamps = jdbc.queryForList(SELECT_APPROVAL_TIMESTAMPS, params, Long.class);
+            params.addValue("timestamps", timestamps.toArray(Long[]::new));
+            // Most ranges have no serial approvals at all, so don't query the transactions for them
+            final var approvals = timestamps.isEmpty()
+                    ? List.<Approval>of()
+                    : jdbc.query(SELECT_APPROVALS, params, APPROVAL_ROW_MAPPER);
 
             // Both lists are ordered by timestamp, so each block takes the approvals up to its consensus end
             int start = 0;
@@ -250,7 +267,9 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
             }
         }
 
-        if (next < lowerBound || next == 0) {
+        // Stop at the oldest serial approval rather than walking back to the first record file
+        final var hasApprovals = jdbcOperations.queryForObject(HAS_APPROVALS, Boolean.class, next);
+        if (next < lowerBound || next == 0 || !Boolean.TRUE.equals(hasApprovals)) {
             jdbcOperations.execute("drop table " + APPROVALS_TABLE);
             jdbcOperations.execute("drop table " + PROGRESS_TABLE);
             return Optional.empty();
