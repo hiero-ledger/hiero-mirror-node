@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
-import org.hiero.mirror.restjava.RestJavaProperties;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
@@ -32,14 +31,13 @@ final class ClprServiceTest {
     private static final String CREATED_TIMESTAMP = "createdTimestamp";
 
     private ClprChannelRepository channelRepository;
-    private final RestJavaProperties properties = new RestJavaProperties();
     private ClprService service;
 
     @BeforeEach
     void setup() {
         channelRepository = mock(ClprChannelRepository.class);
         final var channelMapper = new ClprChannelMapperImpl(new CommonMapperImpl());
-        service = new ClprServiceImpl(channelMapper, channelRepository, properties);
+        service = new ClprServiceImpl(channelMapper, channelRepository);
     }
 
     @Test
@@ -132,18 +130,6 @@ final class ClprServiceTest {
         assertThat(service.getChannels(ClprChannelsRequest.builder().build()))
                 .extracting(c -> c.getStatus())
                 .containsExactly(ClprChannelStatus.ACTIVE, ClprChannelStatus.PENDING, ClprChannelStatus.CLOSED);
-    }
-
-    @Test
-    void getChannelsListRejectsRangeOverMaximumWithoutStatus() {
-        // given
-        final long max = properties.getMaxClprChannelsTimestampRange().toNanos();
-        final var request = ClprChannelsRequest.builder()
-                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 101L + max)))
-                .build();
-
-        // when / then
-        assertThatThrownBy(() -> service.getChannels(request)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -263,52 +249,6 @@ final class ClprServiceTest {
         // when / then
         assertThatThrownBy(() -> service.getChannels(request)).isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(channelRepository);
-    }
-
-    @Test
-    void getChannelsRejectsRangeOverMaximum() {
-        // given: 30 days is allowed, one nanosecond more isn't
-        final long max = properties.getMaxClprChannelsTimestampRange().toNanos();
-        final var allowed = ClprChannelsRequest.builder()
-                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 100L + max)))
-                .build();
-        final var tooLong = ClprChannelsRequest.builder()
-                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 101L + max)))
-                .build();
-
-        // when / then
-        service.getChannels(allowed);
-        assertThatThrownBy(() -> service.getChannels(tooLong)).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void getChannelsRejectsPendingRangeOverMaximum() {
-        // given
-        final long max = properties.getMaxClprChannelsTimestampRange().toNanos();
-        final var request = ClprChannelsRequest.builder()
-                .status(ClprChannelStatus.PENDING)
-                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 101L + max)))
-                .build();
-
-        // when / then
-        assertThatThrownBy(() -> service.getChannels(request)).isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(channelRepository);
-    }
-
-    @Test
-    void getChannelsByIdIgnoresMaximumRange() {
-        // given
-        final long max = properties.getMaxClprChannelsTimestampRange().toNanos();
-        final var request = ClprChannelsRequest.builder()
-                .channelId(CHANNEL_ID)
-                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 101L + max)))
-                .build();
-
-        // when
-        service.getChannels(request);
-
-        // then
-        verify(channelRepository).findByChannelIdAndTimestampBetween(CHANNEL_ID, 100L, 101L + max, null);
     }
 
     private static ClprChannelDto channel(String status) {

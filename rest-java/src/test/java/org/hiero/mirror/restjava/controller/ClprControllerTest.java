@@ -272,7 +272,6 @@ final class ClprControllerTest extends ControllerTest {
                     "timestamp=gt:1&timestamp=gt:2",
                     "timestamp=gte:2&timestamp=lte:1",
                     "timestamp=1&timestamp=2&timestamp=3",
-                    "timestamp=gte:0&timestamp=lte:2592001", // over the 30d maximum without channel.id
                 })
         void invalidParameters(String query) {
             // when

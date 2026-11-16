@@ -5,7 +5,6 @@ package org.hiero.mirror.restjava;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -27,9 +26,6 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties("hiero.mirror.rest-java")
 public class RestJavaProperties {
-
-    @NotNull
-    private Duration maxClprChannelsTimestampRange = Duration.ofDays(30);
 
     @DataSizeMax(Integer.MAX_VALUE)
     @DataSizeMin(1L)

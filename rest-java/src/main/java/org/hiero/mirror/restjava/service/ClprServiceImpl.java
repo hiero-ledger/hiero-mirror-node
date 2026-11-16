@@ -7,7 +7,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
-import org.hiero.mirror.restjava.RestJavaProperties;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
@@ -24,7 +23,6 @@ final class ClprServiceImpl implements ClprService {
 
     private final ClprChannelMapper channelMapper;
     private final ClprChannelRepository channelRepository;
-    private final RestJavaProperties properties;
 
     @Override
     public List<ClprChannel> getChannels(ClprChannelsRequest request) {
@@ -43,7 +41,7 @@ final class ClprServiceImpl implements ClprService {
      * timestamp, from a single union query.
      */
     private List<ClprChannelDto> findAllChannels(ClprChannelsRequest request) {
-        final var bounds = getBounds(request.getTimestamp(), true);
+        final var bounds = getBounds(request.getTimestamp());
         return channelRepository.findAllChannelsByCreatedTimestampBetween(
                 bounds.lower(), bounds.upper(), getPage(request));
     }
@@ -62,7 +60,7 @@ final class ClprServiceImpl implements ClprService {
             return List.of(channel);
         }
 
-        final var bounds = getBounds(timestamp, channelId == null);
+        final var bounds = getBounds(timestamp);
         final var statusName = status != null ? status.name() : null;
 
         if (channelId != null) {
@@ -79,7 +77,7 @@ final class ClprServiceImpl implements ClprService {
             throw new IllegalArgumentException("channel.id can't be combined with status PENDING");
         }
 
-        final var bounds = getBounds(request.getTimestamp(), true);
+        final var bounds = getBounds(request.getTimestamp());
         return channelRepository.findPendingByCreatedTimestampBetween(bounds.lower(), bounds.upper(), getPage(request));
     }
 
@@ -87,11 +85,8 @@ final class ClprServiceImpl implements ClprService {
         return PageRequest.of(0, request.getLimit(), Sort.by(request.getOrder(), CREATED_TIMESTAMP));
     }
 
-    /**
-     * Validates the timestamp and returns its inclusive bounds. With {@code limitRange}, which is when no channel id
-     * is given, a bounded range can't exceed the configured maximum since the query can't be served by a single shard.
-     */
-    private TimestampBounds getBounds(Bound timestamp, boolean limitRange) {
+    /** Validates the timestamp and returns its inclusive bounds. */
+    private TimestampBounds getBounds(Bound timestamp) {
         timestamp.verifyUnsupported(RangeOperator.NE);
         timestamp.verifySingleOccurrence();
 
@@ -101,17 +96,7 @@ final class ClprServiceImpl implements ClprService {
             throw new IllegalArgumentException("Invalid range provided for timestamp");
         }
 
-        final var bounds = new TimestampBounds(lowerBound, upperBound);
-        if (!limitRange || !timestamp.hasLowerAndUpper()) {
-            return bounds;
-        }
-
-        final var maxRange = properties.getMaxClprChannelsTimestampRange();
-        if (upperBound - lowerBound > maxRange.toNanos()) {
-            throw new IllegalArgumentException("Timestamp range must be within %s".formatted(maxRange));
-        }
-
-        return bounds;
+        return new TimestampBounds(lowerBound, upperBound);
     }
 
     private record TimestampBounds(long lower, long upper) {}
