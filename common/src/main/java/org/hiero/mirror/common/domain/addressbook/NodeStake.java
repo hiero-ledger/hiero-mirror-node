@@ -10,6 +10,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
@@ -17,14 +19,12 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder(toBuilder = true)
 @Data
-@Table
 @NoArgsConstructor
+@Table
 public class NodeStake implements Persistable<NodeStake.Id> {
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
+    @Transient
+    private long consensusTimestamp;
 
     /**
      * The epoch day of the ending staking period
@@ -44,6 +44,9 @@ public class NodeStake implements Persistable<NodeStake.Id> {
      * receive no rewards.
      */
     private long minStake;
+
+    @Transient
+    private long nodeId;
 
     /**
      * The node's reward rate at the end of the staking period on epochDay
@@ -72,20 +75,16 @@ public class NodeStake implements Persistable<NodeStake.Id> {
      */
     private long stakingPeriod;
 
-    public void setConsensusTimestamp(long consensusTimestamp) {
-        id().setConsensusTimestamp(consensusTimestamp);
-    }
-
-    public void setNodeId(long nodeId) {
-        id().setNodeId(nodeId);
-    }
-
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
-    }
-
-    public long getNodeId() {
-        return id != null ? id.getNodeId() : 0L;
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @JsonIgnore
+    @Override
+    public Id getId() {
+        Id id = new Id();
+        id.setConsensusTimestamp(consensusTimestamp);
+        id.setNodeId(nodeId);
+        return id;
     }
 
     @JsonIgnore
@@ -94,30 +93,13 @@ public class NodeStake implements Persistable<NodeStake.Id> {
         return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
-    public static class NodeStakeBuilder {
-
-        // Copy-on-write so a setter never mutates an Id shared with an already-built instance or a toBuilder() source
-        private Id ensureId() {
-            this.id = this.id == null ? new Id() : new Id(this.id.getConsensusTimestamp(), this.id.getNodeId());
-            return this.id;
-        }
-
-        public NodeStakeBuilder consensusTimestamp(long consensusTimestamp) {
-            ensureId().setConsensusTimestamp(consensusTimestamp);
-            return this;
-        }
-
-        public NodeStakeBuilder nodeId(long nodeId) {
-            ensureId().setNodeId(nodeId);
-            return this;
-        }
-    }
-
-    private Id id() {
+    public void setId(Id id) {
         if (id == null) {
-            id = new Id();
+            return;
         }
-        return id;
+
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.nodeId = id.getNodeId();
     }
 
     @AllArgsConstructor

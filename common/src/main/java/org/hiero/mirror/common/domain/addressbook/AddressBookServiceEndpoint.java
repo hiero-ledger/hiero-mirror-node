@@ -10,21 +10,48 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
-@Builder
+@Builder(toBuilder = true)
 @Data
-@Table
 @NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
+@Table
 public class AddressBookServiceEndpoint implements Persistable<AddressBookServiceEndpoint.Id> {
 
+    @Transient
+    private long consensusTimestamp;
+
+    @Transient
+    private String ipAddressV4;
+
+    @Transient
+    private long nodeId;
+
+    @Transient
+    private Integer port;
+
+    @Transient
+    private String domainName;
+
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
     @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
     @JsonIgnore
-    private Id id;
+    @Override
+    public Id getId() {
+        Id id = new Id();
+        id.setConsensusTimestamp(consensusTimestamp);
+        id.setDomainName(domainName);
+        id.setIpAddressV4(ipAddressV4);
+        id.setNodeId(nodeId);
+        id.setPort(port);
+        return id;
+    }
 
     @JsonIgnore
     @Override
@@ -32,56 +59,20 @@ public class AddressBookServiceEndpoint implements Persistable<AddressBookServic
         return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
-    public void setConsensusTimestamp(long consensusTimestamp) {
-        id().setConsensusTimestamp(consensusTimestamp);
-    }
-
-    public void setIpAddressV4(String ipAddressV4) {
-        id().setIpAddressV4(ipAddressV4);
-    }
-
-    public void setNodeId(long nodeId) {
-        id().setNodeId(nodeId);
-    }
-
-    public void setPort(Integer port) {
-        id().setPort(port);
-    }
-
-    public void setDomainName(String domainName) {
-        id().setDomainName(domainName);
-    }
-
-    private Id id() {
+    public void setId(Id id) {
         if (id == null) {
-            id = new Id();
+            return;
         }
 
-        return id;
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.ipAddressV4 = id.getIpAddressV4();
+        this.nodeId = id.getNodeId();
+        this.port = id.getPort();
+        this.domainName = id.getDomainName();
     }
 
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
-    }
-
-    public String getIpAddressV4() {
-        return id != null ? id.getIpAddressV4() : null;
-    }
-
-    public long getNodeId() {
-        return id != null ? id.getNodeId() : 0L;
-    }
-
-    public Integer getPort() {
-        return id != null ? id.getPort() : null;
-    }
-
-    public String getDomainName() {
-        return id != null ? id.getDomainName() : null;
-    }
-
-    @Data
     @AllArgsConstructor
+    @Data
     @NoArgsConstructor
     public static class Id implements Serializable {
 

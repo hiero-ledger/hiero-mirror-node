@@ -33,7 +33,6 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
-import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -444,7 +443,8 @@ final class PrestateControllerTest extends Web3IntegrationTest {
             final EntityId payerAccountId, final EntityId contractId, final long consensusTimestamp) {
         domainBuilder
                 .contractAction()
-                .customize(action -> action.id(new ContractAction.Id(consensusTimestamp, 0))
+                .customize(action -> action.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerAccountId)
                         .caller(payerAccountId)
                         .callerType(EntityType.ACCOUNT)

@@ -195,8 +195,11 @@ public class NetworkServiceImpl implements NetworkService {
             var set = new java.util.LinkedHashSet<AddressBookServiceEndpoint>(rows.size());
             for (var row : rows) {
                 set.add(AddressBookServiceEndpoint.builder()
-                        .id(new AddressBookServiceEndpoint.Id(
-                                consensusTimestamp, row.ipAddressV4(), nodeId, row.port(), row.domainName()))
+                        .consensusTimestamp(consensusTimestamp)
+                        .ipAddressV4(row.ipAddressV4())
+                        .nodeId(nodeId)
+                        .port(row.port())
+                        .domainName(row.domainName())
                         .build());
             }
             return set;

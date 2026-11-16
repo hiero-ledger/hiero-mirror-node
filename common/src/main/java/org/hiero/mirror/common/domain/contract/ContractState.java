@@ -12,54 +12,59 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Table
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @NoArgsConstructor
+@Table
 @Upsertable
 public class ContractState {
 
     private static final int SLOT_BYTE_LENGTH = 32;
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
+    @Transient
+    private long contractId;
 
     @InsertOnlyProperty
     private long createdTimestamp;
 
     private long modifiedTimestamp;
 
+    @Transient
+    @ToString.Exclude
+    private byte[] slot;
+
     @ToString.Exclude
     private byte[] value;
 
-    public void setContractId(long contractId) {
-        id().setContractId(contractId);
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @JsonIgnore
+    public ContractState.Id getId() {
+        ContractState.Id id = new ContractState.Id();
+        id.setContractId(contractId);
+        id.setSlot(slot);
+        return id;
+    }
+
+    public void setId(ContractState.Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.contractId = id.getContractId();
+        this.slot = id.getSlot();
     }
 
     public void setSlot(byte[] slot) {
-        id().setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
-    }
-
-    public long getContractId() {
-        return id != null ? id.getContractId() : 0L;
-    }
-
-    public byte[] getSlot() {
-        return id != null ? id.getSlot() : null;
-    }
-
-    private Id id() {
-        if (id == null) {
-            id = new Id();
-        }
-        return id;
+        this.slot = DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH);
     }
 
     @Data
@@ -67,27 +72,7 @@ public class ContractState {
     @NoArgsConstructor
     public static class Id implements Serializable {
         private static final long serialVersionUID = 6192377810161178246L;
-
         private long contractId;
-
         private byte[] slot;
-    }
-
-    public static class ContractStateBuilder {
-
-        private Id ensureId() {
-            this.id = this.id == null ? new Id() : new Id(this.id.getContractId(), this.id.getSlot());
-            return this.id;
-        }
-
-        public ContractStateBuilder contractId(long contractId) {
-            ensureId().setContractId(contractId);
-            return this;
-        }
-
-        public ContractStateBuilder slot(byte[] slot) {
-            ensureId().setSlot(DomainUtils.leftPadBytes(slot, SLOT_BYTE_LENGTH));
-            return this;
-        }
     }
 }

@@ -84,9 +84,9 @@ final class NetworkController extends NetworkServiceGrpc.NetworkServiceImplBase 
 
         for (final var s : addressBookEntry.getServiceEndpoints()) {
             final var serviceEndpoint = ServiceEndpoint.newBuilder()
-                    .setDomainName(s.getId().getDomainName())
-                    .setIpAddressV4(toIpAddressV4(s.getId().getIpAddressV4()))
-                    .setPort(s.getId().getPort())
+                    .setDomainName(s.getDomainName())
+                    .setIpAddressV4(toIpAddressV4(s.getIpAddressV4()))
+                    .setPort(s.getPort())
                     .build();
             nodeAddress.addServiceEndpoint(serviceEndpoint);
         }

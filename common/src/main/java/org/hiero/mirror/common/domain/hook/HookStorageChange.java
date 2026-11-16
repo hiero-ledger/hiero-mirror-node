@@ -13,23 +13,32 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
-@Data
-@Table
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Data
 @NoArgsConstructor
-@Builder(toBuilder = true)
+@Table
 public class HookStorageChange implements Persistable<HookStorageChange.Id> {
+
+    @Transient
+    private long consensusTimestamp;
 
     private boolean deleted;
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
+    @Transient
+    private long hookId;
+
+    @Transient
+    @ToString.Exclude
+    private byte[] key;
+
+    @Transient
+    private EntityId ownerId;
 
     @ToString.Exclude
     private byte[] valueRead;
@@ -37,46 +46,41 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     @ToString.Exclude
     private byte[] valueWritten;
 
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
+    @Builder(toBuilder = true)
+    private HookStorageChange(
+            long consensusTimestamp, long hookId, byte[] key, EntityId ownerId, byte[] valueRead, byte[] valueWritten) {
+        this.consensusTimestamp = consensusTimestamp;
+        this.hookId = hookId;
+        this.key = key;
+        this.ownerId = ownerId;
+        this.valueRead = DomainUtils.trim(valueRead);
+        this.valueWritten = DomainUtils.trim(valueWritten);
+        this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
     }
 
-    public void setConsensusTimestamp(long consensusTimestamp) {
-        id().setConsensusTimestamp(consensusTimestamp);
-    }
-
-    public long getHookId() {
-        return id != null ? id.getHookId() : 0L;
-    }
-
-    public void setHookId(long hookId) {
-        id().setHookId(hookId);
-    }
-
-    public byte[] getKey() {
-        return id != null ? id.getKey() : null;
-    }
-
-    public void setKey(byte[] key) {
-        id().setKey(key);
-    }
-
-    public EntityId getOwnerId() {
-        return id != null ? id.getOwnerId() : null;
-    }
-
-    public void setOwnerId(EntityId ownerId) {
-        id().setOwnerId(ownerId);
-    }
-
-    public void setOwnerId(long ownerId) {
-        setOwnerId(EntityId.of(ownerId));
-    }
-
-    @JsonIgnore
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @Override
-    public boolean isNew() {
-        return true;
+    @JsonIgnore
+    public Id getId() {
+        Id id = new Id();
+        id.setConsensusTimestamp(consensusTimestamp);
+        id.setHookId(hookId);
+        id.setKey(key);
+        id.setOwnerId(ownerId);
+        return id;
+    }
+
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.hookId = id.getHookId();
+        this.key = id.getKey();
+        this.ownerId = id.getOwnerId();
     }
 
     public void setValueRead(byte[] valueRead) {
@@ -88,11 +92,10 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
     }
 
-    private Id id() {
-        if (id == null) {
-            id = new Id();
-        }
-        return id;
+    @JsonIgnore
+    @Override
+    public boolean isNew() {
+        return true;
     }
 
     @AllArgsConstructor
@@ -103,61 +106,19 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         private static final long serialVersionUID = -2847639184756392847L;
 
         private long consensusTimestamp;
-
         private long hookId;
-
-        @ToString.Exclude
         private byte[] key;
-
         private EntityId ownerId;
     }
 
     public static class HookStorageChangeBuilder {
-
-        private Id ensureId() {
-            this.id = this.id == null
-                    ? new Id()
-                    : new Id(
-                            this.id.getConsensusTimestamp(),
-                            this.id.getHookId(),
-                            this.id.getKey(),
-                            this.id.getOwnerId());
-            return this.id;
-        }
-
-        public HookStorageChangeBuilder consensusTimestamp(long consensusTimestamp) {
-            ensureId().setConsensusTimestamp(consensusTimestamp);
-            return this;
-        }
-
-        public HookStorageChangeBuilder hookId(long hookId) {
-            ensureId().setHookId(hookId);
-            return this;
-        }
-
-        public HookStorageChangeBuilder key(byte[] key) {
-            ensureId().setKey(key);
-            return this;
-        }
-
         public HookStorageChangeBuilder ownerId(EntityId ownerId) {
-            ensureId().setOwnerId(ownerId);
+            this.ownerId = ownerId;
             return this;
         }
 
         public HookStorageChangeBuilder ownerId(long ownerId) {
             return ownerId(EntityId.of(ownerId));
-        }
-
-        public HookStorageChangeBuilder valueRead(byte[] valueRead) {
-            this.valueRead = DomainUtils.trim(valueRead);
-            return this;
-        }
-
-        public HookStorageChangeBuilder valueWritten(byte[] valueWritten) {
-            this.valueWritten = DomainUtils.trim(valueWritten);
-            this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
-            return this;
         }
     }
 }

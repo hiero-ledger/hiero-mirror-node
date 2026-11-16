@@ -10,28 +10,41 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hiero.mirror.common.domain.entity.EntityTransaction.Id;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
-@Builder(toBuilder = true)
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
+@Builder
 @Data
-@Table
 @NoArgsConstructor
-public class EntityTransaction implements Persistable<EntityTransaction.Id> {
+@Table
+public class EntityTransaction implements Persistable<Id> {
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
+    @Transient
+    private Long consensusTimestamp;
+
+    @Transient
+    private Long entityId;
 
     private EntityId payerAccountId;
 
     private Integer result;
 
     private Integer type;
+
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.entityId = id.getEntityId();
+    }
 
     public void setResult(Integer result) {
         this.result = DomainUtils.toSmallint(result);
@@ -41,12 +54,13 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
         this.type = DomainUtils.toSmallint(type);
     }
 
-    public Long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : null;
-    }
-
-    public Long getEntityId() {
-        return id != null ? id.getEntityId() : null;
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @JsonIgnore
+    @Override
+    public Id getId() {
+        return new Id(consensusTimestamp, entityId);
     }
 
     @JsonIgnore
@@ -56,24 +70,6 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
     }
 
     public static class EntityTransactionBuilder {
-
-        private Id ensureId() {
-            if (this.id == null) {
-                this.id = new Id();
-            }
-            return this.id;
-        }
-
-        public EntityTransactionBuilder consensusTimestamp(long consensusTimestamp) {
-            ensureId().setConsensusTimestamp(consensusTimestamp);
-            return this;
-        }
-
-        public EntityTransactionBuilder entityId(long entityId) {
-            ensureId().setEntityId(entityId);
-            return this;
-        }
-
         public EntityTransactionBuilder result(Integer result) {
             this.result = DomainUtils.toSmallint(result);
             return this;
@@ -82,11 +78,6 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
         public EntityTransactionBuilder type(Integer type) {
             this.type = DomainUtils.toSmallint(type);
             return this;
-        }
-
-        public EntityTransaction build() {
-            final var builtId = id == null ? null : new Id(id.getConsensusTimestamp(), id.getEntityId());
-            return new EntityTransaction(builtId, payerAccountId, result, type);
         }
     }
 
@@ -99,7 +90,6 @@ public class EntityTransaction implements Persistable<EntityTransaction.Id> {
         private static final long serialVersionUID = -3010905088908209508L;
 
         private long consensusTimestamp;
-
         private long entityId;
     }
 }

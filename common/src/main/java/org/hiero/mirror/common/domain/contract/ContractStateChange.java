@@ -12,25 +12,32 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
 @Builder(toBuilder = true)
 @Data
-@Table
 @NoArgsConstructor
+@Table
 public class ContractStateChange implements Persistable<ContractStateChange.Id> {
 
-    @JsonIgnore
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    private Id id;
+    @Transient
+    private long consensusTimestamp;
+
+    @Transient
+    private long contractId;
 
     private boolean migration;
 
     private EntityId payerAccountId;
+
+    @Transient
+    @ToString.Exclude
+    private byte[] slot;
 
     @ToString.Exclude
     private byte[] valueRead;
@@ -38,32 +45,17 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     @ToString.Exclude
     private byte[] valueWritten;
 
-    public void setConsensusTimestamp(long consensusTimestamp) {
-        id().setConsensusTimestamp(consensusTimestamp);
-    }
-
-    public void setContractId(EntityId entityId) {
-        id().setContractId(entityId.getId());
-    }
-
-    public void setContractId(long contractId) {
-        id().setContractId(contractId);
-    }
-
-    public void setSlot(byte[] slot) {
-        id().setSlot(slot);
-    }
-
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
-    }
-
-    public long getContractId() {
-        return id != null ? id.getContractId() : 0L;
-    }
-
-    public byte[] getSlot() {
-        return id != null ? id.getSlot() : null;
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @Override
+    @JsonIgnore
+    public Id getId() {
+        Id id = new Id();
+        id.setConsensusTimestamp(consensusTimestamp);
+        id.setContractId(contractId);
+        id.setSlot(slot);
+        return id;
     }
 
     @JsonIgnore
@@ -72,11 +64,18 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
         return true;
     }
 
-    private Id id() {
+    public void setContractId(EntityId contractId) {
+        this.contractId = contractId.getId();
+    }
+
+    public void setId(Id id) {
         if (id == null) {
-            id = new Id();
+            return;
         }
-        return id;
+
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.contractId = id.getContractId();
+        this.slot = id.getSlot();
     }
 
     @AllArgsConstructor
@@ -87,34 +86,7 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
         private static final long serialVersionUID = -3677350664183037811L;
 
         private long consensusTimestamp;
-
         private long contractId;
-
         private byte[] slot;
-    }
-
-    public static class ContractStateChangeBuilder {
-
-        private Id ensureId() {
-            this.id = this.id == null
-                    ? new Id()
-                    : new Id(this.id.getConsensusTimestamp(), this.id.getContractId(), this.id.getSlot());
-            return this.id;
-        }
-
-        public ContractStateChangeBuilder consensusTimestamp(long consensusTimestamp) {
-            ensureId().setConsensusTimestamp(consensusTimestamp);
-            return this;
-        }
-
-        public ContractStateChangeBuilder contractId(long contractId) {
-            ensureId().setContractId(contractId);
-            return this;
-        }
-
-        public ContractStateChangeBuilder slot(byte[] slot) {
-            ensureId().setSlot(slot);
-            return this;
-        }
     }
 }

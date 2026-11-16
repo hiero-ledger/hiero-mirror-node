@@ -60,9 +60,9 @@ class NodeStakeRepositoryTest extends GrpcIntegrationTest {
         assertThat(nodeStakeRepository.findAllStakeByConsensusTimestamp(consensusTimestamp))
                 .as("Latest timestamp 0 stakes")
                 .containsAllEntriesOf(Map.of(
-                        nodeStakeZeroZero.getId().getNodeId(),
+                        nodeStakeZeroZero.getNodeId(),
                         nodeStakeZeroZero.getStake(),
-                        nodeStakeZeroOne.getId().getNodeId(),
+                        nodeStakeZeroOne.getNodeId(),
                         nodeStakeZeroOne.getStake()));
 
         // Clear cache and load the next day's node stake info
@@ -75,9 +75,9 @@ class NodeStakeRepositoryTest extends GrpcIntegrationTest {
         assertThat(nodeStakeRepository.findAllStakeByConsensusTimestamp(consensusTimestamp))
                 .as("Latest timestamp 1 stakes")
                 .containsAllEntriesOf(Map.of(
-                        nodeStakeOneZero.getId().getNodeId(),
+                        nodeStakeOneZero.getNodeId(),
                         nodeStakeOneZero.getStake(),
-                        nodeStakeOneOne.getId().getNodeId(),
+                        nodeStakeOneOne.getNodeId(),
                         nodeStakeOneOne.getStake()));
     }
 
@@ -101,8 +101,8 @@ class NodeStakeRepositoryTest extends GrpcIntegrationTest {
     private NodeStake nodeStake(long consensusTimestamp, long nodeId, long stake) {
         return domainBuilder
                 .nodeStake()
-                .customize(
-                        e -> e.id(new NodeStake.Id(consensusTimestamp, nodeId)).stake(stake))
+                .customize(e ->
+                        e.consensusTimestamp(consensusTimestamp).nodeId(nodeId).stake(stake))
                 .persist();
     }
 }

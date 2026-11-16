@@ -245,7 +245,11 @@ public class DomainBuilder {
         }
 
         var builder = AddressBookServiceEndpoint.builder()
-                .id(new AddressBookServiceEndpoint.Id(timestamp(), ipAddress, number(), 50211, ""));
+                .consensusTimestamp(timestamp())
+                .ipAddressV4(ipAddress)
+                .nodeId(number())
+                .port(50211)
+                .domainName("");
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -276,7 +280,8 @@ public class DomainBuilder {
                 .callerType(CONTRACT)
                 .callOperationType(CallOperationType.OP_CALL.getNumber())
                 .callType(ContractActionType.CALL.getNumber())
-                .id(new ContractAction.Id(timestamp(), (int) number()))
+                .consensusTimestamp(timestamp())
+                .index((int) number())
                 .gas(100L)
                 .gasUsed(50L)
                 .input(bytes(256))
@@ -831,7 +836,8 @@ public class DomainBuilder {
         long timestamp = timestamp();
 
         var builder = NodeStake.builder()
-                .id(new NodeStake.Id(timestamp, number()))
+                .consensusTimestamp(timestamp)
+                .nodeId(number())
                 .epochDay(getEpochDay(timestamp))
                 .maxStake(maxStake)
                 .minStake(maxStake / 2L)

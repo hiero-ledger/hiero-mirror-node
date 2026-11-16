@@ -15,6 +15,8 @@ import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
@@ -48,41 +50,40 @@ public abstract class AbstractHook implements History {
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     private HookExtensionPoint extensionPoint;
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
+    @Transient
+    private long hookId;
+
+    @Transient
+    private EntityId ownerId;
 
     private Range<Long> timestampRange;
 
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     private HookType type;
 
-    public long getHookId() {
-        return id != null ? id.getHookId() : 0L;
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @JsonIgnore
+    public Id getId() {
+        return new Id(hookId, ownerId);
     }
 
-    public void setHookId(long hookId) {
-        id().setHookId(hookId);
-    }
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
 
-    public EntityId getOwnerId() {
-        return id != null ? id.getOwnerId() : null;
+        this.hookId = id.getHookId();
+        this.ownerId = id.getOwnerId();
     }
 
     public void setOwnerId(EntityId ownerId) {
-        id().setOwnerId(ownerId);
+        this.ownerId = ownerId;
     }
 
     public void setOwnerId(long ownerId) {
-        setOwnerId(EntityId.of(ownerId));
-    }
-
-    private Id id() {
-        if (id == null) {
-            id = new Id();
-        }
-        return id;
+        this.ownerId = EntityId.of(ownerId);
     }
 
     @AllArgsConstructor
@@ -93,7 +94,6 @@ public abstract class AbstractHook implements History {
         private static final long serialVersionUID = -8745629837592847563L;
 
         private long hookId;
-
         private EntityId ownerId;
 
         public Id(long hookId, long ownerId) {
@@ -101,36 +101,15 @@ public abstract class AbstractHook implements History {
         }
     }
 
-    @SuppressWarnings("java:S1610")
     public abstract static class AbstractHookBuilder<C extends AbstractHook, B extends AbstractHookBuilder<C, B>> {
 
-        private Id ensureId() {
-            this.id = this.id == null ? new Id() : new Id(this.id.getHookId(), this.id.getOwnerId());
-            return this.id;
-        }
-
-        public B hookId(long hookId) {
-            ensureId().setHookId(hookId);
-            return self();
-        }
-
         public B ownerId(EntityId ownerId) {
-            ensureId().setOwnerId(ownerId);
+            this.ownerId = ownerId;
             return self();
         }
 
         public B ownerId(long ownerId) {
             return ownerId(EntityId.of(ownerId));
-        }
-
-        public B extensionPoint(HookExtensionPoint extensionPoint) {
-            this.extensionPoint = extensionPoint;
-            return self();
-        }
-
-        public B type(HookType hookType) {
-            this.type = hookType;
-            return self();
         }
     }
 }

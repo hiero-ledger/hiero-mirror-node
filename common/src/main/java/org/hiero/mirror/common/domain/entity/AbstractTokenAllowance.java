@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
@@ -25,83 +27,51 @@ public abstract class AbstractTokenAllowance implements FungibleAllowance {
 
     private Long amountGranted;
 
+    @Transient
+    private long owner;
+
     private EntityId payerAccountId;
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
+    @Transient
+    private long spender;
 
     private Range<Long> timestampRange;
 
-    public long getOwner() {
-        return id != null ? id.getOwner() : 0L;
-    }
+    @Transient
+    private long tokenId;
 
-    public long getSpender() {
-        return id != null ? id.getSpender() : 0L;
-    }
-
-    public long getTokenId() {
-        return id != null ? id.getTokenId() : 0L;
-    }
-
-    public void setOwner(long owner) {
-        id().setOwner(owner);
-    }
-
-    public void setSpender(long spender) {
-        id().setSpender(spender);
-    }
-
-    public void setTokenId(long tokenId) {
-        id().setTokenId(tokenId);
-    }
-
-    private Id id() {
-        if (id == null) {
-            id = new Id();
-        }
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @JsonIgnore
+    public AbstractTokenAllowance.Id getId() {
+        Id id = new Id();
+        id.setOwner(owner);
+        id.setSpender(spender);
+        id.setTokenId(tokenId);
         return id;
     }
 
+    public void setId(AbstractTokenAllowance.Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.owner = id.getOwner();
+        this.spender = id.getSpender();
+        this.tokenId = id.getTokenId();
+    }
+
+    @AllArgsConstructor
     @Data
     @NoArgsConstructor
-    @AllArgsConstructor
     public static class Id implements Serializable {
 
         @Serial
         private static final long serialVersionUID = 4078820027811154183L;
 
         private long owner;
-
         private long spender;
-
         private long tokenId;
-    }
-
-    public abstract static class AbstractTokenAllowanceBuilder<
-            C extends AbstractTokenAllowance, B extends AbstractTokenAllowanceBuilder<C, B>> {
-
-        private Id ensureId() {
-            this.id =
-                    this.id == null ? new Id() : new Id(this.id.getOwner(), this.id.getSpender(), this.id.getTokenId());
-            return this.id;
-        }
-
-        public B owner(long owner) {
-            ensureId().setOwner(owner);
-            return self();
-        }
-
-        public B spender(long spender) {
-            ensureId().setSpender(spender);
-            return self();
-        }
-
-        public B tokenId(long tokenId) {
-            ensureId().setTokenId(tokenId);
-            return self();
-        }
     }
 }

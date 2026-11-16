@@ -20,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
-import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.util.ProtoUtil;
@@ -213,8 +212,11 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
 
         final var endpoint = domainBuilder
                 .addressBookServiceEndpoint()
-                .customize(e -> e.id(new AddressBookServiceEndpoint.Id(
-                        CONSENSUS_TIMESTAMP, "10.0.0.1", addressBookEntry.getNodeId(), 50211, "")))
+                .customize(e -> e.consensusTimestamp(CONSENSUS_TIMESTAMP)
+                        .ipAddressV4("10.0.0.1")
+                        .nodeId(addressBookEntry.getNodeId())
+                        .port(50211)
+                        .domainName(""))
                 .persist();
         addressBookEntry.getServiceEndpoints().add(endpoint);
         return addressBookEntry;
@@ -228,8 +230,11 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
 
         final var endpoint = domainBuilder
                 .addressBookServiceEndpoint()
-                .customize(e -> e.id(new AddressBookServiceEndpoint.Id(
-                        CONSENSUS_TIMESTAMP, ipAddress, addressBookEntry.getNodeId(), port, domainName)))
+                .customize(e -> e.consensusTimestamp(CONSENSUS_TIMESTAMP)
+                        .ipAddressV4(ipAddress)
+                        .nodeId(addressBookEntry.getNodeId())
+                        .port(port)
+                        .domainName(domainName))
                 .persist();
         addressBookEntry.getServiceEndpoints().add(endpoint);
         return addressBookEntry;

@@ -12,6 +12,7 @@ import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.AccessType;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Embedded;
 
@@ -20,6 +21,9 @@ import org.springframework.data.relational.core.mapping.Embedded;
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
 public abstract class AbstractTokenAccount implements History {
+
+    @Transient
+    private long accountId;
 
     private Boolean associated;
 
@@ -34,7 +38,6 @@ public abstract class AbstractTokenAccount implements History {
 
     private Long balanceTimestamp;
 
-    // The java transient modifier keeps the field out of the lombok-generated equals/hashCode like on main
     @JsonIgnore
     @SuppressWarnings("java:S2065")
     @Transient
@@ -49,11 +52,6 @@ public abstract class AbstractTokenAccount implements History {
             """)
     private TokenFreezeStatusEnum freezeStatus;
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
-
     @UpsertColumn(coalesce = """
             case when created_timestamp is not null then {0}
                  else coalesce({0}, e_{0})
@@ -63,27 +61,27 @@ public abstract class AbstractTokenAccount implements History {
 
     private Range<Long> timestampRange;
 
-    public long getAccountId() {
-        return id != null ? id.getAccountId() : 0L;
-    }
+    @Transient
+    private long tokenId;
 
-    public void setAccountId(long accountId) {
-        id().setAccountId(accountId);
-    }
-
-    public long getTokenId() {
-        return id != null ? id.getTokenId() : 0L;
-    }
-
-    public void setTokenId(long tokenId) {
-        id().setTokenId(tokenId);
-    }
-
-    private Id id() {
-        if (id == null) {
-            id = new Id();
-        }
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @JsonIgnore
+    public AbstractTokenAccount.Id getId() {
+        Id id = new AbstractTokenAccount.Id();
+        id.setAccountId(accountId);
+        id.setTokenId(tokenId);
         return id;
+    }
+
+    public void setId(AbstractTokenAccount.Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.accountId = id.getAccountId();
+        this.tokenId = id.getTokenId();
     }
 
     @Data
@@ -94,26 +92,6 @@ public abstract class AbstractTokenAccount implements History {
         private static final long serialVersionUID = 4078820027811154183L;
 
         private long accountId;
-
         private long tokenId;
-    }
-
-    public abstract static class AbstractTokenAccountBuilder<
-            C extends AbstractTokenAccount, B extends AbstractTokenAccountBuilder<C, B>> {
-
-        private Id ensureId() {
-            this.id = this.id == null ? new Id() : new Id(this.id.getAccountId(), this.id.getTokenId());
-            return this.id;
-        }
-
-        public B accountId(long accountId) {
-            ensureId().setAccountId(accountId);
-            return self();
-        }
-
-        public B tokenId(long tokenId) {
-            ensureId().setTokenId(tokenId);
-            return self();
-        }
     }
 }

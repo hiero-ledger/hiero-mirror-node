@@ -14,15 +14,17 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
 @Builder
 @Data
-@Table
 @NoArgsConstructor
+@Table
 public class ContractAction implements Persistable<ContractAction.Id> {
 
     private int callDepth;
@@ -35,14 +37,15 @@ public class ContractAction implements Persistable<ContractAction.Id> {
 
     private Integer callType;
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
+    @Transient
+    private long consensusTimestamp;
 
     private long gas;
 
     private long gasUsed;
+
+    @Transient
+    private int index;
 
     @ToString.Exclude
     private byte[] input;
@@ -63,20 +66,16 @@ public class ContractAction implements Persistable<ContractAction.Id> {
 
     private long value;
 
-    public void setConsensusTimestamp(long consensusTimestamp) {
-        id().setConsensusTimestamp(consensusTimestamp);
-    }
-
-    public void setIndex(int index) {
-        id().setIndex(index);
-    }
-
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
-    }
-
-    public int getIndex() {
-        return id != null ? id.getIndex() : 0;
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @Override
+    @JsonIgnore
+    public ContractAction.Id getId() {
+        ContractAction.Id id = new ContractAction.Id();
+        id.setConsensusTimestamp(consensusTimestamp);
+        id.setIndex(index);
+        return id;
     }
 
     @JsonIgnore
@@ -90,11 +89,13 @@ public class ContractAction implements Persistable<ContractAction.Id> {
         return resultDataType == REVERT_REASON.getNumber();
     }
 
-    private Id id() {
+    public void setId(ContractAction.Id id) {
         if (id == null) {
-            id = new Id();
+            return;
         }
-        return id;
+
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.index = id.getIndex();
     }
 
     @Data
@@ -102,9 +103,7 @@ public class ContractAction implements Persistable<ContractAction.Id> {
     @NoArgsConstructor
     public static class Id implements Serializable {
         private static final long serialVersionUID = -6192177810161178246L;
-
         private long consensusTimestamp;
-
         private int index;
     }
 }

@@ -19,6 +19,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.springframework.data.annotation.AccessType;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
@@ -28,14 +29,9 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Table
 @NoArgsConstructor
+@Table
 public class SidecarFile implements Persistable<SidecarFile.Id> {
-
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
 
     @JsonIgnore
     @ToString.Exclude
@@ -46,12 +42,19 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     @ToString.Exclude
     private byte[] bytes;
 
+    @Transient
+    private long consensusEnd;
+
     private Integer count;
 
     private DigestAlgorithm hashAlgorithm;
 
     @ToString.Exclude
     private byte[] hash;
+
+    @JsonProperty("id")
+    @Transient
+    private int index;
 
     private String name;
 
@@ -67,41 +70,16 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Integer> types = Collections.emptyList();
 
-    public static class SidecarFileBuilder {
-
-        private Id ensureId() {
-            this.id = this.id == null ? new Id() : new Id(this.id.getConsensusEnd(), this.id.getIndex());
-            return this.id;
-        }
-
-        public SidecarFileBuilder consensusEnd(long consensusEnd) {
-            ensureId().setConsensusEnd(consensusEnd);
-            return this;
-        }
-
-        public SidecarFileBuilder index(int index) {
-            ensureId().setIndex(index);
-            return this;
-        }
-    }
-
-    public long getConsensusEnd() {
-        return id != null ? id.getConsensusEnd() : 0L;
-    }
-
-    // Exposed to Jackson as "id" so batch COPY serialization matches the db column
-    @JsonProperty("id")
-    public int getIndex() {
-        return id != null ? id.getIndex() : 0;
-    }
-
-    public void setConsensusEnd(long consensusEnd) {
-        id().setConsensusEnd(consensusEnd);
-    }
-
-    @JsonProperty("id")
-    public void setIndex(int index) {
-        id().setIndex(index);
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @JsonIgnore
+    @Override
+    public Id getId() {
+        var id = new Id();
+        id.setConsensusEnd(consensusEnd);
+        id.setIndex(index);
+        return id;
     }
 
     @JsonIgnore
@@ -110,24 +88,26 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
         return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
-    private Id id() {
+    public void setId(Id id) {
         if (id == null) {
-            id = new Id();
+            return;
         }
-        return id;
+
+        this.consensusEnd = id.getConsensusEnd();
+        this.index = id.getIndex();
     }
 
-    @Data
     @AllArgsConstructor
+    @Data
     @NoArgsConstructor
     public static class Id implements Serializable {
+
         @Serial
         private static final long serialVersionUID = -5844173241500874821L;
 
         private long consensusEnd;
 
         @Column("id")
-        @JsonProperty("id")
         private int index;
     }
 }

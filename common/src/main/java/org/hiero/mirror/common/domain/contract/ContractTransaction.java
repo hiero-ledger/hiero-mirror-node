@@ -13,21 +13,23 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Table
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder(toBuilder = true)
+@Builder
+@Table
 public class ContractTransaction implements Persistable<ContractTransaction.Id> {
+    @Transient
+    private Long consensusTimestamp;
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
+    @Transient
+    private Long entityId;
 
     @Builder.Default
     @JsonSerialize(using = ListToStringSerializer.class)
@@ -35,36 +37,28 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
 
     private long payerAccountId;
 
-    public static class ContractTransactionBuilder {
-
-        private Id ensureId() {
-            this.id = this.id == null ? new Id() : new Id(this.id.getConsensusTimestamp(), this.id.getEntityId());
-            return this.id;
-        }
-
-        public ContractTransactionBuilder consensusTimestamp(long consensusTimestamp) {
-            ensureId().setConsensusTimestamp(consensusTimestamp);
-            return this;
-        }
-
-        public ContractTransactionBuilder entityId(long entityId) {
-            ensureId().setEntityId(entityId);
-            return this;
-        }
-    }
-
-    public long getConsensusTimestamp() {
-        return id != null ? id.getConsensusTimestamp() : 0L;
-    }
-
-    public long getEntityId() {
-        return id != null ? id.getEntityId() : 0L;
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @Override
+    @JsonIgnore
+    public Id getId() {
+        return new ContractTransaction.Id(consensusTimestamp, entityId);
     }
 
     @Override
     @JsonIgnore
     public boolean isNew() {
         return true;
+    }
+
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.entityId = id.getEntityId();
     }
 
     @Data
@@ -75,7 +69,6 @@ public class ContractTransaction implements Persistable<ContractTransaction.Id> 
         private static final long serialVersionUID = -6807023295883699004L;
 
         private long consensusTimestamp;
-
         private long entityId;
     }
 }

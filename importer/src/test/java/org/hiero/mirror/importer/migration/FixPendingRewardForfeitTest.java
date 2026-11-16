@@ -10,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
-import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
@@ -337,7 +336,8 @@ final class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
     private void persistNodeStake(long epochDay, long rewardRate, long nodeStakeConsensusTimestamp) {
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.id(new NodeStake.Id(nodeStakeConsensusTimestamp, NODE_ID))
+                .customize(ns -> ns.consensusTimestamp(nodeStakeConsensusTimestamp)
+                        .nodeId(NODE_ID)
                         .epochDay(epochDay)
                         .rewardRate(rewardRate))
                 .persist();

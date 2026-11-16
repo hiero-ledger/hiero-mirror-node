@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
-import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
@@ -298,7 +297,8 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     private void nodeStake(long nodeId, long stake) {
         domainBuilder
                 .nodeStake()
-                .customize(e -> e.id(new NodeStake.Id(NODE_STAKE_CONSENSUS_TIMESTAMP, nodeId))
+                .customize(e -> e.consensusTimestamp(NODE_STAKE_CONSENSUS_TIMESTAMP)
+                        .nodeId(nodeId)
                         .stake(stake))
                 .persist();
     }

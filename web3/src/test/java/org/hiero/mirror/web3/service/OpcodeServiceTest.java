@@ -33,7 +33,6 @@ import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
-import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -1122,7 +1121,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 .customize(contractAction -> contractAction
                         .caller(senderEntityId)
                         .callerType(EntityType.ACCOUNT)
-                        .id(new ContractAction.Id(consensusTimestamp, (int) domainBuilder.number()))
+                        .consensusTimestamp(consensusTimestamp)
+                        .index((int) domainBuilder.number())
                         .payerAccountId(senderEntityId)
                         .recipientContract(contractEntityId)
                         .recipientAddress(contractAddress.getBytes())

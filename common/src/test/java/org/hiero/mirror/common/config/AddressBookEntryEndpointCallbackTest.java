@@ -60,7 +60,11 @@ class AddressBookEntryEndpointCallbackTest {
 
     private AddressBookServiceEndpoint endpoint(long nodeId, int index) {
         return AddressBookServiceEndpoint.builder()
-                .id(new AddressBookServiceEndpoint.Id(TIMESTAMP, "127.0.0." + nodeId, nodeId, 50211 + index, null))
+                .consensusTimestamp(TIMESTAMP)
+                .ipAddressV4("127.0.0." + nodeId)
+                .nodeId(nodeId)
+                .port(50211 + index)
+                .domainName(null)
                 .build();
     }
 }

@@ -5,7 +5,6 @@ package org.hiero.mirror.common.domain.hook;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serial;
 import java.io.Serializable;
-import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,14 +15,14 @@ import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Table
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
-@Builder(toBuilder = true)
+@Table
 @Upsertable
 public class HookStorage {
     private static final String CREATED_TS_COALESCE = """
@@ -38,56 +37,64 @@ public class HookStorage {
     @UpsertColumn(coalesce = CREATED_TS_COALESCE)
     private long createdTimestamp;
 
+    @Transient
+    private long hookId;
+
     private boolean deleted;
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
+    @Transient
+    @ToString.Exclude
+    private byte[] key;
 
     private Long modifiedTimestamp;
+
+    @Transient
+    private EntityId ownerId;
 
     @ToString.Exclude
     private byte[] value;
 
-    public long getHookId() {
-        return id != null ? id.getHookId() : 0L;
+    @Builder(toBuilder = true)
+    private HookStorage(
+            long createdTimestamp, long hookId, byte[] key, Long modifiedTimestamp, EntityId ownerId, byte[] value) {
+        this.createdTimestamp = createdTimestamp;
+        this.hookId = hookId;
+        this.key = DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH);
+        this.modifiedTimestamp = modifiedTimestamp;
+        this.ownerId = ownerId;
+        this.value = DomainUtils.trim(value);
+        this.deleted = ArrayUtils.isEmpty(this.value);
     }
 
-    public void setHookId(long hookId) {
-        id().setHookId(hookId);
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @JsonIgnore
+    public HookStorage.Id getId() {
+        HookStorage.Id id = new HookStorage.Id();
+        id.setHookId(hookId);
+        id.setKey(key);
+        id.setOwnerId(ownerId);
+        return id;
     }
 
-    public byte[] getKey() {
-        return id != null ? id.getKey() : null;
+    public void setId(HookStorage.Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.hookId = id.getHookId();
+        this.key = id.getKey();
+        this.ownerId = id.getOwnerId();
     }
 
     public void setKey(byte[] key) {
-        id().setKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
-    }
-
-    public EntityId getOwnerId() {
-        return id != null ? id.getOwnerId() : null;
-    }
-
-    public void setOwnerId(EntityId ownerId) {
-        id().setOwnerId(ownerId);
-    }
-
-    public void setOwnerId(long ownerId) {
-        setOwnerId(EntityId.of(ownerId));
+        this.key = DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH);
     }
 
     public void setValue(byte[] value) {
         this.value = DomainUtils.trim(value);
         this.deleted = ArrayUtils.isEmpty(this.value);
-    }
-
-    private Id id() {
-        if (id == null) {
-            id = new Id();
-        }
-        return id;
     }
 
     @Data
@@ -98,46 +105,18 @@ public class HookStorage {
         private static final long serialVersionUID = 4567832945612847391L;
 
         private long hookId;
-
-        @ToString.Exclude
         private byte[] key;
-
         private EntityId ownerId;
     }
 
     public static class HookStorageBuilder {
-
-        // A slot without a value is deleted. Kept in sync with the value by value(byte[])
-        private boolean deleted = true;
-
-        private Id ensureId() {
-            this.id = this.id == null ? new Id() : new Id(this.id.getHookId(), this.id.getKey(), this.id.getOwnerId());
-            return this.id;
-        }
-
-        public HookStorageBuilder hookId(long hookId) {
-            ensureId().setHookId(hookId);
-            return this;
-        }
-
-        public HookStorageBuilder key(byte[] key) {
-            ensureId().setKey(DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH));
-            return this;
-        }
-
         public HookStorageBuilder ownerId(EntityId ownerId) {
-            ensureId().setOwnerId(ownerId);
+            this.ownerId = ownerId;
             return this;
         }
 
         public HookStorageBuilder ownerId(long ownerId) {
             return ownerId(EntityId.of(ownerId));
-        }
-
-        public HookStorageBuilder value(byte[] value) {
-            this.value = DomainUtils.trim(value);
-            this.deleted = ArrayUtils.isEmpty(this.value);
-            return this;
         }
     }
 }

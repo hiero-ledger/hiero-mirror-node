@@ -13,29 +13,32 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
-@Data
-@Table
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
-@NoArgsConstructor
 @Builder(toBuilder = true)
+@Data
+@NoArgsConstructor
+@Table
 @Upsertable
 public class TopicMessageLookup {
 
     private static final String COALESCE_RANGE = "int8range(coalesce(lower(e_{0}), lower({0})), upper({0}))";
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
+    @Transient
+    private String partition;
 
     @UpsertColumn(coalesce = COALESCE_RANGE)
     private Range<Long> sequenceNumberRange;
 
     @UpsertColumn(coalesce = COALESCE_RANGE)
     private Range<Long> timestampRange;
+
+    @Transient
+    private long topicId;
 
     public static TopicMessageLookup from(String partition, TopicMessage topicMessage) {
         long sequenceNumber = topicMessage.getSequenceNumber();
@@ -48,56 +51,34 @@ public class TopicMessageLookup {
                 .build();
     }
 
-    public String getPartition() {
-        return id != null ? id.getPartition() : null;
-    }
-
-    public void setPartition(String partition) {
-        id().setPartition(partition);
-    }
-
-    public long getTopicId() {
-        return id != null ? id.getTopicId() : 0L;
-    }
-
-    public void setTopicId(long topicId) {
-        id().setTopicId(topicId);
-    }
-
-    private Id id() {
-        if (id == null) {
-            id = new Id();
-        }
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @JsonIgnore
+    public Id getId() {
+        var id = new Id();
+        id.setPartition(partition);
+        id.setTopicId(topicId);
         return id;
     }
 
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.partition = id.getPartition();
+        this.topicId = id.getTopicId();
+    }
+
+    @AllArgsConstructor
     @Data
     @NoArgsConstructor
-    @AllArgsConstructor
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = 5704900912468270592L;
 
         private String partition;
-
         private long topicId;
-    }
-
-    public static class TopicMessageLookupBuilder {
-
-        private Id ensureId() {
-            this.id = this.id == null ? new Id() : new Id(this.id.getPartition(), this.id.getTopicId());
-            return this.id;
-        }
-
-        public TopicMessageLookupBuilder partition(String partition) {
-            ensureId().setPartition(partition);
-            return this;
-        }
-
-        public TopicMessageLookupBuilder topicId(long topicId) {
-            ensureId().setTopicId(topicId);
-            return this;
-        }
     }
 }

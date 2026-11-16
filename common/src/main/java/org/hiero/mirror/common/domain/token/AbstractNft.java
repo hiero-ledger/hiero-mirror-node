@@ -15,6 +15,8 @@ import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
@@ -41,41 +43,36 @@ public abstract class AbstractNft implements History {
     @ToString.Exclude
     private byte[] metadata;
 
+    @Transient
+    private long serialNumber;
+
     @UpsertColumn(coalesce = "case when {0} is not null and {0} = 0 then e_{0} else {0} end")
     private Long spender;
 
-    @org.springframework.data.annotation.Id
-    @Embedded(onEmpty = Embedded.OnEmpty.USE_NULL)
-    @JsonIgnore
-    private Id id;
+    @Transient
+    private long tokenId;
 
     private Range<Long> timestampRange;
 
-    public long getSerialNumber() {
-        return id != null ? id.getSerialNumber() : 0L;
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
+    @JsonIgnore
+    public AbstractNft.Id getId() {
+        return new Id(serialNumber, tokenId);
     }
 
-    public long getTokenId() {
-        return id != null ? id.getTokenId() : 0L;
-    }
+    public void setId(AbstractNft.Id id) {
+        if (id == null) {
+            return;
+        }
 
-    public void setSerialNumber(long serialNumber) {
-        id().setSerialNumber(serialNumber);
-    }
-
-    public void setTokenId(long tokenId) {
-        id().setTokenId(tokenId);
+        this.serialNumber = id.getSerialNumber();
+        this.tokenId = id.getTokenId();
     }
 
     public static boolean shouldKeepSpender(Long spender) {
         return spender != null && spender == RETAIN_SPENDER;
-    }
-
-    private Id id() {
-        if (id == null) {
-            id = new Id();
-        }
-        return id;
     }
 
     @AllArgsConstructor
@@ -87,25 +84,6 @@ public abstract class AbstractNft implements History {
         private static final long serialVersionUID = 8679156797431231527L;
 
         private long serialNumber;
-
         private long tokenId;
-    }
-
-    public abstract static class AbstractNftBuilder<C extends AbstractNft, B extends AbstractNftBuilder<C, B>> {
-
-        private Id ensureId() {
-            this.id = this.id == null ? new Id() : new Id(this.id.getSerialNumber(), this.id.getTokenId());
-            return this.id;
-        }
-
-        public B serialNumber(long serialNumber) {
-            ensureId().setSerialNumber(serialNumber);
-            return self();
-        }
-
-        public B tokenId(long tokenId) {
-            ensureId().setTokenId(tokenId);
-            return self();
-        }
     }
 }

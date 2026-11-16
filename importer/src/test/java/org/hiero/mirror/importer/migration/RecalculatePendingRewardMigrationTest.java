@@ -7,7 +7,6 @@ import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static org.hiero.mirror.importer.migration.RecalculatePendingRewardMigration.FIRST_NONZERO_REWARD_RATE_TIMESTAMP;
 
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
@@ -351,7 +350,8 @@ class RecalculatePendingRewardMigrationTest extends AbstractStakingMigrationTest
             long consensusTimestamp = getNodeStakeTimestamp(rewardRateEpochDay + 1);
             domainBuilder
                     .nodeStake()
-                    .customize(ns -> ns.id(new NodeStake.Id(consensusTimestamp, 0L))
+                    .customize(ns -> ns.consensusTimestamp(consensusTimestamp)
+                            .nodeId(0L)
                             .epochDay(rewardRateEpochDay)
                             .rewardRate(rewardRate))
                     .persist();

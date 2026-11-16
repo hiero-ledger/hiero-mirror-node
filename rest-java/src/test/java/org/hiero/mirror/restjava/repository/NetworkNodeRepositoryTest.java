@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.SystemEntity;
-import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -201,7 +200,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 1L)))
+                .customize(
+                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(1L))
                 .persist();
 
         // when
@@ -278,7 +278,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 1L)))
+                .customize(
+                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(1L))
                 .persist();
         domainBuilder.node().customize(n -> n.nodeId(1L)).persist();
 
@@ -386,11 +387,11 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.id(new NodeStake.Id(stakeTimestamp1, 1L)))
+                .customize(ns -> ns.consensusTimestamp(stakeTimestamp1).nodeId(1L))
                 .persist();
         var latestStake = domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.id(new NodeStake.Id(stakeTimestamp2, 1L)))
+                .customize(ns -> ns.consensusTimestamp(stakeTimestamp2).nodeId(1L))
                 .persist();
 
         // when
@@ -499,15 +500,18 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         // Add corresponding node stake data
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 1L)))
+                .customize(
+                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(1L))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 2L)))
+                .customize(
+                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(2L))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.id(new NodeStake.Id(domainBuilder.timestamp(), 3L)))
+                .customize(
+                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(3L))
                 .persist();
 
         // Add corresponding node data
