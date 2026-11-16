@@ -16,6 +16,7 @@ import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.utils.Suppliers;
+import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.jspecify.annotations.Nullable;
 
 /** Record-file binding, state timestamp, and block cursor shared by trace validation and execution. */
@@ -47,14 +48,15 @@ public final class TraceCallState {
     }
 
     /**
-     * State timestamp for the whole trace. {@code 0} is the beginning of the block, one nanosecond before its first
-     * transaction. {@code -1} is after every transaction in the block: every block, including {@code latest}, uses the pinned record file's consensus
-     * end. A positive index is the consensus timestamp of that top-level
-     * {@code ContractCall}, {@code ContractCreate}, or {@code EthereumTransaction}. A scheduled execution may fall after
-     * the record file's consensus end, within the scheduled consensus window.
-     * Child rows, duplicates, and other transaction types are skipped. The
-     * record file comes from the supplier installed for the whole trace. State reads are inclusive, so the consensus
-     * end includes the block's last transaction. {@code block_override} changes only the EVM block header.
+     * State timestamp for the whole trace. The record file comes from the request's {@code block} through the supplier
+     * installed for the whole trace. When {@code block} is {@code latest}, {@code transaction_index} has no effect and
+     * the trace reads state after every transaction of the latest record file. {@code -1} is after every transaction in
+     * the block, at the record file's consensus end. {@code 0} is the beginning of the block, one nanosecond before its
+     * first transaction. A positive index {@code N} is one nanosecond after the consensus timestamp of the block's Nth
+     * top-level {@code ContractCall}, {@code ContractCreate}, or {@code EthereumTransaction}, so the state includes that
+     * transaction. A scheduled execution may fall after the record file's consensus end, within the scheduled consensus
+     * window. Child rows, duplicates, and other transaction types are skipped. {@code block_override} changes only the
+     * EVM block header.
      */
     public static @Nullable Long resolveStateTimestamp(
             final ContractCallContext context,
@@ -70,27 +72,32 @@ public final class TraceCallState {
         if (consensusStart == null || consensusEnd == null) {
             throw transactionIndexOutOfRange();
         }
-        if (transactionIndex == -1) {
+        if (transactionIndex == -1 || BlockType.LATEST.equals(traceCall.getBlock())) {
             return consensusEnd;
         }
         if (transactionIndex == 0) {
-            try {
-                return Math.subtractExact(consensusStart, 1L);
-            } catch (final ArithmeticException _) {
-                throw new InvalidParametersException(TRANSACTION_INDEX_ERROR);
-            }
+            return offset(consensusStart, -1L);
         }
         final long scheduledConsensusTimestampEnd = scheduledConsensusTimestampEnd(consensusStart);
-        return transactionRepository
+        final long transactionTimestamp = transactionRepository
                 .findConsensusTimestampAtPosition(
-                        consensusStart, consensusEnd, scheduledConsensusTimestampEnd, transactionIndex - 1)
+                        consensusStart, consensusEnd, scheduledConsensusTimestampEnd, transactionIndex)
                 .orElseThrow(TraceCallState::transactionIndexOutOfRange);
+        return offset(transactionTimestamp, 1L);
     }
 
     /** EVM block timestamp seconds for a record file. Uses consensus start, the same header time as eth_call. */
     private static long headerSeconds(final RecordFile recordFile) {
         final var consensusStart = recordFile.getConsensusStart();
         return consensusStart == null ? 0L : Math.floorDiv(consensusStart, DomainUtils.NANOS_PER_SECOND);
+    }
+
+    private static long offset(final long timestamp, final long nanos) {
+        try {
+            return Math.addExact(timestamp, nanos);
+        } catch (final ArithmeticException _) {
+            throw new InvalidParametersException(TRANSACTION_INDEX_ERROR);
+        }
     }
 
     private static long scheduledConsensusTimestampEnd(final long consensusStart) {

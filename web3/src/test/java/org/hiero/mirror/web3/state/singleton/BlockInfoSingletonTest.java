@@ -12,6 +12,7 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.common.EvmBlockOverride;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -40,7 +41,7 @@ class BlockInfoSingletonTest {
     void getUsesBlockOverrideNumber() {
         final var context = ContractCallContext.get();
         context.setBlockSupplier(() -> recordFile);
-        context.setBlockOverrideNumber(42L);
+        context.setEvmBlockOverride(EvmBlockOverride.EMPTY.withHeader(42L, null));
 
         assertThat(blockInfoSingleton.get())
                 .isEqualTo(BlockInfo.newBuilder()
@@ -58,7 +59,7 @@ class BlockInfoSingletonTest {
         final var context = ContractCallContext.get();
         context.setBlockSupplier(() -> recordFile);
         final var timeNanos = 1_710_858_432_000_000_000L;
-        context.setBlockOverrideTimeNanos(timeNanos);
+        context.setEvmBlockOverride(new EvmBlockOverride(null, null, null, null, null, null, timeNanos));
 
         assertThat(blockInfoSingleton.get())
                 .isEqualTo(BlockInfo.newBuilder()

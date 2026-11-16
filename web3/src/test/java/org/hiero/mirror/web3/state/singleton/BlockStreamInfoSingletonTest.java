@@ -12,6 +12,7 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.common.EvmBlockOverride;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -71,7 +72,7 @@ class BlockStreamInfoSingletonTest {
         final var recordFile = domainBuilder.recordFile().get();
         final var context = ContractCallContext.get();
         context.setBlockSupplier(() -> recordFile);
-        context.setBlockOverrideNumber(99L);
+        context.setEvmBlockOverride(EvmBlockOverride.EMPTY.withHeader(99L, null));
 
         final var blockTime = convertToTimestamp(recordFile.getConsensusStart());
         final var blockEndTime = convertToTimestamp(recordFile.getConsensusEnd());
@@ -90,7 +91,7 @@ class BlockStreamInfoSingletonTest {
         final var context = ContractCallContext.get();
         context.setBlockSupplier(() -> recordFile);
         final var timeNanos = 1_710_858_432_000_000_000L;
-        context.setBlockOverrideTimeNanos(timeNanos);
+        context.setEvmBlockOverride(new EvmBlockOverride(null, null, null, null, null, null, timeNanos));
 
         final var overrideTime = convertToTimestamp(timeNanos);
         assertThat(blockStreamInfoSingleton.get())

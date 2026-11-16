@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.common;
 
 import org.hiero.mirror.web3.exception.InvalidParametersException;
-import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.jspecify.annotations.Nullable;
 
@@ -12,6 +11,9 @@ import org.jspecify.annotations.Nullable;
  * only when storing the value on {@link ContractCallContext}.
  */
 public final class BlockOverrideAdvance {
+
+    private static final String BLOCK_NUMBER = "block_number";
+    private static final String TIME = "time";
 
     private BlockOverrideAdvance() {}
 
@@ -25,8 +27,8 @@ public final class BlockOverrideAdvance {
      */
     public static Cursor first(
             final long recordNumber, final long recordTimeSeconds, final @Nullable BlockOverride override) {
-        final var number = override == null ? null : parse(override.getNumber(), "number");
-        final var time = override == null ? null : parse(override.getTime(), "time");
+        final var number = override == null ? null : override.getBlockNumber();
+        final var time = override == null ? null : override.getTime();
         return new Cursor(number != null ? number : recordNumber, time != null ? time : recordTimeSeconds);
     }
 
@@ -44,13 +46,13 @@ public final class BlockOverrideAdvance {
         if (override == null) {
             return new Cursor(advance(previousNumber, 1L), advance(previousTimeSeconds, 2L));
         }
-        final var number = parse(override.getNumber(), "number");
-        final var time = parse(override.getTime(), "time");
+        final var number = override.getBlockNumber();
+        final var time = override.getTime();
         if (number != null && previousNumber != null && number < previousNumber) {
-            throw older(bundleIndex, "number");
+            throw older(bundleIndex, BLOCK_NUMBER);
         }
         if (time != null && previousTimeSeconds != null && time < previousTimeSeconds) {
-            throw older(bundleIndex, "time");
+            throw older(bundleIndex, TIME);
         }
         return new Cursor(
                 number != null ? number : advance(previousNumber, 1L),
@@ -71,17 +73,6 @@ public final class BlockOverrideAdvance {
     private static InvalidParametersException older(final int bundleIndex, final String field) {
         return new InvalidParametersException("block_override.%s on bundle %d is older than bundle %d"
                 .formatted(field, bundleIndex, bundleIndex - 1));
-    }
-
-    private static @Nullable Long parse(final @Nullable String value, final String field) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return HexUtils.parseValue(value);
-        } catch (final NumberFormatException _) {
-            throw new InvalidParametersException("Invalid block_override." + field);
-        }
     }
 
     public record Cursor(@Nullable Long number, @Nullable Long timeSeconds) {}

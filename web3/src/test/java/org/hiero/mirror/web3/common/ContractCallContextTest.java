@@ -9,6 +9,9 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.stateOverride;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -19,9 +22,10 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
-import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
+import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.datatypes.Wei;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -193,26 +197,96 @@ class ContractCallContextTest {
     void applyBlockOverrideClearsPreviousWhenUnset() {
         final var context = ContractCallContext.get();
         final var number = new BlockOverride();
-        number.setNumber("0x100");
+        number.setBlockNumber(256L);
         final var time = new BlockOverride();
-        time.setTime("0x65f9e0c0");
-        final var expectedNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0);
+        time.setTime(1710874816L);
+        final var expectedNanos = DomainUtils.convertToNanosMax(1710874816L, 0);
 
         context.applyBlockOverride(number);
-        assertThat(context.getBlockOverrideNumber()).isEqualTo(256L);
+        assertThat(context.getEvmBlockOverride().blockNumber()).isEqualTo(256L);
 
         context.applyBlockOverride(null);
-        assertThat(context.getBlockOverrideNumber()).isNull();
-        assertThat(context.getBlockOverrideTimeNanos()).isNull();
+        assertThat(context.getEvmBlockOverride().blockNumber()).isNull();
+        assertThat(context.getEvmBlockOverride().timeNanos()).isNull();
         assertThat(context.evmBlockNumber(1L)).isEqualTo(1L);
         assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(9L);
 
         context.applyBlockOverride(number);
         context.applyBlockOverride(time);
-        assertThat(context.getBlockOverrideNumber()).isNull();
-        assertThat(context.getBlockOverrideTimeNanos()).isEqualTo(expectedNanos);
+        assertThat(context.getEvmBlockOverride().blockNumber()).isNull();
+        assertThat(context.getEvmBlockOverride().timeNanos()).isEqualTo(expectedNanos);
         assertThat(context.evmBlockNumber(1L)).isEqualTo(1L);
         assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(expectedNanos);
+    }
+
+    @Test
+    void getEvmBlockOverrideSafeReturnsCurrentOverride() {
+        final var context = ContractCallContext.get();
+        final var override = new BlockOverride();
+        override.setFeeRecipient("0x0000000000000000000000000000000000000062");
+        override.setGasLimit(1L);
+
+        assertThat(ContractCallContext.getEvmBlockOverrideSafe()).isEqualTo(EvmBlockOverride.EMPTY);
+
+        context.applyBlockOverride(override);
+        assertThat(ContractCallContext.getEvmBlockOverrideSafe())
+                .isSameAs(context.getEvmBlockOverride())
+                .isNotEqualTo(EvmBlockOverride.EMPTY);
+    }
+
+    @Test
+    void getEvmBlockOverrideSafeReturnsEmptyWhenUnbound() {
+        // The scoped context is not bound on another thread.
+        final var result = CompletableFuture.supplyAsync(ContractCallContext::getEvmBlockOverrideSafe)
+                .join();
+
+        assertThat(result).isEqualTo(EvmBlockOverride.EMPTY);
+    }
+
+    @Test
+    void applyBlockOverrideSetsEveryEvmField() {
+        final var context = ContractCallContext.get();
+        final var override = new BlockOverride();
+        override.setBaseFeePerGas(10L);
+        override.setBlobBaseFee(2L);
+        override.setBlockNumber(80L);
+        override.setFeeRecipient("0x0000000000000000000000000000000000000062");
+        override.setGasLimit(15000000L);
+        override.setPrevRandao(123456789L);
+        override.setTime(1793642747L);
+
+        context.applyBlockOverride(override);
+
+        final var evm = context.getEvmBlockOverride();
+        assertThat(evm.baseFee()).isEqualTo(Wei.of(10L));
+        assertThat(evm.blobBaseFee()).isEqualTo(Wei.of(2L));
+        assertThat(evm.feeRecipient()).isEqualTo(Address.fromHexString("0x0000000000000000000000000000000000000062"));
+        assertThat(evm.gasLimit()).isEqualTo(15_000_000L);
+        assertThat(evm.prevRandao()).isEqualTo(Bytes32.leftPad(Bytes.ofUnsignedLong(123_456_789L)));
+        assertThat(context.evmBlockNumber(1L)).isEqualTo(80L);
+        assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(DomainUtils.convertToNanosMax(1_793_642_747L, 0L));
+
+        context.applyBlockOverride(null);
+        assertThat(context.getEvmBlockOverride()).isEqualTo(EvmBlockOverride.EMPTY);
+    }
+
+    @Test
+    void applyBundleBlockOverrideUsesCursorHeaderAndBundleFields() {
+        final var context = ContractCallContext.get();
+        final var override = new BlockOverride();
+        override.setBlockNumber(1L);
+        override.setTime(1L);
+        override.setFeeRecipient("0x0000000000000000000000000000000000000062");
+
+        context.applyBlockOverride(new BlockOverrideAdvance.Cursor(300L, 400L), override);
+        assertThat(context.getEvmBlockOverride().blockNumber()).isEqualTo(300L);
+        assertThat(context.getEvmBlockOverride().timeNanos()).isEqualTo(DomainUtils.convertToNanosMax(400L, 0L));
+        assertThat(context.getEvmBlockOverride().feeRecipient())
+                .isEqualTo(Address.fromHexString("0x0000000000000000000000000000000000000062"));
+
+        // A later bundle without an override keeps the advanced header but drops the other fields.
+        context.applyBlockOverride(new BlockOverrideAdvance.Cursor(301L, 402L), null);
+        assertThat(context.getEvmBlockOverride()).isEqualTo(EvmBlockOverride.EMPTY.withHeader(301L, 402L));
     }
 
     @Test
@@ -234,19 +308,19 @@ class ContractCallContextTest {
     @Test
     void applyBlockOverrideReplacesHeaderForEachBundle() {
         final var context = ContractCallContext.get();
-        final long timeSeconds = HexUtils.parseValue("0x65f9e0c0");
+        final long timeSeconds = 1710874816L;
 
-        context.applyBlockOverride(256L, null);
-        assertThat(context.getBlockOverrideNumber()).isEqualTo(256L);
-        assertThat(context.getBlockOverrideTimeNanos()).isNull();
+        context.applyBlockOverride(new BlockOverrideAdvance.Cursor(256L, null), null);
+        assertThat(context.getEvmBlockOverride().blockNumber()).isEqualTo(256L);
+        assertThat(context.getEvmBlockOverride().timeNanos()).isNull();
 
-        context.applyBlockOverride(257L, timeSeconds);
-        assertThat(context.getBlockOverrideNumber()).isEqualTo(257L);
-        assertThat(context.getBlockOverrideTimeNanos()).isEqualTo(DomainUtils.convertToNanosMax(timeSeconds, 0L));
+        context.applyBlockOverride(new BlockOverrideAdvance.Cursor(257L, timeSeconds), null);
+        assertThat(context.getEvmBlockOverride().blockNumber()).isEqualTo(257L);
+        assertThat(context.getEvmBlockOverride().timeNanos()).isEqualTo(DomainUtils.convertToNanosMax(timeSeconds, 0L));
 
-        context.applyBlockOverride(null, null);
-        assertThat(context.getBlockOverrideNumber()).isNull();
-        assertThat(context.getBlockOverrideTimeNanos()).isNull();
+        context.applyBlockOverride(new BlockOverrideAdvance.Cursor(null, null), null);
+        assertThat(context.getEvmBlockOverride().blockNumber()).isNull();
+        assertThat(context.getEvmBlockOverride().timeNanos()).isNull();
         assertThat(context.evmBlockNumber(1L)).isEqualTo(1L);
         assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(9L);
     }
@@ -255,12 +329,12 @@ class ContractCallContextTest {
     void applyBlockOverrideNumberIsUsedInContext() {
         final var context = ContractCallContext.get();
         final var override = new BlockOverride();
-        override.setNumber("0x100");
+        override.setBlockNumber(256L);
 
         context.applyBlockOverride(override);
 
-        assertThat(context.getBlockOverrideNumber()).isEqualTo(256L);
-        assertThat(context.getBlockOverrideTimeNanos()).isNull();
+        assertThat(context.getEvmBlockOverride().blockNumber()).isEqualTo(256L);
+        assertThat(context.getEvmBlockOverride().timeNanos()).isNull();
         assertThat(context.evmBlockNumber(1L)).isEqualTo(256L);
         assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(9L);
     }
@@ -269,14 +343,14 @@ class ContractCallContextTest {
     void applyBlockOverrideNumberAndTimeAreUsedTogether() {
         final var context = ContractCallContext.get();
         final var override = new BlockOverride();
-        override.setNumber("0x100");
-        override.setTime("0x65f9e0c0");
+        override.setBlockNumber(256L);
+        override.setTime(1710874816L);
 
         context.applyBlockOverride(override);
 
-        final var expectedNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0);
-        assertThat(context.getBlockOverrideNumber()).isEqualTo(256L);
-        assertThat(context.getBlockOverrideTimeNanos()).isEqualTo(expectedNanos);
+        final var expectedNanos = DomainUtils.convertToNanosMax(1710874816L, 0);
+        assertThat(context.getEvmBlockOverride().blockNumber()).isEqualTo(256L);
+        assertThat(context.getEvmBlockOverride().timeNanos()).isEqualTo(expectedNanos);
         assertThat(context.evmBlockNumber(1L)).isEqualTo(256L);
         assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(expectedNanos);
     }
@@ -285,22 +359,22 @@ class ContractCallContextTest {
     void applyBlockOverrideTimeIsUsedInContext() {
         final var context = ContractCallContext.get();
         final var override = new BlockOverride();
-        override.setTime("0x65f9e0c0");
+        override.setTime(1710874816L);
 
         context.applyBlockOverride(override);
 
-        final var expectedNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue("0x65f9e0c0"), 0);
-        assertThat(context.getBlockOverrideTimeNanos()).isEqualTo(expectedNanos);
-        assertThat(context.getBlockOverrideNumber()).isNull();
+        final var expectedNanos = DomainUtils.convertToNanosMax(1710874816L, 0);
+        assertThat(context.getEvmBlockOverride().timeNanos()).isEqualTo(expectedNanos);
+        assertThat(context.getEvmBlockOverride().blockNumber()).isNull();
         assertThat(context.evmBlockTimeNanos(9L)).isEqualTo(expectedNanos);
         assertThat(context.evmBlockNumber(1L)).isEqualTo(1L);
     }
 
     @Test
-    void applyBlockOverrideRejectsInvalidQuantity() {
+    void applyBlockOverrideRejectsNegativeValue() {
         final var context = ContractCallContext.get();
         final var override = new BlockOverride();
-        override.setNumber("0xzz");
+        override.setBlockNumber(-1L);
 
         assertThatThrownBy(() -> context.applyBlockOverride(override))
                 .isInstanceOf(InvalidParametersException.class)

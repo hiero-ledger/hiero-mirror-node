@@ -2,28 +2,72 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ADDRESS_LENGTH;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.validation.constraints.Size;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
+import org.hiero.mirror.web3.convert.StrictLongDeserializer;
+import org.hiero.mirror.web3.validation.Hex;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 /**
- * Optional EVM block context override. {@code number} and {@code time} may both be set.
+ * EVM block context override. Every field is optional, and an omitted field keeps its normal value. Every field except
+ * {@code fee_recipient} is a decimal long. {@code fee_recipient} is a 20-byte EVM address.
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 @NullMarked
 public class BlockOverride {
 
-    /** Decimal signed long, or {@code 0x} plus 16 hex digits. */
-    public static final int MAX_LENGTH = 19;
-
+    /** EVM {@code block.basefee} in weibar per gas. */
+    @JsonProperty("base_fee_per_gas")
     @Nullable
-    @Size(max = MAX_LENGTH)
-    private String number;
+    @PositiveOrZero
+    @JsonDeserialize(using = StrictLongDeserializer.class)
+    private Long baseFeePerGas;
 
+    /** EVM {@code block.blobbasefee} in weibar per blob gas. */
+    @JsonProperty("blob_base_fee")
     @Nullable
-    @Size(max = MAX_LENGTH)
-    private String time;
+    @Positive
+    @JsonDeserialize(using = StrictLongDeserializer.class)
+    private Long blobBaseFee;
+
+    /** EVM {@code block.number}. Also moves the range {@code BLOCKHASH} checks. */
+    @JsonProperty("block_number")
+    @Nullable
+    @PositiveOrZero
+    @JsonDeserialize(using = StrictLongDeserializer.class)
+    private Long blockNumber;
+
+    /** EVM {@code block.coinbase}. Defaults to the network fee collection account. */
+    @JsonProperty("fee_recipient")
+    @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH)
+    @Nullable
+    private String feeRecipient;
+
+    /** EVM {@code block.gaslimit}. */
+    @JsonProperty("gas_limit")
+    @Nullable
+    @Positive
+    @JsonDeserialize(using = StrictLongDeserializer.class)
+    private Long gasLimit;
+
+    /** Value returned by {@code PREVRANDAO}, zero-extended to 32 bytes. */
+    @JsonProperty("prev_randao")
+    @Nullable
+    @PositiveOrZero
+    @JsonDeserialize(using = StrictLongDeserializer.class)
+    private Long prevRandao;
+
+    /** EVM {@code block.timestamp} in Unix seconds. */
+    @Nullable
+    @PositiveOrZero
+    @JsonDeserialize(using = StrictLongDeserializer.class)
+    private Long time;
 }

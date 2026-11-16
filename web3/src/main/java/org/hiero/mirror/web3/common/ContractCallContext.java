@@ -16,16 +16,12 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
-import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.state.Utils;
-import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
@@ -116,18 +112,11 @@ public class ContractCallContext {
     private long traceDataBytes;
 
     /**
-     * Optional EVM {@code block.number} override from {@code block_override.number}. {@code null} means use the bound
-     * record file.
+     * The current {@code block_override}. {@link EvmBlockOverride#EMPTY} keeps the bound record file's block header and
+     * the message frame values.
      */
     @Setter
-    private @Nullable Long blockOverrideNumber;
-
-    /**
-     * Optional EVM {@code block.timestamp} override from {@code block_override.time}, in nanoseconds since epoch.
-     * {@code null} means use the bound record file.
-     */
-    @Setter
-    private @Nullable Long blockOverrideTimeNanos;
+    private EvmBlockOverride evmBlockOverride = EvmBlockOverride.EMPTY;
 
     private ContractCallContext() {}
 
@@ -144,6 +133,14 @@ public class ContractCallContext {
      */
     public static boolean isBalanceCallSafe() {
         return SCOPED_VALUE.isBound() && SCOPED_VALUE.get().isBalanceCall();
+    }
+
+    /**
+     * Safe helper that returns the current call's {@code block_override} without throwing when unbound. An unbound
+     * context, such as executor warm-up at startup, has no override.
+     */
+    public static EvmBlockOverride getEvmBlockOverrideSafe() {
+        return SCOPED_VALUE.isBound() ? SCOPED_VALUE.get().getEvmBlockOverride() : EvmBlockOverride.EMPTY;
     }
 
     @SneakyThrows
@@ -278,41 +275,30 @@ public class ContractCallContext {
     }
 
     /**
-     * Applies HIP-1485 {@code block_override}. A set {@code number} becomes EVM {@code block.number} and a set
-     * {@code time} becomes EVM {@code block.timestamp}. Both may be set. A null override clears both.
+     * Applies a {@code block_override} for {@code eth_call} and {@code eth_estimateGas}. A null override clears every
+     * field.
      */
     public void applyBlockOverride(final @Nullable BlockOverride override) {
-        if (override == null) {
-            applyBlockOverride(null, null);
-            return;
-        }
-        try {
-            final Long number =
-                    StringUtils.isNotBlank(override.getNumber()) ? HexUtils.parseValue(override.getNumber()) : null;
-            final Long timeSeconds =
-                    StringUtils.isNotBlank(override.getTime()) ? HexUtils.parseValue(override.getTime()) : null;
-            applyBlockOverride(number, timeSeconds);
-        } catch (final NumberFormatException _) {
-            throw new InvalidParametersException("Invalid block_override");
-        }
+        evmBlockOverride = EvmBlockOverride.from(override);
     }
 
     /**
-     * Applies one bundle's resolved block header. {@code number} is the EVM block number and {@code timeSeconds} is the
-     * block timestamp in seconds. A null field clears that header value. Trace execution passes the cursor from
-     * {@link BlockOverrideAdvance}, including increments from the previous bundle.
+     * Applies one trace bundle's block context. {@code cursor} carries the resolved block number and timestamp,
+     * including increments from the previous bundle. The bundle's other override fields apply only to this bundle and
+     * are not inherited by later bundles.
      */
-    public void applyBlockOverride(final @Nullable Long number, final @Nullable Long timeSeconds) {
-        blockOverrideNumber = number;
-        blockOverrideTimeNanos = timeSeconds == null ? null : DomainUtils.convertToNanosMax(timeSeconds, 0L);
+    public void applyBlockOverride(final BlockOverrideAdvance.Cursor cursor, final @Nullable BlockOverride override) {
+        evmBlockOverride = EvmBlockOverride.from(override).withHeader(cursor.number(), cursor.timeSeconds());
     }
 
     public long evmBlockNumber(final long fallback) {
-        return blockOverrideNumber != null ? blockOverrideNumber : fallback;
+        final var blockNumber = evmBlockOverride.blockNumber();
+        return blockNumber != null ? blockNumber : fallback;
     }
 
     public long evmBlockTimeNanos(final long fallback) {
-        return blockOverrideTimeNanos != null ? blockOverrideTimeNanos : fallback;
+        final var timeNanos = evmBlockOverride.timeNanos();
+        return timeNanos != null ? timeNanos : fallback;
     }
 
     /**

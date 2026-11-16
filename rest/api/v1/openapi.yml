@@ -536,7 +536,7 @@ paths:
         one transaction maps to debug_traceCall. Multiple bundles, or a bundle with multiple transactions, map to
         debug_traceCallMany, which returns 501 when it is disabled on the server. block, state_overrides, timeout, and transaction_index apply to the whole request.
         only_top_call applies to every transaction. When true, each transaction returns only its root call and omits
-        nested actions. Each bundle has its own transactions and block_override.
+        nested actions. Each bundle has its own transactions and block_override; block_override on a transaction is rejected.
         Transactions share state for the whole request: later bundles keep earlier state changes. The request state
         overrides stay in place. estimate is rejected. Requires Accept-Encoding gzip. An EVM revert is returned in the
         200 trace, with error set to 'execution reverted', revert_reason set to the revert payload, and output empty.
@@ -2326,18 +2326,54 @@ components:
           type: string
     BlockOverride:
       type: object
-      description: Optional EVM block context override. `number` and `time` may both be set.
+      description:
+        EVM block context override. Every field is optional and fields can be combined. An omitted field keeps its
+        normal value for the selected simulation context. Every field except fee_recipient is a decimal long. The
+        override changes only the values the EVM observes; it does not change the state snapshot selected by block or
+        transaction_index, and it does not change gas prices or fees.
       properties:
-        number:
-          description: Hexadecimal or decimal block number used as the EVM block.number
-          maxLength: 19
+        base_fee_per_gas:
+          description: Value returned by BASEFEE (block.basefee) in weibar per gas. Defaults to 0.
+          example: 0
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
+        blob_base_fee:
+          description: Value returned by BLOBBASEFEE (block.blobbasefee) in weibar per blob gas. Defaults to 1.
+          example: 1
+          format: int64
+          minimum: 1
+          type: [integer, "null"]
+        block_number:
+          description: Value returned by NUMBER (block.number). Also moves the block range checked by BLOCKHASH.
+          example: 80
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
+        fee_recipient:
+          description: Value returned by COINBASE (block.coinbase). Defaults to the network fee collection account 0.0.98.
+          example: "0x0000000000000000000000000000000000000062"
+          format: binary
+          pattern: "^(0x)?[0-9a-fA-F]{40}$"
           type: [string, "null"]
-          example: "0x100"
+        gas_limit:
+          description: Value returned by GASLIMIT (block.gaslimit). Defaults to the transaction gas limit.
+          example: 15000000
+          format: int64
+          minimum: 1
+          type: [integer, "null"]
+        prev_randao:
+          description: Value returned by PREVRANDAO (block.prevrandao), zero-extended to 32 bytes.
+          example: 123456789
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
         time:
-          description: Unix timestamp used as the EVM block.timestamp
-          maxLength: 19
-          type: [string, "null"]
-          example: "0x65f9e0c0"
+          description: Value returned by TIMESTAMP (block.timestamp) in Unix seconds.
+          example: 1793619195
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
     AccountBalance:
       type: object
       required:
@@ -2517,11 +2553,11 @@ components:
         block_override:
           description: >-
             EVM block context override for every transaction in this bundle. Requires block overrides to be enabled.
-            number and time may both be set. The first bundle uses the bound record file's block number and
-            consensus start when a field is omitted, without incrementing those values. Each later bundle keeps the
-            previous header and advances an omitted block number by 1 and an omitted timestamp by 2 seconds. A later
-            bundle without block_override advances both. An explicit block_override cannot set an older block number
-            or timestamp than the previous bundle. The first bundle's explicit values are not compared to the chain head.
+            The first bundle uses the bound record file's block number and consensus start when block_number or time
+            is omitted, without incrementing those values. Each later bundle keeps the previous header and advances an
+            omitted block_number by 1 and an omitted time by 2 seconds. A later bundle without block_override advances
+            both. An explicit block_override cannot set an older block_number or time than the previous bundle. The
+            other fields apply only to this bundle and are not inherited by later bundles.
           $ref: "#/components/schemas/BlockOverride"
         transactions:
           description: Contract calls to simulate in this bundle
@@ -2561,16 +2597,16 @@ components:
           default: false
         transaction_index:
           description:
-            Position of a top-level ContractCall, ContractCreate, or EthereumTransaction in the block, ordered by
-            consensus timestamp ascending. A scheduled execution of those types is included, including one whose
-            consensus timestamp is after the block's consensus end but still inside the scheduled consensus window.
-            Child rows, duplicate transactions, and every other transaction type are skipped. 0 starts the simulation at
-            the beginning of the block, before its first such transaction. A positive value of N reads state at the
-            consensus timestamp of the Nth such transaction. Every bundle and transaction in the request reads that same
-            timestamp. block_override.time changes only the EVM block header. -1, or omitting the field, starts the
-            simulation after every transaction in the block. A past block uses that record file's consensus end.
-            latest reads state at the consensus end of the latest fully imported record file. A value less than -1, or greater than the number of transactions in the
-            block, is rejected.
+            Selects the state the simulation starts from inside block. The EVM transactions of the block are the
+            top-level ContractCall, ContractCreate, and EthereumTransaction transactions, ordered by consensus timestamp
+            ascending. A scheduled execution of those types is included, including one whose consensus timestamp is
+            after the block's consensus end but still inside the scheduled consensus window. Child rows, duplicate
+            transactions, and every other transaction type are skipped. A positive value of N reads state one nanosecond
+            after the consensus timestamp of the Nth EVM transaction, so its changes are included. 0 starts the
+            simulation at the beginning of the block, before its first EVM transaction. -1, or omitting the field,
+            starts the simulation after every transaction in the block. The field has no effect when block is latest.
+            Every bundle and transaction in the request reads that same state. block_override changes only the EVM
+            block header. A value less than -1, or greater than the number of EVM transactions in the block, is rejected.
           example: 5
           format: int32
           type: [integer, "null"]
@@ -3120,8 +3156,8 @@ components:
           type: [string, "null"]
         block_override:
           description:
-            Optional EVM block.number and block.timestamp override for this call. Both may be set. Requires block
-            overrides to be enabled. Ignored on trace transactions; set block_override on the bundle instead.
+            Optional EVM block context override for this call. Requires block overrides to be enabled. Rejected on a
+            trace transaction; set block_override on the bundle instead.
           $ref: "#/components/schemas/BlockOverride"
         data:
           description: Hexadecimal method signature and encoded parameters.

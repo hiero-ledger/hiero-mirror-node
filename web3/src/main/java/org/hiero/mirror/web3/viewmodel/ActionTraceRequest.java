@@ -111,9 +111,10 @@ public class ActionTraceRequest {
     private String timeout;
 
     /**
-     * Position of a transaction inside {@link #block}, ordered by consensus timestamp. {@code 0} starts the simulation
-     * at the beginning of the block, before its first transaction. A positive value reads state at that transaction's
-     * consensus timestamp. {@code -1} and {@code null} start the simulation after every transaction in the block. The
+     * Position of an EVM transaction inside {@link #block}, ordered by consensus timestamp. {@code 0} starts the
+     * simulation at the beginning of the block, before its first EVM transaction. A positive value {@code N} reads
+     * state one nanosecond after the consensus timestamp of the Nth EVM transaction. {@code -1} and {@code null} start
+     * the simulation after every transaction in the block. It has no effect when {@link #block} is {@code latest}. The
      * timestamp applies to the whole request. Values less than {@code -1} are rejected.
      */
     @JsonProperty("transaction_index")

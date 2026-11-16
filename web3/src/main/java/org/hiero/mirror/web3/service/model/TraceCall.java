@@ -47,10 +47,10 @@ public class TraceCall {
     private Duration timeout;
 
     /**
-     * Position of a transaction in the block, ordered by consensus timestamp. {@code 0} starts the simulation at the
-     * beginning of the block, before its first transaction. A positive value is that transaction's consensus
-     * timestamp. {@code -1} starts the simulation after every transaction in the block. The timestamp applies to the
-     * whole request.
+     * Position of an EVM transaction in {@link #block}, ordered by consensus timestamp. {@code 0} starts the simulation
+     * at the beginning of the block, before its first transaction. A positive value {@code N} reads state one
+     * nanosecond after the Nth EVM transaction. {@code -1} starts the simulation after every transaction in the block.
+     * It has no effect when {@link #block} is {@code latest}. The timestamp applies to the whole request.
      */
     @Builder.Default
     private int transactionIndex = -1;

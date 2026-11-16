@@ -95,6 +95,7 @@ class ContractController {
             rejectNestedStateOverrides(bundle.getStateOverrides(), "bundle");
             for (final var transaction : bundle.getTransactions()) {
                 rejectEstimate(transaction);
+                rejectTransactionBlockOverride(transaction);
                 rejectNestedStateOverrides(transaction.getStateOverrides(), "transaction");
                 validateContractMaxGasLimit(transaction.getGas());
             }
@@ -276,11 +277,18 @@ class ContractController {
         }
     }
 
-    /** HIP-1485 allows trace state overrides only at the request level, not on a bundle or a transaction. */
+    /** Trace state overrides are allowed only at the request level, not on a bundle or a transaction. */
     private static void rejectNestedStateOverrides(final List<StateOverride> stateOverrides, final String level) {
         if (!stateOverrides.isEmpty()) {
             throw new InvalidParametersException(
                     "state_overrides must be set on the request, not on a %s.".formatted(level));
+        }
+    }
+
+    /** A trace block override is allowed only on a bundle, so every transaction in the bundle shares it. */
+    private static void rejectTransactionBlockOverride(final ContractCallRequest transaction) {
+        if (transaction.getBlockOverride() != null) {
+            throw new InvalidParametersException("block_override must be set on the bundle, not on a transaction.");
         }
     }
 

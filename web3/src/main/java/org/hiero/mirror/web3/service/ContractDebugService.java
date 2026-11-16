@@ -126,7 +126,7 @@ public class ContractDebugService extends ContractCallService {
             final int started) {
         context.evictCachedState(BLOCKS_STATE_ID);
         context.evictCachedState(BLOCK_STREAM_INFO_STATE_ID);
-        context.applyBlockOverride(cursor.number(), cursor.timeSeconds());
+        context.applyBlockOverride(cursor, bundle.getBlockOverride());
 
         int executed = started;
         for (final var transaction : bundle.getTransactions()) {
