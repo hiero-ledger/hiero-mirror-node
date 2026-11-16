@@ -12,10 +12,10 @@ public interface RecordFileRepository extends PagingAndSortingRepository<RecordF
     @Query("select r from RecordFile r where r.hash like concat(:hash, '%')")
     Optional<RecordFile> findByHash(String hash);
 
-    @Query("select r from RecordFile r where r.index = ?1")
+    @Query("select r from RecordFile r where r.index = :index")
     Optional<RecordFile> findByIndex(long index);
 
-    @Query("select r from RecordFile r where r.consensusEnd >= ?1 order by r.consensusEnd asc limit 1")
+    @Query("select r from RecordFile r where r.consensusEnd >= :timestamp order by r.consensusEnd asc limit 1")
     Optional<RecordFile> findByTimestamp(long timestamp);
 
     @Query(value = "select * from record_file order by index asc limit 1", nativeQuery = true)

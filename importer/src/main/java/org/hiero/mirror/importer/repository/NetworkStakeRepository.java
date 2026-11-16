@@ -13,7 +13,7 @@ public interface NetworkStakeRepository extends CrudRepository<NetworkStake, Lon
     @Override
     @Query(
             nativeQuery = true,
-            value = "delete from network_stake where consensus_timestamp <= ?1 "
+            value = "delete from network_stake where consensus_timestamp <= :consensusTimestamp "
                     + "and epoch_day < (select max(epoch_day) from network_stake) - 366")
     int prune(long consensusTimestamp);
 }

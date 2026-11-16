@@ -10,6 +10,6 @@ import org.springframework.data.repository.CrudRepository;
 public interface SidecarFileRepository extends CrudRepository<SidecarFile, SidecarFile.Id>, RetentionRepository {
 
     @Modifying
-    @Query("delete from SidecarFile where consensusEnd <= ?1")
+    @Query("delete from SidecarFile where consensusEnd <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

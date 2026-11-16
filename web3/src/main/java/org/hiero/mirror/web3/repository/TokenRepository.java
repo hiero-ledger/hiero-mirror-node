@@ -30,7 +30,7 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
     @Query(value = """
             select t.type
             from token t
-            where token_id = ?1
+            where token_id = :tokenId
             """, nativeQuery = true)
     Optional<TokenTypeEnum> findTypeByTokenId(Long tokenId);
 
@@ -51,13 +51,13 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
                     (
                         select *
                         from token
-                        where token_id = ?1 and lower(timestamp_range) <= ?2
+                        where token_id = :tokenId and lower(timestamp_range) <= :blockTimestamp
                     )
                     union all
                     (
                         select *
                         from token_history
-                        where token_id = ?1 and lower(timestamp_range) <= ?2
+                        where token_id = :tokenId and lower(timestamp_range) <= :blockTimestamp
                         order by lower(timestamp_range) desc
                         limit 1
                     )
@@ -79,26 +79,26 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
                     with snapshot_timestamp as (
                       select consensus_timestamp
                       from account_balance
-                      where account_id = ?3 and
-                        consensus_timestamp <= ?2 and
-                        consensus_timestamp > ?2 - 2678400000000000
+                      where account_id = :treasuryAccountId and
+                        consensus_timestamp <= :blockTimestamp and
+                        consensus_timestamp > :blockTimestamp - 2678400000000000
                       order by consensus_timestamp desc
                       limit 1
                     ), snapshot as (
                       select distinct on (account_id) balance
                       from token_balance
-                      where token_id = ?1 and
+                      where token_id = :tokenId and
                         consensus_timestamp <= (select consensus_timestamp from snapshot_timestamp) and
-                        consensus_timestamp <= ?2 and
-                        consensus_timestamp > ?2 - 2678400000000000
+                        consensus_timestamp <= :blockTimestamp and
+                        consensus_timestamp > :blockTimestamp - 2678400000000000
                       order by account_id, consensus_timestamp desc
                     ), change as (
                       select amount
                       from token_transfer
-                      where token_id = ?1 and
+                      where token_id = :tokenId and
                         consensus_timestamp >= (select consensus_timestamp from snapshot_timestamp) and
-                        consensus_timestamp <= ?2 and
-                        consensus_timestamp > ?2 - 2678400000000000
+                        consensus_timestamp <= :blockTimestamp and
+                        consensus_timestamp > :blockTimestamp - 2678400000000000
                     )
                     select coalesce((select sum(balance) from snapshot), 0) + coalesce((select sum(amount) from change), 0)
                     """, nativeQuery = true)

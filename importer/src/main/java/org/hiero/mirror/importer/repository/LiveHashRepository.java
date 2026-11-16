@@ -11,6 +11,6 @@ public interface LiveHashRepository extends CrudRepository<LiveHash, Long>, Rete
 
     @Modifying
     @Override
-    @Query("delete from LiveHash where consensusTimestamp <= ?1")
+    @Query("delete from LiveHash where consensusTimestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

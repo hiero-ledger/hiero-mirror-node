@@ -13,6 +13,8 @@ public interface TopicHistoryRepository extends CrudRepository<TopicHistory, Lon
 
     @Modifying
     @Override
-    @Query(nativeQuery = true, value = "delete from topic_history where timestamp_range << int8range(?1, null)")
+    @Query(
+            nativeQuery = true,
+            value = "delete from topic_history where timestamp_range << int8range(:consensusTimestamp, null)")
     int prune(long consensusTimestamp);
 }

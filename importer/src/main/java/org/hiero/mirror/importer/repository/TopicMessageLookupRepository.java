@@ -11,6 +11,8 @@ public interface TopicMessageLookupRepository
         extends CrudRepository<TopicMessageLookup, TopicMessageLookup.Id>, RetentionRepository {
     @Modifying
     @Override
-    @Query(value = "delete from topic_message_lookup where upper(timestamp_range) <= ?1", nativeQuery = true)
+    @Query(
+            value = "delete from topic_message_lookup where upper(timestamp_range) <= :consensusTimestamp",
+            nativeQuery = true)
     int prune(long consensusTimestamp);
 }
