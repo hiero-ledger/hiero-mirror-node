@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
+import static java.util.Objects.requireNonNull;
+
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
@@ -19,8 +21,8 @@ final class ConsensusCreateTopicTransformer extends AbstractBlockTransactionTran
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        receiptBuilder.setTopicID(
-                blockTransaction.getStateChangeContext().getNewTopicId().orElseThrow());
+        receiptBuilder.setTopicID(requireNonNull(
+                blockTransaction.getStateChangeContext().getNewTopicId(), "No new topic id in state changes"));
     }
 
     @Override

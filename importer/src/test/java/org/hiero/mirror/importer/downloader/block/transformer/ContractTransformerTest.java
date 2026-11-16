@@ -5,13 +5,16 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_STORAGE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapDeleteChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapUpdateChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.makeIdentical;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
+import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
@@ -36,6 +39,7 @@ import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.CreatedContractIds;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropRecord;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
@@ -47,19 +51,22 @@ import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionReceipt.Builder;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.commons.collections4.ListUtils;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.junit.jupiter.api.Disabled;
+import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -69,24 +76,17 @@ import org.junit.jupiter.params.provider.ValueSource;
 @SuppressWarnings("deprecation")
 final class ContractTransformerTest extends AbstractTransformerTest {
 
-    private static final ContractID HTS_PRECOMPILE_ADDRESS =
-            ContractID.newBuilder().setContractNum(0x167).build();
-
-    private static final Consumer<TransactionRecord.Builder> ETHEREUM_RECORD_CUSTOMIZER = b -> {
-        // calculated in parser
-        b.clearEthereumHash();
-        contractResultBuilder(b).ifPresent(ContractFunctionResult.Builder::clearCreatedContractIDs);
-    };
+    // calculated in parser
+    private static final Consumer<TransactionRecord.Builder> ETHEREUM_RECORD_CUSTOMIZER =
+            TransactionRecord.Builder::clearEthereumHash;
 
     private static final Consumer<TransactionRecord.Builder> EXPLICIT_CONTRACT_RESULT_CUSTOMIZER =
             b -> contractResultBuilder(b)
-                    .ifPresent(builder -> builder.clearAmount()
-                            // createdContractIDs is deprecated and no longer used, plus it's hard and sometimes
-                            // impossible for
-                            // mirrornode to reconstruct it from block stream
-                            .clearCreatedContractIDs()
-                            .clearFunctionParameters()
-                            .clearGas());
+                    .ifPresent(builder ->
+                            builder.clearAmount().clearFunctionParameters().clearGas());
+
+    @Resource
+    private SystemEntity systemEntity;
 
     private static Optional<ContractFunctionResult.Builder> contractResultBuilder(
             TransactionRecord.Builder recordBuilder) {
@@ -101,7 +101,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         return Optional.empty();
     }
 
-    private static Stream<Arguments> provideContractIds() {
+    private static Stream<Arguments> provideContractIds(final boolean create2Resolved) {
         var contractId = recordItemBuilder.contractId();
         var encoded = contractId.toBuilder()
                 .setEvmAddress(DomainUtils.fromBytes(DomainUtils.toEvmAddress(contractId)))
@@ -110,10 +110,29 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .setEvmAddress(recordItemBuilder.evmAddress().getValue())
                 .build();
 
+        // An unresolved non long-zero EVM address is left for the parser to resolve
         return Stream.of(
-                Arguments.of("plain", contractId, contractId),
-                Arguments.of("encoded evm address", encoded, contractId),
-                Arguments.of("create2 evm address", create2EvmAddress, contractId));
+                Arguments.of("plain", contractId, contractId, true),
+                Arguments.of("encoded evm address", encoded, contractId, true),
+                Arguments.of("create2 evm address", create2EvmAddress, contractId, create2Resolved));
+    }
+
+    // Consensus node clears the alias of a deleted contract, so a create2 EVM address can't be resolved
+    private static Stream<Arguments> provideContractIdsForDelete() {
+        return provideContractIds(false);
+    }
+
+    private static Stream<Arguments> provideContractIdsForUpdate() {
+        return provideContractIds(true);
+    }
+
+    private static void setReceiptContractId(
+            final Builder receipt, final ContractID contractId, final boolean inReceipt) {
+        if (inReceipt) {
+            receipt.setContractID(contractId);
+        } else {
+            receipt.clearContractID();
+        }
     }
 
     @Test
@@ -132,6 +151,335 @@ final class ContractTransformerTest extends AbstractTransformerTest {
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void contractCallWithChildSystemContractCall() {
+        // given
+        final var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
+        final var parentConsensusTimestamp =
+                parentRecordItem.getTransactionRecord().getConsensusTimestamp();
+        // consensus node doesn't set the contract id in the receipt of a child dispatched by a system contract
+        final var childContractCallResult = htsPrecompileContractCallResult();
+        final var childRecordItem = recordItemBuilder
+                .contractCall(htsSystemContractId())
+                .transactionBodyWrapper(b -> b.getTransactionIDBuilder().setNonce(1))
+                .receipt(Builder::clearContractID)
+                .record(r -> r.setContractCallResult(childContractCallResult)
+                        .setParentConsensusTimestamp(parentConsensusTimestamp))
+                .sidecarRecords(List::clear)
+                .recordItem(r -> r.transactionIndex(1))
+                .customize(this::finalize)
+                .build();
+        final var parent =
+                blockTransactionBuilder.contractCall(parentRecordItem, false).build();
+        final var child = blockTransactionBuilder
+                .contractCall(childRecordItem, true)
+                .previous(parent)
+                .stateChanges(List::clear)
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(parent, child)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(
+                recordFile, blockFile, items -> assertRecordItems(items, List.of(parentRecordItem, childRecordItem)));
+    }
+
+    @ParameterizedTest(name = "created contract ids present empty: {0}")
+    @ValueSource(booleans = {true, false})
+    void contractCallNoCreatedContractIds(final boolean presentEmpty) {
+        // given
+        final var expectedRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.getContractCallResultBuilder().clearCreatedContractIDs())
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction = blockTransactionBuilder
+                .contractCall(expectedRecordItem, false)
+                .transactionOutputs(outputs -> {
+                    final var output = outputs.get(TransactionCase.CONTRACT_CALL).toBuilder();
+                    final var evmTransactionResult =
+                            output.getContractCallBuilder().getEvmTransactionResultBuilder();
+                    if (presentEmpty) {
+                        evmTransactionResult.setCreatedContractIds(CreatedContractIds.getDefaultInstance());
+                    } else {
+                        evmTransactionResult.clearCreatedContractIds();
+                    }
+                    outputs.put(TransactionCase.CONTRACT_CALL, output.build());
+                })
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void contractCallWithNestedScheduledContractCall() {
+        // given
+        // Contract call X runs scheduled contract call Y through HSS. Both scopes overlap, so each traces the
+        // scope-final written values explicitly
+        // - slot 1: X writes value 1, Y writes value 2, then X writes value 3
+        // - slot 2: Y writes zero, which X reports as well
+        // - slot 3: Y writes value 4, then X restores the original value, so there is no state change
+        // - slot 4: a full-width key written by X before Y reads it
+        final var contractId = recordItemBuilder.contractId();
+        final var slot1 = recordItemBuilder.slot();
+        final var slot1Values = List.of(
+                recordItemBuilder.nonZeroBytes(8),
+                recordItemBuilder.nonZeroBytes(8),
+                recordItemBuilder.nonZeroBytes(8),
+                recordItemBuilder.nonZeroBytes(8));
+        final var slot2 = recordItemBuilder.slot();
+        final var slot2Value = recordItemBuilder.nonZeroBytes(8);
+        final var slot3 = recordItemBuilder.slot();
+        final var slot3Values = List.of(recordItemBuilder.nonZeroBytes(8), recordItemBuilder.nonZeroBytes(8));
+        final var slot4 = recordItemBuilder.nonZeroBytes(32);
+        final var slot4Values = List.of(recordItemBuilder.nonZeroBytes(8), recordItemBuilder.nonZeroBytes(8));
+
+        // state changes have the 32-byte words of the final values
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(contractStorageMapUpdateChange(contractId, slot1, leftPad32(slot1Values.getLast())))
+                .addStateChanges(contractStorageMapDeleteChange(contractId, slot2))
+                .addStateChanges(contractStorageMapUpdateChange(contractId, slot4, leftPad32(slot4Values.getLast())))
+                .build();
+
+        final var outerContractStateChanges = ContractStateChanges.newBuilder()
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(contractId)
+                        .addStorageChanges(storageChange(slot1, slot1Values.getFirst(), slot1Values.getLast()))
+                        .addStorageChanges(storageChange(slot2, slot2Value, ByteString.EMPTY))
+                        .addStorageChanges(storageChange(slot3, slot3Values.getFirst(), slot3Values.getFirst()))
+                        .addStorageChanges(storageChange(slot4, slot4Values.getFirst(), slot4Values.getLast())))
+                .build();
+        final var outerRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(records ->
+                        customizeSidecarRecords(records, true, b -> b.setStateChanges(outerContractStateChanges)))
+                .customize(this::finalize)
+                .build();
+        final var outer = blockTransactionBuilder
+                .contractCall(outerRecordItem, true)
+                .stateChanges(s -> s.add(stateChanges))
+                .traceData(traceDataList -> updateEvmTraceData(
+                        traceDataList,
+                        b -> b.addContractSlotUsages(ContractSlotUsage.newBuilder()
+                                .setContractId(contractId)
+                                .setWrittenSlotKeys(WrittenSlotKeys.newBuilder()
+                                        .addKeys(slot1)
+                                        .addKeys(slot2)
+                                        .addKeys(slot3)
+                                        .addKeys(slot4))
+                                .addSlotReads(writtenSlotRead(0, slot1Values.getFirst(), slot1Values.getLast()))
+                                .addSlotReads(writtenSlotRead(1, slot2Value, ByteString.EMPTY))
+                                .addSlotReads(writtenSlotRead(2, slot3Values.getFirst(), slot3Values.getFirst()))
+                                .addSlotReads(writtenSlotRead(3, slot4Values.getFirst(), slot4Values.getLast())))))
+                .build();
+
+        final var innerContractStateChanges = ContractStateChanges.newBuilder()
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(contractId)
+                        .addStorageChanges(storageChange(slot1, slot1Values.get(1), slot1Values.get(2)))
+                        .addStorageChanges(storageChange(slot2, slot2Value, ByteString.EMPTY))
+                        .addStorageChanges(storageChange(slot3, slot3Values.getFirst(), slot3Values.getLast()))
+                        .addStorageChanges(
+                                StorageChange.newBuilder().setSlot(slot4).setValueRead(slot4Values.getLast())))
+                .build();
+        // consensus node sets the contract id in the receipt of a scheduled contract call even with a nonzero nonce
+        final var innerRecordItem = recordItemBuilder
+                .contractCall()
+                .transactionBodyWrapper(b -> b.getTransactionIDBuilder().setNonce(1))
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.setParentConsensusTimestamp(
+                                outerRecordItem.getTransactionRecord().getConsensusTimestamp())
+                        .setScheduleRef(recordItemBuilder.scheduleId()))
+                .sidecarRecords(records ->
+                        customizeSidecarRecords(records, true, b -> b.setStateChanges(innerContractStateChanges)))
+                .recordItem(r -> r.transactionIndex(1))
+                .customize(this::finalize)
+                .build();
+        final var inner = blockTransactionBuilder
+                .contractCall(innerRecordItem, true)
+                .previous(outer)
+                .stateChanges(List::clear)
+                .traceData(traceDataList -> updateEvmTraceData(
+                        traceDataList,
+                        b -> b.addContractSlotUsages(ContractSlotUsage.newBuilder()
+                                .setContractId(contractId)
+                                .setWrittenSlotKeys(WrittenSlotKeys.newBuilder()
+                                        .addKeys(slot1)
+                                        .addKeys(slot2)
+                                        .addKeys(slot3))
+                                .addSlotReads(writtenSlotRead(0, slot1Values.get(1), slot1Values.get(2)))
+                                .addSlotReads(writtenSlotRead(1, slot2Value, ByteString.EMPTY))
+                                .addSlotReads(writtenSlotRead(2, slot3Values.getFirst(), slot3Values.getLast()))
+                                .addSlotReads(
+                                        SlotRead.newBuilder().setKey(slot4).setReadValue(slot4Values.getLast())))))
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(outer, inner)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(
+                recordFile, blockFile, items -> assertRecordItems(items, List.of(outerRecordItem, innerRecordItem)));
+    }
+
+    @Test
+    void scheduledContractCallTriggeredByScheduleSign() {
+        // given
+        // The scheduled contract call is the only EVM transaction in the unit, so its written slots are indexed into
+        // the non-identical storage changes of the unit
+        final var contractId = recordItemBuilder.contractId();
+        final var readOnlySlot = recordItemBuilder.slot();
+        final var readOnlyValue = recordItemBuilder.nonZeroBytes(8);
+        final var updatedSlot = recordItemBuilder.slot();
+        final var updatedValues = List.of(recordItemBuilder.nonZeroBytes(8), recordItemBuilder.nonZeroBytes(8));
+        final var deletedSlot = recordItemBuilder.slot();
+        final var deletedValue = recordItemBuilder.nonZeroBytes(8);
+        // a pointer-only update of the read-only slot is identical, so it's not in the implicit list
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(makeIdentical(contractStorageMapUpdateChange(contractId, readOnlySlot, readOnlyValue)))
+                .addStateChanges(contractStorageMapUpdateChange(contractId, updatedSlot, updatedValues.getLast()))
+                .addStateChanges(contractStorageMapDeleteChange(contractId, deletedSlot))
+                .build();
+        final var scheduleSignRecordItem =
+                recordItemBuilder.scheduleSign().customize(this::finalize).build();
+        final var scheduleSign = blockTransactionBuilder
+                .scheduleSign(scheduleSignRecordItem)
+                .stateChanges(s -> s.add(stateChanges))
+                .build();
+
+        final var contractStateChanges = ContractStateChanges.newBuilder()
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(contractId)
+                        .addStorageChanges(
+                                StorageChange.newBuilder().setSlot(readOnlySlot).setValueRead(readOnlyValue))
+                        .addStorageChanges(
+                                storageChange(updatedSlot, updatedValues.getFirst(), updatedValues.getLast()))
+                        .addStorageChanges(storageChange(deletedSlot, deletedValue, ByteString.EMPTY)))
+                .build();
+        final var scheduledRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.setParentConsensusTimestamp(
+                                scheduleSignRecordItem.getTransactionRecord().getConsensusTimestamp())
+                        .setScheduleRef(recordItemBuilder.scheduleId()))
+                .sidecarRecords(
+                        records -> customizeSidecarRecords(records, true, b -> b.setStateChanges(contractStateChanges)))
+                .recordItem(r -> r.transactionIndex(1))
+                .customize(this::finalize)
+                .build();
+        final var scheduled = blockTransactionBuilder
+                .contractCall(scheduledRecordItem, true)
+                .previous(scheduleSign)
+                .stateChanges(List::clear)
+                .traceData(traceDataList -> updateEvmTraceData(
+                        traceDataList,
+                        b -> b.addContractSlotUsages(ContractSlotUsage.newBuilder()
+                                .setContractId(contractId)
+                                .addSlotReads(SlotRead.newBuilder()
+                                        .setKey(readOnlySlot)
+                                        .setReadValue(readOnlyValue))
+                                .addSlotReads(SlotRead.newBuilder().setIndex(0).setReadValue(updatedValues.getFirst()))
+                                .addSlotReads(SlotRead.newBuilder().setIndex(1).setReadValue(deletedValue)))))
+                .build();
+        final var blockFile =
+                blockFileBuilder.items(List.of(scheduleSign, scheduled)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(
+                recordFile,
+                blockFile,
+                items -> assertRecordItems(items, List.of(scheduleSignRecordItem, scheduledRecordItem)));
+    }
+
+    @Test
+    void contractCallReadOnlySlotKeyWithLeadingZeros() {
+        // given
+        final var contractId = recordItemBuilder.contractId();
+        final var slot = recordItemBuilder.nonZeroBytes(4);
+        final var valueRead = recordItemBuilder.nonZeroBytes(8);
+        final var contractStateChanges = ContractStateChanges.newBuilder()
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(contractId)
+                        .addStorageChanges(
+                                StorageChange.newBuilder().setSlot(slot).setValueRead(valueRead)))
+                .build();
+        final var expectedRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(
+                        records -> customizeSidecarRecords(records, true, b -> b.setStateChanges(contractStateChanges)))
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction = blockTransactionBuilder
+                .contractCall(expectedRecordItem, true)
+                .traceData(traceDataList -> updateEvmTraceData(
+                        traceDataList,
+                        b -> b.addContractSlotUsages(ContractSlotUsage.newBuilder()
+                                .setContractId(contractId)
+                                .addSlotReads(SlotRead.newBuilder()
+                                        .setKey(leftPad32(slot))
+                                        .setReadValue(leftPad32(valueRead))))))
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void contractCallStorageValueWrittenAbsent() {
+        // given
+        final var valueRead = recordItemBuilder.nonZeroBytes(8);
+        final var contractStateChanges = ContractStateChanges.newBuilder()
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(recordItemBuilder.contractId())
+                        .addStorageChanges(StorageChange.newBuilder()
+                                .setSlot(recordItemBuilder.slot())
+                                .setValueRead(valueRead)
+                                .setValueWritten(BytesValue.of(valueRead))))
+                .build();
+        final var expectedRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(
+                        records -> customizeSidecarRecords(records, true, b -> b.setStateChanges(contractStateChanges)))
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction = blockTransactionBuilder
+                .contractCall(expectedRecordItem, false)
+                .stateChanges(ContractTransformerTest::omitStorageValuesWritten)
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
@@ -293,18 +641,18 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
-    @MethodSource("provideContractIds")
+    @MethodSource("provideContractIdsForDelete")
     @ParameterizedTest(name = "delete contract with {0} contract id")
-    void contractDelete(String type, ContractID contractIdInBody, ContractID contractIdInReceipt) {
+    void contractDelete(String type, ContractID contractIdInBody, ContractID contractId, boolean inReceipt) {
         // given
         var expectedRecordItem = recordItemBuilder
                 .contractDelete()
                 .transactionBody(b -> b.setContractID(contractIdInBody))
-                .receipt(r -> r.setContractID(contractIdInReceipt))
+                .receipt(r -> setReceiptContractId(r, contractId, inReceipt))
                 .customize(this::finalize)
                 .build();
         var blockTransaction = blockTransactionBuilder
-                .contractDeleteOrUpdate(expectedRecordItem)
+                .contractDeleteOrUpdate(expectedRecordItem, contractId)
                 .build();
         var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
@@ -336,18 +684,18 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
-    @MethodSource("provideContractIds")
+    @MethodSource("provideContractIdsForUpdate")
     @ParameterizedTest(name = "update contract with {0} contract id")
-    void contractUpdate(String type, ContractID contractIdInBody, ContractID contractIdInReceipt) {
+    void contractUpdate(String type, ContractID contractIdInBody, ContractID contractId, boolean inReceipt) {
         // given
         var expectedRecordItem = recordItemBuilder
                 .contractUpdate()
                 .transactionBody(b -> b.setContractID(contractIdInBody))
-                .receipt(r -> r.setContractID(contractIdInReceipt))
+                .receipt(r -> setReceiptContractId(r, contractId, inReceipt))
                 .customize(this::finalize)
                 .build();
         var blockTransaction = blockTransactionBuilder
-                .contractDeleteOrUpdate(expectedRecordItem)
+                .contractDeleteOrUpdate(expectedRecordItem, contractId)
                 .build();
         var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
@@ -497,7 +845,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
-    @Disabled("Fix and enable when EvmTraceData is fully supported")
     @Test
     void contractCallWithHTSPrecompileAndTrackPendingFungibleAirdropAmount() {
         // given
@@ -508,8 +855,12 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var receiver1 = recordItemBuilder.accountId();
         var receiver2 = recordItemBuilder.accountId();
         var sender = recordItemBuilder.accountId();
-        var contractCallRecordItem =
-                recordItemBuilder.contractCall().customize(this::finalize).build();
+        var contractCallRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
         var parentConsensusTimestamp =
                 contractCallRecordItem.getTransactionRecord().getConsensusTimestamp();
         // use the same precompile contract call result to work around the complexity to get the matching one
@@ -550,12 +901,17 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                                         .setAccountID(receiver2)
                                         .setAmount(800)))
                         // there is preexisting pending airdrop, so amount should be accumulated. However since it's
-                        // cancelled afterward, there is no state changes to tell the exact amount, the best shot
-                        // would be the amount to transfer in the body
+                        // cancelled afterward, there is no state changes to tell the exact amount, so the record has
+                        // the amount to transfer in the body and the parser accumulates it onto the existing amount
                         .clearNewPendingAirdrops()
                         .addNewPendingAirdrops(fungiblePendingAirdropRecord(1200, receiver1, sender, tokenId1))
                         .addNewPendingAirdrops(fungiblePendingAirdropRecord(900, receiver1, sender, tokenId2)))
-                .recordItem(r -> r.transactionIndex(1))
+                .recordItem(r -> r.transactionIndex(1)
+                        .pendingAirdropAmountAbsent(Set.of(PendingAirdropId.newBuilder()
+                                .setReceiverId(receiver1)
+                                .setSenderId(sender)
+                                .setFungibleTokenType(tokenId1)
+                                .build())))
                 .customize(this::finalize)
                 .build();
         // cancels pending airdrop <receiver1, sender, tokenId1>
@@ -634,13 +990,16 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         });
     }
 
-    @Disabled("Fix and enable when EvmTraceData is fully supported")
     @Test
     void contractCallWithHTSPrecompileAndTrackTotalSupply() {
         // given
         var tokenId1 = recordItemBuilder.tokenId(); // a token created before contract call
-        var contractCallRecordItem =
-                recordItemBuilder.contractCall().customize(this::finalize).build();
+        var contractCallRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
         var parentConsensusTimestamp =
                 contractCallRecordItem.getTransactionRecord().getConsensusTimestamp();
         // use the same precompile contract call result to work around the complexity to get the matching one
@@ -661,7 +1020,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(r -> r.setContractCallResult(childPrecompileContractCallResult)
                         .setParentConsensusTimestamp(parentConsensusTimestamp))
                 .recordItem(r -> r.transactionIndex(2))
-                .receipt(r -> r.setNewTotalSupply(1000))
                 .customize(this::finalize)
                 .build();
         var tokenId3 =
@@ -950,6 +1308,70 @@ final class ContractTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
+    void contractCallInBatchStorageValueWrittenAbsent() {
+        // given
+        final var contractId = recordItemBuilder.contractId();
+        final var slot = recordItemBuilder.slot();
+        final var valueRead = recordItemBuilder.nonZeroBytes(8);
+        // The slot is written without a net change in the batch, so its partial state change omits the value
+        final var storageChange = contractStorageMapUpdateChange(contractId, slot, valueRead).toBuilder();
+        storageChange
+                .getMapUpdateBuilder()
+                .setPartial(true)
+                .getValueBuilder()
+                .getSlotValueValueBuilder()
+                .clearValue();
+        final var stateChanges =
+                StateChanges.newBuilder().addStateChanges(storageChange).build();
+        final var atomicBatchRecordItem =
+                recordItemBuilder.atomicBatch().customize(this::finalize).build();
+        final var atomicBatchBlockTransaction = blockTransactionBuilder
+                .atomicBatch(atomicBatchRecordItem)
+                .stateChanges(s -> s.add(stateChanges))
+                .build();
+        final var contractStateChanges = ContractStateChanges.newBuilder()
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(contractId)
+                        .addStorageChanges(StorageChange.newBuilder()
+                                .setSlot(slot)
+                                .setValueRead(valueRead)
+                                .setValueWritten(BytesValue.of(valueRead))))
+                .build();
+        final var contractCallRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.setParentConsensusTimestamp(
+                        atomicBatchRecordItem.getTransactionRecord().getConsensusTimestamp()))
+                .sidecarRecords(
+                        records -> customizeSidecarRecords(records, true, b -> b.setStateChanges(contractStateChanges)))
+                .recordItem(r -> r.transactionIndex(1))
+                .customize(this::finalize)
+                .build();
+        final var innerBlockTransaction = blockTransactionBuilder
+                .contractCall(contractCallRecordItem, true)
+                .previous(atomicBatchBlockTransaction)
+                .traceData(traceDataList -> updateEvmTraceData(
+                        traceDataList,
+                        b -> b.addContractSlotUsages(ContractSlotUsage.newBuilder()
+                                .setContractId(contractId)
+                                .setWrittenSlotKeys(WrittenSlotKeys.newBuilder().addKeys(slot))
+                                .addSlotReads(SlotRead.newBuilder().setIndex(0).setReadValue(valueRead)))))
+                .build();
+        final var blockFile = blockFileBuilder
+                .items(List.of(atomicBatchBlockTransaction, innerBlockTransaction))
+                .build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(
+                recordFile,
+                blockFile,
+                items -> assertRecordItems(items, List.of(atomicBatchRecordItem, contractCallRecordItem)));
+    }
+
+    @Test
     void multipleHookExecutionChildTransactions() {
         // given
         // A parent transaction (e.g., CryptoTransfer) with 3 hook execution children
@@ -1169,8 +1591,8 @@ final class ContractTransformerTest extends AbstractTransformerTest {
 
     private Map<TransactionCase, TransactionOutput> callContractOutput(ContractFunctionResult contractFunctionResult) {
         var output = TransactionOutput.newBuilder()
-                //
-                // .setContractCall(CallContractOutput.newBuilder().setContractCallResult(contractFunctionResult))
+                .setContractCall(CallContractOutput.newBuilder()
+                        .setEvmTransactionResult(BlockTransactionBuilder.fromContractResult(contractFunctionResult)))
                 .build();
         return Map.of(TransactionCase.CONTRACT_CALL, output);
     }
@@ -1211,8 +1633,21 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .build();
     }
 
+    private ContractID htsSystemContractId() {
+        return systemEntity.hederaTokenServiceContract().toContractID();
+    }
+
     private ContractFunctionResult htsPrecompileContractCallResult() {
-        return recordItemBuilder.contractFunctionResult(HTS_PRECOMPILE_ADDRESS).build();
+        // only the fields externalized in EvmTransactionResult, the rest is not reconstructable from the block stream
+        return recordItemBuilder
+                .contractFunctionResult(htsSystemContractId())
+                .clearAmount()
+                .clearBloom()
+                .clearCreatedContractIDs()
+                .clearFunctionParameters()
+                .clearGas()
+                .clearLogInfo()
+                .build();
     }
 
     private void simpleContractStateChanges(TransactionSidecarRecord.Builder builder) {
@@ -1278,6 +1713,28 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         };
     }
 
+    private static ByteString leftPad32(final ByteString value) {
+        return DomainUtils.fromBytes(DomainUtils.leftPadBytes(DomainUtils.toBytes(value), 32));
+    }
+
+    private static StorageChange storageChange(
+            final ByteString slot, final ByteString valueRead, final ByteString valueWritten) {
+        return StorageChange.newBuilder()
+                .setSlot(slot)
+                .setValueRead(valueRead)
+                .setValueWritten(BytesValue.of(valueWritten))
+                .build();
+    }
+
+    private static SlotRead writtenSlotRead(
+            final int index, final ByteString valueRead, final ByteString valueWritten) {
+        return SlotRead.newBuilder()
+                .setIndex(index)
+                .setReadValue(valueRead)
+                .setWrittenValue(BytesValue.of(valueWritten))
+                .build();
+    }
+
     private StateChange tokenMapUpdate(boolean deleted, TokenID tokenId, long totalSupply) {
         var token = Token.newBuilder()
                 .setDeleted(deleted)
@@ -1302,6 +1759,30 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                                 .setAccountPendingAirdropValue(AccountPendingAirdrop.newBuilder()
                                         .setPendingAirdropValue(pendingAirdropRecord.getPendingAirdropValue()))))
                 .build();
+    }
+
+    // Make every storage update partial without the value, as if each slot is written without a net change
+    private static void omitStorageValuesWritten(final List<StateChanges> stateChangesList) {
+        final var updated = new ArrayList<StateChanges>();
+        for (final var stateChanges : stateChangesList) {
+            final var builder = stateChanges.toBuilder();
+            for (final var stateChange : builder.getStateChangesBuilderList()) {
+                if (stateChange.getStateId() == STATE_ID_STORAGE_VALUE
+                        && stateChange.hasMapUpdate()
+                        && !stateChange.getMapUpdate().getIdentical()) {
+                    stateChange
+                            .getMapUpdateBuilder()
+                            .setPartial(true)
+                            .getValueBuilder()
+                            .getSlotValueValueBuilder()
+                            .clearValue();
+                }
+            }
+            updated.add(builder.build());
+        }
+
+        stateChangesList.clear();
+        stateChangesList.addAll(updated);
     }
 
     private void updateEvmTraceData(

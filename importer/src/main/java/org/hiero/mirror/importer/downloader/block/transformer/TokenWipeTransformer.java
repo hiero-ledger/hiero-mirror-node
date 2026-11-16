@@ -21,10 +21,11 @@ final class TokenWipeTransformer extends AbstractTokenTransformer {
         // Consensus nodes de-duplicate the serial numbers, so only distinct serials change the total supply
         long amount = body.getAmount() + new HashSet<>(body.getSerialNumbersList()).size();
         updateTotalSupply(
+                amount,
+                blockTransaction.getConsensusTimestamp(),
                 blockTransactionTransformation.recordItemBuilder(),
                 blockTransaction.getStateChangeContext(),
-                tokenId,
-                amount);
+                tokenId);
     }
 
     @Override

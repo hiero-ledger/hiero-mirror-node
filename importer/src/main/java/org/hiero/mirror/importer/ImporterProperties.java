@@ -107,10 +107,6 @@ public class ImporterProperties {
             return Bucket.from(network).map(Bucket::getBucketName).orElse("");
         }
 
-        public static boolean hasCutover(final String network) {
-            return MAINNET.equalsIgnoreCase(network) || TESTNET.equalsIgnoreCase(network);
-        }
-
         public static boolean isResettable(final String network) {
             return !MAINNET.equalsIgnoreCase(network) && !DEMO.equalsIgnoreCase(network);
         }

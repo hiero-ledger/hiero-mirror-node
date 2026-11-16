@@ -21,7 +21,10 @@ public class AliasedAccountCacheManager {
     }
 
     public void putAccountNum(final AccountID accountID, final Account account) {
-        getReadCache(AccountReadableKVState.STATE_ID).putIfAbsent(accountID, account);
+        final var context = ContractCallContext.get();
+        // Cache the overridden initial state so cache hits cannot bypass account overrides.
+        getReadCache(AccountReadableKVState.STATE_ID)
+                .computeIfAbsent(accountID, _ -> AccountStateOverrideApplier.apply(context, account, accountID));
     }
 
     private Map<Object, Object> getReadCache(final int readStateId) {

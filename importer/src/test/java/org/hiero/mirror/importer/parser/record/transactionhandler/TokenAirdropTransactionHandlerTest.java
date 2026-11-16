@@ -13,6 +13,7 @@ import com.hederahashgraph.api.proto.java.PendingAirdropRecord;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.TokenAirdropTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import java.util.Set;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.TokenAirdrop;
@@ -82,6 +83,40 @@ class TokenAirdropTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .returns(PENDING, TokenAirdrop::getState)
                 .returns(Range.atLeast(timestamp), TokenAirdrop::getTimestampRange)
                 .returns(tokenId.getId(), TokenAirdrop::getTokenId);
+    }
+
+    @Test
+    void updateTransactionSuccessfulFungiblePendingAirdropAmountAbsent() {
+        // given
+        final var tokenAirdrop = ArgumentCaptor.forClass(TokenAirdrop.class);
+        final long amount = 5L;
+        final var pendingAirdropId = PendingAirdropId.newBuilder()
+                .setReceiverId(recordItemBuilder.accountId())
+                .setSenderId(recordItemBuilder.accountId())
+                .setFungibleTokenType(recordItemBuilder.tokenId())
+                .build();
+        final var fungibleAirdrop = PendingAirdropRecord.newBuilder()
+                .setPendingAirdropId(pendingAirdropId)
+                .setPendingAirdropValue(PendingAirdropValue.newBuilder().setAmount(amount));
+        final var recordItem = recordItemBuilder
+                .tokenAirdrop()
+                .record(r -> r.clearNewPendingAirdrops().addNewPendingAirdrops(fungibleAirdrop))
+                .recordItem(r -> r.pendingAirdropAmountAbsent(Set.of(pendingAirdropId)))
+                .build();
+        final long timestamp = recordItem.getConsensusTimestamp();
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(timestamp))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener).onTokenAirdrop(tokenAirdrop.capture());
+        assertThat(tokenAirdrop.getValue())
+                .returns(-amount, TokenAirdrop::getAmount)
+                .returns(PENDING, TokenAirdrop::getState);
     }
 
     @Test

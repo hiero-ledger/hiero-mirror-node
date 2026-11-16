@@ -3237,6 +3237,164 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
     @ParameterizedTest
     @CsvSource(textBlock = """
+            PENDING,   130
+            CANCELLED, 30
+            CLAIMED,   30
+            ,          30
+            """)
+    void onTokenAirdropAmountChange(TokenAirdropStateEnum existingState, long expectedAmount) {
+        // given
+        final var existing = domainBuilder
+                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(a -> a.amount(100L).state(existingState))
+                .get();
+        if (existingState != null) {
+            tokenAirdropRepository.save(existing);
+        }
+
+        // when
+        final var change = getTokenAirdrop(existing, TokenAirdropStateEnum.PENDING, -30L);
+        sqlEntityListener.onTokenAirdrop(change);
+        completeFileAndCommit();
+
+        // then
+        final var expected = change.toBuilder().amount(expectedAmount).build();
+        assertThat(tokenAirdropRepository.findAll()).containsExactly(expected);
+        if (existingState != null) {
+            existing.setTimestampUpper(change.getTimestampLower());
+            assertThat(findHistory(TokenAirdrop.class)).containsExactly(existing);
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = TokenAirdropStateEnum.class,
+            names = {"CANCELLED", "CLAIMED"})
+    void onTokenAirdropAmountChangeBeforeStateUpdate(TokenAirdropStateEnum state) {
+        // given
+        final var existing = domainBuilder
+                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(a -> a.amount(100L))
+                .persist();
+
+        // when an atomic batch airdrops 30 whose total is untracked, cancels / claims, then airdrops 200
+        final var airdrop = getTokenAirdrop(existing, TokenAirdropStateEnum.PENDING, -30L);
+        final var update = getTokenAirdrop(existing, state, null);
+        final var reAirdrop = getTokenAirdrop(existing, TokenAirdropStateEnum.PENDING, 200L);
+        final var expectedAirdrop = airdrop.toBuilder()
+                .amount(130L)
+                .timestampRange(Range.closedOpen(airdrop.getTimestampLower(), update.getTimestampLower()))
+                .build();
+        final var expectedUpdate = update.toBuilder()
+                .amount(130L)
+                .timestampRange(Range.closedOpen(update.getTimestampLower(), reAirdrop.getTimestampLower()))
+                .build();
+        final var expectedReAirdrop = reAirdrop.toBuilder().build();
+        sqlEntityListener.onTokenAirdrop(airdrop);
+        sqlEntityListener.onTokenAirdrop(update);
+        sqlEntityListener.onTokenAirdrop(reAirdrop);
+        completeFileAndCommit();
+
+        // then
+        existing.setTimestampUpper(airdrop.getTimestampLower());
+        assertThat(tokenAirdropRepository.findAll()).containsExactly(expectedReAirdrop);
+        assertThat(findHistory(TokenAirdrop.class))
+                .containsExactlyInAnyOrder(existing, expectedAirdrop, expectedUpdate);
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = TokenAirdropStateEnum.class,
+            names = {"CANCELLED", "CLAIMED"})
+    void onTokenAirdropAmountChangeAfterStateUpdate(TokenAirdropStateEnum state) {
+        // given
+        final var existing = domainBuilder
+                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(a -> a.amount(100L))
+                .persist();
+
+        // when an atomic batch cancels / claims, then airdrops 40 and 60, so the total is untracked
+        final var update = getTokenAirdrop(existing, state, null);
+        final var airdrop1 = getTokenAirdrop(existing, TokenAirdropStateEnum.PENDING, -40L);
+        final var airdrop2 = getTokenAirdrop(existing, TokenAirdropStateEnum.PENDING, -60L);
+        final var expectedUpdate = update.toBuilder()
+                .amount(100L)
+                .timestampRange(Range.closedOpen(update.getTimestampLower(), airdrop1.getTimestampLower()))
+                .build();
+        final var expectedAirdrop1 = airdrop1.toBuilder()
+                .amount(40L)
+                .timestampRange(Range.closedOpen(airdrop1.getTimestampLower(), airdrop2.getTimestampLower()))
+                .build();
+        final var expectedAirdrop2 = airdrop2.toBuilder().amount(100L).build();
+        sqlEntityListener.onTokenAirdrop(update);
+        sqlEntityListener.onTokenAirdrop(airdrop1);
+        sqlEntityListener.onTokenAirdrop(airdrop2);
+        completeFileAndCommit();
+
+        // then
+        existing.setTimestampUpper(update.getTimestampLower());
+        assertThat(tokenAirdropRepository.findAll()).containsExactly(expectedAirdrop2);
+        assertThat(findHistory(TokenAirdrop.class))
+                .containsExactlyInAnyOrder(existing, expectedUpdate, expectedAirdrop1);
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = TokenAirdropStateEnum.class,
+            names = {"CANCELLED", "CLAIMED"})
+    void onTokenAirdropAmountChangeThenStateUpdate(TokenAirdropStateEnum state) {
+        // given
+        final var existing = domainBuilder
+                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(a -> a.amount(100L))
+                .persist();
+
+        // when an atomic batch airdrops 30 whose total is untracked, then cancels / claims
+        final var airdrop = getTokenAirdrop(existing, TokenAirdropStateEnum.PENDING, -30L);
+        final var update = getTokenAirdrop(existing, state, null);
+        final var expectedAirdrop = airdrop.toBuilder()
+                .amount(130L)
+                .timestampRange(Range.closedOpen(airdrop.getTimestampLower(), update.getTimestampLower()))
+                .build();
+        final var expectedUpdate = update.toBuilder().amount(130L).build();
+        sqlEntityListener.onTokenAirdrop(airdrop);
+        sqlEntityListener.onTokenAirdrop(update);
+        completeFileAndCommit();
+
+        // then
+        existing.setTimestampUpper(airdrop.getTimestampLower());
+        assertThat(tokenAirdropRepository.findAll()).containsExactly(expectedUpdate);
+        assertThat(findHistory(TokenAirdrop.class)).containsExactlyInAnyOrder(existing, expectedAirdrop);
+    }
+
+    @Test
+    void onTokenAirdropAmountChangeAccumulated() {
+        // given
+        final var existing = domainBuilder
+                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(a -> a.amount(100L))
+                .persist();
+
+        // when two untracked airdrops in one batch, both resolved against the existing amount
+        final var airdrop1 = getTokenAirdrop(existing, TokenAirdropStateEnum.PENDING, -30L);
+        final var airdrop2 = getTokenAirdrop(existing, TokenAirdropStateEnum.PENDING, -20L);
+        final var expectedAirdrop1 = airdrop1.toBuilder()
+                .amount(130L)
+                .timestampRange(Range.closedOpen(airdrop1.getTimestampLower(), airdrop2.getTimestampLower()))
+                .build();
+        final var expectedAirdrop2 = airdrop2.toBuilder().amount(150L).build();
+        sqlEntityListener.onTokenAirdrop(airdrop1);
+        sqlEntityListener.onTokenAirdrop(airdrop2);
+        completeFileAndCommit();
+
+        // then
+        existing.setTimestampUpper(airdrop1.getTimestampLower());
+        assertThat(tokenAirdropRepository.findAll()).containsExactly(expectedAirdrop2);
+        assertThat(findHistory(TokenAirdrop.class)).containsExactlyInAnyOrder(existing, expectedAirdrop1);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
                             CANCELLED, 1
                             CANCELLED, 2
                             CLAIMED,   1
@@ -4332,6 +4490,17 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         assertThat(hookRepository.findAll()).containsExactly(expectedHook);
         assertThat(findHistory(Hook.class)).isEmpty(); // no history for new record
+    }
+
+    private TokenAirdrop getTokenAirdrop(TokenAirdrop existing, TokenAirdropStateEnum state, Long amount) {
+        return domainBuilder
+                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(a -> a.amount(amount)
+                        .receiverAccountId(existing.getReceiverAccountId())
+                        .senderAccountId(existing.getSenderAccountId())
+                        .state(state)
+                        .tokenId(existing.getTokenId()))
+                .get();
     }
 
     private TokenAccount getTokenAccount(

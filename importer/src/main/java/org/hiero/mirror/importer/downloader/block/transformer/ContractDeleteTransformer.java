@@ -9,21 +9,21 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 final class ContractDeleteTransformer extends AbstractContractTransformer {
 
     @Override
-    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockTransaction = blockTransactionTransformation.blockTransaction();
+    protected void doTransform(final BlockTransactionTransformation blockTransactionTransformation) {
+        final var blockTransaction = blockTransactionTransformation.blockTransaction();
         if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        var receiptBuilder = blockTransactionTransformation
+        final var receiptBuilder = blockTransactionTransformation
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        var contractId = blockTransactionTransformation
+        final var contractId = blockTransactionTransformation
                 .getTransactionBody()
                 .getContractDeleteInstance()
                 .getContractID();
-        resolveEvmAddress(contractId, receiptBuilder, blockTransaction.getStateChangeContext());
+        setReceiptContractId(contractId, receiptBuilder, blockTransaction.getStateChangeContext());
     }
 
     @Override

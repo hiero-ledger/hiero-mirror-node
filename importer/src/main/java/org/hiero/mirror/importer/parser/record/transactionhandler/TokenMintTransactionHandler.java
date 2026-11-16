@@ -10,7 +10,6 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.Nft;
-import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -45,12 +44,7 @@ class TokenMintTransactionHandler extends AbstractTransactionHandler {
         var transactionBody = recordItem.getTransactionBody().getTokenMint();
         var tokenId = transaction.getEntityId();
         long consensusTimestamp = recordItem.getConsensusTimestamp();
-        long newTotalSupply = recordItem.getTransactionRecord().getReceipt().getNewTotalSupply();
-
-        var token = new Token();
-        token.setTokenId(tokenId.getId());
-        token.setTotalSupply(newTotalSupply);
-        entityListener.onToken(token);
+        updateTokenTotalSupply(entityListener, recordItem, tokenId);
 
         var serialNumbers = recordItem.getTransactionRecord().getReceipt().getSerialNumbersList();
         for (int i = 0; i < serialNumbers.size(); i++) {

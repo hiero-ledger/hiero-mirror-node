@@ -39,6 +39,7 @@ import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
+import org.hiero.mirror.web3.state.AccountStateOverrideApplier;
 import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
@@ -154,7 +155,7 @@ public class ContractSimulateService extends ContractCallService {
             // Other committed account changes are kept.
             for (final var committed : accounts.entrySet()) {
                 if (committed.getValue() instanceof Account account && isOverridden(account, address, accountNums)) {
-                    committed.setValue(AccountReadableKVState.withStateOverride(account, stateOverride));
+                    committed.setValue(AccountStateOverrideApplier.withStateOverride(account, stateOverride));
                 }
             }
             context.getReadCacheState(AccountReadableKVState.STATE_ID)
