@@ -13,8 +13,10 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.Data;
+import org.hiero.mirror.web3.convert.StrictLongDeserializer;
 import org.hiero.mirror.web3.validation.Hex;
 import org.springframework.validation.annotation.Validated;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 /**
  * Per-address state override for {@code /api/v1/contracts/call}. All fields are optional except {@code address}.
@@ -33,6 +35,7 @@ public class StateOverride {
     private String address;
 
     /** Balance override in tinybars. */
+    @JsonDeserialize(using = StrictLongDeserializer.class)
     @PositiveOrZero
     private Long balance;
 
@@ -41,6 +44,7 @@ public class StateOverride {
     private String code;
 
     /** Ethereum nonce override. */
+    @JsonDeserialize(using = StrictLongDeserializer.class)
     @PositiveOrZero
     private Long nonce;
 
