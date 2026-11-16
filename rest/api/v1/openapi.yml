@@ -2601,8 +2601,7 @@ components:
         endpoints:
           type: array
           items:
-            type: object
-            additionalProperties: true
+            $ref: "#/components/schemas/ClprEndpoint"
         version:
           format: int64
           type: integer
@@ -2623,6 +2622,16 @@ components:
       enum: [PENDING, ACTIVE, PAUSED, CLOSING, DRAINED, CLOSED]
       example: ACTIVE
       type: string
+    ClprEndpoint:
+      description: An endpoint participating in CLPR syncs
+      type: object
+      properties:
+        account_id:
+          $ref: "#/components/schemas/ClprHexBytes"
+        service_endpoint:
+          $ref: "#/components/schemas/ClprServiceEndpoint"
+        tls_certificate:
+          $ref: "#/components/schemas/ClprHexBytes"
     ClprEndpointManifest:
       type: object
       required:
@@ -2636,8 +2645,7 @@ components:
         endpoints:
           type: array
           items:
-            type: object
-            additionalProperties: true
+            $ref: "#/components/schemas/ClprEndpoint"
         service_address:
           $ref: "#/components/schemas/ClprHexBytes"
         version:
@@ -2696,6 +2704,17 @@ components:
         max_sync_bytes:
           format: int64
           type: [integer, "null"]
+    ClprServiceEndpoint:
+      description: The network address of a CLPR endpoint
+      type: object
+      properties:
+        ip_address:
+          type: string
+          example: 10.0.0.5
+        port:
+          format: int32
+          type: integer
+          example: 50211
     ClprSignatureScheme:
       enum: [ECDSA_SECP256K1, ED25519]
       example: ED25519

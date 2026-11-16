@@ -10,7 +10,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
-import java.util.Map;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
@@ -113,7 +112,10 @@ final class ClprChannelMapperTest {
         assertThat(actual.getEndpointManifest()).satisfies(manifest -> {
             assertThat(manifest.getVersion()).isEqualTo(3L);
             assertThat(manifest.getEndpoints())
-                    .containsExactly(Map.of("service_endpoint", Map.of("ip_address", "10.0.0.5", "port", 50211)));
+                    .containsExactly(new org.hiero.mirror.rest.model.ClprEndpoint()
+                            .serviceEndpoint(new org.hiero.mirror.rest.model.ClprServiceEndpoint()
+                                    .ipAddress("10.0.0.5")
+                                    .port(50211)));
         });
     }
 
@@ -189,7 +191,11 @@ final class ClprChannelMapperTest {
                   "config_proof_bytes": "0x1122",
                   "created_timestamp": "1726874200.000000000",
                   "endpoint_manifest": {
-                    "endpoints": [{"service_endpoint": {"ip_address": "10.0.0.5", "port": 50211}}],
+                    "endpoints": [{
+                      "account_id": null,
+                      "service_endpoint": {"ip_address": "10.0.0.5", "port": 50211},
+                      "tls_certificate": null
+                    }],
                     "version": 3
                   },
                   "endpoint_manifest_proof_bytes": "0x3344",
@@ -247,13 +253,12 @@ final class ClprChannelMapperTest {
 
         // then
         assertThat(actual.getEndpointManifest().getEndpoints())
-                .containsExactly(Map.of(
-                        "account_id",
-                        "0x01",
-                        "service_endpoint",
-                        Map.of("ip_address", "10.0.0.5", "port", 50211),
-                        "tls_certificate",
-                        "0x0203"));
+                .containsExactly(new org.hiero.mirror.rest.model.ClprEndpoint()
+                        .accountId("0x01")
+                        .serviceEndpoint(new org.hiero.mirror.rest.model.ClprServiceEndpoint()
+                                .ipAddress("10.0.0.5")
+                                .port(50211))
+                        .tlsCertificate("0x0203"));
     }
 
     @Test
