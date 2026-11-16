@@ -12,6 +12,6 @@ public interface CryptoTransferRepository
 
     @Modifying
     @Override
-    @Query("delete from CryptoTransfer where consensusTimestamp <= ?1")
+    @Query("delete from CryptoTransfer where consensusTimestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

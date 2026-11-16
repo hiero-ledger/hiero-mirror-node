@@ -12,6 +12,6 @@ public interface TransactionSignatureRepository
 
     @Modifying
     @Override
-    @Query("delete from TransactionSignature where consensusTimestamp <= ?1")
+    @Query("delete from TransactionSignature where consensusTimestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

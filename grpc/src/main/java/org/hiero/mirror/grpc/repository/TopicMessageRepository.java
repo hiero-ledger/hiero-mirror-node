@@ -13,9 +13,9 @@ public interface TopicMessageRepository extends CrudRepository<TopicMessage, Lon
        with related_transaction as (
          select entity_id as topic_id, consensus_timestamp
          from transaction
-         where consensus_timestamp > ?1 and result = 22 and type = 27
+         where consensus_timestamp > :consensusTimestamp and result = 22 and type = 27
          order by consensus_timestamp
-         limit ?2
+         limit :limit
        )
        select t.*
        from topic_message as t

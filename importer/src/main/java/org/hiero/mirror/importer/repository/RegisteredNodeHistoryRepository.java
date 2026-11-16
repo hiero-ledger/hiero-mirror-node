@@ -14,6 +14,6 @@ public interface RegisteredNodeHistoryRepository
     @Override
     @Query(
             nativeQuery = true,
-            value = "delete from registered_node_history where timestamp_range << int8range(?1, null)")
+            value = "delete from registered_node_history where timestamp_range << int8range(:consensusTimestamp, null)")
     int prune(long consensusTimestamp);
 }

@@ -13,6 +13,6 @@ public interface ContractTransactionRepository
         extends CrudRepository<ContractTransaction, ContractTransaction.Id>, RetentionRepository {
     @Modifying
     @Override
-    @Query("delete from ContractTransaction where consensusTimestamp <= ?1")
+    @Query("delete from ContractTransaction where consensusTimestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

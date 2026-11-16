@@ -15,6 +15,6 @@ public interface ReconciliationJobRepository extends CrudRepository<Reconciliati
 
     @Modifying
     @Override
-    @Query("delete from ReconciliationJob where consensusTimestamp <= ?1")
+    @Query("delete from ReconciliationJob where consensusTimestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }
