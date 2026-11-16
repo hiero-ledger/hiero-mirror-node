@@ -121,7 +121,7 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
         final var rows = new ArrayList<MultiGauge.Row<?>>(blockNodes.size());
         for (final var node : blockNodes) {
             rows.add(MultiGauge.Row.of(
-                    Tags.of("block_node", node.getStatusEndpoint()),
+                    Tags.of("block_node", node.getSubscribeStreamEndpoint()),
                     node,
                     n -> n.getLatency().getMetricValue()));
         }

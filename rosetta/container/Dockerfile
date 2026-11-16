@@ -44,6 +44,9 @@ RUN apt-get update \
     && apt-get install -y postgresql-${PG_VERSION} postgresql-client-${PG_VERSION} supervisor openjdk-25-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
+# postgresql-common 294+ creates these via systemd-tmpfiles, which can't resolve the postgres user during image builds
+RUN install -d -o postgres -g postgres -m 2775 /run/postgresql /var/log/postgresql
+
 # Create users for importer and rosetta
 RUN useradd -s /bin/bash importer && useradd -s /bin/bash rosetta
 

@@ -63,7 +63,7 @@ class MirrorBlockHashOperation extends BlockHashOperation {
         if (soughtBlock < 0
                 || currentBlockNumber <= 0
                 || soughtBlock > currentBlockNumber
-                || soughtBlock <= currentBlockNumber - evmProperties.getBlockHashWindow()) {
+                || soughtBlock < currentBlockNumber - evmProperties.getBlockHashWindow()) {
             frame.pushStackItem(Bytes32.ZERO);
         } else if (currentBlockNumber == soughtBlock) {
             final var latestBlock = ContractCallContext.get().getRecordFile();

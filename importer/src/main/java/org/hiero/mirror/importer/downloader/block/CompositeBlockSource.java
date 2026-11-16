@@ -2,14 +2,19 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.SourceType;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverService;
 import org.hiero.mirror.importer.exception.NoBlockNodeAvailableException;
 import org.springframework.context.annotation.Primary;
@@ -20,25 +25,43 @@ import org.springframework.scheduling.annotation.Scheduled;
 @Primary
 final class CompositeBlockSource implements BlockSource {
 
+    static final String FAILOVER_METRIC_NAME = "hiero.mirror.importer.block.failover";
+
     private final SourceHealth blockFileSourceHealth;
     private final BlockNodeDiscoveryService blockNodeDiscoveryService;
     private final SourceHealth blockNodeSubscriberSourceHealth;
     private final AtomicReference<SourceHealth> current;
     private final CutoverService cutoverService;
+    private final Counter failoverMetric;
+    private final boolean hasBlockFileSource;
     private final BlockProperties properties;
 
     CompositeBlockSource(
             final BlockFileSource blockFileSource,
             final BlockNodeDiscoveryService blockNodeDiscoveryService,
             final BlockNodeSubscriber blockNodeSubscriber,
+            final CommonDownloaderProperties commonDownloaderProperties,
             final CutoverService cutoverService,
+            final MeterRegistry meterRegistry,
             final BlockProperties properties) {
         this.blockFileSourceHealth = new SourceHealth(blockFileSource, BlockSourceType.FILE);
         this.blockNodeDiscoveryService = blockNodeDiscoveryService;
         this.blockNodeSubscriberSourceHealth = new SourceHealth(blockNodeSubscriber, BlockSourceType.BLOCK_NODE);
         this.current = new AtomicReference<>(blockNodeSubscriberSourceHealth);
         this.cutoverService = cutoverService;
+        this.failoverMetric = Counter.builder(FAILOVER_METRIC_NAME)
+                .description("The number of times the importer switched from block nodes to cloud storage")
+                .register(meterRegistry);
         this.properties = properties;
+
+        // The local stream file provider ignores bucket names
+        hasBlockFileSource = StringUtils.isNotBlank(properties.getBucketName())
+                || commonDownloaderProperties.getSources().stream().anyMatch(s -> s.getType() == SourceType.LOCAL);
+        if (!hasBlockFileSource) {
+            log.info(
+                    "No block stream bucket configured for network {}, block file source disabled in AUTO mode",
+                    properties.getImporterProperties().getNetwork());
+        }
     }
 
     @Override
@@ -64,6 +87,10 @@ final class CompositeBlockSource implements BlockSource {
     private SourceHealth getSourceHealth() {
         return switch (properties.getSourceType()) {
             case AUTO -> {
+                if (!hasBlockFileSource) {
+                    yield blockNodeSubscriberSourceHealth;
+                }
+
                 if (blockNodeDiscoveryService.getBlockNodes().isEmpty()) {
                     yield blockFileSourceHealth;
                 }
@@ -73,6 +100,9 @@ final class CompositeBlockSource implements BlockSource {
                             ? blockFileSourceHealth
                             : blockNodeSubscriberSourceHealth;
                     current.set(sourceHealth);
+                    if (sourceHealth == blockFileSourceHealth) {
+                        failoverMetric.increment();
+                    }
                 }
 
                 yield current.get();

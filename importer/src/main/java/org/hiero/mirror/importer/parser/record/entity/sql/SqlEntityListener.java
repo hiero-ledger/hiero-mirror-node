@@ -42,6 +42,7 @@ import org.hiero.mirror.common.domain.token.NftTransfer;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.common.domain.token.TokenAirdrop;
+import org.hiero.mirror.common.domain.token.TokenAirdropStateEnum;
 import org.hiero.mirror.common.domain.token.TokenTransfer;
 import org.hiero.mirror.common.domain.topic.Topic;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
@@ -930,9 +931,21 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     }
 
     private TokenAirdrop mergeTokenAirdrop(TokenAirdrop previous, TokenAirdrop current) {
-        if (previous.getAmount() != null && current.getAmount() == null) {
+        final var amount = current.getAmount();
+        final var previousAmount = previous.getAmount();
+        if (amount == null) {
             // Cancel or claim do not contain an amount so set the amount here so as not to override it with null
-            current.setAmount(previous.getAmount());
+            current.setAmount(previousAmount);
+        } else if (amount < 0) {
+            // A negative amount is a change to the pending amount. The previous amount is either absolute or a change
+            // still to be resolved against the existing row in the upsert
+            if (previous.getState() != TokenAirdropStateEnum.PENDING || previousAmount == null) {
+                current.setAmount(-amount);
+            } else if (previousAmount >= 0) {
+                current.setAmount(previousAmount - amount);
+            } else {
+                current.setAmount(previousAmount + amount);
+            }
         }
 
         previous.setTimestampUpper(current.getTimestampLower());

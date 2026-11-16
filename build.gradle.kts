@@ -42,7 +42,7 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-25")
+        api("com.github.luben:zstd-jni:1.5.7-26")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
@@ -55,7 +55,7 @@ dependencies {
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.4")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.5")
         api("com.hedera.hashgraph:sdk:2.79.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
@@ -72,8 +72,8 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.bouncycastle:bcpkix-jdk18on:1.86") // Temporary until next hedera-app
-        api("org.bouncycastle:bcprov-jdk18on:1.86")
+        api("org.bouncycastle:bcpkix-jdk18on:1.87") // Temporary until next hedera-app
+        api("org.bouncycastle:bcprov-jdk18on:1.87")
         api("org.gaul:s3proxy:4.1.1")
         api("org.graalvm.nativeimage:svm:25.0.5.0.3")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
@@ -86,7 +86,7 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.1.0")
         api("org.xerial.snappy:snappy-java:1.1.10.12") // Temporary until next Besu
-        api("software.amazon.awssdk:bom:2.57.9")
+        api("software.amazon.awssdk:bom:2.58.0")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
