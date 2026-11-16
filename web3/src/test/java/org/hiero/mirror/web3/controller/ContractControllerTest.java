@@ -161,6 +161,7 @@ final class ContractControllerTest {
 
     @BeforeEach
     void setUp() {
+        actionsProperties.setTraceMultipleTransactions(true);
         web3Properties.setEnableBlockOverrides(true);
         web3Properties.setEnableStateOverrides(true);
         throttleManager.throttle(any(ContractCallRequest.class));
@@ -178,6 +179,7 @@ final class ContractControllerTest {
 
     @AfterEach
     void tearDown() {
+        actionsProperties.setTraceMultipleTransactions(false);
         setApiEnabled(ACTIONS, false);
         setApiEnabled(CALL, true);
     }
@@ -326,6 +328,61 @@ final class ContractControllerTest {
                 .processTraceCall(argThat((TraceCall call) -> call.getBundles().size() == 2));
         verify(endpointThrottle).throttle(ACTIONS);
         verify(throttleManager, times(2)).throttle(any(ContractCallRequest.class));
+    }
+
+    @Test
+    void traceMultipleTransactionsDisabledByDefault() {
+        assertThat(new ActionsProperties().isTraceMultipleTransactions()).isFalse();
+    }
+
+    @Test
+    void actionsCallManyNotImplementedForMultipleBundlesWhenDisabled() throws Exception {
+        enableActionsApi();
+        actionsProperties.setTraceMultipleTransactions(false);
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var second = transaction();
+        second.setValue(0);
+        request.getBundles().add(bundleOf(second));
+
+        contractActionsCall(request).andExpect(status().isNotImplemented());
+
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
+    }
+
+    @Test
+    void actionsCallManyNotImplementedForMultipleTransactionsWhenDisabled() throws Exception {
+        enableActionsApi();
+        actionsProperties.setTraceMultipleTransactions(false);
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var second = transaction();
+        second.setValue(0);
+        request.getBundles().getFirst().getTransactions().add(second);
+
+        contractActionsCall(request).andExpect(status().isNotImplemented());
+
+        verify(contractDebugService, never()).processTraceCall(any());
+        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
+    }
+
+    @Test
+    void actionsCallSingleTraceSucceedsWhenTraceCallManyDisabled() throws Exception {
+        enableActionsApi();
+        actionsProperties.setTraceMultipleTransactions(false);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request)
+                .andExpect(status().isOk())
+                .andExpect(content().string(convert(TRACE_RESPONSES)));
+
+        verify(contractDebugService)
+                .processTraceCall(argThat((TraceCall call) -> isSingleTrace(call, false, Duration.ofSeconds(4))));
     }
 
     @Test
@@ -536,9 +593,8 @@ final class ContractControllerTest {
     }
 
     @Test
-    void actionsCallRejectsTransactionStateOverridesWhenDisabled() throws Exception {
+    void actionsCallRejectsTransactionStateOverrides() throws Exception {
         enableActionsApi();
-        web3Properties.setEnableStateOverrides(false);
         final var request = traceRequest();
         transaction(request).setValue(0);
         transaction(request)
@@ -546,8 +602,44 @@ final class ContractControllerTest {
 
         contractActionsCall(request)
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string(new StringContains("State overrides are not supported.")));
+                .andExpect(content()
+                        .string(new StringContains(
+                                "state_overrides must be set on the request, not on a transaction.")));
         verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
+    void actionsCallRejectsBundleStateOverrides() throws Exception {
+        enableActionsApi();
+        final var body = """
+                {"bundles": [{"state_overrides": [{"address": "0x00000000000000000000000000000000000004e4", "balance": 1}],
+                              "transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """;
+
+        mockMvc.perform(post(ACTIONS_CALL_URI)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("state_overrides must be set on the request, not on a bundle.")));
+        verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
+    void actionsCallAcceptsEmptyNestedStateOverrides() throws Exception {
+        enableActionsApi();
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSES);
+        final var body = """
+                {"bundles": [{"state_overrides": [],
+                              "transactions": [{"state_overrides": [], "to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """;
+
+        mockMvc.perform(post(ACTIONS_CALL_URI)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
+                        .content(body))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -1777,12 +1869,21 @@ final class ContractControllerTest {
     @CsvSource({
         "balance, \"0x1\"",
         "balance, \"abc\"",
+        "balance, \"100\"",
+        "balance, \"\"",
+        "balance, 1.5",
+        "balance, 1.0",
+        "balance, 1e2",
         "balance, 9223372036854775808",
         "balance, 18446744073709551615",
         "balance, true",
         "balance, []",
         "nonce, \"0x2a\"",
         "nonce, \"abc\"",
+        "nonce, \"5\"",
+        "nonce, \" 7 \"",
+        "nonce, 1.5",
+        "nonce, 1.0",
         "nonce, 9223372036854775808",
         "nonce, 18446744073709551615",
         "nonce, true",

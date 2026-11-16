@@ -87,12 +87,15 @@ class ContractController {
         if (!web3Properties.getApi(ACTIONS).isEnabled()) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }
+        validateTraceCallMany(request.getBundles());
 
         GzipEncoding.validate(acceptEncoding);
         for (final var bundle : request.getBundles()) {
             validateBlockOverrides(bundle.getBlockOverride());
+            rejectNestedStateOverrides(bundle.getStateOverrides(), "bundle");
             for (final var transaction : bundle.getTransactions()) {
                 rejectEstimate(transaction);
+                rejectNestedStateOverrides(transaction.getStateOverrides(), "transaction");
                 validateContractMaxGasLimit(transaction.getGas());
             }
         }
@@ -249,10 +252,15 @@ class ContractController {
      */
     private void validateTrace(final TraceCall traceCall) {
         validateStateOverrides(traceCall.getStateOverrides());
-        for (final var bundle : traceCall.getBundles()) {
-            for (final var transaction : bundle.getTransactions()) {
-                validateStateOverrides(transaction.getStateOverrides());
-            }
+    }
+
+    /** More than one bundle, or more than one transaction in a bundle, is a {@code debug_traceCallMany} request. */
+    private void validateTraceCallMany(final List<ActionTraceBundle> bundles) {
+        if (actionsProperties.isTraceMultipleTransactions()) {
+            return;
+        }
+        if (bundles.size() > 1 || bundles.getFirst().getTransactions().size() > 1) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "debug_traceCallMany is not supported.");
         }
     }
 
@@ -265,6 +273,14 @@ class ContractController {
     private static void rejectEstimate(final ContractCallRequest transaction) {
         if (transaction.isEstimate()) {
             throw new InvalidParametersException("Estimate is not supported for tracing.");
+        }
+    }
+
+    /** HIP-1485 allows trace state overrides only at the request level, not on a bundle or a transaction. */
+    private static void rejectNestedStateOverrides(final List<StateOverride> stateOverrides, final String level) {
+        if (!stateOverrides.isEmpty()) {
+            throw new InvalidParametersException(
+                    "state_overrides must be set on the request, not on a %s.".formatted(level));
         }
     }
 

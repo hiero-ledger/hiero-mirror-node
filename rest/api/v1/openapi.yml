@@ -534,7 +534,7 @@ paths:
       description:
         "Simulates contract calls and returns one call-action tree per transaction, in bundle order. One bundle with
         one transaction maps to debug_traceCall. Multiple bundles, or a bundle with multiple transactions, map to
-        debug_traceCallMany. block, state_overrides, timeout, and transaction_index apply to the whole request.
+        debug_traceCallMany, which returns 501 when it is disabled on the server. block, state_overrides, timeout, and transaction_index apply to the whole request.
         only_top_call applies to every transaction. When true, each transaction returns only its root call and omits
         nested actions. Each bundle has its own transactions and block_override.
         Transactions share state for the whole request: later bundles keep earlier state changes. The request state
@@ -593,7 +593,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         501:
-          description: Actions endpoint is not implemented
+          description:
+            Actions endpoint is not implemented, or the request is a debug_traceCallMany (more than one bundle, or more
+            than one transaction in a bundle) and tracing of multiple transactions is disabled
           content:
             application/json:
               schema:
@@ -2507,8 +2509,8 @@ components:
       type: object
       description:
         One debug_traceCallMany bundle. Transactions execute sequentially and share this bundle's block_override.
-        State changes persist into later bundles. The request block and state_overrides list apply instead of the same
-        fields on each transaction. estimate is rejected.
+        State changes persist into later bundles. The request block applies instead of the block on each transaction.
+        state_overrides is only allowed on the request.
       required:
         - transactions
       properties:
@@ -3153,7 +3155,9 @@ components:
           minimum: 0
           type: [integer, "null"]
         state_overrides:
-          description: Per-address state overrides applied only for this call. Requires state overrides to be enabled.
+          description:
+            Per-address state overrides applied only for this call. Requires state overrides to be enabled. Not allowed
+            on a transaction inside a /contracts/call/actions bundle; set state_overrides on the trace request instead.
           items:
             $ref: "#/components/schemas/StateOverride"
           maxItems: 10

@@ -19,4 +19,11 @@ public class ActionsProperties {
     @DurationMin(millis = 1)
     @DurationMax(seconds = 10)
     private Duration maxTimeout = Duration.ofSeconds(10);
+
+    /**
+     * Whether {@code /contracts/call/actions} accepts {@code debug_traceCallMany} requests: more than one bundle, or more
+     * than one transaction in a bundle. When false, such requests are rejected with 501 and only a single bundle with a
+     * single transaction ({@code debug_traceCall}) is accepted. Disabled by default.
+     */
+    private boolean traceMultipleTransactions;
 }
