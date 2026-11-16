@@ -81,7 +81,7 @@ public class ContractCallTestUtil {
     public static StateOverride stateOverride(final String address) {
         final var override = new StateOverride();
         override.setAddress(address);
-        override.setBalance("0x1");
+        override.setBalance(1L);
         return override;
     }
 }

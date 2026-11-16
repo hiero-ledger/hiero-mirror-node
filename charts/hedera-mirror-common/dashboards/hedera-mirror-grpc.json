@@ -506,7 +506,7 @@
                 "uid": "${prometheus}"
               },
               "editorMode": "code",
-              "expr": "(avg(rate(grpc_server_processing_duration_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) / avg(rate(grpc_server_processing_duration_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))) > 0",
+              "expr": "(avg(rate(grpc_server_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) / avg(rate(grpc_server_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval]))) > 0",
               "interval": "1m",
               "legendFormat": "",
               "range": true,
@@ -781,9 +781,9 @@
                 "uid": "${prometheus}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(grpc_server_requests_received_messages_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (method) > 0",
+              "expr": "sum(rate(grpc_server_received_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (rpc_method) > 0",
               "interval": "1m",
-              "legendFormat": "{{ method }}",
+              "legendFormat": "{{ rpc_method }}",
               "range": true,
               "refId": "A"
             }
@@ -886,9 +886,9 @@
                 "uid": "${prometheus}"
               },
               "editorMode": "code",
-              "expr": "(sum(rate(grpc_server_processing_duration_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (method) / sum(rate(grpc_server_processing_duration_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (method)) > 0",
+              "expr": "(sum(rate(grpc_server_seconds_sum{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (rpc_method) / sum(rate(grpc_server_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (rpc_method)) > 0",
               "interval": "1m",
-              "legendFormat": "{{method}}",
+              "legendFormat": "{{rpc_method}}",
               "range": true,
               "refId": "A"
             }
@@ -1006,9 +1006,9 @@
                 "uid": "${prometheus}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(grpc_server_responses_sent_messages_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (method) > 0",
+              "expr": "sum(rate(grpc_server_sent_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (rpc_method) > 0",
               "interval": "1m",
-              "legendFormat": "{{ method }}",
+              "legendFormat": "{{ rpc_method }}",
               "range": true,
               "refId": "A"
             }
@@ -1124,9 +1124,9 @@
               "datasource": {
                 "uid": "${prometheus}"
               },
-              "expr": "sum(rate(grpc_server_processing_duration_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",statusCode!=\"OK\"}[$__rate_interval])) by (statusCode)",
+              "expr": "sum(rate(grpc_server_seconds_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",grpc_status_code!=\"OK\"}[$__rate_interval])) by (grpc_status_code)",
               "interval": "1m",
-              "legendFormat": "{{ statusCode }}",
+              "legendFormat": "{{ grpc_status_code }}",
               "refId": "A"
             }
           ],

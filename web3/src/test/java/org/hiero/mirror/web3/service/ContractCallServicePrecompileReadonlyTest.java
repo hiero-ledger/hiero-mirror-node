@@ -24,7 +24,6 @@ import com.hederahashgraph.api.proto.java.Key;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -467,9 +466,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 toAddress(tokenId).toHexString(),
                 false,
                 false,
-                Address.fromHexString(
-                                Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
-                        .toHexString());
+                getAddressFromEntity(collectorAccount));
 
         // Then
         assertThat(functionCall.send().component1().getFirst()).isEqualTo(expectedFee);
@@ -511,9 +508,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 DEFAULT_FEE_MIN_VALUE,
                 DEFAULT_FEE_MAX_VALUE,
                 true,
-                Address.fromHexString(
-                                Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
-                        .toHexString());
+                getAddressFromEntity(collectorAccount));
 
         // Then
         assertThat(functionCall.send().component2().getFirst()).isEqualTo(expectedFee);
@@ -558,9 +553,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 DEFAULT_FEE_AMOUNT,
                 CommonUtils.hex(toEvmAddress(entityId)),
                 false,
-                Address.fromHexString(
-                                Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
-                        .toHexString());
+                getAddressFromEntity(collectorAccount));
 
         // Then
         assertThat(functionCall.send().component3().getFirst()).isEqualTo(expectedFee);
@@ -1230,7 +1223,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 getAddressFromEntityId(fixedFee.getDenominatingTokenId()),
                 false,
                 false,
-                getAliasFromEntity(feeCollector));
+                getAddressFromEntity(feeCollector));
     }
 
     private PrecompileTestContract.FractionalFee getFractionalFee(
@@ -1241,7 +1234,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 BigInteger.valueOf(fractionalFee.getMinimumAmount()),
                 BigInteger.valueOf(fractionalFee.getMaximumAmount()),
                 true,
-                getAliasFromEntity(feeCollector));
+                getAddressFromEntity(feeCollector));
     }
 
     private PrecompileTestContract.RoyaltyFee getRoyaltyFee(final RoyaltyFee royaltyFee, final Entity feeCollector) {
@@ -1251,6 +1244,6 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 BigInteger.valueOf(royaltyFee.getFallbackFee().getAmount()),
                 getAddressFromEntityId(royaltyFee.getFallbackFee().getDenominatingTokenId()),
                 false,
-                getAddressFromEvmAddress(feeCollector.getEvmAddress()));
+                getAddressFromEntity(feeCollector));
     }
 }

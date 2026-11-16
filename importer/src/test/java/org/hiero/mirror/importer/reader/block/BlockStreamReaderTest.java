@@ -219,7 +219,7 @@ public final class BlockStreamReaderTest {
 
         final var blockStream = createBlockStream(block, null, BlockFile.getFilename(blockNumber, true));
         final byte[] bytes = Objects.requireNonNull(blockStream.bytes());
-        final long loadStart = blockStream.loadStart();
+        final long loadStart = blockStream.blockCompleteTime();
 
         // when
         final var blockFile = reader.read(blockStream);
@@ -978,14 +978,8 @@ public final class BlockStreamReaderTest {
             bytes = TestUtils.zstd(block.toByteArray());
         }
 
-        long blockCompleteTime = System.currentTimeMillis();
         return new BlockStream(
-                toUnparsed(block.getItemsList()),
-                blockCompleteTime,
-                bytes,
-                filename,
-                blockCompleteTime - 1000,
-                bytes.length);
+                toUnparsed(block.getItemsList()), System.currentTimeMillis(), bytes, filename, bytes.length);
     }
 
     @SneakyThrows
@@ -1003,7 +997,7 @@ public final class BlockStreamReaderTest {
             final byte[] bytes = streamFileData.getBytes();
             final var blockStream = createBlockStream(getBlock(streamFileData), bytes, blockFile.getName());
             blockFile.setBytes(bytes);
-            blockFile.setLoadStart(blockStream.loadStart());
+            blockFile.setLoadStart(blockStream.blockCompleteTime());
             blockFile.setSize(bytes.length);
             return Arguments.of(blockStream, Named.of(directory.getFileName() + "/" + blockFile.getName(), blockFile));
         });

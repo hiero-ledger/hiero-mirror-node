@@ -5,7 +5,10 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ContractID;
+import com.hedera.hapi.node.state.token.Account;
+import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -49,6 +52,18 @@ abstract class AbstractContractReadableKVState<K, V> extends AbstractReadableKVS
         final var override = stateOverrides.get(Bytes.wrap(toEvmAddress(contractID.contractNum())));
         if (override != null) {
             return override;
+        }
+
+        // The account may already be cached for this call with its EVM alias, e.g. the dummy account created for an
+        // overridden EVM address that has no entity in the DB, so it cannot be resolved from the DB below.
+        final var cachedAccount = context.getReadCacheState(AccountReadableKVState.STATE_ID)
+                .get(AccountID.newBuilder()
+                        .shardNum(contractID.shardNum())
+                        .realmNum(contractID.realmNum())
+                        .accountNum(contractID.contractNumOrElse(0L))
+                        .build());
+        if (cachedAccount instanceof Account account && ConversionUtils.isEvmAddress(account.alias())) {
+            return stateOverrides.get(account.alias());
         }
 
         // Otherwise the contract may have an EVM alias the override is keyed by; resolve it and retry.

@@ -7,7 +7,6 @@ import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.Nft;
-import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -40,12 +39,7 @@ class TokenBurnTransactionHandler extends AbstractTransactionHandler {
         var transactionBody = recordItem.getTransactionBody().getTokenBurn();
         var tokenId = transaction.getEntityId();
         long consensusTimestamp = recordItem.getConsensusTimestamp();
-        long newTotalSupply = recordItem.getTransactionRecord().getReceipt().getNewTotalSupply();
-
-        var token = new Token();
-        token.setTotalSupply(newTotalSupply);
-        token.setTokenId(tokenId.getId());
-        entityListener.onToken(token);
+        updateTokenTotalSupply(entityListener, recordItem, tokenId);
 
         transactionBody.getSerialNumbersList().forEach(serialNumber -> {
             var nft = Nft.builder()

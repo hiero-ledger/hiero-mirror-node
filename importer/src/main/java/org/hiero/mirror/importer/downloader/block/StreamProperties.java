@@ -28,6 +28,9 @@ public final class StreamProperties {
 
     private boolean keepAliveWithoutCalls = true;
 
+    @Min(1)
+    private int maxAttempts = 3;
+
     @Min(1000)
     private int maxBlockItems = 800_000;
 
@@ -45,9 +48,6 @@ public final class StreamProperties {
     @DataSizeUnit(DataUnit.MEGABYTES)
     @NotNull
     private DataSize maxStreamResponseSize = DataSize.ofMegabytes(125);
-
-    @Min(1)
-    private int maxSubscribeAttempts = 3;
 
     @DurationMin(seconds = 10)
     @NotNull

@@ -267,7 +267,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var codeOverride = new StateOverride();
         codeOverride.setAddress(contract.getContractAddress().toLowerCase());
         codeOverride.setCode(BytecodeUtils.extractRuntimeBytecode(EthCall.BINARY));
-        final var balanceOverride = balanceOverride(account, "0x64");
+        final var balanceOverride = balanceOverride(account, 100L);
 
         final var result = contractDebugService.processTraceCall(TraceCall.builder()
                 .bundles(List.of(
@@ -297,7 +297,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .bundles(List.of(
                         TraceBundle.builder().transactions(List.of(firstCall)).build(),
                         TraceBundle.builder().transactions(List.of(secondCall)).build()))
-                .stateOverrides(List.of(balanceOverride(firstAccount, "0x64"), balanceOverride(secondAccount, "0xc8")))
+                .stateOverrides(List.of(balanceOverride(firstAccount, 100L), balanceOverride(secondAccount, 200L)))
                 .timeout(INTEGRATION_TIMEOUT)
                 .build());
 
@@ -1134,7 +1134,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .build();
     }
 
-    private static StateOverride balanceOverride(final Address address, final String balance) {
+    private static StateOverride balanceOverride(final Address address, final long balance) {
         final var override = new StateOverride();
         override.setAddress(address.toHexString());
         override.setBalance(balance);

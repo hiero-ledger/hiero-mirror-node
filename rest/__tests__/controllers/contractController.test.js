@@ -473,6 +473,20 @@ describe('extractContractResultsByIdQuery', () => {
         limit: defaultLimit,
       },
     },
+    {
+      name: 'global endpoint - from range filter disables includeSynthetic',
+      input: {
+        filter: [{key: constants.filterKeys.FROM, operator: gte, value: '1001'}],
+        contractId: undefined,
+      },
+      expected: {
+        conditions: ['cr.sender_id >= $1', 'cr.transaction_nonce = 0'],
+        includeSynthetic: false,
+        params: ['1001'],
+        order: constants.orderFilterValues.DESC,
+        limit: defaultLimit,
+      },
+    },
   ];
 
   [...specs, ...globalSpecs].forEach((spec) => {
@@ -498,6 +512,21 @@ describe('extractContractResultsByIdQuery', () => {
     try {
       const result = await contracts.extractContractResultsByIdQuery([], defaultContractId);
       expect(result.includeSynthetic).toBe(true);
+    } finally {
+      config.query.syntheticContractIdResults = false;
+    }
+  });
+
+  test('contract endpoint - syntheticContractIdResults enabled and from range disables includeSynthetic', async () => {
+    config.query.syntheticContractIdResults = true;
+    try {
+      const result = await contracts.extractContractResultsByIdQuery(
+        [{key: constants.filterKeys.FROM, operator: gte, value: '1001'}],
+        defaultContractId
+      );
+      expect(result.includeSynthetic).toBe(false);
+      expect(result.conditions).toEqual([primaryContractFilter, 'cr.sender_id >= $2', 'cr.transaction_nonce = 0']);
+      expect(result.params).toEqual([defaultContractId, '1001']);
     } finally {
       config.query.syntheticContractIdResults = false;
     }
@@ -1549,7 +1578,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
     assertSqlQueryEqual(
       sql,
       `with entity as (select evm_address, id from entity)
-      select cl.bloom, cl.child, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,
              evm_address
       from contract_log cl
@@ -1581,7 +1610,7 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
     assertSqlQueryEqual(
       sql,
       `with entity as (select evm_address, id from entity)
-      select cl.bloom, cl.child, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
+      select cl.bloom, cl.contract_id, cl.consensus_timestamp, cl.data, cl.index, cl.root_contract_id,
              cl.topic0, cl.topic1, cl.topic2, cl.topic3, cl.transaction_hash, cl.transaction_index,evm_address
       from contract_log cl
       left join entity e on id = contract_id
@@ -1609,7 +1638,6 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
-          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -1637,7 +1665,6 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
-          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,
@@ -1665,7 +1692,6 @@ describe('extractContractLogsMultiUnionQuery synthetic NFT Transfer exclusion', 
         with entity as (select evm_address, id from entity)
         select
           cl.bloom,
-          cl.child,
           cl.contract_id,
           cl.consensus_timestamp,
           cl.data,

@@ -17,7 +17,7 @@ import org.hiero.mirror.web3.repository.EntityRepository;
 @Named
 @RequiredArgsConstructor
 @SuppressWarnings("deprecation")
-final class EntityIdSingleton implements SingletonState<EntityNumber> {
+public final class EntityIdSingleton implements SingletonState<EntityNumber> {
     private final EntityRepository entityRepository;
     private final EvmProperties evmProperties;
 

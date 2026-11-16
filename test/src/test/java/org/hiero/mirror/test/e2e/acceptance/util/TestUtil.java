@@ -13,6 +13,7 @@ import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.PublicKey;
 import com.hedera.hashgraph.sdk.TokenId;
+import com.hedera.hashgraph.sdk.TransactionId;
 import com.hedera.hashgraph.sdk.proto.Key;
 import java.math.BigInteger;
 import java.net.InetAddress;
@@ -47,6 +48,13 @@ public class TestUtil {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final Pattern extractTransactionIdPattern = Pattern.compile("(\\d+\\.\\d+\\.\\d+)@(\\d+)\\.(\\d+)");
+
+    /** REST transaction id form, {@code shard.realm.num-seconds-nanos}. */
+    public static String toRestTransactionId(final TransactionId transactionId) {
+        final var accountId = transactionId.accountId.toString().split("-")[0];
+        final var nanos = StringUtils.leftPad(String.valueOf(transactionId.validStart.getNano()), 9, '0');
+        return accountId + "-" + transactionId.validStart.getEpochSecond() + "-" + nanos;
+    }
 
     public static String getAliasFromPublicKey(@NonNull PublicKey key) {
         if (key.isECDSA()) {

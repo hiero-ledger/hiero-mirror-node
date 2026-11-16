@@ -10,19 +10,29 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.EVM_V_34_BLOCK;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.getUnixSeconds;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.google.protobuf.ByteString;
 import java.math.BigInteger;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.web3j.generated.EvmCodesHistorical;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 public class ContractCallEvmCodesHistoricalTest extends AbstractContractCallServiceHistoricalTest {
+
+    private static final byte[] ZERO_HASH = new byte[32];
+
+    @MockitoSpyBean
+    private RecordFileRepository recordFileRepository;
+
     private RecordFile recordFileAfterEvm34;
 
     @BeforeEach
@@ -73,6 +83,32 @@ public class ContractCallEvmCodesHistoricalTest extends AbstractContractCallServ
         var expectedResult = ByteString.fromHex(recordFileAfterEvm34.getHash().substring(0, 64))
                 .toByteArray();
         assertThat(result).isEqualTo(expectedResult);
+    }
+
+    @Test
+    void getBlockHashMissingIndexQueriedOncePerCall() throws Exception {
+        // Given an absent index above the earliest record file and inside the window
+        final long currentIndex = recordFileAfterEvm34.getIndex();
+        recordFilePersist(currentIndex - 10);
+        final var soughtIndex = BigInteger.valueOf(currentIndex - 5);
+        final var iterations = BigInteger.valueOf(3);
+        final var contract = testWeb3jService.deploy(EvmCodesHistorical::deploy);
+
+        // When
+        final var firstResult =
+                contract.call_getBlockHashRepeated(soughtIndex, iterations).send();
+
+        // Then
+        assertThat(firstResult).isEqualTo(ZERO_HASH);
+        verify(recordFileRepository, times(1)).findByIndex(soughtIndex.longValue());
+
+        // When the next call starts with a fresh request context
+        final var secondResult =
+                contract.call_getBlockHashRepeated(soughtIndex, iterations).send();
+
+        // Then the absent index is queried again, once
+        assertThat(secondResult).isEqualTo(ZERO_HASH);
+        verify(recordFileRepository, times(2)).findByIndex(soughtIndex.longValue());
     }
 
     @Test

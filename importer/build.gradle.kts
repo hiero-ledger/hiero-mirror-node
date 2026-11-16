@@ -74,7 +74,9 @@ dependencies {
 }
 
 protobuf {
-    plugins {
-        id("grpc")
-    }
+    val grpcVersion = dependencyManagement.importedProperties["grpc-java.version"] as String
+    val protobufVersion = dependencyManagement.importedProperties["protobuf-java.version"] as String
+
+    protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" }
+    plugins { id("grpc") { artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion" } }
 }

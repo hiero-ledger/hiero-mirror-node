@@ -5,9 +5,11 @@ package org.hiero.mirror.web3.common;
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.AccessLevel;
@@ -36,6 +38,12 @@ public class ContractCallContext {
     public static final String CONTEXT_NAME = "ContractCallContext";
 
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
+
+    /**
+     * Record file indexes found to be absent during this call. Absent indexes are not cached across requests, so this
+     * keeps repeated BLOCKHASH lookups of the same absent index to a single query per call.
+     */
+    private final Set<Long> missingBlockIndexes = new HashSet<>();
 
     @Getter(AccessLevel.NONE)
     private final Map<Integer, Map<Object, Object>> readCache = new HashMap<>();
@@ -96,6 +104,18 @@ public class ContractCallContext {
     private Map<Bytes, StateOverride> stateOverrides;
 
     /**
+     * Number of synthetic accounts created for state overrides on addresses with no entity in the DB.
+     */
+    @Getter(AccessLevel.NONE)
+    private long overriddenAccountCount;
+
+    /**
+     * Approximate serialized size of the trace data of the current execution.
+     */
+    @Setter
+    private long traceDataBytes;
+
+    /**
      * Optional EVM {@code block.number} override from {@code block_override.number}. {@code null} means use the bound
      * record file.
      */
@@ -146,6 +166,14 @@ public class ContractCallContext {
         }
 
         return callServiceParameters.getGasPrice() > 0 || callServiceParameters.getValue() > 0;
+    }
+
+    /**
+     * Allocates a distinct, 1-based offset for each synthetic state-override account created within this request, so
+     * that each one receives its own account number.
+     */
+    public long nextOverriddenAccountOffset() {
+        return ++overriddenAccountCount;
     }
 
     public void reset() {

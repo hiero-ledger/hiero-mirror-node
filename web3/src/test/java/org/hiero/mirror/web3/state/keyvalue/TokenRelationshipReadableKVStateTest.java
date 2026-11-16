@@ -7,12 +7,14 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.common.EntityIDPair;
 import com.hedera.hapi.node.state.token.TokenRelation;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.Optional;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -135,6 +137,21 @@ class TokenRelationshipReadableKVStateTest {
                 .accountId(AccountID.DEFAULT)
                 .build();
         assertThat(tokenRelationshipReadableKVState.get(entityIDPair)).isNull();
+    }
+
+    @Test
+    void getWithAliasAccountIDReturnsNull() {
+        final var aliasAccountId = AccountID.newBuilder()
+                .shardNum(1L)
+                .realmNum(2L)
+                .alias(Bytes.wrap(domainBuilder.evmAddress()))
+                .build();
+        final var entityIDPair = EntityIDPair.newBuilder()
+                .tokenId(TOKEN_ID)
+                .accountId(aliasAccountId)
+                .build();
+        assertThat(tokenRelationshipReadableKVState.get(entityIDPair)).isNull();
+        verifyNoInteractions(tokenAccountRepository);
     }
 
     @Test

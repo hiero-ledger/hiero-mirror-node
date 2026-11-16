@@ -29,8 +29,14 @@ spec:
               value: "{{ .Values.zfs.init.arcSizeGb }}"
             - name: ROOT_MOUNT_DIR
               value: /node
+            - name: DISK_DEVICE_NAME
+              value: "{{ .Values.zfs.init.disk.deviceName }}"
             - name: DISK_PREFIX
               value: {{ .Values.zfs.init.diskPrefix }}
+            - name: DISK_PERFORMANCE
+              value: {{ include "hedera-mirror-common.zfsDiskPerformance" . | quote }}
+            - name: DISK_TYPE
+              value: "{{ .Values.zfs.init.disk.type }}"
             - name: DEFAULT_DISK_SIZE_COORDINATOR
               value: {{ .Values.zfs.coordinator.initialDiskSize }}
             - name: DEFAULT_DISK_SIZE_WORKER

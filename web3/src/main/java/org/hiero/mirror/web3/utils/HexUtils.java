@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.utils;
 
 import java.util.HexFormat;
 import lombok.experimental.UtilityClass;
-import org.hiero.mirror.web3.state.Utils;
 import org.hyperledger.besu.datatypes.Wei;
 import org.jspecify.annotations.Nullable;
 
@@ -34,11 +33,33 @@ public class HexUtils {
         return "0x" + hex.substring(start);
     }
 
+    /**
+     * Parses a hex string (with or without {@code 0x}/{@code 0X} prefix) into a long. Null, empty, prefix-only and
+     * all-zero input parse as {@code 0}. A value at or above {@code 2^63} is rejected.
+     */
     public static long convertHexStringToLong(final @Nullable String hex) {
         if (hex == null || hex.isEmpty()) {
             return 0L;
         }
-        return Utils.hexStringToLong(hex);
+
+        var start = hex.startsWith("0x") || hex.startsWith("0X") ? 2 : 0;
+        while (start < hex.length() && hex.charAt(start) == '0') {
+            start++;
+        }
+
+        if (start == hex.length()) {
+            return 0L;
+        }
+
+        if (hex.length() - start > 16) {
+            throw new NumberFormatException(hex + " produces numeric value which is outside long range.");
+        }
+
+        final var value = Long.parseUnsignedLong(hex, start, hex.length(), 16);
+        if (value < 0) {
+            throw new NumberFormatException(hex + " produces a negative numeric value.");
+        }
+        return value;
     }
 
     /**
