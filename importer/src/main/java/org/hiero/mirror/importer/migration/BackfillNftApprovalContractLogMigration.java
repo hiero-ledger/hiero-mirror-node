@@ -6,8 +6,8 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
 
 import jakarta.inject.Named;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
+import java.math.BigDecimal;
+import java.sql.Types;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +18,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Getter;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -31,9 +32,9 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.convert.DurationStyle;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.data.util.Version;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -50,8 +51,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @NullMarked
 final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<Long> {
 
-    static final Duration DEFAULT_BATCH_INTERVAL = Duration.ofHours(1);
-
     private static final byte[] APPROVAL = Bytes.fromHexString(
                     "8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925")
             .toArray();
@@ -64,26 +63,20 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
 
     private static final String APPROVALS_TABLE = "nft_approval_snapshot_temp";
 
-    private static final String BATCH_INTERVAL_PROPERTIES_KEY = "batchInterval";
-
     private static final RowMapper<Block> BLOCK_ROW_MAPPER = new DataClassRowMapper<>(Block.class);
 
     private static final RowMapper<ExistingLog> EXISTING_LOG_ROW_MAPPER = new DataClassRowMapper<>(ExistingLog.class);
-
-    private static final String HAS_APPROVALS = """
-            select exists(select * from nft_approval_snapshot_temp where consensus_timestamp <= ?)
-            """;
 
     private static final RowMapper<IndexedTransaction> INDEXED_TRANSACTION_ROW_MAPPER =
             new DataClassRowMapper<>(IndexedTransaction.class);
 
     private static final String INSERT_LOG = """
             insert into nft_approval_logs_temp (
-              bloom, consensus_timestamp, contract_id, data, index, payer_account_id, root_contract_id,
-              synthetic, topic0, topic1, topic2, topic3, transaction_hash, transaction_index
+              bloom, consensus_timestamp, contract_id, data, index, payer_account_id, restored_position,
+              root_contract_id, synthetic, topic0, topic1, topic2, topic3, transaction_hash, transaction_index
             ) values (
-              '\\x00', :timestamp, :token, '\\x00', 2147483647, :payer, :token,
-              true, :topic0, :topic1, :topic2, :topic3, :hash, :transactionIndex
+              '\\x00', :timestamp, :token, '\\x00', 2147483647, :payer, :position,
+              :token, true, :topic0, :topic1, :topic2, :topic3, :hash, :transactionIndex
             )
             """;
 
@@ -95,10 +88,11 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
     private static final String PROGRESS_TABLE = "nft_approval_contract_log_progress_temp";
 
     // Existing logs keep their block index order, which can differ from timestamp order: the effects of a contract
-    // call share its timestamp yet can be logged after other transactions. A log with a later timestamp was always
-    // created after the approval was parsed, so the recovered approvals are placed right before the first such log,
-    // after every existing log of the approval itself. The original allowance-list order is not retained in NFT
-    // history, so recovered approvals of the same transaction are ordered by token and serial.
+    // call share its timestamp yet can be logged after other transactions. A recovered approval takes the position
+    // found among the existing logs of its own transaction, see position(). When there is none, it is placed right
+    // before the first log with a later timestamp, which was always created after the approval was parsed. The
+    // original allowance-list order is not retained in NFT history, so recovered approvals sharing a position are
+    // ordered by token and serial.
     private static final String RESTORE_LOGS = """
             insert into contract_log (
               bloom, consensus_timestamp, contract_id, data, index, payer_account_id, root_contract_id,
@@ -113,10 +107,10 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
             from (
               select l.*,
                 case when l.index <> 2147483647 then l.index::numeric
-                else coalesce((
+                else coalesce(l.restored_position, coalesce((
                   select min(e.index) from nft_approval_logs_temp e
                   where e.index <> 2147483647 and e.consensus_timestamp > l.consensus_timestamp
-                ), 2147483647) - 0.5
+                ), 2147483647) - 0.5)
                 end as position
               from nft_approval_logs_temp l
             ) logs
@@ -130,6 +124,8 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
     // Materialize the transaction subset before joining the local snapshot in v2. Serial approvals are sparse, so
     // look the transactions up by the snapshot timestamps instead of scanning every transaction in the range.
     // NFT history retains the effective, deduplicated serial approvals even when transaction bytes were not saved.
+    // The logs of a scheduled approval triggered by a contract call belong to that call, at its timestamp and
+    // transaction index, so such an approval is skipped like any other transaction of contract origin.
     private static final String SELECT_APPROVALS = """
             with approvals as materialized (
               select consensus_timestamp, payer_account_id, transaction_hash
@@ -144,6 +140,10 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
                     and consensus_timestamp = any(:timestamps::bigint[])
                     and (gas_used is not null or child)
                 )
+                and (parent_consensus_timestamp is null or parent_consensus_timestamp not in (
+                  select consensus_timestamp from contract_result
+                  where consensus_timestamp between :start and :end and gas_used is not null
+                ))
             )
             select r.*, a.payer_account_id, a.transaction_hash
             from nft_approval_snapshot_temp r join approvals a using (consensus_timestamp)
@@ -151,17 +151,26 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
             order by consensus_timestamp, token_id, serial_number
             """;
 
-    private static final String SELECT_BLOCKS = """
+    private static final String SELECT_BLOCK = """
             select consensus_start, consensus_end, hapi_version_major, hapi_version_minor, hapi_version_patch
             from record_file
-            where consensus_end > ? and consensus_end <= ?
+            where consensus_end >= ?
             order by consensus_end
+            limit 1
+            """;
+
+    private static final String SELECT_LAST_APPROVAL = """
+            select max(consensus_timestamp) from nft_approval_snapshot_temp where consensus_timestamp <= ?
             """;
 
     private static final String SELECT_LOGS = """
-            select consensus_timestamp, contract_id, topic0, topic3
+            select consensus_timestamp, contract_id, index, topic0, topic1, topic2, topic3
             from contract_log where consensus_timestamp between :start and :end
               and topic0 in (:approval, :approvalForAll)
+            """;
+
+    private static final String SELECT_PREVIOUS_BLOCK = """
+            select max(consensus_end) from record_file where consensus_end < ?
             """;
 
     private static final String SELECT_TRANSACTION_INDEXES = """
@@ -180,18 +189,19 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
 
     private static final String SNAPSHOT_APPROVALS = """
             create table if not exists nft_approval_snapshot_temp as
-            select account_id, spender, token_id, serial_number, lower(timestamp_range) as consensus_timestamp
+            select account_id, delegating_spender, spender, token_id, serial_number,
+              lower(timestamp_range) as consensus_timestamp
             from nft
             where spender is not null and account_id is not null and lower(timestamp_range) <= ?
             union
-            select account_id, spender, token_id, serial_number, lower(timestamp_range) as consensus_timestamp
+            select account_id, delegating_spender, spender, token_id, serial_number,
+              lower(timestamp_range) as consensus_timestamp
             from nft_history
             where spender is not null and account_id is not null and lower(timestamp_range) <= ?
             """;
 
     private final EntityProperties entityProperties;
     private long initialUpperBound;
-    private long lowerBound;
 
     @Getter(lazy = true)
     private final TransactionOperations transactionOperations = transactionOperations();
@@ -234,42 +244,11 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
 
     @Override
     protected Optional<Long> migratePartial(final Long upperBound) {
-        final long next = Math.max(0, upperBound - batchInterval());
+        // Serial approvals are sparse, so jump to the block of the latest remaining one instead of walking every block
         final var jdbcOperations = getJdbcOperations();
-        final var blocks = jdbcOperations.query(SELECT_BLOCKS, BLOCK_ROW_MAPPER, next, upperBound);
-
-        if (!blocks.isEmpty()) {
-            final var params = range(
-                            blocks.getFirst().consensusStart(), blocks.getLast().consensusEnd())
-                    .addValue("type", TransactionType.CRYPTOAPPROVEALLOWANCE.getProtoId())
-                    .addValue("success", SUCCESS.getNumber());
-            final var jdbc = getNamedParameterJdbcOperations();
-            final var timestamps = jdbc.queryForList(SELECT_APPROVAL_TIMESTAMPS, params, Long.class);
-            params.addValue("timestamps", timestamps.toArray(Long[]::new));
-            // Most ranges have no serial approvals at all, so don't query the transactions for them
-            final var approvals = timestamps.isEmpty()
-                    ? List.<Approval>of()
-                    : jdbc.query(SELECT_APPROVALS, params, APPROVAL_ROW_MAPPER);
-
-            // Both lists are ordered by timestamp, so each block takes the approvals up to its consensus end
-            int start = 0;
-            for (final var block : blocks) {
-                int end = start;
-                while (end < approvals.size() && approvals.get(end).consensusTimestamp() <= block.consensusEnd()) {
-                    end++;
-                }
-
-                if (end > start) {
-                    restore(block, approvals.subList(start, end));
-                }
-
-                start = end;
-            }
-        }
-
-        // Stop at the oldest serial approval rather than walking back to the first record file
-        final var hasApprovals = jdbcOperations.queryForObject(HAS_APPROVALS, Boolean.class, next);
-        if (next < lowerBound || next == 0 || !Boolean.TRUE.equals(hasApprovals)) {
+        final var timestamp = jdbcOperations.queryForObject(SELECT_LAST_APPROVAL, Long.class, upperBound);
+        final var next = timestamp == null ? null : restoreBlockOf(timestamp);
+        if (next == null) {
             jdbcOperations.execute("drop table " + APPROVALS_TABLE);
             jdbcOperations.execute("drop table " + PROGRESS_TABLE);
             return Optional.empty();
@@ -304,13 +283,11 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
             jdbcOperations.update("insert into " + PROGRESS_TABLE + " values (?)", initialUpperBound);
         }
 
-        lowerBound = Objects.requireNonNull(
-                jdbcOperations.queryForObject("select min(consensus_end) from record_file", Long.class));
         return true;
     }
 
     private static byte[] address(final long id, final Map<Long, byte[]> addresses) {
-        return addresses.getOrDefault(id, trim(DomainUtils.toEvmAddress(EntityId.of(id))));
+        return addresses.getOrDefault(id, longZeroAddress(id));
     }
 
     private Map<Long, byte[]> addresses(final List<Approval> approvals) {
@@ -333,38 +310,95 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
         return result;
     }
 
-    private long batchInterval() {
-        final var value = migrationProperties
-                .getParams()
-                .getOrDefault(BATCH_INTERVAL_PROPERTIES_KEY, DEFAULT_BATCH_INTERVAL.toHours() + "h");
-        return DurationStyle.SIMPLE.parse(value, ChronoUnit.HOURS).toNanos();
+    // An existing log holds either address format, depending on how EVM address lookup was configured back then
+    private static boolean isAddress(final byte @Nullable [] topic, final long id, final Map<Long, byte[]> addresses) {
+        if (topic == null) {
+            return false;
+        }
+
+        final var address = trim(topic);
+        return Arrays.equals(address, longZeroAddress(id)) || Arrays.equals(address, addresses.get(id));
+    }
+
+    private static byte[] longZeroAddress(final long id) {
+        return trim(DomainUtils.toEvmAddress(EntityId.of(id)));
+    }
+
+    /**
+     * Finds where the importer would have logged a serial approval among the existing logs of its transaction. The
+     * importer first walks the NFT allowances, logging the ApprovalForAll of an allowance right before its serial
+     * approvals, and only then logs the fungible token approvals.
+     *
+     * @return the fractional position between two existing block log indexes, or null when the transaction has no log
+     */
+    private static @Nullable BigDecimal position(
+            final Approval approval, final List<ExistingLog> existing, final Map<Long, byte[]> addresses) {
+        int allowance = -1;
+        int first = Integer.MAX_VALUE;
+        int lastNft = -1;
+        int token = -1;
+        for (final var log : existing) {
+            if (log.consensusTimestamp() != approval.consensusTimestamp()) {
+                continue;
+            }
+
+            first = Math.min(first, log.index());
+            if (log.isFungibleApproval()) {
+                continue;
+            }
+
+            lastNft = Math.max(lastNft, log.index());
+            if (!log.isApprovalForAll(approval)) {
+                continue;
+            }
+
+            token = Math.max(token, log.index());
+            if (log.hasOwnerAndSpender(approval, addresses)) {
+                allowance = Math.max(allowance, log.index());
+            }
+        }
+
+        // Right after the ApprovalForAll of its own allowance, or else the last ApprovalForAll of the token
+        final int anchor = allowance >= 0 ? allowance : token;
+        if (anchor >= 0) {
+            return BigDecimal.valueOf(anchor + 0.25);
+        }
+
+        // A delegated allowance without an ApprovalForAll log: after the other NFT logs, before the fungible ones
+        if (lastNft >= 0) {
+            return BigDecimal.valueOf(lastNft + 0.5);
+        }
+
+        return first != Integer.MAX_VALUE ? BigDecimal.valueOf(first - 0.5) : null;
     }
 
     private static MapSqlParameterSource range(final long start, final long end) {
         return new MapSqlParameterSource("start", start).addValue("end", end);
     }
 
-    private void restore(final Block block, final List<Approval> approvals) {
-        // A retained transaction can outlive its record_file row. Do not assign it to the next block across a gap.
-        final var candidates = approvals.stream()
-                .filter(a -> a.consensusTimestamp() >= block.consensusStart())
-                .toList();
+    private void restore(final Block block) {
+        final var params = range(block.consensusStart(), block.consensusEnd())
+                .addValue("approval", APPROVAL)
+                .addValue("approvalForAll", APPROVAL_FOR_ALL)
+                .addValue("success", SUCCESS.getNumber())
+                .addValue("type", TransactionType.CRYPTOAPPROVEALLOWANCE.getProtoId());
+        final var jdbc = getNamedParameterJdbcOperations();
+        final var timestamps = jdbc.queryForList(SELECT_APPROVAL_TIMESTAMPS, params, Long.class);
+        params.addValue("timestamps", timestamps.toArray(Long[]::new));
+        final var candidates = jdbc.query(SELECT_APPROVALS, params, APPROVAL_ROW_MAPPER);
         if (candidates.isEmpty()) {
             return;
         }
 
-        final var params = range(block.consensusStart(), block.consensusEnd())
-                .addValue("approval", APPROVAL)
-                .addValue("approvalForAll", APPROVAL_FOR_ALL);
-        final var jdbc = getNamedParameterJdbcOperations();
         final var existing = jdbc.query(SELECT_LOGS, params, EXISTING_LOG_ROW_MAPPER);
-        // Limit the backfill to the serial approvals the importer skipped because approvedForAll was set. Before HAPI
-        // 0.77.0 such an allowance always produced an ApprovalForAll log for the token, which also proves synthetic
-        // logs were persisted for the transaction. Since HAPI 0.77.0 a delegated allowance with approvedForAll=false
-        // produces no log at all, yet any missing serial Approval in that range can only stem from the same defect.
+        // Limit the backfill to the serial approvals the importer skipped because approvedForAll was set. Such an
+        // allowance produced an ApprovalForAll log for the token, which also proves synthetic logs were persisted for
+        // the transaction. The only exception is a delegated allowance with approvedForAll=false since HAPI 0.77.0:
+        // it produces no log at all, so a delegated serial approval in that range is restored without one.
         final boolean hapi077OrLater = block.isHapi077OrLater();
         final var missing = candidates.stream()
-                .filter(a -> hapi077OrLater || existing.stream().anyMatch(log -> log.isApprovalForAll(a)))
+                .filter(a -> (hapi077OrLater && a.delegatingSpender() != null)
+                        || existing.stream().anyMatch(log -> log.isApprovalForAll(a)))
                 .filter(a -> existing.stream().noneMatch(log -> log.matches(a)))
                 .toList();
         if (missing.isEmpty()) {
@@ -384,9 +418,15 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
         for (final var approval : missing) {
             final long timestamp = approval.consensusTimestamp();
             if (!indexByTimestamp.containsKey(timestamp)) {
-                newIndexes.computeIfAbsent(timestamp, t -> (int) timestampByIndex.values().stream()
-                        .filter(previous -> previous < t)
-                        .count());
+                // Insert before the next persisted transaction, or after the last one. Counting preceding rows
+                // loses index gaps, e.g. when ingestion began partway through a block.
+                newIndexes.computeIfAbsent(
+                        timestamp,
+                        t -> timestampByIndex.entrySet().stream()
+                                .filter(entry -> entry.getValue() > t)
+                                .mapToInt(Map.Entry::getKey)
+                                .findFirst()
+                                .orElse(timestampByIndex.isEmpty() ? 0 : timestampByIndex.lastKey() + 1));
             }
         }
 
@@ -402,7 +442,9 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
         // Staging avoids primary-key collisions while shifting log indexes. The caller commits the block changes
         // and the migration checkpoint together, so an interrupted migration can safely retry the batch.
         final var jdbcOperations = getJdbcOperations();
-        jdbcOperations.execute("create temp table nft_approval_logs_temp (like contract_log) on commit drop");
+        jdbcOperations.execute("""
+                create temp table nft_approval_logs_temp (like contract_log, restored_position numeric) on commit drop
+                """);
         jdbc.update(
                 "insert into nft_approval_logs_temp (" + LOG_COLUMNS + ") select " + LOG_COLUMNS
                         + " from contract_log where consensus_timestamp between :start and :end",
@@ -427,6 +469,7 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
                         .addValue("timestamp", a.consensusTimestamp())
                         .addValue("token", a.tokenId())
                         .addValue("payer", a.payerAccountId())
+                        .addValue("position", position(a, existing, addresses), Types.NUMERIC)
                         .addValue("topic0", APPROVAL)
                         .addValue("topic1", address(a.accountId(), addresses))
                         .addValue("topic2", address(a.spender(), addresses))
@@ -443,6 +486,20 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
         log.info("Restored {} NFT approval logs in block ending at {}", missing.size(), block.consensusEnd());
     }
 
+    // Returns the upper bound of the next iteration, or null when no earlier block is left
+    private @Nullable Long restoreBlockOf(final long timestamp) {
+        final var jdbcOperations = getJdbcOperations();
+        final var block = DataAccessUtils.singleResult(jdbcOperations.query(SELECT_BLOCK, BLOCK_ROW_MAPPER, timestamp));
+        if (block == null || block.consensusStart() > timestamp) {
+            // An approval can outlive its record_file row, e.g. with retention. Do not assign it to the next block
+            // across the gap. Continue from the previous block, which skips every other approval in the same gap.
+            return jdbcOperations.queryForObject(SELECT_PREVIOUS_BLOCK, Long.class, timestamp);
+        }
+
+        restore(block);
+        return block.consensusStart() - 1;
+    }
+
     private TransactionOperations transactionOperations() {
         final var jdbcTemplate = (JdbcTemplate) getJdbcOperations();
         return new TransactionTemplate(
@@ -452,6 +509,7 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
     private record Approval(
             long consensusTimestamp,
             long accountId,
+            @Nullable Long delegatingSpender,
             long spender,
             long tokenId,
             long serialNumber,
@@ -475,12 +533,27 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
     }
 
     private record ExistingLog(
-            long consensusTimestamp, long contractId, byte @Nullable [] topic0, byte @Nullable [] topic3) {
+            long consensusTimestamp,
+            long contractId,
+            int index,
+            byte @Nullable [] topic0,
+            byte @Nullable [] topic1,
+            byte @Nullable [] topic2,
+            byte @Nullable [] topic3) {
+
+        boolean hasOwnerAndSpender(final Approval approval, final Map<Long, byte[]> addresses) {
+            return isAddress(topic1, approval.accountId(), addresses)
+                    && isAddress(topic2, approval.spender(), addresses);
+        }
 
         boolean isApprovalForAll(final Approval approval) {
             return consensusTimestamp == approval.consensusTimestamp()
                     && contractId == approval.tokenId()
                     && Arrays.equals(topic0, APPROVAL_FOR_ALL);
+        }
+
+        boolean isFungibleApproval() {
+            return Arrays.equals(topic0, APPROVAL) && ArrayUtils.isEmpty(topic3);
         }
 
         boolean matches(final Approval approval) {
