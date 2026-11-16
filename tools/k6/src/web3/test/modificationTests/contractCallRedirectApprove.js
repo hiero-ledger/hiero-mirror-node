@@ -12,7 +12,7 @@ const amount = __ENV.AMOUNT;
 const runMode = __ENV.RUN_WITH_VARIABLES;
 const testName = 'contractCallRedirectApprove';
 
-const stateOverrides = () => (contract ? [{address: contract, code: PRECOMPILE_TEST_CONTRACT_BYTECODE}] : null);
+const stateOverrides = () => [{address: contract, code: PRECOMPILE_TEST_CONTRACT_BYTECODE}];
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =

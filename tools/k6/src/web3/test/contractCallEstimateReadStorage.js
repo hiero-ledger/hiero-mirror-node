@@ -12,16 +12,11 @@ const testName = 'contractCallEstimateReadStorage';
 const TICK_LENS_SELECTOR = '0xc1ed38bc';
 
 // Patch only the overridden pool slots, the remaining ticks are still read from the DB
-const stateOverrides = () => {
-  if (!data) {
-    return null;
-  }
-
-  return Object.entries(TICK_LENS_POOL_STORAGE).map(([address, storage]) => ({
+const stateOverrides = () =>
+  Object.entries(TICK_LENS_POOL_STORAGE).map(([address, storage]) => ({
     address,
     state_diff: Object.entries(storage).map(([key, value]) => ({key, value})),
   }));
-};
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =

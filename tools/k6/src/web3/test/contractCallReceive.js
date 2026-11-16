@@ -10,16 +10,10 @@ const testName = 'contractCallReceive';
 const PAYER_BALANCE = 100_000_000_000_000;
 const CONTRACT_BALANCE = 0;
 
-const stateOverrides = () => {
-  if (!account || !contract) {
-    return null;
-  }
-
-  return [
-    {address: account.slice(-40), balance: PAYER_BALANCE},
-    {address: contract, balance: CONTRACT_BALANCE},
-  ];
-};
+const stateOverrides = () => [
+  {address: account.slice(-40), balance: PAYER_BALANCE},
+  {address: contract, balance: CONTRACT_BALANCE},
+];
 
 const {options, run} = new ContractCallTestScenarioBuilder()
   .name(testName) // use unique scenario name among all tests

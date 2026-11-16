@@ -53,29 +53,23 @@ const toSlotValue = (value) => '0x' + value.toString(16).padStart(64, '0');
 // System account in the payer's shard and realm
 const toSystemAddress = (num) => toAddress(payer).slice(0, 24) + num.toString(16).padStart(16, '0');
 
-const stateOverrides = () => {
-  if (!contract || !payer || !firstReceiver || !secondReceiver) {
-    return null;
-  }
-
-  return [
-    {
-      address: contract,
-      balance: BALANCE_100_HBAR,
-      nonce: 1,
-      state_diff: KEY_TYPE_SLOTS.map(([key, value]) => ({key: `0x${key}`, value: toSlotValue(value)})),
-    },
-    {address: toAddress(payer), balance: BALANCE_1M_HBAR},
-    {address: toAddress(firstReceiver), balance: BALANCE_100_HBAR},
-    {address: toAddress(secondReceiver), balance: BALANCE_100_HBAR},
-    {address: toSystemAddress(2), balance: BALANCE_10B_HBAR},
-    {address: toSystemAddress(98), balance: BALANCE_1M_HBAR},
-    {address: toSystemAddress(800), balance: BALANCE_1M_HBAR},
-    {address: toSystemAddress(801), balance: BALANCE_1M_HBAR},
-    {address: toSystemAddress(802), balance: BALANCE_1M_HBAR},
-    {address: HTS_SYSTEM_CONTRACT, balance: 0},
-  ];
-};
+const stateOverrides = () => [
+  {
+    address: contract,
+    balance: BALANCE_100_HBAR,
+    nonce: 1,
+    state_diff: KEY_TYPE_SLOTS.map(([key, value]) => ({key: `0x${key}`, value: toSlotValue(value)})),
+  },
+  {address: toAddress(payer), balance: BALANCE_1M_HBAR},
+  {address: toAddress(firstReceiver), balance: BALANCE_100_HBAR},
+  {address: toAddress(secondReceiver), balance: BALANCE_100_HBAR},
+  {address: toSystemAddress(2), balance: BALANCE_10B_HBAR},
+  {address: toSystemAddress(98), balance: BALANCE_1M_HBAR},
+  {address: toSystemAddress(800), balance: BALANCE_1M_HBAR},
+  {address: toSystemAddress(801), balance: BALANCE_1M_HBAR},
+  {address: toSystemAddress(802), balance: BALANCE_1M_HBAR},
+  {address: HTS_SYSTEM_CONTRACT, balance: 0},
+];
 
 //If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =
