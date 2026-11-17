@@ -15,6 +15,9 @@ import org.hiero.mirror.common.converter.PGobjectToRangeReadingConverter;
 import org.hiero.mirror.common.converter.RangeToPGobjectWritingConverter;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorHistory;
+import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.contract.ContractState;
@@ -126,6 +129,9 @@ class CompositeIdMappingTest {
                                 "port",
                                 50211)),
                 Arguments.of(NodeStake.class, Map.of("consensus_timestamp", 101L, "node_id", 7L)),
+                Arguments.of(
+                        ClprConnector.class, Map.of("channel_id", new byte[] {0, 1, 2}, "commitment", new byte[] {3, 4})),
+                Arguments.of(ClprMessage.class, Map.of("channel_id", new byte[] {0, 1, 2}, "message_id", 101L)),
                 Arguments.of(ContractAction.class, Map.of("consensus_timestamp", 101L, "index", 3)),
                 Arguments.of(ContractLog.class, Map.of("consensus_timestamp", 101L, "index", 3)),
                 Arguments.of(ContractState.class, Map.of("contract_id", 102L, "slot", new byte[] {0, 1, 2})),
@@ -173,6 +179,9 @@ class CompositeIdMappingTest {
                 Arguments.of(
                         TransactionSignature.class,
                         Map.of("consensus_timestamp", 101L, "public_key_prefix", new byte[] {0, 1, 2})),
+                Arguments.of(
+                        ClprConnectorHistory.class,
+                        Map.of("channel_id", new byte[] {0, 1, 2}, "commitment", new byte[] {3, 4})),
                 Arguments.of(CryptoAllowanceHistory.class, Map.of("owner", 101L, "spender", 102L)),
                 Arguments.of(NftAllowanceHistory.class, Map.of("owner", 101L, "spender", 102L, "token_id", 103L)),
                 Arguments.of(TokenAllowanceHistory.class, Map.of("owner", 101L, "spender", 102L, "token_id", 103L)),

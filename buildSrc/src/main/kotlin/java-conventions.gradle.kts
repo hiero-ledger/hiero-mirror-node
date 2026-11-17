@@ -57,7 +57,7 @@ tasks.withType<JavaCompile>().configureEach {
             "-Werror",
             "-Xlint:all",
             "-Xlint:-deprecation,-preview,-rawtypes,-this-escape,-unchecked",
-        )
+        ),
     )
     options.encoding = "UTF-8"
     options.errorprone {

@@ -27,6 +27,13 @@ contract EvmCodesHistorical {
         return blockhash(block.number);
     }
 
+    // Repeatedly reads the hash of the given block to exercise repeated BLOCKHASH lookups within one call
+    function getBlockHashRepeated(uint256 blockNumber, uint256 count) external view returns (bytes32 result) {
+        for (uint256 i = 0; i < count; i++) {
+            result = blockhash(blockNumber);
+        }
+    }
+
     // External view function that retrieves the hbar balance of a given account
     function getAccountBalance(address _owner) external view returns (uint) {
         return _owner.balance;

@@ -47,11 +47,19 @@ them up to date. The image must be published as an OCI image for the required ma
 To republish postgresql-repmgr, run the following steps manually whenever it needs to change:
 
 ```shell
-export PG_VERSION=18.6.0-debian-12-r19
+export PG_VERSION=18.7.0-debian-12-r0
 git clone https://github.com/bitnami/containers.git
 cd containers/bitnami/postgresql-repmgr/18/debian-12
 docker buildx build . -t gcr.io/mirror-node-public/hedera-mirror-node/postgresql-repmgr:${PG_VERSION} --push --provenance false --platform linux/amd64 --annotation "manifest,manifest-descriptor:com.googleapis.cloudmarketplace.product.service.name=services/hedera-mirror-node-mirror-node-public.cloudpartnerservices.goog"
 sed "s/postgresql_tag=.*/postgresql_tag=\"${PG_VERSION}\"/" release.sh
+```
+
+To republish bats image:
+
+```shell
+git clone https://github.com/bats-core/bats-core.git
+cd bats-core
+docker build . -t gcr.io/mirror-node-public/hedera-mirror-node/test:1.14.0-SNAPSHOT --push --platform linux/amd64
 ```
 
 Run the below commands to re-tag existing images and build the deployer image for testing with Marketplace:

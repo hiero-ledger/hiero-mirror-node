@@ -421,6 +421,12 @@ paths:
                 $ref: "#/components/schemas/BalancesResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
+        429:
+          description: Too many concurrent account.balance requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       tags:
         - balances
   /api/v1/blocks:
@@ -1565,7 +1571,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Mirror Node REST API
-  version: 0.166.0-SNAPSHOT
+  version: 0.168.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -1974,9 +1980,9 @@ components:
           type: string
           format: binary
         balance:
-          description: The account balance as a hex-encoded quantity in weibars
-          type: string
-          format: binary
+          description: The account balance in tinybars
+          type: integer
+          format: int64
         code:
           description: the bytecode of the account
           type: string
@@ -2528,6 +2534,11 @@ components:
           description: The hex encoded chain_id of the wrapped ethereum transaction
           type: [string, "null"]
           example: "0x127"
+        child:
+          description: >-
+            Whether the transaction was executed as part of another transaction's EVM execution (e.g. a system contract
+            call or a call dispatched by a hook).
+          type: boolean
         contract_id:
           $ref: "#/components/schemas/EntityId"
         created_contract_ids:
@@ -2790,6 +2801,15 @@ components:
           format: binary
           type: [string, "null"]
     ContractResultStateChanges:
+      description: >-
+        EVM storage-slot changes recorded for the contract execution. This
+        reflects only writes to EVM storage slots. Operations that mutate
+        native ledger state through the Hedera system contracts (for example
+        HTS token association, mint, burn, or key updates) do not write to EVM
+        storage slots, so a successful system-contract call can return an empty
+        `state_changes` array. The authoritative result of such a call is its
+        response code and the affected entity's own record (for example
+        `/api/v1/tokens/{id}`), not this field.
       type: array
       items:
         $ref: "#/components/schemas/ContractResultStateChange"
@@ -2940,12 +2960,11 @@ components:
         address:
           $ref: "#/components/schemas/EvmAddress"
         balance:
-          description: Hex-encoded balance override in tinybars.
-          example: "0x1"
-          format: binary
-          maxLength: 18
-          pattern: "^(0x)?[0-9a-fA-F]{1,16}$"
-          type: [string, "null"]
+          description: Balance override in tinybars.
+          example: 100000000
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
         code:
           description: Hex-encoded runtime bytecode override.
           example: "0x6080604052"
@@ -2953,12 +2972,11 @@ components:
           pattern: "^(0x)?[0-9a-fA-F]*$"
           type: [string, "null"]
         nonce:
-          description: Hex-encoded nonce override.
-          example: "0x1"
-          format: binary
-          maxLength: 18
-          pattern: "^(0x)?[0-9a-fA-F]{1,16}$"
-          type: [string, "null"]
+          description: Ethereum nonce override.
+          example: 1
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
         state:
           description: Full storage replacement. Mutually exclusive with state_diff.
           items:
@@ -5317,10 +5335,10 @@ components:
           summary: Example of id equals operator
           value: eq:0.0.200
         idGtOperator:
-          summary: Example of id greather than operator
+          summary: Example of id greater than operator
           value: gt:0.0.200
         idGteOperator:
-          summary: Example of id greather than or equal to operator
+          summary: Example of id greater than or equal to operator
           value: gte:0.0.200
         idLtOperator:
           summary: Example of id less than operator
@@ -5450,10 +5468,10 @@ components:
           summary: Example of id equals operator
           value: eq:0.0.200
         idGtOperator:
-          summary: Example of id greather than operator
+          summary: Example of id greater than operator
           value: gt:0.0.200
         idGteOperator:
-          summary: Example of id greather than or equal to operator
+          summary: Example of id greater than or equal to operator
           value: gte:0.0.200
         idLtOperator:
           summary: Example of id less than operator
@@ -5702,10 +5720,10 @@ components:
           summary: Example of id equals operator
           value: eq:0.0.200
         idGtOperator:
-          summary: Example of id greather than operator
+          summary: Example of id greater than operator
           value: gt:0.0.200
         idGteOperator:
-          summary: Example of id greather than or equal to operator
+          summary: Example of id greater than or equal to operator
           value: gte:0.0.200
         idLtOperator:
           summary: Example of id less than operator

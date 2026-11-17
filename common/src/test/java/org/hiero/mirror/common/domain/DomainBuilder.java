@@ -33,7 +33,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -58,6 +57,25 @@ import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitmentHistory;
+import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
+import org.hiero.mirror.common.domain.clpr.ClprConfigUpdate;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorHistory;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
+import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprControlMessage;
+import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprMessage;
+import org.hiero.mirror.common.domain.clpr.ClprMessageType;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
+import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -136,6 +154,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.domain.tss.Ledger;
+import org.hiero.mirror.common.domain.tss.LedgerHistory;
 import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
@@ -264,6 +283,193 @@ public class DomainBuilder {
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
+    public DomainWrapper<ClprChannel, ClprChannel.ClprChannelBuilder<?, ?>> clprChannel() {
+        var createdTimestamp = timestamp();
+        var builder = ClprChannel.builder()
+                .ackedMessageId(0L)
+                .chainId("hedera:mainnet")
+                .channelId(bytes(32))
+                .configProofBytes(bytes(16))
+                .createdTimestamp(createdTimestamp)
+                .endpointManifestProofBytes(bytes(16))
+                .endpointManifestVersion(0L)
+                .nextMessageId(1L)
+                .ownershipCommitment(bytes(32))
+                .publicKey(bytes(64))
+                .receivedMessageId(0L)
+                .receivedRunningHash(bytes(32))
+                .sentRunningHash(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ClprSignatureScheme.ED25519)
+                .status(ClprChannelStatus.ACTIVE)
+                .timestampRange(Range.atLeast(createdTimestamp))
+                .verifierContractId(entityId())
+                .verifierFingerprint(bytes(32));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprChannelHistory, ClprChannelHistory.ClprChannelHistoryBuilder<?, ?>> clprChannelHistory() {
+        var createdTimestamp = timestamp();
+        var builder = ClprChannelHistory.builder()
+                .ackedMessageId(0L)
+                .chainId("hedera:mainnet")
+                .channelId(bytes(32))
+                .configProofBytes(bytes(16))
+                .createdTimestamp(createdTimestamp)
+                .endpointManifestProofBytes(bytes(16))
+                .endpointManifestVersion(0L)
+                .nextMessageId(1L)
+                .ownershipCommitment(bytes(32))
+                .publicKey(bytes(64))
+                .receivedMessageId(0L)
+                .receivedRunningHash(bytes(32))
+                .sentRunningHash(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ClprSignatureScheme.ED25519)
+                .status(ClprChannelStatus.ACTIVE)
+                .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10))
+                .verifierContractId(entityId())
+                .verifierFingerprint(bytes(32));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<
+                    ClprChannelPendingCommitment,
+                    ClprChannelPendingCommitment.ClprChannelPendingCommitmentBuilder<?, ?>>
+            clprChannelPendingCommitment() {
+        var createdTimestamp = timestamp();
+        var builder = ClprChannelPendingCommitment.builder()
+                .createdTimestamp(createdTimestamp)
+                .ownershipCommitment(bytes(32))
+                .status(ClprPendingCommitmentStatus.OPEN)
+                .timestampRange(Range.atLeast(createdTimestamp));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<
+                    ClprChannelPendingCommitmentHistory,
+                    ClprChannelPendingCommitmentHistory.ClprChannelPendingCommitmentHistoryBuilder<?, ?>>
+            clprChannelPendingCommitmentHistory() {
+        var createdTimestamp = timestamp();
+        var builder = ClprChannelPendingCommitmentHistory.builder()
+                .createdTimestamp(createdTimestamp)
+                .ownershipCommitment(bytes(32))
+                .status(ClprPendingCommitmentStatus.OPEN)
+                .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprConnector, ClprConnector.ClprConnectorBuilder<?, ?>> clprConnector() {
+        var createdTimestamp = timestamp();
+        var builder = ClprConnector.builder()
+                .adminKey(key())
+                .channelId(bytes(32))
+                .commitment(bytes(32))
+                .connectorContractId(entityId())
+                .connectorId(bytes(32))
+                .createdTimestamp(createdTimestamp)
+                .inFlightMessageCount(0L)
+                .lockedStake(100_000_000L)
+                .publicKey(bytes(64))
+                .salt(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ClprSignatureScheme.ED25519)
+                .slashCount(0L)
+                .status(ClprConnectorStatus.ACTIVE)
+                .timestampRange(Range.atLeast(createdTimestamp));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprConnectorHistory, ClprConnectorHistory.ClprConnectorHistoryBuilder<?, ?>>
+            clprConnectorHistory() {
+        var createdTimestamp = timestamp();
+        var builder = ClprConnectorHistory.builder()
+                .adminKey(key())
+                .channelId(bytes(32))
+                .commitment(bytes(32))
+                .connectorContractId(entityId())
+                .connectorId(bytes(32))
+                .createdTimestamp(createdTimestamp)
+                .inFlightMessageCount(0L)
+                .lockedStake(100_000_000L)
+                .publicKey(bytes(64))
+                .salt(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ClprSignatureScheme.ED25519)
+                .slashCount(0L)
+                .status(ClprConnectorStatus.ACTIVE)
+                .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprEndpointManifest, ClprEndpointManifest.ClprEndpointManifestBuilder>
+            clprEndpointManifest() {
+        var builder = ClprEndpointManifest.builder()
+                .consensusTimestamp(timestamp())
+                .endpoints(List.of(ClprEndpoint.builder()
+                        .accountId(bytes(20))
+                        .serviceEndpoint(ClprServiceEndpoint.builder()
+                                .ipAddress("127.0.0.1")
+                                .port(50211)
+                                .build())
+                        .tlsCertificate(bytes(256))
+                        .build()))
+                .serviceAddress(bytes(20))
+                .version(1L);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprLedgerConfiguration, ClprLedgerConfiguration.ClprLedgerConfigurationBuilder>
+            clprLedgerConfiguration() {
+        var builder = ClprLedgerConfiguration.builder()
+                .chainId("hedera:mainnet")
+                .consensusTimestamp(timestamp())
+                .initialTrustAnchor(bytes(32))
+                .initialTrustAnchorId(bytes(32))
+                .maxGasPerMessage(1_000_000L)
+                .maxLocalEndpoints(10L)
+                .maxMessagePayloadBytes(6_000L)
+                .maxMessagesPerBundle(100L)
+                .maxPeerEndpoints(10L)
+                .maxQueueDepth(1_000L)
+                .maxSyncBytes(6_000_000L)
+                .protocolVersion(1L)
+                .serviceAddress(bytes(20));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprMessage, ClprMessage.ClprMessageBuilder> clprMessage() {
+        var builder = ClprMessage.builder()
+                .channelId(bytes(32))
+                .connectorId(bytes(32))
+                .consensusTimestamp(timestamp())
+                .controlMessage(ClprControlMessage.builder()
+                        .configUpdate(ClprConfigUpdate.builder()
+                                .configuration(ClprControlConfiguration.builder()
+                                        .chainId("hedera:mainnet")
+                                        .initialTrustAnchor(bytes(32))
+                                        .initialTrustAnchorId(bytes(32))
+                                        .maxGasPerMessage(1_000_000L)
+                                        .maxLocalEndpoints(10L)
+                                        .maxMessagePayloadBytes(6_000L)
+                                        .maxMessagesPerBundle(100L)
+                                        .maxPeerEndpoints(10L)
+                                        .maxQueueDepth(1_000L)
+                                        .maxSyncBytes(6_000_000L)
+                                        .protocolVersion(1L)
+                                        .serviceAddress(bytes(20))
+                                        .build())
+                                .build())
+                        .build())
+                .messageData(bytes(256))
+                .messageId(number())
+                .messageType(ClprMessageType.DATA)
+                .runningHash(bytes(32))
+                .sender(bytes(20))
+                .targetApplication(bytes(20));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
     public DomainWrapper<Contract, Contract.ContractBuilder<?, ?>> contract() {
         var builder = Contract.builder()
                 .fileId(entityId())
@@ -316,6 +522,7 @@ public class DomainBuilder {
                 .amount(1000L)
                 .bloom(bytes(256))
                 .callResult(bytes(512))
+                .child(false)
                 .consensusTimestamp(timestamp())
                 .contractId(entityId().getId())
                 .createdContractIds(List.of(entityId().getId()))
@@ -655,22 +862,19 @@ public class DomainBuilder {
     }
 
     public DomainWrapper<Ledger, Ledger.LedgerBuilder<?, ?>> ledger() {
-        final var nodeContributions = new ArrayList<LedgerNodeContribution>(List.of(
-                LedgerNodeContribution.builder()
-                        .historyProofKey(bytes(48))
-                        .nodeId(number())
-                        .weight(number())
-                        .build(),
-                LedgerNodeContribution.builder()
-                        .historyProofKey(bytes(48))
-                        .nodeId(number())
-                        .weight(number())
-                        .build()));
         final var builder = Ledger.builder()
-                .consensusTimestamp(timestamp())
-                .historyProofVerificationKey(bytes(64))
-                .ledgerId(bytes(32))
-                .nodeContributions(nodeContributions);
+                .ledgerId(bytes(64))
+                .nodeContributions(ledgerNodeContributions())
+                .timestampRange(Range.atLeast(timestamp()));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<LedgerHistory, LedgerHistory.LedgerHistoryBuilder<?, ?>> ledgerHistory() {
+        final long lowerTimestamp = timestamp();
+        final var builder = LedgerHistory.builder()
+                .ledgerId(bytes(64))
+                .nodeContributions(ledgerNodeContributions())
+                .timestampRange(Range.closedOpen(lowerTimestamp, lowerTimestamp + 1));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -1457,6 +1661,18 @@ public class DomainBuilder {
     // SQL timestamp type only supports up to microsecond granularity
     private Instant instant() {
         return now.truncatedTo(ChronoUnit.MILLIS).plusMillis(number());
+    }
+
+    private LedgerNodeContribution ledgerNodeContribution() {
+        return LedgerNodeContribution.builder()
+                .historyProofKey(bytes(48))
+                .nodeId(number())
+                .weight(number())
+                .build();
+    }
+
+    private List<LedgerNodeContribution> ledgerNodeContributions() {
+        return List.of(ledgerNodeContribution(), ledgerNodeContribution());
     }
 
     private RoyaltyFee royaltyFee() {

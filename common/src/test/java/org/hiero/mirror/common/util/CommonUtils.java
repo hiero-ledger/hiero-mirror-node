@@ -13,6 +13,7 @@ public class CommonUtils {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     public static void copyCommonProperties(CommonProperties source, CommonProperties target) {
+        target.setClusterId(source.getClusterId());
         target.setRealm(source.getRealm());
         target.setShard(source.getShard());
     }

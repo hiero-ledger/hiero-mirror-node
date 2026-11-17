@@ -79,8 +79,8 @@
         "balance": 15,
         "created_timestamp": "1234567890.000000002",
         "decimals": 1,
-        "freeze_status": "UNFROZEN",
-        "kyc_status": "GRANTED",
+        "freeze_status": "NOT_APPLICABLE",
+        "kyc_status": "NOT_APPLICABLE",
         "token_id": "0.0.1135"
       },
       {

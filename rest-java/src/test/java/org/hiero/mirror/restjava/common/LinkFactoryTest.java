@@ -4,6 +4,7 @@ package org.hiero.mirror.restjava.common;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.restjava.common.Constants.ACCOUNT_ID;
+import static org.hiero.mirror.restjava.common.Constants.KEY;
 import static org.hiero.mirror.restjava.common.Constants.NODE_ID;
 import static org.hiero.mirror.restjava.common.Constants.TOKEN_ID;
 import static org.hiero.mirror.restjava.common.LinkFactory.LINK_HEADER;
@@ -406,6 +407,58 @@ final class LinkFactoryTest {
         assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
                 .returns(null, Links::getNext);
         assertThat(response.getHeader(HttpHeaders.LINK)).isNull();
+    }
+
+    @Test
+    @DisplayName("Omits next when the last slot key is 0xff..ff ascending (nothing can follow)")
+    void testOmitsNextAtMaxSlotAscending() {
+        final var maxSlot = "0x" + "f".repeat(64);
+        when(extractor.apply(nftAllowance)).thenReturn(Map.of(KEY, maxSlot));
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("order", new String[] {"asc"});
+        when(request.getParameterMap()).thenReturn(params);
+        var sort = Sort.by(Direction.ASC, KEY);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        // Emitting key=gt:0xff..ff would be an unsatisfiable exclusive bound; end pagination cleanly.
+        assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
+                .returns(null, Links::getNext);
+        assertThat(response.getHeader(HttpHeaders.LINK)).isNull();
+    }
+
+    @Test
+    @DisplayName("Omits next when the last slot key is 0x00..00 descending (nothing can precede)")
+    void testOmitsNextAtMinSlotDescending() {
+        final var minSlot = "0x" + "0".repeat(64);
+        when(extractor.apply(nftAllowance)).thenReturn(Map.of(KEY, minSlot));
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("order", new String[] {"desc"});
+        when(request.getParameterMap()).thenReturn(params);
+        var sort = Sort.by(Direction.DESC, KEY);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
+                .returns(null, Links::getNext);
+        assertThat(response.getHeader(HttpHeaders.LINK)).isNull();
+    }
+
+    @Test
+    @DisplayName("Still emits next for a near-max slot key")
+    void testEmitsNextForNearMaxSlot() {
+        final var nearMax = "0x" + "f".repeat(63) + "e";
+        when(extractor.apply(nftAllowance)).thenReturn(Map.of(KEY, nearMax));
+        var params = new LinkedHashMap<String, String[]>();
+        params.put("limit", new String[] {"1"});
+        params.put("order", new String[] {"asc"});
+        when(request.getParameterMap()).thenReturn(params);
+        var sort = Sort.by(Direction.ASC, KEY);
+        var pageable = PageRequest.of(0, 1, sort);
+
+        final var expected = "/api?limit=1&order=asc&key=gt:" + nearMax;
+        assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
+                .returns(expected, Links::getNext);
     }
 
     private static HandlerMethod handlerMethod(Class<?> type, String methodName, Class<?>... parameterTypes) {

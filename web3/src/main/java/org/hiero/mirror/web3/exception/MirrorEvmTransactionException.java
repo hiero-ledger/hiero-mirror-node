@@ -37,10 +37,6 @@ public class MirrorEvmTransactionException extends EvmException {
         this.responseCode = responseCode;
     }
 
-    public MirrorEvmTransactionException(final String detail, final String hexData) {
-        this(null, detail, hexData, null);
-    }
-
     public MirrorEvmTransactionException(
             final String message, final String detail, final String hexData, final EvmTransactionResult result) {
         super(message);

@@ -27,6 +27,7 @@ import java.util.Set;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
@@ -55,6 +56,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -84,7 +86,9 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/api/v1/contracts/**").allowedOrigins("*");
+                registry.addMapping("/api/v1/contracts/**")
+                        .allowedOrigins("*")
+                        .exposedHeaders(CommonProperties.CLUSTER_ID_HEADER);
             }
         };
     }
@@ -186,7 +190,17 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         var detail = !statusCode.is5xxServerError() ? ex.getMessage() : StringUtils.EMPTY; // Don't leak server errors
         var genericErrorResponse = new GenericErrorResponse(message, detail, StringUtils.EMPTY);
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, ex, SCOPE_REQUEST);
-        return new ResponseEntity<>(genericErrorResponse, headers, statusCode);
+        var responseHeaders = new HttpHeaders();
+        if (headers != null) {
+            responseHeaders.addAll(headers);
+        }
+        var servletResponse = request instanceof ServletWebRequest servletRequest ? servletRequest.getResponse() : null;
+        properties.getApi(ApiEndpointName.DEFAULT).getResponse().getHeaders().forEach((name, value) -> {
+            if (servletResponse == null || !servletResponse.containsHeader(name)) {
+                responseHeaders.set(name, value);
+            }
+        });
+        return new ResponseEntity<>(genericErrorResponse, responseHeaders, statusCode);
     }
 
     private ErrorMessage formatErrorMessage(ObjectError error) {

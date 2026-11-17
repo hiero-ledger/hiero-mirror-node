@@ -28,7 +28,7 @@ spec:
       {{- end }}
     {{- if not $.Values.testkube.prometheus.enabled }}
     artifactRequest:
-      storageClassName: standard
+      storageClassName: {{ $.Values.testkube.test.artifactStorageClassName }}
       volumeMountPath: /share
     {{- end }}
     envConfigMaps:

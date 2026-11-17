@@ -241,7 +241,7 @@ class ContractBytecodeReadableKVStateTest {
     @Test
     void whenStateOverrideExistsButCodeIsNullFallsThroughToDatabase() {
         contractCallContext.setStateOverrides(
-                Map.of(Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS), stateOverrideWithBalance("0x1")));
+                Map.of(Bytes.fromHex(CONTRACT_ID_WITH_NUM_ADDRESS), stateOverrideWithBalance(1L)));
         when(contractRepository.findRuntimeBytecode(ENTITY_ID_WITH_NUM.getId()))
                 .thenReturn(Optional.of(new ContractRuntimeBytecode(BYTES.toByteArray())));
 
@@ -269,9 +269,9 @@ class ContractBytecodeReadableKVStateTest {
         return override;
     }
 
-    private StateOverride stateOverrideWithBalance(String balanceHex) {
+    private StateOverride stateOverrideWithBalance(long balance) {
         final var override = new StateOverride();
-        override.setBalance(balanceHex);
+        override.setBalance(balance);
         return override;
     }
 }

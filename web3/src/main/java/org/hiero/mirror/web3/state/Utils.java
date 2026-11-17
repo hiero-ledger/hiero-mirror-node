@@ -75,30 +75,6 @@ public class Utils {
         return DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano());
     }
 
-    /** Parses a hex-encoded string (with or without {@code 0x} prefix) into tinybars, clamped to {@link Long#MAX_VALUE}. */
-    public static long hexStringToLong(@NonNull String hex) {
-        var start = hex.startsWith(HEX_PREFIX) || hex.startsWith(HEX_PREFIX_CAPITAL) ? 2 : 0;
-        while (start < hex.length() && hex.charAt(start) == '0') {
-            start++;
-        }
-
-        // Empty, prefix-only or all-zero input (e.g. "", "0x", "0", "0x0") represents the value zero. Return early
-        // to avoid Long.parseUnsignedLong throwing on an empty range.
-        if (start == hex.length()) {
-            return 0L;
-        }
-
-        if (hex.length() - start > 16) {
-            throw new NumberFormatException(
-                    String.format("%s produces numeric value which is outside long range.", hex));
-        }
-        final var value = Long.parseUnsignedLong(hex, start, hex.length(), 16);
-        if (value < 0) {
-            throw new NumberFormatException(String.format("%s produces a negative numeric value.", hex));
-        }
-        return value;
-    }
-
     /**
      * Compares a hex string (with or without {@code 0x}/{@code 0X} prefix) to a {@link Bytes} value
      * byte-by-byte without allocating any intermediate arrays or strings.

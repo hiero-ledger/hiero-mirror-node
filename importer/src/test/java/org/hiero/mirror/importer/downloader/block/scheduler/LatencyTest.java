@@ -38,16 +38,60 @@ final class LatencyTest {
     }
 
     @Test
-    void fresh() {
+    void getAverageWithMaxAge() throws InterruptedException {
         // given
         final var latency = new Latency();
+
+        // when, then
+        assertThat(latency.getAverage(Long.MAX_VALUE)).isEqualTo(Double.MAX_VALUE);
 
         // when
         latency.record(10);
 
         // then
-        assertThat(latency.isFresh(Long.MAX_VALUE)).isTrue();
-        assertThat(latency.isFresh(-1)).isFalse();
+        assertThat(latency.getAverage(Long.MAX_VALUE)).isCloseTo(10.0, OFFSET);
+
+        // when the sample becomes older than the max age
+        Thread.sleep(20);
+
+        // then
+        assertThat(latency.getAverage(10)).isEqualTo(Double.MAX_VALUE);
+        assertThat(latency.getAverage()).isCloseTo(10.0, OFFSET);
+    }
+
+    @Test
+    void lastMeasuredMillis() {
+        // given
+        final var latency = new Latency();
+        assertThat(latency.getLastMeasuredMillis()).isZero();
+        final long before = System.currentTimeMillis();
+
+        // when
+        latency.record(10);
+
+        // then
+        assertThat(latency.getLastMeasuredMillis()).isBetween(before, System.currentTimeMillis());
+    }
+
+    @Test
+    void metricValue() {
+        // given
+        final var latency = new Latency();
+
+        // when, then
+        assertThat(latency.getMetricValue()).isNaN();
+
+        // when
+        latency.record(10);
+
+        // then
+        assertThat(latency.getMetricValue()).isCloseTo(10.0, OFFSET);
+
+        // when
+        latency.markStale();
+
+        // then
+        assertThat(latency.getMetricValue()).isNaN();
     }
 
     @Test
@@ -61,12 +105,12 @@ final class LatencyTest {
         // then
         assertThat(latency.getAverage()).isCloseTo(10.0, OFFSET);
 
-        // when
-        latency.markStale();
+        // when, then only the first call changes the state
+        assertThat(latency.markStale()).isTrue();
+        assertThat(latency.markStale()).isFalse();
 
         // then
         assertThat(latency.getAverage()).isCloseTo(Double.MAX_VALUE, OFFSET);
-        assertThat(latency.isFresh(Long.MAX_VALUE)).isFalse();
 
         // when
         latency.record(20);
@@ -82,6 +126,5 @@ final class LatencyTest {
 
         // when, then
         assertThat(latency.getAverage()).isCloseTo(Double.MAX_VALUE, OFFSET);
-        assertThat(latency.isFresh(Long.MAX_VALUE)).isFalse();
     }
 }

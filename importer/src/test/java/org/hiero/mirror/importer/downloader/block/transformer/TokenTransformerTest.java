@@ -2,12 +2,27 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
+import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
+import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
+import com.hedera.hapi.block.stream.output.protoc.StateChange;
+import com.hedera.hapi.block.stream.output.protoc.StateChanges;
+import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
+import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.Token;
+import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenType;
+import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
+import java.util.HashSet;
 import java.util.List;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -43,6 +58,52 @@ class TokenTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
+    void tokenAirdropAmountAbsent() {
+        // given
+        final var amountAbsent = new HashSet<PendingAirdropId>();
+        final var expectedRecordItem = recordItemBuilder
+                .tokenAirdrop()
+                .record(r -> {
+                    for (var pendingAirdrop : r.getNewPendingAirdropsBuilderList()) {
+                        if (pendingAirdrop.getPendingAirdropId().hasFungibleTokenType()) {
+                            // the transfer amount in the transaction body
+                            pendingAirdrop.getPendingAirdropValueBuilder().setAmount(100);
+                            amountAbsent.add(pendingAirdrop.getPendingAirdropId());
+                        }
+                    }
+                })
+                .recordItem(r -> r.pendingAirdropAmountAbsent(amountAbsent))
+                .customize(this::finalize)
+                .build();
+        // the pending airdrop's state change is partial without the amount, since the unit's net change is zero
+        final var blockTransaction = blockTransactionBuilder
+                .tokenAirdrop(expectedRecordItem)
+                .stateChanges(stateChangesList -> stateChangesList.replaceAll(stateChanges -> {
+                    final var builder = stateChanges.toBuilder();
+                    for (var stateChange : builder.getStateChangesBuilderList()) {
+                        final var mapUpdate = stateChange.getMapUpdateBuilder();
+                        if (amountAbsent.contains(mapUpdate.getKey().getPendingAirdropIdKey())) {
+                            mapUpdate
+                                    .setPartial(true)
+                                    .getValueBuilder()
+                                    .getAccountPendingAirdropValueBuilder()
+                                    .clearPendingAirdropValue();
+                        }
+                    }
+                    return builder.build();
+                }))
+                .build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertThat(amountAbsent).hasSize(1);
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
     void tokenAirdropUnsuccessful() {
         // given
         var expectedRecordItem = recordItemBuilder
@@ -69,6 +130,159 @@ class TokenTransformerTest extends AbstractTransformerTest {
                 recordItemBuilder.tokenBurn().customize(this::finalize).build();
         var blockTransaction =
                 blockTransactionBuilder.tokenBurn(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void tokenBurnOrWipeDuplicateSerialNumbersInBatch(boolean burn) {
+        // given
+        // Consensus nodes de-duplicate serial numbers, so burning / wiping [2, 2, 2] only reduces the supply by 1
+        var tokenId = recordItemBuilder.tokenId();
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(StateIdentifier.STATE_ID_TOKENS_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setTokenIdKey(tokenId))
+                                .setValue(MapChangeValue.newBuilder()
+                                        .setTokenValue(Token.newBuilder()
+                                                .setTokenId(tokenId)
+                                                .setTotalSupply(7L)))))
+                .build();
+        var atomicBatchRecordItem =
+                recordItemBuilder.atomicBatch().customize(this::finalize).build();
+        var atomicBatchBlockTransaction = blockTransactionBuilder
+                .atomicBatch(atomicBatchRecordItem)
+                .stateChanges(s -> s.add(stateChanges))
+                .build();
+        var parentConsensusTimestamp =
+                atomicBatchRecordItem.getTransactionRecord().getConsensusTimestamp();
+
+        var recordItem1 = innerBurnOrWipe(burn, tokenId, List.of(1L), 8L, 1, parentConsensusTimestamp);
+        var blockTransaction1 = burnOrWipeBlockTransaction(burn, recordItem1)
+                .previous(atomicBatchBlockTransaction)
+                .stateChanges(List::clear)
+                .build();
+        var recordItem2 = innerBurnOrWipe(burn, tokenId, List.of(2L, 2L, 2L), 7L, 2, parentConsensusTimestamp);
+        var blockTransaction2 = burnOrWipeBlockTransaction(burn, recordItem2)
+                .previous(blockTransaction1)
+                .stateChanges(List::clear)
+                .build();
+
+        var blockFile = blockFileBuilder
+                .items(List.of(atomicBatchBlockTransaction, blockTransaction1, blockTransaction2))
+                .build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        var expected = List.of(atomicBatchRecordItem, recordItem1, recordItem2);
+        assertRecordFile(recordFile, blockFile, items -> assertRecordItems(items, expected));
+    }
+
+    private RecordItem innerBurnOrWipe(
+            boolean burn,
+            TokenID tokenId,
+            List<Long> serialNumbers,
+            long newTotalSupply,
+            int transactionIndex,
+            Timestamp parentConsensusTimestamp) {
+        if (burn) {
+            return recordItemBuilder
+                    .tokenBurn()
+                    .transactionBody(b -> b.setAmount(0)
+                            .setToken(tokenId)
+                            .clearSerialNumbers()
+                            .addAllSerialNumbers(serialNumbers))
+                    .clearIncrementer()
+                    .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
+                    .receipt(r -> r.setNewTotalSupply(newTotalSupply))
+                    .recordItem(r -> r.transactionIndex(transactionIndex))
+                    .customize(this::finalize)
+                    .build();
+        }
+
+        return recordItemBuilder
+                .tokenWipe(TokenType.NON_FUNGIBLE_UNIQUE)
+                .transactionBody(b ->
+                        b.setAmount(0).setToken(tokenId).clearSerialNumbers().addAllSerialNumbers(serialNumbers))
+                .clearIncrementer()
+                .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
+                .receipt(r -> r.setNewTotalSupply(newTotalSupply))
+                .recordItem(r -> r.transactionIndex(transactionIndex))
+                .customize(this::finalize)
+                .build();
+    }
+
+    private BlockTransactionBuilder.Builder burnOrWipeBlockTransaction(boolean burn, RecordItem recordItem) {
+        return burn ? blockTransactionBuilder.tokenBurn(recordItem) : blockTransactionBuilder.tokenWipe(recordItem);
+    }
+
+    @Test
+    void tokenBurnTotalSupplyAbsent() {
+        // given
+        var expectedRecordItem = recordItemBuilder
+                .tokenBurn()
+                .receipt(TransactionReceipt.Builder::clearNewTotalSupply)
+                .customize(b -> b.recordItem(r -> r.tokenTotalSupplyAbsent(true)))
+                .customize(this::finalize)
+                .build();
+        // the token's state change is partial without total supply, since the unit's net change is zero
+        var blockTransaction = blockTransactionBuilder
+                .tokenBurn(expectedRecordItem)
+                .stateChanges(stateChangesList -> stateChangesList.replaceAll(stateChanges -> {
+                    var builder = stateChanges.toBuilder();
+                    for (var stateChange : builder.getStateChangesBuilderList()) {
+                        if (stateChange.getStateId() == STATE_ID_TOKENS_VALUE) {
+                            stateChange
+                                    .getMapUpdateBuilder()
+                                    .setPartial(true)
+                                    .getValueBuilder()
+                                    .getTokenValueBuilder()
+                                    .clearTotalSupply();
+                        }
+                    }
+                    return builder.build();
+                }))
+                .build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void tokenBurnTotalSupplyMissing() {
+        // given
+        var expectedRecordItem = recordItemBuilder
+                .tokenBurn()
+                .receipt(TransactionReceipt.Builder::clearNewTotalSupply)
+                .customize(b -> b.recordItem(r -> r.tokenTotalSupplyAbsent(true)))
+                .customize(this::finalize)
+                .build();
+        // the token's state change is missing, a recoverable error is logged instead of failing the block
+        var blockTransaction = blockTransactionBuilder
+                .tokenBurn(expectedRecordItem)
+                .stateChanges(stateChangesList -> stateChangesList.replaceAll(stateChanges -> {
+                    var builder = StateChanges.newBuilder().setConsensusTimestamp(stateChanges.getConsensusTimestamp());
+                    for (var stateChange : stateChanges.getStateChangesList()) {
+                        if (stateChange.getStateId() != STATE_ID_TOKENS_VALUE) {
+                            builder.addStateChanges(stateChange);
+                        }
+                    }
+                    return builder.build();
+                }))
+                .build();
         var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when

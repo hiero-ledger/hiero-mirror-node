@@ -80,46 +80,22 @@ contract Parent {
         return abi.encodePacked(bytecode);
     }
 
-    // This function was sourced from hedera-services Create2Factory.sol
-    function getAddress(bytes memory bytecode, uint _salt) public view returns (address)
+    // Computes the CREATE2 address of the Child deployed with the given salt.
+    function getAddress(uint _salt) public view returns (address)
     {
         bytes32 hash = keccak256(
-            abi.encodePacked(bytes1(0xff), address(this), _salt, keccak256(bytecode))
+            abi.encodePacked(bytes1(0xff), address(this), _salt, keccak256(type(Child).creationCode))
         );
 
         // NOTE: cast last 20 bytes of hash to address
         return address(uint160(uint(hash)));
     }
 
-    // This function was sourced from hedera-services Create2Factory.deploy()
-    function create2Deploy(bytes memory bytecode, uint _salt) public payable {
-        address addr;
+    // Deploys a Child via CREATE2; the code is fixed so callers cannot deploy arbitrary bytecode from this contract.
+    function create2Deploy(uint _salt) public {
+        Child child = new Child{salt: bytes32(_salt)}();
 
-        /*
-        NOTE: How to call create2
-
-        create2(v, p, n, s)
-        create new contract with code at memory p to p + n
-        and send v wei
-        and return the new address
-        where new address = first 20 bytes of keccak256(0xff + address(this) + s + keccak256(mem[p…(p+n)))
-              s = big-endian 256-bit value
-        */
-        assembly {
-            addr := create2(
-            callvalue(), // wei sent with current call
-            // Actual code starts after skipping the first 32 bytes
-            add(bytecode, 0x20),
-            mload(bytecode), // Load the size of code contained in the first 32 bytes
-            _salt // Salt from function arguments
-            )
-
-            if iszero(extcodesize(addr)) {
-                revert(0, 0)
-            }
-        }
-
-        emit Create2Deploy(addr);
+        emit Create2Deploy(address(child));
     }
 
     event ParentActivityLog(string message);

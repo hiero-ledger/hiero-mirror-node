@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.hiero.mirror.RestJavaIntegrationTest;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
 import org.hiero.mirror.restjava.RestJavaApplication;
@@ -68,6 +69,8 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
                 .isInstanceOf(clazz)
                 .asInstanceOf(InstanceOfAssertFactories.type(clazz))
                 .satisfies(e::set)
+                .satisfies(ex -> assertThat(ex.getResponseHeaders().getFirst(CommonProperties.CLUSTER_ID_HEADER))
+                        .isEqualTo(commonProperties.getClusterId()))
                 .satisfies(ex -> {
                     var errorResponse = ex.getResponseBodyAs(Error.class);
                     messagesRef.set(errorResponse.getStatus().getMessages());
@@ -129,6 +132,7 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
 
             // Then
             assertThat(headers.getAccessControlAllowOrigin()).isEqualTo("*");
+            assertThat(headers.getAccessControlExposeHeaders()).contains(CommonProperties.CLUSTER_ID_HEADER);
             assertThat(headers.getFirst("Access-Control-Allow-Methods")).contains("GET", "HEAD", "POST");
         }
     }
@@ -171,6 +175,7 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
                 assertThat(headerValues).isNotNull();
                 assertThat(headerValues).contains(expectedValue);
             });
+            assertThat(headers.getFirst(CommonProperties.CLUSTER_ID_HEADER)).isEqualTo(commonProperties.getClusterId());
         }
 
         @Test

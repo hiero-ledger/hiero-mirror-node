@@ -11,14 +11,14 @@ import {PostgreSqlContainer} from '@testcontainers/postgresql';
 import {isV2Schema} from './testutils.js';
 
 const FLYWAY_DATA_PATH = path.join('.', 'build', process.platform === 'win32' ? 'flyway data' : 'flyway');
-const FLYWAY_VERSION = '12.0.3';
+const FLYWAY_VERSION = '13.11.1';
 const FLYWAY_EXE_PATH = path.join('.', 'node_modules', 'flyway', FLYWAY_VERSION, 'flyway');
 
 const DB_NAME = 'mirror_node';
 const OWNER_USER = 'mirror_node';
 const DATABASE_IMAGES = {
-  v1: 'gcr.io/mirrornode/postgres:16-alpine',
-  v2: 'gcr.io/mirrornode/citus:12.1.1',
+  v1: 'gcr.io/mirrornode/postgres:18.6-alpine3.24',
+  v2: 'gcr.io/mirrornode/citus:14.0.0',
 };
 
 const dbContainers = new Map();

@@ -160,6 +160,42 @@ class NodeStakeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTe
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }
 
+    @Test
+    void updateTransactionNegativeStake() {
+        // given
+        final var nodeStake2 = getNodeStakeProto(-3L, Long.MAX_VALUE, -1L);
+        final var recordItem = recordItemBuilder
+                .nodeStakeUpdate()
+                .transactionBody(b -> b.addNodeStake(nodeStake2))
+                .build();
+        final var nodeStake1 =
+                recordItem.getTransactionBody().getNodeStakeUpdate().getNodeStake(0);
+        long stakeTotal = nodeStake1.getStakeRewarded() + nodeStake1.getStakeNotRewarded(); // No node2
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t ->
+                        t.consensusTimestamp(recordItem.getConsensusTimestamp()).entityId(null))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(applicationEventPublisher).publishEvent(any(NodeStakeUpdatedEvent.class));
+        verify(entityListener).onNetworkStake(networkStakes.capture());
+        verify(entityListener).onNodeStake(nodeStakes.capture());
+        assertThat(nodeStakes.getAllValues()).hasSize(1).first().returns(nodeStake1.getNodeId(), NodeStake::getNodeId);
+        verify(consensusNodeService).refresh();
+        assertThat(networkStakes.getAllValues())
+                .hasSize(1)
+                .first()
+                .extracting(NetworkStake::getStakeTotal)
+                .isEqualTo(stakeTotal);
+
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
     private com.hederahashgraph.api.proto.java.NodeStake getNodeStakeProto(
             long stake, long stakeRewarded, long stakeNotRewarded) {
         return recordItemBuilder

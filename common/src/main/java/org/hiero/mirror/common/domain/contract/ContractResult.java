@@ -36,6 +36,8 @@ public class ContractResult implements Persistable<Long> {
     @ToString.Exclude
     private byte[] callResult;
 
+    private boolean child;
+
     @Id
     private Long consensusTimestamp;
 

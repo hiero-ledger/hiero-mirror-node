@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.monitor;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -18,11 +19,14 @@ import org.springframework.validation.annotation.Validated;
 public class MirrorNodeProperties {
 
     @NotNull
+    @Valid
     private GrpcProperties grpc = new GrpcProperties();
 
     @NotNull
+    @Valid
     private RestProperties rest = new RestProperties();
 
+    @Valid
     private RestProperties restJava;
 
     @Data
@@ -30,7 +34,7 @@ public class MirrorNodeProperties {
     public static class GrpcProperties {
 
         @NotBlank
-        private String host;
+        private String host = "localhost";
 
         @Min(0)
         @Max(65535)
@@ -51,7 +55,7 @@ public class MirrorNodeProperties {
         private static final int HTTPS_PORT = 443;
 
         @NotBlank
-        private String host;
+        private String host = "localhost";
 
         @Min(0)
         @Max(65535)

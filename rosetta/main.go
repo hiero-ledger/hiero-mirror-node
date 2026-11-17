@@ -93,7 +93,10 @@ func newBlockchainOnlineRouter(
 		accountRepo,
 		baseService,
 		mirrorConfig,
-		construction.NewTransactionConstructor(mirrorConfig.Rosetta.Feature.ValidateAccountCreateFields),
+		construction.NewTransactionConstructor(
+			mirrorConfig.Rosetta.Feature.ValidateAccountCreateFields,
+			mirrorConfig.Rosetta.Feature.ValidateCryptoTransferFields,
+		),
 	)
 	if err != nil {
 		return nil, err
@@ -134,7 +137,10 @@ func newBlockchainOfflineRouter(
 		nil,
 		baseService,
 		mirrorConfig,
-		construction.NewTransactionConstructor(mirrorConfig.Rosetta.Feature.ValidateAccountCreateFields),
+		construction.NewTransactionConstructor(
+			mirrorConfig.Rosetta.Feature.ValidateAccountCreateFields,
+			mirrorConfig.Rosetta.Feature.ValidateCryptoTransferFields,
+		),
 	)
 	if err != nil {
 		return nil, err

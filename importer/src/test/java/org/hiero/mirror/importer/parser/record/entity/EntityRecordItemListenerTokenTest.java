@@ -49,6 +49,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -1185,6 +1186,48 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                         tokenCreate.getTransactionBody().getTokenCreation().getTreasury()));
     }
 
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            false, '', ''
+            false, ' ', ' '
+            true, '',
+            true, ' ',
+            """)
+    void tokenUpdateWithEmptyOrBlankMemo(boolean fromPrecompile, String memo, String expectedOrNoChange) {
+        // given
+        final var tokenCreate = recordItemBuilder.tokenCreate().build();
+        final var tokenId = tokenCreate.getTransactionRecord().getReceipt().getTokenID();
+        final var tokenUpdate = recordItemBuilder
+                .tokenUpdate()
+                .transactionBody(b -> b.setToken(tokenId).setMemo(StringValue.of(memo)))
+                .record(r -> {
+                    if (fromPrecompile) {
+                        r.setContractCallResult(ContractFunctionResult.newBuilder()
+                                .setContractID(systemEntity
+                                        .hederaTokenServiceContract()
+                                        .toContractID())
+                                .build());
+                    }
+                })
+                .build();
+
+        // when
+        parseRecordItemsAndCommit(List.of(tokenCreate, tokenUpdate));
+
+        // then
+        final var expectedMemo = expectedOrNoChange != null
+                ? expectedOrNoChange
+                : tokenCreate.getTransactionBody().getTokenCreation().getMemo();
+        final var expectedTokenId = EntityId.of(tokenId).getId();
+        assertThat(entityRepository.findById(expectedTokenId))
+                .get()
+                .returns(expectedTokenId, Entity::getId)
+                .returns(expectedMemo, Entity::getMemo)
+                .returns(tokenUpdate.getConsensusTimestamp(), Entity::getTimestampLower)
+                .returns(TOKEN, Entity::getType);
+        assertThat(tokenRepository.findAll()).hasSize(1).first().returns(expectedTokenId, Token::getTokenId);
+    }
+
     @Test
     void tokenPause() {
         createAndAssociateToken(
@@ -1576,6 +1619,8 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .balance(0L)
                 .balanceTimestamp(updateTimestamp)
                 .createdTimestamp(tokenCreateRecordItem.getConsensusTimestamp())
+                .freezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE)
+                .kycStatus(TokenKycStatusEnum.NOT_APPLICABLE)
                 .timestampRange(Range.atLeast(tokenCreateRecordItem.getConsensusTimestamp()))
                 .tokenId(tokenId.getId())
                 .build();
@@ -1586,11 +1631,12 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
                 .balance(2L)
                 .balanceTimestamp(updateTimestamp)
                 .createdTimestamp(newTreasuryAssociationTimestamp)
-                .timestampRange(Range.atLeast(newTreasuryAssociationTimestamp))
+                .freezeStatus(TokenFreezeStatusEnum.UNFROZEN)
+                .kycStatus(TokenKycStatusEnum.GRANTED)
+                .timestampRange(Range.atLeast(updateTimestamp))
                 .tokenId(tokenId.getId())
                 .build();
         assertThat(tokenAccountRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("freezeStatus", "kycStatus")
                 .containsExactlyInAnyOrder(tokenAccountOldTreasury, tokenAccountNewTreasury);
     }
 
@@ -4246,6 +4292,87 @@ class EntityRecordItemListenerTokenTest extends AbstractEntityRecordItemListener
         tokenAccount.setTimestampLower(consensusTimestamp);
         tokenAccount.setTokenId(EntityId.of(tokenId).getId());
         return tokenAccount;
+    }
+
+    private TokenAirdrop tokenAirdrop(
+            TokenAirdrop existing, TokenAirdropStateEnum state, long amount, Range<Long> timestampRange) {
+        return existing.toBuilder()
+                .amount(amount)
+                .state(state)
+                .timestampRange(timestampRange)
+                .build();
+    }
+
+    private RecordItem tokenAirdropAmountAbsent(PendingAirdropId pendingAirdropId, long amount, long timestamp) {
+        return recordItemBuilder
+                .tokenAirdrop()
+                .record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(timestamp))
+                        .clearNewPendingAirdrops()
+                        .addNewPendingAirdrops(PendingAirdropRecord.newBuilder()
+                                .setPendingAirdropId(pendingAirdropId)
+                                .setPendingAirdropValue(
+                                        PendingAirdropValue.newBuilder().setAmount(amount))))
+                .recordItem(r -> r.pendingAirdropAmountAbsent(Set.of(pendingAirdropId)))
+                .build();
+    }
+
+    private RecordItem tokenAirdropStateUpdate(
+            PendingAirdropId pendingAirdropId, TokenAirdropStateEnum state, long timestamp) {
+        final var builder = state == TokenAirdropStateEnum.CLAIMED
+                ? recordItemBuilder
+                        .tokenClaimAirdrop()
+                        .transactionBody(b -> b.clearPendingAirdrops().addPendingAirdrops(pendingAirdropId))
+                : recordItemBuilder
+                        .tokenCancelAirdrop()
+                        .transactionBody(b -> b.clearPendingAirdrops().addPendingAirdrops(pendingAirdropId));
+        return builder.record(r -> r.setConsensusTimestamp(TestUtils.toTimestamp(timestamp)))
+                .build();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(
+            value = TokenAirdropStateEnum.class,
+            names = {"CANCELLED", "CLAIMED"})
+    void tokenAirdropAmountAbsentAccumulated(TokenAirdropStateEnum updateState) {
+        // given
+        final var pendingAirdropId = PendingAirdropId.newBuilder()
+                .setReceiverId(RECEIVER)
+                .setSenderId(PAYER)
+                .setFungibleTokenType(TOKEN_ID)
+                .build();
+        final var existing = domainBuilder
+                .tokenAirdrop(TokenTypeEnum.FUNGIBLE_COMMON)
+                .customize(t -> t.amount(100L)
+                        .receiverAccountId(EntityId.of(RECEIVER).getId())
+                        .senderAccountId(PAYER_ACCOUNT_ID.getId())
+                        .timestampRange(Range.atLeast(10L))
+                        .tokenId(DOMAIN_TOKEN_ID.getId()))
+                .persist();
+
+        // when one transactional unit airdrops and cancels / claims, and the block stream has none of the totals
+        final var recordItems = List.of(
+                tokenAirdropAmountAbsent(pendingAirdropId, 25, 20L),
+                tokenAirdropStateUpdate(pendingAirdropId, updateState, 21L),
+                tokenAirdropAmountAbsent(pendingAirdropId, 10, 22L),
+                tokenAirdropAmountAbsent(pendingAirdropId, 55, 23L),
+                tokenAirdropStateUpdate(pendingAirdropId, updateState, 24L),
+                tokenAirdropAmountAbsent(pendingAirdropId, 15, 25L),
+                tokenAirdropAmountAbsent(pendingAirdropId, 85, 26L));
+        parseRecordItemsAndCommit(recordItems);
+
+        // then
+        final var pending = TokenAirdropStateEnum.PENDING;
+        assertThat(findHistory(TokenAirdrop.class))
+                .containsExactlyInAnyOrder(
+                        tokenAirdrop(existing, pending, 100L, Range.closedOpen(10L, 20L)),
+                        tokenAirdrop(existing, pending, 125L, Range.closedOpen(20L, 21L)),
+                        tokenAirdrop(existing, updateState, 125L, Range.closedOpen(21L, 22L)),
+                        tokenAirdrop(existing, pending, 10L, Range.closedOpen(22L, 23L)),
+                        tokenAirdrop(existing, pending, 65L, Range.closedOpen(23L, 24L)),
+                        tokenAirdrop(existing, updateState, 65L, Range.closedOpen(24L, 25L)),
+                        tokenAirdrop(existing, pending, 15L, Range.closedOpen(25L, 26L)));
+        assertThat(tokenAirdropRepository.findAll())
+                .containsExactly(tokenAirdrop(existing, pending, 100L, Range.atLeast(26L)));
     }
 
     @ParameterizedTest(name = "{0}")

@@ -76,7 +76,7 @@ public class NetworkServiceImpl implements NetworkService {
             throw new IllegalArgumentException(INVALID_FILE_ID);
         }
 
-        final var limit = effectiveLimit(filter.getLimit());
+        final var limit = filter.getLimit();
 
         return Flux.defer(() -> {
             acquire();
@@ -108,15 +108,6 @@ public class NetworkServiceImpl implements NetworkService {
                 throw new SubscriptionLimitException(TOO_MANY_SUBSCRIPTIONS);
             }
         } while (!activeSubscriptions.compareAndSet(active, active + 1));
-    }
-
-    private int effectiveLimit(int requested) {
-        final var maxLimit = addressBookProperties.getMaxLimit();
-        if (requested <= 0) {
-            return maxLimit;
-        }
-
-        return Math.min(requested, maxLimit);
     }
 
     private AddressBookContext loadContext(EntityId fileId) {

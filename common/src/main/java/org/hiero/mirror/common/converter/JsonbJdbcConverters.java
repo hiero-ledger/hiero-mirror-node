@@ -13,6 +13,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import org.hiero.mirror.common.domain.ListHolder;
+import org.hiero.mirror.common.domain.clpr.ClprControlMessage;
+import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointListHolder;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpointsHolder;
@@ -47,25 +50,41 @@ import org.springframework.data.convert.WritingConverter;
  */
 public final class JsonbJdbcConverters {
 
-    private static final Map<Class<?>, Function<String, Object>> READERS = Map.of(
-            AccessListHolder.class, json -> AccessListHolder.of(read(json, new TypeReference<List<AccessList>>() {})),
-            AuthorizationListHolder.class,
-                    json -> AuthorizationListHolder.of(read(json, new TypeReference<List<Authorization>>() {})),
-            FixedFeesHolder.class, json -> FixedFeesHolder.of(read(json, new TypeReference<List<FixedFee>>() {})),
-            FractionalFeesHolder.class,
-                    json -> FractionalFeesHolder.of(read(json, new TypeReference<List<FractionalFee>>() {})),
-            ItemizedTransferListHolder.class,
-                    json -> ItemizedTransferListHolder.of(read(json, new TypeReference<List<ItemizedTransfer>>() {})),
-            LedgerNodeContributionListHolder.class,
+    private static final Map<Class<?>, Function<String, Object>> READERS = Map.ofEntries(
+            Map.entry(
+                    AccessListHolder.class,
+                    json -> AccessListHolder.of(read(json, new TypeReference<List<AccessList>>() {}))),
+            Map.entry(
+                    AuthorizationListHolder.class,
+                    json -> AuthorizationListHolder.of(read(json, new TypeReference<List<Authorization>>() {}))),
+            Map.entry(ClprControlMessage.class, json -> read(json, new TypeReference<ClprControlMessage>() {})),
+            Map.entry(
+                    ClprEndpointListHolder.class,
+                    json -> ClprEndpointListHolder.of(read(json, new TypeReference<List<ClprEndpoint>>() {}))),
+            Map.entry(
+                    FixedFeesHolder.class,
+                    json -> FixedFeesHolder.of(read(json, new TypeReference<List<FixedFee>>() {}))),
+            Map.entry(
+                    FractionalFeesHolder.class,
+                    json -> FractionalFeesHolder.of(read(json, new TypeReference<List<FractionalFee>>() {}))),
+            Map.entry(
+                    ItemizedTransferListHolder.class,
+                    json -> ItemizedTransferListHolder.of(read(json, new TypeReference<List<ItemizedTransfer>>() {}))),
+            Map.entry(
+                    LedgerNodeContributionListHolder.class,
                     json -> LedgerNodeContributionListHolder.of(
-                            read(json, new TypeReference<List<LedgerNodeContribution>>() {})),
-            NftTransferListHolder.class,
-                    json -> NftTransferListHolder.of(read(json, new TypeReference<List<NftTransfer>>() {})),
-            RoyaltyFeesHolder.class, json -> RoyaltyFeesHolder.of(read(json, new TypeReference<List<RoyaltyFee>>() {})),
-            ServiceEndpoint.class, json -> read(json, new TypeReference<ServiceEndpoint>() {}),
-            ServiceEndpointsHolder.class,
+                            read(json, new TypeReference<List<LedgerNodeContribution>>() {}))),
+            Map.entry(
+                    NftTransferListHolder.class,
+                    json -> NftTransferListHolder.of(read(json, new TypeReference<List<NftTransfer>>() {}))),
+            Map.entry(
+                    RoyaltyFeesHolder.class,
+                    json -> RoyaltyFeesHolder.of(read(json, new TypeReference<List<RoyaltyFee>>() {}))),
+            Map.entry(ServiceEndpoint.class, json -> read(json, new TypeReference<ServiceEndpoint>() {})),
+            Map.entry(
+                    ServiceEndpointsHolder.class,
                     json -> ServiceEndpointsHolder.of(
-                            read(json, new TypeReference<List<RegisteredServiceEndpoint>>() {})));
+                            read(json, new TypeReference<List<RegisteredServiceEndpoint>>() {}))));
 
     private JsonbJdbcConverters() {}
 

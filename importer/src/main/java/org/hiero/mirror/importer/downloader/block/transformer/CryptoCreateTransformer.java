@@ -45,12 +45,11 @@ final class CryptoCreateTransformer extends AbstractBlockTransactionTransformer 
         var transactionBody =
                 blockTransactionTransformation.getTransactionBody().getCryptoCreateAccount();
         if (!transactionBody.getDelegationAddress().isEmpty()) {
-            blockTransaction
-                    .getStateChangeContext()
-                    .getAccount(createdAccountId)
-                    .ifPresent(account -> blockTransactionTransformation
-                            .recordItemBuilder()
-                            .accountEthereumNonce(account.getEthereumNonce()));
+            final var ethereumNonce =
+                    blockTransaction.getStateChangeContext().getAccountEthereumNonce(createdAccountId);
+            if (ethereumNonce != null) {
+                blockTransactionTransformation.recordItemBuilder().accountEthereumNonce(ethereumNonce);
+            }
         }
     }
 

@@ -31,11 +31,15 @@ import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 @AutoConfigureMockMvc
 class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContractCallServiceTest {
+
+    @Resource
+    private JdbcTemplate jdbcTemplate;
 
     @Resource
     private MockMvc mockMvc;
@@ -289,6 +293,274 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
                 contract.send_transfer(tokenAddress, recipientAddress, BigInteger.valueOf(DEFAULT_AMOUNT_GRANTED));
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
+    void transferWithFixedHtsFeeToEvmAddressCollector() {
+        // Given a token charging a fixed fee in another HTS token, collected by an ECDSA account with an EVM address
+        final var recipient = accountEntityPersist().toEntityId();
+        final var treasury = accountEntityPersist().toEntityId();
+        final var collector = accountEntityWithEvmAddressPersist();
+
+        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var tokenId = token.getTokenId();
+        final var feeTokenId = fungibleTokenPersist().getTokenId();
+        tokenAccountPersist(tokenId, recipient.getId());
+        tokenAccountPersist(feeTokenId, collector.getId());
+
+        final var fixedFee = FixedFee.builder()
+                .amount(500L)
+                .collectorAccountId(collector.toEntityId())
+                .denominatingTokenId(EntityId.of(feeTokenId))
+                .build();
+        domainBuilder
+                .customFee()
+                .customize(f -> f.entityId(tokenId)
+                        .fixedFees(List.of(fixedFee))
+                        .fractionalFees(List.of())
+                        .royaltyFees(List.of()))
+                .persist();
+
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var contractEntityId = entityIdFromEvmAddress(Address.fromHexString(contract.getContractAddress()));
+        tokenAccount(
+                ta -> ta.tokenId(tokenId).accountId(contractEntityId.getId()).balance(DEFAULT_TOKEN_BALANCE));
+        tokenAccount(
+                ta -> ta.tokenId(feeTokenId).accountId(contractEntityId.getId()).balance(1_000L));
+
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        final var recipientAddress = toAddress(recipient).toHexString();
+        // When
+        final var functionCall =
+                contract.send_transfer(tokenAddress, recipientAddress, BigInteger.valueOf(DEFAULT_AMOUNT_GRANTED));
+        // Then
+        verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
+    void transferWithFractionalFeeToEvmAddressCollector() {
+        // Given a token charging a fractional fee, collected by an ECDSA account with an EVM address
+        final var recipient = accountEntityPersist().toEntityId();
+        final var treasury = accountEntityPersist().toEntityId();
+        final var collector = accountEntityWithEvmAddressPersist();
+
+        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var tokenId = token.getTokenId();
+        tokenAccountPersist(tokenId, recipient.getId());
+        tokenAccountPersist(tokenId, collector.getId());
+
+        final var fractionalFee = FractionalFee.builder()
+                .collectorAccountId(collector.toEntityId())
+                .denominator(10L)
+                .maximumAmount(5L)
+                .minimumAmount(1L)
+                .numerator(1L)
+                .build();
+        domainBuilder
+                .customFee()
+                .customize(f -> f.entityId(tokenId)
+                        .fixedFees(List.of())
+                        .fractionalFees(List.of(fractionalFee))
+                        .royaltyFees(List.of()))
+                .persist();
+
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var contractEntityId = entityIdFromEvmAddress(Address.fromHexString(contract.getContractAddress()));
+        tokenAccount(
+                ta -> ta.tokenId(tokenId).accountId(contractEntityId.getId()).balance(DEFAULT_TOKEN_BALANCE));
+
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        final var recipientAddress = toAddress(recipient).toHexString();
+        // When
+        final var functionCall =
+                contract.send_transfer(tokenAddress, recipientAddress, BigInteger.valueOf(DEFAULT_AMOUNT_GRANTED));
+        // Then
+        verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
+    void transferFromNFTWithRoyaltyFallbackFeeToEvmAddressCollector() {
+        // Given an NFT with a royalty fee whose fallback fee is paid in another HTS token and collected by an ECDSA
+        // account with an EVM address. The contract receives the NFT without paying for it, so it is charged the
+        // fallback fee
+        final var treasury = accountEntityPersist().toEntityId();
+        final var owner = accountEntityPersist().toEntityId();
+        final var collector = accountEntityWithEvmAddressPersist();
+
+        final var token = nonFungibleTokenPersistWithTreasury(treasury);
+        final var tokenId = token.getTokenId();
+        nftPersistCustomizable(n -> n.accountId(owner).tokenId(tokenId));
+        final var feeTokenId = fungibleTokenPersist().getTokenId();
+        tokenAccountPersist(tokenId, owner.getId());
+        tokenAccountPersist(feeTokenId, collector.getId());
+
+        final var fallbackFee = FallbackFee.builder()
+                .amount(500L)
+                .denominatingTokenId(EntityId.of(feeTokenId))
+                .build();
+        final var royaltyFee = RoyaltyFee.builder()
+                .collectorAccountId(collector.toEntityId())
+                .denominator(10L)
+                .fallbackFee(fallbackFee)
+                .numerator(1L)
+                .build();
+        domainBuilder
+                .customFee()
+                .customize(f -> f.entityId(tokenId)
+                        .fixedFees(List.of())
+                        .fractionalFees(List.of())
+                        .royaltyFees(List.of(royaltyFee)))
+                .persist();
+
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+        final var contractEntityId = entityIdFromEvmAddress(contractAddress);
+        tokenAccountPersist(tokenId, contractEntityId.getId());
+        tokenAccount(
+                ta -> ta.tokenId(feeTokenId).accountId(contractEntityId.getId()).balance(1_000L));
+        nftAllowancePersist(tokenId, contractEntityId.getId(), owner);
+
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        final var ownerAddress = toAddress(owner).toHexString();
+        // When
+        final var functionCall = contract.send_transferFromNFT(
+                tokenAddress, ownerAddress, contractAddress.toHexString(), DEFAULT_SERIAL_NUMBER);
+        // Then
+        verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
+    void transferExemptWhenSenderIsEvmAddressCollector() {
+        // Given the sending contract has an EVM address and collects the token's fixed fee, but holds none of the fee
+        // token, so the transfer only succeeds if the sender is exempt from paying its own fee
+        final var recipient = accountEntityPersist().toEntityId();
+        final var treasury = accountEntityPersist().toEntityId();
+        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var tokenId = token.getTokenId();
+        final var feeTokenId = fungibleTokenPersist().getTokenId();
+        tokenAccountPersist(tokenId, recipient.getId());
+
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var contractEntityId = contractWithEvmAddress(contract);
+        tokenAccount(
+                ta -> ta.tokenId(tokenId).accountId(contractEntityId.getId()).balance(DEFAULT_TOKEN_BALANCE));
+        tokenAccount(
+                ta -> ta.tokenId(feeTokenId).accountId(contractEntityId.getId()).balance(0L));
+
+        final var fixedFee = FixedFee.builder()
+                .amount(500L)
+                .collectorAccountId(contractEntityId)
+                .denominatingTokenId(EntityId.of(feeTokenId))
+                .build();
+        domainBuilder
+                .customFee()
+                .customize(f -> f.entityId(tokenId)
+                        .fixedFees(List.of(fixedFee))
+                        .fractionalFees(List.of())
+                        .royaltyFees(List.of()))
+                .persist();
+
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        final var recipientAddress = toAddress(recipient).toHexString();
+        // When
+        final var functionCall =
+                contract.send_transfer(tokenAddress, recipientAddress, BigInteger.valueOf(DEFAULT_AMOUNT_GRANTED));
+        // Then
+        verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
+    void transferExemptWhenSenderIsEvmAddressCollectorOfAnotherFee() {
+        // Given a fee with allCollectorsAreExempt collected by another account, plus a fee collected by the sending
+        // contract, which has an EVM address and holds none of the fee token. The transfer only succeeds if the sender
+        // is exempt from both fees
+        final var recipient = accountEntityPersist().toEntityId();
+        final var treasury = accountEntityPersist().toEntityId();
+        final var otherCollector = accountEntityWithEvmAddressPersist();
+        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var tokenId = token.getTokenId();
+        final var feeTokenId = fungibleTokenPersist().getTokenId();
+        tokenAccountPersist(tokenId, recipient.getId());
+        tokenAccountPersist(feeTokenId, otherCollector.getId());
+
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var contractEntityId = contractWithEvmAddress(contract);
+        tokenAccount(
+                ta -> ta.tokenId(tokenId).accountId(contractEntityId.getId()).balance(DEFAULT_TOKEN_BALANCE));
+        tokenAccount(
+                ta -> ta.tokenId(feeTokenId).accountId(contractEntityId.getId()).balance(0L));
+
+        final var otherCollectorFee = FixedFee.builder()
+                .allCollectorsAreExempt(true)
+                .amount(500L)
+                .collectorAccountId(otherCollector.toEntityId())
+                .denominatingTokenId(EntityId.of(feeTokenId))
+                .build();
+        final var senderCollectorFee = FixedFee.builder()
+                .allCollectorsAreExempt(true)
+                .amount(500L)
+                .collectorAccountId(contractEntityId)
+                .denominatingTokenId(EntityId.of(feeTokenId))
+                .build();
+        domainBuilder
+                .customFee()
+                .customize(f -> f.entityId(tokenId)
+                        .fixedFees(List.of(otherCollectorFee, senderCollectorFee))
+                        .fractionalFees(List.of())
+                        .royaltyFees(List.of()))
+                .persist();
+
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        final var recipientAddress = toAddress(recipient).toHexString();
+        // When
+        final var functionCall =
+                contract.send_transfer(tokenAddress, recipientAddress, BigInteger.valueOf(DEFAULT_AMOUNT_GRANTED));
+        // Then
+        verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
+    void transferChargesFeeWhenEvmAddressSenderIsNotCollector() {
+        // Given the sending contract has an EVM address and holds none of the fee token, while another account
+        // collects the fee. The sender is not exempt, so the transfer fails. This is the counterpart of the exemption
+        // tests and shows that the zero fee token balance is what makes them fail when the exemption is missed
+        final var recipient = accountEntityPersist().toEntityId();
+        final var treasury = accountEntityPersist().toEntityId();
+        final var token = fungibleTokenPersistWithTreasuryAccount(treasury);
+        final var tokenId = token.getTokenId();
+        final var feeTokenId = fungibleTokenPersist().getTokenId();
+        final var collector = accountEntityWithEvmAddressPersist();
+        tokenAccountPersist(feeTokenId, collector.getId());
+        tokenAccountPersist(tokenId, recipient.getId());
+
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        final var contractEntityId = contractWithEvmAddress(contract);
+        tokenAccount(
+                ta -> ta.tokenId(tokenId).accountId(contractEntityId.getId()).balance(DEFAULT_TOKEN_BALANCE));
+        tokenAccount(
+                ta -> ta.tokenId(feeTokenId).accountId(contractEntityId.getId()).balance(0L));
+
+        final var fixedFee = FixedFee.builder()
+                .amount(500L)
+                .collectorAccountId(collector.toEntityId())
+                .denominatingTokenId(EntityId.of(feeTokenId))
+                .build();
+        domainBuilder
+                .customFee()
+                .customize(f -> f.entityId(tokenId)
+                        .fixedFees(List.of(fixedFee))
+                        .fractionalFees(List.of())
+                        .royaltyFees(List.of()))
+                .persist();
+
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        final var recipientAddress = toAddress(recipient).toHexString();
+        // When
+        final var functionCall =
+                contract.send_transfer(tokenAddress, recipientAddress, BigInteger.valueOf(DEFAULT_AMOUNT_GRANTED));
+        // Then
+        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -753,6 +1025,17 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var result = testWeb3jService.getTransactionResult();
         // Then
         assertThat(result).isEqualTo("0x");
+    }
+
+    /**
+     * Gives the deployed contract an EVM address, so that it is represented like an ECDSA / CREATE2 account. The column
+     * is insert-only in the entity mapping, so it is set with SQL.
+     */
+    private EntityId contractWithEvmAddress(final ERCTestContract contract) {
+        final var contractEntityId = entityIdFromEvmAddress(Address.fromHexString(contract.getContractAddress()));
+        jdbcTemplate.update(
+                "update entity set evm_address = ? where id = ?", domainBuilder.evmAddress(), contractEntityId.getId());
+        return contractEntityId;
     }
 
     @SneakyThrows

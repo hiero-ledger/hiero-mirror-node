@@ -8,6 +8,7 @@ import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOC
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.SHA_384_BLOCK_STREAMS;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.getSha256BlockStreams;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.toUnparsed;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.EXPECTED_RECORD_FILES;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.readWrappedRecordBlocks;
 import static org.mockito.ArgumentMatchers.any;
@@ -218,7 +219,7 @@ public final class BlockStreamReaderTest {
 
         final var blockStream = createBlockStream(block, null, BlockFile.getFilename(blockNumber, true));
         final byte[] bytes = Objects.requireNonNull(blockStream.bytes());
-        final long loadStart = blockStream.loadStart();
+        final long loadStart = blockStream.blockCompleteTime();
 
         // when
         final var blockFile = reader.read(blockStream);
@@ -977,9 +978,8 @@ public final class BlockStreamReaderTest {
             bytes = TestUtils.zstd(block.toByteArray());
         }
 
-        long blockCompleteTime = System.currentTimeMillis();
         return new BlockStream(
-                block.getItemsList(), blockCompleteTime, bytes, filename, blockCompleteTime - 1000, bytes.length);
+                toUnparsed(block.getItemsList()), System.currentTimeMillis(), bytes, filename, bytes.length);
     }
 
     @SneakyThrows
@@ -997,7 +997,7 @@ public final class BlockStreamReaderTest {
             final byte[] bytes = streamFileData.getBytes();
             final var blockStream = createBlockStream(getBlock(streamFileData), bytes, blockFile.getName());
             blockFile.setBytes(bytes);
-            blockFile.setLoadStart(blockStream.loadStart());
+            blockFile.setLoadStart(blockStream.blockCompleteTime());
             blockFile.setSize(bytes.length);
             return Arguments.of(blockStream, Named.of(directory.getFileName() + "/" + blockFile.getName(), blockFile));
         });

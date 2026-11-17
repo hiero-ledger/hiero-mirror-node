@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -14,6 +15,8 @@ import org.springframework.core.env.Profiles;
 import org.springframework.test.context.ContextConfiguration;
 
 @ContextConfiguration(initializers = AsyncJavaMigrationPreFixTest.Initializer.class)
+@DisablePartitionMaintenance
+@DisableRepeatableSqlMigration
 @Tag("migration")
 class AsyncJavaMigrationPreFixTest extends AsyncJavaMigrationBaseTest {
 

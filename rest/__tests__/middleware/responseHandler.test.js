@@ -9,7 +9,7 @@ import {JSONStringify} from '../../utils';
 import {clusterIdHeader, contentTypeHeader, responseHeadersLabel} from '../../constants.js';
 
 const {
-  clusterId,
+  common: {clusterId},
   response: {headers},
 } = config;
 

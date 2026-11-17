@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
+import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.springframework.data.annotation.AccessType;
 import org.springframework.data.annotation.Transient;
@@ -22,6 +23,13 @@ import org.springframework.data.relational.core.mapping.Embedded;
 @Upsertable(history = true)
 public abstract class AbstractTokenAirdrop implements History {
 
+    // A negative amount is a change to add to the existing pending amount
+    @UpsertColumn(coalesce = """
+            case when {0} >= 0 then {0}
+                 when {0} < 0 then case when e_state = ''PENDING'' then coalesce(e_{0}, 0) else 0 end - {0}
+                 else e_{0}
+            end
+            """)
     private Long amount;
 
     @Transient

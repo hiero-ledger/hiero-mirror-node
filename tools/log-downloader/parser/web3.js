@@ -5,15 +5,29 @@ import {unzipSync} from 'zlib';
 import {MAX_BODY_LENGTH} from '../constants.js';
 
 class Web3Parser {
-  static #INPUT_LINE_REGEX = /^([\d\-TZ:.]+) .* POST (.*) in \d+ ms.*: .*- (.*)$/;
+  // Only the short "head" of the line is run through the regex; the body is located with indexOf. This bounds
+  // regex backtracking regardless of line length. Real heads (timestamp, pod/ip, url, duration, status) are far smaller.
+  static #MAX_HEAD_LENGTH = 1024;
+  static #INPUT_LINE_REGEX = /^([\d\-TZ:.]+) .* POST (.*) in \d+ ms.*?: /;
+  static #LINE_TERMINATOR_REGEX = /[\n\r\u2028\u2029]/;
 
   parse(line) {
-    const match = line?.match(Web3Parser.#INPUT_LINE_REGEX);
+    if (!line || Web3Parser.#LINE_TERMINATOR_REGEX.test(line)) {
+      return null;
+    }
+
+    const match = line.slice(0, Web3Parser.#MAX_HEAD_LENGTH).match(Web3Parser.#INPUT_LINE_REGEX);
     if (!match) {
       return null;
     }
 
-    let body = match[3];
+    // First separator after the head, so '- ' inside the body is left intact
+    const bodyStart = line.indexOf('- ', match[0].length);
+    if (bodyStart < 0) {
+      return null;
+    }
+
+    let body = line.slice(bodyStart + 2);
     if (!body) {
       return null;
     }

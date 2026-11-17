@@ -39,6 +39,17 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
     }
 
     @Override
+    protected void doSetNodes(final List<BlockNode> blockNodes) {
+        final var nodeGroups = new TreeMap<Integer, PriorityGroup>();
+        for (final var blockNode : blockNodes) {
+            final int priority = blockNode.getProperties().getPriority();
+            nodeGroups.computeIfAbsent(priority, PriorityGroup::new).getNodes().add(blockNode);
+        }
+
+        priorityGroups.set(nodeGroups);
+    }
+
+    @Override
     protected Iterator<BlockNode> getNodeGroupIterator() {
         final var blockNode = current.get();
         if (blockNode == null) {
@@ -64,7 +75,9 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
             public boolean hasNext() {
                 if (nodeGroupIterator == null || !nodeGroupIterator.hasNext()) {
                     if (groupIter.hasNext()) {
-                        nodeGroupIterator = groupIter.next().sort().getIterator();
+                        final var group = groupIter.next();
+                        sortByLatency(group.getNodes());
+                        nodeGroupIterator = group.getIterator();
                     }
                 }
 
@@ -78,17 +91,6 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
         };
     }
 
-    @Override
-    protected void setNodes(final List<BlockNode> blockNodes) {
-        final var nodeGroups = new TreeMap<Integer, PriorityGroup>();
-        for (final var blockNode : blockNodes) {
-            final int priority = blockNode.getProperties().getPriority();
-            nodeGroups.computeIfAbsent(priority, PriorityGroup::new).getNodes().add(blockNode);
-        }
-
-        priorityGroups.set(nodeGroups);
-    }
-
     @Value
     private static class PriorityGroup {
 
@@ -98,11 +100,6 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
         PriorityGroup(final int priority) {
             this.priority = priority;
             this.nodes = new ArrayList<>();
-        }
-
-        PriorityGroup sort() {
-            nodes.sort(BlockNode.LATENCY_COMPARATOR);
-            return this;
         }
 
         Iterator<BlockNode> getIterator() {

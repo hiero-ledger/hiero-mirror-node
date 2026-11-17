@@ -56,6 +56,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
             cr.amount,
             cr.bloom,
             cr.call_result,
+            cr.child,
             cr.consensus_timestamp,
             cr.contract_id,
             cr.created_contract_ids,
@@ -95,6 +96,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.amount,
         cr.bloom,
         cr.call_result,
+        cr.child,
         cr.consensus_timestamp,
         cr.contract_id,
         cr.created_contract_ids,
@@ -134,6 +136,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.amount,
         cr.bloom,
         cr.call_result,
+        cr.child,
         cr.consensus_timestamp,
         cr.contract_id,
         cr.created_contract_ids,
@@ -174,6 +177,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.amount,
         cr.bloom,
         cr.call_result,
+        cr.child,
         cr.consensus_timestamp,
         cr.contract_id,
         cr.created_contract_ids,
@@ -228,6 +232,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       )
       select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
+        false as child,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
         null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
@@ -269,6 +274,7 @@ describe('ContractService.getSyntheticContractResultsQuery tests', () => {
       )
       select
         null::bigint as amount, null::bytea as bloom, null::bytea as call_result,
+        false as child,
         synth_raw.consensus_timestamp, synth_raw.contract_id,
         null::bigint[] as created_contract_ids, null::text as error_message,
         null::bytea as failed_initcode, '\\x'::bytea as function_parameters,
@@ -1161,6 +1167,20 @@ describe('ContractService.getContractResultsByTimestamps tests', () => {
       expected.map((e) => e.consensusTimestamp)
     );
     expect(pickContractResultFields(contractResults)).toIncludeSameMembers(expected);
+  });
+
+  test('child reflects the persisted contract_result.child column', async () => {
+    await integrationDomainOps.loadContractResults([
+      {
+        consensus_timestamp: 3,
+        contract_id: entityId2.num,
+        payer_account_id: entityId5.num,
+        child: true,
+      },
+    ]);
+
+    const contractResults = await ContractService.getContractResultsByTimestamps(3);
+    expect(contractResults[0].child).toBe(true);
   });
 });
 
@@ -2264,6 +2284,23 @@ describe('ContractService.getContractTransactionDetailsByHash real execution pre
 
   test('Prefers the real execution over a later pre-execution failure sharing the hash', async () => {
     await integrationDomainOps.loadContractResults([executedResult, stubResult]);
+
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([
+      {
+        consensusTimestamp: 1,
+        entityId: entityId1.getEncodedId(),
+        hash: ethereumTxHashBuffer,
+        payerAccountId: entityId10.getEncodedId(),
+        transactionResult: Number.parseInt(contractRevertResult),
+      },
+    ]);
+  });
+
+  test('Prefers the real execution over a later WRONG_NONCE duplicate with zero gas_consumed', async () => {
+    const wrongNonceResult = TransactionResult.getProtoId('WRONG_NONCE');
+    const wrongNonce = {...stubResult, transaction_result: wrongNonceResult, gas_consumed: 0, gas_used: 0};
+    await integrationDomainOps.loadContractResults([executedResult, wrongNonce]);
 
     const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
     expect(transactionDetails).toEqual([

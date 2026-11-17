@@ -41,6 +41,6 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
         final var context = ContractCallContext.get();
         long timestamp = context.getTimestampForSystemFiles().orElseGet(Utils::getCurrentTimestamp);
         final var file = systemFileLoader.load(exchangeRateFileId, timestamp);
-        return ExchangeRateSet.PROTOBUF.parse(file.contents());
+        return ExchangeRateSet.PROTOBUF.parse(file.contents().toReadableSequentialData());
     }
 }

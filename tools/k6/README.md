@@ -99,6 +99,7 @@ The following parameters can be used to configure a rest-java test:
 | DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER   |         |                                                 |
 | DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_SPENDER |         |                                                 |
 | DEFAULT_HOOK_ID                           |         | The hook id                                     |
+| DEFAULT_NETWORK_FEES_TRANSACTION          |         | Hex-encoded signed transaction for fee estimate |
 | DEFAULT_OWNER_ID                          |         | The owner of a hook                             |
 | DEFAULT_TOPIC_WITH_FEE_ID                 |         | Topic with custom fee id                        |
 | RESTJAVA_TEST_EXCLUDE                     | ^$      | The rest-java test scenarios to exclude         |
@@ -145,7 +146,8 @@ The following parameters can be used to configure a web3 test:
 | RUN_COMPLEX_TESTS                                         | false   | If set to false, complex function tests will not run.                                                                                                                                               |
 | RUN_ESTIMATE_TESTS                                        | false   | If set to false, estimate gas tests will not run.                                                                                                                                                   |
 | RUN_MODIFICATION_TESTS                                    | false   | If set to false, modification tests will not run.                                                                                                                                                   |
-| RUN_OPCODE_TESTS                                          | false   | If set to false, opcode tests will not run.                                                                                                                                                         |
+| RUN_OPCODE_TESTS                                          | true    | If set to false, opcode tests will not run.                                                                                                                                                         |
+| RUN_PRESTATE_TESTS                                        | true    | If set to false, prestate tests will not run.                                                                                                                                                       |
 | RUN_FULL_COVERAGE_TESTS                                   | false   | If set to true, include all available web3 tests in accordance to the other configured RUN\_\* variables. Some of them are excluded by default as they are too lightweight for performance testing. |
 | RUN_TRAFFIC_REPLAY                                        | false   | If set to false, traffic replay tests will not run.                                                                                                                                                 |
 | RUN_WITH_VARIABLES                                        | false   | if set to false, tests will be run with data from modificationFunctions.json                                                                                                                        |
@@ -155,7 +157,7 @@ The following parameters can be used to configure a web3 test:
 | STORAGE_SLOTS_CONTRACT                                    |         | 40 character hex encoded contract address without `0x` prefix                                                                                                                                       |
 | TOKEN_ADDRESS                                             |         | 64 character hex encoded token address without `0x` prefix                                                                                                                                          |
 | TOKEN_FREEZE_KEY_ACCOUNT_ADDRESS                          |         | 64 character hex encoded account evm address without `0x` prefix - a freeze key account for FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS and NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS                   |
-| TRANSACTION_IDS                                           |         | Comma-separated list of transaction ids for opcode tracing                                                                                                                                          |
+| TRANSACTION_IDS                                           |         | Comma-separated list of transaction ids for opcode tracing and prestate tests                                                                                                                       |
 | WEB3_TEST_EXCLUDE                                         | ^$      | The web3 test scenarios to exclude                                                                                                                                                                  |
 | WEB3_TEST_INCLUDE                                         | .\*     | The web3 test scenarios to include                                                                                                                                                                  |
 
