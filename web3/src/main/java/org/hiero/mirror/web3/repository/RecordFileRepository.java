@@ -9,13 +9,15 @@ import org.springframework.data.repository.PagingAndSortingRepository;
 
 public interface RecordFileRepository extends PagingAndSortingRepository<RecordFile, Long> {
 
-    @Query("select r from RecordFile r where r.hash like concat(:hash, '%')")
+    @Query(value = "select * from record_file where hash like concat(cast(:hash as text), '%')", nativeQuery = true)
     Optional<RecordFile> findByHash(String hash);
 
-    @Query("select r from RecordFile r where r.index = :index")
+    @Query(value = "select * from record_file where index = :index", nativeQuery = true)
     Optional<RecordFile> findByIndex(long index);
 
-    @Query("select r from RecordFile r where r.consensusEnd >= :timestamp order by r.consensusEnd asc limit 1")
+    @Query(
+            value = "select * from record_file where consensus_end >= :timestamp order by consensus_end asc limit 1",
+            nativeQuery = true)
     Optional<RecordFile> findByTimestamp(long timestamp);
 
     @Query(value = "select * from record_file order by index asc limit 1", nativeQuery = true)
