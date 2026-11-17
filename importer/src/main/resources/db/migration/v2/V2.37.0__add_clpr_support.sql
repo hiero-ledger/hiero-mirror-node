@@ -7,6 +7,9 @@ create type clpr_signature_scheme as enum ('ECDSA_SECP256K1', 'ED25519');
 create type clpr_message_type as enum ('DATA', 'RESPONSE', 'CONTROL');
 create type clpr_message_reply_status as enum
     ('SUCCESS', 'APPLICATION_ERROR', 'CONNECTOR_NOT_FOUND', 'CONNECTOR_UNDERFUNDED');
+create type clpr_maintenance_reason as enum
+    ('CLPR_MAINTENANCE_REASON_UNSPECIFIED', 'GENESIS_INITIALIZATION', 'UPGRADE_INITIALIZATION',
+     'UPGRADE_ROSTER_RECONCILIATION', 'ENDPOINT_MANIFEST_RECONCILIATION');
 
 create table if not exists clpr_channel_pending_commitment
 (
@@ -154,6 +157,14 @@ create table if not exists clpr_endpoint_manifest
     version               bigint      not null,
     endpoints             jsonb,
     service_address       bytea,
+
+    primary key (consensus_timestamp)
+);
+
+create table if not exists clpr_maintenance
+(
+    consensus_timestamp   bigint                      not null,
+    reason                clpr_maintenance_reason     not null,
 
     primary key (consensus_timestamp)
 );

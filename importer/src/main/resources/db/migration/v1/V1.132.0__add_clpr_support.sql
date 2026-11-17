@@ -1,12 +1,18 @@
 -- HIP-1535 CLPR Mirror Node Support
 
-create type clpr_channel_status as enum ('ACTIVE', 'PAUSED', 'CLOSING', 'DRAINED', 'CLOSED');
+-- PENDING is pre-creation only (tracked via clpr_channel_pending_commitment); consensus should never revert an
+-- existing clpr_channel row back to it, but the value is included so an unexpected occurrence can be recorded
+-- instead of dropped
+create type clpr_channel_status as enum ('PENDING', 'ACTIVE', 'PAUSED', 'CLOSING', 'DRAINED', 'CLOSED');
 create type clpr_pending_commitment_status as enum ('OPEN', 'COMPLETED', 'DELETED');
 create type clpr_connector_status as enum ('PENDING', 'ACTIVE', 'DELETED');
 create type clpr_signature_scheme as enum ('ECDSA_SECP256K1', 'ED25519');
 create type clpr_message_type as enum ('DATA', 'RESPONSE', 'CONTROL');
 create type clpr_message_reply_status as enum
     ('SUCCESS', 'APPLICATION_ERROR', 'CONNECTOR_NOT_FOUND', 'CONNECTOR_UNDERFUNDED');
+create type clpr_maintenance_reason as enum
+    ('CLPR_MAINTENANCE_REASON_UNSPECIFIED', 'GENESIS_INITIALIZATION', 'UPGRADE_INITIALIZATION',
+     'UPGRADE_ROSTER_RECONCILIATION', 'ENDPOINT_MANIFEST_RECONCILIATION');
 
 create table if not exists clpr_channel_pending_commitment
 (
@@ -148,6 +154,14 @@ create table if not exists clpr_endpoint_manifest
     version               bigint      not null,
     endpoints             jsonb,
     service_address       bytea,
+
+    primary key (consensus_timestamp)
+);
+
+create table if not exists clpr_maintenance
+(
+    consensus_timestamp   bigint                      not null,
+    reason                clpr_maintenance_reason     not null,
 
     primary key (consensus_timestamp)
 );

@@ -20,6 +20,7 @@ import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprMaintenance;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
@@ -141,6 +142,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onClprLedgerConfiguration(ClprLedgerConfiguration clprLedgerConfiguration) {
         context.add(clprLedgerConfiguration);
+    }
+
+    @Override
+    public void onClprMaintenance(ClprMaintenance clprMaintenance) {
+        context.add(clprMaintenance);
     }
 
     @Override

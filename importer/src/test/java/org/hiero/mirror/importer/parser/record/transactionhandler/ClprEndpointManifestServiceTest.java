@@ -14,6 +14,7 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.ClprEndpointManifestRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
 class ClprEndpointManifestServiceTest extends ImporterIntegrationTest {
@@ -24,6 +25,7 @@ class ClprEndpointManifestServiceTest extends ImporterIntegrationTest {
     private final ClprEndpointManifestService clprEndpointManifestService;
 
     private final ClprEndpointManifestRepository clprEndpointManifestRepository;
+    private final TransactionTemplate transactionTemplate;
 
     @Test
     void lookupCacheHit() {
@@ -74,16 +76,13 @@ class ClprEndpointManifestServiceTest extends ImporterIntegrationTest {
     }
 
     @Test
-    void handleParseFailureEvictsStagedValueFromFailedBatch() {
-        // given -- notified by a batch starting at consensusTimestamp 100 that then failed to parse
-        final var manifest = domainBuilder
-                .clprEndpointManifest()
-                .customize(m -> m.consensusTimestamp(150L))
-                .get();
-        clprEndpointManifestService.notify(manifest);
-
-        // when -- the retry calls this with that same batch's starting timestamp
-        clprEndpointManifestService.handleParseFailure(100L);
+    void notifyEvictsStagedValueWhenTransactionRollsBack() {
+        // given -- notify called from within the enclosing parse transaction, which then fails to commit
+        final var manifest = domainBuilder.clprEndpointManifest().get();
+        transactionTemplate.executeWithoutResult(status -> {
+            clprEndpointManifestService.notify(manifest);
+            status.setRollbackOnly();
+        });
 
         // then -- the never-committed value is gone, so the next lookup falls through to the repository again
         final var committed = domainBuilder.clprEndpointManifest().persist();
@@ -91,19 +90,13 @@ class ClprEndpointManifestServiceTest extends ImporterIntegrationTest {
     }
 
     @Test
-    void handleParseFailureKeepsValueFromAnEarlierCommittedBatch() {
-        // given -- notified by a batch starting at consensusTimestamp 100 that committed successfully
-        final var manifest = domainBuilder
-                .clprEndpointManifest()
-                .customize(m -> m.consensusTimestamp(150L))
-                .get();
-        clprEndpointManifestService.notify(manifest);
+    void notifyKeepsStagedValueWhenTransactionCommits() {
+        // given -- notify called from within the enclosing parse transaction, which commits successfully
+        final var manifest = domainBuilder.clprEndpointManifest().get();
+        transactionTemplate.executeWithoutResult(status -> clprEndpointManifestService.notify(manifest));
 
-        // when -- a later, unrelated batch starting at 200 fails
-        clprEndpointManifestService.handleParseFailure(200L);
-
-        // then -- the earlier, already-committed value is untouched; the repository stays empty, so a value could
-        // only come from the cache
+        // then -- the committed value stays cached; the repository stays empty, so a value could only come from
+        // the cache
         assertThat(clprEndpointManifestService.lookup()).isEqualTo(manifest);
     }
 }

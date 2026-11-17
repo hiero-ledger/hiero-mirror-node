@@ -72,6 +72,8 @@ import org.hiero.mirror.common.domain.clpr.ClprControlMessage;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprMaintenance;
+import org.hiero.mirror.common.domain.clpr.ClprMaintenanceReason;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprMessageReplyStatus;
 import org.hiero.mirror.common.domain.clpr.ClprMessageType;
@@ -473,6 +475,13 @@ public class DomainBuilder {
                         .maxQueueDepth(1_000L)
                         .maxSyncBytes(6_000_000L)
                         .build());
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprMaintenance, ClprMaintenance.ClprMaintenanceBuilder> clprMaintenance() {
+        var builder = ClprMaintenance.builder()
+                .consensusTimestamp(timestamp())
+                .reason(ClprMaintenanceReason.ENDPOINT_MANIFEST_RECONCILIATION);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

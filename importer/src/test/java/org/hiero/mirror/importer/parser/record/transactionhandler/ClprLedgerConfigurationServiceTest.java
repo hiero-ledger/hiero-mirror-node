@@ -14,6 +14,7 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.ClprLedgerConfigurationRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
 class ClprLedgerConfigurationServiceTest extends ImporterIntegrationTest {
@@ -24,6 +25,7 @@ class ClprLedgerConfigurationServiceTest extends ImporterIntegrationTest {
     private final ClprLedgerConfigurationService clprLedgerConfigurationService;
 
     private final ClprLedgerConfigurationRepository clprLedgerConfigurationRepository;
+    private final TransactionTemplate transactionTemplate;
 
     @Test
     void lookupCacheHit() {
@@ -74,16 +76,13 @@ class ClprLedgerConfigurationServiceTest extends ImporterIntegrationTest {
     }
 
     @Test
-    void handleParseFailureEvictsStagedValueFromFailedBatch() {
-        // given -- notified by a batch starting at consensusTimestamp 100 that then failed to parse
-        final var configuration = domainBuilder
-                .clprLedgerConfiguration()
-                .customize(c -> c.consensusTimestamp(150L))
-                .get();
-        clprLedgerConfigurationService.notify(configuration);
-
-        // when -- the retry calls this with that same batch's starting timestamp
-        clprLedgerConfigurationService.handleParseFailure(100L);
+    void notifyEvictsStagedValueWhenTransactionRollsBack() {
+        // given -- notify called from within the enclosing parse transaction, which then fails to commit
+        final var configuration = domainBuilder.clprLedgerConfiguration().get();
+        transactionTemplate.executeWithoutResult(status -> {
+            clprLedgerConfigurationService.notify(configuration);
+            status.setRollbackOnly();
+        });
 
         // then -- the never-committed value is gone, so the next lookup falls through to the repository again
         final var committed = domainBuilder.clprLedgerConfiguration().persist();
@@ -91,19 +90,13 @@ class ClprLedgerConfigurationServiceTest extends ImporterIntegrationTest {
     }
 
     @Test
-    void handleParseFailureKeepsValueFromAnEarlierCommittedBatch() {
-        // given -- notified by a batch starting at consensusTimestamp 100 that committed successfully
-        final var configuration = domainBuilder
-                .clprLedgerConfiguration()
-                .customize(c -> c.consensusTimestamp(150L))
-                .get();
-        clprLedgerConfigurationService.notify(configuration);
+    void notifyKeepsStagedValueWhenTransactionCommits() {
+        // given -- notify called from within the enclosing parse transaction, which commits successfully
+        final var configuration = domainBuilder.clprLedgerConfiguration().get();
+        transactionTemplate.executeWithoutResult(status -> clprLedgerConfigurationService.notify(configuration));
 
-        // when -- a later, unrelated batch starting at 200 fails
-        clprLedgerConfigurationService.handleParseFailure(200L);
-
-        // then -- the earlier, already-committed value is untouched; the repository stays empty, so a value could
-        // only come from the cache
+        // then -- the committed value stays cached; the repository stays empty, so a value could only come from
+        // the cache
         assertThat(clprLedgerConfigurationService.lookup()).isEqualTo(configuration);
     }
 }

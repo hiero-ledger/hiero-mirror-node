@@ -44,7 +44,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
     private final DateRangeCalculator dateRangeCalculator;
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
-    private final List<ParseFailureListener> parseFailureListeners;
     private final ParserContext parserContext;
     private final RecordItemListener recordItemListener;
 
@@ -61,7 +60,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             final EntityListener entityListener,
             final EntityProperties entityProperties,
             final MeterRegistry meterRegistry,
-            final List<ParseFailureListener> parseFailureListeners,
             final ParserContext parserContext,
             final RecordParserProperties parserProperties,
             final RecordItemListener recordItemListener,
@@ -72,7 +70,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         this.dateRangeCalculator = dateRangeCalculator;
         this.entityListener = entityListener;
         this.entityProperties = entityProperties;
-        this.parseFailureListeners = parseFailureListeners;
         this.parserContext = parserContext;
         this.recordItemListener = recordItemListener;
 
@@ -119,9 +116,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
     public synchronized void parse(RecordFile recordFile) {
         try {
             super.parse(recordFile);
-        } catch (Throwable t) {
-            notifyParseFailureListeners(recordFile.getConsensusStart());
-            throw t;
         } finally {
             parserContext.clear();
         }
@@ -138,11 +132,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
     public synchronized void parse(List<RecordFile> recordFiles) {
         try {
             super.parse(recordFiles);
-        } catch (Throwable t) {
-            if (!recordFiles.isEmpty()) {
-                notifyParseFailureListeners(recordFiles.getFirst().getConsensusStart());
-            }
-            throw t;
         } finally {
             parserContext.clear();
         }
@@ -198,12 +187,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
                     Utility.printProtoMessage(recordItem.getTransactionRecord()));
         } else if (log.isDebugEnabled()) {
             log.debug("Parsing transaction with consensus timestamp {}", recordItem.getConsensusTimestamp());
-        }
-    }
-
-    private void notifyParseFailureListeners(long startTimestamp) {
-        for (final var listener : parseFailureListeners) {
-            listener.handleParseFailure(startTimestamp);
         }
     }
 
