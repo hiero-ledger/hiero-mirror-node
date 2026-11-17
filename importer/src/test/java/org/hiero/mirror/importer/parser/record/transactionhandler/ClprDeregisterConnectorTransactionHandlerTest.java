@@ -15,6 +15,7 @@ import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -22,11 +23,11 @@ import org.mockito.Mock;
 class ClprDeregisterConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Mock
-    private ClprConnectorService clprConnectorService;
+    private ClprConnectorRepository clprConnectorRepository;
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ClprDeregisterConnectorTransactionHandler(clprConnectorService, entityListener);
+        return new ClprDeregisterConnectorTransactionHandler(clprConnectorRepository, entityListener);
     }
 
     @Override
@@ -51,7 +52,7 @@ class ClprDeregisterConnectorTransactionHandlerTest extends AbstractTransactionH
                 getDefaultTransactionRecord().build());
         final var body = recordItem.getTransactionBody().getClprDeregisterConnector();
         final var commitment = domainBuilder.bytes(32);
-        when(clprConnectorService.lookup(
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
                         DomainUtils.toBytes(body.getChannelId()), DomainUtils.toBytes(body.getConnectorId())))
                 .thenReturn(commitment);
         final var transaction = domainBuilder.transaction().get();

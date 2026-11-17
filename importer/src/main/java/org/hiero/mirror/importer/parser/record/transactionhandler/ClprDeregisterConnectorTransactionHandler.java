@@ -13,13 +13,14 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
 class ClprDeregisterConnectorTransactionHandler extends AbstractTransactionHandler {
 
-    private final ClprConnectorService clprConnectorService;
+    private final ClprConnectorRepository clprConnectorRepository;
     private final EntityListener entityListener;
 
     @Override
@@ -40,7 +41,7 @@ class ClprDeregisterConnectorTransactionHandler extends AbstractTransactionHandl
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         final var channelId = DomainUtils.toBytes(transactionBody.getChannelId());
         final var connectorId = DomainUtils.toBytes(transactionBody.getConnectorId());
-        final var commitment = clprConnectorService.lookup(channelId, connectorId);
+        final var commitment = clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(channelId, connectorId);
         if (commitment == null) {
             Utility.handleRecoverableError(
                     "No clpr_connector found for channelId/connectorId pair for successful "

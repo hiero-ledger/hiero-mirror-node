@@ -14,12 +14,13 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 
 @Named
 @RequiredArgsConstructor
 class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler {
 
-    private final ClprConnectorService clprConnectorService;
+    private final ClprConnectorRepository clprConnectorRepository;
     private final EntityListener entityListener;
 
     @Override
@@ -60,12 +61,12 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
                 .publicKey(publicKey)
                 .salt(DomainUtils.toBytes(transactionBody.getSalt()))
                 .signature(DomainUtils.toBytes(transactionBody.getSignature()))
-                .signatureScheme(ClprEnums.toSignatureScheme(transactionBody.getSignatureScheme()))
+                .signatureScheme(transactionBody.getSignatureSchemeValue())
                 .timestampRange(Range.atLeast(consensusTimestamp));
         ClprStateChangeHandler.applyConnectorFields(connectorBuilder, entry);
         final var connector = connectorBuilder.build();
         entityListener.onClprConnector(connector);
-        clprConnectorService.notify(connector);
+        clprConnectorRepository.notify(connector);
         recordItem.addEntityId(connectorContractId);
     }
 }

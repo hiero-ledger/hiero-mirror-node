@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.CLOSING_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
 import static org.mockito.Mockito.verify;
@@ -16,7 +17,6 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.util.List;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.ClprContext;
@@ -73,7 +73,7 @@ class ClprCloseChannelTransactionHandlerTest extends AbstractTransactionHandlerT
         verify(entityListener).onClprChannel(captor.capture());
         assertThat(captor.getValue())
                 .returns(DomainUtils.toBytes(body.getChannelId()), ClprChannel::getChannelId)
-                .returns(ClprChannelStatus.CLOSING, ClprChannel::getStatus)
+                .returns(CLOSING_VALUE, ClprChannel::getStatus)
                 .returns(5L, ClprChannel::getNextMessageId)
                 .returns(4L, ClprChannel::getAckedMessageId)
                 .returns(Range.atLeast(recordItem.getConsensusTimestamp()), ClprChannel::getTimestampRange);

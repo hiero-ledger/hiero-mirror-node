@@ -2,6 +2,13 @@
 
 package org.hiero.mirror.importer.parser.record;
 
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.CLOSING_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.CONTROL_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_REPLY_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessageReplyStatus.CONNECTOR_NOT_FOUND_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprSignatureScheme.ED25519_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
@@ -12,16 +19,12 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConfigUpdate;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprControlMessage;
-import org.hiero.mirror.common.domain.clpr.ClprMessageReplyStatus;
-import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
-import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
@@ -111,7 +114,7 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .customize(builder -> builder.consensusTimestamp(1794435394777634104L)
                         .messageId(1L)
                         .replyToMessageId(null)
-                        .messageType(ClprMessageType.DATA)
+                        .messageType(MESSAGE_FIELD_NUMBER)
                         .replyStatus(null)
                         .channelId(hex.parseHex("9632b28a4d876b868186c2cfe2b376ef3a6840482530d66599c93cae4532f330"))
                         .connectorId(hex.parseHex("5c6562ad6a560de52597bbf3f82516ce23aa695f44170b065a20275456f8466b"))
@@ -151,8 +154,8 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .customize(builder -> builder.ackedMessageId(0L)
                         .createdTimestamp(channelCreatedTimestamp)
                         .timestampRange(Range.closedOpen(channelCreatedTimestamp, messageTimestamp))
-                        .status(ClprChannelStatus.ACTIVE)
-                        .signatureScheme(ClprSignatureScheme.ED25519)
+                        .status(ACTIVE_VALUE)
+                        .signatureScheme(ED25519_VALUE)
                         .channelId(expectedMessage1.getChannelId())
                         .chainId("hiero:testing")
                         .channelContext(
@@ -240,7 +243,7 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .signature(
                         hex.parseHex(
                                 "1f8ea5a6ff78100ca0d5bf5939a7a251c68459c7fd95c0c4a5bd40ffd0a3a4e31ccfc34ae0d7a99e5c8573f52d5262fe74be7581714c71fbfdf7082cb53e5806"))
-                .signatureScheme(ClprSignatureScheme.ED25519)
+                .signatureScheme(ED25519_VALUE)
                 .lockedStake(100_000_000L)
                 .build();
 
@@ -271,8 +274,8 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .consensusTimestamp(bundleTimestamp)
                 .messageId(2L)
                 .replyToMessageId(1L)
-                .messageType(ClprMessageType.RESPONSE)
-                .replyStatus(ClprMessageReplyStatus.CONNECTOR_NOT_FOUND)
+                .messageType(MESSAGE_REPLY_FIELD_NUMBER)
+                .replyStatus(CONNECTOR_NOT_FOUND_VALUE)
                 .connectorId(null)
                 .messageData(new byte[0])
                 .runningHash(hex.parseHex("7260766a7dfa342beeb9f55c5c3db4caa2379d3cea8cc26ca8904667bad171c5"))
@@ -292,7 +295,7 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
 
         final var expectedChannelAfterBundle = expectedChannelAfterMessageHistory.toBuilder()
                 .timestampRange(Range.atLeast(bundleTimestamp))
-                .status(ClprChannelStatus.CLOSING)
+                .status(CLOSING_VALUE)
                 .nextMessageId(3L)
                 .receivedMessageId(1L)
                 .receivedRunningHash(hex.parseHex("6c61869fd21bc5e7d9cb513dc566c01f00a820bcc3a80cdd103aaaed98194eae"))
@@ -373,7 +376,7 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                         .messageId(7L)
                         .channelId(channelId)
                         .connectorId(null)
-                        .messageType(ClprMessageType.CONTROL)
+                        .messageType(CONTROL_FIELD_NUMBER)
                         .replyStatus(null)
                         .replyToMessageId(null)
                         .controlMessage(ClprControlMessage.builder()
@@ -395,7 +398,7 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                         .messageId(8L)
                         .channelId(channelId)
                         .connectorId(connectorId)
-                        .messageType(ClprMessageType.DATA)
+                        .messageType(MESSAGE_FIELD_NUMBER)
                         .replyStatus(null)
                         .replyToMessageId(null)
                         .controlMessage(null)

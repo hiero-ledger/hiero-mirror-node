@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprSignatureScheme.ED25519_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
 import static org.mockito.Mockito.verify;
@@ -16,9 +18,7 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.util.List;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
-import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.ClprContext;
@@ -95,13 +95,13 @@ class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandl
                 .returns(
                         DomainUtils.toBytes(clprChannelValue.getVerifierFingerprint()),
                         ClprChannel::getVerifierFingerprint)
-                .returns(ClprChannelStatus.ACTIVE, ClprChannel::getStatus)
+                .returns(ACTIVE_VALUE, ClprChannel::getStatus)
                 .returns(1L, ClprChannel::getNextMessageId)
                 .returns(0L, ClprChannel::getAckedMessageId)
                 .returns(0L, ClprChannel::getReceivedMessageId)
                 .returns(DomainUtils.toBytes(body.getPublicKey()), ClprChannel::getPublicKey)
                 .returns(DomainUtils.toBytes(body.getSignature()), ClprChannel::getSignature)
-                .returns(ClprSignatureScheme.ED25519, ClprChannel::getSignatureScheme)
+                .returns(ED25519_VALUE, ClprChannel::getSignatureScheme)
                 .returns(DomainUtils.toBytes(body.getConfigProofBytes()), ClprChannel::getConfigProofBytes)
                 .returns(
                         DomainUtils.toBytes(body.getEndpointManifestProofBytes()),

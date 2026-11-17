@@ -467,7 +467,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
 
         final var channel =
                 clprChannelRepository.findById(DomainUtils.toBytes(channelId)).orElseThrow();
-        assertThat(channel.getStatus()).isEqualTo(org.hiero.mirror.common.domain.clpr.ClprChannelStatus.CLOSING);
+        assertThat(channel.getStatus()).isEqualTo(ClprChannelStatus.CLOSING_VALUE);
         assertThat(channel.getNextMessageId()).isEqualTo(2L);
         // chainId was only set at completion time; merging the later submitBundle/close updates must carry it
         // forward rather than null it out

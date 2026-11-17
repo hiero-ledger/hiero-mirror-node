@@ -51,7 +51,7 @@ class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
                 .verifierFingerprint(DomainUtils.toBytes(clprChannelValue.getVerifierFingerprint()))
                 .publicKey(publicKey)
                 .signature(DomainUtils.toBytes(transactionBody.getSignature()))
-                .signatureScheme(ClprEnums.toSignatureScheme(transactionBody.getSignatureScheme()))
+                .signatureScheme(transactionBody.getSignatureSchemeValue())
                 .configProofBytes(DomainUtils.toBytes(transactionBody.getConfigProofBytes()))
                 .endpointManifestProofBytes(DomainUtils.toBytes(transactionBody.getEndpointManifestProofBytes()))
                 .timestampRange(Range.atLeast(consensusTimestamp))

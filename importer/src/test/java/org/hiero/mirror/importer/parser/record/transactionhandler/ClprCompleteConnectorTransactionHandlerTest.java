@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static com.hederahashgraph.api.proto.java.ClprSignatureScheme.ECDSA_SECP256K1_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprConnectorMapUpdate;
 import static org.mockito.Mockito.verify;
@@ -18,7 +19,6 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.util.List;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
-import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.ClprContext;
@@ -26,6 +26,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnectorEntry;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SignatureUtils;
+import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -34,11 +35,11 @@ import org.springframework.data.util.Version;
 class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Mock
-    private ClprConnectorService clprConnectorService;
+    private ClprConnectorRepository clprConnectorRepository;
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ClprCompleteConnectorTransactionHandler(clprConnectorService, entityListener);
+        return new ClprCompleteConnectorTransactionHandler(clprConnectorRepository, entityListener);
     }
 
     @Override
@@ -111,10 +112,10 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
                 .returns(DomainUtils.toBytes(body.getPublicKey()), ClprConnector::getPublicKey)
                 .returns(DomainUtils.toBytes(body.getSalt()), ClprConnector::getSalt)
                 .returns(DomainUtils.toBytes(body.getSignature()), ClprConnector::getSignature)
-                .returns(ClprSignatureScheme.ECDSA_SECP256K1, ClprConnector::getSignatureScheme)
+                .returns(ECDSA_SECP256K1_VALUE, ClprConnector::getSignatureScheme)
                 .returns(timestampRange, ClprConnector::getTimestampRange);
 
-        verify(clprConnectorService).notify(connectorCaptor.getValue());
+        verify(clprConnectorRepository).notify(connectorCaptor.getValue());
 
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(
@@ -136,7 +137,7 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
 
         // then
         verifyNoInteractions(entityListener);
-        verifyNoInteractions(clprConnectorService);
+        verifyNoInteractions(clprConnectorRepository);
     }
 
     private RecordItem buildRecordItem(
