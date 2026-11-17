@@ -83,6 +83,9 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
     private EntityProperties entityProperties;
 
     @Mock
+    private ParseFailureListener parseFailureListener;
+
+    @Mock
     private RecordFileRepository recordFileRepository;
 
     @Mock
@@ -126,6 +129,7 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
                 entityListener,
                 entityProperties,
                 new SimpleMeterRegistry(),
+                List.of(parseFailureListener),
                 new ParserContext(),
                 parserProperties,
                 recordItemListener,
@@ -148,6 +152,19 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
     @Override
     protected void mockDbFailure(ParserException e) {
         doThrow(e).when(recordItemListener).onItem(any());
+    }
+
+    @Test
+    void parseFailureNotifiesParseFailureListeners() {
+        // given
+        final var recordFile = getStreamFile();
+        mockDbFailure(new ParserException("boom"));
+
+        // when
+        assertThatThrownBy(() -> parser.parse(recordFile)).isInstanceOf(ParserException.class);
+
+        // then
+        verify(parseFailureListener).handleParseFailure(recordFile.getConsensusStart());
     }
 
     @Test

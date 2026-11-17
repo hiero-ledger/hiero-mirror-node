@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 /** Converts a {@code ClprThrottles} message into the domain {@link ClprThrottle} embedded by the callers. */
 @NullMarked
 @UtilityClass
-class ClprThrottleConverter {
+final class ClprThrottleConverter {
 
     static @Nullable ClprThrottle from(com.hederahashgraph.api.proto.java.ClprLedgerConfiguration configuration) {
         return configuration.hasThrottles() ? from(configuration.getThrottles()) : null;

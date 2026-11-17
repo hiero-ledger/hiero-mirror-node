@@ -1,6 +1,6 @@
 -- HIP-1535 CLPR Mirror Node Support
 
-create type clpr_channel_status as enum ('ACTIVE', 'PAUSED', 'CLOSING', 'DRAINED', 'CLOSED');
+create type clpr_channel_status as enum ('PENDING', 'ACTIVE', 'PAUSED', 'CLOSING', 'DRAINED', 'CLOSED');
 create type clpr_pending_commitment_status as enum ('OPEN', 'COMPLETED', 'DELETED');
 create type clpr_connector_status as enum ('PENDING', 'ACTIVE', 'DELETED');
 create type clpr_signature_scheme as enum ('ECDSA_SECP256K1', 'ED25519');

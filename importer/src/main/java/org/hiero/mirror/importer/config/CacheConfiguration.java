@@ -44,7 +44,7 @@ public class CacheConfiguration {
 
     @Bean(CACHE_CLPR_CONNECTOR_COMMITMENT)
     CacheManager cacheManagerClprConnectorCommitment() {
-        return cacheManager(cacheProperties.getClprConnectorCommitment());
+        return cacheManager(cacheProperties.getClprConnector());
     }
 
     @Bean(CACHE_CLPR_ENDPOINT_MANIFEST)

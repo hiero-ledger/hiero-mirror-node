@@ -8,7 +8,7 @@ import org.hiero.mirror.common.domain.clpr.ClprMessageReplyStatus;
 import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.junit.jupiter.api.Test;
 
-class ClprEnumsTest {
+final class ClprEnumsTest {
 
     @Test
     void toReplyStatus() {

@@ -9,7 +9,7 @@ import com.hederahashgraph.api.proto.java.ClprThrottles;
 import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.junit.jupiter.api.Test;
 
-class ClprThrottleConverterTest {
+final class ClprThrottleConverterTest {
 
     @Test
     void fromThrottlesWidensUint32Fields() {

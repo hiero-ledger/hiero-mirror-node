@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
 
 @NullMarked
 @UtilityClass
-class ClprEnums {
+final class ClprEnums {
 
     static @Nullable ClprMessageReplyStatus toReplyStatus(
             com.hederahashgraph.api.proto.java.ClprMessageReplyStatus status) {

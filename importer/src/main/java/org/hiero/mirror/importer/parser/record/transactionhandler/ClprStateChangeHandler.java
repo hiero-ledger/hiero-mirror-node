@@ -2,6 +2,35 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static com.hederahashgraph.api.proto.java.ClprChannel.ACKED_MESSAGE_ID_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.CHANNEL_CONTEXT_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_VERSION_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.LAST_CONFIG_TIMESTAMP_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.NEXT_MESSAGE_ID_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.OWNERSHIP_COMMITMENT_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.PEER_CONFIG_TIMESTAMP_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.PEER_THROTTLES_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.RECEIVED_MESSAGE_ID_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.RECEIVED_RUNNING_HASH_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.SENT_RUNNING_HASH_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.STATUS_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_ID_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprConnector.ADMIN_KEY_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprConnector.CONNECTOR_CONTRACT_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprConnector.IN_FLIGHT_MESSAGE_COUNT_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprConnector.LOCKED_STAKE_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprConnector.SLASH_COUNT_FIELD_NUMBER;
+// ClprEndpointManifest and ClprLedgerConfiguration both declare SERVICE_ADDRESS_FIELD_NUMBER, so that one constant
+// can't be statically imported from either without colliding; it stays fully qualified at its two use sites below.
+import static com.hederahashgraph.api.proto.java.ClprEndpointManifest.ENDPOINTS_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprEndpointManifest.VERSION_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.CHAIN_ID_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.INITIAL_TRUST_ANCHOR_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.INITIAL_TRUST_ANCHOR_ID_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.PROTOCOL_VERSION_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.THROTTLES_FIELD_NUMBER;
 import static org.hiero.mirror.common.domain.transaction.StateChangeContext.isPresent;
 
 import com.google.common.collect.Range;
@@ -34,6 +63,7 @@ import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprMessage
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -49,7 +79,7 @@ import org.jspecify.annotations.Nullable;
 @NullMarked
 @Named
 @RequiredArgsConstructor
-public class ClprStateChangeHandler {
+public final class ClprStateChangeHandler {
 
     /**
      * Excluded from process() since their own handler already writes onClprChannel/onClprConnector directly.
@@ -63,7 +93,7 @@ public class ClprStateChangeHandler {
             TransactionType.CLPRDEREGISTERCONNECTOR,
             TransactionType.CLPRREGISTERCONNECTOR);
 
-    private final ClprConnectorService clprConnectorService;
+    private final ClprConnectorRepository clprConnectorRepository;
     private final ClprEndpointManifestService clprEndpointManifestService;
     private final ClprLedgerConfigurationService clprLedgerConfigurationService;
     private final EntityListener entityListener;
@@ -138,23 +168,19 @@ public class ClprStateChangeHandler {
         final var mapUpdate = entry.mapUpdate();
         final var value = entry.value();
 
-        if (isPresent(
-                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprConnector.CONNECTOR_CONTRACT_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, CONNECTOR_CONTRACT_FIELD_NUMBER)) {
             builder.connectorContractId(EntityId.of(value.getConnectorContract()));
         }
-        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprConnector.ADMIN_KEY_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, ADMIN_KEY_FIELD_NUMBER)) {
             builder.adminKey(value.getAdminKey().toByteArray());
         }
-        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprConnector.LOCKED_STAKE_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, LOCKED_STAKE_FIELD_NUMBER)) {
             builder.lockedStake(value.getLockedStake());
         }
-        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprConnector.SLASH_COUNT_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, SLASH_COUNT_FIELD_NUMBER)) {
             builder.slashCount(Integer.toUnsignedLong(value.getSlashCount()));
         }
-        if (isPresent(
-                mapUpdate,
-                value,
-                com.hederahashgraph.api.proto.java.ClprConnector.IN_FLIGHT_MESSAGE_COUNT_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, IN_FLIGHT_MESSAGE_COUNT_FIELD_NUMBER)) {
             builder.inFlightMessageCount(value.getInFlightMessageCount());
         }
     }
@@ -185,66 +211,56 @@ public class ClprStateChangeHandler {
         final var value = entry.value();
         final var builder = ClprChannel.builder().channelId(DomainUtils.toBytes(entry.channelId()));
 
-        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.STATUS_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, STATUS_FIELD_NUMBER)) {
             builder.status(toChannelStatus(value.getStatus()));
         }
-        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.NEXT_MESSAGE_ID_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, NEXT_MESSAGE_ID_FIELD_NUMBER)) {
             builder.nextMessageId(value.getNextMessageId());
         }
-        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.ACKED_MESSAGE_ID_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, ACKED_MESSAGE_ID_FIELD_NUMBER)) {
             builder.ackedMessageId(value.getAckedMessageId());
         }
-        if (isPresent(
-                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.SENT_RUNNING_HASH_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, SENT_RUNNING_HASH_FIELD_NUMBER)) {
             builder.sentRunningHash(DomainUtils.toBytes(value.getSentRunningHash()));
         }
-        if (isPresent(
-                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.RECEIVED_MESSAGE_ID_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, RECEIVED_MESSAGE_ID_FIELD_NUMBER)) {
             builder.receivedMessageId(value.getReceivedMessageId());
         }
-        if (isPresent(
-                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.RECEIVED_RUNNING_HASH_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, RECEIVED_RUNNING_HASH_FIELD_NUMBER)) {
             builder.receivedRunningHash(DomainUtils.toBytes(value.getReceivedRunningHash()));
         }
-        if (isPresent(
-                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.OWNERSHIP_COMMITMENT_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, OWNERSHIP_COMMITMENT_FIELD_NUMBER)) {
             builder.ownershipCommitment(DomainUtils.toBytes(value.getOwnershipCommitment()));
         }
-        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, TRUST_ANCHOR_FIELD_NUMBER)) {
             builder.trustAnchor(DomainUtils.toBytes(value.getTrustAnchor()));
         }
-        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_ID_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, TRUST_ANCHOR_ID_FIELD_NUMBER)) {
             builder.trustAnchorId(DomainUtils.toBytes(value.getTrustAnchorId()));
         }
-        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.CHANNEL_CONTEXT_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, CHANNEL_CONTEXT_FIELD_NUMBER)) {
             builder.channelContext(DomainUtils.toBytes(value.getChannelContext()));
         }
-        if (isPresent(
-                mapUpdate,
-                value,
-                com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_VERSION_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, ENDPOINT_MANIFEST_VERSION_FIELD_NUMBER)) {
             builder.endpointManifestVersion(value.getEndpointManifestVersion());
         }
-        if (isPresent(
-                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.LAST_CONFIG_TIMESTAMP_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, LAST_CONFIG_TIMESTAMP_FIELD_NUMBER)) {
             builder.lastConfigTimestamp(
                     value.hasLastConfigTimestamp()
                             ? DomainUtils.timestampInNanosMax(value.getLastConfigTimestamp())
                             : null);
         }
-        if (isPresent(
-                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.PEER_CONFIG_TIMESTAMP_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, PEER_CONFIG_TIMESTAMP_FIELD_NUMBER)) {
             builder.peerConfigTimestamp(
                     value.hasPeerConfigTimestamp()
                             ? DomainUtils.timestampInNanosMax(value.getPeerConfigTimestamp())
                             : null);
         }
-        if (isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.PEER_THROTTLES_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, PEER_THROTTLES_FIELD_NUMBER)) {
             builder.peerThrottle(
                     value.hasPeerThrottles() ? ClprThrottleConverter.from(value.getPeerThrottles()) : null);
         }
-        if (isPresent(
-                mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_FIELD_NUMBER)) {
+        if (isPresent(mapUpdate, value, ENDPOINT_MANIFEST_FIELD_NUMBER)) {
             builder.endpointManifest(
                     value.hasEndpointManifest()
                             ? toEndpoints(value.getEndpointManifest().getEndpointsList())
@@ -278,34 +294,16 @@ public class ClprStateChangeHandler {
         }
 
         final var value = entry.value();
-        return isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.STATUS_FIELD_NUMBER)
-                || isPresent(
-                        mapUpdate,
-                        value,
-                        com.hederahashgraph.api.proto.java.ClprChannel.OWNERSHIP_COMMITMENT_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_FIELD_NUMBER)
-                || isPresent(
-                        mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_ID_FIELD_NUMBER)
-                || isPresent(
-                        mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.CHANNEL_CONTEXT_FIELD_NUMBER)
-                || isPresent(
-                        mapUpdate,
-                        value,
-                        com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_VERSION_FIELD_NUMBER)
-                || isPresent(
-                        mapUpdate,
-                        value,
-                        com.hederahashgraph.api.proto.java.ClprChannel.LAST_CONFIG_TIMESTAMP_FIELD_NUMBER)
-                || isPresent(
-                        mapUpdate,
-                        value,
-                        com.hederahashgraph.api.proto.java.ClprChannel.PEER_CONFIG_TIMESTAMP_FIELD_NUMBER)
-                || isPresent(
-                        mapUpdate, value, com.hederahashgraph.api.proto.java.ClprChannel.PEER_THROTTLES_FIELD_NUMBER)
-                || isPresent(
-                        mapUpdate,
-                        value,
-                        com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_FIELD_NUMBER);
+        return isPresent(mapUpdate, value, STATUS_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, OWNERSHIP_COMMITMENT_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, TRUST_ANCHOR_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, TRUST_ANCHOR_ID_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, CHANNEL_CONTEXT_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, ENDPOINT_MANIFEST_VERSION_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, LAST_CONFIG_TIMESTAMP_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, PEER_CONFIG_TIMESTAMP_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, PEER_THROTTLES_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, ENDPOINT_MANIFEST_FIELD_NUMBER);
     }
 
     // A full update (partial=false) can't tell us which field actually changed, so conservatively always historize,
@@ -319,16 +317,13 @@ public class ClprStateChangeHandler {
         }
 
         final var value = entry.value();
-        return isPresent(
-                        mapUpdate,
-                        value,
-                        com.hederahashgraph.api.proto.java.ClprConnector.CONNECTOR_CONTRACT_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, com.hederahashgraph.api.proto.java.ClprConnector.ADMIN_KEY_FIELD_NUMBER);
+        return isPresent(mapUpdate, value, CONNECTOR_CONTRACT_FIELD_NUMBER)
+                || isPresent(mapUpdate, value, ADMIN_KEY_FIELD_NUMBER);
     }
 
     private byte @Nullable [] lookupCommitment(
             byte[] channelId, byte[] connectorId, TransactionType transactionType, long consensusTimestamp) {
-        final var commitment = clprConnectorService.lookup(channelId, connectorId);
+        final var commitment = clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(channelId, connectorId);
         if (commitment == null) {
             Utility.handleRecoverableError(
                     "No clpr_connector commitment found via lookup for successful {} at {}",
@@ -343,10 +338,10 @@ public class ClprStateChangeHandler {
             com.hederahashgraph.api.proto.java.ClprChannelStatus status) {
 
         if (status == com.hederahashgraph.api.proto.java.ClprChannelStatus.PENDING) {
-            // PENDING is pre-creation only, tracked via ClprChannelPendingCommitment;
-            // an existing ClprChannel state-change value should never revert to it.
+            // PENDING is pre-creation only, tracked via ClprChannelPendingCommitment; an existing ClprChannel
+            // state-change value should never revert to it, but record it rather than drop it if consensus ever
+            // does.
             Utility.handleRecoverableError("ClprChannel state change unexpectedly reverted to PENDING status");
-            return null;
         }
 
         try {
@@ -434,30 +429,19 @@ public class ClprStateChangeHandler {
             return null;
         }
 
+        final int serviceAddressField =
+                com.hederahashgraph.api.proto.java.ClprEndpointManifest.SERVICE_ADDRESS_FIELD_NUMBER;
         return ClprEndpointManifest.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .endpoints(
-                        isPresent(
-                                        update,
-                                        value,
-                                        com.hederahashgraph.api.proto.java.ClprEndpointManifest.ENDPOINTS_FIELD_NUMBER)
+                        isPresent(update, value, ENDPOINTS_FIELD_NUMBER)
                                 ? toEndpoints(value.getEndpointsList())
                                 : baseline.getEndpoints())
                 .serviceAddress(
-                        isPresent(
-                                        update,
-                                        value,
-                                        com.hederahashgraph.api.proto.java.ClprEndpointManifest
-                                                .SERVICE_ADDRESS_FIELD_NUMBER)
+                        isPresent(update, value, serviceAddressField)
                                 ? DomainUtils.toBytes(value.getServiceAddress())
                                 : baseline.getServiceAddress())
-                .version(
-                        isPresent(
-                                        update,
-                                        value,
-                                        com.hederahashgraph.api.proto.java.ClprEndpointManifest.VERSION_FIELD_NUMBER)
-                                ? value.getVersion()
-                                : baseline.getVersion())
+                .version(isPresent(update, value, VERSION_FIELD_NUMBER) ? value.getVersion() : baseline.getVersion())
                 .build();
     }
 
@@ -488,54 +472,29 @@ public class ClprStateChangeHandler {
             return null;
         }
 
+        final int serviceAddressField =
+                com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.SERVICE_ADDRESS_FIELD_NUMBER;
         return ClprLedgerConfiguration.builder()
-                .chainId(
-                        isPresent(
-                                        update,
-                                        value,
-                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
-                                                .CHAIN_ID_FIELD_NUMBER)
-                                ? value.getChainId()
-                                : baseline.getChainId())
+                .chainId(isPresent(update, value, CHAIN_ID_FIELD_NUMBER) ? value.getChainId() : baseline.getChainId())
                 .consensusTimestamp(consensusTimestamp)
                 .initialTrustAnchor(
-                        isPresent(
-                                        update,
-                                        value,
-                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
-                                                .INITIAL_TRUST_ANCHOR_FIELD_NUMBER)
+                        isPresent(update, value, INITIAL_TRUST_ANCHOR_FIELD_NUMBER)
                                 ? DomainUtils.toBytes(value.getInitialTrustAnchor())
                                 : baseline.getInitialTrustAnchor())
                 .initialTrustAnchorId(
-                        isPresent(
-                                        update,
-                                        value,
-                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
-                                                .INITIAL_TRUST_ANCHOR_ID_FIELD_NUMBER)
+                        isPresent(update, value, INITIAL_TRUST_ANCHOR_ID_FIELD_NUMBER)
                                 ? DomainUtils.toBytes(value.getInitialTrustAnchorId())
                                 : baseline.getInitialTrustAnchorId())
                 .protocolVersion(
-                        isPresent(
-                                        update,
-                                        value,
-                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
-                                                .PROTOCOL_VERSION_FIELD_NUMBER)
+                        isPresent(update, value, PROTOCOL_VERSION_FIELD_NUMBER)
                                 ? Integer.toUnsignedLong(value.getProtocolVersion())
                                 : baseline.getProtocolVersion())
                 .serviceAddress(
-                        isPresent(
-                                        update,
-                                        value,
-                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
-                                                .SERVICE_ADDRESS_FIELD_NUMBER)
+                        isPresent(update, value, serviceAddressField)
                                 ? DomainUtils.toBytes(value.getServiceAddress())
                                 : baseline.getServiceAddress())
                 .throttle(
-                        isPresent(
-                                        update,
-                                        value,
-                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration
-                                                .THROTTLES_FIELD_NUMBER)
+                        isPresent(update, value, THROTTLES_FIELD_NUMBER)
                                 ? ClprThrottleConverter.from(value)
                                 : baseline.getThrottle())
                 .build();

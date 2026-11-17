@@ -33,6 +33,7 @@ import java.util.List;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
@@ -50,21 +51,24 @@ import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprMessage
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 final class ClprStateChangeHandlerTest {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
     @Mock
-    private ClprConnectorService clprConnectorService;
+    private ClprConnectorRepository clprConnectorRepository;
 
     @Mock
     private ClprContext clprContext;
@@ -161,9 +165,9 @@ final class ClprStateChangeHandlerTest {
     }
 
     @Test
-    void processChannelPendingStatus() {
+    void processChannelPendingStatus(CapturedOutput output) {
         // given -- PENDING is pre-creation only (tracked via ClprChannelPendingCommitment); an existing ClprChannel
-        // state-change value reverting to it is a distinct invariant violation from a truly unknown status
+        // state-change value should never revert to it, but it's still recorded rather than dropped
         mockEmptyClprState();
         final var channelId = domainBuilder.bytes(32);
         final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
@@ -182,7 +186,9 @@ final class ClprStateChangeHandlerTest {
         verify(entityListener).onClprChannel(channelCaptor.capture());
         assertThat(channelCaptor.getValue())
                 .returns(channelId, ClprChannel::getChannelId)
-                .returns(null, ClprChannel::getStatus);
+                .returns(ClprChannelStatus.PENDING, ClprChannel::getStatus);
+        assertThat(output.getAll())
+                .contains("Recoverable error. ClprChannel state change unexpectedly reverted to PENDING status");
     }
 
     @Test
@@ -601,9 +607,11 @@ final class ClprStateChangeHandlerTest {
 
         final var patchedCommitment = domainBuilder.bytes(32);
         final var removedCommitment = domainBuilder.bytes(32);
-        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(patchedConnectorId)))
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(patchedConnectorId)))
                 .thenReturn(patchedCommitment);
-        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(removedConnectorId)))
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(removedConnectorId)))
                 .thenReturn(removedCommitment);
 
         when(clprContext.getClprConnectors())
@@ -656,7 +664,8 @@ final class ClprStateChangeHandlerTest {
                 .setConnectorId(connectorId)
                 .build();
         final var commitment = domainBuilder.bytes(32);
-        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(commitment);
         when(clprContext.getClprConnectors())
                 .thenReturn(List.of(new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(connectorValue))));
@@ -690,7 +699,8 @@ final class ClprStateChangeHandlerTest {
                 .setConnectorId(connectorId)
                 .build();
         final var commitment = domainBuilder.bytes(32);
-        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(commitment);
         final var mapUpdate = MapUpdateChange.newBuilder()
                 .setValue(MapChangeValue.newBuilder().setClprConnectorValue(fullValue))
@@ -724,7 +734,8 @@ final class ClprStateChangeHandlerTest {
                 .setConnectorId(connectorId)
                 .build();
         final var commitment = domainBuilder.bytes(32);
-        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(commitment);
         final var mapUpdate = MapUpdateChange.newBuilder()
                 .setPartial(true)
@@ -764,7 +775,8 @@ final class ClprStateChangeHandlerTest {
                 .setConnectorId(connectorId)
                 .build();
         final var commitment = domainBuilder.bytes(32);
-        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(commitment);
         final var mapUpdate = MapUpdateChange.newBuilder()
                 .setPartial(true)
@@ -797,7 +809,8 @@ final class ClprStateChangeHandlerTest {
                 .setConnectorId(connectorId)
                 .build();
         final var commitment = domainBuilder.bytes(32);
-        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(commitment);
         when(clprContext.getClprConnectorsRemoved()).thenReturn(List.of(removedKey));
 
@@ -828,7 +841,8 @@ final class ClprStateChangeHandlerTest {
                 .setChannelId(channelId)
                 .setConnectorId(connectorId)
                 .build();
-        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(null);
         when(clprContext.getClprConnectors())
                 .thenReturn(List.of(new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(connectorValue))));
@@ -850,7 +864,8 @@ final class ClprStateChangeHandlerTest {
                 .setChannelId(channelId)
                 .setConnectorId(connectorId)
                 .build();
-        when(clprConnectorService.lookup(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .thenReturn(null);
         when(clprContext.getClprConnectorsRemoved()).thenReturn(List.of(removedKey));
 
@@ -872,11 +887,11 @@ final class ClprStateChangeHandlerTest {
                 realClprContext.getClprConnectorsRemoved().getFirst();
         final var connectorCommitment = domainBuilder.bytes(32);
         final var removedCommitment = domainBuilder.bytes(32);
-        when(clprConnectorService.lookup(
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
                         DomainUtils.toBytes(connectorEntry.key().getChannelId()),
                         DomainUtils.toBytes(connectorEntry.key().getConnectorId())))
                 .thenReturn(connectorCommitment);
-        when(clprConnectorService.lookup(
+        when(clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(
                         DomainUtils.toBytes(removedConnectorKey.getChannelId()),
                         DomainUtils.toBytes(removedConnectorKey.getConnectorId())))
                 .thenReturn(removedCommitment);

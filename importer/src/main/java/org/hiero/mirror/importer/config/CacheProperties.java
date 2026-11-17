@@ -20,7 +20,7 @@ public class CacheProperties {
 
     // Connector commitments are permanent once assigned (HIP-1535), so no expiry is needed
     @NotBlank
-    private String clprConnectorCommitment = "maximumSize=1000,recordStats";
+    private String clprConnector = "maximumSize=1000,recordStats";
 
     // Only one entry is ever cached: the last known full endpoint manifest, used as the merge baseline for partial
     // singleton state changes
