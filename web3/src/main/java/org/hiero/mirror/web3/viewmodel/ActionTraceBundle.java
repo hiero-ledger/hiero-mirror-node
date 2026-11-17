@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.viewmodel;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_TRANSACTIONS;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import jakarta.validation.Valid;
@@ -27,13 +26,11 @@ import org.jspecify.annotations.Nullable;
 @NullMarked
 public class ActionTraceBundle {
 
-    @JsonProperty("block_override")
     @Nullable
     @Valid
     private BlockOverride blockOverride;
 
     /** Accepted only so the controller can reject it. State overrides belong on {@link ActionTraceRequest}. */
-    @JsonProperty("state_overrides")
     @JsonSetter(nulls = Nulls.SKIP)
     private List<StateOverride> stateOverrides = List.of();
 

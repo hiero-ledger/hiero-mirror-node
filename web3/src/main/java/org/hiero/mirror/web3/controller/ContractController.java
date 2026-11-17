@@ -88,8 +88,8 @@ class ContractController {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
         }
         validateTraceCallMany(request.getBundles());
-
         GzipEncoding.validate(acceptEncoding);
+
         for (final var bundle : request.getBundles()) {
             validateBlockOverrides(bundle.getBlockOverride());
             rejectNestedStateOverrides(bundle.getStateOverrides(), "bundle");
@@ -208,7 +208,6 @@ class ContractController {
                 .gas(request.getGas())
                 .gasPrice(request.getGasPrice())
                 .isEstimate(request.isEstimate())
-                .isStatic(false)
                 .receiver(receiver)
                 .sender(fromAddress)
                 .stateOverrides(request.getStateOverrides())
@@ -241,8 +240,8 @@ class ContractController {
     }
 
     private void validateStateOverrides(final List<StateOverride> stateOverrides) {
-        if (!stateOverrides.isEmpty()) {
-            requireStateOverridesEnabled();
+        if (!stateOverrides.isEmpty() && !web3Properties.isEnableStateOverrides()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
         }
     }
 
@@ -262,12 +261,6 @@ class ContractController {
         }
         if (bundles.size() > 1 || bundles.getFirst().getTransactions().size() > 1) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "debug_traceCallMany is not supported.");
-        }
-    }
-
-    private void requireStateOverridesEnabled() {
-        if (!web3Properties.isEnableStateOverrides()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
         }
     }
 

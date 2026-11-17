@@ -6,7 +6,6 @@ import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_BUND
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_TRANSACTIONS;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -49,10 +48,8 @@ public class ActionTraceRequest {
     @Valid
     private List<@NotNull @Valid ActionTraceBundle> bundles = new ArrayList<>();
 
-    @JsonProperty("only_top_call")
     private boolean onlyTopCall;
 
-    @JsonProperty("state_overrides")
     @JsonSetter(nulls = Nulls.SKIP)
     @NotNull
     @Size(max = 10)
@@ -117,7 +114,6 @@ public class ActionTraceRequest {
      * the simulation after every transaction in the block. It has no effect when {@link #block} is {@code latest}. The
      * timestamp applies to the whole request. Values less than {@code -1} are rejected.
      */
-    @JsonProperty("transaction_index")
     @Nullable
     private Integer transactionIndex;
 

@@ -22,7 +22,6 @@ public class AuthorizationListEntry {
     @Nullable
     private String address;
 
-    @JsonProperty("chain_id")
     @Hex(maxLength = 64)
     @Nullable
     private String chainId;
@@ -39,6 +38,7 @@ public class AuthorizationListEntry {
     @Nullable
     private String s;
 
+    // Lombok's getYParity() makes Jackson derive "yparity", so SNAKE_CASE alone would not map y_parity
     @JsonProperty("y_parity")
     @Hex(maxLength = 1)
     @Pattern(regexp = "^(0[xX])?[01]$")

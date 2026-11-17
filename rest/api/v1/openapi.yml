@@ -2283,7 +2283,7 @@ components:
         storage_keys:
           description: The list of accessed hex encoded storage keys
           type: array
-          maxItems: 10000
+          maxItems: 50
           items:
             format: binary
             maxLength: 68
@@ -2441,6 +2441,15 @@ components:
         tokens:
           - token_id: 0.0.200001
             balance: 8
+    BlockType:
+      default: latest
+      description:
+        Block tag ("earliest", "finalized", "latest", "pending", "safe"), decimal block number, 0x-prefixed hexadecimal
+        block number, or 0x-prefixed 32 or 48 byte block hash. "finalized", "pending", and "safe" resolve to "latest".
+        Defaults to "latest".
+      example: "latest"
+      pattern: '^(earliest|finalized|latest|pending|safe|\d{1,20}|0[xX]([0-9a-fA-F]{1,16}|[0-9a-fA-F]{64}|[0-9a-fA-F]{96}))$'
+      type: [string, "null"]
     Bloom:
       example: "0x549358c4c2e573e02410ef7b5a5ffa5f36dd7398"
       format: binary
@@ -2578,10 +2587,8 @@ components:
         - bundles
       properties:
         block:
-          description: Block number or tag to simulate against. Defaults to "latest".
-          example: "latest"
-          pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
-          type: [string, "null"]
+          description: Block to simulate against. Applies to every bundle in the request.
+          $ref: "#/components/schemas/BlockType"
         bundles:
           description: Call bundles executed in order
           items:
@@ -3150,10 +3157,8 @@ components:
       type: object
       properties:
         block:
-          description: Hexadecimal block number or the string "latest", "pending", "earliest". Defaults to "latest".
-          example: "latest"
-          pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
-          type: [string, "null"]
+          description: Block to simulate against.
+          $ref: "#/components/schemas/BlockType"
         block_override:
           description:
             Optional EVM block context override for this call. Requires block overrides to be enabled. Rejected on a
@@ -3215,13 +3220,13 @@ components:
         access_list:
           description: Optional EIP-2930 access list. Omitted or null if not provided.
           type: [array, "null"]
-          maxItems: 7000
+          maxItems: 400
           items:
             $ref: "#/components/schemas/AccessList"
         authorization_list:
           description: Optional EIP-7702 authorization list. Omitted or null if not provided.
           type: [array, "null"]
-          maxItems: 1500
+          maxItems: 25
           items:
             $ref: "#/components/schemas/AuthorizationList"
       required:

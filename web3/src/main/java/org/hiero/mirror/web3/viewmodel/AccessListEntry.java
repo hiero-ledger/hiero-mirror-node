@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.viewmodel;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ADDRESS_LENGTH;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import jakarta.validation.constraints.NotNull;
@@ -22,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 @NullMarked
 public class AccessListEntry {
 
-    public static final int STORAGE_KEYS_MAX_SIZE = 10_000;
+    public static final int STORAGE_KEYS_MAX_SIZE = 50;
 
     // Unset until JSON bind. @Hex treats null as valid, so @NotNull is required.
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH)
@@ -30,7 +29,6 @@ public class AccessListEntry {
     @Nullable
     private String address;
 
-    @JsonProperty("storage_keys")
     @JsonSetter(nulls = Nulls.AS_EMPTY)
     @NotNull
     @Size(max = STORAGE_KEYS_MAX_SIZE)

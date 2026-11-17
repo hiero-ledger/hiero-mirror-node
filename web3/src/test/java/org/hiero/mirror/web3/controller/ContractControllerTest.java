@@ -9,6 +9,7 @@ import static org.hiero.mirror.web3.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.utils.Constants.ACTIONS_CALL_URI;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
+import static org.hiero.mirror.web3.viewmodel.AccessListEntry.STORAGE_KEYS_MAX_SIZE;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ACCESS_LIST_MAX_SIZE;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.AUTHORIZATION_LIST_MAX_SIZE;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -121,6 +123,9 @@ final class ContractControllerTest {
     private static final String CALL_URI = "/api/v1/contracts/call";
     private static final long THROTTLE_GAS_LIMIT = 10_000_000L;
     private static final String INIT_CODE = "0x6080604052348015600f57600080fd5b5060a38061001c6000396000f3";
+    private static final String STORAGE_KEY = "0x0000000000000000000000000000000000000000000000000000000000000001";
+    private static final String STORAGE_KEYS_SIZE_ERROR =
+            "storageKeys field size must be between 0 and %d".formatted(STORAGE_KEYS_MAX_SIZE);
     private static final ActionResponse TRACE_RESPONSE =
             new ActionResponse().from("0x01").to("0x02");
     private static final List<ActionResponse> TRACE_RESPONSES = List.of(TRACE_RESPONSE);
@@ -130,6 +135,9 @@ final class ContractControllerTest {
 
     @Resource
     private ObjectMapper objectMapper;
+
+    // Matches the snake_case naming used by the Jackson 3 HTTP message converter
+    private ObjectMapper requestMapper;
 
     @Resource
     private Web3Properties web3Properties;
@@ -161,6 +169,7 @@ final class ContractControllerTest {
 
     @BeforeEach
     void setUp() {
+        requestMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
         actionsProperties.setTraceMultipleTransactions(true);
         web3Properties.setEnableBlockOverrides(true);
         web3Properties.setEnableStateOverrides(true);
@@ -194,7 +203,7 @@ final class ContractControllerTest {
 
     @SneakyThrows
     private String convert(Object object) {
-        return objectMapper.writeValueAsString(object);
+        return requestMapper.writeValueAsString(object);
     }
 
     @SneakyThrows
@@ -280,6 +289,18 @@ final class ContractControllerTest {
                         .string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), errorString))));
         verify(throttleManager, never()).throttle(any());
         verify(throttleManager, never()).restore(anyLong());
+    }
+
+    @Test
+    void callRejectsInvalidAuthorizationYParity() throws Exception {
+        final var body = """
+                {"to":"0x00000000000000000000000000000000000004e4","authorization_list":[{"chain_id":"0x1","y_parity":"0x5"}]}
+                """;
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -1267,9 +1288,7 @@ final class ContractControllerTest {
         enableActionsApi();
         final var request = traceRequest();
         transaction(request).setValue(0);
-        final var entry = new AccessListEntry();
-        entry.setAddress("0x00000000000000000000000000000000000004e4");
-        transaction(request).setAccessList(Collections.nCopies(ACCESS_LIST_MAX_SIZE + 1, entry));
+        transaction(request).setAccessList(Collections.nCopies(ACCESS_LIST_MAX_SIZE + 1, accessListEntry()));
 
         contractActionsCall(request)
                 .andExpect(status().isBadRequest())
@@ -1284,9 +1303,8 @@ final class ContractControllerTest {
         enableActionsApi();
         final var request = traceRequest();
         transaction(request).setValue(0);
-        final var entry = new AuthorizationListEntry();
-        entry.setAddress("0x00000000000000000000000000000000000004e4");
-        transaction(request).setAuthorizationList(Collections.nCopies(AUTHORIZATION_LIST_MAX_SIZE + 1, entry));
+        transaction(request)
+                .setAuthorizationList(Collections.nCopies(AUTHORIZATION_LIST_MAX_SIZE + 1, authorizationListEntry()));
 
         contractActionsCall(request)
                 .andExpect(status().isBadRequest())
@@ -1297,20 +1315,43 @@ final class ContractControllerTest {
     }
 
     @Test
-    void actionsCallRejectsOversizedStorageKeys() throws Exception {
+    void actionsCallRejectsInvalidStorageKeysSize() throws Exception {
         enableActionsApi();
         final var request = traceRequest();
         transaction(request).setValue(0);
-        final var entry = new AccessListEntry();
-        entry.setAddress("0x00000000000000000000000000000000000004e4");
-        entry.setStorageKeys(
-                Collections.nCopies(10_001, "0x0000000000000000000000000000000000000000000000000000000000000001"));
+        final var entry = accessListEntry();
+        entry.setStorageKeys(Collections.nCopies(STORAGE_KEYS_MAX_SIZE + 1, STORAGE_KEY));
         transaction(request).setAccessList(List.of(entry));
 
         contractActionsCall(request)
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string(new StringContains("storageKeys field size must be between 0 and 10000")));
+                .andExpect(content().string(new StringContains(STORAGE_KEYS_SIZE_ERROR)));
         verify(contractDebugService, never()).processTraceCall(any());
+    }
+
+    @Test
+    void callAcceptsBoundaryStorageKeysSize() throws Exception {
+        final var request = request();
+        final var entry = accessListEntry();
+        entry.setStorageKeys(Collections.nCopies(STORAGE_KEYS_MAX_SIZE, STORAGE_KEY));
+        request.setAccessList(List.of(entry));
+        given(service.processCall(any())).willReturn("0x0");
+
+        contractCall(request).andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", ",\"storage_keys\":null", ",\"storage_keys\":[]"})
+    void callAcceptsMissingOrEmptyStorageKeys(final String storageKeys) throws Exception {
+        given(service.processCall(any())).willReturn("0x0");
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4",\
+                                "access_list":[{"address":"0x00000000000000000000000000000000000004e4"%s}]}
+                                """.formatted(storageKeys)))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -1327,6 +1368,55 @@ final class ContractControllerTest {
         transaction(request).setAccessList(List.of());
         transaction(request).setAuthorizationList(List.of());
         contractActionsCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void actionsCallAcceptsMaxSizeAccessAndAuthorizationLists() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        transaction(request).setAccessList(Collections.nCopies(ACCESS_LIST_MAX_SIZE, accessListEntry()));
+        transaction(request)
+                .setAuthorizationList(Collections.nCopies(AUTHORIZATION_LIST_MAX_SIZE, authorizationListEntry()));
+        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void callAcceptsMaxSizeAccessAndAuthorizationLists() throws Exception {
+        final var request = request();
+        request.setAccessList(Collections.nCopies(ACCESS_LIST_MAX_SIZE, accessListEntry()));
+        request.setAuthorizationList(Collections.nCopies(AUTHORIZATION_LIST_MAX_SIZE, authorizationListEntry()));
+        given(service.processCall(any())).willReturn("0x0");
+
+        contractCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void callRejectsOversizedAccessList() throws Exception {
+        final var request = request();
+        request.setAccessList(Collections.nCopies(ACCESS_LIST_MAX_SIZE + 1, accessListEntry()));
+
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains(
+                                "accessList field size must be between 0 and %d".formatted(ACCESS_LIST_MAX_SIZE))));
+        verify(service, never()).processCall(any());
+    }
+
+    @Test
+    void callRejectsOversizedAuthorizationList() throws Exception {
+        final var request = request();
+        request.setAuthorizationList(Collections.nCopies(AUTHORIZATION_LIST_MAX_SIZE + 1, authorizationListEntry()));
+
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("authorizationList field size must be between 0 and %d"
+                                .formatted(AUTHORIZATION_LIST_MAX_SIZE))));
+        verify(service, never()).processCall(any());
     }
 
     @Test
@@ -2055,6 +2145,19 @@ final class ContractControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(stateOverrideJson(field, "null")))
                 .andExpect(status().isOk());
+    }
+
+    private static AccessListEntry accessListEntry() {
+        final var entry = new AccessListEntry();
+        entry.setAddress("0x00000000000000000000000000000000000004e4");
+        entry.setStorageKeys(List.of(STORAGE_KEY));
+        return entry;
+    }
+
+    private static AuthorizationListEntry authorizationListEntry() {
+        final var entry = new AuthorizationListEntry();
+        entry.setAddress("0x00000000000000000000000000000000000004e4");
+        return entry;
     }
 
     private static StateOverride balanceOverride(final String address, final long balance) {

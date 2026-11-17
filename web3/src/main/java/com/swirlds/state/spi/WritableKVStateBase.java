@@ -201,7 +201,7 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     @SuppressWarnings("unchecked")
     private Map<K, V> modifications() {
         if (useRequestWriteCache()) {
-            return (Map<K, V>) (Map<?, ?>) getWriteCacheState();
+            return (Map<K, V>) getWriteCacheState();
         }
         return localModifications;
     }

@@ -29,8 +29,8 @@ public class ContractCallRequest {
 
     public static final int ADDRESS_LENGTH = 40;
     public static final long DATA_MAX_LENGTH = 300_000L;
-    public static final int ACCESS_LIST_MAX_SIZE = 7000;
-    public static final int AUTHORIZATION_LIST_MAX_SIZE = 1500;
+    public static final int ACCESS_LIST_MAX_SIZE = 400;
+    public static final int AUTHORIZATION_LIST_MAX_SIZE = 25;
 
     /** Maximum bundles in one {@code debug_traceCallMany} request. */
     public static final int MAX_TRACE_BUNDLES = 16;
@@ -43,7 +43,6 @@ public class ContractCallRequest {
     @NotNull
     private BlockType block = BlockType.LATEST;
 
-    @JsonProperty("block_override")
     @Nullable
     @Valid
     private BlockOverride blockOverride;
@@ -71,13 +70,11 @@ public class ContractCallRequest {
     @Size(max = 10)
     private List<@NotNull @Valid StateOverride> stateOverrides = new ArrayList<>();
 
-    @JsonProperty("access_list")
     @Nullable
     @Size(max = ACCESS_LIST_MAX_SIZE)
     @Valid
     private List<@NotNull @Valid AccessListEntry> accessList;
 
-    @JsonProperty("authorization_list")
     @Nullable
     @Size(max = AUTHORIZATION_LIST_MAX_SIZE)
     @Valid

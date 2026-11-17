@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.viewmodel;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ADDRESS_LENGTH;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
@@ -25,41 +24,35 @@ import tools.jackson.databind.annotation.JsonDeserialize;
 public class BlockOverride {
 
     /** EVM {@code block.basefee} in weibar per gas. */
-    @JsonProperty("base_fee_per_gas")
     @Nullable
     @PositiveOrZero
     @JsonDeserialize(using = StrictLongDeserializer.class)
     private Long baseFeePerGas;
 
     /** EVM {@code block.blobbasefee} in weibar per blob gas. */
-    @JsonProperty("blob_base_fee")
     @Nullable
     @Positive
     @JsonDeserialize(using = StrictLongDeserializer.class)
     private Long blobBaseFee;
 
     /** EVM {@code block.number}. Also moves the range {@code BLOCKHASH} checks. */
-    @JsonProperty("block_number")
     @Nullable
     @PositiveOrZero
     @JsonDeserialize(using = StrictLongDeserializer.class)
     private Long blockNumber;
 
     /** EVM {@code block.coinbase}. Defaults to the network fee collection account. */
-    @JsonProperty("fee_recipient")
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH)
     @Nullable
     private String feeRecipient;
 
     /** EVM {@code block.gaslimit}. */
-    @JsonProperty("gas_limit")
     @Nullable
     @Positive
     @JsonDeserialize(using = StrictLongDeserializer.class)
     private Long gasLimit;
 
     /** Value returned by {@code PREVRANDAO}, zero-extended to 32 bytes. */
-    @JsonProperty("prev_randao")
     @Nullable
     @PositiveOrZero
     @JsonDeserialize(using = StrictLongDeserializer.class)

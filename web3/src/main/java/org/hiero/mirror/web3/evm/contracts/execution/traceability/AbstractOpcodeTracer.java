@@ -99,7 +99,6 @@ public abstract class AbstractOpcodeTracer extends AbstractActionTracer {
             }
 
             final var rootProxyWorldUpdater = context.getOpcodeContext().getRootProxyWorldUpdater();
-
             final var updates = rootProxyWorldUpdater
                     .getEvmFrameState()
                     .getTxStorageUsage(true)

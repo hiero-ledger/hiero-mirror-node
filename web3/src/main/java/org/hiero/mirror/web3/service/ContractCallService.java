@@ -103,7 +103,7 @@ public abstract class ContractCallService {
             throws MirrorEvmTransactionException {
         ctx.setCallServiceParameters(params);
         // An actions trace installs one record-file supplier for the whole request. Replacing it per transaction
-        // would let "latest" move between transactions in the same trace.
+        // would let block moves between transactions in the same bundle.
         if (ctx.getApi() != ACTIONS) {
             ctx.setBlockSupplier(Suppliers.memoize(() -> recordFileService
                     .findByBlockType(params.getBlock())
