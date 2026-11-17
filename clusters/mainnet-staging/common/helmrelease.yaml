@@ -39,11 +39,15 @@ spec:
           ruler:
             external_url: https://mirrornode.grafana.net
       singleBinary:
+        persistence:
+          storageClass: hyperdisk-balanced
         resources:
           limits:
             memory: 1Gi
     minio:
       enabled: true
+      persistence:
+        storageClass: hyperdisk-balanced
     prometheus:
       alertmanager:
         enabled: false
@@ -75,12 +79,17 @@ spec:
               memory: 12Gi
             requests:
               memory: 10Gi
+          storageSpec:
+            volumeClaimTemplate:
+              spec:
+                storageClassName: hyperdisk-balanced
     testkube:
       enabled: true
       prometheus:
         enabled: true
         serverUrl: https://prometheus-blocks-prod-us-central1.grafana.net/api/prom/push
       test:
+        artifactStorageClassName: hyperdisk-balanced
         config:
           rest:
             DEFAULT_ACCOUNT_BALANCE: "123456"
@@ -166,4 +175,19 @@ spec:
           cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mainnet-staging"} } }'
     zfs:
       init:
+        disk:
+          coordinator:
+            provisionedIops: 6000
+            provisionedThroughput: 140
+          nodes:
+            worker-us-east1-b-0:
+              provisionedIops: 20000
+              provisionedThroughput: 230
+            worker-us-east1-b-1:
+              provisionedIops: 9000
+              provisionedThroughput: 180
+            worker-us-east1-b-2:
+              provisionedIops: 7000
+              provisionedThroughput: 140
+          type: hyperdisk-balanced
         diskPrefix: mainnet-staging
