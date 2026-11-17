@@ -143,7 +143,6 @@ if (__ENV.RUN_MODIFICATION_TESTS !== 'false') {
     contractCallPrecompileDeleteToken,
     contractCallPrecompileNestedAssociate,
     contractCallRedirectApprove,
-    contractCallRedirectApproveStateOverrides,
   });
 
   if (__ENV.RUN_FULL_COVERAGE_TESTS === 'true') {
@@ -155,6 +154,12 @@ if (__ENV.RUN_MODIFICATION_TESTS !== 'false') {
       contractCallPrecompileTransferFungibleToken,
     });
   }
+}
+
+if (__ENV.RUN_STATE_OVERRIDES_TESTS !== 'false') {
+  Object.assign(tests, {
+    contractCallRedirectApproveStateOverrides,
+  });
 }
 
 if (__ENV.RUN_COMPLEX_TESTS !== 'false') {
