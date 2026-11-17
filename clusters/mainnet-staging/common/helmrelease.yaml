@@ -186,6 +186,9 @@ spec:
             worker-us-east1-b-1:
               provisionedIops: 9000
               provisionedThroughput: 180
+            worker-us-east1-b-2:
+              provisionedIops: 7000
+              provisionedThroughput: 140
           type: hyperdisk-balanced
           worker:
             provisionedIops: 7000
