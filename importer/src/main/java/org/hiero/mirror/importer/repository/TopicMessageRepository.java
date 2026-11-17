@@ -11,6 +11,6 @@ public interface TopicMessageRepository extends CrudRepository<TopicMessage, Lon
 
     @Modifying
     @Override
-    @Query("delete from TopicMessage where consensusTimestamp <= :consensusTimestamp")
+    @Query(value = "delete from topic_message where consensus_timestamp <= :consensusTimestamp", nativeQuery = true)
     int prune(long consensusTimestamp);
 }
