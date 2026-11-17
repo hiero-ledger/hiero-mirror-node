@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.io.File;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +15,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.common.domain.token.TokenAccountHistory;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.junit.jupiter.api.AfterEach;
@@ -188,7 +188,7 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
                     entity.getShard(),
                     entity.getBalance(),
                     entity.getDeleted(),
-                    PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()));
+                    RangeUtils.rangeToString(entity.getTimestampRange()));
         }
     }
 
@@ -202,7 +202,7 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
                     history.getShard(),
                     history.getBalance(),
                     history.getDeleted(),
-                    PostgreSQLGuavaRangeType.INSTANCE.asString(history.getTimestampRange()));
+                    RangeUtils.rangeToString(history.getTimestampRange()));
         }
     }
 
@@ -215,7 +215,7 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
                     tokenAccount.getAccountId(),
                     tokenAccount.getBalance(),
                     tokenAccount.getCreatedTimestamp(),
-                    PostgreSQLGuavaRangeType.INSTANCE.asString(tokenAccount.getTimestampRange()),
+                    RangeUtils.rangeToString(tokenAccount.getTimestampRange()),
                     tokenAccount.getTokenId());
         }
     }
@@ -229,7 +229,7 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
                     tokenAccountHistory.getAccountId(),
                     tokenAccountHistory.getBalance(),
                     tokenAccountHistory.getCreatedTimestamp(),
-                    PostgreSQLGuavaRangeType.INSTANCE.asString(tokenAccountHistory.getTimestampRange()),
+                    RangeUtils.rangeToString(tokenAccountHistory.getTimestampRange()),
                     tokenAccountHistory.getTokenId());
         }
     }
