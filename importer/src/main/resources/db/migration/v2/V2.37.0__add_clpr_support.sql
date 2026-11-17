@@ -44,13 +44,6 @@ create table if not exists clpr_channel
     received_message_id             bigint                not null default 0,
     verifier_contract_id            bigint,
     timestamp_range                 int8range             not null,
-    -- Raw com.hederahashgraph.api.proto.java.ClprChannelStatus wire number (0=PENDING, 1=ACTIVE, 2=PAUSED,
-    -- 3=CLOSING, 4=DRAINED, 5=CLOSED, or an unrecognized number for a newer value) -- stored as-is rather than a
-    -- native enum so an unrecognized value from a newer consensus node isn't lost.
-    status                          integer               not null default 1,
-    -- Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number (0=ECDSA_SECP256K1, 1=ED25519), same
-    -- reasoning as status above.
-    signature_scheme                integer,
     channel_context                 bytea,
     channel_id                      bytea                 not null,
     chain_id                        varchar               not null,
@@ -65,6 +58,14 @@ create table if not exists clpr_channel
     trust_anchor                    bytea,
     trust_anchor_id                 bytea,
     verifier_fingerprint            bytea,
+    -- Raw com.hederahashgraph.api.proto.java.ClprChannelStatus wire number (0=PENDING, 1=ACTIVE, 2=PAUSED,
+    -- 3=CLOSING, 4=DRAINED, 5=CLOSED, or an unrecognized number for a newer value) -- stored as-is rather than a
+    -- native enum so an unrecognized value from a newer consensus node isn't lost. smallint and ordered last so
+    -- this 2-byte column doesn't force alignment padding in front of the wider columns above.
+    status                          smallint              not null default 1,
+    -- Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number (0=ECDSA_SECP256K1, 1=ED25519), same
+    -- reasoning as status above.
+    signature_scheme                smallint,
 
     primary key (channel_id)
 );
@@ -95,9 +96,6 @@ create table if not exists clpr_connector
     slash_count              bigint                  not null default 0,
     stake_recipient_id       bigint,
     timestamp_range          int8range               not null,
-    -- Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number, same reasoning as clpr_channel's
-    -- signature_scheme column.
-    signature_scheme         integer,
     status                   clpr_connector_status   not null default 'PENDING',
     admin_key                bytea,
     channel_id               bytea                   not null,
@@ -106,6 +104,9 @@ create table if not exists clpr_connector
     public_key               bytea,
     salt                     bytea,
     signature                bytea,
+    -- Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number, same reasoning as clpr_channel's
+    -- signature_scheme column. smallint and ordered last, same reasoning as clpr_channel's status column.
+    signature_scheme         smallint,
 
     primary key (channel_id, commitment)
 );
@@ -165,7 +166,7 @@ create table if not exists clpr_maintenance
     consensus_timestamp   bigint                      not null,
     -- Raw com.hedera.hapi.services.auxiliary.clpr.legacy.ClprMaintenanceReason wire number, same reasoning as
     -- clpr_channel's status column.
-    reason                integer                     not null,
+    reason                smallint                    not null,
 
     primary key (consensus_timestamp)
 );
@@ -175,19 +176,19 @@ create table if not exists clpr_message
     consensus_timestamp    bigint                      not null,
     message_id             bigint                      not null,
     reply_to_message_id    bigint,
-    -- Raw com.hederahashgraph.api.proto.java.ClprMessagePayload oneof field number (1=MESSAGE, 2=MESSAGE_REPLY,
-    -- 3=CONTROL, or an unrecognized field number for a future payload variant), same reasoning as clpr_channel's
-    -- status column.
-    message_type           integer                     not null,
-    -- Raw com.hederahashgraph.api.proto.java.ClprMessageReplyStatus wire number, same reasoning as above.
-    reply_status           integer,
     channel_id             bytea                       not null,
     connector_id           bytea,
     control_message        jsonb,
     message_data           bytea,
     running_hash           bytea                       not null,
     sender                 bytea,
-    target_application     bytea
+    target_application     bytea,
+    -- Raw com.hederahashgraph.api.proto.java.ClprMessagePayload oneof field number (1=MESSAGE, 2=MESSAGE_REPLY,
+    -- 3=CONTROL, or an unrecognized field number for a future payload variant), same reasoning as clpr_channel's
+    -- status column.
+    message_type           smallint                    not null,
+    -- Raw com.hederahashgraph.api.proto.java.ClprMessageReplyStatus wire number, same reasoning as above.
+    reply_status           smallint
 ) partition by range (consensus_timestamp);
 
 create index if not exists clpr_message__channel_id_timestamp
