@@ -365,8 +365,7 @@ public class BlockTransactionBuilder {
                 recordItem, recordItem.getTransactionRecord().getReceipt().getContractID());
     }
 
-    public Builder contractDeleteOrUpdate(
-            final RecordItem recordItem, final ContractID contractId) {
+    public Builder contractDeleteOrUpdate(final RecordItem recordItem, final ContractID contractId) {
         if (!recordItem.isSuccessful()) {
             return unsuccessfulTransaction(recordItem);
         }

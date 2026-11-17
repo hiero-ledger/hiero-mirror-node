@@ -15,10 +15,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.QueryTimeoutException;
 
 /**
- * Enforces the per-API response timeout ({@link Web3Properties#getApi(ApiEndpointName)}) on every SQL statement issued during a contract call. Replaces
- * the Hibernate StatementInspector used before the Spring Data JDBC migration: the DataSource is wrapped so each
- * statement preparation checks the elapsed request time and aborts with a {@link QueryTimeoutException} once the
- * deadline has passed. Statements issued outside a {@link ContractCallContext} are unaffected.
+ * Enforces the per-API response timeout ({@link Web3Properties#getApi(ApiEndpointName)}) on every SQL statement
+ * issued during a contract call. The DataSource is wrapped so each statement preparation, whichever component issues
+ * it, checks the elapsed request time and aborts with a {@link QueryTimeoutException} once the deadline has passed.
+ * Statements issued outside a {@link ContractCallContext} are unaffected.
  */
 @Configuration(proxyBeanMethods = false)
 class QueryTimeoutConfiguration {

@@ -12,6 +12,7 @@ public interface ClprChannelPendingCommitmentHistoryRepository
 
     @Modifying
     @Override
-    @Query("delete from clpr_channel_pending_commitment_history where timestamp_range << int8range(:consensusTimestamp, null)")
+    @Query(
+            "delete from clpr_channel_pending_commitment_history where timestamp_range << int8range(:consensusTimestamp, null)")
     int prune(long consensusTimestamp);
 }

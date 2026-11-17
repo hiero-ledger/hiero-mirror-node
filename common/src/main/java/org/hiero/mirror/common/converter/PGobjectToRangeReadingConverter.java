@@ -13,13 +13,8 @@ public class PGobjectToRangeReadingConverter implements Converter<PGobject, Rang
 
     @Override
     public Range<Long> convert(PGobject source) {
-        String value = source.getValue();
-        // RangeUtils.rangeLong cannot parse the empty-range literal
-        if (value == null || value.isEmpty() || value.equalsIgnoreCase("empty")) {
-            return null;
-        }
-
         // Delegate to the bracket-aware parser so the read path honors ]/( and matches RangeUtils.rangeToString.
-        return RangeUtils.rangeLong(value);
+        // The "empty" literal is read as an empty range, the same as Hibernate did.
+        return RangeUtils.rangeLong(source.getValue());
     }
 }

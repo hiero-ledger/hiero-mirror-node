@@ -3,28 +3,30 @@
 package org.hiero.mirror.common.converter;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.common.collect.Range;
 import java.io.IOException;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.util.RangeUtils;
 
-public class RangeToStringSerializer extends StdSerializer<Range<Long>> {
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@SuppressWarnings({"java:S6548", "unchecked"}) // Singletons are fine
+public class RangeToStringSerializer extends JsonSerializer<Range<?>> {
 
-    private static final long serialVersionUID = -2404098939768685161L;
     public static final RangeToStringSerializer INSTANCE = new RangeToStringSerializer();
+    private static final Class<?> HANDLED_TYPE = Range.class;
 
-    public RangeToStringSerializer() {
-        super(Range.class, false);
+    @Override
+    public void serialize(Range<?> range, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+        if (range != null) {
+            gen.writeString(RangeUtils.rangeToString(range));
+        }
     }
 
     @Override
-    public void serialize(Range<Long> range, JsonGenerator gen, SerializerProvider provider) throws IOException {
-        if (range == null || range.isEmpty()) {
-            gen.writeNull();
-            return;
-        }
-
-        gen.writeString(RangeUtils.rangeToString(range));
+    public Class<Range<?>> handledType() {
+        return (Class<Range<?>>) HANDLED_TYPE;
     }
 }

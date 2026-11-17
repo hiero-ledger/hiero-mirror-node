@@ -4,9 +4,6 @@ package org.hiero.mirror.restjava.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.Range;
 import java.sql.Array;
 import java.sql.ResultSet;
@@ -14,6 +11,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.converter.PGobjectToRangeReadingConverter;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
@@ -22,19 +20,9 @@ import org.postgresql.util.PGobject;
 import org.springframework.jdbc.core.RowMapper;
 
 /**
- * Maps {@code registered_node} rows without Spring Data JDBC aggregate resolution. Uses a dedicated ObjectMapper for
- * JSONB (not {@link org.hiero.mirror.common.converter.ObjectToStringSerializer}) so static init does not run Hypersistence
- * Hibernate configuration, which is not required for REST and can fail in that context.
+ * Maps {@code registered_node} rows without Spring Data JDBC aggregate resolution.
  */
 public final class RegisteredNodeRowMapper implements RowMapper<RegisteredNode> {
-
-    /**
-     * Matches the shape written by {@code JsonbJdbcConverters} / domain serialization (snake_case keys), without
-     * depending on {@code ObjectToStringSerializer}'s static block.
-     */
-    private static final ObjectMapper SERVICE_ENDPOINT_JSON = new ObjectMapper()
-            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
-            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
     private static final TypeReference<List<RegisteredServiceEndpoint>> ENDPOINT_LIST_TYPE = new TypeReference<>() {};
 
@@ -69,13 +57,13 @@ public final class RegisteredNodeRowMapper implements RowMapper<RegisteredNode> 
                 if (json == null || json.isEmpty()) {
                     return null;
                 }
-                return SERVICE_ENDPOINT_JSON.readValue(json, ENDPOINT_LIST_TYPE);
+                return ObjectToStringSerializer.OBJECT_MAPPER.readValue(json, ENDPOINT_LIST_TYPE);
             }
             if (value instanceof String s) {
                 if (s.isEmpty()) {
                     return null;
                 }
-                return SERVICE_ENDPOINT_JSON.readValue(s, ENDPOINT_LIST_TYPE);
+                return ObjectToStringSerializer.OBJECT_MAPPER.readValue(s, ENDPOINT_LIST_TYPE);
             }
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);

@@ -130,7 +130,8 @@ class CompositeIdMappingTest {
                                 50211)),
                 Arguments.of(NodeStake.class, Map.of("consensus_timestamp", 101L, "node_id", 7L)),
                 Arguments.of(
-                        ClprConnector.class, Map.of("channel_id", new byte[] {0, 1, 2}, "commitment", new byte[] {3, 4})),
+                        ClprConnector.class,
+                        Map.of("channel_id", new byte[] {0, 1, 2}, "commitment", new byte[] {3, 4})),
                 Arguments.of(ClprMessage.class, Map.of("channel_id", new byte[] {0, 1, 2}, "message_id", 101L)),
                 Arguments.of(ContractAction.class, Map.of("consensus_timestamp", 101L, "index", 3)),
                 Arguments.of(ContractLog.class, Map.of("consensus_timestamp", 101L, "index", 3)),

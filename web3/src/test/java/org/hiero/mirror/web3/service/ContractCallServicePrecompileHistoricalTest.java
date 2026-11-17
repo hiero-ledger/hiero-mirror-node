@@ -342,8 +342,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // When
         final var functionCall = contract.call_getCustomFeesForToken(tokenAddress);
 
-        final var expectedFee = new FixedFee(
-                DEFAULT_FEE_AMOUNT, tokenAddress, false, false, getAddressFromEntity(collectorAccount));
+        final var expectedFee =
+                new FixedFee(DEFAULT_FEE_AMOUNT, tokenAddress, false, false, getAddressFromEntity(collectorAccount));
 
         // Then
         assertThat(functionCall.send().component1().getFirst()).isEqualTo(expectedFee);

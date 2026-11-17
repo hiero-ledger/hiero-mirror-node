@@ -13,10 +13,9 @@ import org.springframework.context.annotation.Configuration;
 /**
  * https://www.pgpool.net/docs/latest/en/html/runtime-config-load-balancing.html pgpool disables load balancing for
  * SQL statements beginning with an arbitrary comment and sends them to the primary node. This is used to prevent
- * the stale read-after-write issue. Replaces the Hibernate StatementInspector used before the Spring Data JDBC
- * migration: when load balancing is disabled, the primary DataSource is wrapped so every prepared statement's SQL is
- * prefixed with the comment. The flyway DataSource is left untouched, matching the previous behavior where only the
- * Hibernate-issued statements were prefixed.
+ * the stale read-after-write issue. When load balancing is disabled, the primary DataSource is wrapped so the SQL of
+ * every prepared statement is prefixed with the comment, whichever component issues it. The flyway DataSource is left
+ * untouched.
  */
 @Configuration(proxyBeanMethods = false)
 class LoadBalanceConfiguration {

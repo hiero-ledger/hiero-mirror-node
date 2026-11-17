@@ -5,11 +5,11 @@ package org.hiero.mirror.common.converter;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.postgresql.util.PGobject;
 
 class PGobjectToRangeReadingConverterTest {
@@ -36,9 +36,13 @@ class PGobjectToRangeReadingConverterTest {
         assertThat(converter.convert(pgObject(value))).isEqualTo(expected);
     }
 
+    @Test
+    void convertEmpty() {
+        assertThat(converter.convert(pgObject("empty"))).isEqualTo(Range.closedOpen(Long.MIN_VALUE, Long.MIN_VALUE));
+    }
+
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {"empty", "EMPTY"})
     void convertReturnsNull(String value) {
         assertThat(converter.convert(pgObject(value))).isNull();
     }
