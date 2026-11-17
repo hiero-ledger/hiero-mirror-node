@@ -94,7 +94,7 @@ resource "grafana_notification_policy" "root" {
     matcher {
       label = "namespace"
       match = "!~"
-      value = "performance-citus"
+      value = "performance|performance-citus"
     }
     matcher {
       label = "cluster"
@@ -143,7 +143,7 @@ resource "grafana_notification_policy" "root" {
     matcher {
       label = "namespace"
       match = "!~"
-      value = "performance-citus"
+      value = "performance|performance-citus"
     }
   }
 
