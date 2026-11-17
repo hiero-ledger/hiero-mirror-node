@@ -15,6 +15,7 @@ public interface CryptoAllowanceHistoryRepository
     @Override
     @Query(
             nativeQuery = true,
-            value = "delete from crypto_allowance_history where timestamp_range << int8range(?1, null)")
+            value =
+                    "delete from crypto_allowance_history where timestamp_range << int8range(:consensusTimestamp, null)")
     int prune(long consensusTimestamp);
 }

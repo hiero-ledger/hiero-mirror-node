@@ -48,7 +48,7 @@ public interface TokenAccountRepository extends CrudRepository<TokenAccount, Abs
     @Cacheable(cacheNames = CACHE_NAME_TOKEN_ACCOUNT_COUNT, cacheManager = CACHE_MANAGER_TOKEN)
     @Query(
             value = "select count(*) as tokenCount, balance>0 as isPositiveBalance from token_account "
-                    + "where account_id = ?1 and associated is true group by balance>0",
+                    + "where account_id = :accountId and associated is true group by balance>0",
             nativeQuery = true)
     List<TokenAccountAssociationsCount> countByAccountIdAndAssociatedGroupedByBalanceIsPositive(long accountId);
 

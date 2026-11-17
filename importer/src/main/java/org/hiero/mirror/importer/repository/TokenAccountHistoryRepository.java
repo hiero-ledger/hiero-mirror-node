@@ -13,6 +13,8 @@ public interface TokenAccountHistoryRepository
 
     @Modifying
     @Override
-    @Query(nativeQuery = true, value = "delete from token_account_history where timestamp_range << int8range(?1, null)")
+    @Query(
+            nativeQuery = true,
+            value = "delete from token_account_history where timestamp_range << int8range(:consensusTimestamp, null)")
     int prune(long consensusTimestamp);
 }

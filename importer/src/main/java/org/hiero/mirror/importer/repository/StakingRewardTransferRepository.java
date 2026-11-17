@@ -12,6 +12,6 @@ public interface StakingRewardTransferRepository
 
     @Modifying
     @Override
-    @Query("delete from StakingRewardTransfer where consensusTimestamp <= ?1")
+    @Query("delete from StakingRewardTransfer where consensusTimestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

@@ -15,6 +15,6 @@ public interface ContractStateChangeRepository
 
     @Modifying
     @Override
-    @Query("delete from ContractStateChange where consensusTimestamp <= ?1")
+    @Query("delete from ContractStateChange where consensusTimestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }
