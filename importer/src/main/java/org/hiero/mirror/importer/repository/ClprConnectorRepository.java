@@ -27,7 +27,10 @@ public interface ClprConnectorRepository extends CrudRepository<ClprConnector, A
     Optional<ClprConnector> findByChannelIdAndConnectorId(byte[] channelId, byte[] connectorId);
 
     @Cacheable(key = "@spelHelper.getCacheKey(#channelId, #connectorId)", sync = true)
-    @Query("select commitment from ClprConnector where channelId = :channelId and connectorId = :connectorId")
+    @Query(
+            value =
+                    "select commitment from clpr_connector where channel_id = :channelId and connector_id = :connectorId",
+            nativeQuery = true)
     byte @Nullable [] findCommitmentByChannelIdAndConnectorId(byte[] channelId, byte[] connectorId);
 
     @CachePut(

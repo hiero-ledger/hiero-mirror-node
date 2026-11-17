@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.importer.parser.record.entity.sql;
 
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.CLOSED_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.CLOSING_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
@@ -26,7 +29,6 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
@@ -404,7 +406,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         final var submitBundle = ClprChannel.builder()
                 .channelId(complete.getChannelId())
-                .status(ClprChannelStatus.ACTIVE)
+                .status(ACTIVE_VALUE)
                 .nextMessageId(complete.getNextMessageId() + 5)
                 .ackedMessageId(complete.getAckedMessageId() + 3)
                 .sentRunningHash(domainBuilder.bytes(32))
@@ -417,7 +419,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         final var close = ClprChannel.builder()
                 .channelId(complete.getChannelId())
-                .status(ClprChannelStatus.CLOSED)
+                .status(CLOSED_VALUE)
                 .nextMessageId(submitBundle.getNextMessageId())
                 .ackedMessageId(submitBundle.getAckedMessageId())
                 .sentRunningHash(submitBundle.getSentRunningHash())
@@ -461,14 +463,14 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         final var complete = domainBuilder.clprChannel().get();
         final var submitBundle1 = ClprChannel.builder()
                 .channelId(complete.getChannelId())
-                .status(ClprChannelStatus.ACTIVE)
+                .status(ACTIVE_VALUE)
                 .nextMessageId(complete.getNextMessageId() + 1)
                 .ownershipCommitment(complete.getOwnershipCommitment())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
                 .build();
         final var submitBundle2 = ClprChannel.builder()
                 .channelId(complete.getChannelId())
-                .status(ClprChannelStatus.ACTIVE)
+                .status(ACTIVE_VALUE)
                 .nextMessageId(complete.getNextMessageId() + 2)
                 .ownershipCommitment(complete.getOwnershipCommitment())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
@@ -501,7 +503,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         final var complete = domainBuilder.clprChannel().get();
         final var submitBundle = ClprChannel.builder()
                 .channelId(complete.getChannelId())
-                .status(ClprChannelStatus.CLOSING)
+                .status(CLOSING_VALUE)
                 .nextMessageId(complete.getNextMessageId() + 1)
                 .ownershipCommitment(complete.getOwnershipCommitment())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
@@ -528,7 +530,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // given -- no corresponding creation ever observed; skipPartialUpdate must drop this silently
         final var orphanUpdate = ClprChannel.builder()
                 .channelId(domainBuilder.bytes(32))
-                .status(ClprChannelStatus.ACTIVE)
+                .status(ACTIVE_VALUE)
                 .nextMessageId(domainBuilder.number())
                 .ackedMessageId(domainBuilder.number())
                 .receivedMessageId(domainBuilder.number())

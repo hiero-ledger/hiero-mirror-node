@@ -5,8 +5,6 @@ package org.hiero.mirror.common.domain.clpr;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
@@ -52,13 +50,12 @@ public class ClprMessage implements Persistable<ClprMessage.Id> {
     @jakarta.persistence.Id
     private long messageId;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    private ClprMessageType messageType;
+    // Raw com.hederahashgraph.api.proto.java.ClprMessagePayload oneof field number (MESSAGE/MESSAGE_REPLY/CONTROL),
+    // or an unrecognized field number for a future payload variant -- preserved as-is rather than dropped.
+    private int messageType;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    private ClprMessageReplyStatus replyStatus;
+    // Raw com.hederahashgraph.api.proto.java.ClprMessageReplyStatus wire number, same reasoning as messageType above.
+    private Integer replyStatus;
 
     private Long replyToMessageId;
 

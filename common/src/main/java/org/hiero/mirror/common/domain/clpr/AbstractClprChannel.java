@@ -10,8 +10,6 @@ import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embedded;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import java.util.List;
@@ -101,15 +99,14 @@ public abstract class AbstractClprChannel implements History {
     @Column(updatable = false)
     private byte[] signature;
 
+    // Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number -- preserved as-is even if this mirror
+    // node doesn't recognize it yet, rather than losing a value a newer consensus node sent.
     @Column(updatable = false)
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    private ClprSignatureScheme signatureScheme;
+    private Integer signatureScheme;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    // Raw com.hederahashgraph.api.proto.java.ClprChannelStatus wire number, same reasoning as signatureScheme above.
     @ToString.Include
-    private ClprChannelStatus status;
+    private Integer status;
 
     @ToString.Include
     private Range<Long> timestampRange;

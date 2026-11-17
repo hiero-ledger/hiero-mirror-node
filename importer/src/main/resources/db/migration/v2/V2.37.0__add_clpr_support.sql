@@ -1,15 +1,7 @@
 -- HIP-1535 CLPR Mirror Node Support
 
-create type clpr_channel_status as enum ('PENDING', 'ACTIVE', 'PAUSED', 'CLOSING', 'DRAINED', 'CLOSED');
 create type clpr_pending_commitment_status as enum ('OPEN', 'COMPLETED', 'DELETED');
 create type clpr_connector_status as enum ('PENDING', 'ACTIVE', 'DELETED');
-create type clpr_signature_scheme as enum ('ECDSA_SECP256K1', 'ED25519');
-create type clpr_message_type as enum ('DATA', 'RESPONSE', 'CONTROL');
-create type clpr_message_reply_status as enum
-    ('SUCCESS', 'APPLICATION_ERROR', 'CONNECTOR_NOT_FOUND', 'CONNECTOR_UNDERFUNDED');
-create type clpr_maintenance_reason as enum
-    ('CLPR_MAINTENANCE_REASON_UNSPECIFIED', 'GENESIS_INITIALIZATION', 'UPGRADE_INITIALIZATION',
-     'UPGRADE_ROSTER_RECONCILIATION', 'ENDPOINT_MANIFEST_RECONCILIATION');
 
 create table if not exists clpr_channel_pending_commitment
 (
@@ -52,8 +44,13 @@ create table if not exists clpr_channel
     received_message_id             bigint                not null default 0,
     verifier_contract_id            bigint,
     timestamp_range                 int8range             not null,
-    status                          clpr_channel_status   not null default 'ACTIVE',
-    signature_scheme                clpr_signature_scheme,
+    -- Raw com.hederahashgraph.api.proto.java.ClprChannelStatus wire number (0=PENDING, 1=ACTIVE, 2=PAUSED,
+    -- 3=CLOSING, 4=DRAINED, 5=CLOSED, or an unrecognized number for a newer value) -- stored as-is rather than a
+    -- native enum so an unrecognized value from a newer consensus node isn't lost.
+    status                          integer               not null default 1,
+    -- Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number (0=ECDSA_SECP256K1, 1=ED25519), same
+    -- reasoning as status above.
+    signature_scheme                integer,
     channel_context                 bytea,
     channel_id                      bytea                 not null,
     chain_id                        varchar               not null,
@@ -98,7 +95,9 @@ create table if not exists clpr_connector
     slash_count              bigint                  not null default 0,
     stake_recipient_id       bigint,
     timestamp_range          int8range               not null,
-    signature_scheme         clpr_signature_scheme,
+    -- Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number, same reasoning as clpr_channel's
+    -- signature_scheme column.
+    signature_scheme         integer,
     status                   clpr_connector_status   not null default 'PENDING',
     admin_key                bytea,
     channel_id               bytea                   not null,
@@ -164,7 +163,9 @@ create table if not exists clpr_endpoint_manifest
 create table if not exists clpr_maintenance
 (
     consensus_timestamp   bigint                      not null,
-    reason                clpr_maintenance_reason     not null,
+    -- Raw com.hedera.hapi.services.auxiliary.clpr.legacy.ClprMaintenanceReason wire number, same reasoning as
+    -- clpr_channel's status column.
+    reason                integer                     not null,
 
     primary key (consensus_timestamp)
 );
@@ -174,8 +175,12 @@ create table if not exists clpr_message
     consensus_timestamp    bigint                      not null,
     message_id             bigint                      not null,
     reply_to_message_id    bigint,
-    message_type           clpr_message_type           not null,
-    reply_status           clpr_message_reply_status,
+    -- Raw com.hederahashgraph.api.proto.java.ClprMessagePayload oneof field number (1=MESSAGE, 2=MESSAGE_REPLY,
+    -- 3=CONTROL, or an unrecognized field number for a future payload variant), same reasoning as clpr_channel's
+    -- status column.
+    message_type           integer                     not null,
+    -- Raw com.hederahashgraph.api.proto.java.ClprMessageReplyStatus wire number, same reasoning as above.
+    reply_status           integer,
     channel_id             bytea                       not null,
     connector_id           bytea,
     control_message        jsonb,

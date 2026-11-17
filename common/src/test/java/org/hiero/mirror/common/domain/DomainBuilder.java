@@ -2,6 +2,13 @@
 
 package org.hiero.mirror.common.domain;
 
+import static com.hedera.hapi.services.auxiliary.clpr.legacy.ClprMaintenanceReason.ENDPOINT_MANIFEST_RECONCILIATION_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.CONTROL_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_REPLY_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessageReplyStatus.SUCCESS_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprSignatureScheme.ED25519_VALUE;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
@@ -62,7 +69,6 @@ import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitmentHistory;
-import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConfigUpdate;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorHistory;
@@ -73,13 +79,9 @@ import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMaintenance;
-import org.hiero.mirror.common.domain.clpr.ClprMaintenanceReason;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
-import org.hiero.mirror.common.domain.clpr.ClprMessageReplyStatus;
-import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
-import org.hiero.mirror.common.domain.clpr.ClprSignatureScheme;
 import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
@@ -308,8 +310,8 @@ public class DomainBuilder {
                 .receivedRunningHash(bytes(32))
                 .sentRunningHash(bytes(32))
                 .signature(bytes(64))
-                .signatureScheme(ClprSignatureScheme.ED25519)
-                .status(ClprChannelStatus.ACTIVE)
+                .signatureScheme(ED25519_VALUE)
+                .status(ACTIVE_VALUE)
                 .timestampRange(Range.atLeast(createdTimestamp))
                 .trustAnchor(bytes(32))
                 .trustAnchorId(bytes(32))
@@ -335,8 +337,8 @@ public class DomainBuilder {
                 .receivedRunningHash(bytes(32))
                 .sentRunningHash(bytes(32))
                 .signature(bytes(64))
-                .signatureScheme(ClprSignatureScheme.ED25519)
-                .status(ClprChannelStatus.ACTIVE)
+                .signatureScheme(ED25519_VALUE)
+                .status(ACTIVE_VALUE)
                 .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10))
                 .verifierContractId(entityId())
                 .verifierFingerprint(bytes(32));
@@ -383,7 +385,7 @@ public class DomainBuilder {
                 .publicKey(bytes(64))
                 .salt(bytes(32))
                 .signature(bytes(64))
-                .signatureScheme(ClprSignatureScheme.ED25519)
+                .signatureScheme(ED25519_VALUE)
                 .slashCount(0L)
                 .status(ClprConnectorStatus.ACTIVE)
                 .timestampRange(Range.atLeast(createdTimestamp));
@@ -405,7 +407,7 @@ public class DomainBuilder {
                 .publicKey(bytes(64))
                 .salt(bytes(32))
                 .signature(bytes(64))
-                .signatureScheme(ClprSignatureScheme.ED25519)
+                .signatureScheme(ED25519_VALUE)
                 .slashCount(0L)
                 .status(ClprConnectorStatus.ACTIVE)
                 .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10));
@@ -436,7 +438,7 @@ public class DomainBuilder {
                                         .build())
                                 .build())
                         .build())
-                .messageType(ClprMessageType.CONTROL);
+                .messageType(CONTROL_FIELD_NUMBER);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -481,7 +483,7 @@ public class DomainBuilder {
     public DomainWrapper<ClprMaintenance, ClprMaintenance.ClprMaintenanceBuilder> clprMaintenance() {
         var builder = ClprMaintenance.builder()
                 .consensusTimestamp(timestamp())
-                .reason(ClprMaintenanceReason.ENDPOINT_MANIFEST_RECONCILIATION);
+                .reason(ENDPOINT_MANIFEST_RECONCILIATION_VALUE);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -491,7 +493,7 @@ public class DomainBuilder {
         var builder = clprMessageBuilder()
                 .connectorId(bytes(32))
                 .messageData(bytes(256))
-                .messageType(ClprMessageType.DATA)
+                .messageType(MESSAGE_FIELD_NUMBER)
                 .sender(bytes(20))
                 .targetApplication(bytes(20));
         return new DomainWrapperImpl<>(builder, builder::build);
@@ -502,8 +504,8 @@ public class DomainBuilder {
     public DomainWrapper<ClprMessage, ClprMessage.ClprMessageBuilder> clprResponseMessage() {
         var builder = clprMessageBuilder()
                 .messageData(bytes(256))
-                .messageType(ClprMessageType.RESPONSE)
-                .replyStatus(ClprMessageReplyStatus.SUCCESS)
+                .messageType(MESSAGE_REPLY_FIELD_NUMBER)
+                .replyStatus(SUCCESS_VALUE)
                 .replyToMessageId(number());
         return new DomainWrapperImpl<>(builder, builder::build);
     }

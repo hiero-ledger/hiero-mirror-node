@@ -27,7 +27,9 @@ public class ClprMaintenance implements Persistable<Long> {
     @Id
     private long consensusTimestamp;
 
-    private ClprMaintenanceReason reason;
+    // Raw com.hedera.hapi.services.auxiliary.clpr.legacy.ClprMaintenanceReason wire number -- preserved as-is even
+    // if this mirror node doesn't recognize it yet, rather than losing a value a newer consensus node sent.
+    private int reason;
 
     @JsonIgnore
     @Override

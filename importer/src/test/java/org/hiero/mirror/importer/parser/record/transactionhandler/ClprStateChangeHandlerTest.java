@@ -2,6 +2,11 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.PENDING_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.CONTROL_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_REPLY_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessageReplyStatus.SUCCESS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprConnectorMapUpdate;
@@ -15,6 +20,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
+import com.google.protobuf.UnknownFieldSet;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
@@ -33,14 +39,12 @@ import java.util.List;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
-import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.ClprContext;
@@ -142,7 +146,7 @@ final class ClprStateChangeHandlerTest {
 
     @Test
     void processChannelUnknownStatus() {
-        // given -- an UNRECOGNIZED status (future protocol value) should log and leave status null, not drop the row
+        // given -- an UNRECOGNIZED status (future protocol value) is preserved as its raw wire number, not dropped
         mockEmptyClprState();
         final var channelId = domainBuilder.bytes(32);
         final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
@@ -161,7 +165,7 @@ final class ClprStateChangeHandlerTest {
         verify(entityListener).onClprChannel(channelCaptor.capture());
         assertThat(channelCaptor.getValue())
                 .returns(channelId, ClprChannel::getChannelId)
-                .returns(null, ClprChannel::getStatus);
+                .returns(99, ClprChannel::getStatus);
     }
 
     @Test
@@ -186,7 +190,7 @@ final class ClprStateChangeHandlerTest {
         verify(entityListener).onClprChannel(channelCaptor.capture());
         assertThat(channelCaptor.getValue())
                 .returns(channelId, ClprChannel::getChannelId)
-                .returns(ClprChannelStatus.PENDING, ClprChannel::getStatus);
+                .returns(PENDING_VALUE, ClprChannel::getStatus);
         assertThat(output.getAll())
                 .contains("Recoverable error. ClprChannel state change unexpectedly reverted to PENDING status");
     }
@@ -489,7 +493,7 @@ final class ClprStateChangeHandlerTest {
                 .anySatisfy(message -> assertThat(message)
                         .returns(DomainUtils.toBytes(channelId), ClprMessage::getChannelId)
                         .returns(1L, ClprMessage::getMessageId)
-                        .returns(ClprMessageType.DATA, ClprMessage::getMessageType)
+                        .returns(MESSAGE_FIELD_NUMBER, ClprMessage::getMessageType)
                         .returns(DomainUtils.toBytes(connectorId), ClprMessage::getConnectorId)
                         .returns(DomainUtils.toBytes(sender), ClprMessage::getSender)
                         .returns(DomainUtils.toBytes(targetApplication), ClprMessage::getTargetApplication)
@@ -497,16 +501,14 @@ final class ClprStateChangeHandlerTest {
                         .returns(DomainUtils.toBytes(dataRunningHash), ClprMessage::getRunningHash))
                 .anySatisfy(message -> assertThat(message)
                         .returns(2L, ClprMessage::getMessageId)
-                        .returns(ClprMessageType.RESPONSE, ClprMessage::getMessageType)
+                        .returns(MESSAGE_REPLY_FIELD_NUMBER, ClprMessage::getMessageType)
                         .returns(1L, ClprMessage::getReplyToMessageId)
-                        .returns(
-                                org.hiero.mirror.common.domain.clpr.ClprMessageReplyStatus.SUCCESS,
-                                ClprMessage::getReplyStatus)
+                        .returns(SUCCESS_VALUE, ClprMessage::getReplyStatus)
                         .returns(DomainUtils.toBytes(replyData), ClprMessage::getMessageData)
                         .returns(null, ClprMessage::getConnectorId))
                 .anySatisfy(message -> assertThat(message)
                         .returns(3L, ClprMessage::getMessageId)
-                        .returns(ClprMessageType.CONTROL, ClprMessage::getMessageType)
+                        .returns(CONTROL_FIELD_NUMBER, ClprMessage::getMessageType)
                         .satisfies(m -> assertThat(
                                         m.getControlMessage().getConfigUpdate().getConfiguration())
                                 .returns(1L, ClprControlConfiguration::getProtocolVersion)
@@ -543,8 +545,8 @@ final class ClprStateChangeHandlerTest {
 
     @Test
     void processMessageUnknownReplyStatus() {
-        // given -- an UNRECOGNIZED reply status (future protocol value) should log and leave it null, not drop
-        // the message
+        // given -- an UNRECOGNIZED reply status (future protocol value) is preserved as its raw wire number, not
+        // dropped
         mockEmptyClprState();
         final var replyKey = ClprMessageKey.newBuilder()
                 .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
@@ -565,8 +567,39 @@ final class ClprStateChangeHandlerTest {
         final var messageCaptor = ArgumentCaptor.forClass(ClprMessage.class);
         verify(entityListener).onClprMessage(messageCaptor.capture());
         assertThat(messageCaptor.getValue())
-                .returns(ClprMessageType.RESPONSE, ClprMessage::getMessageType)
-                .returns(null, ClprMessage::getReplyStatus);
+                .returns(MESSAGE_REPLY_FIELD_NUMBER, ClprMessage::getMessageType)
+                .returns(99, ClprMessage::getReplyStatus);
+    }
+
+    @Test
+    void processMessageUnknownPayloadCase() {
+        // given -- a future payload variant (unknown oneof field) is preserved via its raw field number rather than
+        // dropped, mirroring RecordItem.parseTransactionType()'s fallback for an unknown transaction type
+        mockEmptyClprState();
+        final var key = ClprMessageKey.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setMessageId(1)
+                .build();
+        final var unknownPayload = ClprMessagePayload.newBuilder()
+                .mergeUnknownFields(UnknownFieldSet.newBuilder()
+                        .addField(
+                                99,
+                                UnknownFieldSet.Field.newBuilder().addVarint(1).build())
+                        .build())
+                .build();
+        final var value = ClprMessageValue.newBuilder()
+                .setRunningHashAfterProcessing(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setPayload(unknownPayload)
+                .build();
+        when(clprContext.getClprMessages()).thenReturn(List.of(new ClprMessageEntry(key, value)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var messageCaptor = ArgumentCaptor.forClass(ClprMessage.class);
+        verify(entityListener).onClprMessage(messageCaptor.capture());
+        assertThat(messageCaptor.getValue()).returns(99, ClprMessage::getMessageType);
     }
 
     @Test
@@ -907,7 +940,7 @@ final class ClprStateChangeHandlerTest {
 
         final var messageCaptor = ArgumentCaptor.forClass(ClprMessage.class);
         verify(entityListener).onClprMessage(messageCaptor.capture());
-        assertThat(messageCaptor.getValue()).returns(ClprMessageType.DATA, ClprMessage::getMessageType);
+        assertThat(messageCaptor.getValue()).returns(MESSAGE_FIELD_NUMBER, ClprMessage::getMessageType);
 
         final var connectorCaptor = ArgumentCaptor.forClass(ClprConnector.class);
         verify(entityListener, times(2)).onClprConnector(connectorCaptor.capture());

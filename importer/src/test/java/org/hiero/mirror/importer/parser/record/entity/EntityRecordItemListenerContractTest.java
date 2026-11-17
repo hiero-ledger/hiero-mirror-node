@@ -1167,7 +1167,7 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
         assertThat(clprChannelRepository.findAll())
                 .singleElement()
                 .returns(channelId, ClprChannel::getChannelId)
-                .returns(org.hiero.mirror.common.domain.clpr.ClprChannelStatus.PAUSED, ClprChannel::getStatus);
+                .returns(com.hederahashgraph.api.proto.java.ClprChannelStatus.PAUSED_VALUE, ClprChannel::getStatus);
         assertThat(clprConnectorRepository.findAll())
                 .singleElement()
                 .returns(existingConnector.getConnectorId(), ClprConnector::getConnectorId)

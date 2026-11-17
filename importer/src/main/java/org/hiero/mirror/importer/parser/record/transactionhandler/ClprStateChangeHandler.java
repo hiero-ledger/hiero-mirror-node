@@ -17,6 +17,7 @@ import static com.hederahashgraph.api.proto.java.ClprChannel.SENT_RUNNING_HASH_F
 import static com.hederahashgraph.api.proto.java.ClprChannel.STATUS_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_ID_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.PENDING_VALUE;
 import static com.hederahashgraph.api.proto.java.ClprConnector.ADMIN_KEY_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprConnector.CONNECTOR_CONTRACT_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprConnector.IN_FLIGHT_MESSAGE_COUNT_FIELD_NUMBER;
@@ -31,11 +32,15 @@ import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.INITIAL
 import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.INITIAL_TRUST_ANCHOR_ID_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.PROTOCOL_VERSION_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.THROTTLES_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.CONTROL_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_REPLY_FIELD_NUMBER;
 import static org.hiero.mirror.common.domain.transaction.StateChangeContext.isPresent;
 
 import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
+import com.hederahashgraph.api.proto.java.ClprMessagePayload;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -43,7 +48,6 @@ import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprConfigUpdate;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
@@ -53,7 +57,6 @@ import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
-import org.hiero.mirror.common.domain.clpr.ClprMessageType;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -212,7 +215,7 @@ public final class ClprStateChangeHandler {
         final var builder = ClprChannel.builder().channelId(DomainUtils.toBytes(entry.channelId()));
 
         if (isPresent(mapUpdate, value, STATUS_FIELD_NUMBER)) {
-            builder.status(toChannelStatus(value.getStatus()));
+            builder.status(toChannelStatus(value.getStatusValue()));
         }
         if (isPresent(mapUpdate, value, NEXT_MESSAGE_ID_FIELD_NUMBER)) {
             builder.nextMessageId(value.getNextMessageId());
@@ -334,22 +337,15 @@ public final class ClprStateChangeHandler {
         return commitment;
     }
 
-    private static @Nullable ClprChannelStatus toChannelStatus(
-            com.hederahashgraph.api.proto.java.ClprChannelStatus status) {
-
-        if (status == com.hederahashgraph.api.proto.java.ClprChannelStatus.PENDING) {
+    private static int toChannelStatus(int status) {
+        if (status == PENDING_VALUE) {
             // PENDING is pre-creation only, tracked via ClprChannelPendingCommitment; an existing ClprChannel
             // state-change value should never revert to it, but record it rather than drop it if consensus ever
             // does.
             Utility.handleRecoverableError("ClprChannel state change unexpectedly reverted to PENDING status");
         }
 
-        try {
-            return ClprChannelStatus.valueOf(status.name());
-        } catch (IllegalArgumentException e) {
-            Utility.handleRecoverableError("Unexpected CLPR channel status {}", status);
-            return null;
-        }
+        return status;
     }
 
     private @Nullable ClprConnector toConnector(
@@ -514,7 +510,7 @@ public final class ClprStateChangeHandler {
             case MESSAGE -> {
                 final var message = payload.getMessage();
                 messageBuilder
-                        .messageType(ClprMessageType.DATA)
+                        .messageType(MESSAGE_FIELD_NUMBER)
                         .connectorId(DomainUtils.toBytes(message.getConnectorId()))
                         .sender(DomainUtils.toBytes(message.getSender()))
                         .targetApplication(DomainUtils.toBytes(message.getTargetApplication()))
@@ -524,9 +520,9 @@ public final class ClprStateChangeHandler {
                 // connector_id stays null: ClprMessageReply has no connector_id field on the wire
                 final var reply = payload.getMessageReply();
                 messageBuilder
-                        .messageType(ClprMessageType.RESPONSE)
+                        .messageType(MESSAGE_REPLY_FIELD_NUMBER)
                         .replyToMessageId(reply.getMessageId())
-                        .replyStatus(ClprEnums.toReplyStatus(reply.getStatus()))
+                        .replyStatus(reply.getStatusValue())
                         .messageData(DomainUtils.toBytes(reply.getMessageReplyData()));
             }
             case CONTROL -> {
@@ -534,13 +530,14 @@ public final class ClprStateChangeHandler {
                 if (controlMessage == null) {
                     return null;
                 }
-                messageBuilder.messageType(ClprMessageType.CONTROL).controlMessage(controlMessage);
+                messageBuilder.messageType(CONTROL_FIELD_NUMBER).controlMessage(controlMessage);
             }
             default -> {
-                // PAYLOAD_NOT_SET would indicate a future, not-yet-understood protocol version
-                Utility.handleRecoverableError(
-                        "Unexpected CLPR message payload case {} at {}", payload.getPayloadCase(), consensusTimestamp);
-                return null;
+                final var messageType = toUnknownMessageType(payload, consensusTimestamp);
+                if (messageType == null) {
+                    return null;
+                }
+                messageBuilder.messageType(messageType);
             }
         }
 
@@ -563,5 +560,24 @@ public final class ClprStateChangeHandler {
                 .status(ClprConnectorStatus.DELETED)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
+    }
+
+    /**
+     * payload.getPayloadCase() returns PAYLOAD_NOT_SET both for a genuinely empty payload and for a future payload
+     * variant this mirror node doesn't know about yet -- the two are told apart by checking for an unknown field,
+     * same fallback as RecordItem.parseTransactionType().
+     */
+    private static @Nullable Integer toUnknownMessageType(ClprMessagePayload payload, long consensusTimestamp) {
+        final var unknownFields = payload.getUnknownFields().asMap().keySet();
+        if (unknownFields.size() != 1) {
+            Utility.handleRecoverableError(
+                    "Unexpected CLPR message payload case {} at {}", payload.getPayloadCase(), consensusTimestamp);
+            return null;
+        }
+
+        final var messageType = unknownFields.iterator().next();
+        Utility.handleRecoverableError(
+                "Encountered unknown CLPR message type {} at {}", messageType, consensusTimestamp);
+        return messageType;
     }
 }
