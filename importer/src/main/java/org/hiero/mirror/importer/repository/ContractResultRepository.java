@@ -11,6 +11,6 @@ public interface ContractResultRepository extends CrudRepository<ContractResult,
 
     @Modifying
     @Override
-    @Query("delete from ContractResult where consensusTimestamp <= :consensusTimestamp")
+    @Query(value = "delete from contract_result where consensus_timestamp <= :consensusTimestamp", nativeQuery = true)
     int prune(long consensusTimestamp);
 }
