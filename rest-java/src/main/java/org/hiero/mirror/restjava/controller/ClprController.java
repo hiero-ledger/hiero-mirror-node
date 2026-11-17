@@ -39,7 +39,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @NullMarked
-@RequestMapping(value = "/api/v1/clpr/channels", produces = APPLICATION_JSON)
+@RequestMapping(value = "/api/v1/clpr", produces = APPLICATION_JSON)
 @RequiredArgsConstructor
 @RestController
 final class ClprController {
@@ -53,7 +53,7 @@ final class ClprController {
     private final ClprService clprService;
     private final LinkFactory linkFactory;
 
-    @GetMapping
+    @GetMapping("/channels")
     ResponseEntity<ClprChannelsResponse> getChannels(
             @RequestParam(name = CHANNEL_ID, required = false) @Nullable @Pattern(regexp = CHANNEL_ID_PATTERN)
                     String channelId,
@@ -73,7 +73,7 @@ final class ClprController {
                         status != null
                                 ? ClprChannelStatus.fromValue(stripEq(status).toUpperCase())
                                 : null)
-                .timestamp(Bound.of(timestamps, TIMESTAMP, null))
+                .timestamp(getTimestampBound(channelId != null, timestamps))
                 .build();
 
         final var channels = clprService.getChannels(request);
@@ -87,6 +87,20 @@ final class ClprController {
         response.setChannels(channels);
         response.setLinks(links);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * With a channel id, timestamp is an "as of" time, so eq: is converted to lte:. Otherwise it filters the list by
+     * created timestamp, so eq: stays an exact match.
+     */
+    private static Bound getTimestampBound(boolean hasChannelId, TimestampParameter[] timestamps) {
+        if (hasChannelId) {
+            return Bound.of(timestamps, TIMESTAMP, null);
+        }
+
+        final var bound = new Bound(timestamps, false, TIMESTAMP, null);
+        bound.adjustUpperRange();
+        return bound;
     }
 
     private static String stripEq(String value) {

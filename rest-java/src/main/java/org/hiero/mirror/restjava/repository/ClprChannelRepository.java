@@ -169,10 +169,24 @@ public interface ClprChannelRepository extends Repository<ClprChannel, byte[]> {
             from clpr_channel
             where created_timestamp >= :lowerBound
             and created_timestamp <= :upperBound
-            and (cast(:status as clpr_channel_status) is null or status = cast(:status as clpr_channel_status))
             """, nativeQuery = true)
-    List<ClprChannelDto> findByCreatedTimestampBetween(
-            long lowerBound, long upperBound, @Nullable String status, Pageable pageable);
+    List<ClprChannelDto> findByCreatedTimestampBetween(long lowerBound, long upperBound, Pageable pageable);
+
+    /**
+     * Same as {@link #findByCreatedTimestampBetween} but filtered by status. It's a separate query, instead of an
+     * optional status parameter, so the planner can use the {@code (status, created_timestamp)} index even with a
+     * generic plan, which an {@code :status is null or ...} predicate prevents.
+     */
+    @Query(value = """
+            select
+            """ + CHANNEL_COLUMNS + """
+            from clpr_channel
+            where status = cast(:status as clpr_channel_status)
+            and created_timestamp >= :lowerBound
+            and created_timestamp <= :upperBound
+            """, nativeQuery = true)
+    List<ClprChannelDto> findByStatusAndCreatedTimestampBetween(
+            String status, long lowerBound, long upperBound, Pageable pageable);
 
     /**
      * Returns the open pending channel commitments, which are the ones not yet completed or abandoned. The

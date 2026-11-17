@@ -147,8 +147,8 @@ final class ClprServiceTest {
 
         // then
         verify(channelRepository)
-                .findByCreatedTimestampBetween(
-                        101L, 199L, "CLOSED", PageRequest.of(0, 10, Sort.by(Direction.ASC, CREATED_TIMESTAMP)));
+                .findByStatusAndCreatedTimestampBetween(
+                        "CLOSED", 101L, 199L, PageRequest.of(0, 10, Sort.by(Direction.ASC, CREATED_TIMESTAMP)));
     }
 
     @Test

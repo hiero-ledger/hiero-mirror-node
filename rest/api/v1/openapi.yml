@@ -2588,25 +2588,25 @@ components:
       properties:
         max_gas_per_message:
           format: int64
-          type: integer
+          type: [integer, "null"]
         max_local_endpoints:
           format: int64
-          type: integer
+          type: [integer, "null"]
         max_message_payload_bytes:
           format: int64
-          type: integer
+          type: [integer, "null"]
         max_messages_per_bundle:
           format: int64
-          type: integer
+          type: [integer, "null"]
         max_peer_endpoints:
           format: int64
-          type: integer
+          type: [integer, "null"]
         max_queue_depth:
           format: int64
-          type: integer
+          type: [integer, "null"]
         max_sync_bytes:
           format: int64
-          type: integer
+          type: [integer, "null"]
     ClprSignatureScheme:
       enum: [ECDSA_SECP256K1, ED25519]
       example: ED25519

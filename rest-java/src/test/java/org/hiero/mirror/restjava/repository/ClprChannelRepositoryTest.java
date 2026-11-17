@@ -128,7 +128,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         final var pageable = PageRequest.of(0, 10, Sort.by(order, CREATED_TIMESTAMP));
 
         // when
-        final var actual = repository.findByCreatedTimestampBetween(200L, 400L, null, pageable);
+        final var actual = repository.findByCreatedTimestampBetween(200L, 400L, pageable);
 
         // then
         assertThat(ids(actual)).containsExactlyElementsOf(channelIds(expected));
@@ -195,7 +195,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void findByCreatedTimestampBetweenFiltersByStatus() {
+    void findByStatusAndCreatedTimestampBetween() {
         // given
         persistChannel(100L, ClprChannelStatus.ACTIVE);
         final var paused = persistChannel(200L, ClprChannelStatus.PAUSED);
@@ -204,8 +204,8 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         final var pageable = PageRequest.of(0, 10, Sort.by(Direction.ASC, CREATED_TIMESTAMP));
 
         // when
-        final var actual =
-                repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, ClprChannelStatus.PAUSED.name(), pageable);
+        final var actual = repository.findByStatusAndCreatedTimestampBetween(
+                ClprChannelStatus.PAUSED.name(), 0L, Long.MAX_VALUE, pageable);
 
         // then
         assertThat(ids(actual)).containsExactly(paused.getChannelId());
@@ -221,7 +221,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         final var pageable = PageRequest.of(0, 10, Sort.by(Direction.ASC, CREATED_TIMESTAMP));
 
         // when
-        final var actual = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, null, pageable);
+        final var actual = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, pageable);
 
         // then
         assertThat(ids(actual)).containsExactly(current.getChannelId());
@@ -242,10 +242,8 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
                 : List.of(channel4, channel3, channel2, channel1);
 
         // when
-        final var page0 =
-                repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, null, PageRequest.of(0, LIMIT, sort));
-        final var page1 =
-                repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, null, PageRequest.of(1, LIMIT, sort));
+        final var page0 = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, PageRequest.of(0, LIMIT, sort));
+        final var page1 = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, PageRequest.of(1, LIMIT, sort));
 
         // then
         assertThat(ids(page0)).containsExactlyElementsOf(channelIds(all.subList(0, LIMIT)));

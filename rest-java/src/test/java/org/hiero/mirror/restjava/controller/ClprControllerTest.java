@@ -130,6 +130,23 @@ final class ClprControllerTest extends ControllerTest {
             assertThat(actual.getChannels()).isEqualTo(channelMapper.map(asData(inRange)));
         }
 
+        @ParameterizedTest
+        @ValueSource(strings = {"?timestamp=eq:0.000000200", "?timestamp=0.000000200"})
+        void timestampEqWithoutChannelIdIsExactMatch(String query) {
+            // given
+            persistChannel(100L, ClprChannelStatus.ACTIVE);
+            final var exact = persistChannel(200L, ClprChannelStatus.ACTIVE);
+            persistChannel(300L, ClprChannelStatus.ACTIVE);
+
+            // when
+            final var actual = restClient.get().uri(query).retrieve().body(ClprChannelsResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getChannels()).isEqualTo(channelMapper.map(asData(exact)));
+            assertThat(actual.getLinks().getNext()).isNull();
+        }
+
         @Test
         void limitAndNextLink() {
             // given

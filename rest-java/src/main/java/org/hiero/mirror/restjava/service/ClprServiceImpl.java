@@ -61,15 +61,18 @@ final class ClprServiceImpl implements ClprService {
         }
 
         final var bounds = getBounds(timestamp);
-        final var statusName = status != null ? status.name() : null;
 
         if (channelId != null) {
             return channelRepository.findByChannelIdAndTimestampBetween(
-                    channelId, bounds.lower(), bounds.upper(), statusName);
+                    channelId, bounds.lower(), bounds.upper(), status != null ? status.name() : null);
         }
 
-        return channelRepository.findByCreatedTimestampBetween(
-                bounds.lower(), bounds.upper(), statusName, getPage(request));
+        if (status != null) {
+            return channelRepository.findByStatusAndCreatedTimestampBetween(
+                    status.name(), bounds.lower(), bounds.upper(), getPage(request));
+        }
+
+        return channelRepository.findByCreatedTimestampBetween(bounds.lower(), bounds.upper(), getPage(request));
     }
 
     private List<ClprChannelDto> findPendingChannels(ClprChannelsRequest request) {

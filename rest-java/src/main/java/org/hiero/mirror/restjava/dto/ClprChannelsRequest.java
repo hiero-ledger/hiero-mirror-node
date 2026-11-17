@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.restjava.dto;
 
+import static org.hiero.mirror.restjava.common.Constants.DEFAULT_LIMIT;
+
 import lombok.Builder;
 import lombok.Value;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
@@ -18,17 +20,17 @@ import org.springframework.data.domain.Sort.Direction;
 public class ClprChannelsRequest {
 
     @Nullable
-    private final byte[] channelId;
+    byte[] channelId;
 
     @Builder.Default
-    private final int limit = 25;
+    int limit = Integer.parseInt(DEFAULT_LIMIT);
 
     @Builder.Default
-    private final Direction order = Direction.DESC;
+    Direction order = Direction.DESC;
 
     @Nullable
-    private final ClprChannelStatus status;
+    ClprChannelStatus status;
 
     @Builder.Default
-    private final Bound timestamp = Bound.EMPTY;
+    Bound timestamp = Bound.EMPTY;
 }
