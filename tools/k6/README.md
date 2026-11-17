@@ -148,7 +148,6 @@ The following parameters can be used to configure a web3 test:
 | RUN_MODIFICATION_TESTS                                    | false   | If set to false, modification tests will not run.                                                                                                                                                   |
 | RUN_OPCODE_TESTS                                          | true    | If set to false, opcode tests will not run.                                                                                                                                                         |
 | RUN_PRESTATE_TESTS                                        | true    | If set to false, prestate tests will not run.                                                                                                                                                       |
-| RUN_STATE_OVERRIDES_TESTS                                 | false   | If set to false, tests with state overrides configured will not run.                                                                                                                                |
 | RUN_FULL_COVERAGE_TESTS                                   | false   | If set to true, include all available web3 tests in accordance to the other configured RUN\_\* variables. Some of them are excluded by default as they are too lightweight for performance testing. |
 | RUN_TRAFFIC_REPLAY                                        | false   | If set to false, traffic replay tests will not run.                                                                                                                                                 |
 | RUN_WITH_VARIABLES                                        | false   | if set to false, tests will be run with data from modificationFunctions.json                                                                                                                        |
@@ -298,11 +297,3 @@ This test is not limited to a specific contract or method. You can stress-test a
 
 - `STORAGE_SLOTS_CALLDATA`: Set this to the **method call data** you want to simulate.
   **Example:** `0x523adad6` (`heavyReadBothHalves()` method selector from SlotContractCaller)
-
-#### State overrides
-
-With `RUN_STATE_OVERRIDES_TESTS=true` and a `STORAGE_SLOTS_CALLDATA` starting with `0xc1ed38bc` (the mainnet tick lens
-call, which reads `ticks(int24)` from 500 pool and tick pairs), the call patches (`state_diff`) the storage of the first
-10 pools in the calldata. Each pool gets the 4 storage slots of up to 25 of its ticks (100 slots), 844 slots in
-total, with the mainnet values stored in `src/web3/test/resources/tickLensPoolStorage.js`. The remaining ticks are
-still read from the DB. Regenerate the file if the calldata changes or the values drift from mainnet.

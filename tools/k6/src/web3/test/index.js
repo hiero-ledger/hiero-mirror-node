@@ -60,6 +60,7 @@ import * as contractCallPrecompileMintToken from './modificationTests/contractCa
 import * as contractCallPrecompileNestedAssociate from './modificationTests/contractCallPrecompileNestedAssociate.js';
 import * as contractCallPrecompileTransferFungibleToken from './modificationTests/contractCallPrecompileTransferFungibleToken.js';
 import * as contractCallRedirectApprove from './modificationTests/contractCallRedirectApprove.js';
+import * as contractCallRedirectApproveStateOverrides from './modificationTests/contractCallRedirectApproveStateOverrides.js';
 import * as contractCallComplexFunctionTokenLifecycle from './complex-functions/contractCallComplexFunctionsTokenLifecycle.js';
 import * as contractCallComplexFunctionNFTLifecycle from './complex-functions/contractCallComplexFunctionsNFTLifecycle.js';
 import * as opcodesAllDisabled from './opcodes/opcodesAllDisabled.js';
@@ -142,6 +143,7 @@ if (__ENV.RUN_MODIFICATION_TESTS !== 'false') {
     contractCallPrecompileDeleteToken,
     contractCallPrecompileNestedAssociate,
     contractCallRedirectApprove,
+    contractCallRedirectApproveStateOverrides,
   });
 
   if (__ENV.RUN_FULL_COVERAGE_TESTS === 'true') {

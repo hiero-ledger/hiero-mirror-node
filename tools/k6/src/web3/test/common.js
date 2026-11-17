@@ -64,19 +64,10 @@ const loadVuDataOrDefault = (filepath, key) =>
   });
 
 const HISTORICAL_BLOCK_NUMBER = __ENV.HISTORICAL_BLOCK_NUMBER || 'latest';
-const RUN_STATE_OVERRIDES_TESTS = __ENV.RUN_STATE_OVERRIDES_TESTS === 'true';
-const STATE_OVERRIDES_SUFFIX = '_state_overrides';
-
-function isStateOverridesScenario(name) {
-  return typeof name === 'string' && name.endsWith(STATE_OVERRIDES_SUFFIX);
-}
 
 function extractBlockFromScenarioName(name) {
   if (typeof name !== 'string') {
     return null;
-  }
-  if (isStateOverridesScenario(name)) {
-    name = name.slice(0, -STATE_OVERRIDES_SUFFIX.length);
   }
   const idx = name.lastIndexOf('-');
   if (idx === -1 || idx === name.length - 1) {
@@ -119,7 +110,6 @@ function ContractCallTestScenarioBuilder() {
   this._estimate = null;
   this._from = null;
   this._gas = 15000000;
-  this._stateOverrides = null;
   this._value = null;
 
   this._url = `${__ENV.BASE_URL_PREFIX}/contracts/call`;
@@ -131,21 +121,12 @@ function ContractCallTestScenarioBuilder() {
       that._blocks = [`latest`];
     }
 
-    const stateOverrides = RUN_STATE_OVERRIDES_TESTS && that._stateOverrides ? that._stateOverrides() : null;
-    const hasStateOverrides = Array.isArray(stateOverrides) && stateOverrides.length > 0;
-
-    // Create separate scenarios per provided block, each followed by the same scenario with state overrides
-    const scenarioNames = [];
-    for (const block of that._blocks) {
-      const scenarioName = `${that._name}-${sanitizeScenarioName(String(block))}`;
-      scenarioNames.push(scenarioName);
-      if (hasStateOverrides) {
-        scenarioNames.push(scenarioName + STATE_OVERRIDES_SUFFIX);
-      }
-    }
-
+    // Create separate scenarios per provided block
     let combinedOptions = null;
-    for (const scenarioName of scenarioNames) {
+    for (let i = 0; i < that._blocks.length; i++) {
+      const block = that._blocks[i];
+      const sanitized = sanitizeScenarioName(String(block));
+      const scenarioName = `${that._name}-${sanitized}`;
       const options = utils.getOptionsWithScenario(scenarioName, that._scenario, that._tags);
 
       if (!combinedOptions) {
@@ -166,10 +147,6 @@ function ContractCallTestScenarioBuilder() {
         from: that._from,
         block: activeBlock,
       };
-
-      if (hasStateOverrides && isStateOverridesScenario(k6Scenario.name)) {
-        payload.state_overrides = stateOverrides;
-      }
 
       if (that._selector && that._args) {
         payload.data = that._selector + that._args;
@@ -263,13 +240,6 @@ function ContractCallTestScenarioBuilder() {
 
   this.estimate = function (estimate) {
     this._estimate = estimate;
-    return this;
-  };
-
-  // Function returning the state overrides, only called with RUN_STATE_OVERRIDES_TESTS=true. Requires
-  // hiero.mirror.web3.enableStateOverrides=true
-  this.stateOverrides = function (stateOverrides) {
-    this._stateOverrides = stateOverrides;
     return this;
   };
 
