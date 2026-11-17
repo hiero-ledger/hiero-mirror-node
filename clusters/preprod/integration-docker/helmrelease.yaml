@@ -43,6 +43,14 @@ spec:
         HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_TPS: "0.5"
     postgresql:
       enabled: false
+    redis:
+      replica:
+        persistence:
+          storageClass: hyperdisk-balanced
+      sentinel:
+        persistence:
+          size: 4Gi     # The minimal allowed hyperdisk size
+          storageClass: hyperdisk-balanced
     rest:
       monitor:
         config:

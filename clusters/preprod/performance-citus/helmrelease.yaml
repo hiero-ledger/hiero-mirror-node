@@ -49,6 +49,14 @@ spec:
     monitor:
       env:
         HIERO_MIRROR_MONITOR_NETWORK: "OTHER"
+    redis:
+      replica:
+        persistence:
+          storageClass: hyperdisk-balanced
+      sentinel:
+        persistence:
+          size: 4Gi     # The minimal allowed hyperdisk size
+          storageClass: hyperdisk-balanced
     rest:
       monitor:
         enabled: false
@@ -58,6 +66,22 @@ spec:
       coordinator:
         persistentVolume:
           size: 409Gi
+        resources:
+          cpu: 6200m
+          requests:
+            containers:
+              patroni:
+                cpu: 6200m
+      worker:
+        config:
+          shared_buffers: "7GB"
+        resources:
+          cpu: 6200m
+          memory: 24Gi
+          requests:
+            containers:
+              patroni:
+                cpu: 6200m
     test:
       enabled: false
       config:

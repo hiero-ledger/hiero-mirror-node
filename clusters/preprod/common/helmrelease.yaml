@@ -35,6 +35,9 @@ spec:
         structuredConfig:
           ruler:
             external_url: https://mirrornode.grafana.net
+      singleBinary:
+        persistence:
+          storageClass: hyperdisk-balanced
     minio:
       enabled: false
     prometheus:
@@ -74,10 +77,23 @@ spec:
                 resources:
                   requests:
                     storage: 250Gi
+                storageClassName: hyperdisk-balanced
     traefik:
       service:
         annotations:
-          cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mirrornode-preprod-new"} } }'
+          cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mirrornode-preprod"} } }'
     zfs:
       coordinator:
-        initialDiskSize: 400GB
+        initialDiskSize: 450GB
+      init:
+        disk:
+          coordinator:
+            provisionedIops: 4000
+            provisionedThroughput: 140
+          type: hyperdisk-balanced
+          worker:
+            provisionedIops: 7000
+            provisionedThroughput: 180
+        diskPrefix: preprod
+        serviceAccount:
+          iAmName: citus-zfs-preprod-sa@mirrornode-non-prod-314918.iam.gserviceaccount.com
