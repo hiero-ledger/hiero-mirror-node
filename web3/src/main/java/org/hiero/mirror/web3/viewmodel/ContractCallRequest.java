@@ -58,7 +58,9 @@ public class ContractCallRequest {
     @Min(21_000)
     private long gas = 15_000_000L;
 
+    // Public API name is camelCase, so it must be pinned against the global SNAKE_CASE naming strategy
     @JsonAlias("gas_price")
+    @JsonProperty("gasPrice")
     @Min(0)
     private long gasPrice;
 
