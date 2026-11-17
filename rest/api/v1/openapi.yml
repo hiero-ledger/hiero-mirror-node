@@ -2664,7 +2664,7 @@ components:
         - protocol_version
       properties:
         chain_id:
-          type: [string, "null"]
+          type: string
           example: "eip155:1"
         consensus_timestamp:
           $ref: "#/components/schemas/Timestamp"
@@ -2706,7 +2706,7 @@ components:
           type: [integer, "null"]
     ClprServiceEndpoint:
       description: The network address of a CLPR endpoint
-      type: object
+      type: [object, "null"]
       properties:
         ip_address:
           type: string
