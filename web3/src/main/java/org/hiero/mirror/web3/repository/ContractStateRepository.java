@@ -12,7 +12,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface ContractStateRepository extends CrudRepository<ContractState, Long> {
 
-    @Query(value = "select value from contract_state where contract_id = ?1 and slot =?2", nativeQuery = true)
+    @Query(
+            value = "select value from contract_state where contract_id = :contractId and slot =:key",
+            nativeQuery = true)
     Optional<byte[]> findStorage(final Long contractId, final byte[] key);
 
     @Query(value = """
@@ -40,9 +42,9 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
             select
                 coalesce(value_written, value_read) as value
             from contract_state_change
-            where contract_id = ?1
-            and slot = ?2
-            and consensus_timestamp <= ?3
+            where contract_id = :id
+            and slot = :slot
+            and consensus_timestamp <= :blockTimestamp
             order by consensus_timestamp desc
             limit 1
             """, nativeQuery = true)

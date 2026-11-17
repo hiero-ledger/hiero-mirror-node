@@ -12,6 +12,6 @@ public interface HookStorageChangeRepository
 
     @Modifying
     @Override
-    @Query("delete from HookStorageChange where consensusTimestamp <= ?1")
+    @Query("delete from HookStorageChange where consensusTimestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }
