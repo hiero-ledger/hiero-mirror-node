@@ -65,7 +65,7 @@ spec:
           storageClass: hyperdisk-balanced
       sentinel:
         persistence:
-          size: 4Gi
+          size: 4Gi     # The minimal allowed hyperdisk size
           storageClass: hyperdisk-balanced
     rest:
       env:
