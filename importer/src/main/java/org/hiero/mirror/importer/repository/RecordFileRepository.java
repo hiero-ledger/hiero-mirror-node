@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface RecordFileRepository extends StreamFileRepository<RecordFile, Long>, RetentionRepository {
 
-    @Query(value = "select r from RecordFile r order by r.consensusEnd limit 1")
+    @Query(value = "select * from record_file order by consensus_end limit 1", nativeQuery = true)
     Optional<RecordFile> findFirst();
 
     @Override
@@ -45,11 +45,11 @@ public interface RecordFileRepository extends StreamFileRepository<RecordFile, L
 
     @Modifying
     @Override
-    @Query("delete from RecordFile where consensusEnd <= :consensusTimestamp")
+    @Query(value = "delete from record_file where consensus_end <= :consensusTimestamp", nativeQuery = true)
     int prune(long consensusTimestamp);
 
     @Modifying
-    @Query(nativeQuery = true, value = "update record_file set index = index + :offset")
+    @Query(value = "update record_file set index = index + :offset", nativeQuery = true)
     @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 7200)
     int updateIndex(long offset);
 }
