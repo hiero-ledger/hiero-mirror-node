@@ -190,7 +190,4 @@ spec:
               provisionedIops: 7000
               provisionedThroughput: 140
           type: hyperdisk-balanced
-          worker:
-            provisionedIops: 7000
-            provisionedThroughput: 140
         diskPrefix: mainnet-staging
