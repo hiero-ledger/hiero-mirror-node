@@ -15,11 +15,11 @@ This guide walks mirror node operators (commercial providers and self-hosted dep
 
 ## Timeline
 
-| Milestone                              | Date                  | Notes                                                                               |
-| -------------------------------------- | --------------------- | ----------------------------------------------------------------------------------- |
-| Testnet cutover (consensus node v0.80) | **November 25, 2026** | Block stream becomes canonical on testnet; validate your upgrade here first.        |
-| Mainnet cutover (consensus node v0.80) | **December 9, 2026**  | Block stream (with network-aggregated TSS signatures) becomes canonical on mainnet. |
-| Minimum `hiero-mirror-node` version    | **v0.164.0**          | Hard floor — releases earlier than this stop ingesting new data at cutover.         |
+| Milestone                              | Date                 | Notes                                                                               |
+| -------------------------------------- | -------------------- | ----------------------------------------------------------------------------------- |
+| Testnet cutover (consensus node v0.80) | **January 6, 2027**  | Block stream becomes canonical on testnet; validate your upgrade here first.        |
+| Mainnet cutover (consensus node v0.80) | **January 27, 2027** | Block stream (with network-aggregated TSS signatures) becomes canonical on mainnet. |
+| Minimum `hiero-mirror-node` version    | **v0.167.0**         | Hard floor — releases earlier than this stop ingesting new data at cutover.         |
 
 If your mirror node isn't upgraded by the relevant date, it will **stop ingesting new data** on that network. The legacy network streams bucket you read today (e.g. `hedera-mainnet-streams`) and its historical record files remain available after cutover — nothing is deleted, but new data stops being written there.
 
@@ -35,7 +35,7 @@ Record streams, event streams, signature files, and sidecars are unified into a 
 
 ### 1. Upgrade `hiero-mirror-node`
 
-Upgrade to **v0.164.0 at minimum**, validated against testnet before November 25 and confirmed on mainnet before December 9. Treat v0.164.0 as a floor, not a target — keep moving to each newer release shipped between now and the mainnet cutover for the smoothest transition, then return to your normal upgrade cadence once mainnet cutover is complete.
+Upgrade to **v0.167.0 at minimum**, validated against testnet before January 6 2027, and confirmed on mainnet before January 27, 2027. Treat v0.167.0 as a floor, not a target — keep moving to each newer release shipped between now and the mainnet cutover for the smoothest transition, then return to your normal upgrade cadence once mainnet cutover is complete.
 
 ### 2. Pre-grant read IAM access to the new buckets
 
