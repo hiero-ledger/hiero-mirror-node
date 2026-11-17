@@ -22,6 +22,10 @@ with existing as (
   from $tempTable t
   left join $finalTable e on $idJoin
   where t.timestamp_range is not null
+#if($skipUpdateWhenDeleted)
+  ## Skip updates that don't set deleted on a deleted row
+  and not (e.deleted is true and t.deleted is null)
+#end
 ), existing_history as (
   insert into $historyTable ($insertColumns)
   select distinct on ($conflictColumns) $existingColumns

@@ -55,6 +55,11 @@ class ContractUpdateTransactionHandler extends AbstractEntityCrudTransactionHand
     protected void doUpdateEntity(Entity entity, RecordItem recordItem) {
         var transactionBody = recordItem.getTransactionBody().getContractUpdateInstance();
 
+        // Sidecar migration updates include deleted contracts, so leave deleted unset to not undelete them
+        if (isSidecarMigration(recordItem)) {
+            entity.setDeleted(null);
+        }
+
         if (transactionBody.hasExpirationTime()) {
             entity.setExpirationTimestamp(DomainUtils.timestampInNanosMax(transactionBody.getExpirationTime()));
         }
@@ -110,6 +115,16 @@ class ContractUpdateTransactionHandler extends AbstractEntityCrudTransactionHand
                 entity.getId(),
                 transactionBody.getHookCreationDetailsList(),
                 transactionBody.getHookIdsToDeleteList());
+    }
+
+    private static boolean isSidecarMigration(final RecordItem recordItem) {
+        for (final var sidecarRecord : recordItem.getSidecarRecords()) {
+            if (sidecarRecord.getMigration()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void updateStakingInfo(RecordItem recordItem, Entity entity) {

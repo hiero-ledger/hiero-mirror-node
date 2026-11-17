@@ -1141,6 +1141,115 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void onEntityDeletedSkipsUpdateWithoutDeleted() {
+        // given
+        final var deleted = domainBuilder
+                .entity()
+                .customize(e -> e.deleted(true).type(CONTRACT))
+                .persist();
+        final var update = deleted.toEntityId().toEntity();
+        update.setMemo("migration");
+        update.setTimestampLower(deleted.getTimestampLower() + 1);
+        update.setType(CONTRACT);
+
+        // when
+        sqlEntityListener.onEntity(update);
+        completeFileAndCommit();
+
+        // then
+        assertThat(entityRepository.findAll()).containsExactly(deleted);
+        assertThat(findHistory(Entity.class)).isEmpty();
+    }
+
+    @Test
+    void onEntityDeletedAppliesBalanceChange() {
+        // given
+        final var deleted = domainBuilder
+                .entity()
+                .customize(e -> e.balance(10L).deleted(true).type(CONTRACT))
+                .persist();
+        final var balanceChange = deleted.toEntityId().toEntity();
+        balanceChange.setBalance(5L);
+        balanceChange.setBalanceTimestamp(deleted.getTimestampLower() + 1);
+        balanceChange.setTimestampRange(null);
+
+        // when
+        sqlEntityListener.onEntity(balanceChange);
+        completeFileAndCommit();
+
+        // then
+        assertThat(entityRepository.findAll())
+                .singleElement()
+                .returns(15L, Entity::getBalance)
+                .returns(true, Entity::getDeleted)
+                .returns(deleted.getTimestampRange(), Entity::getTimestampRange);
+    }
+
+    @Test
+    void onEntityDeletedAppliesUndelete() {
+        // given
+        final var deleted = domainBuilder
+                .entity()
+                .customize(e -> e.deleted(true).type(CONTRACT))
+                .persist();
+        final var undelete = deleted.toEntityId().toEntity();
+        undelete.setDeleted(false);
+        undelete.setTimestampLower(deleted.getTimestampLower() + 1);
+        undelete.setType(CONTRACT);
+
+        // when
+        sqlEntityListener.onEntity(undelete);
+        completeFileAndCommit();
+
+        // then
+        assertThat(entityRepository.findAll())
+                .singleElement()
+                .returns(false, Entity::getDeleted)
+                .returns(undelete.getTimestampRange(), Entity::getTimestampRange);
+        assertThat(findHistory(Entity.class))
+                .singleElement()
+                .returns(true, Entity::getDeleted)
+                .returns(
+                        Range.closedOpen(deleted.getTimestampLower(), undelete.getTimestampLower()),
+                        Entity::getTimestampRange);
+    }
+
+    @Test
+    void onEntityDeletedAppliesUpdateFollowedByUndeleteInBatch() {
+        // given
+        final var deleted = domainBuilder
+                .entity()
+                .customize(e -> e.deleted(true).type(CONTRACT))
+                .persist();
+        final long updateTimestamp = deleted.getTimestampLower() + 1;
+        final long undeleteTimestamp = deleted.getTimestampLower() + 2;
+        final var update = deleted.toEntityId().toEntity();
+        update.setMemo("migration");
+        update.setTimestampLower(updateTimestamp);
+        update.setType(CONTRACT);
+        final var undelete = deleted.toEntityId().toEntity();
+        undelete.setDeleted(false);
+        undelete.setTimestampLower(undeleteTimestamp);
+        undelete.setType(CONTRACT);
+
+        // when
+        sqlEntityListener.onEntity(update);
+        sqlEntityListener.onEntity(undelete);
+        completeFileAndCommit();
+
+        // then the update is skipped
+        assertThat(entityRepository.findAll())
+                .singleElement()
+                .returns(false, Entity::getDeleted)
+                .returns(Range.atLeast(undeleteTimestamp), Entity::getTimestampRange);
+        assertThat(findHistory(Entity.class))
+                .singleElement()
+                .returns(true, Entity::getDeleted)
+                .returns(deleted.getMemo(), Entity::getMemo)
+                .returns(Range.closedOpen(deleted.getTimestampLower(), undeleteTimestamp), Entity::getTimestampRange);
+    }
+
+    @Test
     void onEntityPersistOriginalHistoryCreatedTimestamp() {
         var entity1 = domainBuilder.entity().get();
         sqlEntityListener.onEntity(entity1);

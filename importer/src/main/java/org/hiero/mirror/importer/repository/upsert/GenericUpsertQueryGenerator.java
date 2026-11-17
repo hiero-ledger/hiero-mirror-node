@@ -15,6 +15,7 @@ import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 @RequiredArgsConstructor
 public class GenericUpsertQueryGenerator implements UpsertQueryGenerator {
 
+    private static final String DELETED_COLUMN = "deleted";
     private static final String UPSERT_TEMPLATE = "/db/template/upsert.vm";
     private static final String UPSERT_HISTORY_TEMPLATE = "/db/template/upsert_history.vm";
 
@@ -59,6 +60,7 @@ public class GenericUpsertQueryGenerator implements UpsertQueryGenerator {
         velocityContext.put(
                 "notUpdatableColumn", metadata.column(c -> !c.isUpdatable(), "coalesce({0}, e_{0}) is not null"));
         velocityContext.put("skipPartialUpdate", metadata.getUpsertable().skipPartialUpdate());
+        velocityContext.put("skipUpdateWhenDeleted", isSkipUpdateWhenDeleted());
         velocityContext.put("updateColumns", metadata.columns(ColumnMetadata::isUpdatable, "{0} = excluded.{0}"));
 
         StringWriter writer = new StringWriter();
@@ -69,5 +71,20 @@ public class GenericUpsertQueryGenerator implements UpsertQueryGenerator {
     private String closeRange(String input) {
         return input.replace(
                 "e_timestamp_range", "int8range(lower(e_timestamp_range), lower(timestamp_range)) as timestamp_range");
+    }
+
+    private boolean isSkipUpdateWhenDeleted() {
+        final var upsertable = metadata.getUpsertable();
+        if (!upsertable.skipUpdateWhenDeleted()) {
+            return false;
+        }
+
+        if (!upsertable.history()
+                || metadata.getColumns().stream().noneMatch(column -> DELETED_COLUMN.equals(column.getName()))) {
+            throw new IllegalStateException(
+                    "skipUpdateWhenDeleted requires history and a deleted column: " + metadata.getTableName());
+        }
+
+        return true;
     }
 }

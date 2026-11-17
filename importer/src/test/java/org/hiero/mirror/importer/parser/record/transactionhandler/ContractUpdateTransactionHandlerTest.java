@@ -15,6 +15,9 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.BoolValue;
+import com.google.protobuf.ByteString;
+import com.hedera.services.stream.proto.ContractBytecode;
+import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractUpdateTransactionBody;
@@ -213,6 +216,30 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
                         .satisfies(c -> assertThat(EntityId.isEmpty(c.getProxyAccountId()))
                                 .isFalse()));
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
+    }
+
+    @Test
+    void updateTransactionSidecarMigration() {
+        // given
+        final var sidecar = TransactionSidecarRecord.newBuilder()
+                .setMigration(true)
+                .setBytecode(ContractBytecode.newBuilder().setRuntimeBytecode(ByteString.copyFrom(new byte[] {1})));
+        final var recordItem = recordItemBuilder
+                .contractUpdate()
+                .sidecarRecords(s -> s.add(sidecar))
+                .build();
+        final var transaction = transaction(recordItem);
+        when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.of(EntityId.of(10L)));
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener)
+                .onEntity(assertArg(entity -> assertThat(entity)
+                        .returns(null, Entity::getDeleted)
+                        .returns(Range.atLeast(recordItem.getConsensusTimestamp()), Entity::getTimestampRange)
+                        .returns(CONTRACT, Entity::getType)));
     }
 
     @Test

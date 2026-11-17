@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.parser.record.entity;
 import static com.hedera.services.stream.proto.ContractAction.CallerCase.CALLING_CONTRACT;
 import static com.hederahashgraph.api.proto.java.ContractUpdateTransactionBody.StakedIdCase.STAKEDID_NOT_SET;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
@@ -58,6 +59,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.ObjectAssert;
+import org.assertj.core.groups.Tuple;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -65,6 +67,7 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.contract.ContractStateChange;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
@@ -86,6 +89,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.util.Version;
@@ -829,6 +833,74 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
                 .first()
                 .returns(contract.getId(), Contract::getId)
                 .returns(runtimeBytecode, Contract::getRuntimeBytecode);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void contractUpdateSidecarMigrationDeleted(final boolean singleRecordFile) {
+        // given
+        final var entity = domainBuilder
+                .entity()
+                .customize(e -> e.deleted(false).type(CONTRACT))
+                .persist();
+        final var contractId = entity.toEntityId().toContractID();
+        final var contractDelete = recordItemBuilder
+                .contractDelete()
+                .transactionBody(b -> b.setContractID(contractId))
+                .receipt(r -> r.setContractID(contractId))
+                .build();
+        final var migrationUpdate = sidecarMigrationContractUpdate(contractId);
+
+        // when
+        if (singleRecordFile) {
+            parseRecordItemsAndCommit(List.of(contractDelete, migrationUpdate));
+        } else {
+            parseRecordItemAndCommit(contractDelete);
+            parseRecordItemAndCommit(migrationUpdate);
+        }
+
+        // then skipped, or a deleted revision when in the same batch as the delete
+        final long deleteTimestamp = contractDelete.getConsensusTimestamp();
+        final long migrationTimestamp = migrationUpdate.getConsensusTimestamp();
+        final var expectedHistory = new ArrayList<Tuple>();
+        expectedHistory.add(tuple(false, Range.closedOpen(entity.getTimestampLower(), deleteTimestamp)));
+        if (singleRecordFile) {
+            expectedHistory.add(tuple(true, Range.closedOpen(deleteTimestamp, migrationTimestamp)));
+        }
+
+        softly.assertThat(entityRepository.findById(entity.getId()))
+                .get()
+                .returns(true, Entity::getDeleted)
+                .returns(singleRecordFile ? migrationTimestamp : deleteTimestamp, Entity::getTimestampLower)
+                .returns(CONTRACT, Entity::getType);
+        softly.assertThat(findHistory(EntityHistory.class))
+                .extracting(EntityHistory::getDeleted, EntityHistory::getTimestampRange)
+                .containsExactlyInAnyOrderElementsOf(expectedHistory);
+    }
+
+    @Test
+    void contractUpdateSidecarMigrationThenSystemUndelete() {
+        // given
+        final var entity = domainBuilder
+                .entity()
+                .customize(e -> e.deleted(true).type(CONTRACT))
+                .persist();
+        final var contractId = entity.toEntityId().toContractID();
+        final var migrationUpdate = sidecarMigrationContractUpdate(contractId);
+        final var systemUndelete = recordItemBuilder
+                .systemUndelete()
+                .transactionBody(b -> b.clearFileID().setContractID(contractId))
+                .receipt(r -> r.setContractID(contractId))
+                .build();
+
+        // when
+        parseRecordItemsAndCommit(List.of(migrationUpdate, systemUndelete));
+
+        // then
+        softly.assertThat(entityRepository.findById(entity.getId()))
+                .get()
+                .returns(false, Entity::getDeleted)
+                .returns(systemUndelete.getConsensusTimestamp(), Entity::getTimestampLower);
     }
 
     @ParameterizedTest
@@ -2037,6 +2109,20 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
         } catch (Exception e) {
             return EntityId.EMPTY;
         }
+    }
+
+    private RecordItem sidecarMigrationContractUpdate(final ContractID contractId) {
+        final var contractBytecode = ContractBytecode.newBuilder()
+                .setContractId(contractId)
+                .setRuntimeBytecode(fromBytes(domainBuilder.bytes(32)));
+        final var sidecar =
+                TransactionSidecarRecord.newBuilder().setMigration(true).setBytecode(contractBytecode);
+        return recordItemBuilder
+                .contractUpdate()
+                .sidecarRecords(s -> s.add(sidecar))
+                .receipt(r -> r.setContractID(contractId))
+                .transactionBody(b -> b.setContractID(contractId))
+                .build();
     }
 
     private SetupResult setupContract(

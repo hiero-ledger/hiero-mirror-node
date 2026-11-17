@@ -30,7 +30,7 @@ import org.jspecify.annotations.Nullable;
 @MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
-@Upsertable(history = true)
+@Upsertable(history = true, skipUpdateWhenDeleted = true)
 public abstract class AbstractEntity implements History {
 
     public static final long ACCOUNT_ID_CLEARED = 0L;
