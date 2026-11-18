@@ -290,7 +290,7 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
             .realm(rs.getLong("realm"))
             .shard(rs.getLong("shard"))
             .createdTimestamp((Long) rs.getObject("created_timestamp"))
-            .timestampRange(org.hiero.mirror.common.util.RangeUtils.rangeLong(rs.getString("timestamp_range")))
+            .timestampRange(RangeUtils.rangeLong(rs.getString("timestamp_range")))
             .type(EntityType.valueOf(rs.getString("type")))
             .key(rs.getBytes("key"))
             .memo(rs.getString("memo"))
@@ -302,7 +302,7 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
     private final RowMapper<Topic> topicRowMapper = (rs, rowNum) -> Topic.builder()
             .id(rs.getLong("id"))
             .createdTimestamp((Long) rs.getObject("created_timestamp"))
-            .timestampRange(org.hiero.mirror.common.util.RangeUtils.rangeLong(rs.getString("timestamp_range")))
+            .timestampRange(RangeUtils.rangeLong(rs.getString("timestamp_range")))
             .adminKey(rs.getBytes("admin_key"))
             .submitKey(rs.getBytes("submit_key"))
             .build();
@@ -310,7 +310,7 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
     private final RowMapper<CustomFee> customFeeRowMapper = (rs, rowNum) -> CustomFee.builder()
             .entityId(rs.getLong("entity_id"))
             .fixedFees(Collections.emptyList())
-            .timestampRange(org.hiero.mirror.common.util.RangeUtils.rangeLong(rs.getString("timestamp_range")))
+            .timestampRange(RangeUtils.rangeLong(rs.getString("timestamp_range")))
             .build();
 
     @Builder(toBuilder = true)
