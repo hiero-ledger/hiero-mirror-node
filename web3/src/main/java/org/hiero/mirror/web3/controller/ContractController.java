@@ -16,7 +16,6 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.web3.Web3Properties;
-import org.hiero.mirror.web3.common.BlockOverrideAdvance;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.ThrottleException;
@@ -30,7 +29,6 @@ import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.viewmodel.ActionTraceBundle;
 import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
-import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
@@ -65,7 +63,6 @@ class ContractController {
     @PostMapping(value = "/call")
     ContractCallResponse call(@RequestBody @Valid ContractCallRequest request) {
         validateContractMaxGasLimit(request);
-        validateBlockOverrides(request.getBlockOverride());
         final var params = constructServiceParameters(request);
         validateStateOverrides(params.getStateOverrides());
 
@@ -91,16 +88,13 @@ class ContractController {
         GzipEncoding.validate(acceptEncoding);
 
         for (final var bundle : request.getBundles()) {
-            validateBlockOverrides(bundle.getBlockOverride());
             rejectNestedStateOverrides(bundle.getStateOverrides(), "bundle");
             for (final var transaction : bundle.getTransactions()) {
                 rejectEstimate(transaction);
-                rejectTransactionBlockOverride(transaction);
                 rejectNestedStateOverrides(transaction.getStateOverrides(), "transaction");
                 validateContractMaxGasLimit(transaction.getGas());
             }
         }
-        validateConsecutiveBlockOverrides(request.getBundles());
 
         final var traceCall = toTraceCall(request);
         validateTrace(traceCall);
@@ -139,10 +133,7 @@ class ContractController {
             for (final var transaction : bundle.getTransactions()) {
                 transactions.add(constructServiceParameters(transaction, block));
             }
-            bundles.add(TraceBundle.builder()
-                    .blockOverride(bundle.getBlockOverride())
-                    .transactions(transactions)
-                    .build());
+            bundles.add(TraceBundle.builder().transactions(transactions).build());
         }
         final var transactionIndex = request.getTransactionIndex();
         return TraceCall.builder()
@@ -202,7 +193,6 @@ class ContractController {
         final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
         return ContractExecutionParameters.builder()
                 .block(block)
-                .blockOverride(request.getBlockOverride())
                 .callData(hexToBytes(data))
                 .callType(callType)
                 .gas(request.getGas())
@@ -215,41 +205,13 @@ class ContractController {
                 .build();
     }
 
-    /**
-     * Later bundles must not move the EVM block backward. A bundle without {@code block_override} inherits the previous
-     * context and advances a set number by 1 and a set timestamp by 2 seconds. An explicit override that omits the block
-     * number keeps that number and increases it by 1. An explicit override that omits the timestamp keeps that
-     * timestamp and increases it by 2 seconds. A set number or timestamp is rejected when it is older than the
-     * inherited value.
-     */
-    private static void validateConsecutiveBlockOverrides(final List<ActionTraceBundle> bundles) {
-        Long previousNumber = null;
-        Long previousTime = null;
-        for (int bundleIndex = 0; bundleIndex < bundles.size(); bundleIndex++) {
-            final var next = BlockOverrideAdvance.next(
-                    previousNumber, previousTime, bundles.get(bundleIndex).getBlockOverride(), bundleIndex);
-            previousNumber = next.number();
-            previousTime = next.timeSeconds();
-        }
-    }
-
-    private void validateBlockOverrides(final @Nullable BlockOverride blockOverride) {
-        if (blockOverride != null && !web3Properties.isEnableBlockOverrides()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Block overrides are not supported.");
-        }
-    }
-
     private void validateStateOverrides(final List<StateOverride> stateOverrides) {
         if (!stateOverrides.isEmpty() && !web3Properties.isEnableStateOverrides()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
         }
     }
 
-    /**
-     * Rejects state overrides when they are disabled, a bad {@code transaction_index}, or a block cursor older than the
-     * bound record file before any rate token is taken. The first bundle's omitted header fields come from that record
-     * file's block number and consensus start.
-     */
+    /** Rejects state overrides when they are disabled before any rate token is taken. */
     private void validateTrace(final TraceCall traceCall) {
         validateStateOverrides(traceCall.getStateOverrides());
     }
@@ -275,13 +237,6 @@ class ContractController {
         if (!stateOverrides.isEmpty()) {
             throw new InvalidParametersException(
                     "state_overrides must be set on the request, not on a %s.".formatted(level));
-        }
-    }
-
-    /** A trace block override is allowed only on a bundle, so every transaction in the bundle shares it. */
-    private static void rejectTransactionBlockOverride(final ContractCallRequest transaction) {
-        if (transaction.getBlockOverride() != null) {
-            throw new InvalidParametersException("block_override must be set on the bundle, not on a transaction.");
         }
     }
 

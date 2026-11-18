@@ -43,10 +43,6 @@ public class ContractCallRequest {
     @NotNull
     private BlockType block = BlockType.LATEST;
 
-    @Nullable
-    @Valid
-    private BlockOverride blockOverride;
-
     @Hex(maxLength = DATA_MAX_LENGTH)
     private String data;
 

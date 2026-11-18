@@ -26,8 +26,6 @@ public class Web3Properties {
 
     private static final ApiProperties API_PROPERTIES = new ApiProperties();
 
-    private boolean enableBlockOverrides = false;
-
     private boolean enableStateOverrides = false;
 
     @NotNull

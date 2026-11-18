@@ -15,20 +15,14 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
- * One {@code debug_traceCallMany} bundle. Transactions run sequentially, share this bundle's {@code block_override},
- * and keep state changes for later bundles. The request state override stays in place for the whole trace.
+ * One {@code debug_traceCallMany} bundle. Transactions run sequentially and keep state changes for later bundles. The request state override stays in place for the whole trace.
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 @NullMarked
 public class ActionTraceBundle {
-
-    @Nullable
-    @Valid
-    private BlockOverride blockOverride;
 
     /** Accepted only so the controller can reject it. State overrides belong on {@link ActionTraceRequest}. */
     @JsonSetter(nulls = Nulls.SKIP)

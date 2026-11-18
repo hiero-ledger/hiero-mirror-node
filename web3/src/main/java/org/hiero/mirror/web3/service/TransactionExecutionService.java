@@ -251,7 +251,6 @@ public class TransactionExecutionService {
     }
 
     private Instant getConsensusTimeFromContext() {
-        // block_override.time changes only the EVM block header. Entity expiry and state reads follow this instant.
         return ContractCallContext.get()
                 .getTimestamp()
                 .map(Utils::convertToInstant)

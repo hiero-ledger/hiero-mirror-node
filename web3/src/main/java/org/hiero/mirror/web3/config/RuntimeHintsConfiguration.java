@@ -13,7 +13,6 @@ import com.hedera.node.app.hapi.utils.sysfiles.domain.throttling.ThrottleGroup;
 import com.swirlds.config.api.ConfigData;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
-import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -57,7 +56,6 @@ final class RuntimeHintsConfiguration {
 
             registerReflectionTypes(
                     hints,
-                    BlockOverride.class.getName(),
                     ContractCallContext.class.getName(),
                     ContractCallRequest.class.getName(),
                     ContractCallResponse.class.getName(),

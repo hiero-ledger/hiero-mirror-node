@@ -5,21 +5,16 @@ package org.hiero.mirror.web3.service;
 import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.utils.Constants.MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 
-import java.util.Objects;
-import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.web3.common.BlockOverrideAdvance;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.repository.TransactionRepository;
-import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.utils.Suppliers;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.jspecify.annotations.Nullable;
 
-/** Record-file binding, state timestamp, and block cursor shared by trace validation and execution. */
+/** Record-file binding and state timestamp shared by trace validation and execution. */
 public final class TraceCallState {
 
     private static final String TRANSACTION_INDEX_ERROR = "Invalid transaction_index";
@@ -34,19 +29,6 @@ public final class TraceCallState {
                 .orElseThrow(BlockNumberNotFoundException::new)));
     }
 
-    public static BlockOverrideAdvance.Cursor blockCursor(
-            final RecordFile recordFile,
-            final BlockOverrideAdvance.@Nullable Cursor previous,
-            final TraceBundle bundle,
-            final int bundleIndex) {
-        if (bundleIndex == 0) {
-            final long recordNumber = recordFile.getIndex() == null ? 0L : recordFile.getIndex();
-            return BlockOverrideAdvance.first(recordNumber, headerSeconds(recordFile), bundle.getBlockOverride());
-        }
-        final var prior = Objects.requireNonNull(previous);
-        return BlockOverrideAdvance.next(prior.number(), prior.timeSeconds(), bundle.getBlockOverride(), bundleIndex);
-    }
-
     /**
      * State timestamp for the whole trace. The record file comes from the request's {@code block} through the supplier
      * installed for the whole trace. When {@code block} is {@code latest}, {@code transaction_index} has no effect and
@@ -55,8 +37,7 @@ public final class TraceCallState {
      * first transaction. A positive index {@code N} is one nanosecond after the consensus timestamp of the block's Nth
      * top-level {@code ContractCall}, {@code ContractCreate}, or {@code EthereumTransaction}, so the state includes that
      * transaction. A scheduled execution may fall after the record file's consensus end, within the scheduled consensus
-     * window. Child rows, duplicates, and other transaction types are skipped. {@code block_override} changes only the
-     * EVM block header.
+     * window. Child rows, duplicates, and other transaction types are skipped.
      */
     public static @Nullable Long resolveStateTimestamp(
             final ContractCallContext context,
@@ -84,12 +65,6 @@ public final class TraceCallState {
                         consensusStart, consensusEnd, scheduledConsensusTimestampEnd, transactionIndex)
                 .orElseThrow(TraceCallState::transactionIndexOutOfRange);
         return offset(transactionTimestamp, 1L);
-    }
-
-    /** EVM block timestamp seconds for a record file. Uses consensus start, the same header time as eth_call. */
-    private static long headerSeconds(final RecordFile recordFile) {
-        final var consensusStart = recordFile.getConsensusStart();
-        return consensusStart == null ? 0L : Math.floorDiv(consensusStart, DomainUtils.NANOS_PER_SECOND);
     }
 
     private static long offset(final long timestamp, final long nanos) {

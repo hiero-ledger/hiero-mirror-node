@@ -22,10 +22,8 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.state.Utils;
-import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
-import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings("deprecation")
 @Getter
@@ -111,13 +109,6 @@ public class ContractCallContext {
     @Setter
     private long traceDataBytes;
 
-    /**
-     * The current {@code block_override}. {@link EvmBlockOverride#EMPTY} keeps the bound record file's block header and
-     * the message frame values.
-     */
-    @Setter
-    private EvmBlockOverride evmBlockOverride = EvmBlockOverride.EMPTY;
-
     private ContractCallContext() {}
 
     public static ContractCallContext get() {
@@ -133,14 +124,6 @@ public class ContractCallContext {
      */
     public static boolean isBalanceCallSafe() {
         return SCOPED_VALUE.isBound() && SCOPED_VALUE.get().isBalanceCall();
-    }
-
-    /**
-     * Safe helper that returns the current call's {@code block_override} without throwing when unbound. An unbound
-     * context, such as executor warm-up at startup, has no override.
-     */
-    public static EvmBlockOverride getEvmBlockOverrideSafe() {
-        return SCOPED_VALUE.isBound() ? SCOPED_VALUE.get().getEvmBlockOverride() : EvmBlockOverride.EMPTY;
     }
 
     @SneakyThrows
@@ -177,16 +160,6 @@ public class ContractCallContext {
         writeCache.clear();
     }
 
-    /**
-     * Drops one cached state so the next read reloads it. Other states stay, including account and storage changes
-     * carried from an earlier trace bundle.
-     */
-    public void evictCachedState(final int stateId) {
-        readCache.remove(stateId);
-        writeCache.remove(stateId);
-        committedCache.remove(stateId);
-    }
-
     public boolean useHistorical() {
         return callServiceParameters != null && callServiceParameters.getBlock() != BlockType.LATEST;
     }
@@ -197,7 +170,7 @@ public class ContractCallContext {
      * the replayed transaction. An action trace returns {@link #timestamp} when one is set. {@code transaction_index}
      * {@code 0} starts at the beginning of the block. {@code transaction_index} {@code -1} starts after every
      * transaction in the block. The same timestamp applies to every bundle. A historical action trace with no
-     * timestamp reads the record file's consensus end. {@code block_override.time} is not part of this timestamp.
+     * timestamp reads the record file's consensus end.
      */
     public Optional<Long> getTimestamp() {
         if (opcodeContext != null) {
@@ -272,33 +245,6 @@ public class ContractCallContext {
             addressToAccounts.put(Bytes.wrap(Utils.parseHex(stateOverride.getAddress())), stateOverride);
         }
         this.stateOverrides = addressToAccounts;
-    }
-
-    /**
-     * Applies a {@code block_override} for {@code eth_call} and {@code eth_estimateGas}. A null override clears every
-     * field.
-     */
-    public void applyBlockOverride(final @Nullable BlockOverride override) {
-        evmBlockOverride = EvmBlockOverride.from(override);
-    }
-
-    /**
-     * Applies one trace bundle's block context. {@code cursor} carries the resolved block number and timestamp,
-     * including increments from the previous bundle. The bundle's other override fields apply only to this bundle and
-     * are not inherited by later bundles.
-     */
-    public void applyBlockOverride(final BlockOverrideAdvance.Cursor cursor, final @Nullable BlockOverride override) {
-        evmBlockOverride = EvmBlockOverride.from(override).withHeader(cursor.number(), cursor.timeSeconds());
-    }
-
-    public long evmBlockNumber(final long fallback) {
-        final var blockNumber = evmBlockOverride.blockNumber();
-        return blockNumber != null ? blockNumber : fallback;
-    }
-
-    public long evmBlockTimeNanos(final long fallback) {
-        final var timeNanos = evmBlockOverride.timeNanos();
-        return timeNanos != null ? timeNanos : fallback;
     }
 
     /**

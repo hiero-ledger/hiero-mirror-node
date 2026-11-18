@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
-import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REVERT_REASON;
 import static com.hedera.services.stream.proto.ContractActionType.SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,13 +36,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
 import org.hiero.mirror.rest.model.Opcode;
@@ -65,7 +62,6 @@ import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
-import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
@@ -166,7 +162,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT, null));
+        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
 
         // Then
         assertThat(result).containsExactly(topLevelAction);
@@ -181,7 +177,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(traceCall(params, true, DEFAULT_TIMEOUT, null));
+        final var result = contractDebugService.processTraceCall(traceCall(params, true, DEFAULT_TIMEOUT));
 
         // Then
         assertThat(result).containsExactly(topLevelAction);
@@ -197,7 +193,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         publishFixtureBlock();
 
         // When
-        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT, null));
+        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
 
         // Then
         assertThat(result).isNotEmpty();
@@ -213,10 +209,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         publishFixtureBlock();
 
         // When
-        final var allActions =
-                contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT, null));
-        final var topCallOnly =
-                contractDebugService.processTraceCall(traceCall(params, true, INTEGRATION_TIMEOUT, null));
+        final var allActions = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
+        final var topCallOnly = contractDebugService.processTraceCall(traceCall(params, true, INTEGRATION_TIMEOUT));
 
         // Then
         assertThat(allActions).hasSize(1);
@@ -234,8 +228,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var params = getContractExecutionParameters(functionCall, contract);
         publishFixtureBlock();
 
-        final var allActions =
-                contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT, null));
+        final var allActions = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
         final var topCallsOnly = contractDebugService.processTraceCall(TraceCall.builder()
                 .bundles(List.of(
                         TraceBundle.builder()
@@ -311,7 +304,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var deadlineWindow = new AtomicLong();
         stubActionsAndCaptureDeadline(deadlineWindow, action("0x02", TypeEnum.CALL));
 
-        contractDebugService.processTraceCall(traceCall(executionParameters(), false, Duration.ofSeconds(2), null));
+        contractDebugService.processTraceCall(traceCall(executionParameters(), false, Duration.ofSeconds(2)));
 
         assertThat(deadlineWindow).hasValue(Duration.ofSeconds(2).toMillis());
     }
@@ -323,38 +316,12 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var params = getContractExecutionParameters(functionCall, contract);
         publishFixtureBlock();
 
-        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT, null));
+        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
 
         assertThat(result).isNotEmpty();
         assertThat(result.getFirst().getCalls())
                 .extracting(ActionResponse::getTo)
                 .anyMatch(to -> Address.SHA256.toHexString().equalsIgnoreCase(to));
-    }
-
-    @Test
-    void processTraceCallAppliesBlockOverrideNumber() {
-        final var captured = new AtomicReference<Long>();
-        stubActionsAndCaptureContext(
-                ctx -> captured.set(ctx.getEvmBlockOverride().blockNumber()), action("0x02", TypeEnum.CALL));
-        final var override = new BlockOverride();
-        override.setBlockNumber(256L);
-
-        contractDebugService.processTraceCall(traceCall(executionParameters(), false, DEFAULT_TIMEOUT, override));
-
-        assertThat(captured).hasValue(256L);
-    }
-
-    @Test
-    void processTraceCallAppliesBlockOverrideTime() {
-        final var captured = new AtomicReference<Long>();
-        stubActionsAndCaptureContext(
-                ctx -> captured.set(ctx.getEvmBlockOverride().timeNanos()), action("0x02", TypeEnum.CALL));
-        final var override = new BlockOverride();
-        override.setTime(1710874816L);
-
-        contractDebugService.processTraceCall(traceCall(executionParameters(), false, DEFAULT_TIMEOUT, override));
-
-        assertThat(captured).hasValue(DomainUtils.convertToNanosMax(1710874816L, 0));
     }
 
     @Test
@@ -466,8 +433,6 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                         .consensusEnd(consensusEnd)
                         .count(1L))
                 .persist();
-        final var timed = new BlockOverride();
-        timed.setTime(1710874816L);
         final var timestamps = new ArrayList<Optional<Long>>();
         doAnswer(invocation -> {
                     timestamps.add(ContractCallContext.get().getTimestamp());
@@ -487,7 +452,6 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                                 .transactions(List.of(executionParameters(), executionParameters()))
                                 .build(),
                         TraceBundle.builder()
-                                .blockOverride(timed)
                                 .transactions(List.of(executionParameters()))
                                 .build()))
                 .timeout(DEFAULT_TIMEOUT)
@@ -584,11 +548,6 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     @Test
     void processTraceCallKeepsTransactionTimestampTheSame() {
         final long stateTimestamp = 1_700_000_000_000_000_000L;
-        final var blockOverride = new BlockOverride();
-        blockOverride.setBlockNumber(256L);
-        blockOverride.setTime(1710874816L);
-        final var numberOnly = new BlockOverride();
-        numberOnly.setBlockNumber(512L);
         domainBuilder
                 .recordFile()
                 .customize(recordFile -> recordFile
@@ -601,12 +560,10 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         // transaction_index 1 selects this second transaction.
         persistTransaction(stateTimestamp + 1_000L);
         final var timestamps = new ArrayList<Optional<Long>>();
-        final var headerTimes = new ArrayList<Long>();
         doAnswer(invocation -> {
                     final var ctx = ContractCallContext.get();
                     final var timestamp = ctx.getTimestamp();
                     timestamps.add(timestamp);
-                    headerTimes.add(ctx.getEvmBlockOverride().timeNanos());
                     assertThat(ctx.getTimestampForSystemFiles()).isEqualTo(timestamp.map(time -> time + 1));
                     return new EvmTransactionResult(
                             SUCCESS,
@@ -627,34 +584,21 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                                 .transactions(List.of(executionParameters()))
                                 .build(),
                         TraceBundle.builder()
-                                .blockOverride(blockOverride)
                                 .transactions(List.of(executionParameters(), executionParameters()))
                                 .build(),
                         TraceBundle.builder()
                                 .transactions(List.of(executionParameters()))
                                 .build(),
                         TraceBundle.builder()
-                                .blockOverride(numberOnly)
                                 .transactions(List.of(executionParameters()))
                                 .build()))
                 .timeout(DEFAULT_TIMEOUT)
                 .transactionIndex(1)
                 .build());
 
-        final long step = DomainUtils.convertToNanosMax(2L, 0L);
-        final long overrideNanos = DomainUtils.convertToNanosMax(1710874816L, 0L);
         final var stateRead = Optional.of(stateTimestamp + 1_001L);
         assertThat(timestamps)
                 .containsExactly(stateRead, stateRead, stateRead, stateRead, stateRead, stateRead, stateRead);
-        assertThat(headerTimes)
-                .containsExactly(
-                        stateTimestamp,
-                        stateTimestamp,
-                        stateTimestamp + step,
-                        overrideNanos,
-                        overrideNanos,
-                        overrideNanos + step,
-                        overrideNanos + step * 2);
     }
 
     @Test
@@ -673,15 +617,12 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        final var timed = new BlockOverride();
-        timed.setTime(latestHeaderTime());
         contractDebugService.processTraceCall(TraceCall.builder()
                 .bundles(List.of(
                         TraceBundle.builder()
                                 .transactions(List.of(executionParameters(), executionParameters()))
                                 .build(),
                         TraceBundle.builder()
-                                .blockOverride(timed)
                                 .transactions(List.of(executionParameters()))
                                 .build()))
                 .timeout(DEFAULT_TIMEOUT)
@@ -691,13 +632,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     @Test
-    void processTraceCallKeepsStateAcrossBundlesAndAppliesBlockOverrides() {
+    void processTraceCallKeepsStateAcrossBundles() {
         final var stateOverride = stateOverride("00000000000000000000000000000000000004e4");
-        final var blockNumber = new BlockOverride();
-        blockNumber.setBlockNumber(256L);
-        final var blockTime = new BlockOverride();
-        blockTime.setTime(1710874816L);
-        final var expectedTimeNanos = DomainUtils.convertToNanosMax(1710874816L, 0);
         final var recordFile = persistRecordFile(40L);
         final var snapshots = new ArrayList<OverrideSnapshot>();
 
@@ -707,7 +643,6 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                     if (snapshots.size() == 1) {
                         ctx.getReadCacheState(1).put("previous-trace", "read");
                         ctx.getWriteCacheState(1).put("previous-trace", "write");
-                        ctx.getReadCacheState(BLOCKS_STATE_ID).put("block-header", "cached");
                     }
                     ctx.getActionContext().addAction(action("0x0" + snapshots.size(), TypeEnum.CALL), 0);
                     return new EvmTransactionResult(
@@ -723,14 +658,12 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .block(BlockType.of(Long.toString(recordFile.getIndex())))
                 .bundles(List.of(
                         TraceBundle.builder()
-                                .blockOverride(blockNumber)
                                 .transactions(List.of(executionParameters(), executionParameters()))
                                 .build(),
                         TraceBundle.builder()
                                 .transactions(List.of(executionParameters()))
                                 .build(),
                         TraceBundle.builder()
-                                .blockOverride(blockTime)
                                 .transactions(List.of(executionParameters()))
                                 .build()))
                 .stateOverrides(List.of(stateOverride))
@@ -742,99 +675,13 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         final var firstInBundle = snapshots.get(0);
         assertThat(firstInBundle.stateOverrides()).containsExactly(stateOverride);
-        assertThat(firstInBundle.blockNumber()).isEqualTo(256L);
-        assertThat(firstInBundle.blockTimeNanos()).isZero();
         assertThat(firstInBundle.readLeaked()).isFalse();
-        assertThat(firstInBundle.blockHeaderCached()).isFalse();
 
-        final var secondInBundle = snapshots.get(1);
-        assertThat(secondInBundle.stateOverrides()).containsExactly(stateOverride);
-        assertThat(secondInBundle.blockNumber()).isEqualTo(256L);
-        assertThat(secondInBundle.blockTimeNanos()).isZero();
-        assertThat(secondInBundle.readLeaked()).isTrue();
-        assertThat(secondInBundle.writeLeaked()).isTrue();
-        assertThat(secondInBundle.blockHeaderCached()).isTrue();
-
-        final var nextBundle = snapshots.get(2);
-        assertThat(nextBundle.stateOverrides()).containsExactly(stateOverride);
-        assertThat(nextBundle.blockNumber()).isEqualTo(257L);
-        assertThat(nextBundle.blockTimeNanos()).isEqualTo(DomainUtils.convertToNanosMax(2L, 0L));
-        assertThat(nextBundle.readLeaked()).isTrue();
-        assertThat(nextBundle.writeLeaked()).isTrue();
-        assertThat(nextBundle.blockHeaderCached()).isFalse();
-
-        final var timedBundle = snapshots.get(3);
-        assertThat(timedBundle.stateOverrides()).containsExactly(stateOverride);
-        assertThat(timedBundle.blockNumber()).isEqualTo(258L);
-        assertThat(timedBundle.blockTimeNanos()).isEqualTo(expectedTimeNanos);
-        assertThat(timedBundle.readLeaked()).isTrue();
-        assertThat(timedBundle.writeLeaked()).isTrue();
-        assertThat(timedBundle.blockHeaderCached()).isFalse();
-    }
-
-    @Test
-    void processTraceCallAdvancesBlockOverrideWhenLaterBundleOmitsIt() {
-        final var blockNumber = new BlockOverride();
-        blockNumber.setBlockNumber(256L);
-        final var blockTime = new BlockOverride();
-        blockTime.setTime(1710874816L);
-        final var expectedTimeNanos = DomainUtils.convertToNanosMax(1710874816L, 0);
-        final var recordFile = persistRecordFile(41L);
-        final var twoSecondsNanos = DomainUtils.convertToNanosMax(2L, 0L);
-        final var laterNumber = new BlockOverride();
-        laterNumber.setBlockNumber(512L);
-        final var snapshots = new ArrayList<OverrideSnapshot>();
-
-        doAnswer(invocation -> {
-                    snapshots.add(OverrideSnapshot.capture(ContractCallContext.get()));
-                    return new EvmTransactionResult(
-                            SUCCESS,
-                            ContractFunctionResult.newBuilder()
-                                    .gasUsed(TRANSACTION_GAS_LIMIT)
-                                    .build());
-                })
-                .when(transactionExecutionService)
-                .execute(any(), anyLong());
-
-        contractDebugService.processTraceCall(TraceCall.builder()
-                .block(BlockType.of(Long.toString(recordFile.getIndex())))
-                .bundles(List.of(
-                        TraceBundle.builder()
-                                .blockOverride(blockNumber)
-                                .transactions(List.of(executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .blockOverride(blockTime)
-                                .transactions(List.of(executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .blockOverride(laterNumber)
-                                .transactions(List.of(executionParameters()))
-                                .build()))
-                .timeout(DEFAULT_TIMEOUT)
-                .build());
-
-        assertThat(snapshots)
-                .extracting(OverrideSnapshot::blockNumber)
-                .containsExactly(256L, 257L, 258L, 259L, 260L, 512L);
-        assertThat(snapshots)
-                .extracting(OverrideSnapshot::blockTimeNanos)
-                .containsExactly(
-                        0L,
-                        twoSecondsNanos,
-                        twoSecondsNanos * 2,
-                        expectedTimeNanos,
-                        expectedTimeNanos + twoSecondsNanos,
-                        expectedTimeNanos + twoSecondsNanos * 2);
+        for (final var later : snapshots.subList(1, snapshots.size())) {
+            assertThat(later.stateOverrides()).containsExactly(stateOverride);
+            assertThat(later.readLeaked()).isTrue();
+            assertThat(later.writeLeaked()).isTrue();
+        }
     }
 
     @Test
@@ -876,9 +723,13 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     void processTraceCallRestoresUnusedAndUnstartedGas() {
         clearInvocations(throttleManager);
         final var first = action("0x01", TypeEnum.CALL);
+        final var calls = new AtomicInteger();
+        // The second bundle's transaction fails, so the third bundle never starts.
         doAnswer(invocation -> {
-                    final var ctx = ContractCallContext.get();
-                    ctx.getActionContext().addAction(first, 0);
+                    if (calls.incrementAndGet() > 1) {
+                        throw new MirrorEvmTransactionException(PAYER_ACCOUNT_NOT_FOUND, "sender not found", "0x");
+                    }
+                    ContractCallContext.get().getActionContext().addAction(first, 0);
                     return new EvmTransactionResult(
                             SUCCESS,
                             ContractFunctionResult.newBuilder()
@@ -888,11 +739,6 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        // The second bundle moves the block number backward, which fails before its transaction starts.
-        final var firstOverride = new BlockOverride();
-        firstOverride.setBlockNumber(300L);
-        final var invalidOverride = new BlockOverride();
-        invalidOverride.setBlockNumber(200L);
         final var failedParams = ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
                 .callData(new byte[0])
@@ -915,11 +761,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         assertThatThrownBy(() -> contractDebugService.processTraceCall(TraceCall.builder()
                         .bundles(List.of(
                                 TraceBundle.builder()
-                                        .blockOverride(firstOverride)
                                         .transactions(List.of(executionParameters()))
                                         .build(),
                                 TraceBundle.builder()
-                                        .blockOverride(invalidOverride)
                                         .transactions(List.of(failedParams))
                                         .build(),
                                 TraceBundle.builder()
@@ -927,46 +771,11 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                                         .build()))
                         .timeout(DEFAULT_TIMEOUT)
                         .build()))
-                .isInstanceOf(InvalidParametersException.class)
-                .hasMessageContaining("block_override.block_number on bundle 1 is older than bundle 0");
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .hasMessageContaining(PAYER_ACCOUNT_NOT_FOUND.name());
+        assertThat(calls).hasValue(2);
         verify(throttleManager).restore(0L);
-        verify(throttleManager).restore(TRANSACTION_GAS_LIMIT / 2);
         verify(throttleManager).restore(TRANSACTION_GAS_LIMIT / 4);
-    }
-
-    @Test
-    void processCallAppliesBlockOverride() {
-        final var capturedNumber = new AtomicReference<Long>();
-        final var capturedTime = new AtomicReference<Long>();
-        doAnswer(invocation -> {
-                    final var ctx = ContractCallContext.get();
-                    capturedNumber.set(ctx.getEvmBlockOverride().blockNumber());
-                    capturedTime.set(ctx.getEvmBlockOverride().timeNanos());
-                    return new EvmTransactionResult(
-                            SUCCESS,
-                            ContractFunctionResult.newBuilder()
-                                    .gasUsed(TRANSACTION_GAS_LIMIT)
-                                    .build());
-                })
-                .when(transactionExecutionService)
-                .execute(any(), anyLong());
-        final var override = new BlockOverride();
-        override.setBlockNumber(256L);
-
-        contractExecutionService.processCall(executionParameters(override));
-
-        assertThat(capturedNumber).hasValue(256L);
-        assertThat(capturedTime.get()).isNull();
-    }
-
-    @Test
-    void processCallRejectsInvalidBlockOverride() {
-        final var override = new BlockOverride();
-        override.setBlockNumber(-1L);
-
-        assertThatThrownBy(() -> contractExecutionService.processCall(executionParameters(override)))
-                .isInstanceOf(InvalidParametersException.class)
-                .hasMessageContaining("Invalid block_override");
     }
 
     /**
@@ -1029,15 +838,6 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
             }
         }
         return actions;
-    }
-
-    private long latestHeaderTime() {
-        recordFileLatestCacheManager.getCache(CACHE_NAME_RECORD_FILE_LATEST).invalidate();
-        final var latest = recordFileRepository.findLatest().orElseThrow();
-        final var consensusStart = latest.getConsensusStart();
-        final long headerSeconds =
-                consensusStart == null ? 0L : Math.floorDiv(consensusStart, DomainUtils.NANOS_PER_SECOND);
-        return headerSeconds;
     }
 
     private RecordFile persistRecordFile(final long index) {
@@ -1109,13 +909,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     private ContractExecutionParameters executionParameters() {
-        return executionParameters(null);
-    }
-
-    private ContractExecutionParameters executionParameters(final BlockOverride blockOverride) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .blockOverride(blockOverride)
                 .callData(new byte[0])
                 .callType(ETH_CALL)
                 .gas(TRANSACTION_GAS_LIMIT)
@@ -1171,40 +966,25 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     private static TraceCall traceCall(
-            final ContractExecutionParameters params,
-            final boolean onlyTopCall,
-            final Duration timeout,
-            final BlockOverride blockOverride) {
+            final ContractExecutionParameters params, final boolean onlyTopCall, final Duration timeout) {
         return TraceCall.builder()
-                .bundles(List.of(TraceBundle.builder()
-                        .blockOverride(blockOverride)
-                        .transactions(List.of(params))
-                        .build()))
+                .bundles(List.of(
+                        TraceBundle.builder().transactions(List.of(params)).build()))
                 .onlyTopCall(onlyTopCall)
                 .timeout(timeout)
                 .build();
     }
 
-    private record OverrideSnapshot(
-            List<StateOverride> stateOverrides,
-            Long blockNumber,
-            Long blockTimeNanos,
-            boolean readLeaked,
-            boolean writeLeaked,
-            boolean blockHeaderCached) {
+    private record OverrideSnapshot(List<StateOverride> stateOverrides, boolean readLeaked, boolean writeLeaked) {
 
         private static final String LEAKED_KEY = "previous-trace";
-        private static final String BLOCK_HEADER_KEY = "block-header";
 
         private static OverrideSnapshot capture(final ContractCallContext ctx) {
             final var overrides = ctx.getStateOverrides();
             return new OverrideSnapshot(
                     overrides == null ? List.of() : List.copyOf(overrides.values()),
-                    ctx.getEvmBlockOverride().blockNumber(),
-                    ctx.getEvmBlockOverride().timeNanos(),
                     ctx.getReadCacheState(1).containsKey(LEAKED_KEY),
-                    ctx.getWriteCacheState(1).containsKey(LEAKED_KEY),
-                    ctx.getReadCacheState(BLOCKS_STATE_ID).containsKey(BLOCK_HEADER_KEY));
+                    ctx.getWriteCacheState(1).containsKey(LEAKED_KEY));
         }
     }
 

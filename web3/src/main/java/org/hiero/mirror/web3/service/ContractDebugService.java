@@ -2,9 +2,6 @@
 
 package org.hiero.mirror.web3.service;
 
-import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID;
-import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
-
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
@@ -12,7 +9,6 @@ import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.hiero.mirror.rest.model.ActionResponse;
-import org.hiero.mirror.web3.common.BlockOverrideAdvance;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
@@ -95,12 +91,8 @@ public class ContractDebugService extends ContractCallService {
                 if (timestamp != null) {
                     context.setTimestamp(Optional.of(timestamp));
                 }
-                final var recordFile = context.getRecordFile();
-                BlockOverrideAdvance.Cursor cursor = null;
-                for (int bundleIndex = 0; bundleIndex < bundles.size(); bundleIndex++) {
-                    final var bundle = bundles.get(bundleIndex);
-                    cursor = TraceCallState.blockCursor(recordFile, cursor, bundle, bundleIndex);
-                    final var progress = executeBundle(context, actionContext, bundle, cursor, started);
+                for (final var bundle : bundles) {
+                    final var progress = executeBundle(context, actionContext, bundle, started);
                     started = progress.started();
                     final var failure = progress.failure();
                     if (failure != null) {
@@ -122,12 +114,7 @@ public class ContractDebugService extends ContractCallService {
             final ContractCallContext context,
             final ActionContext actionContext,
             final TraceBundle bundle,
-            final BlockOverrideAdvance.Cursor cursor,
             final int started) {
-        context.evictCachedState(BLOCKS_STATE_ID);
-        context.evictCachedState(BLOCK_STREAM_INFO_STATE_ID);
-        context.applyBlockOverride(cursor, bundle.getBlockOverride());
-
         int executed = started;
         for (final var transaction : bundle.getTransactions()) {
             actionContext.beginCall();

@@ -75,7 +75,6 @@ import org.hiero.mirror.web3.viewmodel.AccessListEntry;
 import org.hiero.mirror.web3.viewmodel.ActionTraceBundle;
 import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
 import org.hiero.mirror.web3.viewmodel.AuthorizationListEntry;
-import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -90,7 +89,6 @@ import org.hiero.mirror.web3.web3j.generated.ExchangeRatePrecompileHistorical;
 import org.hiero.mirror.web3.web3j.generated.NestedCallsHistorical;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContractHistorical;
 import org.hiero.mirror.web3.web3j.generated.TestAddressThis;
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -171,7 +169,6 @@ final class ContractControllerTest {
     void setUp() {
         requestMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
         actionsProperties.setTraceMultipleTransactions(true);
-        web3Properties.setEnableBlockOverrides(true);
         web3Properties.setEnableStateOverrides(true);
         throttleManager.throttle(any(ContractCallRequest.class));
         web3Properties.getApi(CALL).setEnabled(true);
@@ -802,22 +799,6 @@ final class ContractControllerTest {
     }
 
     @Test
-    void actionsCallRejectsBlockOverrideWhenDisabled() throws Exception {
-        enableActionsApi();
-        web3Properties.setEnableBlockOverrides(false);
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        final var override = new BlockOverride();
-        override.setBlockNumber(256L);
-        bundle(request).setBlockOverride(override);
-
-        contractActionsCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string(new StringContains("Block overrides are not supported.")));
-        verify(contractDebugService, never()).processTraceCall(any());
-    }
-
-    @Test
     void actionsCallUsesRequestBlockForEveryTransaction() throws Exception {
         enableActionsApi();
         final var request = traceRequest();
@@ -879,151 +860,6 @@ final class ContractControllerTest {
     }
 
     @Test
-    void actionsCallAcceptsBlockOverrideNumberAndTime() throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        final var override = new BlockOverride();
-        override.setBlockNumber(256L);
-        override.setTime(1710874816L);
-        bundle(request).setBlockOverride(override);
-        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSES);
-
-        contractActionsCall(request).andExpect(status().isOk());
-        verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> {
-            final var blockOverride = call.getBundles().getFirst().getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(256L).equals(blockOverride.getBlockNumber())
-                    && Long.valueOf(1710874816L).equals(blockOverride.getTime());
-        }));
-    }
-
-    @Test
-    void actionsCallAcceptsBlockOverrideNumber() throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        final var override = new BlockOverride();
-        override.setBlockNumber(256L);
-        bundle(request).setBlockOverride(override);
-        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSES);
-
-        contractActionsCall(request).andExpect(status().isOk());
-        verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> {
-            if (call.getBundles().size() != 1) {
-                return false;
-            }
-            final var blockOverride = call.getBundles().getFirst().getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(256L).equals(blockOverride.getBlockNumber())
-                    && blockOverride.getTime() == null;
-        }));
-    }
-
-    @Test
-    void actionsCallAcceptsBlockOverrideTime() throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        final var override = new BlockOverride();
-        override.setTime(1710874816L);
-        bundle(request).setBlockOverride(override);
-        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSES);
-
-        contractActionsCall(request).andExpect(status().isOk());
-        verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> {
-            if (call.getBundles().size() != 1) {
-                return false;
-            }
-            final var blockOverride = call.getBundles().getFirst().getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(1710874816L).equals(blockOverride.getTime())
-                    && blockOverride.getBlockNumber() == null;
-        }));
-    }
-
-    @Test
-    void actionsCallRejectsOlderBlockNumber() throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        bundle(request).setBlockOverride(blockNumber(256L));
-        request.getBundles().add(tracedBundle(blockNumber(255L)));
-
-        contractActionsCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content()
-                        .string(new StringContains("block_override.block_number on bundle 1 is older than bundle 0")));
-        verify(contractDebugService, never()).processTraceCall(any());
-    }
-
-    @Test
-    void actionsCallRejectsOlderBlockTime() throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        bundle(request).setBlockOverride(blockTime(1710874816L));
-        request.getBundles().add(tracedBundle(blockTime(1710874815L)));
-
-        contractActionsCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(
-                        content().string(new StringContains("block_override.time on bundle 1 is older than bundle 0")));
-        verify(contractDebugService, never()).processTraceCall(any());
-    }
-
-    @Test
-    void actionsCallRejectsBlockNumberOlderThanAdvancedPreviousBundle() throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        bundle(request).setBlockOverride(blockNumber(256L));
-        request.getBundles().add(tracedBundle(null));
-        request.getBundles().add(tracedBundle(blockNumber(256L)));
-
-        contractActionsCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content()
-                        .string(new StringContains("block_override.block_number on bundle 2 is older than bundle 1")));
-        verify(contractDebugService, never()).processTraceCall(any());
-    }
-
-    @Test
-    void actionsCallRejectsBlockTimeOlderThanAdvancedPreviousBundle() throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        bundle(request).setBlockOverride(blockTime(1710874816L));
-        request.getBundles().add(tracedBundle(null));
-        request.getBundles().add(tracedBundle(blockTime(1710874817L)));
-
-        contractActionsCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(
-                        content().string(new StringContains("block_override.time on bundle 2 is older than bundle 1")));
-        verify(contractDebugService, never()).processTraceCall(any());
-    }
-
-    @Test
-    void actionsCallAcceptsNonDecreasingBlockOverrides() throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        bundle(request).setBlockOverride(blockNumber(256L));
-        request.getBundles().add(tracedBundle(blockNumber(256L)));
-        request.getBundles().add(tracedBundle(null));
-        request.getBundles().add(tracedBundle(blockNumber(258L)));
-        request.getBundles().add(tracedBundle(blockTime(1710874816L)));
-        request.getBundles().add(tracedBundle(null));
-        request.getBundles().add(tracedBundle(blockTime(1710874818L)));
-        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSES);
-
-        contractActionsCall(request).andExpect(status().isOk());
-        verify(contractDebugService)
-                .processTraceCall(argThat((TraceCall call) -> call.getBundles().size() == 7));
-    }
-
-    @Test
     void actionsCallSerializesDeeplyNestedCalls() throws Exception {
         enableActionsApi();
         final var request = traceRequest();
@@ -1048,223 +884,6 @@ final class ContractControllerTest {
                                 """))
                 .andExpect(status().isOk());
         verify(service).processCall(argThat(params -> params.getGasPrice() == 100L));
-    }
-
-    @Test
-    void callRejectsBlockOverrideWhenDisabled() throws Exception {
-        web3Properties.setEnableBlockOverrides(false);
-        final var request = request();
-        final var override = new BlockOverride();
-        override.setBlockNumber(256L);
-        request.setBlockOverride(override);
-
-        contractCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string(new StringContains("Block overrides are not supported.")));
-        verify(service, never()).processCall(any());
-    }
-
-    @Test
-    void callWithoutBlockOverrideSucceedsWhenBlockOverridesDisabled() throws Exception {
-        web3Properties.setEnableBlockOverrides(false);
-        given(service.processCall(any())).willReturn("0x0");
-
-        contractCall(request()).andExpect(status().isOk());
-        verify(service).processCall(argThat(params -> params.getBlockOverride() == null));
-    }
-
-    @Test
-    void callAcceptsBlockOverrideNumber() throws Exception {
-        given(service.processCall(any())).willReturn("0x0");
-        final var request = request();
-        final var override = new BlockOverride();
-        override.setBlockNumber(256L);
-        request.setBlockOverride(override);
-
-        contractCall(request).andExpect(status().isOk());
-        verify(service).processCall(argThat(params -> {
-            final var blockOverride = params.getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(256L).equals(blockOverride.getBlockNumber())
-                    && blockOverride.getTime() == null;
-        }));
-    }
-
-    @Test
-    void callAcceptsBlockOverrideTime() throws Exception {
-        given(service.processCall(any())).willReturn("0x0");
-        final var request = request();
-        final var override = new BlockOverride();
-        override.setTime(1710874816L);
-        request.setBlockOverride(override);
-
-        contractCall(request).andExpect(status().isOk());
-        verify(service).processCall(argThat(params -> {
-            final var blockOverride = params.getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(1710874816L).equals(blockOverride.getTime())
-                    && blockOverride.getBlockNumber() == null;
-        }));
-    }
-
-    @Test
-    void callAcceptsBlockOverrideNumberAndTime() throws Exception {
-        given(service.processCall(any())).willReturn("0x0");
-        final var request = request();
-        final var override = new BlockOverride();
-        override.setBlockNumber(256L);
-        override.setTime(1710874816L);
-        request.setBlockOverride(override);
-
-        contractCall(request).andExpect(status().isOk());
-        verify(service).processCall(argThat(params -> {
-            final var blockOverride = params.getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(256L).equals(blockOverride.getBlockNumber())
-                    && Long.valueOf(1710874816L).equals(blockOverride.getTime());
-        }));
-    }
-
-    @Test
-    void callAcceptsEveryBlockOverrideField() throws Exception {
-        given(service.processCall(any())).willReturn("0x0");
-        mockMvc.perform(post(CALL_URI)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"to":"0x00000000000000000000000000000000000004e4",
-                                 "block_override":{"base_fee_per_gas":0,"blob_base_fee":1,"block_number":80,
-                                 "fee_recipient":"0x0000000000000000000000000000000000000062","gas_limit":15000000,
-                                 "prev_randao":123456789,"time":1793619195}}
-                                """))
-                .andExpect(status().isOk());
-        verify(service).processCall(argThat(params -> {
-            final var blockOverride = params.getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(0L).equals(blockOverride.getBaseFeePerGas())
-                    && Long.valueOf(1L).equals(blockOverride.getBlobBaseFee())
-                    && Long.valueOf(80L).equals(blockOverride.getBlockNumber())
-                    && "0x0000000000000000000000000000000000000062".equals(blockOverride.getFeeRecipient())
-                    && Long.valueOf(15_000_000L).equals(blockOverride.getGasLimit())
-                    && Long.valueOf(123_456_789L).equals(blockOverride.getPrevRandao())
-                    && Long.valueOf(1_793_619_195L).equals(blockOverride.getTime());
-        }));
-    }
-
-    @ParameterizedTest
-    @CsvSource(
-            delimiter = '|',
-            value = {
-                "base_fee_per_gas | -1",
-                "base_fee_per_gas | \"abc\"",
-                "base_fee_per_gas | 9223372036854775808",
-                "blob_base_fee    | 0",
-                "blob_base_fee    | -1",
-                "block_number     | -1",
-                "block_number     | true",
-                "block_number     | \"80\"",
-                "block_number     | 80.0",
-                "fee_recipient    | \"0x62\"",
-                "fee_recipient    | \"0x00000000000000000000000000000000000000zz\"",
-                "gas_limit        | 0",
-                "gas_limit        | -1",
-                "prev_randao      | -1",
-                "prev_randao      | 18446744073709551615",
-                "time             | -1",
-                "time             | []",
-                "time             | 1.5",
-                "time             | 1e2",
-            })
-    void callRejectsInvalidBlockOverrideField(final String field, final String value) throws Exception {
-        mockMvc.perform(post(CALL_URI)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"to":"0x00000000000000000000000000000000000004e4","block_override":{"%s":%s}}
-                                """.formatted(field, value)))
-                .andExpect(status().isBadRequest());
-        verify(service, never()).processCall(any());
-    }
-
-    @Test
-    void actionsCallAcceptsEveryBlockOverrideFieldOnBundle() throws Exception {
-        enableActionsApi();
-        given(contractDebugService.processTraceCall(any())).willReturn(TRACE_RESPONSES);
-        mockMvc.perform(post(ACTIONS_CALL_URI)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"bundles":[{"block_override":{"base_fee_per_gas":10,"blob_base_fee":2,
-                                 "block_number":256,"fee_recipient":"0x0000000000000000000000000000000000000062",
-                                 "gas_limit":15000000,"prev_randao":123456791,"time":1795619193},
-                                 "transactions":[{"to":"0x00000000000000000000000000000000000004e4","value":0}]}]}
-                                """))
-                .andExpect(status().isOk());
-        verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> {
-            final var blockOverride = call.getBundles().getFirst().getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(10L).equals(blockOverride.getBaseFeePerGas())
-                    && Long.valueOf(2L).equals(blockOverride.getBlobBaseFee())
-                    && Long.valueOf(256L).equals(blockOverride.getBlockNumber())
-                    && "0x0000000000000000000000000000000000000062".equals(blockOverride.getFeeRecipient())
-                    && Long.valueOf(15_000_000L).equals(blockOverride.getGasLimit())
-                    && Long.valueOf(123_456_791L).equals(blockOverride.getPrevRandao())
-                    && Long.valueOf(1_795_619_193L).equals(blockOverride.getTime());
-        }));
-    }
-
-    @ParameterizedTest
-    @CsvSource(
-            delimiter = '|',
-            value = {"blob_base_fee | 0", "gas_limit | 0", "fee_recipient | \"0x62\"", "prev_randao | -1"})
-    void actionsCallRejectsInvalidBundleBlockOverride(final String field, final String value) throws Exception {
-        enableActionsApi();
-        clearInvocations(throttleManager);
-        mockMvc.perform(post(ACTIONS_CALL_URI)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"bundles":[{"block_override":{"%s":%s},
-                                 "transactions":[{"to":"0x00000000000000000000000000000000000004e4","value":0}]}]}
-                                """.formatted(field, value)))
-                .andExpect(status().isBadRequest());
-        verify(contractDebugService, never()).processTraceCall(any());
-        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
-    }
-
-    @Test
-    void actionsCallRejectsTransactionBlockOverride() throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        transaction(request).setBlockOverride(blockNumber(256L));
-
-        contractActionsCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content()
-                        .string(new StringContains("block_override must be set on the bundle, not on a transaction.")));
-        verify(contractDebugService, never()).processTraceCall(any());
-    }
-
-    @Test
-    void actionsCallRejectsTransactionBlockOverrideInLaterBundle() throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        final var second = transaction();
-        second.setValue(0);
-        final var override = new BlockOverride();
-        override.setFeeRecipient("0x0000000000000000000000000000000000000062");
-        second.setBlockOverride(override);
-        request.getBundles().add(bundleOf(second));
-
-        contractActionsCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content()
-                        .string(new StringContains("block_override must be set on the bundle, not on a transaction.")));
-        verify(contractDebugService, never()).processTraceCall(any());
     }
 
     @Test
@@ -1494,18 +1113,6 @@ final class ContractControllerTest {
                 .andExpect(content()
                         .string(new StringContains("transactions field size must be between 1 and %d"
                                 .formatted(ContractCallRequest.MAX_TRACE_TRANSACTIONS))));
-        verify(contractDebugService, never()).processTraceCall(any());
-    }
-
-    @Test
-    void actionsCallRejectsNegativeBlockOverride() throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        bundle(request).setBlockOverride(blockNumber(-1L));
-
-        contractActionsCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string(new StringContains("must be greater than or equal to 0")));
         verify(contractDebugService, never()).processTraceCall(any());
     }
 
@@ -2172,8 +1779,7 @@ final class ContractControllerTest {
                 && call.isOnlyTopCall() == onlyTopCall
                 && timeout.equals(call.getTimeout())
                 && call.getBundles().size() == 1
-                && call.getBundles().getFirst().getTransactions().size() == 1
-                && call.getBundles().getFirst().getBlockOverride() == null;
+                && call.getBundles().getFirst().getTransactions().size() == 1;
     }
 
     private ContractCallRequest request() {
@@ -2212,25 +1818,6 @@ final class ContractControllerTest {
 
     private static ActionTraceBundle bundle(final ActionTraceRequest request) {
         return request.getBundles().getFirst();
-    }
-
-    private static BlockOverride blockNumber(final long number) {
-        final var override = new BlockOverride();
-        override.setBlockNumber(number);
-        return override;
-    }
-
-    private static BlockOverride blockTime(final long time) {
-        final var override = new BlockOverride();
-        override.setTime(time);
-        return override;
-    }
-
-    private ActionTraceBundle tracedBundle(final @Nullable BlockOverride override) {
-        final var bundle = bundleOf(transaction());
-        bundle.getTransactions().getFirst().setValue(0);
-        bundle.setBlockOverride(override);
-        return bundle;
     }
 
     private static ActionTraceBundle bundleOf(final ContractCallRequest transaction) {
