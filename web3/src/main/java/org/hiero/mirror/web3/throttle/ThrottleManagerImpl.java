@@ -10,7 +10,9 @@ import jakarta.inject.Named;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.exception.ThrottleException;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 @CustomLog
@@ -50,6 +52,17 @@ final class ThrottleManagerImpl implements ThrottleManager {
         if (tokens > 0) {
             gasLimitBucket.addTokens(tokens);
         }
+    }
+
+    @Override
+    public void restoreUnusedGas(final long gasLimit, final @Nullable EvmTransactionResult result) {
+        final long refund = (long) (gasLimit * throttleProperties.getGasLimitRefundPercent() / 100f);
+        // A failed execution reports its whole gas limit as used, so it returns the refund share instead.
+        if (result == null || (!result.isSuccessful() && result.gasUsed() == gasLimit)) {
+            restore(refund);
+            return;
+        }
+        restore(Math.min(gasLimit - result.gasUsed(), refund));
     }
 
     private void action(RequestProperties filter, ContractCallRequest request) {

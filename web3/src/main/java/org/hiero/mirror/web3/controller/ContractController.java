@@ -48,7 +48,7 @@ class ContractController {
 
         throttleManager.throttle(request);
         try {
-            final var result = contractExecutionService.processCall(params);
+            final var result = contractExecutionService.processCall(params, throttleManager::restoreUnusedGas);
             return new ContractCallResponse(result);
         } catch (IllegalArgumentException | InvalidParametersException e) {
             // Processing did not complete, so restore the consumed tokens.

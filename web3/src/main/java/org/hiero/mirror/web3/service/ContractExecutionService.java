@@ -6,6 +6,7 @@ import static org.hiero.mirror.web3.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.state.Utils.parseHex;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -20,8 +21,6 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
-import org.hiero.mirror.web3.throttle.ThrottleManager;
-import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 
 @CustomLog
@@ -30,38 +29,36 @@ public class ContractExecutionService extends ContractCallService {
 
     private final BinaryGasEstimator binaryGasEstimator;
 
-    @SuppressWarnings("java:S107")
     public ContractExecutionService(
             MeterRegistry meterRegistry,
             BinaryGasEstimator binaryGasEstimator,
             RecordFileService recordFileService,
-            ThrottleProperties throttleProperties,
-            ThrottleManager throttleManager,
             EvmProperties evmProperties,
             TransactionExecutionService transactionExecutionService) {
-        super(
-                throttleManager,
-                throttleProperties,
-                meterRegistry,
-                recordFileService,
-                evmProperties,
-                transactionExecutionService);
+        super(meterRegistry, recordFileService, evmProperties, transactionExecutionService);
         this.binaryGasEstimator = binaryGasEstimator;
     }
 
-    /**
-     * Backwards compatible method returning only the result hex string.
-     */
+    /** Runs the call without reporting gas usage, for callers that did not reserve throttle gas. */
+    @VisibleForTesting
     public String processCall(final ContractExecutionParameters params) {
-        return processCallWithGas(params).result();
+        return processCall(params, GasUsageListener.NONE);
+    }
+
+    /** Returns only the result hex string. */
+    public String processCall(final ContractExecutionParameters params, final GasUsageListener gasUsageListener) {
+        return processCallWithGas(params, gasUsageListener).result();
     }
 
     /**
-     * New API that returns both the result and the actual gas used by the execution.
+     * Returns both the result and the gas used. {@code gasUsageListener} is told about the executed call, or the first
+     * call of a gas estimate, so the caller can return the throttle gas it did not use.
      */
-    public ContractExecutionResult processCallWithGas(final ContractExecutionParameters params) {
+    public ContractExecutionResult processCallWithGas(
+            final ContractExecutionParameters params, final GasUsageListener gasUsageListener) {
         return ContractCallContext.run(ctx -> {
             ctx.setApi(CALL);
+            ctx.setGasUsageListener(gasUsageListener);
             var stopwatch = Stopwatch.createStarted();
             var stringResult = "";
             long gasUsed;
