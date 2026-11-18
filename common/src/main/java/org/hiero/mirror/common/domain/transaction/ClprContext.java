@@ -4,6 +4,7 @@ package org.hiero.mirror.common.domain.transaction;
 
 import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
+import java.util.Collection;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -19,7 +20,7 @@ import org.jspecify.annotations.Nullable;
  * <p>{@code clprEndpointManifestUpdate}/{@code clprLedgerConfigurationUpdate} have no plural counterpart since their
  * transaction types can't batch. They carry the raw singleton state change rather than its resolved value since a
  * partial update must be merged against the last known full value -- see {@code ClprStateChangeHandler.process()},
- * which does that merge. {@code ClprStateChangeHandler.process()} iterates the plural lists directly, since a
+ * which does that merge. {@code ClprStateChangeHandler.process()} iterates the plural collections directly, since a
  * batch/hook-aggregated transaction (e.g. {@code ClprSubmitBundle}) can touch more than one.
  */
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -28,10 +29,10 @@ import org.jspecify.annotations.Nullable;
 public class ClprContext {
 
     @Builder.Default
-    private final List<ClprChannelEntry> clprChannels = List.of();
+    private final Collection<ClprChannelEntry> clprChannels = List.of();
 
     @Builder.Default
-    private final List<ClprConnectorEntry> clprConnectors = List.of();
+    private final Collection<ClprConnectorEntry> clprConnectors = List.of();
 
     @Builder.Default
     private final List<ClprConnectorKey> clprConnectorsRemoved = List.of();
@@ -50,7 +51,8 @@ public class ClprContext {
      * only expect one.
      */
     public @Nullable ClprChannelEntry getClprChannel() {
-        return clprChannels.isEmpty() ? null : clprChannels.getFirst();
+        final var iterator = clprChannels.iterator();
+        return iterator.hasNext() ? iterator.next() : null;
     }
 
     /**
@@ -58,6 +60,7 @@ public class ClprContext {
      * that only expect one.
      */
     public @Nullable ClprConnectorEntry getClprConnector() {
-        return clprConnectors.isEmpty() ? null : clprConnectors.getFirst();
+        final var iterator = clprConnectors.iterator();
+        return iterator.hasNext() ? iterator.next() : null;
     }
 }

@@ -44,20 +44,20 @@ create table if not exists clpr_channel
     received_message_id             bigint                not null default 0,
     verifier_contract_id            bigint,
     timestamp_range                 int8range             not null,
-    channel_context                 bytea,
+    channel_context                 bytea                 not null,
     channel_id                      bytea                 not null,
     chain_id                        varchar               not null,
     config_proof_bytes              bytea,
-    endpoint_manifest               jsonb,
+    endpoint_manifest               jsonb                 not null,
     endpoint_manifest_proof_bytes   bytea,
     ownership_commitment            bytea                 not null,
     public_key                      bytea,
-    received_running_hash           bytea,
-    sent_running_hash               bytea,
+    received_running_hash           bytea                 not null,
+    sent_running_hash               bytea                 not null,
     signature                       bytea,
-    trust_anchor                    bytea,
-    trust_anchor_id                 bytea,
-    verifier_fingerprint            bytea,
+    trust_anchor                    bytea                 not null,
+    trust_anchor_id                 bytea                 not null,
+    verifier_fingerprint            bytea                 not null,
     -- Raw com.hederahashgraph.api.proto.java.ClprChannelStatus wire number (0=PENDING, 1=ACTIVE, 2=PAUSED,
     -- 3=CLOSING, 4=DRAINED, 5=CLOSED, or an unrecognized number for a newer value) -- stored as-is rather than a
     -- native enum so an unrecognized value from a newer consensus node isn't lost. smallint and ordered last so
@@ -138,9 +138,9 @@ create table if not exists clpr_ledger_configuration
     max_sync_bytes              bigint,
     protocol_version            bigint      not null,
     chain_id                    varchar     not null,
-    initial_trust_anchor        bytea,
-    initial_trust_anchor_id     bytea,
-    service_address             bytea,
+    initial_trust_anchor        bytea       not null,
+    initial_trust_anchor_id     bytea       not null,
+    service_address             bytea       not null,
 
     primary key (consensus_timestamp)
 );
@@ -149,8 +149,8 @@ create table if not exists clpr_endpoint_manifest
 (
     consensus_timestamp   bigint      not null,
     version               bigint      not null,
-    endpoints             jsonb,
-    service_address       bytea,
+    endpoints             jsonb       not null,
+    service_address       bytea       not null,
 
     primary key (consensus_timestamp)
 );

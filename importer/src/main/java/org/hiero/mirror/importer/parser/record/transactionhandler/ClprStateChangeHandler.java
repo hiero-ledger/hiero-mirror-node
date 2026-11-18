@@ -345,7 +345,7 @@ public final class ClprStateChangeHandler {
             Utility.handleRecoverableError("ClprChannel state change unexpectedly reverted to PENDING status");
         }
 
-        return status;
+        return Utility.toSmallint("ClprChannel status", status);
     }
 
     private @Nullable ClprConnector toConnector(
@@ -522,7 +522,7 @@ public final class ClprStateChangeHandler {
                 messageBuilder
                         .messageType(MESSAGE_REPLY_FIELD_NUMBER)
                         .replyToMessageId(reply.getMessageId())
-                        .replyStatus(reply.getStatusValue())
+                        .replyStatus(Utility.toSmallint("ClprMessageReply status", reply.getStatusValue()))
                         .messageData(DomainUtils.toBytes(reply.getMessageReplyData()));
             }
             case CONTROL -> {
@@ -576,6 +576,12 @@ public final class ClprStateChangeHandler {
         }
 
         final var messageType = unknownFields.iterator().next();
+        if (!DomainUtils.isSmallint(messageType)) {
+            Utility.handleRecoverableError(
+                    "Encountered out-of-range CLPR message type {} at {}", messageType, consensusTimestamp);
+            return null;
+        }
+
         Utility.handleRecoverableError(
                 "Encountered unknown CLPR message type {} at {}", messageType, consensusTimestamp);
         return messageType;

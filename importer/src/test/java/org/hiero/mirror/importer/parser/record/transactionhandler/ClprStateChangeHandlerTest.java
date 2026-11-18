@@ -196,6 +196,31 @@ final class ClprStateChangeHandlerTest {
     }
 
     @Test
+    void processChannelStatusTooLargeForSmallint(CapturedOutput output) {
+        // given -- a raw wire number too large for the smallint column is clamped rather than failing the insert
+        mockEmptyClprState();
+        final var channelId = domainBuilder.bytes(32);
+        final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(channelId))
+                .setStatusValue(100_000)
+                .build();
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(
+                        DomainUtils.fromBytes(channelId), clprChannelMapUpdate(clprChannelValue))));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener).onClprChannel(channelCaptor.capture());
+        assertThat(channelCaptor.getValue())
+                .returns(channelId, ClprChannel::getChannelId)
+                .returns((int) Short.MAX_VALUE, ClprChannel::getStatus);
+        assertThat(output.getAll()).contains("ClprChannel status 100000 exceeds smallint range");
+    }
+
+    @Test
     void processChannelWithPeerThrottlesAndEndpointManifest() {
         // given
         mockEmptyClprState();
@@ -572,6 +597,34 @@ final class ClprStateChangeHandlerTest {
     }
 
     @Test
+    void processMessageReplyStatusTooLargeForSmallint(CapturedOutput output) {
+        // given -- a raw wire number too large for the smallint column is clamped rather than failing the insert
+        mockEmptyClprState();
+        final var replyKey = ClprMessageKey.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setMessageId(1)
+                .build();
+        final var replyValue = ClprMessageValue.newBuilder()
+                .setRunningHashAfterProcessing(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setPayload(ClprMessagePayload.newBuilder()
+                        .setMessageReply(
+                                ClprMessageReply.newBuilder().setMessageId(0).setStatusValue(100_000)))
+                .build();
+        when(clprContext.getClprMessages()).thenReturn(List.of(new ClprMessageEntry(replyKey, replyValue)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var messageCaptor = ArgumentCaptor.forClass(ClprMessage.class);
+        verify(entityListener).onClprMessage(messageCaptor.capture());
+        assertThat(messageCaptor.getValue())
+                .returns(MESSAGE_REPLY_FIELD_NUMBER, ClprMessage::getMessageType)
+                .returns((int) Short.MAX_VALUE, ClprMessage::getReplyStatus);
+        assertThat(output.getAll()).contains("ClprMessageReply status 100000 exceeds smallint range");
+    }
+
+    @Test
     void processMessageUnknownPayloadCase() {
         // given -- a future payload variant (unknown oneof field) is preserved via its raw field number rather than
         // dropped, mirroring RecordItem.parseTransactionType()'s fallback for an unknown transaction type
@@ -600,6 +653,36 @@ final class ClprStateChangeHandlerTest {
         final var messageCaptor = ArgumentCaptor.forClass(ClprMessage.class);
         verify(entityListener).onClprMessage(messageCaptor.capture());
         assertThat(messageCaptor.getValue()).returns(99, ClprMessage::getMessageType);
+    }
+
+    @Test
+    void processMessageUnknownPayloadCaseTooLargeForSmallint(CapturedOutput output) {
+        // given -- an unknown oneof field number too large for the smallint column must be dropped rather than
+        // failing the insert, since there's no in-range value left to represent it
+        mockEmptyClprState();
+        final var key = ClprMessageKey.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setMessageId(1)
+                .build();
+        final var unknownPayload = ClprMessagePayload.newBuilder()
+                .mergeUnknownFields(UnknownFieldSet.newBuilder()
+                        .addField(
+                                40_000,
+                                UnknownFieldSet.Field.newBuilder().addVarint(1).build())
+                        .build())
+                .build();
+        final var value = ClprMessageValue.newBuilder()
+                .setRunningHashAfterProcessing(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setPayload(unknownPayload)
+                .build();
+        when(clprContext.getClprMessages()).thenReturn(List.of(new ClprMessageEntry(key, value)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        verifyNoInteractions(entityListener);
+        assertThat(output.getAll()).contains("Encountered out-of-range CLPR message type 40000");
     }
 
     @Test
