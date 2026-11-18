@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
@@ -20,6 +21,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -33,6 +35,10 @@ public class ContractCallRequest {
     @NotNull
     private BlockType block = BlockType.LATEST;
 
+    @Nullable
+    @Valid
+    private BlockOverride blockOverride;
+
     @Hex(maxLength = DATA_MAX_LENGTH)
     private String data;
 
@@ -44,13 +50,15 @@ public class ContractCallRequest {
     @Min(21_000)
     private long gas = 15_000_000L;
 
+    // Public API name is camelCase, so it must be pinned against the global SNAKE_CASE naming strategy
+    @JsonAlias("gas_price")
+    @JsonProperty("gasPrice")
     @Min(0)
     private long gasPrice;
 
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH, allowEmpty = true)
     private String to;
 
-    @JsonProperty("state_overrides")
     @NotNull
     @Size(max = 10)
     private List<@Valid StateOverride> stateOverrides = new ArrayList<>();

@@ -12,6 +12,7 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.common.EvmBlockOverride;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,6 +64,42 @@ class BlockStreamInfoSingletonTest {
                         .blockTime(blockTime)
                         .lastHandleTime(blockEndTime)
                         .blockEndTime(blockEndTime)
+                        .build());
+    }
+
+    @Test
+    void getUsesBlockOverrideNumber() {
+        final var recordFile = domainBuilder.recordFile().get();
+        final var context = ContractCallContext.get();
+        context.setBlockSupplier(() -> recordFile);
+        context.setEvmBlockOverride(new EvmBlockOverride(null, null, 99L, null, null, null, null));
+
+        final var blockTime = convertToTimestamp(recordFile.getConsensusStart());
+        final var blockEndTime = convertToTimestamp(recordFile.getConsensusEnd());
+        assertThat(blockStreamInfoSingleton.get())
+                .isEqualTo(BlockStreamInfo.newBuilder()
+                        .blockNumber(99L)
+                        .blockTime(blockTime)
+                        .lastHandleTime(blockEndTime)
+                        .blockEndTime(blockEndTime)
+                        .build());
+    }
+
+    @Test
+    void getUsesBlockOverrideTime() {
+        final var recordFile = domainBuilder.recordFile().get();
+        final var context = ContractCallContext.get();
+        context.setBlockSupplier(() -> recordFile);
+        final var timeNanos = 1_710_858_432_000_000_000L;
+        context.setEvmBlockOverride(new EvmBlockOverride(null, null, null, null, null, null, timeNanos));
+
+        final var overrideTime = convertToTimestamp(timeNanos);
+        assertThat(blockStreamInfoSingleton.get())
+                .isEqualTo(BlockStreamInfo.newBuilder()
+                        .blockNumber(recordFile.getIndex())
+                        .blockTime(overrideTime)
+                        .lastHandleTime(overrideTime)
+                        .blockEndTime(overrideTime)
                         .build());
     }
 }

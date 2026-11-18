@@ -104,6 +104,7 @@ spring:
       minimum-idle: 4
       validation-timeout: 3000
   jackson:
+    property-naming-strategy: SNAKE_CASE
     use-jackson2-defaults: true
   jpa:
     database: PostgreSQL

@@ -19,8 +19,10 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings("deprecation")
 @Getter
@@ -92,6 +94,13 @@ public class ContractCallContext {
     @Setter
     private long traceDataBytes;
 
+    /**
+     * The current {@code block_override}. {@link EvmBlockOverride#EMPTY} keeps the bound record file's block header and
+     * the message frame values.
+     */
+    @Setter
+    private EvmBlockOverride evmBlockOverride = EvmBlockOverride.EMPTY;
+
     private ContractCallContext() {}
 
     public static ContractCallContext get() {
@@ -107,6 +116,14 @@ public class ContractCallContext {
      */
     public static boolean isBalanceCallSafe() {
         return SCOPED_VALUE.isBound() && SCOPED_VALUE.get().isBalanceCall();
+    }
+
+    /**
+     * Safe helper that returns the current call's {@code block_override} without throwing when unbound. An unbound
+     * context, such as executor warm-up at startup, has no override.
+     */
+    public static EvmBlockOverride getEvmBlockOverrideSafe() {
+        return SCOPED_VALUE.isBound() ? SCOPED_VALUE.get().getEvmBlockOverride() : EvmBlockOverride.EMPTY;
     }
 
     @SneakyThrows
@@ -185,5 +202,23 @@ public class ContractCallContext {
 
     public RecordFile getRecordFile() {
         return blockSupplier.get();
+    }
+
+    /**
+     * Applies a {@code block_override} for {@code eth_call} and {@code eth_estimateGas}. A null override clears every
+     * field.
+     */
+    public void applyBlockOverride(final @Nullable BlockOverride override) {
+        evmBlockOverride = EvmBlockOverride.from(override);
+    }
+
+    public long evmBlockNumber(final long fallback) {
+        final var blockNumber = evmBlockOverride.blockNumber();
+        return blockNumber != null ? blockNumber : fallback;
+    }
+
+    public long evmBlockTimeNanos(final long fallback) {
+        final var timeNanos = evmBlockOverride.timeNanos();
+        return timeNanos != null ? timeNanos : fallback;
     }
 }
