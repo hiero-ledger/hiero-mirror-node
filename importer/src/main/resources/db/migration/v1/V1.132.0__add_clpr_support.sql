@@ -42,19 +42,19 @@ create table if not exists clpr_channel
     peer_max_queue_depth            bigint,
     peer_max_sync_bytes             bigint,
     received_message_id             bigint                not null default 0,
-    verifier_contract_id            bigint,
+    verifier_contract_id            bigint                not null,
     timestamp_range                 int8range             not null,
     channel_context                 bytea                 not null,
     channel_id                      bytea                 not null,
     chain_id                        varchar               not null,
-    config_proof_bytes              bytea,
+    config_proof_bytes              bytea                 not null,
     endpoint_manifest               jsonb                 not null,
-    endpoint_manifest_proof_bytes   bytea,
+    endpoint_manifest_proof_bytes   bytea                 not null,
     ownership_commitment            bytea                 not null,
-    public_key                      bytea,
+    public_key                      bytea                 not null,
     received_running_hash           bytea                 not null,
     sent_running_hash               bytea                 not null,
-    signature                       bytea,
+    signature                       bytea                 not null,
     trust_anchor                    bytea                 not null,
     trust_anchor_id                 bytea                 not null,
     verifier_fingerprint            bytea                 not null,
@@ -65,7 +65,7 @@ create table if not exists clpr_channel
     status                          smallint              not null default 1,
     -- Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number (0=ECDSA_SECP256K1, 1=ED25519), same
     -- reasoning as status above.
-    signature_scheme                smallint,
+    signature_scheme                smallint              not null,
 
     primary key (channel_id)
 );

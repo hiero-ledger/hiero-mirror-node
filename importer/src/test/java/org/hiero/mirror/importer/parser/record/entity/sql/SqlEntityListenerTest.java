@@ -413,6 +413,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .receivedMessageId(complete.getReceivedMessageId() + 2)
                 .receivedRunningHash(domainBuilder.bytes(32))
                 .ownershipCommitment(complete.getOwnershipCommitment())
+                .signatureScheme(complete.getSignatureScheme())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
                 .build();
         final var mergedSubmitBundle = TestUtils.merge(complete, submitBundle);
@@ -426,6 +427,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .receivedMessageId(submitBundle.getReceivedMessageId())
                 .receivedRunningHash(submitBundle.getReceivedRunningHash())
                 .ownershipCommitment(complete.getOwnershipCommitment())
+                .signatureScheme(complete.getSignatureScheme())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
                 .build();
         final var mergedClose = TestUtils.merge(mergedSubmitBundle, close);
@@ -466,6 +468,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .status(ACTIVE_VALUE)
                 .nextMessageId(complete.getNextMessageId() + 1)
                 .ownershipCommitment(complete.getOwnershipCommitment())
+                .signatureScheme(complete.getSignatureScheme())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
                 .build();
         final var submitBundle2 = ClprChannel.builder()
@@ -473,6 +476,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .status(ACTIVE_VALUE)
                 .nextMessageId(complete.getNextMessageId() + 2)
                 .ownershipCommitment(complete.getOwnershipCommitment())
+                .signatureScheme(complete.getSignatureScheme())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
                 .build();
         final var mergedSubmitBundle1 = TestUtils.merge(complete, submitBundle1);
@@ -506,6 +510,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .status(CLOSING_VALUE)
                 .nextMessageId(complete.getNextMessageId() + 1)
                 .ownershipCommitment(complete.getOwnershipCommitment())
+                .signatureScheme(complete.getSignatureScheme())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
                 .build();
         final var expected = TestUtils.merge(complete, submitBundle);
