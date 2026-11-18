@@ -10,15 +10,10 @@ import jakarta.inject.Named;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
-import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
-import org.hiero.mirror.common.domain.hook.HookType;
-import org.hiero.mirror.restjava.converter.LongRangeConverter;
 import org.hiero.mirror.restjava.dto.HookStorageRequest;
 import org.hiero.mirror.restjava.dto.HookStorageSlot;
 import org.hiero.mirror.restjava.dto.HooksRequest;
-import org.hiero.mirror.restjava.jooq.domain.tables.records.HookRecord;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Field;
@@ -77,7 +72,7 @@ class HookRepositoryCustomImpl implements HookRepositoryCustom {
                 .where(condition)
                 .orderBy(getSortField(HOOK.HOOK_ID, request.getOrder()))
                 .limit(request.getLimit())
-                .fetch(HookRepositoryCustomImpl::toHook);
+                .fetchInto(Hook.class);
     }
 
     private List<HookStorageSlot> findHistoricalHookStorage(HookStorageRequest request, long ownerId) {
@@ -138,23 +133,5 @@ class HookRepositoryCustomImpl implements HookRepositoryCustom {
         }
 
         return false;
-    }
-
-    private static Hook toHook(HookRecord hookRecord) {
-        final var contractId = hookRecord.getContractId();
-        final var timestampRange = hookRecord.getTimestampRange();
-
-        return Hook.builder()
-                .adminKey(hookRecord.getAdminKey())
-                .contractId(contractId != null ? EntityId.of(contractId) : null)
-                .createdTimestamp(hookRecord.getCreatedTimestamp())
-                .deleted(hookRecord.getDeleted())
-                .extensionPoint(HookExtensionPoint.valueOf(
-                        hookRecord.getExtensionPoint().name()))
-                .hookId(hookRecord.getHookId())
-                .ownerId(hookRecord.getOwnerId())
-                .timestampRange(timestampRange != null ? LongRangeConverter.INSTANCE.convert(timestampRange) : null)
-                .type(HookType.valueOf(hookRecord.getType().name()))
-                .build();
     }
 }
