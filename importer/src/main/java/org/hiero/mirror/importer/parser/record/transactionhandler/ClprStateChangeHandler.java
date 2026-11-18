@@ -372,7 +372,7 @@ public final class ClprStateChangeHandler {
     private ClprControlConfiguration toControlConfiguration(
             com.hederahashgraph.api.proto.java.ClprLedgerConfiguration configuration) {
         return ClprControlConfiguration.builder()
-                .protocolVersion(configuration.getProtocolVersion())
+                .protocolVersion(Integer.toUnsignedLong(configuration.getProtocolVersion()))
                 .chainId(configuration.getChainId())
                 .serviceAddress(DomainUtils.toBytes(configuration.getServiceAddress()))
                 .initialTrustAnchor(DomainUtils.toBytes(configuration.getInitialTrustAnchor()))
