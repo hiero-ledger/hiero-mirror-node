@@ -12,6 +12,8 @@ public interface AssessedCustomFeeRepository
 
     @Modifying
     @Override
-    @Query(nativeQuery = true, value = "delete from assessed_custom_fee where consensus_timestamp <= ?1")
+    @Query(
+            nativeQuery = true,
+            value = "delete from assessed_custom_fee where consensus_timestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

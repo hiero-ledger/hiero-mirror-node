@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface RecordFileRepository extends StreamFileRepository<RecordFile, Long>, RetentionRepository {
 
-    @Query(value = "select r from RecordFile r order by r.consensusEnd limit 1")
+    @Query(value = "select * from record_file order by consensus_end limit 1", nativeQuery = true)
     Optional<RecordFile> findFirst();
 
     @Override
@@ -21,33 +21,35 @@ public interface RecordFileRepository extends StreamFileRepository<RecordFile, L
     @Query(
             nativeQuery = true,
             value = "select * from record_file where consensus_end < "
-                    + "(select max(consensus_end) from record_file) - ?1 order by consensus_end desc limit 1")
+                    + "(select max(consensus_end) from record_file) - :offset order by consensus_end desc limit 1")
     Optional<RecordFile> findLatestWithOffset(long offset);
 
     @Query(
             nativeQuery = true,
-            value = "select * from record_file where consensus_end < ?1 order by consensus_end desc limit 1")
+            value = "select * from record_file where consensus_end < :offset order by consensus_end desc limit 1")
     Optional<RecordFile> findLatestBefore(long offset);
 
     @Query(
-            value = "select * from record_file where consensus_end < ?1 and gas_used = -1 order by consensus_end desc "
-                    + "limit 1",
+            value =
+                    "select * from record_file where consensus_end < :consensusTimestamp and gas_used = -1 order by consensus_end desc "
+                            + "limit 1",
             nativeQuery = true)
     Optional<RecordFile> findLatestMissingGasUsedBefore(long consensusTimestamp);
 
     @Query(
-            value = "select * from record_file where consensus_end > ?1 and consensus_end <= ?2 "
-                    + "order by consensus_end asc limit 1",
+            value =
+                    "select * from record_file where consensus_end > :minTimestampExclusive and consensus_end <= :maxTimestampInclusive "
+                            + "order by consensus_end asc limit 1",
             nativeQuery = true)
     Optional<RecordFile> findNextBetween(long minTimestampExclusive, long maxTimestampInclusive);
 
     @Modifying
     @Override
-    @Query("delete from RecordFile where consensusEnd <= ?1")
+    @Query(value = "delete from record_file where consensus_end <= :consensusTimestamp", nativeQuery = true)
     int prune(long consensusTimestamp);
 
     @Modifying
-    @Query(nativeQuery = true, value = "update record_file set index = index + ?1")
+    @Query(value = "update record_file set index = index + :offset", nativeQuery = true)
     @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 7200)
     int updateIndex(long offset);
 }

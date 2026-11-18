@@ -12,10 +12,10 @@ public interface ContractStateChangeRepository extends CrudRepository<ContractSt
     @Query(value = """
             select *
             from contract_state_change
-            where consensus_timestamp = ?1
-              and (contract_id > ?2 or (contract_id = ?2 and slot > ?3))
+            where consensus_timestamp = :consensusTimestamp
+              and (contract_id > :contractId or (contract_id = :contractId and slot > :slot))
             order by contract_id, slot
-            limit ?4
+            limit :limit
             """, nativeQuery = true)
     List<ContractStateChange> findByConsensusTimestamp(
             long consensusTimestamp, long contractId, byte[] slot, int limit);
@@ -29,11 +29,11 @@ public interface ContractStateChangeRepository extends CrudRepository<ContractSt
     @Query(value = """
             select *
             from contract_state_change
-            where consensus_timestamp = ?1
+            where consensus_timestamp = :consensusTimestamp
               and value_written is distinct from value_read
-              and (contract_id > ?2 or (contract_id = ?2 and slot > ?3))
+              and (contract_id > :contractId or (contract_id = :contractId and slot > :slot))
             order by contract_id, slot
-            limit ?4
+            limit :limit
             """, nativeQuery = true)
     List<ContractStateChange> findModifiedByConsensusTimestamp(
             long consensusTimestamp, long contractId, byte[] slot, int limit);

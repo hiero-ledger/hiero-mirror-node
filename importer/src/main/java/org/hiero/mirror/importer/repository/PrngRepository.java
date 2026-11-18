@@ -10,6 +10,6 @@ import org.springframework.data.repository.CrudRepository;
 public interface PrngRepository extends CrudRepository<Prng, Long>, RetentionRepository {
 
     @Modifying
-    @Query("delete from Prng where consensusTimestamp <= ?1")
+    @Query(value = "delete from prng where consensus_timestamp <= :consensusTimestamp", nativeQuery = true)
     int prune(long consensusTimestamp);
 }

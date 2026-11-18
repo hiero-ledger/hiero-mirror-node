@@ -11,6 +11,6 @@ public interface ClprMessageRepository extends CrudRepository<ClprMessage, ClprM
 
     @Modifying
     @Override
-    @Query("delete from ClprMessage where consensusTimestamp <= ?1")
+    @Query(value = "delete from clpr_message where consensus_timestamp <= :consensusTimestamp", nativeQuery = true)
     int prune(long consensusTimestamp);
 }
