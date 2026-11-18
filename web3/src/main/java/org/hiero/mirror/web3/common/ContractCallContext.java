@@ -204,10 +204,6 @@ public class ContractCallContext {
         return blockSupplier.get();
     }
 
-    /**
-     * Applies a {@code block_override} for {@code eth_call} and {@code eth_estimateGas}. A null override clears every
-     * field.
-     */
     public void applyBlockOverride(final @Nullable BlockOverride override) {
         evmBlockOverride = EvmBlockOverride.from(override);
     }
