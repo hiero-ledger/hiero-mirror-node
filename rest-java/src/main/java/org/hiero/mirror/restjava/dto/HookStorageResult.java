@@ -2,8 +2,7 @@
 
 package org.hiero.mirror.restjava.dto;
 
-import java.util.Collection;
+import java.util.List;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.hook.HookStorage;
 
-public record HookStorageResult(EntityId ownerId, Collection<HookStorage> storage) {}
+public record HookStorageResult(EntityId ownerId, List<HookStorageSlot> storage) {}
