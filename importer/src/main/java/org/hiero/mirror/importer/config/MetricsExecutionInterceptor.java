@@ -105,13 +105,10 @@ public class MetricsExecutionInterceptor implements ExecutionInterceptor {
             }
 
             if (responseSizeSubscriber != null) {
-                responseSizeMetric
-                        .tags(tags)
-                        .register(meterRegistry)
-                        .record(Double.valueOf(responseSizeSubscriber.getSize()));
+                responseSizeMetric.tags(tags).register(meterRegistry).record((double) responseSizeSubscriber.getSize());
             }
         } catch (Exception e) {
-            log.warn("Unable to collect S3 metrics", e);
+            log.warn("Unable to collect S3 metrics: {}", e.getMessage());
         }
     }
 

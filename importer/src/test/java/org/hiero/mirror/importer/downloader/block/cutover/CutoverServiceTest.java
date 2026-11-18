@@ -117,14 +117,12 @@ final class CutoverServiceTest {
         // given
         blockProperties.setEnabled(false);
         recordDownloaderProperties.setEnabled(true);
-        doReturn(Optional.of(recordFile(0, false))).when(recordFileRepository).findFirst();
         doReturn(Optional.of(recordFile(100, false))).when(recordFileRepository).findLatest();
 
         // when threshold hasn't reached, should get record stream
         await().during(CUTOVER_THRESHOLD.dividedBy(2))
                 .pollInterval(Duration.ofMillis(10))
                 .until(() -> verifyActiveStream(StreamType.RECORD));
-        verify(recordFileRepository, times(0)).findFirst();
         verify(recordFileRepository).findLatest();
 
         // when a new record file is verified, should still get record stream
@@ -153,7 +151,6 @@ final class CutoverServiceTest {
         await().during(CUTOVER_THRESHOLD.multipliedBy(2))
                 .pollInterval(Duration.ofMillis(10))
                 .until(() -> verifyActiveStream(StreamType.BLOCK));
-        verify(recordFileRepository).findFirst();
         assertThat(blockProperties.isEnabled()).isTrue();
         assertThat(recordDownloaderProperties.isEnabled()).isFalse();
     }
@@ -167,7 +164,6 @@ final class CutoverServiceTest {
         // given
         blockProperties.setEnabled(isBlockStreamEnabled);
         recordDownloaderProperties.setEnabled(isRecordStreamEnabled);
-        doReturn(Optional.of(recordFile(0, false))).when(recordFileRepository).findFirst();
         doReturn(Optional.of(recordFile(100, true))).when(recordFileRepository).findLatest();
 
         // when
@@ -179,7 +175,6 @@ final class CutoverServiceTest {
         verifyNoInteractions(recordStreamTask);
         assertThat(blockProperties.isEnabled()).isTrue();
         assertThat(recordDownloaderProperties.isEnabled()).isFalse();
-        verify(recordFileRepository).findFirst();
         verify(recordFileRepository).findLatest();
     }
 
@@ -233,31 +228,6 @@ final class CutoverServiceTest {
                     cutoverService.get(StreamType.BLOCK, blockStreamTask);
                     verify(blockStreamTask).run();
                 });
-    }
-
-    @ParameterizedTest
-    @CsvSource(textBlock = """
-            false, true
-            true, false
-            """)
-    void get(final boolean isBlockStreamEnabled, final boolean isRecordStreamEnabled) {
-        // given
-        blockProperties.setEnabled(isBlockStreamEnabled);
-        recordDownloaderProperties.setEnabled(isRecordStreamEnabled);
-        doReturn(Optional.of(recordFile(0, true))).when(recordFileRepository).findFirst();
-        doReturn(Optional.of(recordFile(100, true))).when(recordFileRepository).findLatest();
-
-        // when
-        cutoverService.get(StreamType.BLOCK, blockStreamTask);
-        cutoverService.get(StreamType.RECORD, recordStreamTask);
-
-        // then
-        verify(blockStreamTask, times(isBlockStreamEnabled ? 1 : 0)).run();
-        verify(recordStreamTask, times(isRecordStreamEnabled ? 1 : 0)).run();
-        assertThat(blockProperties.isEnabled()).isEqualTo(isBlockStreamEnabled);
-        assertThat(recordDownloaderProperties.isEnabled()).isEqualTo(isRecordStreamEnabled);
-        verify(recordFileRepository).findFirst();
-        verify(recordFileRepository).findLatest();
     }
 
     @Test
@@ -533,7 +503,6 @@ final class CutoverServiceTest {
     void getTwoStages() {
         // given
         cutoverProperties.getFirstStage().setEnabled(true);
-        doReturn(Optional.of(recordFile(0, false))).when(recordFileRepository).findFirst();
 
         final var last = recordFile(100, false);
         last.setHapiVersionMajor(0);
