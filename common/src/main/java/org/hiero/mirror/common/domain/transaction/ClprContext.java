@@ -4,7 +4,6 @@ package org.hiero.mirror.common.domain.transaction;
 
 import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
-import java.util.Collection;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -29,10 +28,10 @@ import org.jspecify.annotations.Nullable;
 public class ClprContext {
 
     @Builder.Default
-    private final Collection<ClprChannelEntry> clprChannels = List.of();
+    private final List<ClprChannelEntry> clprChannels = List.of();
 
     @Builder.Default
-    private final Collection<ClprConnectorEntry> clprConnectors = List.of();
+    private final List<ClprConnectorEntry> clprConnectors = List.of();
 
     @Builder.Default
     private final List<ClprConnectorKey> clprConnectorsRemoved = List.of();

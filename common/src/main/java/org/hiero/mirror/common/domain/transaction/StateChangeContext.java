@@ -32,7 +32,6 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Topic;
 import com.hederahashgraph.api.proto.java.TopicID;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -168,8 +167,8 @@ public final class StateChangeContext {
         return clprChannels.get(channelId);
     }
 
-    public Collection<ClprChannelEntry> getClprChannels() {
-        return Collections.unmodifiableCollection(clprChannels.values());
+    public List<ClprChannelEntry> getClprChannels() {
+        return Collections.unmodifiableList(new ArrayList<>(clprChannels.values()));
     }
 
     public @Nullable ClprConnector getClprConnector(ClprConnectorKey key) {
@@ -181,8 +180,8 @@ public final class StateChangeContext {
         return clprConnectors.get(key);
     }
 
-    public Collection<ClprConnectorEntry> getClprConnectors() {
-        return Collections.unmodifiableCollection(clprConnectors.values());
+    public List<ClprConnectorEntry> getClprConnectors() {
+        return Collections.unmodifiableList(new ArrayList<>(clprConnectors.values()));
     }
 
     public List<ClprConnectorKey> getClprConnectorsRemoved() {
