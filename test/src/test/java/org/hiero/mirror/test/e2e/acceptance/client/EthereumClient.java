@@ -67,7 +67,7 @@ public class EthereumClient extends AbstractNetworkClient {
         final var signedTransaction = TransactionEncoder.signMessage(rawTransaction, credentials);
 
         final var ethereumTransaction = new EthereumTransaction()
-                .setMaxGasAllowanceHbar(maxGasAllowance())
+                .setMaxGasAllowanceHbar(Hbar.from(100L))
                 .setEthereumData(signedTransaction);
         final var memo = getMemo("Create contract");
 
@@ -121,8 +121,10 @@ public class EthereumClient extends AbstractNetworkClient {
 
         Credentials credentials =
                 Credentials.create(signerAccount.getPrivateKey().toStringRaw());
+        final var maxGasAllowance =
+                Hbar.from(acceptanceTestProperties.getFeatureProperties().getMaxGasAllowanceHbar());
         EthereumTransaction ethereumTransaction = new EthereumTransaction()
-                .setMaxGasAllowanceHbar(maxGasAllowance())
+                .setMaxGasAllowanceHbar(maxGasAllowance)
                 .setEthereumData(signEthereumData(rawTransaction, type, credentials));
 
         final var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, signerAccount);
@@ -210,7 +212,7 @@ public class EthereumClient extends AbstractNetworkClient {
         // sign and execute transaction
         Credentials credentials = Credentials.create(signerKey.toStringRaw());
         EthereumTransaction ethereumTransaction = new EthereumTransaction()
-                .setMaxGasAllowanceHbar(maxGasAllowance())
+                .setMaxGasAllowanceHbar(Hbar.from(100L))
                 .setEthereumData(signEthereumData(rawTransaction, type, credentials));
 
         var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
@@ -277,10 +279,6 @@ public class EthereumClient extends AbstractNetworkClient {
 
     private BigInteger getNonce(PrivateKey accountKey) {
         return accountNonce.merge(accountKey, BigInteger.ONE, BigInteger::add).subtract(BigInteger.ONE);
-    }
-
-    private Hbar maxGasAllowance() {
-        return Hbar.from(acceptanceTestProperties.getFeatureProperties().getMaxGasAllowanceHbar());
     }
 
     private String buildCallDataAsHexedString(String functionName, ContractFunctionParameters functionParameters) {
