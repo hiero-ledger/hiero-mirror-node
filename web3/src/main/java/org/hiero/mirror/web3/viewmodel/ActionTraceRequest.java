@@ -32,9 +32,14 @@ import org.jspecify.annotations.Nullable;
 @NullMarked
 public class ActionTraceRequest {
 
-    public static final long MAX_DOCUMENT_LENGTH = 8 * 1024 * 1024;
+    /**
+     * Request body limit enforced by Jackson. It allows full calldata on every transaction plus 256 KiB for the rest of
+     * the JSON, so calldata and state overrides together cannot exceed it.
+     */
+    public static final long MAX_DOCUMENT_LENGTH =
+            MAX_TRACE_TRANSACTIONS * ContractCallRequest.DATA_MAX_LENGTH + 256 * 1024;
+
     public static final long MAX_JSON_TOKENS = 100_000;
-    public static final long MAX_INPUT_CHARACTERS = MAX_TRACE_TRANSACTIONS * ContractCallRequest.DATA_MAX_LENGTH;
 
     @JsonSerialize(using = BlockTypeSerializer.class)
     @JsonSetter(nulls = Nulls.SKIP)
@@ -53,55 +58,6 @@ public class ActionTraceRequest {
     @NotNull
     @Size(max = 10)
     private List<@NotNull @Valid StateOverride> stateOverrides = new ArrayList<>();
-
-    @AssertTrue(message = "aggregate calldata and state overrides exceed the trace input limit")
-    private boolean hasInputBudget() {
-        long length = overrideLength(stateOverrides);
-        if (bundles != null) {
-            for (final var bundle : bundles) {
-                if (bundle == null || bundle.getTransactions() == null) {
-                    continue;
-                }
-                for (final var transaction : bundle.getTransactions()) {
-                    if (transaction != null) {
-                        length += textLength(transaction.getData()) + overrideLength(transaction.getStateOverrides());
-                    }
-                }
-            }
-        }
-        return length <= MAX_INPUT_CHARACTERS;
-    }
-
-    private static long overrideLength(final List<StateOverride> overrides) {
-        long length = 0;
-        if (overrides == null) {
-            return length;
-        }
-        for (final var override : overrides) {
-            if (override == null) {
-                continue;
-            }
-            length += textLength(override.getCode());
-            length += storageLength(override.getState()) + storageLength(override.getStateDiff());
-        }
-        return length;
-    }
-
-    private static long storageLength(final List<StorageEntry> entries) {
-        long length = 0;
-        if (entries != null) {
-            for (final var entry : entries) {
-                if (entry != null) {
-                    length += textLength(entry.getKey()) + textLength(entry.getValue());
-                }
-            }
-        }
-        return length;
-    }
-
-    private static int textLength(final @Nullable String text) {
-        return text == null ? 0 : text.length();
-    }
 
     @Nullable
     private String timeout;

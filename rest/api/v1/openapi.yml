@@ -2515,8 +2515,8 @@ components:
         A debug_traceCallMany request. A single bundle containing a single transaction is treated like a debug_traceCall.
         block, state_overrides, timeout, and transaction_index apply to every bundle. only_top_call applies to every
         transaction. When true, each transaction returns only its root call and omits nested actions. State changes
-        persist from one bundle to the next within this request only. The request is limited to an 8 MiB JSON
-        document, 100000 JSON tokens, and 4800000 aggregate calldata and storage/code override characters.
+        persist from one bundle to the next within this request only. The request body is limited to 5062144 bytes
+        (full calldata on 16 transactions plus 256 KiB) and 100000 JSON tokens.
       required:
         - bundles
       properties:
