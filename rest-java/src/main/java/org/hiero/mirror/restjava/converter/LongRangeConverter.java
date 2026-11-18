@@ -4,6 +4,7 @@ package org.hiero.mirror.restjava.converter;
 
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.jooq.postgres.extensions.types.LongRange;
 import org.springframework.core.convert.converter.Converter;
 
@@ -14,6 +15,11 @@ public class LongRangeConverter implements Converter<LongRange, Range<Long>> {
 
     @Override
     public Range<Long> convert(LongRange source) {
+        // jOOQ represents an empty range as [0,0), while the entity mapping uses RangeUtils.EMPTY_LONG_RANGE
+        if (source.isEmpty()) {
+            return RangeUtils.EMPTY_LONG_RANGE;
+        }
+
         var lower = source.lower();
         var lowerType = source.lowerIncluding() ? BoundType.CLOSED : BoundType.OPEN;
         var upper = source.upper();

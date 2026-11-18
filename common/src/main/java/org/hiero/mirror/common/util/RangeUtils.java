@@ -14,9 +14,10 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class RangeUtils {
 
-    private static final String EMPTY = "empty";
     // Same empty range as Hypersistence's PostgreSQLGuavaRangeType, so both parsers produce equal values
-    private static final Range<Long> EMPTY_LONG_RANGE = Range.closedOpen(Long.MIN_VALUE, Long.MIN_VALUE);
+    public static final Range<Long> EMPTY_LONG_RANGE = Range.closedOpen(Long.MIN_VALUE, Long.MIN_VALUE);
+
+    private static final String EMPTY = "empty";
 
     /**
      * Parses a PostgreSQL range string into a long range.

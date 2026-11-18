@@ -19,6 +19,7 @@ import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.util.CommonUtils;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.HookStorageRequest;
@@ -171,6 +172,20 @@ final class HookRepositoryTest extends RestJavaIntegrationTest {
         // then
         assertThat(result).containsExactly(hook);
         assertThat(result.getFirst().getContractId()).isNull();
+    }
+
+    @Test
+    @DisplayName("findHooks maps an empty timestamp range")
+    void findHooksEmptyTimestampRange() {
+        // given
+        final var hook = domainBuilder
+                .hook()
+                .customize(h -> h.hookId(1L).ownerId(OWNER_ID_1).timestampRange(RangeUtils.EMPTY_LONG_RANGE))
+                .persist();
+
+        // when, then
+        assertThat(hookRepository.findHooks(HooksRequest.builder().build(), OWNER_ID_1))
+                .containsExactly(hook);
     }
 
     @ParameterizedTest
