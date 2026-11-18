@@ -13,6 +13,7 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -51,7 +52,8 @@ class ClprCompleteChannelTransactionHandler extends AbstractTransactionHandler {
                 .verifierFingerprint(DomainUtils.toBytes(clprChannelValue.getVerifierFingerprint()))
                 .publicKey(publicKey)
                 .signature(DomainUtils.toBytes(transactionBody.getSignature()))
-                .signatureScheme(transactionBody.getSignatureSchemeValue())
+                .signatureScheme(
+                        Utility.toSmallint("ClprChannel signatureScheme", transactionBody.getSignatureSchemeValue()))
                 .configProofBytes(DomainUtils.toBytes(transactionBody.getConfigProofBytes()))
                 .endpointManifestProofBytes(DomainUtils.toBytes(transactionBody.getEndpointManifestProofBytes()))
                 .timestampRange(Range.atLeast(consensusTimestamp))

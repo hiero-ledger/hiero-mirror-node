@@ -15,6 +15,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.repository.ClprConnectorRepository;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -61,7 +62,8 @@ class ClprCompleteConnectorTransactionHandler extends AbstractTransactionHandler
                 .publicKey(publicKey)
                 .salt(DomainUtils.toBytes(transactionBody.getSalt()))
                 .signature(DomainUtils.toBytes(transactionBody.getSignature()))
-                .signatureScheme(transactionBody.getSignatureSchemeValue())
+                .signatureScheme(
+                        Utility.toSmallint("ClprConnector signatureScheme", transactionBody.getSignatureSchemeValue()))
                 .timestampRange(Range.atLeast(consensusTimestamp));
         ClprStateChangeHandler.applyConnectorFields(connectorBuilder, entry);
         final var connector = connectorBuilder.build();

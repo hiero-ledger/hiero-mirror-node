@@ -9,6 +9,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.util.Utility;
 
 /**
  * {@code ClprMaintenance}'s singleton updates (endpoint manifest, ledger configuration) only exist in their own
@@ -34,7 +35,9 @@ class ClprMaintenanceTransactionHandler extends AbstractTransactionHandler {
 
         entityListener.onClprMaintenance(ClprMaintenance.builder()
                 .consensusTimestamp(recordItem.getConsensusTimestamp())
-                .reason(recordItem.getTransactionBody().getClprMaintenance().getReasonValue())
+                .reason(Utility.toSmallint(
+                        "ClprMaintenance reason",
+                        recordItem.getTransactionBody().getClprMaintenance().getReasonValue()))
                 .build());
     }
 }

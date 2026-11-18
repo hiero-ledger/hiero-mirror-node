@@ -28,10 +28,14 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.data.util.Version;
 
+@ExtendWith(OutputCaptureExtension.class)
 class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Mock
@@ -120,6 +124,43 @@ class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHan
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(
                         getExpectedEntityTransactions(recordItem, transaction, connectorContractId));
+    }
+
+    @Test
+    void updateTransactionSignatureSchemeTooLargeForSmallint(CapturedOutput output) {
+        // given -- a raw wire number too large for the smallint column is clamped rather than failing the insert
+        final var transactionBody = TransactionBody.newBuilder()
+                .setClprCompleteConnector(ClprCompleteConnectorTransactionBody.newBuilder()
+                        .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                        .setConnectorId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                        .setPublicKey(DomainUtils.fromBytes(domainBuilder.bytes(64)))
+                        .setSignature(DomainUtils.fromBytes(domainBuilder.bytes(64)))
+                        .setSignatureSchemeValue(100_000)
+                        .setSalt(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                        .setConnectorContract(domainBuilder.entityNum(2000L).toContractID())
+                        .setAdminKey(Key.newBuilder().setEd25519(DomainUtils.fromBytes(domainBuilder.key())))
+                        .setLockedStake(100_000_000L))
+                .build();
+        final var body = transactionBody.getClprCompleteConnector();
+        final var clprConnectorValue = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
+                .setConnectorContract(domainBuilder.entityNum(3000L).toContractID())
+                .build();
+        final var key = ClprConnectorKey.newBuilder()
+                .setChannelId(body.getChannelId())
+                .setConnectorId(body.getConnectorId())
+                .build();
+        final var recordItem =
+                buildRecordItem(transactionBody, getDefaultTransactionRecord().build(), key, clprConnectorValue);
+        final var transaction = domainBuilder.transaction().get();
+        final var connectorCaptor = ArgumentCaptor.forClass(ClprConnector.class);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener).onClprConnector(connectorCaptor.capture());
+        assertThat(connectorCaptor.getValue()).returns((int) Short.MAX_VALUE, ClprConnector::getSignatureScheme);
+        assertThat(output.getAll()).contains("ClprConnector signatureScheme 100000 exceeds smallint range");
     }
 
     @Test
