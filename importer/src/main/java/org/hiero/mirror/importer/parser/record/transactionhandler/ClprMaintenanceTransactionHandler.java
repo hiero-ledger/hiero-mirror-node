@@ -18,7 +18,7 @@ import org.hiero.mirror.importer.util.Utility;
  */
 @Named
 @RequiredArgsConstructor
-class ClprMaintenanceTransactionHandler extends AbstractTransactionHandler {
+final class ClprMaintenanceTransactionHandler extends AbstractTransactionHandler {
 
     private final EntityListener entityListener;
 

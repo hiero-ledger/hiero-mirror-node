@@ -10,7 +10,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
 @RequiredArgsConstructor
-class ClprSubmitBundleTransactionHandler extends AbstractTransactionHandler {
+final class ClprSubmitBundleTransactionHandler extends AbstractTransactionHandler {
 
     @Override
     public TransactionType getType() {

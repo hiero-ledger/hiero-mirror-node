@@ -15,7 +15,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
 @RequiredArgsConstructor
-class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
+final class ClprRegisterChannelTransactionHandler extends AbstractTransactionHandler {
 
     private final EntityListener entityListener;
 

@@ -36,7 +36,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.data.util.Version;
 
 @ExtendWith(OutputCaptureExtension.class)
-class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class ClprCompleteConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Mock
     private ClprConnectorRepository clprConnectorRepository;

@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.util.Version;
 
-class ClprCloseChannelTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class ClprCloseChannelTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {

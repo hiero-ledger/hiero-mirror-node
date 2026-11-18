@@ -19,7 +19,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.util.Version;
 
-class ClprSubmitBundleTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class ClprSubmitBundleTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {

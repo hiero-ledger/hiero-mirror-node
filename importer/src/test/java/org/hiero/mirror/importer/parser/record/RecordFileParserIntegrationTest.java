@@ -421,6 +421,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .setReceivedMessageId(0)
                 .setReceivedRunningHash(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                 .setOwnershipCommitment(ownershipCommitment)
+                .setVerifierContract(recordItemBuilder.contractId())
                 .setVerifierFingerprint(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                 .build();
         final var complete = recordItemBuilder

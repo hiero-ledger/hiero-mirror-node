@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
-class ClprDeregisterConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class ClprDeregisterConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Mock
     private ClprConnectorRepository clprConnectorRepository;

@@ -19,7 +19,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.junit.jupiter.api.Test;
 
-class ClprTransformerTest extends AbstractTransformerTest {
+final class ClprTransformerTest extends AbstractTransformerTest {
 
     @Test
     void clprCompleteChannel() {

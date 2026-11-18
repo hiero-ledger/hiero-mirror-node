@@ -17,7 +17,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @ExtendWith(OutputCaptureExtension.class)
-class ClprMaintenanceTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class ClprMaintenanceTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {

@@ -18,7 +18,7 @@ import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
-class ClprDeregisterConnectorTransactionHandler extends AbstractTransactionHandler {
+final class ClprDeregisterConnectorTransactionHandler extends AbstractTransactionHandler {
 
     private final ClprConnectorRepository clprConnectorRepository;
     private final EntityListener entityListener;

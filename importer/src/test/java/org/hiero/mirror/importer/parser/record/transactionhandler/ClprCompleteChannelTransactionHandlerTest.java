@@ -33,7 +33,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.data.util.Version;
 
 @ExtendWith(OutputCaptureExtension.class)
-class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class ClprCompleteChannelTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {

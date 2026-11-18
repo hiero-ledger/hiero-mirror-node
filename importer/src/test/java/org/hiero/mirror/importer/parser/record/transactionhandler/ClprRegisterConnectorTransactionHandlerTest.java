@@ -15,7 +15,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-class ClprRegisterConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class ClprRegisterConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {

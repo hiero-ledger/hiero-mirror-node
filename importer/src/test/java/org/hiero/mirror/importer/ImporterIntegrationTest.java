@@ -134,8 +134,7 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
         final var conversionService = new DefaultConversionService();
         conversionService.addConverter(
                 PGobject.class, ServiceEndpoint.class, s -> convertJsonb(s, ServiceEndpoint.class));
-        conversionService.addConverter(
-                PGobject.class, Range.class, source -> RangeUtils.rangeLong(source.getValue()));
+        conversionService.addConverter(PGobject.class, Range.class, source -> RangeUtils.rangeLong(source.getValue()));
         conversionService.addConverter(
                 Long.class, EntityId.class, EntityIdConverter.INSTANCE::convertToEntityAttribute);
         conversionService.addConverter(PgArray.class, List.class, array -> {
