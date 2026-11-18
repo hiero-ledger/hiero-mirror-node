@@ -34,6 +34,10 @@ class HookRepositoryCustomImpl implements HookRepositoryCustom {
 
     @Override
     public List<HookStorageSlot> findHookStorage(HookStorageRequest request, long ownerId) {
+        if (!request.getKeys().isEmpty() && !hasKeyInRange(request)) {
+            return List.of();
+        }
+
         if (request.isHistorical()) {
             return findHistoricalHookStorage(request, ownerId);
         }
@@ -56,6 +60,10 @@ class HookRepositoryCustomImpl implements HookRepositoryCustom {
 
     @Override
     public List<Hook> findHooks(HooksRequest request, long ownerId) {
+        if (!request.getHookIds().isEmpty() && !hasHookIdInRange(request)) {
+            return List.of();
+        }
+
         var condition =
                 HOOK.OWNER_ID.eq(ownerId).and(HOOK.HOOK_ID.between(request.getLowerBound(), request.getUpperBound()));
 
@@ -73,13 +81,9 @@ class HookRepositoryCustomImpl implements HookRepositoryCustom {
     }
 
     private List<HookStorageSlot> findHistoricalHookStorage(HookStorageRequest request, long ownerId) {
-        final var keys = request.getKeys();
-        if (!keys.isEmpty() && !hasKeyInRange(request)) {
-            return List.of();
-        }
-
         // Once any of the keys is within the key range, all the keys are matched regardless of the range
         final var key = HOOK_STORAGE_CHANGE.KEY;
+        final var keys = request.getKeys();
         final var keyCondition =
                 keys.isEmpty() ? key.between(request.getKeyLowerBound(), request.getKeyUpperBound()) : key.in(keys);
         final var condition = HOOK_STORAGE_CHANGE
@@ -106,6 +110,23 @@ class HookRepositoryCustomImpl implements HookRepositoryCustom {
         return keys.isEmpty() ? condition : condition.and(key.in(keys));
     }
 
+    private static <T> SortField<T> getSortField(Field<T> field, Direction order) {
+        return order.isAscending() ? field.asc() : field.desc();
+    }
+
+    private static boolean hasHookIdInRange(HooksRequest request) {
+        final long lowerBound = request.getLowerBound();
+        final long upperBound = request.getUpperBound();
+
+        for (final long hookId : request.getHookIds()) {
+            if (hookId >= lowerBound && hookId <= upperBound) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static boolean hasKeyInRange(HookStorageRequest request) {
         final var lowerBound = request.getKeyLowerBound();
         final var upperBound = request.getKeyUpperBound();
@@ -117,10 +138,6 @@ class HookRepositoryCustomImpl implements HookRepositoryCustom {
         }
 
         return false;
-    }
-
-    private static <T> SortField<T> getSortField(Field<T> field, Direction order) {
-        return order.isAscending() ? field.asc() : field.desc();
     }
 
     private static Hook toHook(HookRecord hookRecord) {

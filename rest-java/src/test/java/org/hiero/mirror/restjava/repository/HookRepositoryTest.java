@@ -144,6 +144,23 @@ final class HookRepositoryTest extends RestJavaIntegrationTest {
     }
 
     @Test
+    @DisplayName("findHooks returns empty when no explicit hook id is within the range")
+    void findHooksIdsOutOfRange() {
+        // given
+        persistHook(OWNER_ID_1, 5L);
+        persistHook(OWNER_ID_1, 25L);
+
+        final var request = HooksRequest.builder()
+                .hookIds(List.of(5L, 25L))
+                .lowerBound(10L)
+                .upperBound(20L)
+                .build();
+
+        // when, then
+        assertThat(hookRepository.findHooks(request, OWNER_ID_1)).isEmpty();
+    }
+
+    @Test
     @DisplayName("findHooks respects the limit")
     void findHooksLimit() {
         // given
