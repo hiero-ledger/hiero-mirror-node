@@ -46,6 +46,7 @@ import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
 import org.hiero.mirror.importer.downloader.provider.TransientProviderException;
 import org.hiero.mirror.importer.exception.FileOperationException;
 import org.hiero.mirror.importer.exception.HashMismatchException;
+import org.hiero.mirror.importer.exception.InvalidConfigurationException;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
 import org.hiero.mirror.importer.reader.StreamFileReader;
 import org.hiero.mirror.importer.reader.signature.SignatureFileReader;
@@ -216,6 +217,12 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
         long listLimit = downloaderProperties.isEnabled() ? Long.MAX_VALUE : 1;
         var stopwatch = Stopwatch.createStarted();
         var startAfterFilename = getStartAfterFilename();
+        // EPOCH is a record filename, so it can't be checked against other stream types
+        if (startAfterFilename != StreamFilename.EPOCH && startAfterFilename.getStreamType() != streamType) {
+            throw new InvalidConfigurationException("Last stream file %s is of type %s, expected %s"
+                    .formatted(startAfterFilename.getFilename(), startAfterFilename.getStreamType(), streamType));
+        }
+
         log.debug("Asking for new signature files created after file: {}", startAfterFilename);
 
         final var signatures = Objects.requireNonNull(Flux.fromIterable(nodes)
