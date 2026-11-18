@@ -8,6 +8,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -176,6 +177,12 @@ final class CutoverServiceTest {
         assertThat(blockProperties.isEnabled()).isTrue();
         assertThat(recordDownloaderProperties.isEnabled()).isFalse();
         verify(recordFileRepository).findLatest();
+        verify(recordFileRepository, never()).findFirst();
+
+        // record stream never gets a turn, even past the cutover threshold
+        await().during(CUTOVER_THRESHOLD.multipliedBy(2))
+                .pollInterval(Duration.ofMillis(10))
+                .until(() -> verifyActiveStream(StreamType.BLOCK));
     }
 
     @Test
