@@ -95,5 +95,3 @@ spec:
             provisionedIops: 7000
             provisionedThroughput: 180
         diskPrefix: preprod
-        serviceAccount:
-          iAmName: citus-zfs-preprod-sa@mirrornode-non-prod-314918.iam.gserviceaccount.com
