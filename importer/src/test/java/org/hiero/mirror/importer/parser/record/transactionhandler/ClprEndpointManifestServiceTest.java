@@ -17,7 +17,7 @@ import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
-class ClprEndpointManifestServiceTest extends ImporterIntegrationTest {
+final class ClprEndpointManifestServiceTest extends ImporterIntegrationTest {
 
     // Caching is applied via the Spring proxy around this bean, so lookup/notify must be called through the
     // injected service -- not a bare `new ClprEndpointManifestService(...)` -- for @Cacheable/@CachePut to take

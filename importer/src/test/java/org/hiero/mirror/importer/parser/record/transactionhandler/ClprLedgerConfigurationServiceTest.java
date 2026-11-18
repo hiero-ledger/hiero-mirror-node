@@ -17,7 +17,7 @@ import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
-class ClprLedgerConfigurationServiceTest extends ImporterIntegrationTest {
+final class ClprLedgerConfigurationServiceTest extends ImporterIntegrationTest {
 
     // Caching is applied via the Spring proxy around this bean, so lookup/notify must be called through the
     // injected service -- not a bare `new ClprLedgerConfigurationService(...)` -- for @Cacheable/@CachePut to take
