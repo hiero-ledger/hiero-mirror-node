@@ -121,8 +121,10 @@ public class EthereumClient extends AbstractNetworkClient {
 
         Credentials credentials =
                 Credentials.create(signerAccount.getPrivateKey().toStringRaw());
+        final var maxGasAllowance =
+                Hbar.from(acceptanceTestProperties.getFeatureProperties().getMaxGasAllowanceHbar());
         EthereumTransaction ethereumTransaction = new EthereumTransaction()
-                .setMaxGasAllowanceHbar(Hbar.from(5L))
+                .setMaxGasAllowanceHbar(maxGasAllowance)
                 .setEthereumData(signEthereumData(rawTransaction, type, credentials));
 
         final var response = executeTransactionAndRetrieveReceipt(ethereumTransaction, null, signerAccount);
