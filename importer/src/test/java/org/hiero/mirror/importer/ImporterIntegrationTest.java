@@ -8,7 +8,6 @@ import static org.hiero.mirror.importer.TestUtils.getResource;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Range;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import jakarta.annotation.Resource;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
@@ -44,6 +43,7 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.tableusage.EndpointContext;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.config.ActuatorHttpServer;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.config.Owner;
@@ -125,7 +125,7 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
         defaultConversionService.addConverter(
                 PGobject.class, ServiceEndpoint.class, s -> convertJsonb(s, ServiceEndpoint.class));
         defaultConversionService.addConverter(
-                PGobject.class, Range.class, source -> PostgreSQLGuavaRangeType.longRange(source.getValue()));
+                PGobject.class, Range.class, source -> RangeUtils.rangeLong(source.getValue()));
         defaultConversionService.addConverter(
                 Long.class, EntityId.class, EntityIdConverter.INSTANCE::convertToEntityAttribute);
         defaultConversionService.addConverter(PgArray.class, List.class, array -> {

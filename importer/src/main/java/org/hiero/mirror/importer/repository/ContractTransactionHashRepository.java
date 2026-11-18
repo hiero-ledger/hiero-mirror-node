@@ -14,6 +14,8 @@ public interface ContractTransactionHashRepository
 
     @Modifying
     @Override
-    @Query("delete from ContractTransactionHash where consensusTimestamp <= :consensusTimestamp")
+    @Query(
+            value = "delete from contract_transaction_hash where consensus_timestamp <= :consensusTimestamp",
+            nativeQuery = true)
     int prune(long consensusTimestamp);
 }
