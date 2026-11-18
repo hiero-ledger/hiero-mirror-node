@@ -28,7 +28,7 @@ hiero:
         fixFungibleTokenTotalSupplyMigration:
           checksum: 2
         historicalAccountInfoMigration:
-          checksum: 3
+          checksum: 4
         initializeEntityBalanceMigration:
           checksum: 4
         syntheticTokenAllowanceOwnerMigration:

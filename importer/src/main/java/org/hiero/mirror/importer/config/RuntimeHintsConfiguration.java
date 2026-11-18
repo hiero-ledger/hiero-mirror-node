@@ -54,6 +54,7 @@ final class RuntimeHintsConfiguration {
                     hints,
                     "addressbook/**",
                     "accountInfo.txt.gz",
+                    "accountInfoKeyUpdates.txt.gz",
                     "accountInfoContracts.txt",
                     "com/hedera/cryptography/wraps/**",
                     "com/hedera/nativelib/wraps/**",
