@@ -29,7 +29,7 @@ public class FeatureProperties {
 
     @Min(1L)
     @Max(1_000L)
-    private long maxGasAllowanceHbar = 10L;
+    private long maxGasAllowanceHbar = 7L;
 
     private boolean sidecars = false;
 }
