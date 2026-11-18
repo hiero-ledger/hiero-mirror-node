@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
@@ -47,14 +48,17 @@ class ContractController {
         }
 
         throttleManager.throttle(request);
-        try {
-            final var result = contractExecutionService.processCall(params, throttleManager::restoreUnusedGas);
-            return new ContractCallResponse(result);
-        } catch (IllegalArgumentException | InvalidParametersException e) {
-            // Processing did not complete, so restore the consumed tokens.
-            throttleManager.restore(request.getGas());
-            throw e;
-        }
+        return ContractCallContext.run(ctx -> {
+            try {
+                return new ContractCallResponse(contractExecutionService.processCall(params, ctx));
+            } catch (IllegalArgumentException | InvalidParametersException e) {
+                // Processing did not complete, so restore the consumed tokens.
+                throttleManager.restore(request.getGas());
+                throw e;
+            } finally {
+                throttleManager.restoreRefundableGas(request.getGas(), ctx.getRefundableGas());
+            }
+        });
     }
 
     private ContractExecutionParameters constructServiceParameters(ContractCallRequest request) {

@@ -26,6 +26,7 @@ import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.utils.Suppliers;
 import org.hiero.mirror.web3.viewmodel.BlockType;
+import org.jspecify.annotations.Nullable;
 
 @Named
 @CustomLog
@@ -115,13 +116,13 @@ public abstract class ContractCallService {
             }
             throw new MirrorEvmTransactionException(ResponseCodeEnum.FAIL_INVALID, EMPTY, EMPTY);
         } catch (MirrorEvmTransactionException e) {
-            // Keep the failed result so the gas usage listener can see how much gas it used.
+            // Keep the failed result so the refundable gas reflects how much gas it used.
             result = e.getResult();
             status = e.getMessage();
             throw e;
         } finally {
             if (!estimate) {
-                ContractCallContext.get().getGasUsageListener().executed(params.getGas(), result);
+                ContractCallContext.get().setRefundableGas(refundableGas(params.getGas(), result));
 
                 // Only record metric if EVM is invoked and not inside estimate loop
                 if (result != null) {
@@ -153,6 +154,14 @@ public abstract class ContractCallService {
     protected final void updateGasLimitMetric(final CallServiceParameters parameters) {
         final var callType = parameters.getCallType().toString();
         gasLimitCounter.withTag(TAG_TYPE, callType).increment(parameters.getGas());
+    }
+
+    private static long refundableGas(final long gasLimit, final @Nullable EvmTransactionResult result) {
+        // A failed execution reports its whole gas limit as used, so all of it is refundable.
+        if (result == null || (!result.isSuccessful() && result.gasUsed() == gasLimit)) {
+            return gasLimit;
+        }
+        return gasLimit - result.gasUsed();
     }
 
     private String getBlock() {

@@ -38,6 +38,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
@@ -369,6 +370,32 @@ final class ContractControllerTest {
                 .andExpect(content()
                         .string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Invalid hex value"))));
         verify(throttleManager).restore(request.getGas());
+    }
+
+    @Test
+    void callRestoresRefundableGas() throws Exception {
+        final var request = request();
+        final long refundableGas = 21_000L;
+
+        given(service.processCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
+            return HEX_PREFIX;
+        });
+        contractCall(request).andExpect(status().isOk());
+        verify(throttleManager).restoreRefundableGas(request.getGas(), refundableGas);
+    }
+
+    @Test
+    void callWithRevertRestoresRefundableGas() throws Exception {
+        final var request = request();
+        final long refundableGas = 21_000L;
+
+        given(service.processCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
+            throw new MirrorEvmTransactionException(CONTRACT_REVERT_EXECUTED, "detail", HEX_PREFIX);
+        });
+        contractCall(request).andExpect(status().isBadRequest());
+        verify(throttleManager).restoreRefundableGas(request.getGas(), refundableGas);
     }
 
     @Test

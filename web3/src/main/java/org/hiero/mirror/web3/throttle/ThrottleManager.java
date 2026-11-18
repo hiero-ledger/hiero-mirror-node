@@ -2,9 +2,7 @@
 
 package org.hiero.mirror.web3.throttle;
 
-import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
-import org.jspecify.annotations.Nullable;
 
 public interface ThrottleManager {
 
@@ -13,8 +11,7 @@ public interface ThrottleManager {
     void restore(long gas);
 
     /**
-     * Returns the gas an execution did not use, capped at the configured refund share of its gas limit. A failed
-     * execution that used its whole gas limit, or one with no result, returns that refund share.
+     * Returns the refundable gas of an execution, capped at the configured refund share of its gas limit.
      */
-    void restoreUnusedGas(long gasLimit, @Nullable EvmTransactionResult result);
+    void restoreRefundableGas(long gasLimit, long refundableGas);
 }

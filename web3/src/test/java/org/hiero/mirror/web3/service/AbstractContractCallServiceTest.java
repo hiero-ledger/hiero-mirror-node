@@ -253,8 +253,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected ContractExecutionResult verifyEthCallAndEstimateGas(
             final RemoteFunctionCall<TransactionReceipt> functionCall, final Contract contract) {
-        final var executionResult = contractExecutionService.processCallWithGas(
-                getContractExecutionParameters(functionCall, contract), GasUsageListener.NONE);
+        final var executionResult =
+                contractExecutionService.processCallWithGas(getContractExecutionParameters(functionCall, contract));
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
@@ -286,7 +286,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Address payerAddress,
             final long value) {
         final var executionResult = contractExecutionService.processCallWithGas(
-                getContractExecutionParameters(functionCall, contract, payerAddress, value), GasUsageListener.NONE);
+                getContractExecutionParameters(functionCall, contract, payerAddress, value));
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();

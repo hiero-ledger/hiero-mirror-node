@@ -77,9 +77,9 @@ class StorageContractTest extends AbstractContractCallServiceHistoricalTest {
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
         // Clearing slot 1 requires this limit before the storage refund is applied.
         final long requiredGasLimit = 26_469L;
-        final var executionResult = assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(
-                getContractExecutionParameters(callData, contractAddress, Address.ZERO, 0L, ETH_CALL, requiredGasLimit),
-                GasUsageListener.NONE));
+        final var executionResult =
+                assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(getContractExecutionParameters(
+                        callData, contractAddress, Address.ZERO, 0L, ETH_CALL, requiredGasLimit)));
         assertThat(executionResult.gasUsed()).isLessThan(requiredGasLimit);
         assertThatThrownBy(() -> contractExecutionService.processCall(getContractExecutionParameters(
                         callData, contractAddress, Address.ZERO, 0L, ETH_CALL, requiredGasLimit - 1)))
@@ -94,8 +94,7 @@ class StorageContractTest extends AbstractContractCallServiceHistoricalTest {
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimatedGas, requiredGasLimit)
                 .isTrue();
         final var executionAtEstimate = assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(
-                getContractExecutionParameters(callData, contractAddress, Address.ZERO, 0L, ETH_CALL, estimatedGas),
-                GasUsageListener.NONE));
+                getContractExecutionParameters(callData, contractAddress, Address.ZERO, 0L, ETH_CALL, estimatedGas)));
         assertThat(executionAtEstimate).isEqualTo(executionResult);
     }
 

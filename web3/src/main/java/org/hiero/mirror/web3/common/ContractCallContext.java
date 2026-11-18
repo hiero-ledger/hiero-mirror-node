@@ -18,7 +18,6 @@ import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
-import org.hiero.mirror.web3.service.GasUsageListener;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
@@ -58,10 +57,12 @@ public class ContractCallContext {
     private CallServiceParameters callServiceParameters;
 
     /**
-     * Told about each EVM execution of this request, so the controller can return the throttle gas it did not use.
+     * Gas the controller may return to the throttle after the request's EVM execution: the gas it did not use, or its
+     * whole gas limit when it failed having used all of it or produced no result. Zero until the execution ends. Gas
+     * estimation search iterations do not update it, because no throttle gas was reserved for them.
      */
     @Setter
-    private GasUsageListener gasUsageListener = GasUsageListener.NONE;
+    private long refundableGas;
 
     @Setter
     private EntityNumber entityNumber;
