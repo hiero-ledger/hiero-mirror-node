@@ -27,5 +27,9 @@ public class FeatureProperties {
     @Max(10_000_000)
     private long maxContractFunctionGas = 5_750_000;
 
+    @Min(1L)
+    @Max(1_000L)
+    private long maxGasAllowanceHbar = 100L;
+
     private boolean sidecars = false;
 }
