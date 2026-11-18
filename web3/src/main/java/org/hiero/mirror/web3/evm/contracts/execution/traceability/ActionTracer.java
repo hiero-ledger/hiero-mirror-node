@@ -22,7 +22,6 @@ import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -55,7 +54,6 @@ public class ActionTracer implements ActionSidecarContentTracer {
     };
 
     private static final String EXECUTION_REVERTED = "execution reverted";
-    private static final String OPCODE_PREFIX = "OP_";
 
     @Override
     public List<ContractAction> contractActions() {
@@ -89,7 +87,7 @@ public class ActionTracer implements ActionSidecarContentTracer {
             return;
         }
         haltIfDeadlineExceeded(frame);
-        actionContext.addAction(buildActionResponse(frame, topLevelCallType(frame)), frame.getDepth());
+        actionContext.addAction(buildActionResponse(actionContext, frame, topLevelCallType(frame)), frame.getDepth());
     }
 
     @Override
@@ -133,7 +131,7 @@ public class ActionTracer implements ActionSidecarContentTracer {
             return;
         }
         if (!actionContext.hasActionAt(frame.getDepth())) {
-            actionContext.addAction(buildActionResponse(frame, typeEnumFrom(type)), frame.getDepth());
+            actionContext.addAction(buildActionResponse(actionContext, frame, typeEnumFrom(type)), frame.getDepth());
         }
         finalizeCurrentAction(actionContext, frame);
     }
@@ -147,25 +145,21 @@ public class ActionTracer implements ActionSidecarContentTracer {
         return ContractCallContext.get().getActionContext();
     }
 
-    private ActionResponse buildActionResponse(final MessageFrame frame, final TypeEnum type) {
-        final var actionContext = actionContext();
+    private ActionResponse buildActionResponse(
+            final ActionContext actionContext, final MessageFrame frame, final TypeEnum type) {
         return new ActionResponse()
                 .from(frame.getSenderAddress().toHexString())
                 .gas(convertLongToHexString(frame.getRemainingGas()))
-                .input(actionContext == null ? null : actionContext.hexWithinBudget(frame.getInputData()))
+                .input(actionContext.hexWithinBudget(frame.getInputData()))
                 .to(frame.getRecipientAddress().toHexString())
                 .type(type)
                 .value(convertValueToHexString(frame.getValue()))
                 .calls(new ArrayList<>());
     }
 
-    private boolean burnsFrameGas(final MessageFrame frame) {
-        final var actionContext = actionContext();
-        if (actionContext != null && actionContext.isTimedOut()) {
-            return false;
-        }
-        final var halt = frame.getExceptionalHaltReason().orElse(null);
-        if (halt == TIMEOUT_HALT_REASON) {
+    /** A timeout halt is set together with {@link ActionContext#isTimedOut()}, so the flag covers it. */
+    private boolean burnsFrameGas(final ActionContext actionContext, final MessageFrame frame) {
+        if (actionContext.isTimedOut()) {
             return false;
         }
         final var state = frame.getState();
@@ -190,8 +184,8 @@ public class ActionTracer implements ActionSidecarContentTracer {
                 reverted ? frame.getRevertReason().orElse(frame.getOutputData()) : frame.getOutputData());
         actionContext.finalizeAction(
                 frame.getDepth(),
-                reverted ? EXECUTION_REVERTED : haltError(frame),
-                gasUsedHex(frame, action.getGas()),
+                reverted ? EXECUTION_REVERTED : haltError(actionContext, frame),
+                gasUsedHex(actionContext, frame, action.getGas()),
                 output,
                 reverted && output != null && output.startsWith("0x08c379a0")
                         ? maybeDecodeSolidityErrorStringToReadableMessage(output)
@@ -202,25 +196,24 @@ public class ActionTracer implements ActionSidecarContentTracer {
      * Gas burned by this frame, clamped to the gas recorded when the frame was entered. An exceptional halt consumes
      * the whole frame. A timeout reports only the gas used before the deadline. A revert keeps gas consumed so far.
      */
-    private String gasUsedHex(final MessageFrame frame, final @Nullable String gasHex) {
+    private String gasUsedHex(
+            final ActionContext actionContext, final MessageFrame frame, final @Nullable String gasHex) {
         final long gas = convertHexStringToLong(gasHex);
-        if (burnsFrameGas(frame)) {
+        if (burnsFrameGas(actionContext, frame)) {
             return convertLongToHexString(gas);
         }
         final long remaining = Math.max(0L, frame.getRemainingGas());
-        final long used = Math.min(gas, Math.max(0L, gas - remaining));
-        return convertLongToHexString(used);
+        return convertLongToHexString(Math.max(0L, gas - remaining));
     }
 
-    private @Nullable String haltError(final MessageFrame frame) {
+    private @Nullable String haltError(final ActionContext actionContext, final MessageFrame frame) {
         final var halt = frame.getExceptionalHaltReason().orElse(null);
         if (halt != null && halt != ExceptionalHaltReason.NONE) {
             return halt.toString();
         }
         // Besu can clear the halt reason before the frame is finalized. The timeout flag is the record that this
         // call was stopped because the trace deadline passed.
-        final var actionContext = actionContext();
-        if (actionContext != null && actionContext.isTimedOut()) {
+        if (actionContext.isTimedOut()) {
             return TIMEOUT_HALT_REASON.toString();
         }
         return null;
@@ -240,7 +233,7 @@ public class ActionTracer implements ActionSidecarContentTracer {
         if (action != null && !ActionContext.TRUNCATED_ERROR.equals(action.getError())) {
             action.error(TIMEOUT_HALT_REASON.toString());
             if (action.getGasUsed() == null && action.getGas() != null) {
-                action.gasUsed(gasUsedHex(frame, action.getGas()));
+                action.gasUsed(gasUsedHex(actionContext, frame, action.getGas()));
             }
         }
     }
@@ -250,15 +243,19 @@ public class ActionTracer implements ActionSidecarContentTracer {
         if (child == null) {
             return;
         }
-        actionContext.addAction(buildActionResponse(child, callTypeFromParent(frame)), child.getDepth());
+        actionContext.addAction(buildActionResponse(actionContext, child, callTypeFromParent(frame)), child.getDepth());
     }
 
     private TypeEnum toTypeEnum(final CallOperationType callOperationType) {
-        try {
-            return TypeEnum.fromValue(callOperationType.toString().replace(OPCODE_PREFIX, StringUtils.EMPTY));
-        } catch (IllegalArgumentException _) {
-            return TypeEnum.UNKNOWN;
-        }
+        return switch (callOperationType) {
+            case OP_CALL -> TypeEnum.CALL;
+            case OP_CALLCODE -> TypeEnum.CALLCODE;
+            case OP_CREATE -> TypeEnum.CREATE;
+            case OP_CREATE2 -> TypeEnum.CREATE2;
+            case OP_DELEGATECALL -> TypeEnum.DELEGATECALL;
+            case OP_STATICCALL -> TypeEnum.STATICCALL;
+            case OP_UNKNOWN, UNRECOGNIZED -> TypeEnum.UNKNOWN;
+        };
     }
 
     private TypeEnum topLevelCallType(final MessageFrame frame) {

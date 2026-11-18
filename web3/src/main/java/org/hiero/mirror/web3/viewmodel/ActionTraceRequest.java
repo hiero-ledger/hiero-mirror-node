@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
-import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_BUNDLES;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_TRANSACTIONS;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -11,6 +10,7 @@ import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -48,7 +48,6 @@ public class ActionTraceRequest {
 
     @NotEmpty
     @NotNull
-    @Size(max = MAX_TRACE_BUNDLES)
     @Valid
     private List<@NotNull @Valid ActionTraceBundle> bundles = new ArrayList<>();
 
@@ -69,6 +68,7 @@ public class ActionTraceRequest {
      * the simulation after every transaction in the block. It has no effect when {@link #block} is {@code latest}. The
      * timestamp applies to the whole request. Values less than {@code -1} are rejected.
      */
+    @Min(-1)
     @Nullable
     private Integer transactionIndex;
 

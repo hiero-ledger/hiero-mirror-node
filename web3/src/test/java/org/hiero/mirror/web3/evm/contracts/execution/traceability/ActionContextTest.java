@@ -53,7 +53,7 @@ class ActionContextTest {
 
         assertThat(context.isTruncated()).isFalse();
         assertThat(context.getActions()).hasSize(1);
-        assertThat(context.getActionsByDepth(ActionContext.MAX_DEPTH - 1)).hasSize(1);
+        assertThat(context.getCurrentAction(ActionContext.MAX_DEPTH - 1)).isSameAs(parent);
     }
 
     @Test
@@ -121,10 +121,10 @@ class ActionContextTest {
         context.addAction(sibling, 1);
 
         assertThat(context.getActions()).containsExactly(root);
-        assertThat(context.getActionsByDepth(0)).containsExactly(root);
-        assertThat(context.getActionsByDepth(1)).containsExactly(child, sibling);
-        assertThat(context.getActionsByDepth(2)).containsExactly(grandchild);
-        assertThat(context.getActionsByDepth(3)).isEmpty();
+        assertThat(context.getCurrentAction(0)).isSameAs(root);
+        assertThat(context.getCurrentAction(1)).isSameAs(sibling);
+        assertThat(context.getCurrentAction(2)).isSameAs(grandchild);
+        assertThat(context.getCurrentAction(3)).isNull();
         assertThat(root.getCalls()).containsExactly(child, sibling);
         assertThat(child.getCalls()).containsExactly(grandchild);
     }
@@ -139,7 +139,7 @@ class ActionContextTest {
         assertThat(context.getActions()).hasSize(1);
         assertThat(context.getActions().getFirst().getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
         assertThat(context.getActions().getFirst().getFrom()).isNull();
-        assertThat(context.getActionsByDepth(1)).isEmpty();
+        assertThat(context.getCurrentAction(1)).isNull();
     }
 
     @Test
@@ -261,14 +261,12 @@ class ActionContextTest {
 
         assertThat(context.getActions()).containsExactly(first);
         assertThat(context.hasActionAt(0)).isFalse();
-        assertThat(context.getActionsByDepth(0)).isEmpty();
         assertThat(first.getCalls()).containsExactly(firstChild);
 
         final var second = new ActionResponse().from("0x2");
         context.addAction(second, 0);
 
         assertThat(context.getActions()).containsExactly(first, second);
-        assertThat(context.getActionsByDepth(0)).containsExactly(second);
         assertThat(context.getCurrentAction(0)).isEqualTo(second);
     }
 

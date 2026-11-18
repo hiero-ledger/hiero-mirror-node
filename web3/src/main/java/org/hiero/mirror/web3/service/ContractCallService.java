@@ -25,8 +25,6 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.Utils;
-import org.hiero.mirror.web3.throttle.ThrottleManager;
-import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.Suppliers;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 
@@ -48,14 +46,9 @@ public abstract class ContractCallService {
     private final MeterProvider<Counter> gasLimitCounter;
     private final MeterProvider<Counter> gasUsedCounter;
     private final RecordFileService recordFileService;
-    private final ThrottleProperties throttleProperties;
-    private final ThrottleManager throttleManager;
     private final TransactionExecutionService transactionExecutionService;
 
-    @SuppressWarnings("java:S107")
     protected ContractCallService(
-            ThrottleManager throttleManager,
-            ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
             RecordFileService recordFileService,
             EvmProperties evmProperties,
@@ -70,8 +63,6 @@ public abstract class ContractCallService {
                 .description("The amount of gas consumed by the EVM")
                 .withRegistry(meterRegistry);
         this.recordFileService = recordFileService;
-        this.throttleProperties = throttleProperties;
-        this.throttleManager = throttleManager;
         this.evmProperties = evmProperties;
         this.transactionExecutionService = transactionExecutionService;
     }
@@ -130,13 +121,13 @@ public abstract class ContractCallService {
             }
             throw new MirrorEvmTransactionException(ResponseCodeEnum.FAIL_INVALID, EMPTY, EMPTY);
         } catch (MirrorEvmTransactionException e) {
-            // This result is needed in case of exception to be still able to call restoreGasToBucket method
+            // Keep the failed result so the gas usage listener can see how much gas it used.
             result = e.getResult();
             status = e.getMessage();
             throw e;
         } finally {
             if (!estimate) {
-                restoreGasToBucket(result, params.getGas());
+                ContractCallContext.get().getGasUsageListener().executed(params.getGas(), result);
             }
 
             // Only record metric if EVM is invoked and not inside estimate loop
@@ -145,28 +136,6 @@ public abstract class ContractCallService {
             }
         }
         return result;
-    }
-
-    /**
-     * Returns the full gas reserved for a transaction that never entered execution. A transaction whose
-     * {@code finally} already ran uses {@link #restoreGasToBucket} instead.
-     */
-    protected final void restoreReservedGas(final long gas) {
-        throttleManager.restore(gas);
-    }
-
-    private void restoreGasToBucket(EvmTransactionResult result, long gasLimit) {
-        // If the transaction fails, gasUsed is equal to gasLimit, so restore the configured refund percent
-        // of the gasLimit value back in the bucket.
-        final var gasLimitToRestoreBaseline = (long) (gasLimit * throttleProperties.getGasLimitRefundPercent() / 100f);
-        if (result == null || (!result.isSuccessful() && gasLimit == result.gasUsed())) {
-            throttleManager.restore(gasLimitToRestoreBaseline);
-        } else {
-            // The transaction was successful or reverted, so restore the remaining gas back in the bucket or
-            // the configured refund percent of the gasLimit value back in the bucket - whichever is lower.
-            final var gasRemaining = gasLimit - result.gasUsed();
-            throttleManager.restore(Math.min(gasRemaining, gasLimitToRestoreBaseline));
-        }
     }
 
     protected void validateResult(final EvmTransactionResult txnResult, final CallServiceParameters params) {

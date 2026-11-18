@@ -20,6 +20,7 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
+import org.hiero.mirror.web3.service.GasUsageListener;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -72,6 +73,12 @@ public class ContractCallContext {
 
     @Setter
     private CallServiceParameters callServiceParameters;
+
+    /**
+     * Told about each EVM execution of this request, so the controller can return the throttle gas it did not use.
+     */
+    @Setter
+    private GasUsageListener gasUsageListener = GasUsageListener.NONE;
 
     @Setter
     private EntityNumber entityNumber;
@@ -260,7 +267,10 @@ public class ContractCallContext {
         return new CacheSnapshot(copyCache(readCache), copyCache(writeCache), copyCache(committedCache));
     }
 
-    /** Replaces the live caches with the snapshot. Used when a trace transaction reverts or throws. */
+    /**
+     * Replaces the live caches with the snapshot. Used when a trace transaction reverts or throws. The snapshot's maps
+     * become the live caches, so a snapshot can be restored only once.
+     */
     public void restoreCaches(final CacheSnapshot snapshot) {
         replaceCache(readCache, snapshot.readCache());
         replaceCache(writeCache, snapshot.writeCache());
@@ -275,11 +285,9 @@ public class ContractCallContext {
         return copy;
     }
 
-    private void replaceCache(
+    private static void replaceCache(
             final Map<Integer, Map<Object, Object>> target, final Map<Integer, Map<Object, Object>> snapshot) {
         target.clear();
-        for (final var entry : snapshot.entrySet()) {
-            target.put(entry.getKey(), new HashMap<>(entry.getValue()));
-        }
+        target.putAll(snapshot);
     }
 }

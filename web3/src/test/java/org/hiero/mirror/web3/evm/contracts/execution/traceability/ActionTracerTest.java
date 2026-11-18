@@ -547,7 +547,6 @@ class ActionTracerTest {
         actionTracer.traceOriginAction(messageFrame);
         given(messageFrame.getState()).willReturn(REVERT);
         given(messageFrame.getDepth()).willReturn(0);
-        given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.empty());
         given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
         given(messageFrame.getRevertReason())
                 .willReturn(Optional.of(Bytes.fromHexString(
@@ -572,7 +571,6 @@ class ActionTracerTest {
         actionTracer.traceOriginAction(messageFrame);
         given(messageFrame.getState()).willReturn(REVERT);
         given(messageFrame.getDepth()).willReturn(0);
-        given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.empty());
         given(messageFrame.getRemainingGas()).willReturn(REMAINING_GAS);
         given(messageFrame.getRevertReason()).willReturn(Optional.of(Bytes.fromHexString(payload)));
 
@@ -624,7 +622,6 @@ class ActionTracerTest {
         actionTracer.traceOriginAction(messageFrame);
         given(messageFrame.getState()).willReturn(REVERT);
         given(messageFrame.getDepth()).willReturn(0);
-        given(messageFrame.getExceptionalHaltReason()).willReturn(Optional.empty());
         given(messageFrame.getRemainingGas()).willReturn(-50L);
 
         actionTracer.tracePostExecution(messageFrame, operationResult);

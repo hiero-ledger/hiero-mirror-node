@@ -29,9 +29,6 @@ public class ContractCallRequest {
     public static final int ADDRESS_LENGTH = 40;
     public static final long DATA_MAX_LENGTH = 300_000L;
 
-    /** Maximum bundles in one {@code debug_traceCallMany} request. */
-    public static final int MAX_TRACE_BUNDLES = 16;
-
     /** Maximum transactions across every bundle in one {@code debug_traceCallMany} request. */
     public static final int MAX_TRACE_TRANSACTIONS = 16;
 

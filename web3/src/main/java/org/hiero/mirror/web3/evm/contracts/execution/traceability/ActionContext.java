@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
@@ -44,10 +45,10 @@ public class ActionContext {
     private final List<ActionResponse> actionResponses = new ArrayList<>();
 
     /**
-     * All actions organized by depth for the current request body. Index {@code d} is every action at that depth in
-     * chronological order. The last entry at a depth is the current frame; the current body's root is index {@code 0}.
+     * The most recent action at each call depth for the current request body. Index {@code d} is the current frame at
+     * that depth, and index {@code d - 1} is its parent. The current body's root is index {@code 0}.
      */
-    private List<ActionResponse>[] actionsByDepth = emptyActionsByDepth();
+    private final @Nullable ActionResponse[] currentByDepth = new ActionResponse[MAX_DEPTH];
 
     private int executedOpcodes;
 
@@ -88,12 +89,12 @@ public class ActionContext {
             actionResponse.setCalls(new ArrayList<>());
         }
         if (depth > 0) {
-            final var parents = actionsByDepth[depth - 1];
-            if (parents == null || parents.isEmpty()) {
+            final var parent = currentByDepth[depth - 1];
+            if (parent == null) {
                 markTruncated();
                 return;
             }
-            parents.getLast().addCallsItem(actionResponse);
+            parent.addCallsItem(actionResponse);
         }
 
         totalActionCount++;
@@ -101,7 +102,7 @@ public class ActionContext {
         if (depth == 0) {
             actionResponses.add(actionResponse);
         }
-        getActionsByDepth(depth).add(actionResponse);
+        currentByDepth[depth] = actionResponse;
     }
 
     /**
@@ -112,14 +113,14 @@ public class ActionContext {
      * a window.
      */
     public void beginCall() {
-        actionsByDepth = emptyActionsByDepth();
+        Arrays.fill(currentByDepth, null);
         lastAction = null;
         truncated = false;
     }
 
     /**
-     * Updates the current action at {@code depth} with the finalized frame result. The action stays in
-     * {@link #actionsByDepth}; a later sibling at the same depth is appended after this frame.
+     * Updates the current action at {@code depth} with the finalized frame result. A later sibling at the same depth
+     * replaces it as the current action.
      */
     public void finalizeAction(
             final int depth,
@@ -150,33 +151,13 @@ public class ActionContext {
     }
 
     /**
-     * Returns all actions recorded at the specified depth, in chronological order.
-     *
-     * @param depth Call depth (0 = root, {@link #MAX_DEPTH} exclusive)
-     * @return List of actions at that depth, or empty list if none
-     */
-    public List<ActionResponse> getActionsByDepth(final int depth) {
-        if (depth < 0 || depth >= MAX_DEPTH) {
-            return List.of();
-        }
-        if (actionsByDepth[depth] == null) {
-            actionsByDepth[depth] = new ArrayList<>();
-        }
-        return actionsByDepth[depth];
-    }
-
-    /**
      * Returns the current (last) action at {@code depth}, or {@code null} if none has been recorded.
      */
     public @Nullable ActionResponse getCurrentAction(final int depth) {
         if (depth < 0 || depth >= MAX_DEPTH) {
             return null;
         }
-        final var actions = actionsByDepth[depth];
-        if (actions == null || actions.isEmpty()) {
-            return null;
-        }
-        return actions.getLast();
+        return currentByDepth[depth];
     }
 
     public boolean hasActionAt(final int depth) {
@@ -218,11 +199,6 @@ public class ActionContext {
         return true;
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private static List<ActionResponse>[] emptyActionsByDepth() {
-        return new List[MAX_DEPTH];
-    }
-
     private void markTruncated() {
         if (truncated) {
             return;
@@ -236,7 +212,7 @@ public class ActionContext {
         final var marker = new ActionResponse().error(TRUNCATED_ERROR).calls(new ArrayList<>());
         actionResponses.add(marker);
         lastAction = marker;
-        getActionsByDepth(0).add(marker);
+        currentByDepth[0] = marker;
     }
 
     private static int textLength(final @Nullable String value) {

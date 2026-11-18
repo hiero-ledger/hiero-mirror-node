@@ -140,15 +140,17 @@ class ContractDebugServiceTraceCommitTest extends AbstractContractCallServiceOpc
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        contractDebugService.processTraceCall(TraceCall.builder()
-                .block(org.hiero.mirror.web3.viewmodel.BlockType.of(
-                        domainBuilder.recordFile().persist().getIndex().toString()))
-                .bundles(List.of(
-                        bundle(parameters.subList(0, 1)),
-                        bundle(parameters.subList(1, 4)),
-                        bundle(parameters.subList(4, 6))))
-                .timeout(TIMEOUT)
-                .build());
+        contractDebugService.processTraceCall(
+                TraceCall.builder()
+                        .block(org.hiero.mirror.web3.viewmodel.BlockType.of(
+                                domainBuilder.recordFile().persist().getIndex().toString()))
+                        .bundles(List.of(
+                                bundle(parameters.subList(0, 1)),
+                                bundle(parameters.subList(1, 4)),
+                                bundle(parameters.subList(4, 6))))
+                        .timeout(TIMEOUT)
+                        .build(),
+                GasUsageListener.NONE);
         return new TraceState(states, statuses);
     }
 

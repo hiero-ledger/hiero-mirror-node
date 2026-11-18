@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ActionResponse;
@@ -19,10 +20,8 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.ThrottleException;
-import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
-import org.hiero.mirror.web3.service.RecordFileService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
@@ -55,27 +54,8 @@ class ContractController {
     private final ContractDebugService contractDebugService;
     private final ContractExecutionService contractExecutionService;
     private final EvmProperties evmProperties;
-    private final RecordFileService recordFileService;
     private final ThrottleManager throttleManager;
-    private final TransactionRepository transactionRepository;
     private final Web3Properties web3Properties;
-
-    @PostMapping(value = "/call")
-    ContractCallResponse call(@RequestBody @Valid ContractCallRequest request) {
-        validateContractMaxGasLimit(request);
-        final var params = constructServiceParameters(request);
-        validateStateOverrides(params.getStateOverrides());
-
-        throttleManager.throttle(request);
-        try {
-            final var result = contractExecutionService.processCall(params);
-            return new ContractCallResponse(result);
-        } catch (IllegalArgumentException | InvalidParametersException e) {
-            // Processing did not complete, so restore the consumed tokens.
-            throttleManager.restore(request.getGas());
-            throw e;
-        }
-    }
 
     @PostMapping(value = "/call/actions")
     List<ActionResponse> actions(
@@ -86,6 +66,7 @@ class ContractController {
         }
         validateTraceCallMany(request.getBundles());
         GzipEncoding.validate(acceptEncoding);
+        validateStateOverrides(request.getStateOverrides());
 
         for (final var bundle : request.getBundles()) {
             rejectNestedStateOverrides(bundle.getStateOverrides(), "bundle");
@@ -97,9 +78,123 @@ class ContractController {
         }
 
         final var traceCall = toTraceCall(request);
-        validateTrace(traceCall);
         throttleActions(request);
-        return contractDebugService.processTraceCall(traceCall);
+        final var executed = new AtomicInteger();
+        try {
+            return contractDebugService.processTraceCall(traceCall, (gasLimit, result) -> {
+                executed.incrementAndGet();
+                throttleManager.restoreUnusedGas(gasLimit, result);
+            });
+        } catch (final RuntimeException exception) {
+            restoreUnstartedGas(request, executed.get());
+            throw exception;
+        }
+    }
+
+    @PostMapping(value = "/call")
+    ContractCallResponse call(@RequestBody @Valid ContractCallRequest request) {
+        validateContractMaxGasLimit(request);
+        final var params = constructServiceParameters(request);
+        validateStateOverrides(params.getStateOverrides());
+
+        throttleManager.throttle(request);
+        try {
+            final var result = contractExecutionService.processCall(params, throttleManager::restoreUnusedGas);
+            return new ContractCallResponse(result);
+        } catch (IllegalArgumentException | InvalidParametersException e) {
+            // Processing did not complete, so restore the consumed tokens.
+            throttleManager.restore(request.getGas());
+            throw e;
+        }
+    }
+
+    private ContractExecutionParameters constructServiceParameters(final ContractCallRequest request) {
+        return constructServiceParameters(request, request.getBlock());
+    }
+
+    private ContractExecutionParameters constructServiceParameters(
+            final ContractCallRequest request, final BlockType block) {
+        final var fromAddress = request.getFrom() != null ? Address.fromHexString(request.getFrom()) : Address.ZERO;
+
+        Address receiver;
+
+        /*In case of an empty "to" field, we set a default value of the zero address
+        to avoid any potential NullPointerExceptions throughout the process.*/
+        if (request.getTo() == null || request.getTo().isEmpty()) {
+            receiver = Address.ZERO;
+        } else {
+            receiver = Address.fromHexString(request.getTo());
+        }
+
+        String data;
+        try {
+            data = request.getData() != null ? request.getData() : HEX_PREFIX;
+        } catch (final Exception e) {
+            throw new InvalidParametersException(
+                    "data field '%s' contains invalid odd length characters".formatted(request.getData()));
+        }
+
+        final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
+        return ContractExecutionParameters.builder()
+                .block(block)
+                .callData(hexToBytes(data))
+                .callType(callType)
+                .gas(request.getGas())
+                .gasPrice(request.getGasPrice())
+                .isEstimate(request.isEstimate())
+                .receiver(receiver)
+                .sender(fromAddress)
+                .stateOverrides(request.getStateOverrides())
+                .value(request.getValue())
+                .build();
+    }
+
+    private static void rejectEstimate(final ContractCallRequest transaction) {
+        if (transaction.isEstimate()) {
+            throw new InvalidParametersException("Estimate is not supported for tracing.");
+        }
+    }
+
+    /** Trace state overrides are allowed only at the request level, not on a bundle or a transaction. */
+    private static void rejectNestedStateOverrides(final List<StateOverride> stateOverrides, final String level) {
+        if (!stateOverrides.isEmpty()) {
+            throw new InvalidParametersException(
+                    "state_overrides must be set on the request, not on a %s.".formatted(level));
+        }
+    }
+
+    private Duration resolveTimeout(final @Nullable String timeout) {
+        final var apiTimeout = web3Properties.getApi(ACTIONS).getResponse().getTimeout();
+        final var maxTimeout = actionsProperties.getMaxTimeout();
+        final var effective = apiTimeout.compareTo(maxTimeout) > 0 ? maxTimeout : apiTimeout;
+        if (timeout == null || timeout.isBlank()) {
+            return effective;
+        }
+        try {
+            final var parsed = DurationStyle.detectAndParse(timeout.trim());
+            if (parsed.compareTo(Duration.ofMillis(1)) < 0) {
+                throw new InvalidParametersException("Invalid timeout: " + timeout);
+            }
+            return parsed.compareTo(effective) < 0 ? parsed : effective;
+        } catch (IllegalArgumentException _) {
+            throw new InvalidParametersException("Invalid timeout: " + timeout);
+        }
+    }
+
+    /**
+     * Returns the reserved gas of every transaction after the first {@code started}. Each started transaction already
+     * returned its unused gas through the gas usage listener.
+     */
+    private void restoreUnstartedGas(final ActionTraceRequest request, final int started) {
+        int index = 0;
+        for (final var bundle : request.getBundles()) {
+            for (final var transaction : bundle.getTransactions()) {
+                if (index >= started) {
+                    throttleManager.restore(transaction.getGas());
+                }
+                index++;
+            }
+        }
     }
 
     /**
@@ -146,74 +241,21 @@ class ContractController {
                 .build();
     }
 
-    private Duration resolveTimeout(final @Nullable String timeout) {
-        final var apiTimeout = web3Properties.getApi(ACTIONS).getResponse().getTimeout();
-        final var maxTimeout = actionsProperties.getMaxTimeout();
-        final var effective = apiTimeout.compareTo(maxTimeout) > 0 ? maxTimeout : apiTimeout;
-        if (timeout == null || timeout.isBlank()) {
-            return effective;
-        }
-        try {
-            final var parsed = DurationStyle.detectAndParse(timeout.trim());
-            if (parsed.compareTo(Duration.ofMillis(1)) < 0) {
-                throw new InvalidParametersException("Invalid timeout: " + timeout);
-            }
-            return parsed.compareTo(effective) < 0 ? parsed : effective;
-        } catch (IllegalArgumentException _) {
-            throw new InvalidParametersException("Invalid timeout: " + timeout);
-        }
+    private void validateContractMaxGasLimit(final ContractCallRequest request) {
+        validateContractMaxGasLimit(request.getGas());
     }
 
-    private ContractExecutionParameters constructServiceParameters(final ContractCallRequest request) {
-        return constructServiceParameters(request, request.getBlock());
-    }
-
-    private ContractExecutionParameters constructServiceParameters(
-            final ContractCallRequest request, final BlockType block) {
-        final var fromAddress = request.getFrom() != null ? Address.fromHexString(request.getFrom()) : Address.ZERO;
-
-        Address receiver;
-
-        /*In case of an empty "to" field, we set a default value of the zero address
-        to avoid any potential NullPointerExceptions throughout the process.*/
-        if (request.getTo() == null || request.getTo().isEmpty()) {
-            receiver = Address.ZERO;
-        } else {
-            receiver = Address.fromHexString(request.getTo());
-        }
-
-        String data;
-        try {
-            data = request.getData() != null ? request.getData() : HEX_PREFIX;
-        } catch (final Exception e) {
+    private void validateContractMaxGasLimit(final long gas) {
+        if (gas > evmProperties.getMaxGasLimit()) {
             throw new InvalidParametersException(
-                    "data field '%s' contains invalid odd length characters".formatted(request.getData()));
+                    "gas field must be less than or equal to %d".formatted(evmProperties.getMaxGasLimit()));
         }
-
-        final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
-        return ContractExecutionParameters.builder()
-                .block(block)
-                .callData(hexToBytes(data))
-                .callType(callType)
-                .gas(request.getGas())
-                .gasPrice(request.getGasPrice())
-                .isEstimate(request.isEstimate())
-                .receiver(receiver)
-                .sender(fromAddress)
-                .stateOverrides(request.getStateOverrides())
-                .value(request.getValue())
-                .build();
     }
 
     private void validateStateOverrides(final List<StateOverride> stateOverrides) {
         if (!stateOverrides.isEmpty() && !web3Properties.isEnableStateOverrides()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
         }
-    }
-
-    /** Rejects state overrides when they are disabled before any rate token is taken. */
-    private void validateTrace(final TraceCall traceCall) {
-        validateStateOverrides(traceCall.getStateOverrides());
     }
 
     /** More than one bundle, or more than one transaction in a bundle, is a {@code debug_traceCallMany} request. */
@@ -223,31 +265,6 @@ class ContractController {
         }
         if (bundles.size() > 1 || bundles.getFirst().getTransactions().size() > 1) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "debug_traceCallMany is not supported.");
-        }
-    }
-
-    private static void rejectEstimate(final ContractCallRequest transaction) {
-        if (transaction.isEstimate()) {
-            throw new InvalidParametersException("Estimate is not supported for tracing.");
-        }
-    }
-
-    /** Trace state overrides are allowed only at the request level, not on a bundle or a transaction. */
-    private static void rejectNestedStateOverrides(final List<StateOverride> stateOverrides, final String level) {
-        if (!stateOverrides.isEmpty()) {
-            throw new InvalidParametersException(
-                    "state_overrides must be set on the request, not on a %s.".formatted(level));
-        }
-    }
-
-    private void validateContractMaxGasLimit(final ContractCallRequest request) {
-        validateContractMaxGasLimit(request.getGas());
-    }
-
-    private void validateContractMaxGasLimit(final long gas) {
-        if (gas > evmProperties.getMaxGasLimit()) {
-            throw new InvalidParametersException(
-                    "gas field must be less than or equal to %d".formatted(evmProperties.getMaxGasLimit()));
         }
     }
 }

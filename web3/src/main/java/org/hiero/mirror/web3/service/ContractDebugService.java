@@ -2,30 +2,36 @@
 
 package org.hiero.mirror.web3.service;
 
+import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
+import static org.hiero.mirror.web3.utils.Constants.MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
+
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
+import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.TraceTimeoutException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
+import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
-import org.hiero.mirror.web3.throttle.ThrottleManager;
-import org.hiero.mirror.web3.throttle.ThrottleProperties;
-import org.jspecify.annotations.Nullable;
+import org.hiero.mirror.web3.utils.Suppliers;
+import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.validation.annotation.Validated;
 
@@ -38,23 +44,14 @@ public class ContractDebugService extends ContractCallService {
     private final RecordFileService recordFileService;
     private final TransactionRepository transactionRepository;
 
-    @SuppressWarnings("java:S107")
     public ContractDebugService(
             ContractActionRepository contractActionRepository,
             RecordFileService recordFileService,
             TransactionRepository transactionRepository,
-            ThrottleManager throttleManager,
-            ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
             EvmProperties evmProperties,
             TransactionExecutionService transactionExecutionService) {
-        super(
-                throttleManager,
-                throttleProperties,
-                meterRegistry,
-                recordFileService,
-                evmProperties,
-                transactionExecutionService);
+        super(meterRegistry, recordFileService, evmProperties, transactionExecutionService);
         this.contractActionRepository = contractActionRepository;
         this.recordFileService = recordFileService;
         this.transactionRepository = transactionRepository;
@@ -73,99 +70,61 @@ public class ContractDebugService extends ContractCallService {
                 ethCallTxnResult, params.getReceiver(), ctx.getOpcodeContext().getOpcodes());
     }
 
-    public List<ActionResponse> processTraceCall(final @Valid TraceCall traceCall) {
+    /**
+     * Runs every transaction of every bundle in order. Each transaction sees the state changes of the successful
+     * transactions before it, while a failed or reverted transaction's changes are rolled back. A timeout returns the
+     * actions collected so far.
+     *
+     * @param traceCall        the trace to run
+     * @param gasUsageListener told about each transaction that runs, so the caller can return the throttle gas it did
+     *                         not use, and the reserved gas of the transactions that never ran
+     */
+    public List<ActionResponse> processTraceCall(final TraceCall traceCall, final GasUsageListener gasUsageListener) {
         return ContractCallContext.run(context -> {
-            TraceCallState.bind(context, traceCall, recordFileService);
+            // One record-file supplier for the whole trace, so every transaction runs in the same block.
+            context.setApi(ACTIONS);
+            context.setBlockSupplier(Suppliers.memoize(() -> recordFileService
+                    .findByBlockType(traceCall.getBlock())
+                    .orElseThrow(BlockNumberNotFoundException::new)));
             context.setDeadlineMillis(
                     context.getStartTime() + traceCall.getTimeout().toMillis());
-
-            final var actionContext = new ActionContext();
-            context.setActionContext(actionContext);
-            actionContext.setOnlyTopCall(traceCall.isOnlyTopCall());
             context.applyStateOverrides(traceCall.getStateOverrides());
+            context.setGasUsageListener(gasUsageListener);
+            final var actionContext = new ActionContext();
+            actionContext.setOnlyTopCall(traceCall.isOnlyTopCall());
+            context.setActionContext(actionContext);
 
             final var bundles = traceCall.getBundles();
-            int started = 0;
+            int remaining = transactionCount(bundles);
             try {
-                final var timestamp = TraceCallState.resolveStateTimestamp(context, traceCall, transactionRepository);
-                if (timestamp != null) {
-                    context.setTimestamp(Optional.of(timestamp));
+                // A single transaction at latest reads current state like eth_call. Otherwise every transaction reads
+                // one pinned state, so a record file imported mid-request cannot change it.
+                if (!BlockType.LATEST.equals(traceCall.getBlock()) || remaining > 1) {
+                    context.setTimestamp(Optional.of(resolveStateTimestamp(context.getRecordFile(), traceCall)));
                 }
                 for (final var bundle : bundles) {
-                    final var progress = executeBundle(context, actionContext, bundle, started);
-                    started = progress.started();
-                    final var failure = progress.failure();
-                    if (failure != null) {
-                        throw failure;
+                    for (final var transaction : bundle.getTransactions()) {
+                        executeTransaction(context, actionContext, transaction, --remaining > 0);
                     }
                 }
                 return actionResponse(context);
             } catch (final QueryTimeoutException _) {
-                restoreUnstartedGas(bundles, started);
                 throw new TraceTimeoutException(actionResponse(context));
-            } catch (final RuntimeException exception) {
-                restoreUnstartedGas(bundles, started);
+            } catch (final MirrorEvmTransactionException exception) {
+                if (actionContext.isTimedOut()) {
+                    throw new TraceTimeoutException(actionResponse(context));
+                }
                 throw exception;
             }
         });
     }
 
-    private BundleProgress executeBundle(
-            final ContractCallContext context,
-            final ActionContext actionContext,
-            final TraceBundle bundle,
-            final int started) {
-        int executed = started;
-        for (final var transaction : bundle.getTransactions()) {
-            actionContext.beginCall();
-            final var snapshot = context.captureCaches();
-            RuntimeException failure = null;
-            try {
-                if (!callContract(transaction, context).isSuccessful()) {
-                    context.restoreCaches(snapshot);
-                }
-            } catch (final QueryTimeoutException _) {
-                context.restoreCaches(snapshot);
-                failure = new TraceTimeoutException(actionResponse(context));
-            } catch (final MirrorEvmTransactionException exception) {
-                context.restoreCaches(snapshot);
-                failure = actionContext.isTimedOut() ? new TraceTimeoutException(actionResponse(context)) : exception;
-            } catch (final RuntimeException exception) {
-                context.restoreCaches(snapshot);
-                failure = exception;
-            } finally {
-                // callContract's finally already returned unused gas. Count the transaction so a later abort does not
-                // return that gas again.
-                executed++;
-            }
-            if (failure != null) {
-                return new BundleProgress(executed, failure);
-            }
-            if (actionContext.isTimedOut()) {
-                return new BundleProgress(executed, new TraceTimeoutException(actionResponse(context)));
-            }
-        }
-        return new BundleProgress(executed, null);
-    }
-
-    private void restoreUnstartedGas(final List<TraceBundle> bundles, final int started) {
-        int index = 0;
-        for (final var bundle : bundles) {
-            for (final var transaction : bundle.getTransactions()) {
-                if (index >= started) {
-                    restoreReservedGas(transaction.getGas());
-                }
-                index++;
-            }
-        }
-    }
-
-    private List<ActionResponse> actionResponse(final ContractCallContext context) {
-        return List.copyOf(context.getActionContext().getActions());
-    }
-
     @Override
     protected void validateResult(final EvmTransactionResult txnResult, final CallServiceParameters params) {
+        // A trace returns failed transactions in its 200 response, so they are expected and not worth a warning.
+        if (ContractCallContext.get().getActionContext() != null) {
+            return;
+        }
         try {
             super.validateResult(txnResult, params);
         } catch (MirrorEvmTransactionException e) {
@@ -177,6 +136,67 @@ public class ContractDebugService extends ContractCallService {
         }
     }
 
-    /** Transactions started so far, and the failure that stopped the bundle when execution did not finish. */
-    private record BundleProgress(int started, @Nullable RuntimeException failure) {}
+    private List<ActionResponse> actionResponse(final ContractCallContext context) {
+        return context.getActionContext().getActions();
+    }
+
+    /**
+     * Runs one transaction. A failed or reverted transaction's state changes are rolled back when a later transaction
+     * still reads that state, so the last transaction skips the snapshot.
+     */
+    private void executeTransaction(
+            final ContractCallContext context,
+            final ActionContext actionContext,
+            final ContractExecutionParameters transaction,
+            final boolean hasNext) {
+        actionContext.beginCall();
+        final var snapshot = hasNext ? context.captureCaches() : null;
+        boolean successful = false;
+        try {
+            successful = callContract(transaction, context).isSuccessful();
+        } finally {
+            if (!successful && snapshot != null) {
+                context.restoreCaches(snapshot);
+            }
+        }
+        if (actionContext.isTimedOut()) {
+            throw new TraceTimeoutException(actionResponse(context));
+        }
+    }
+
+    /**
+     * State timestamp for the whole trace. {@code transaction_index} {@code -1}, or any value at {@code latest}, reads
+     * the end of the block. {@code 0} reads the start of the block, one nanosecond before its first transaction. A
+     * positive {@code N} reads one nanosecond after the Nth top-level {@code ContractCall}, {@code ContractCreate}, or
+     * {@code EthereumTransaction} of the block, ordered by consensus timestamp. A scheduled execution may fall after
+     * the record file's consensus end, within the scheduled consensus window.
+     */
+    private long resolveStateTimestamp(final RecordFile recordFile, final TraceCall traceCall) {
+        final int transactionIndex = traceCall.getTransactionIndex();
+        if (transactionIndex == -1 || BlockType.LATEST.equals(traceCall.getBlock())) {
+            return recordFile.getConsensusEnd();
+        }
+        final long consensusStart = recordFile.getConsensusStart();
+        if (transactionIndex == 0) {
+            return consensusStart - 1;
+        }
+        // transaction_index counts from 1, while the query position counts from 0.
+        final long transactionTimestamp = transactionRepository
+                .findConsensusTimestampAtPosition(
+                        consensusStart,
+                        recordFile.getConsensusEnd(),
+                        consensusStart + MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS,
+                        transactionIndex - 1)
+                .orElseThrow(() -> new InvalidParametersException(
+                        "transaction_index exceeds the number of transactions in the block"));
+        return transactionTimestamp + 1;
+    }
+
+    private static int transactionCount(final List<TraceBundle> bundles) {
+        int count = 0;
+        for (final var bundle : bundles) {
+            count += bundle.getTransactions().size();
+        }
+        return count;
+    }
 }

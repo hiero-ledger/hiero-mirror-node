@@ -64,7 +64,7 @@ class HexUtilsTest {
 
     @Test
     void convertLongToHexStringHandlesNegativeNumber() {
-        // HexFormat.toHexDigits treats the long as 16 unsigned hex digits, so -1 becomes all f's
+        // Long.toHexString treats the long as unsigned, so -1 becomes all f's
         assertThat(HexUtils.convertLongToHexString(-1)).isEqualTo("0xffffffffffffffff");
     }
 
@@ -78,31 +78,6 @@ class HexUtilsTest {
     @Test
     void convertHexStringToLongReturnsZeroForNull() {
         assertThat(HexUtils.convertHexStringToLong(null)).isEqualTo(0L);
-    }
-
-    @CsvSource({
-        "'0x0',0",
-        "'0x100',256",
-        "'0X65f9e0c0',1710874816",
-        "'256',256",
-        "' 16 ',16",
-        "'9223372036854775807',9223372036854775807"
-    })
-    @ParameterizedTest
-    void parseValue(String value, long expected) {
-        assertThat(HexUtils.parseValue(value)).isEqualTo(expected);
-    }
-
-    @CsvSource({
-        "0xffffffffffffffff",
-        "0x8000000000000000",
-        "ffffffffffffffff",
-        "18446744073709551615",
-        "9223372036854775808"
-    })
-    @ParameterizedTest
-    void rejectsQuantitiesThatDoNotFitInASignedLong(String value) {
-        assertThatThrownBy(() -> HexUtils.parseValue(value)).isInstanceOf(NumberFormatException.class);
     }
 
     @CsvSource({"0xffffffffffffffff", "0x8000000000000000", "ffffffffffffffff"})

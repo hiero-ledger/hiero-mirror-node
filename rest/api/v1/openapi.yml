@@ -2550,6 +2550,7 @@ components:
             the number of EVM transactions in the block, is rejected.
           example: 5
           format: int32
+          minimum: -1
           type: [integer, "null"]
         state_overrides:
           description: Per-account state overrides applied to every bundle. Requires state overrides to be enabled.
