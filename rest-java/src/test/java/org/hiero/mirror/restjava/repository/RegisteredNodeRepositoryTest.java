@@ -33,7 +33,7 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
         final var expected = order.isAscending() ? List.of(node1, node3) : List.of(node3, node1);
 
         // when
-        final var actual = repository.findRegisteredNodes(1L, 3L, null, order, 10);
+        final var actual = repository.findRegisteredNodes(1L, 3L, null, order.name(), 10);
 
         // then
         assertThat(actual).containsExactlyElementsOf(expected);
@@ -52,8 +52,8 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
         final var expected = order.isAscending() ? List.of(mirror2, mirror4) : List.of(mirror4, mirror2);
 
         // when
-        final var actual =
-                repository.findRegisteredNodes(0L, Long.MAX_VALUE, RegisteredNodeType.MIRROR_NODE.getId(), order, 10);
+        final var actual = repository.findRegisteredNodes(
+                0L, Long.MAX_VALUE, RegisteredNodeType.MIRROR_NODE.getId(), order.name(), 10);
 
         // then
         assertThat(actual).containsExactlyElementsOf(expected);
@@ -70,8 +70,8 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
         persistRegisteredNode(2L, false, RegisteredNodeType.BLOCK_NODE);
 
         // when
-        final var actual = repository.findRegisteredNodes(
-                0L, Long.MAX_VALUE, RegisteredNodeType.MIRROR_NODE.getId(), Direction.ASC, 10);
+        final var actual =
+                repository.findRegisteredNodes(0L, Long.MAX_VALUE, RegisteredNodeType.MIRROR_NODE.getId(), "ASC", 10);
 
         // then
         assertThat(actual).containsExactly(node);
@@ -89,7 +89,7 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
         final var expected = order.isAscending() ? List.of(node1, node2) : List.of(node4, node3);
 
         // when
-        final var actual = repository.findRegisteredNodes(0L, Long.MAX_VALUE, null, order, LIMIT);
+        final var actual = repository.findRegisteredNodes(0L, Long.MAX_VALUE, null, order.name(), LIMIT);
 
         // then
         assertThat(actual).containsExactlyElementsOf(expected);
@@ -108,7 +108,7 @@ final class RegisteredNodeRepositoryTest extends RestJavaIntegrationTest {
                 .persist();
 
         // when
-        final var actual = repository.findRegisteredNodes(0L, Long.MAX_VALUE, null, Direction.ASC, 10);
+        final var actual = repository.findRegisteredNodes(0L, Long.MAX_VALUE, null, "ASC", 10);
 
         // then
         assertThat(actual).containsExactly(node);

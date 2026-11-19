@@ -29,7 +29,6 @@ import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.rest.model.HooksResponse;
 import org.hiero.mirror.rest.model.HooksStorageResponse;
 import org.hiero.mirror.rest.model.Links;
-import org.hiero.mirror.restjava.dto.HookStorageSlot;
 import org.hiero.mirror.restjava.mapper.HookMapper;
 import org.hiero.mirror.restjava.mapper.HookStorageMapper;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;
@@ -460,7 +459,7 @@ final class HooksControllerTest extends ControllerTest {
             final var hookStorage1 = persistHookStorage(ownerId, HOOK_ID, KEY1);
             final var hookStorage2 = persistHookStorage(ownerId, HOOK_ID, incrementHex(KEY1, 1));
 
-            final var expectedHookStorage = mapExpectedHookStorage(List.of(hookStorage1, hookStorage2));
+            final var expectedHookStorage = hookStorageMapper.map(List.of(hookStorage1, hookStorage2));
 
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setOwnerId(ownerId.toString());
@@ -483,7 +482,7 @@ final class HooksControllerTest extends ControllerTest {
             final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
 
             persistHookStorage(ownerId, HOOK_ID + 1, KEY1);
-            final var expectedHookStorage = mapExpectedHookStorage(Collections.emptyList());
+            final var expectedHookStorage = hookStorageMapper.map(Collections.emptyList());
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setLinks(new Links());
@@ -514,7 +513,7 @@ final class HooksControllerTest extends ControllerTest {
             final var expectedHookStorageEntities =
                     order.equals("asc") ? List.of(hookStorage1, hookStorage2) : List.of(hookStorage3, hookStorage2);
 
-            final var expectedHookStorage = mapExpectedHookStorage(expectedHookStorageEntities);
+            final var expectedHookStorage = hookStorageMapper.map(expectedHookStorageEntities);
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setOwnerId(ownerId.toString());
@@ -647,7 +646,7 @@ final class HooksControllerTest extends ControllerTest {
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setOwnerId(ownerId.toString());
-            expectedResponse.setStorage(mapExpectedHookStorage(mapped));
+            expectedResponse.setStorage(hookStorageMapper.map(mapped));
 
             if (ordered.size() > limit) {
                 final var last = limited.getLast();
@@ -710,7 +709,7 @@ final class HooksControllerTest extends ControllerTest {
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setLinks(new Links());
             expectedResponse.setOwnerId(ownerId.toString());
-            expectedResponse.setStorage(mapExpectedHookStorage(List.of(hookStorage(latest))));
+            expectedResponse.setStorage(hookStorageMapper.map(List.of(hookStorage(latest))));
 
             // when
             final var actual = restClient
@@ -750,7 +749,7 @@ final class HooksControllerTest extends ControllerTest {
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setLinks(new Links());
             expectedResponse.setOwnerId(ownerId.toString());
-            expectedResponse.setStorage(mapExpectedHookStorage(List.of(hookStorage(deletion))));
+            expectedResponse.setStorage(hookStorageMapper.map(List.of(hookStorage(deletion))));
 
             // when
             final var actual = restClient
@@ -815,7 +814,7 @@ final class HooksControllerTest extends ControllerTest {
                         .toList();
             }
 
-            final var expectedHookStorage = mapExpectedHookStorage(expectedHookStorageList);
+            final var expectedHookStorage = hookStorageMapper.map(expectedHookStorageList);
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setLinks(new Links());
@@ -960,7 +959,7 @@ final class HooksControllerTest extends ControllerTest {
 
             final var list =
                     expectedHookStorageList.stream().map(h -> hookStorage(h)).toList();
-            final var expectedHookStorage = mapExpectedHookStorage(list);
+            final var expectedHookStorage = hookStorageMapper.map(list);
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setLinks(new Links());
@@ -1152,12 +1151,6 @@ final class HooksControllerTest extends ControllerTest {
                             .valueRead(new byte[] {0x01, 0x02})
                             .valueWritten(valueWritten))
                     .persist();
-        }
-
-        private List<org.hiero.mirror.rest.model.HookStorage> mapExpectedHookStorage(List<HookStorage> storage) {
-            return hookStorageMapper.map(storage.stream()
-                    .map(s -> new HookStorageSlot(s.getKey(), s.getModifiedTimestamp(), s.getValue()))
-                    .toList());
         }
 
         private static String incrementHex(String hex, long amount) {

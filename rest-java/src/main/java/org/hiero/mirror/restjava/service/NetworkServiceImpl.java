@@ -142,7 +142,7 @@ final class NetworkServiceImpl implements NetworkService {
 
         final var nodeTypeId = nodeType != null ? nodeType.getId() : null;
         return registeredNodeRepository.findRegisteredNodes(
-                lowerBound, upperBound, nodeTypeId, request.getOrder(), request.getLimit());
+                lowerBound, upperBound, nodeTypeId, request.getOrder().name(), request.getLimit());
     }
 
     private static Range<Long> resolveRegisteredNodeIdBounds(List<NumberRangeParameter> registeredNodeIdRanges) {

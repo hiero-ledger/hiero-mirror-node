@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.dto;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import lombok.Builder;
@@ -33,6 +34,17 @@ public class HookStorageRequest {
 
     @Builder.Default
     private final Bound timestamp = Bound.EMPTY;
+
+    public List<byte[]> getKeysInRange() {
+        if (keys.isEmpty()) {
+            return List.of();
+        }
+
+        return keys.stream()
+                .filter(key -> Arrays.compareUnsigned(key, keyLowerBound) >= 0
+                        && Arrays.compareUnsigned(key, keyUpperBound) <= 0)
+                .toList();
+    }
 
     public boolean isHistorical() {
         return !timestamp.isEmpty();

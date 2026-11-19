@@ -4,25 +4,37 @@ package org.hiero.mirror.restjava.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.HexFormat;
-import java.util.List;
-import org.hiero.mirror.restjava.dto.HookStorageSlot;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.hook.HookStorage;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 final class HookStorageMapperTest {
+    private final DomainBuilder domainBuilder = new DomainBuilder();
+    private CommonMapper commonMapper;
+    private HookStorageMapper mapper;
 
-    private final HookStorageMapper mapper = new HookStorageMapperImpl(new CommonMapperImpl());
+    @BeforeEach
+    void setup() {
+        commonMapper = new CommonMapperImpl();
+        mapper = new HookStorageMapperImpl(commonMapper);
+    }
 
     @Test
-    void map() {
+    void map() throws DecoderException {
         // given
-        final var slot = new HookStorageSlot(
-                HexFormat.of().parseHex("03e7"),
-                1726874345123456789L,
-                HexFormat.of().parseHex("03e8"));
+        final byte[] key = Hex.decodeHex("03e7");
+        final byte[] value = Hex.decodeHex("03e8");
+        final var hookStorage = domainBuilder
+                .hookStorage()
+                .customize(
+                        h -> h.key(key).modifiedTimestamp(1726874345123456789L).value(value))
+                .get();
 
         // when
-        final var result = mapper.map(slot);
+        final var result = mapper.map(hookStorage);
 
         // then
         assertThat(result).isNotNull();
@@ -32,40 +44,17 @@ final class HookStorageMapperTest {
     }
 
     @Test
-    void mapEmptyValue() {
+    void mapNulls() {
         // given
-        final var slot = new HookStorageSlot(HexFormat.of().parseHex("03e7"), 1L, new byte[0]);
+        final var hookStorage = new HookStorage();
 
         // when
-        final var result = mapper.map(slot);
+        final var result = mapper.map(hookStorage);
 
         // then
-        assertThat(result.getKey()).isEqualTo("0x00000000000000000000000000000000000000000000000000000000000003e7");
-        assertThat(result.getTimestamp()).isEqualTo("0.000000001");
-        assertThat(result.getValue()).isEqualTo("0x" + "0".repeat(64));
-    }
-
-    @Test
-    void mapNullValue() {
-        // given
-        final var slot = new HookStorageSlot(HexFormat.of().parseHex("03e7"), 1L, null);
-
-        // when
-        final var result = mapper.map(slot);
-
-        // then
-        assertThat(result.getKey()).isEqualTo("0x00000000000000000000000000000000000000000000000000000000000003e7");
+        assertThat(result).isNotNull();
+        assertThat(result.getKey()).isNull();
+        assertThat(result.getTimestamp()).isNull();
         assertThat(result.getValue()).isNull();
-    }
-
-    @Test
-    void mapList() {
-        // given
-        final var slot1 = new HookStorageSlot(new byte[] {1}, 1L, new byte[] {2});
-        final var slot2 = new HookStorageSlot(new byte[] {3}, 2L, new byte[] {4});
-
-        // when, then
-        assertThat(mapper.map(List.of(slot1, slot2))).hasSize(2);
-        assertThat(mapper.map(List.of())).isEmpty();
     }
 }

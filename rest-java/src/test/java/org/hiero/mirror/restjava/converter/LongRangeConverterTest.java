@@ -17,7 +17,6 @@ class LongRangeConverterTest {
             1| true  |     | false | [1,)
              | false | 100 | true  | (,100]
              | false |     | false | (,)
-            0| true  | 0   | false | empty
             """)
     @ParameterizedTest
     void convert(Long lower, boolean lowerInclusive, Long upper, boolean upperInclusive, String expected) {

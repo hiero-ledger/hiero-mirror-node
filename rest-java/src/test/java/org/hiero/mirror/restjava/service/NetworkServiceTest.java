@@ -373,15 +373,14 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                 .type(null)
                 .build();
 
-        when(repository.findRegisteredNodes(1L, 10L, null, Sort.Direction.DESC, 25))
-                .thenReturn(List.of(node));
+        when(repository.findRegisteredNodes(1L, 10L, null, "DESC", 25)).thenReturn(List.of(node));
 
         // when
         final var result = networkService.getRegisteredNodes(request);
 
         // then
         Assertions.assertThat(result).containsExactly(node);
-        verify(repository).findRegisteredNodes(1L, 10L, null, Sort.Direction.DESC, 25);
+        verify(repository).findRegisteredNodes(1L, 10L, null, "DESC", 25);
     }
 
     @Test
@@ -395,7 +394,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                 .build();
         final var type = RegisteredNodeType.MIRROR_NODE.getId();
 
-        when(repository.findRegisteredNodes(0L, Long.MAX_VALUE, type, Sort.Direction.ASC, 10))
+        when(repository.findRegisteredNodes(0L, Long.MAX_VALUE, type, "ASC", 10))
                 .thenReturn(List.of(node));
 
         // when
@@ -403,6 +402,6 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
 
         // then
         Assertions.assertThat(result).containsExactly(node);
-        verify(repository).findRegisteredNodes(0L, Long.MAX_VALUE, type, Sort.Direction.ASC, 10);
+        verify(repository).findRegisteredNodes(0L, Long.MAX_VALUE, type, "ASC", 10);
     }
 }
