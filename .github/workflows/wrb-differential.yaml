@@ -27,15 +27,15 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     timeout-minutes: 50
     env:
-      BLOCK_NODE_VERSION: v0.44.0
+      BLOCK_NODE_VERSION: v0.46.0
       BLOCK_STREAM_STREAM_MODE: RECORDS
-      CONSENSUS_NODE_VERSION: v0.78.2
+      CONSENSUS_NODE_VERSION: v0.79.2
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.91.0
+      SOLO_VERSION: v0.98.0
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       pull-requests: read
@@ -170,9 +170,10 @@ jobs:
           solo deployment cluster attach --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
             --num-consensus-nodes 1
           solo cluster-ref config setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
-          # block node
+          # block node; TSS isn't in remote config until network deploy, so force the TSS overlay instead of -Xmx24m
           solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
-            --block-node-version "${BLOCK_NODE_VERSION}" --consensus-node-version "${CONSENSUS_NODE_VERSION}"
+            --block-node-version "${BLOCK_NODE_VERSION}" --consensus-node-version "${CONSENSUS_NODE_VERSION}" \
+            --block-node-tss-overlay
           # consensus node
           solo keys consensus generate --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
           solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --consensus-node-version "${CONSENSUS_NODE_VERSION}"
@@ -199,9 +200,10 @@ jobs:
           solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
 
           helm dependency update charts/hedera-mirror
+          # --force: solo's compatibility check uses its default mirror version, not the local chart
           DISABLE_IMPORTER_SPRING_PROFILES=true solo mirror node add --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
             --deployment "${SOLO_DEPLOYMENT}" \
-            -f mirror.yaml --mirror-node-chart-dir ./charts --pinger --enable-ingress
+            -f mirror.yaml --force --mirror-node-chart-dir ./charts --pinger --enable-ingress
           APP_VERSION=$(helm ls -n "${SOLO_NAMESPACE}" -o json \
             | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
           IMPORTER_IMAGE_TAG=$(kubectl get -n "${SOLO_NAMESPACE}" deployment "${HELM_RELEASE_NAME}-importer" -o yaml | \
@@ -290,6 +292,6 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: logs
+          name: logs-${{ job.check_run_id }}
           path: logs
           retention-days: 7
