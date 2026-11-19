@@ -4,10 +4,12 @@ package org.hiero.mirror.restjava.controller;
 
 import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
 import static org.hiero.mirror.restjava.common.Constants.CHANNEL_ID;
+import static org.hiero.mirror.restjava.common.Constants.CONNECTOR_ID;
 import static org.hiero.mirror.restjava.common.Constants.DEFAULT_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.STATUS;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
+import static org.hiero.mirror.restjava.common.Constants.TYPE;
 
 import com.google.common.collect.ImmutableSortedMap;
 import jakarta.validation.constraints.Max;
@@ -15,15 +17,21 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
+import org.hiero.mirror.rest.model.ClprMessage;
+import org.hiero.mirror.rest.model.ClprMessageType;
+import org.hiero.mirror.rest.model.ClprMessagesResponse;
 import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.restjava.common.LinkFactory;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
+import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.hiero.mirror.restjava.service.ClprService;
@@ -34,6 +42,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,10 +53,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class ClprController {
 
-    private static final String CHANNEL_ID_PATTERN = "^(?i)(eq:)?0x[0-9a-f]{64}$";
     private static final String EQ_PREFIX = "eq:";
     private static final Function<ClprChannel, Map<String, String>> EXTRACTOR =
             channel -> ImmutableSortedMap.of(TIMESTAMP, channel.getCreatedTimestamp());
+    private static final String ID_PATTERN = "^(?i)(eq:)?0x[0-9a-f]{64}$";
+    private static final Function<ClprMessage, Map<String, String>> MESSAGE_EXTRACTOR =
+            message -> ImmutableSortedMap.of(TIMESTAMP, message.getTimestamp());
+    private static final String MESSAGE_TYPE_PATTERN = "^(?i)(eq:)?(DATA|RESPONSE|CONTROL)$";
+    // A path variable is the id itself, so unlike a query parameter it doesn't accept the eq: prefix
+    private static final String PATH_ID_PATTERN = "^(?i)0x[0-9a-f]{64}$";
     private static final String STATUS_PATTERN = "^(?i)(eq:)?(PENDING|ACTIVE|PAUSED|CLOSING|DRAINED|CLOSED)$";
 
     private final ClprService clprService;
@@ -55,18 +69,14 @@ final class ClprController {
 
     @GetMapping("/channels")
     ResponseEntity<ClprChannelsResponse> getChannels(
-            @RequestParam(name = CHANNEL_ID, required = false) @Nullable @Pattern(regexp = CHANNEL_ID_PATTERN)
-                    String channelId,
+            @RequestParam(name = CHANNEL_ID, required = false) @Nullable @Pattern(regexp = ID_PATTERN) String channelId,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
             @RequestParam(defaultValue = "desc") Direction order,
             @RequestParam(name = STATUS, required = false) @Nullable @Pattern(regexp = STATUS_PATTERN) String status,
             @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
                     TimestampParameter[] timestamps) {
         final var request = ClprChannelsRequest.builder()
-                .channelId(
-                        channelId != null
-                                ? HexFormat.of().parseHex(stripEq(channelId).substring(2))
-                                : null)
+                .channelId(channelId != null ? parseId(channelId) : null)
                 .limit(limit)
                 .order(order)
                 .status(
@@ -89,9 +99,49 @@ final class ClprController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/channels/{channelId}/messages")
+    ResponseEntity<ClprMessagesResponse> getMessages(
+            @PathVariable @Pattern(regexp = PATH_ID_PATTERN) String channelId,
+            @RequestParam(name = CONNECTOR_ID, required = false) @Nullable @Pattern(regexp = ID_PATTERN)
+                    String connectorId,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
+            @RequestParam(defaultValue = "desc") Direction order,
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
+                    TimestampParameter[] timestamps,
+            @RequestParam(name = TYPE, required = false) @Nullable @Pattern(regexp = MESSAGE_TYPE_PATTERN)
+                    String type) {
+        final var request = ClprMessagesRequest.builder()
+                .channelId(parseId(channelId))
+                .connectorId(connectorId != null ? parseId(connectorId) : null)
+                .limit(limit)
+                .order(order)
+                .timestamp(getTimestampBound(false, timestamps))
+                .type(type != null ? ClprMessageType.fromValue(stripEq(type).toUpperCase()) : null)
+                .build();
+
+        final var result = clprService.getMessages(request);
+        final var messages = result.messages();
+        final var page = PageRequest.of(0, limit, Sort.by(order, TIMESTAMP));
+        final var resumeTimestamp = result.resumeTimestamp();
+
+        // A full page links on from its last message. A short page of a default window may still have messages past
+        // the window, so link on from the window's edge, which the link factory builds from a single boundary value.
+        final var links = messages.size() < limit && resumeTimestamp != null
+                ? linkFactory.create(
+                        List.of(resumeTimestamp),
+                        PageRequest.of(0, 1, page.getSort()),
+                        timestamp -> ImmutableSortedMap.of(TIMESTAMP, DomainUtils.toTimestamp(timestamp)))
+                : linkFactory.create(messages, page, MESSAGE_EXTRACTOR);
+
+        final var response = new ClprMessagesResponse();
+        response.setLinks(links);
+        response.setMessages(messages);
+        return ResponseEntity.ok(response);
+    }
+
     /**
-     * With a channel id, timestamp is an "as of" time, so eq: is converted to lte:. Otherwise it filters the list by
-     * created timestamp, so eq: stays an exact match.
+     * With a channel id, timestamp is an "as of" time, so eq: is converted to lte:. Otherwise it filters a list, such as
+     * the channels by created timestamp or a channel's messages by consensus timestamp, so eq: stays an exact match.
      */
     private static Bound getTimestampBound(boolean hasChannelId, TimestampParameter[] timestamps) {
         if (hasChannelId) {
@@ -101,6 +151,11 @@ final class ClprController {
         final var bound = new Bound(timestamps, false, TIMESTAMP, null);
         bound.adjustUpperRange();
         return bound;
+    }
+
+    /** Parses a 0x prefixed hex id, such as a channel or connector id, with an optional {@code eq:} prefix. */
+    private static byte[] parseId(String id) {
+        return HexFormat.of().parseHex(stripEq(id).substring(2));
     }
 
     private static String stripEq(String value) {

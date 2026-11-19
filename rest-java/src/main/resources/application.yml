@@ -25,6 +25,8 @@ hiero:
             # "[]" around the path preserves special characters. Multiple header name/value pairs may be defined per path.
             "[/api/v1/clpr/channels]":
               "Cache-Control": "public, max-age=5"
+            "[/api/v1/clpr/channels/{channelId}/messages]":
+              "Cache-Control": "public, max-age=5"
             "[/api/v1/topics/{id}]":
               "Cache-Control": "public, max-age=5"
             "[/api/v1/network/stake]":

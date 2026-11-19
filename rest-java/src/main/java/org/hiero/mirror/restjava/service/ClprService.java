@@ -5,6 +5,8 @@ package org.hiero.mirror.restjava.service;
 import java.util.List;
 import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
+import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
+import org.hiero.mirror.restjava.dto.ClprMessagesResult;
 
 public interface ClprService {
 
@@ -17,4 +19,13 @@ public interface ClprService {
      * channels are merged with the open pending channel commitments.
      */
     List<ClprChannel> getChannels(ClprChannelsRequest request);
+
+    /**
+     * Returns the channel's messages as the API model, ordered by consensus timestamp. The timestamp range is bounded,
+     * since messages are partitioned by it: an open side defaults to the channel's creation or now, and a range wider
+     * than the maximum is truncated to its newest part when descending or its oldest part when ascending. The result
+     * says where to continue from when it was truncated. With a {@code connectorId}, only the messages dispatched for
+     * that connector, which are the Data messages, are returned.
+     */
+    ClprMessagesResult getMessages(ClprMessagesRequest request);
 }
