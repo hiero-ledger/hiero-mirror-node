@@ -60,12 +60,7 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
     @BeforeEach
     @AfterEach
     void resetPersistProperties() {
-        entityProperties.getPersist().setClprChannel(true);
-        entityProperties.getPersist().setClprConnector(true);
-        entityProperties.getPersist().setClprEndpointManifest(true);
-        entityProperties.getPersist().setClprLedgerConfiguration(true);
-        entityProperties.getPersist().setClprMaintenance(true);
-        entityProperties.getPersist().setClprMessage(true);
+        entityProperties.getPersist().setClpr(true);
     }
 
     @Test
@@ -177,7 +172,7 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
         final var ownershipCommitment =
                 registerRecordItem.getTransactionBody().getClprRegisterChannel().getOwnershipCommitment();
 
-        entityProperties.getPersist().setClprChannel(false);
+        entityProperties.getPersist().setClpr(false);
         final var channelId = recordItemBuilder.bytes(32);
         final var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setChannelId(channelId)
@@ -311,7 +306,7 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
 
     @Test
     void clprConnectorDoNotPersist() {
-        entityProperties.getPersist().setClprConnector(false);
+        entityProperties.getPersist().setClpr(false);
         final var recordItem = recordItemBuilder.clprRegisterConnector().build();
 
         parseRecordItemAndCommit(recordItem);
@@ -605,7 +600,7 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
         final var channelId =
                 completeRecordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
 
-        entityProperties.getPersist().setClprMessage(false);
+        entityProperties.getPersist().setClpr(false);
         final var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setChannelId(channelId)
                 .setNextMessageId(2)
@@ -707,7 +702,7 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
 
     @Test
     void clprMaintenanceDoNotPersist() {
-        entityProperties.getPersist().setClprMaintenance(false);
+        entityProperties.getPersist().setClpr(false);
         final var recordItem = recordItemBuilder.clprMaintenance().build();
 
         parseRecordItemAndCommit(recordItem);
@@ -720,7 +715,7 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
 
     @Test
     void clprEndpointManifestDoNotPersist() {
-        entityProperties.getPersist().setClprEndpointManifest(false);
+        entityProperties.getPersist().setClpr(false);
         final var recordItem = recordItemBuilder.clprMaintenance().build();
 
         parseRecordItemAndCommit(recordItem);

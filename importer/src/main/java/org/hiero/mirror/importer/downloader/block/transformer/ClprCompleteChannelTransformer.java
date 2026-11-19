@@ -2,8 +2,9 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
+import com.google.protobuf.ByteString;
+import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
-import java.util.List;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 /**
@@ -12,24 +13,11 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
  * {@link org.hiero.mirror.common.domain.transaction.ClprContext#getClprChannel()}.
  */
 @Named
-final class ClprCompleteChannelTransformer extends AbstractBlockTransactionTransformer {
+final class ClprCompleteChannelTransformer extends AbstractClprChannelTransformer {
 
     @Override
-    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
-        final var blockTransaction = blockTransactionTransformation.blockTransaction();
-        if (!blockTransaction.isSuccessful()) {
-            return;
-        }
-
-        final var transactionBody =
-                blockTransactionTransformation.getTransactionBody().getClprCompleteChannel();
-        final var channelId = transactionBody.getChannelId();
-        final var entry = blockTransaction.getStateChangeContext().getClprChannelEntry(channelId);
-        final var clprContextBuilder =
-                blockTransactionTransformation.recordItemBuilder().clprContextBuilder();
-        if (entry != null) {
-            clprContextBuilder.clprChannels(List.of(entry));
-        }
+    protected ByteString getChannelId(TransactionBody transactionBody) {
+        return transactionBody.getClprCompleteChannel().getChannelId();
     }
 
     @Override

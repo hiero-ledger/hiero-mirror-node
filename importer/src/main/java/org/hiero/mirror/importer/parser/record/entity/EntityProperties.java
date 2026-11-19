@@ -39,17 +39,7 @@ public class EntityProperties {
 
         private boolean claims = false;
 
-        private boolean clprChannel = true;
-
-        private boolean clprConnector = true;
-
-        private boolean clprEndpointManifest = true;
-
-        private boolean clprMaintenance = true;
-
-        private boolean clprMessage = true;
-
-        private boolean clprLedgerConfiguration = true;
+        private boolean clpr = true;
 
         private boolean contracts = true;
 

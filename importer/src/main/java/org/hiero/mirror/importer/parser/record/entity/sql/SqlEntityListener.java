@@ -118,14 +118,14 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @Override
     public void onClprChannel(ClprChannel clprChannel) {
-        if (entityProperties.getPersist().isClprChannel()) {
+        if (entityProperties.getPersist().isClpr()) {
             context.merge(ByteBuffer.wrap(clprChannel.getChannelId()), clprChannel, this::mergeClprChannel);
         }
     }
 
     @Override
     public void onClprChannelPendingCommitment(ClprChannelPendingCommitment clprChannelPendingCommitment) {
-        if (entityProperties.getPersist().isClprChannel()) {
+        if (entityProperties.getPersist().isClpr()) {
             context.merge(
                     ByteBuffer.wrap(clprChannelPendingCommitment.getOwnershipCommitment()),
                     clprChannelPendingCommitment,
@@ -135,35 +135,35 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @Override
     public void onClprConnector(ClprConnector clprConnector) {
-        if (entityProperties.getPersist().isClprConnector()) {
+        if (entityProperties.getPersist().isClpr()) {
             context.merge(clprConnector.getId(), clprConnector, this::mergeClprConnector);
         }
     }
 
     @Override
     public void onClprEndpointManifest(ClprEndpointManifest clprEndpointManifest) {
-        if (entityProperties.getPersist().isClprEndpointManifest()) {
+        if (entityProperties.getPersist().isClpr()) {
             context.add(clprEndpointManifest);
         }
     }
 
     @Override
     public void onClprLedgerConfiguration(ClprLedgerConfiguration clprLedgerConfiguration) {
-        if (entityProperties.getPersist().isClprLedgerConfiguration()) {
+        if (entityProperties.getPersist().isClpr()) {
             context.add(clprLedgerConfiguration);
         }
     }
 
     @Override
     public void onClprMaintenance(ClprMaintenance clprMaintenance) {
-        if (entityProperties.getPersist().isClprMaintenance()) {
+        if (entityProperties.getPersist().isClpr()) {
             context.add(clprMaintenance);
         }
     }
 
     @Override
     public void onClprMessage(ClprMessage clprMessage) {
-        if (entityProperties.getPersist().isClprMessage()) {
+        if (entityProperties.getPersist().isClpr()) {
             context.add(clprMessage);
         }
     }
