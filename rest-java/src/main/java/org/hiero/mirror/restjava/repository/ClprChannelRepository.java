@@ -12,9 +12,10 @@ import org.springframework.data.repository.Repository;
 
 /**
  * Every method returns {@link ClprChannelDto}, whose {@code status} also holds {@code PENDING}, so the queries
- * select every column with the status cast to text. Queries filtered by {@code channel_id}, the distribution column
- * in {@code v2}, route to a single shard. The others scatter-gather across all shards. {@code created_timestamp} is
- * unique per channel, so it's the sole sort key. All bounds are inclusive and computed by the service.
+ * select every column. The status and signature scheme are the stored proto wire numbers. Queries filtered by
+ * {@code channel_id}, the distribution column in {@code v2}, route to a single shard. The others scatter-gather
+ * across all shards. {@code created_timestamp} is unique per channel, so it's the sole sort key. All bounds are
+ * inclusive and computed by the service.
  */
 public interface ClprChannelRepository extends Repository<ClprChannel, byte[]> {
 
@@ -45,8 +46,8 @@ public interface ClprChannelRepository extends Repository<ClprChannel, byte[]> {
             received_running_hash as receivedRunningHash,
             sent_running_hash as sentRunningHash,
             signature as signature,
-            cast(signature_scheme as text) as signatureScheme,
-            cast(status as text) as status,
+            cast(signature_scheme as integer) as signatureScheme,
+            cast(status as integer) as status,
             lower(timestamp_range) as timestampLower,
             upper(timestamp_range) as timestampUpper,
             trust_anchor as trustAnchor,
@@ -85,8 +86,8 @@ public interface ClprChannelRepository extends Repository<ClprChannel, byte[]> {
             cast(null as bytea) as receivedRunningHash,
             cast(null as bytea) as sentRunningHash,
             cast(null as bytea) as signature,
-            cast(null as text) as signatureScheme,
-            cast('PENDING' as text) as status,
+            cast(null as integer) as signatureScheme,
+            cast(0 as integer) as status,
             cast(null as bigint) as timestampLower,
             cast(null as bigint) as timestampUpper,
             cast(null as bytea) as trustAnchor,
@@ -158,10 +159,10 @@ public interface ClprChannelRepository extends Repository<ClprChannel, byte[]> {
                 order by v.timestampLower desc
                 limit 1
             ) as c
-            where cast(:status as text) is null or c.status = cast(:status as text)
+            where cast(:status as integer) is null or c.status = cast(:status as integer)
             """, nativeQuery = true)
     List<ClprChannelDto> findByChannelIdAndTimestampBetween(
-            byte[] channelId, long lowerBound, long upperBound, @Nullable String status);
+            byte[] channelId, long lowerBound, long upperBound, @Nullable Integer status);
 
     @Query(value = """
             select
@@ -181,12 +182,12 @@ public interface ClprChannelRepository extends Repository<ClprChannel, byte[]> {
             select
             """ + CHANNEL_COLUMNS + """
             from clpr_channel
-            where status = cast(:status as clpr_channel_status)
+            where status = :status
             and created_timestamp >= :lowerBound
             and created_timestamp <= :upperBound
             """, nativeQuery = true)
     List<ClprChannelDto> findByStatusAndCreatedTimestampBetween(
-            String status, long lowerBound, long upperBound, Pageable pageable);
+            int status, long lowerBound, long upperBound, Pageable pageable);
 
     /**
      * Returns the open pending channel commitments, which are the ones not yet completed or abandoned. The

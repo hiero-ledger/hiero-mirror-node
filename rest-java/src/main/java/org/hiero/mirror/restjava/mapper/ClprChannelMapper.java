@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.mapper;
 
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.forNumber;
 import static org.hiero.mirror.restjava.mapper.CommonMapper.QUALIFIER_BYTES;
 import static org.hiero.mirror.restjava.mapper.CommonMapper.QUALIFIER_TIMESTAMP;
 
@@ -18,11 +19,13 @@ import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelEndpointManifest;
+import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.hiero.mirror.rest.model.ClprPeerThrottles;
 import org.hiero.mirror.rest.model.ClprSignatureScheme;
 import org.hiero.mirror.rest.model.TimestampRangeNullable;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.exception.InvalidMappingException;
+import org.jspecify.annotations.Nullable;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -48,6 +51,8 @@ public interface ClprChannelMapper extends CollectionMapper<ClprChannelDto, Clpr
     @Mapping(target = "createdTimestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
     @Mapping(target = "lastConfigTimestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
     @Mapping(target = "peerConfigTimestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
+    @Mapping(target = "signatureScheme", expression = "java(mapSignatureScheme(channel.signatureScheme()))")
+    @Mapping(target = "status", expression = "java(mapStatus(channel.status()))")
     @Mapping(target = "endpointManifest", expression = "java(mapEndpointManifest(channel))")
     @Mapping(target = "peerThrottles", expression = "java(mapPeerThrottles(channel))")
     @Mapping(target = "timestamp", expression = "java(mapTimestampRange(channel))")
@@ -126,13 +131,23 @@ public interface ClprChannelMapper extends CollectionMapper<ClprChannelDto, Clpr
                 .to(upper != null ? DomainUtils.toTimestamp(upper) : null);
     }
 
-    /** The generated enum names the constant {@code ECDSA_SECP256_K1}, though its JSON value is unchanged. */
-    default ClprSignatureScheme mapSignatureScheme(String source) {
-        return switch (source) {
-            case null -> null;
-            case "ECDSA_SECP256K1" -> ClprSignatureScheme.ECDSA_SECP256_K1;
-            default -> ClprSignatureScheme.fromValue(source);
-        };
+    /** The stored value is the proto wire number. */
+    default ClprSignatureScheme mapSignatureScheme(@Nullable Integer number) {
+        if (number == null) {
+            return null;
+        }
+
+        final var scheme = com.hederahashgraph.api.proto.java.ClprSignatureScheme.forNumber(number);
+        return ClprSignatureScheme.fromValue(scheme.name());
+    }
+
+    /** The stored value is the proto wire number. */
+    default ClprChannelStatus mapStatus(@Nullable Integer number) {
+        if (number == null) {
+            return null;
+        }
+
+        return ClprChannelStatus.fromValue(forNumber(number).name());
     }
 
     private static String hex(byte[] source) {

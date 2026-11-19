@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.restjava.service;
 
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.valueOf;
+
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -53,7 +55,10 @@ final class ClprServiceImpl implements ClprService {
 
         if (channelId != null && timestamp.isEmpty()) {
             final var channel = channelRepository.findByChannelId(channelId);
-            if (channel == null || status != null && !status.name().equals(channel.status())) {
+            if (channel == null
+                    || status != null
+                            && !Integer.valueOf(valueOf(status.name()).getNumber())
+                                    .equals(channel.status())) {
                 return List.of();
             }
 
@@ -64,12 +69,15 @@ final class ClprServiceImpl implements ClprService {
 
         if (channelId != null) {
             return channelRepository.findByChannelIdAndTimestampBetween(
-                    channelId, bounds.lower(), bounds.upper(), status != null ? status.name() : null);
+                    channelId,
+                    bounds.lower(),
+                    bounds.upper(),
+                    status != null ? valueOf(status.name()).getNumber() : null);
         }
 
         if (status != null) {
             return channelRepository.findByStatusAndCreatedTimestampBetween(
-                    status.name(), bounds.lower(), bounds.upper(), getPage(request));
+                    valueOf(status.name()).getNumber(), bounds.lower(), bounds.upper(), getPage(request));
         }
 
         return channelRepository.findByCreatedTimestampBetween(bounds.lower(), bounds.upper(), getPage(request));

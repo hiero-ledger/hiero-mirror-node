@@ -5,16 +5,19 @@ package org.hiero.mirror.restjava.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
+import com.hederahashgraph.api.proto.java.ClprChannelStatus;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.clpr.AbstractClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
+import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.hiero.mirror.rest.model.ClprChannelsResponse;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
@@ -306,24 +309,50 @@ final class ClprControllerTest extends ControllerTest {
     }
 
     private static List<ClprChannelDto> asData(AbstractClprChannel... channels) {
-        return Arrays.stream(channels)
-                .map(channel -> ClprChannelDto.builder()
-                        .ackedMessageId(channel.getAckedMessageId())
-                        .chainId(channel.getChainId())
-                        .channelId(channel.getChannelId())
-                        .createdTimestamp(channel.getCreatedTimestamp())
-                        .endpointManifestVersion(channel.getEndpointManifestVersion())
-                        .nextMessageId(channel.getNextMessageId())
-                        .ownershipCommitment(channel.getOwnershipCommitment())
-                        .receivedMessageId(channel.getReceivedMessageId())
-                        .status(channel.getStatus().name())
-                        .timestampLower(channel.getTimestampRange().lowerEndpoint())
-                        .timestampUpper(
-                                channel.getTimestampRange().hasUpperBound()
-                                        ? channel.getTimestampRange().upperEndpoint()
-                                        : null)
-                        .build())
-                .toList();
+        return Arrays.stream(channels).map(ClprControllerTest::toDto).toList();
+    }
+
+    @SneakyThrows
+    private static ClprChannelDto toDto(AbstractClprChannel channel) {
+        final var throttle = channel.getPeerThrottle() != null ? channel.getPeerThrottle() : new ClprThrottle();
+        final var range = channel.getTimestampRange();
+        final var manifest = channel.getEndpointManifest();
+        return ClprChannelDto.builder()
+                .ackedMessageId(channel.getAckedMessageId())
+                .chainId(channel.getChainId())
+                .channelContext(channel.getChannelContext())
+                .channelId(channel.getChannelId())
+                .configProofBytes(channel.getConfigProofBytes())
+                .createdTimestamp(channel.getCreatedTimestamp())
+                .endpointManifest(
+                        manifest != null ? ObjectToStringSerializer.OBJECT_MAPPER.writeValueAsString(manifest) : null)
+                .endpointManifestProofBytes(channel.getEndpointManifestProofBytes())
+                .endpointManifestVersion(channel.getEndpointManifestVersion())
+                .lastConfigTimestamp(channel.getLastConfigTimestamp())
+                .nextMessageId(channel.getNextMessageId())
+                .ownershipCommitment(channel.getOwnershipCommitment())
+                .peerConfigTimestamp(channel.getPeerConfigTimestamp())
+                .peerMaxGasPerMessage(throttle.getMaxGasPerMessage())
+                .peerMaxLocalEndpoints(throttle.getMaxLocalEndpoints())
+                .peerMaxMessagePayloadBytes(throttle.getMaxMessagePayloadBytes())
+                .peerMaxMessagesPerBundle(throttle.getMaxMessagesPerBundle())
+                .peerMaxPeerEndpoints(throttle.getMaxPeerEndpoints())
+                .peerMaxQueueDepth(throttle.getMaxQueueDepth())
+                .peerMaxSyncBytes(throttle.getMaxSyncBytes())
+                .publicKey(channel.getPublicKey())
+                .receivedMessageId(channel.getReceivedMessageId())
+                .receivedRunningHash(channel.getReceivedRunningHash())
+                .sentRunningHash(channel.getSentRunningHash())
+                .signature(channel.getSignature())
+                .signatureScheme(channel.getSignatureScheme())
+                .status(channel.getStatus())
+                .timestampLower(range.lowerEndpoint())
+                .timestampUpper(range.hasUpperBound() ? range.upperEndpoint() : null)
+                .trustAnchor(channel.getTrustAnchor())
+                .trustAnchorId(channel.getTrustAnchorId())
+                .verifierContractId(channel.getVerifierContractId().getId())
+                .verifierFingerprint(channel.getVerifierFingerprint())
+                .build();
     }
 
     private ClprChannel persistChannel(long createdTimestamp, ClprChannelStatus status) {
@@ -332,33 +361,23 @@ final class ClprControllerTest extends ControllerTest {
 
     private ClprChannel persistChannel(
             byte[] channelId, long createdTimestamp, ClprChannelStatus status, Range<Long> timestampRange) {
-        final var builder = ClprChannel.builder()
-                .ackedMessageId(0L)
-                .chainId("eip155:1")
-                .channelId(channelId)
-                .createdTimestamp(createdTimestamp)
-                .endpointManifestVersion(0L)
-                .nextMessageId(1L)
-                .ownershipCommitment(domainBuilder.bytes(32))
-                .receivedMessageId(0L)
-                .status(status)
-                .timestampRange(timestampRange);
-        return domainBuilder.wrap(builder, builder::build).persist();
+        return domainBuilder
+                .clprChannel()
+                .customize(b -> b.channelId(channelId)
+                        .createdTimestamp(createdTimestamp)
+                        .status(status.getNumber())
+                        .timestampRange(timestampRange))
+                .persist();
     }
 
     private ClprChannelHistory persistHistory(byte[] channelId, ClprChannelStatus status, Range<Long> range) {
-        final var builder = ClprChannelHistory.builder()
-                .ackedMessageId(0L)
-                .chainId("eip155:1")
-                .channelId(channelId)
-                .createdTimestamp(100L)
-                .endpointManifestVersion(0L)
-                .nextMessageId(1L)
-                .ownershipCommitment(domainBuilder.bytes(32))
-                .receivedMessageId(0L)
-                .status(status)
-                .timestampRange(range);
-        return domainBuilder.wrap(builder, builder::build).persist();
+        return domainBuilder
+                .clprChannelHistory()
+                .customize(b -> b.channelId(channelId)
+                        .createdTimestamp(100L)
+                        .status(status.getNumber())
+                        .timestampRange(range))
+                .persist();
     }
 
     private ClprChannelPendingCommitment persistPending(long createdTimestamp, ClprPendingCommitmentStatus status) {

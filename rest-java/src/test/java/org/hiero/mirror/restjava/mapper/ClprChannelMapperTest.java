@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.restjava.mapper;
 
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.PAUSED_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.PENDING_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -12,6 +15,7 @@ import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,8 +61,8 @@ final class ClprChannelMapperTest {
                 .receivedRunningHash(new byte[] {(byte) 0xbb})
                 .sentRunningHash(new byte[] {(byte) 0xaa})
                 .signature(new byte[] {(byte) 0x9f, (byte) 0x8e})
-                .signatureScheme("ED25519")
-                .status("ACTIVE")
+                .signatureScheme(1)
+                .status(ACTIVE_VALUE)
                 .timestampLower(4_000_000_000L)
                 .trustAnchor(new byte[] {0x33})
                 .trustAnchorId(new byte[] {(byte) 0x9f})
@@ -119,7 +123,7 @@ final class ClprChannelMapperTest {
         final var pending = ClprChannelDto.builder()
                 .createdTimestamp(1_000_000_000L)
                 .ownershipCommitment(new byte[] {0x7a, (byte) 0xb3})
-                .status("PENDING")
+                .status(PENDING_VALUE)
                 .build();
 
         // when
@@ -168,8 +172,8 @@ final class ClprChannelMapperTest {
                 .receivedRunningHash(new byte[] {(byte) 0xbb, 0x22})
                 .sentRunningHash(new byte[] {(byte) 0xaa, 0x11})
                 .signature(new byte[] {(byte) 0x9f, (byte) 0x8e, 0x7d, 0x6c})
-                .signatureScheme("ED25519")
-                .status("ACTIVE")
+                .signatureScheme(1)
+                .status(ACTIVE_VALUE)
                 .timestampLower(1726874345_123456789L)
                 .trustAnchor(new byte[] {0x33, 0x44})
                 .trustAnchorId(new byte[] {(byte) 0x9f, (byte) 0x8e})
@@ -255,13 +259,20 @@ final class ClprChannelMapperTest {
     @Test
     void mapSignatureSchemes() {
         // when / then
-        assertThat(mapper.mapSignatureScheme("ECDSA_SECP256K1"))
+        assertThat(mapper.mapSignatureScheme(0))
                 .extracting(scheme -> scheme.getValue())
                 .isEqualTo("ECDSA_SECP256K1");
-        assertThat(mapper.mapSignatureScheme("ED25519"))
+        assertThat(mapper.mapSignatureScheme(1))
                 .extracting(scheme -> scheme.getValue())
                 .isEqualTo("ED25519");
         assertThat(mapper.mapSignatureScheme(null)).isNull();
+    }
+
+    @Test
+    void mapStatuses() {
+        // when / then
+        assertThat(mapper.mapStatus(PAUSED_VALUE)).isEqualTo(ClprChannelStatus.PAUSED);
+        assertThat(mapper.mapStatus(null)).isNull();
     }
 
     @Test
@@ -279,7 +290,7 @@ final class ClprChannelMapperTest {
         // given
         final var channel = ClprChannelDto.builder()
                 .channelId(new byte[] {0x01})
-                .status("PAUSED")
+                .status(PAUSED_VALUE)
                 .build();
 
         // when

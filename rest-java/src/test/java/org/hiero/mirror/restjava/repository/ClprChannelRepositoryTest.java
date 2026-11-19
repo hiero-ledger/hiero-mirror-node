@@ -5,14 +5,12 @@ package org.hiero.mirror.restjava.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.Range;
+import com.hederahashgraph.api.proto.java.ClprChannelStatus;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.clpr.AbstractClprChannel.AbstractClprChannelBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprChannelStatus;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
@@ -167,7 +165,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
                 .filteredOn(i -> i.channelId() == null)
                 .singleElement()
                 .satisfies(i -> {
-                    assertThat(i.status()).isEqualTo("PENDING");
+                    assertThat(i.status()).isEqualTo(ClprChannelStatus.PENDING.getNumber());
                     assertThat(i.chainId()).isNull();
                     assertThat(i.endpointManifest()).isNull();
                 });
@@ -205,7 +203,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
         // when
         final var actual = repository.findByStatusAndCreatedTimestampBetween(
-                ClprChannelStatus.PAUSED.name(), 0L, Long.MAX_VALUE, pageable);
+                ClprChannelStatus.PAUSED.getNumber(), 0L, Long.MAX_VALUE, pageable);
 
         // then
         assertThat(ids(actual)).containsExactly(paused.getChannelId());
@@ -274,7 +272,7 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
                         .map(ClprChannelPendingCommitment::getOwnershipCommitment)
                         .toList());
         assertThat(actual).allSatisfy(data -> {
-            assertThat(data.status()).isEqualTo("PENDING");
+            assertThat(data.status()).isEqualTo(ClprChannelStatus.PENDING.getNumber());
             assertThat(data.channelId()).isNull();
             assertThat(data.chainId()).isNull();
         });
@@ -349,11 +347,13 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
             long upperBound,
             @Nullable ClprChannelStatus statusFilter,
             ClprChannelStatus... expected) {
-        final var status = statusFilter != null ? statusFilter.name() : null;
+        final var status = statusFilter != null ? statusFilter.getNumber() : null;
         final var actual = repository.findByChannelIdAndTimestampBetween(channelId, lowerBound, upperBound, status);
         assertThat(actual)
                 .extracting(ClprChannelDto::status)
-                .containsExactly(Arrays.stream(expected).map(Enum::name).toArray(String[]::new));
+                .containsExactly(Arrays.stream(expected)
+                        .map(ClprChannelStatus::getNumber)
+                        .toArray(Integer[]::new));
     }
 
     /** Persists a current channel created at {@code createdTimestamp} and valid from then on. */
@@ -372,33 +372,23 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
     private ClprChannel persistChannel(
             byte[] channelId, long createdTimestamp, ClprChannelStatus status, Range<Long> timestampRange) {
-        final var builder = ClprChannel.builder();
-        populate(builder, channelId, createdTimestamp, status, timestampRange);
-        return domainBuilder.wrap(builder, builder::build).persist();
+        return domainBuilder
+                .clprChannel()
+                .customize(b -> b.channelId(channelId)
+                        .createdTimestamp(createdTimestamp)
+                        .status(status.getNumber())
+                        .timestampRange(timestampRange))
+                .persist();
     }
 
     /** Persists a history row for a channel created at the lower bound of the range. */
     private void persistHistory(byte[] channelId, ClprChannelStatus status, Range<Long> timestampRange) {
-        final var builder = ClprChannelHistory.builder();
-        populate(builder, channelId, 100L, status, timestampRange);
-        domainBuilder.wrap(builder, builder::build).persist();
-    }
-
-    private void populate(
-            AbstractClprChannelBuilder<?, ?> builder,
-            byte[] channelId,
-            long createdTimestamp,
-            ClprChannelStatus status,
-            Range<Long> timestampRange) {
-        builder.ackedMessageId(0L)
-                .chainId("eip155:1")
-                .channelId(channelId)
-                .createdTimestamp(createdTimestamp)
-                .endpointManifestVersion(0L)
-                .nextMessageId(1L)
-                .ownershipCommitment(domainBuilder.bytes(32))
-                .receivedMessageId(0L)
-                .status(status)
-                .timestampRange(timestampRange);
+        domainBuilder
+                .clprChannelHistory()
+                .customize(b -> b.channelId(channelId)
+                        .createdTimestamp(100L)
+                        .status(status.getNumber())
+                        .timestampRange(timestampRange))
+                .persist();
     }
 }

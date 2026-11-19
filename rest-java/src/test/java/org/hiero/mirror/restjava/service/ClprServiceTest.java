@@ -2,6 +2,10 @@
 
 package org.hiero.mirror.restjava.service;
 
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.CLOSED_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.PAUSED_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.PENDING_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -43,7 +47,7 @@ final class ClprServiceTest {
     @Test
     void getChannelsByIdWithoutTimestamp() {
         // given
-        final var channel = channel("ACTIVE");
+        final var channel = channel(ACTIVE_VALUE);
         when(channelRepository.findByChannelId(CHANNEL_ID)).thenReturn(channel);
         final var request = ClprChannelsRequest.builder().channelId(CHANNEL_ID).build();
 
@@ -57,7 +61,7 @@ final class ClprServiceTest {
     @Test
     void getChannelsByIdWithoutTimestampFiltersByStatus() {
         // given
-        when(channelRepository.findByChannelId(CHANNEL_ID)).thenReturn(channel("ACTIVE"));
+        when(channelRepository.findByChannelId(CHANNEL_ID)).thenReturn(channel(ACTIVE_VALUE));
 
         // when / then
         assertThat(service.getChannels(ClprChannelsRequest.builder()
@@ -87,7 +91,7 @@ final class ClprServiceTest {
     void getChannelsByIdAsOfTimestamp() {
         // given: eq becomes lte, so the as-of range is (0, 150]
         when(channelRepository.findByChannelIdAndTimestampBetween(CHANNEL_ID, 0L, 150L, null))
-                .thenReturn(List.of(channel("PAUSED")));
+                .thenReturn(List.of(channel(PAUSED_VALUE)));
         final var request = ClprChannelsRequest.builder()
                 .channelId(CHANNEL_ID)
                 .timestamp(timestamp(param(RangeOperator.EQ, 150L)))
@@ -112,7 +116,7 @@ final class ClprServiceTest {
         service.getChannels(request);
 
         // then
-        verify(channelRepository).findByChannelIdAndTimestampBetween(CHANNEL_ID, 0L, 150L, "PAUSED");
+        verify(channelRepository).findByChannelIdAndTimestampBetween(CHANNEL_ID, 0L, 150L, PAUSED_VALUE);
     }
 
     @Test
@@ -120,9 +124,9 @@ final class ClprServiceTest {
         // given
         final var page = PageRequest.of(0, 25, Sort.by(Direction.DESC, CREATED_TIMESTAMP));
         final var items = List.of(
-                item(CHANNEL_ID, 3_000L, "ACTIVE"),
-                item(null, 2_000L, "PENDING"),
-                item(new byte[] {9, 9}, 1_000L, "CLOSED"));
+                item(CHANNEL_ID, 3_000L, ACTIVE_VALUE),
+                item(null, 2_000L, PENDING_VALUE),
+                item(new byte[] {9, 9}, 1_000L, CLOSED_VALUE));
         when(channelRepository.findAllChannelsByCreatedTimestampBetween(0L, Long.MAX_VALUE, page))
                 .thenReturn(items);
 
@@ -148,7 +152,7 @@ final class ClprServiceTest {
         // then
         verify(channelRepository)
                 .findByStatusAndCreatedTimestampBetween(
-                        "CLOSED", 101L, 199L, PageRequest.of(0, 10, Sort.by(Direction.ASC, CREATED_TIMESTAMP)));
+                        CLOSED_VALUE, 101L, 199L, PageRequest.of(0, 10, Sort.by(Direction.ASC, CREATED_TIMESTAMP)));
     }
 
     @Test
@@ -190,7 +194,7 @@ final class ClprServiceTest {
     @Test
     void getChannelsPending() {
         // given
-        final var pending = item(null, 1_000_000_000L, "PENDING", new byte[] {(byte) 0xab, (byte) 0xcd});
+        final var pending = item(null, 1_000_000_000L, PENDING_VALUE, new byte[] {(byte) 0xab, (byte) 0xcd});
         final var page = PageRequest.of(0, 25, Sort.by(Direction.DESC, CREATED_TIMESTAMP));
         when(channelRepository.findPendingByCreatedTimestampBetween(0L, Long.MAX_VALUE, page))
                 .thenReturn(List.of(pending));
@@ -251,7 +255,7 @@ final class ClprServiceTest {
         verifyNoInteractions(channelRepository);
     }
 
-    private static ClprChannelDto channel(String status) {
+    private static ClprChannelDto channel(int status) {
         return item(CHANNEL_ID, 0L, status);
     }
 
@@ -263,12 +267,12 @@ final class ClprServiceTest {
         return Bound.of(params, "timestamp", null);
     }
 
-    private static ClprChannelDto item(byte @Nullable [] channelId, long created, String status) {
+    private static ClprChannelDto item(byte @Nullable [] channelId, long created, int status) {
         return item(channelId, created, status, new byte[] {1});
     }
 
     private static ClprChannelDto item(
-            byte @Nullable [] channelId, long created, String status, byte[] ownershipCommitment) {
+            byte @Nullable [] channelId, long created, int status, byte[] ownershipCommitment) {
         return ClprChannelDto.builder()
                 .channelId(channelId)
                 .createdTimestamp(created)
