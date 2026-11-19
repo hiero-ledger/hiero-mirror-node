@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.166.2'
+      version: '0.167.1'
   dependsOn:
     - name: mirror
       namespace: common
@@ -57,10 +57,8 @@ spec:
         enabled: true
     importer:
       env:
-        HIERO_MIRROR_IMPORTER_BLOCK_CUTOVER_FIRSTSTAGE_ENABLED: "true"
         HIERO_MIRROR_IMPORTER_BLOCK_SOURCETYPE: "BLOCK_NODE"
         HIERO_MIRROR_IMPORTER_BLOCK_STREAM_RESPONSETIMEOUT: "1s"
-        HIERO_MIRROR_IMPORTER_MIGRATION_BACKFILLTRANSACTIONHASHMIGRATION_PARAMS_STARTTIMESTAMP: "0"
         HIERO_MIRROR_IMPORTER_NETWORK: "MAINNET"
         HIERO_MIRROR_IMPORTER_PARSER_RECORD_SIDECAR_ENABLED: "true"
         HIERO_MIRROR_IMPORTER_RECONCILIATION_ENABLED: "false"
