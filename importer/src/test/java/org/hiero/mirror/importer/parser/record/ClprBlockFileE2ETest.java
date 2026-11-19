@@ -2,467 +2,906 @@
 
 package org.hiero.mirror.importer.parser.record;
 
-import static com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE_VALUE;
-import static com.hederahashgraph.api.proto.java.ClprChannelStatus.CLOSING_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.CLOSING;
 import static com.hederahashgraph.api.proto.java.ClprMessagePayload.CONTROL_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_REPLY_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprMessageReplyStatus.CONNECTOR_NOT_FOUND_VALUE;
-import static com.hederahashgraph.api.proto.java.ClprSignatureScheme.ED25519_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprConnectorMapUpdate;
 
 import com.google.common.collect.Range;
-import com.hedera.hapi.block.stream.protoc.Block;
-import java.util.HexFormat;
+import com.google.protobuf.ByteString;
+import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
+import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
+import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
+import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
+import com.hedera.hapi.block.stream.output.protoc.StateChange;
+import com.hedera.hapi.block.stream.output.protoc.StateChanges;
+import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
+import com.hederahashgraph.api.proto.java.ClprConfigUpdate;
+import com.hederahashgraph.api.proto.java.ClprConnectorKey;
+import com.hederahashgraph.api.proto.java.ClprControlMessage;
+import com.hederahashgraph.api.proto.java.ClprMessageKey;
+import com.hederahashgraph.api.proto.java.ClprMessagePayload;
+import com.hederahashgraph.api.proto.java.ClprMessageReply;
+import com.hederahashgraph.api.proto.java.ClprMessageReplyStatus;
+import com.hederahashgraph.api.proto.java.ClprMessageValue;
+import com.hederahashgraph.api.proto.java.ClprThrottles;
+import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.HookEntityId;
+import com.hederahashgraph.api.proto.java.HookId;
+import com.hederahashgraph.api.proto.java.Timestamp;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprConfigUpdate;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
-import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
-import org.hiero.mirror.common.domain.clpr.ClprControlMessage;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
-import org.hiero.mirror.common.domain.clpr.ClprThrottle;
-import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.BlockTransaction;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnectorEntry;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprMessageEntry;
+import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
-import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.downloader.block.BlockFileTransformer;
 import org.hiero.mirror.importer.parser.domain.BlockFileBuilder;
 import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
-import org.hiero.mirror.importer.reader.block.BlockStream;
-import org.hiero.mirror.importer.reader.block.BlockStreamReader;
-import org.hiero.mirror.importer.reader.block.BlockStreamTestUtils;
 import org.hiero.mirror.importer.repository.ClprChannelPendingCommitmentRepository;
 import org.hiero.mirror.importer.repository.ClprChannelRepository;
 import org.hiero.mirror.importer.repository.ClprConnectorRepository;
-import org.hiero.mirror.importer.repository.ClprEndpointManifestRepository;
 import org.hiero.mirror.importer.repository.ClprLedgerConfigurationRepository;
 import org.hiero.mirror.importer.repository.ClprMessageRepository;
-import org.hiero.mirror.importer.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.util.Version;
 
 /**
- * Real blocks captured from a local {@code hiero-consensus-node} alpha5 ({@code build-00423}) subprocess network
- * running the full CLPR HAPI suite, rather than synthetic fixtures built via {@code RecordItemBuilder}. See
- * {@code data/blockstreams-clpr/README.md} for the full transaction-by-transaction breakdown of each captured
- * block.
+ * Verifies CLPR lifecycle, message, and control-message persistence through synthetic block-file transformation
+ * and record-file parsing
  */
 @RequiredArgsConstructor
-class ClprBlockFileE2ETest extends ImporterIntegrationTest {
+final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
 
-    private static final String CLPR_BLOCK_FILE_1 = "data/blockstreams-clpr/0000/0000/0000/0000/001.blk.zstd";
-    private static final String CLPR_BLOCK_FILE_2 = "data/blockstreams-clpr/0000/0000/0000/0000/002.blk.zstd";
-    private static final String CLPR_BLOCK_FILE_3 = "data/blockstreams-clpr/0000/0000/0000/0000/003.blk.zstd";
-    private static final String CLPR_BLOCK_FILE_4 = "data/blockstreams-clpr/0000/0000/0000/0000/004.blk.zstd";
+    private static final Version HAPI_VERSION = new Version(0, 57, 0);
 
     private final BlockFileBuilder blockFileBuilder;
     private final BlockFileTransformer blockFileTransformer;
-    private final BlockStreamReader blockStreamReader;
     private final BlockTransactionBuilder blockTransactionBuilder;
     private final ClprChannelPendingCommitmentRepository clprChannelPendingCommitmentRepository;
     private final ClprChannelRepository clprChannelRepository;
     private final ClprConnectorRepository clprConnectorRepository;
-    private final ClprEndpointManifestRepository clprEndpointManifestRepository;
     private final ClprLedgerConfigurationRepository clprLedgerConfigurationRepository;
     private final ClprMessageRepository clprMessageRepository;
     private final RecordFileParser recordFileParser;
     private final RecordItemBuilder recordItemBuilder;
-    private final TransactionRepository transactionRepository;
 
     @BeforeEach
     void setup() {
-        // RecordFileParser's hash-chain check is in-memory and shared across test classes in this Spring context;
-        // reset it so another CLPR fixture class running first doesn't break this one's chain check.
         recordFileParser.clear();
     }
 
     @Test
-    void clprBlockFileLifecycle() throws Exception {
-        // given/when -- block 1: ClprRegisterChannel, the commit half of the channel's commit-reveal
-        parse(CLPR_BLOCK_FILE_1);
+    void clprChannelAndConnectorLifecycle() {
+        // RegisterChannel -> CompleteChannel -> RegisterConnector -> CompleteConnector -> sendMessage ->
+        // SubmitBundle. Every transaction passes through BlockFileTransformer and RecordFileParser.
+        final var channelId = recordItemBuilder.bytes(32);
+        final var channelPublicKey = recordItemBuilder.bytes(64);
+        final var ownershipCommitment = DomainUtils.fromBytes(
+                SignatureUtils.keccak256(DomainUtils.toBytes(channelId), DomainUtils.toBytes(channelPublicKey)));
+        final var connectorId = recordItemBuilder.bytes(32);
+        final var connectorPublicKey = recordItemBuilder.bytes(64);
+        final var connectorCommitment = DomainUtils.fromBytes(
+                SignatureUtils.keccak256(DomainUtils.toBytes(connectorId), DomainUtils.toBytes(connectorPublicKey)));
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
 
-        // then -- only a pending commitment exists; the channel itself isn't created until the reveal (block 2)
-        final var hex = HexFormat.of();
-        final var pendingCommitmentCreatedTimestamp = 1794435392797325104L;
-
-        final var expectedPendingChannel = domainBuilder
-                .clprChannelPendingCommitment()
-                .customize(builder -> builder.createdTimestamp(pendingCommitmentCreatedTimestamp)
-                        .timestampRange(Range.atLeast(pendingCommitmentCreatedTimestamp))
-                        .status(ClprPendingCommitmentStatus.OPEN)
-                        .ownershipCommitment(
-                                hex.parseHex("29a90d6ef6b307905b7b19e7e6e9c60431c8debb6589897129a5d7012e859f6b")))
-                .get();
+        // Block 1: the commitment exists, but the channel ID has not been revealed.
+        final var registerChannel = recordItemBuilder
+                .clprRegisterChannel()
+                .transactionBody(b -> b.setOwnershipCommitment(ownershipCommitment))
+                .customize(this::finalizeRecordItem)
+                .build();
+        var previousHash = parse(
+                List.of(blockTransactionBuilder
+                        .clprRegisterChannel(registerChannel)
+                        .build()),
+                null);
 
         assertThat(clprChannelRepository.count()).isZero();
-        assertThat(clprChannelPendingCommitmentRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactly(expectedPendingChannel);
+        final var pendingChannel = clprChannelPendingCommitmentRepository
+                .findById(DomainUtils.toBytes(ownershipCommitment))
+                .orElseThrow();
+        assertThat(pendingChannel)
+                .returns(ClprPendingCommitmentStatus.OPEN, ClprChannelPendingCommitment::getStatus)
+                .returns(registerChannel.getConsensusTimestamp(), ClprChannelPendingCommitment::getCreatedTimestamp);
 
-        // given/when -- block 2: channel + connector commit-reveal, plus the user-level sendMessage call (lands in
-        // the same block as the connector commit-reveal this time around)
-        parse(CLPR_BLOCK_FILE_2);
-
-        // then
-        final var expectedMessage1 = domainBuilder
-                .clprMessage()
-                .customize(builder -> builder.consensusTimestamp(1794435394777634104L)
-                        .messageId(1L)
-                        .replyToMessageId(null)
-                        .messageType(MESSAGE_FIELD_NUMBER)
-                        .replyStatus(null)
-                        .channelId(hex.parseHex("9632b28a4d876b868186c2cfe2b376ef3a6840482530d66599c93cae4532f330"))
-                        .connectorId(hex.parseHex("5c6562ad6a560de52597bbf3f82516ce23aa695f44170b065a20275456f8466b"))
-                        .controlMessage(null)
-                        .messageData(hex.parseHex("010203"))
-                        .runningHash(hex.parseHex("28a119e3240c6765e780d5e8a223eda67060a3eaef68246bf43b44f64e2bf66e"))
-                        .sender(hex.parseHex("000000000000000000000000000000000000045d"))
-                        .targetApplication(hex.parseHex("0000000000000000000000000000000000000000")))
-                .get();
-
-        final var channelCreatedTimestamp = 1794435393328435104L;
-        final var connectorRegisteredTimestamp = 1794435393817627104L;
-        final var connectorCompletedTimestamp = 1794435394297896104L;
-        final var messageTimestamp = 1794435394777634104L;
-
-        // The channel registration commitment transitions from OPEN to COMPLETED when the channel is revealed.
-        final var expectedCompletedCommitment = expectedPendingChannel.toBuilder()
-                .timestampRange(Range.atLeast(channelCreatedTimestamp))
-                .status(ClprPendingCommitmentStatus.COMPLETED)
+        // Block 2: the reveal creates the channel and completes its ownership commitment.
+        final var activeChannel = activeChannelValue(channelId, ownershipCommitment, "hiero:testing", 1);
+        final var completeChannel = recordItemBuilder
+                .clprCompleteChannel()
+                .transactionBody(b -> b.setChannelId(channelId).setPublicKey(channelPublicKey))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(
+                                new ClprChannelEntry(channelId, clprChannelMapUpdate(channelId, activeChannel)))))
+                .customize(this::finalizeRecordItem)
                 .build();
+        previousHash = parse(
+                List.of(blockTransactionBuilder
+                        .clprCompleteChannel(completeChannel)
+                        .build()),
+                previousHash);
 
-        final var expectedHistoryCommitment = expectedPendingChannel.toBuilder()
-                .timestampRange(Range.closedOpen(pendingCommitmentCreatedTimestamp, channelCreatedTimestamp))
-                .build();
-
-        assertThat(clprChannelPendingCommitmentRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactly(expectedCompletedCommitment);
+        assertThat(clprChannelPendingCommitmentRepository.findById(DomainUtils.toBytes(ownershipCommitment)))
+                .get()
+                .returns(ClprPendingCommitmentStatus.COMPLETED, ClprChannelPendingCommitment::getStatus)
+                .returns(registerChannel.getConsensusTimestamp(), ClprChannelPendingCommitment::getCreatedTimestamp);
         assertThat(findHistory(ClprChannelPendingCommitment.class))
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactly(expectedHistoryCommitment);
+                .singleElement()
+                .returns(ClprPendingCommitmentStatus.OPEN, ClprChannelPendingCommitment::getStatus)
+                .returns(
+                        Range.closedOpen(
+                                registerChannel.getConsensusTimestamp(), completeChannel.getConsensusTimestamp()),
+                        ClprChannelPendingCommitment::getTimestampRange);
+        assertThat(clprChannelRepository.findById(DomainUtils.toBytes(channelId)))
+                .get()
+                .returns(ACTIVE.getNumber(), ClprChannel::getStatus)
+                .returns("hiero:testing", ClprChannel::getChainId);
 
-        // Build expected snapshots as ClprChannel, then derive subsequent versions using toBuilder().
-        // findHistory() maps embedded peerThrottle values from the history table.
-        final var expectedChannelHistory = domainBuilder
-                .clprChannel()
-                .customize(builder -> builder.ackedMessageId(0L)
-                        .createdTimestamp(channelCreatedTimestamp)
-                        .timestampRange(Range.closedOpen(channelCreatedTimestamp, messageTimestamp))
-                        .status(ACTIVE_VALUE)
-                        .signatureScheme(ED25519_VALUE)
-                        .channelId(expectedMessage1.getChannelId())
-                        .chainId("hiero:testing")
-                        .channelContext(
-                                hex.parseHex(
-                                        "9632b28a4d876b868186c2cfe2b376ef3a6840482530d66599c93cae4532f330000000000000000000000000000000000000016e"))
-                        .configProofBytes(
-                                hex.parseHex(
-                                        "0a3f223d1a3bda0338120d686965726f3a74657374696e671a14000000000000000000000000000000000000016e2a1108641080800418c0843d20e80728808040"))
-                        .endpointManifest(List.of())
-                        .endpointManifestProofBytes(new byte[0])
-                        .endpointManifestVersion(0L)
-                        .lastConfigTimestamp(channelCreatedTimestamp)
-                        .nextMessageId(1L)
-                        .ownershipCommitment(expectedPendingChannel.getOwnershipCommitment())
-                        .peerConfigTimestamp(0L)
-                        .peerThrottle(ClprThrottle.builder()
-                                .maxGasPerMessage(1_000_000L)
-                                .maxLocalEndpoints(0L)
-                                .maxMessagePayloadBytes(65_536L)
-                                .maxMessagesPerBundle(100L)
-                                .maxPeerEndpoints(0L)
-                                .maxQueueDepth(1_000L)
-                                .maxSyncBytes(1_048_576L)
-                                .build())
-                        .publicKey(hex.parseHex("aeec43fb5f289cf17a70014dfa46a3e5a7035a784a5d6896abeba1f3464e7670"))
-                        .receivedMessageId(0L)
-                        .receivedRunningHash(new byte[32])
-                        .sentRunningHash(new byte[32])
-                        .signature(
-                                hex.parseHex(
-                                        "d5de09f2d288702e268a987aff63e919af3f01d3663ce391bef0edc69e54f9b6d4d7f33146b828843681acd036d237b5a0f42f52f41b4b71704cebcd3e0bca00"))
-                        .trustAnchor(new byte[0])
-                        .trustAnchorId(new byte[0])
-                        .verifierContractId(EntityId.of(198161682139186265L))
-                        .verifierFingerprint(
-                                hex.parseHex("b2edf337f9fbaa46115dcef992793e3e9c97a44f4118c25ae3805bd97a06e0a0")))
-                .get();
-
-        // sendMessage advances the outbound running hash to the hash persisted with message 1.
-        final var expectedChannel = expectedChannelHistory.toBuilder()
-                .timestampRange(Range.atLeast(messageTimestamp))
-                .nextMessageId(2L)
-                .sentRunningHash(expectedMessage1.getRunningHash())
+        // Block 3: the connector has only a pending commitment.
+        final var registerConnector = recordItemBuilder
+                .clprRegisterConnector()
+                .transactionBody(b -> b.setChannelId(channelId).setCommitment(connectorCommitment))
+                .customize(this::finalizeRecordItem)
                 .build();
+        previousHash = parse(
+                List.of(blockTransactionBuilder
+                        .clprRegisterConnector(registerConnector)
+                        .build()),
+                previousHash);
 
-        assertThat(findHistory(ClprChannel.class))
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactly(expectedChannelHistory);
-        assertThat(clprChannelRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactly(expectedChannel);
-
-        // Connector history is also mapped into ClprConnector; each snapshot builds on the previous one.
-        // The pending connector is keyed by (channelId, commitment) until ClprCompleteConnector reveals its ID.
-        final var expectedPendingConnectorHistory = domainBuilder
-                .clprConnector()
-                .customize(builder -> builder.channelId(expectedMessage1.getChannelId())
-                        .commitment(hex.parseHex("cd30c2cc969c62e2cd886e2ee7c1d33a72f5515530c431808693f68861db77f6"))
-                        .createdTimestamp(connectorRegisteredTimestamp)
-                        .timestampRange(Range.closedOpen(connectorRegisteredTimestamp, connectorCompletedTimestamp))
-                        .status(ClprConnectorStatus.PENDING)
-                        .inFlightMessageCount(0L)
-                        .lockedStake(0L)
-                        .slashCount(0L)
-                        .adminKey(null)
-                        .connectorContractId(null)
-                        .connectorId(null)
-                        .publicKey(null)
-                        .salt(null)
-                        .signature(null)
-                        .signatureScheme(null)
-                        .stakeRecipientId(null))
-                .get();
-
-        // Completion reveals the connector fields and resets createdTimestamp to completion time.
-        final var expectedActiveConnectorHistory = expectedPendingConnectorHistory.toBuilder()
-                .createdTimestamp(connectorCompletedTimestamp)
-                .timestampRange(Range.closedOpen(connectorCompletedTimestamp, messageTimestamp))
-                .status(ClprConnectorStatus.ACTIVE)
-                .connectorContractId(EntityId.of(198161682139186267L))
-                .connectorId(expectedMessage1.getConnectorId())
-                .adminKey(hex.parseHex("32240a2212200aa8e21064c61eab86e2a9c164565b4e7a9a4146106e0a6cd03a8c395a110e92"))
-                .publicKey(expectedChannelHistory.getPublicKey())
-                .salt(hex.parseHex("efe0dd6938db954593871ae6eed156c607019a587aa0dfb6a9f58815a2a9cc20"))
-                .signature(
-                        hex.parseHex(
-                                "1f8ea5a6ff78100ca0d5bf5939a7a251c68459c7fd95c0c4a5bd40ffd0a3a4e31ccfc34ae0d7a99e5c8573f52d5262fe74be7581714c71fbfdf7082cb53e5806"))
-                .signatureScheme(ED25519_VALUE)
-                .lockedStake(100_000_000L)
-                .build();
-
-        // sendMessage increments the connector's in-flight count without changing its other revealed fields.
-        final var expectedConnector = expectedActiveConnectorHistory.toBuilder()
-                .timestampRange(Range.atLeast(messageTimestamp))
-                .inFlightMessageCount(1L)
-                .build();
-
-        assertThat(findHistory(ClprConnector.class))
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactlyInAnyOrder(expectedPendingConnectorHistory, expectedActiveConnectorHistory);
         assertThat(clprConnectorRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactly(expectedConnector);
+                .singleElement()
+                .returns(ClprConnectorStatus.PENDING, ClprConnector::getStatus)
+                .returns(registerConnector.getConsensusTimestamp(), ClprConnector::getCreatedTimestamp);
 
-        assertThat(clprLedgerConfigurationRepository.count()).isZero();
-        assertThat(clprMessageRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactly(expectedMessage1);
-
-        // given/when -- block 3: submitBundle replying to block 2's sendMessage
-        parse(CLPR_BLOCK_FILE_3);
-
-        // then -- the missing destination connector produces a RESPONSE to message 1.
-        final var bundleTimestamp = 1794435395317570104L;
-        final var expectedMessage2 = expectedMessage1.toBuilder()
-                .consensusTimestamp(bundleTimestamp)
-                .messageId(2L)
-                .replyToMessageId(1L)
-                .messageType(MESSAGE_REPLY_FIELD_NUMBER)
-                .replyStatus(CONNECTOR_NOT_FOUND_VALUE)
-                .connectorId(null)
-                .messageData(new byte[0])
-                .runningHash(hex.parseHex("7260766a7dfa342beeb9f55c5c3db4caa2379d3cea8cc26ca8904667bad171c5"))
-                .sender(null)
-                .targetApplication(null)
+        // Block 4: the connector ID is revealed and it becomes active.
+        final var activeConnector = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .setConnectorContract(recordItemBuilder.contractId())
+                .setLockedStake(100_000_000L)
                 .build();
-
-        assertThat(clprMessageRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactlyInAnyOrder(expectedMessage1, expectedMessage2);
-
-        // The channel's state from after sendMessage becomes its second history version when the bundle
-        // advances it to CLOSING. The first history row remains unchanged.
-        final var expectedChannelAfterMessageHistory = expectedChannel.toBuilder()
-                .timestampRange(Range.closedOpen(messageTimestamp, bundleTimestamp))
+        final var completeConnector = recordItemBuilder
+                .clprCompleteConnector()
+                .transactionBody(b ->
+                        b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(connectorPublicKey))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprConnectors(
+                                List.of(new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(activeConnector)))))
+                .customize(this::finalizeRecordItem)
                 .build();
+        previousHash = parse(
+                List.of(blockTransactionBuilder
+                        .clprCompleteConnector(completeConnector)
+                        .build()),
+                previousHash);
 
-        final var expectedChannelAfterBundle = expectedChannelAfterMessageHistory.toBuilder()
-                .timestampRange(Range.atLeast(bundleTimestamp))
-                .status(CLOSING_VALUE)
-                .nextMessageId(3L)
-                .receivedMessageId(1L)
-                .receivedRunningHash(hex.parseHex("6c61869fd21bc5e7d9cb513dc566c01f00a820bcc3a80cdd103aaaed98194eae"))
-                .sentRunningHash(expectedMessage2.getRunningHash())
-                .build();
-
-        assertThat(clprChannelRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactly(expectedChannelAfterBundle);
-        assertThat(findHistory(ClprChannel.class))
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactlyInAnyOrder(expectedChannelHistory, expectedChannelAfterMessageHistory);
-
-        // The bundle doesn't modify the connector or its two existing history rows.
-        assertThat(clprConnectorRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactly(expectedConnector);
+        assertThat(clprConnectorRepository.findByChannelIdAndConnectorId(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+                .get()
+                .returns(ClprConnectorStatus.ACTIVE, ClprConnector::getStatus)
+                .returns(100_000_000L, ClprConnector::getLockedStake);
         assertThat(findHistory(ClprConnector.class))
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactlyInAnyOrder(expectedPendingConnectorHistory, expectedActiveConnectorHistory);
+                .extracting(ClprConnector::getTimestampRange)
+                .contains(Range.closedOpen(
+                        registerConnector.getConsensusTimestamp(), completeConnector.getConsensusTimestamp()));
 
-        assertThat(transactionRepository.count()).isGreaterThanOrEqualTo(9L);
+        // Block 5: the CLPR system-contract side effects belong to an ordinary ContractCall.
+        final var sentRunningHash = recordItemBuilder.bytes(32);
+        final var sender = recordItemBuilder.bytes(20);
+        final var targetApplication = recordItemBuilder.bytes(20);
+        final var message = ClprMessageValue.newBuilder()
+                .setPayload(ClprMessagePayload.newBuilder()
+                        .setMessage(com.hederahashgraph.api.proto.java.ClprMessage.newBuilder()
+                                .setConnectorId(connectorId)
+                                .setMessageData(ByteString.copyFromUtf8("hello"))
+                                .setSender(sender)
+                                .setTargetApplication(targetApplication)))
+                .setRunningHashAfterProcessing(sentRunningHash)
+                .build();
+        final var afterSend = activeChannel.toBuilder()
+                .setNextMessageId(2)
+                .setSentRunningHash(sentRunningHash)
+                .build();
+        final var afterSendConnector =
+                activeConnector.toBuilder().setInFlightMessageCount(1).build();
+        final var sendMessage = recordItemBuilder
+                .contractCall()
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var sendMessageBlock = blockTransactionBuilder
+                .contractCall(sendMessage, false)
+                .stateChanges(changes -> changes.add(StateChanges.newBuilder()
+                        .addStateChanges(channelStateChange(channelId, afterSend))
+                        .addStateChanges(connectorStateChange(connectorKey, afterSendConnector))
+                        .addStateChanges(messageStateChange(channelId, 1L, message))
+                        .build()))
+                .build();
+        previousHash = parse(List.of(sendMessageBlock), previousHash);
+
+        assertThat(clprConnectorRepository.findByChannelIdAndConnectorId(
+                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+                .get()
+                .returns(1L, ClprConnector::getInFlightMessageCount);
+        assertThat(clprChannelRepository.findById(DomainUtils.toBytes(channelId)))
+                .get()
+                .returns(2L, ClprChannel::getNextMessageId);
+        assertThat(clprMessageRepository.count()).isOne();
+
+        // Block 6: the bundle produces a reply and transitions the channel to CLOSING.
+        final var replyRunningHash = recordItemBuilder.bytes(32);
+        final var receivedRunningHash = recordItemBuilder.bytes(32);
+        final var reply = ClprMessageValue.newBuilder()
+                .setPayload(ClprMessagePayload.newBuilder()
+                        .setMessageReply(ClprMessageReply.newBuilder()
+                                .setMessageId(1)
+                                .setStatus(ClprMessageReplyStatus.CONNECTOR_NOT_FOUND)
+                                .setMessageReplyData(ByteString.EMPTY)))
+                .setRunningHashAfterProcessing(replyRunningHash)
+                .build();
+        final var closingChannel = afterSend.toBuilder()
+                .setStatus(CLOSING)
+                .setNextMessageId(3)
+                .setReceivedMessageId(1)
+                .setReceivedRunningHash(receivedRunningHash)
+                .setSentRunningHash(replyRunningHash)
+                .build();
+        final var submitBundle = recordItemBuilder
+                .clprSubmitBundle()
+                .transactionBody(b -> b.setChannelId(channelId))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(
+                                new ClprChannelEntry(channelId, clprChannelMapUpdate(channelId, closingChannel))))
+                        .clprMessages(List.of(new ClprMessageEntry(messageKey(channelId, 2L), reply)))
+                        .clprConnectors(List.of())
+                        .clprConnectorsRemoved(List.of()))
+                .customize(this::finalizeRecordItem)
+                .build();
+        parse(List.of(blockTransactionBuilder.clprSubmitBundle(submitBundle).build()), previousHash);
+
+        final var messages = allMessages();
+        assertThat(messages).hasSize(2);
+        final var persistedMessage = messages.stream()
+                .filter(m -> m.getMessageId() == 1L)
+                .findFirst()
+                .orElseThrow();
+        assertThat(persistedMessage.getMessageType()).isEqualTo(MESSAGE_FIELD_NUMBER);
+        assertThat(persistedMessage.getConnectorId()).containsExactly(DomainUtils.toBytes(connectorId));
+        assertThat(persistedMessage.getRunningHash()).containsExactly(DomainUtils.toBytes(sentRunningHash));
+        assertThat(persistedMessage.getSender()).containsExactly(DomainUtils.toBytes(sender));
+        assertThat(persistedMessage.getTargetApplication()).containsExactly(DomainUtils.toBytes(targetApplication));
+        assertThat(persistedMessage.getMessageData()).containsExactly("hello".getBytes(StandardCharsets.UTF_8));
+
+        final var persistedReply = messages.stream()
+                .filter(m -> m.getMessageId() == 2L)
+                .findFirst()
+                .orElseThrow();
+        assertThat(persistedReply)
+                .returns(MESSAGE_REPLY_FIELD_NUMBER, ClprMessage::getMessageType)
+                .returns(1L, ClprMessage::getReplyToMessageId)
+                .returns(CONNECTOR_NOT_FOUND_VALUE, ClprMessage::getReplyStatus)
+                .returns(null, ClprMessage::getConnectorId);
+        assertThat(persistedReply.getRunningHash()).containsExactly(DomainUtils.toBytes(replyRunningHash));
+        assertThat(persistedReply.getMessageData()).isEmpty();
+
+        final var channel =
+                clprChannelRepository.findById(DomainUtils.toBytes(channelId)).orElseThrow();
+        assertThat(channel)
+                .returns(CLOSING.getNumber(), ClprChannel::getStatus)
+                .returns(3L, ClprChannel::getNextMessageId)
+                .returns(1L, ClprChannel::getReceivedMessageId)
+                .returns("hiero:testing", ClprChannel::getChainId);
+        assertThat(channel.getReceivedRunningHash()).containsExactly(DomainUtils.toBytes(receivedRunningHash));
+        assertThat(channel.getSentRunningHash()).containsExactly(DomainUtils.toBytes(replyRunningHash));
+        assertThat(findHistory(ClprChannel.class))
+                .extracting(ClprChannel::getTimestampRange)
+                .contains(
+                        Range.closedOpen(completeChannel.getConsensusTimestamp(), sendMessage.getConsensusTimestamp()),
+                        Range.closedOpen(sendMessage.getConsensusTimestamp(), submitBundle.getConsensusTimestamp()));
+
+        assertThat(clprMessageRepository.count()).isEqualTo(2);
     }
 
     @Test
-    void clprControlMessageConfigPropagation() throws Exception {
-        // Block 4 comes from the independent multi-network capture.
-        parse(CLPR_BLOCK_FILE_4);
-
-        final var hex = HexFormat.of();
-        final var configurationTimestamp = 1794435874358368104L;
-        final var messageTimestamp = 1794435875897776104L;
-        final var channelId = hex.parseHex("0a5159d65d68a5b04646d46b8b3a6ad73d9ad5fab3389bcb4acc597d441abd69");
-        final var connectorId = hex.parseHex("a98476d05a43cb255e83fb33ceac99a26002830ae618bf49ff4ff50d3ea5674c");
-        final var initialTrustAnchor = hex.parseHex(
-                "d41a1c8223369d0ae087e23ba398efd76c2808d67666487673ee298093d3811b2d6e0c92fb2e29bf7b6bc7b4e487af70f4edf477aa82a426c03e53f90ded542d");
-        final var serviceAddress = hex.parseHex("000000000000000000000000000000000000016e");
-
-        // ClprLedgerConfiguration from the first retained transaction.
-        final var expectedThrottle = ClprThrottle.builder()
-                .maxGasPerMessage(1_000_000L)
-                .maxLocalEndpoints(0L)
-                .maxMessagePayloadBytes(65_536L)
-                .maxMessagesPerBundle(6L)
-                .maxPeerEndpoints(0L)
-                .maxQueueDepth(1_000L)
-                .maxSyncBytes(1_048_576L)
+    void clprCloseChannelAdminSweep() {
+        // An unrevealed channel has a pending commitment but no channel row or clpr_channel_value state change.
+        final var ownershipCommitment = recordItemBuilder.bytes(32);
+        final var register = recordItemBuilder
+                .clprRegisterChannel()
+                .transactionBody(b -> b.setOwnershipCommitment(ownershipCommitment))
+                .customize(this::finalizeRecordItem)
                 .build();
+        final var previousHash = parse(
+                List.of(blockTransactionBuilder.clprRegisterChannel(register).build()), null);
 
-        final var expectedLedgerConfiguration = domainBuilder
-                .clprLedgerConfiguration()
-                .customize(builder -> builder.consensusTimestamp(configurationTimestamp)
-                        .chainId("eip155:298")
-                        .initialTrustAnchor(initialTrustAnchor)
-                        .initialTrustAnchorId(initialTrustAnchor)
-                        .protocolVersion(1L)
-                        .serviceAddress(serviceAddress)
-                        .throttle(expectedThrottle))
-                .get();
+        assertThat(clprChannelPendingCommitmentRepository.findById(DomainUtils.toBytes(ownershipCommitment)))
+                .get()
+                .returns(ClprPendingCommitmentStatus.OPEN, ClprChannelPendingCommitment::getStatus);
+        assertThat(clprChannelRepository.count()).isZero();
 
-        assertThat(clprLedgerConfigurationRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactly(expectedLedgerConfiguration);
-
-        // A CONTROL message propagates the same configuration to the peer ledger.
-        final var expectedControlConfiguration = ClprControlConfiguration.builder()
-                .chainId(expectedLedgerConfiguration.getChainId())
-                .initialTrustAnchor(expectedLedgerConfiguration.getInitialTrustAnchor())
-                .initialTrustAnchorId(expectedLedgerConfiguration.getInitialTrustAnchorId())
-                .protocolVersion(expectedLedgerConfiguration.getProtocolVersion())
-                .serviceAddress(expectedLedgerConfiguration.getServiceAddress())
-                .throttle(expectedLedgerConfiguration.getThrottle())
-                // The configuration's own last-modified timestamp, distinct from the enclosing message's
-                // consensusTimestamp below -- this is the value consensus uses to order config updates.
-                .timestamp(configurationTimestamp)
+        // The absence of a channel state change is intentional: the close handler must use the body commitment.
+        final var sweep = recordItemBuilder
+                .clprCloseChannel()
+                .transactionBody(
+                        b -> b.setChannelId(recordItemBuilder.bytes(32)).setOwnershipCommitment(ownershipCommitment))
+                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of()))
+                .customize(this::finalizeRecordItem)
                 .build();
-
-        final var expectedControlMessage = domainBuilder
-                .clprControlMessage()
-                .customize(builder -> builder.consensusTimestamp(messageTimestamp)
-                        .messageId(7L)
-                        .channelId(channelId)
-                        .connectorId(null)
-                        .messageType(CONTROL_FIELD_NUMBER)
-                        .replyStatus(null)
-                        .replyToMessageId(null)
-                        .controlMessage(ClprControlMessage.builder()
-                                .configUpdate(ClprConfigUpdate.builder()
-                                        .configuration(expectedControlConfiguration)
-                                        .build())
-                                .build())
-                        .messageData(null)
-                        .runningHash(hex.parseHex("805f8dd48d471a11f3b738331c00ffa43ec7bfce9942eea24aef140649c602c1"))
-                        .sender(null)
-                        .targetApplication(null))
-                .get();
-
-        // Six DATA messages sent with payloads "msg-" + 31 zero bytes + the sequence byte (0x06..0x0b).
-        final var messageDataPrefix = "6d73672d" + "00".repeat(31);
-        final var expectedDataMessage1 = domainBuilder
-                .clprMessage()
-                .customize(builder -> builder.consensusTimestamp(messageTimestamp)
-                        .messageId(8L)
-                        .channelId(channelId)
-                        .connectorId(connectorId)
-                        .messageType(MESSAGE_FIELD_NUMBER)
-                        .replyStatus(null)
-                        .replyToMessageId(null)
-                        .controlMessage(null)
-                        .messageData(hex.parseHex(messageDataPrefix + "06"))
-                        .runningHash(hex.parseHex("a810bf2849fd9414f83735c20436584950ecf46c2c44984b06f6e008e8c6822d"))
-                        .sender(hex.parseHex("0000000000000000000000000000000000000436"))
-                        .targetApplication(hex.parseHex("0000000000000000000000000000000000000000")))
-                .get();
-
-        final var expectedDataMessage2 = expectedDataMessage1.toBuilder()
-                .messageId(9L)
-                .messageData(hex.parseHex(messageDataPrefix + "07"))
-                .runningHash(hex.parseHex("2c8cd92d745ab0790ee2e9548d43d93216a9321d76f9c41b4b8276b240edc5af"))
+        final var blockFile = blockFileBuilder
+                .items(List.of(blockTransactionBuilder.clprCloseChannel(sweep).build()))
+                .previousHash(previousHash)
                 .build();
+        final var recordFile = blockFileTransformer.transform(blockFile);
+        assertThat(recordFile.getItems()).singleElement().satisfies(item -> {
+            assertThat(item.getClprContext()).isNotNull();
+            assertThat(item.getClprContext().getClprChannels()).isEmpty();
+        });
+        recordFileParser.parse(recordFile);
 
-        final var expectedDataMessage3 = expectedDataMessage1.toBuilder()
-                .messageId(10L)
-                .messageData(hex.parseHex(messageDataPrefix + "08"))
-                .runningHash(hex.parseHex("47cf102358ebd997ef9dfcd52e2b897976a34327ca17d5fb1f56bf72fd6166e8"))
-                .build();
-
-        final var expectedDataMessage4 = expectedDataMessage1.toBuilder()
-                .messageId(11L)
-                .messageData(hex.parseHex(messageDataPrefix + "09"))
-                .runningHash(hex.parseHex("0399e044d2655817e4f5a40746fb76d166f30d233d857290a454535a0ed5ed6d"))
-                .build();
-
-        final var expectedDataMessage5 = expectedDataMessage1.toBuilder()
-                .messageId(12L)
-                .messageData(hex.parseHex(messageDataPrefix + "0a"))
-                .runningHash(hex.parseHex("206638bf900bd62530fcae2bc78915ba0bfdfe3dc25cf30c81912528a32035c3"))
-                .build();
-
-        final var expectedDataMessage6 = expectedDataMessage1.toBuilder()
-                .messageId(13L)
-                .messageData(hex.parseHex(messageDataPrefix + "0b"))
-                .runningHash(hex.parseHex("27384f8cb9fa4e207a90be8d4e460bdbd08c44f1b5bd9f9ef603c5a3e15dc4b0"))
-                .build();
-
-        assertThat(clprMessageRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparator()
-                .containsExactlyInAnyOrder(
-                        expectedControlMessage,
-                        expectedDataMessage1,
-                        expectedDataMessage2,
-                        expectedDataMessage3,
-                        expectedDataMessage4,
-                        expectedDataMessage5,
-                        expectedDataMessage6);
+        assertThat(clprChannelPendingCommitmentRepository.findById(DomainUtils.toBytes(ownershipCommitment)))
+                .get()
+                .returns(ClprPendingCommitmentStatus.DELETED, ClprChannelPendingCommitment::getStatus);
+        assertThat(findHistory(ClprChannelPendingCommitment.class))
+                .singleElement()
+                .returns(ClprPendingCommitmentStatus.OPEN, ClprChannelPendingCommitment::getStatus)
+                .returns(
+                        Range.closedOpen(register.getConsensusTimestamp(), sweep.getConsensusTimestamp()),
+                        ClprChannelPendingCommitment::getTimestampRange);
+        assertThat(clprChannelRepository.count()).isZero();
     }
 
-    private void parse(String resource) throws Exception {
-        final var file = TestUtils.getResource(resource);
-        final var streamFileData = StreamFileData.from(file);
-        final var bytes = streamFileData.getBytes();
-        final var block = Block.parseFrom(streamFileData.getInputStream());
-        final var loadStart = System.currentTimeMillis();
-        final var blockStream = new BlockStream(
-                BlockStreamTestUtils.toUnparsed(block.getItemsList()), loadStart, bytes, file.getName(), bytes.length);
-        final var blockFile = blockStreamReader.read(blockStream);
+    @Test
+    void clprControlMessageConfigPropagation() {
+        final var channel = createClprMessageChannel("eip155:298", 7);
+        final var connectorId = recordItemBuilder.bytes(32);
+        final var serviceAddress = recordItemBuilder.bytes(20);
+        final var anchor = recordItemBuilder.bytes(64);
+        final var throttles = ClprThrottles.newBuilder()
+                .setMaxGasPerMessage(1_000_000L)
+                .setMaxMessagePayloadBytes(65_536)
+                .setMaxMessagesPerBundle(6)
+                .setMaxQueueDepth(1_000)
+                .setMaxSyncBytes(1_048_576L)
+                .build();
+        final var configuration = com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.newBuilder()
+                .setChainId("eip155:298")
+                .setProtocolVersion(1)
+                .setServiceAddress(serviceAddress)
+                .setInitialTrustAnchor(anchor)
+                .setInitialTrustAnchorId(anchor)
+                .setThrottles(throttles)
+                .build();
+
+        final var configUpdate = recordItemBuilder
+                .clprUpdateLedgerConfiguration()
+                .transactionBody(b -> b.setConfiguration(configuration))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
+                                .setClprLedgerConfigurationValue(configuration)
+                                .build()))
+                .customize(this::finalizeRecordItem)
+                .build();
+
+        // The configuration timestamp is part of the CONTROL payload, and must not be replaced with the bundle's
+        // consensus timestamp when decoding the payload.
+        final var controlConfiguration = configuration.toBuilder()
+                .setTimestamp(configUpdate.getTransactionRecord().getConsensusTimestamp())
+                .build();
+        final var controlRunningHash = recordItemBuilder.bytes(32);
+        final var controlValue = ClprMessageValue.newBuilder()
+                .setPayload(ClprMessagePayload.newBuilder()
+                        .setControl(ClprControlMessage.newBuilder()
+                                .setConfigUpdate(ClprConfigUpdate.newBuilder().setConfiguration(controlConfiguration))))
+                .setRunningHashAfterProcessing(controlRunningHash)
+                .build();
+        final var messageEntries = new ArrayList<ClprMessageEntry>();
+        messageEntries.add(new ClprMessageEntry(messageKey(channel.channelId(), 7L), controlValue));
+        for (var id = 8L; id <= 13L; id++) {
+            final var data = ByteString.copyFromUtf8("msg-" + (id - 2));
+            final var value = ClprMessageValue.newBuilder()
+                    .setPayload(ClprMessagePayload.newBuilder()
+                            .setMessage(com.hederahashgraph.api.proto.java.ClprMessage.newBuilder()
+                                    .setConnectorId(connectorId)
+                                    .setMessageData(data)
+                                    .setSender(recordItemBuilder.bytes(20))
+                                    .setTargetApplication(ByteString.copyFrom(new byte[20]))))
+                    .setRunningHashAfterProcessing(recordItemBuilder.bytes(32))
+                    .build();
+            messageEntries.add(new ClprMessageEntry(messageKey(channel.channelId(), id), value));
+        }
+        final var afterBundle = channel.value().toBuilder().setNextMessageId(14).build();
+        final var bundle = recordItemBuilder
+                .clprSubmitBundle()
+                .transactionBody(b -> b.setChannelId(channel.channelId()))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(
+                                channel.channelId(), clprChannelMapUpdate(channel.channelId(), afterBundle))))
+                        .clprMessages(messageEntries)
+                        .clprConnectors(List.of())
+                        .clprConnectorsRemoved(List.of()))
+                .customize(this::finalizeRecordItem)
+                .build();
+
+        parse(
+                List.of(
+                        blockTransactionBuilder
+                                .clprUpdateLedgerConfiguration(configUpdate)
+                                .build(),
+                        blockTransactionBuilder.clprSubmitBundle(bundle).build()),
+                channel.previousHash());
+
+        final var persistedConfiguration = clprLedgerConfigurationRepository
+                .findById(configUpdate.getConsensusTimestamp())
+                .orElseThrow();
+        assertThat(persistedConfiguration)
+                .returns(configUpdate.getConsensusTimestamp(), ClprLedgerConfiguration::getConsensusTimestamp)
+                .returns("eip155:298", ClprLedgerConfiguration::getChainId)
+                .returns(1L, ClprLedgerConfiguration::getProtocolVersion)
+                .satisfies(c ->
+                        assertThat(c.getThrottle().getMaxMessagesPerBundle()).isEqualTo(6L));
+        assertThat(persistedConfiguration.getServiceAddress()).containsExactly(DomainUtils.toBytes(serviceAddress));
+        assertThat(persistedConfiguration.getInitialTrustAnchor()).containsExactly(DomainUtils.toBytes(anchor));
+
+        final var messages = allMessages();
+        assertThat(messages).hasSize(7);
+        final var control = messages.stream()
+                .filter(m -> m.getMessageId() == 7L)
+                .findFirst()
+                .orElseThrow();
+        assertThat(control)
+                .returns(CONTROL_FIELD_NUMBER, ClprMessage::getMessageType)
+                .returns(bundle.getConsensusTimestamp(), ClprMessage::getConsensusTimestamp)
+                .returns(null, ClprMessage::getConnectorId)
+                .returns(null, ClprMessage::getMessageData);
+        assertThat(control.getRunningHash()).containsExactly(DomainUtils.toBytes(controlRunningHash));
+        assertThat(control.getControlMessage()).isNotNull();
+        final var propagated = control.getControlMessage().getConfigUpdate().getConfiguration();
+        assertThat(propagated)
+                .returns(configUpdate.getConsensusTimestamp(), c -> c.getTimestamp())
+                .returns("eip155:298", c -> c.getChainId())
+                .returns(1L, c -> c.getProtocolVersion())
+                .satisfies(c ->
+                        assertThat(c.getThrottle().getMaxMessagesPerBundle()).isEqualTo(6L));
+        assertThat(propagated.getServiceAddress()).containsExactly(DomainUtils.toBytes(serviceAddress));
+        assertThat(propagated.getInitialTrustAnchor()).containsExactly(DomainUtils.toBytes(anchor));
+        assertThat(propagated.getInitialTrustAnchorId()).containsExactly(DomainUtils.toBytes(anchor));
+
+        for (var id = 8L; id <= 13L; id++) {
+            final var messageId = id;
+            final var dataMessage = messages.stream()
+                    .filter(m -> m.getMessageId() == messageId)
+                    .findFirst()
+                    .orElseThrow();
+            assertThat(dataMessage.getMessageType()).isEqualTo(MESSAGE_FIELD_NUMBER);
+            assertThat(dataMessage.getConnectorId()).containsExactly(DomainUtils.toBytes(connectorId));
+            assertThat(dataMessage.getMessageData())
+                    .containsExactly(ByteString.copyFromUtf8("msg-" + (id - 2)).toByteArray());
+        }
+    }
+
+    @Test
+    void clprSendMessageFromContractCall() {
+        final var channel = createClprMessageChannel("hiero:testing", 1);
+        final var call = recordItemBuilder
+                .contractCall()
+                .record(record -> record.setConsensusTimestamp(timestampAfter(channel.consensusTimestamp(), 1)))
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var runningHash = recordItemBuilder.bytes(32);
+        final var update = channel.value().toBuilder()
+                .setNextMessageId(2)
+                .setSentRunningHash(runningHash)
+                .build();
+        final var transaction = blockTransactionBuilder
+                .contractCall(call, false)
+                .stateChanges(changes -> changes.add(clprSendMessageChanges(
+                        channel.channelId(), update, List.of(messageValue("contract-call", runningHash)))))
+                .build();
+
+        parseClprCall(List.of(transaction), channel.previousHash(), 1);
+        assertClprMessages(channel.channelId(), 2, runningHash, call.getConsensusTimestamp(), List.of("contract-call"));
+    }
+
+    @Test
+    void clprSendMessageFromEthereumTransaction() {
+        final var channel = createClprMessageChannel("hiero:testing", 1);
+        final var ethereum = recordItemBuilder
+                .ethereumTransaction()
+                .record(record -> record.setConsensusTimestamp(timestampAfter(channel.consensusTimestamp(), 1)))
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var runningHash = recordItemBuilder.bytes(32);
+        final var update = channel.value().toBuilder()
+                .setNextMessageId(2)
+                .setSentRunningHash(runningHash)
+                .build();
+        final var transaction = blockTransactionBuilder
+                .ethereum(ethereum)
+                .stateChanges(changes -> changes.add(clprSendMessageChanges(
+                        channel.channelId(), update, List.of(messageValue("ethereum", runningHash)))))
+                .build();
+
+        parseClprCall(List.of(transaction), channel.previousHash(), 1);
+        assertClprMessages(channel.channelId(), 2, runningHash, ethereum.getConsensusTimestamp(), List.of("ethereum"));
+    }
+
+    @Test
+    void clprSendMessageFromHookExecution() {
+        final var channel = createClprMessageChannel("hiero:testing", 1);
+        final var parentTimestamp = timestampAfter(channel.consensusTimestamp(), 1);
+        final var hookTimestamp = timestampAfter(channel.consensusTimestamp(), 2);
+        final var transfer = recordItemBuilder
+                .cryptoTransfer()
+                .record(record -> record.setConsensusTimestamp(parentTimestamp))
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var hook = recordItemBuilder
+                .contractCall(hookContractId())
+                .transactionBodyWrapper(body -> body.setTransactionID(
+                        body.getTransactionID().toBuilder().setNonce(1)))
+                .record(record -> record.setConsensusTimestamp(hookTimestamp)
+                        .setParentConsensusTimestamp(parentTimestamp)
+                        .setTransactionID(record.getTransactionID().toBuilder().setNonce(1)))
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var runningHash = recordItemBuilder.bytes(32);
+        final var updatedChannel = channel.value().toBuilder()
+                .setNextMessageId(2)
+                .setSentRunningHash(runningHash)
+                .build();
+
+        // Consensus puts the committed state changes on the triggering transaction. The hook is a
+        // synthetic ContractCall child with an executedHookId, and must not persist them again.
+        final var parent = blockTransactionBuilder
+                .cryptoTransfer(transfer)
+                .stateChanges(changes -> changes.add(clprSendMessageChanges(
+                        channel.channelId(), updatedChannel, List.of(messageValue("hook", runningHash)))))
+                .build();
+        final var hookCall = hookExecution(hook, parent);
+        assertThat(hookCall.getParent()).isSameAs(parent);
+
+        parseClprCall(List.of(parent, hookCall), channel.previousHash(), 1);
+        assertClprMessages(channel.channelId(), 2, runningHash, transfer.getConsensusTimestamp(), List.of("hook"));
+    }
+
+    /**
+     * Exercises an importer-only synthetic block shape. HIP-1195 currently prohibits hook executions inside
+     * atomic batches on consensus nodes, so this is a parser resilience test rather than a valid network scenario.
+     */
+    @Test
+    void clprSendMessageFromAtomicBatchWithHookContractCallAndEthereum() {
+        final var channel = createClprMessageChannel("hiero:testing", 1);
+        final var batchTimestamp = timestampAfter(channel.consensusTimestamp(), 1);
+        final var transferTimestamp = timestampAfter(channel.consensusTimestamp(), 2);
+        final var hookTimestamp = timestampAfter(channel.consensusTimestamp(), 3);
+        final var contractTimestamp = timestampAfter(channel.consensusTimestamp(), 4);
+        final var ethereumTimestamp = timestampAfter(channel.consensusTimestamp(), 5);
+
+        final var transfer = recordItemBuilder
+                .cryptoTransfer()
+                .record(record ->
+                        record.setConsensusTimestamp(transferTimestamp).setParentConsensusTimestamp(batchTimestamp))
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var hook = recordItemBuilder
+                .contractCall(hookContractId())
+                .transactionBodyWrapper(body -> body.setTransactionID(
+                        body.getTransactionID().toBuilder().setNonce(1)))
+                .record(record -> record.setConsensusTimestamp(hookTimestamp)
+                        .setParentConsensusTimestamp(transferTimestamp)
+                        .setTransactionID(record.getTransactionID().toBuilder().setNonce(1)))
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var call = recordItemBuilder
+                .contractCall()
+                .record(record ->
+                        record.setConsensusTimestamp(contractTimestamp).setParentConsensusTimestamp(batchTimestamp))
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var ethereum = recordItemBuilder
+                .ethereumTransaction()
+                .record(record ->
+                        record.setConsensusTimestamp(ethereumTimestamp).setParentConsensusTimestamp(batchTimestamp))
+                .customize(this::finalizeRecordItem)
+                .build();
+        // The synthetic hook is a child of the transfer, not a separate atomic-batch inner transaction.
+        final var batch = recordItemBuilder
+                .atomicBatch(List.of(transfer.getTransaction(), call.getTransaction(), ethereum.getTransaction()))
+                .record(record -> record.setConsensusTimestamp(batchTimestamp))
+                .customize(this::finalizeRecordItem)
+                .build();
+
+        final var runningHash = recordItemBuilder.bytes(32);
+        final var updatedChannel = channel.value().toBuilder()
+                .setNextMessageId(4)
+                .setSentRunningHash(runningHash)
+                .build();
+        final var messageValues = List.of(
+                messageValue("hook", recordItemBuilder.bytes(32)),
+                messageValue("contract-call", recordItemBuilder.bytes(32)),
+                messageValue("ethereum", runningHash));
+
+        // The atomic batch's state changes represent the final, committed state of all inner
+        // executions. Each child shares this context but must not process its messages again.
+        final var batchBlock = blockTransactionBuilder
+                .atomicBatch(batch)
+                .stateChanges(changes ->
+                        changes.add(clprSendMessageChanges(channel.channelId(), updatedChannel, messageValues)))
+                .build();
+        final var transferBlock = blockTransactionBuilder
+                .cryptoTransfer(transfer)
+                .previous(batchBlock)
+                .build();
+        final var hookBlock = hookExecution(hook, transferBlock);
+        final var callBlock = blockTransactionBuilder
+                .contractCall(call, false)
+                .previous(hookBlock)
+                .build();
+        final var ethereumBlock =
+                blockTransactionBuilder.ethereum(ethereum).previous(callBlock).build();
+        assertThat(transferBlock.getParent()).isSameAs(batchBlock);
+        assertThat(hookBlock.getParent()).isSameAs(transferBlock);
+        assertThat(callBlock.getParent()).isSameAs(batchBlock);
+        assertThat(ethereumBlock.getParent()).isSameAs(batchBlock);
+
+        parseClprCall(
+                List.of(batchBlock, transferBlock, hookBlock, callBlock, ethereumBlock), channel.previousHash(), 3);
+        assertClprMessages(
+                channel.channelId(),
+                4,
+                runningHash,
+                batch.getConsensusTimestamp(),
+                List.of("hook", "contract-call", "ethereum"));
+    }
+
+    private com.hederahashgraph.api.proto.java.ClprChannel activeChannelValue(
+            ByteString channelId, ByteString ownershipCommitment, String chainId, long nextMessageId) {
+        return com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(channelId)
+                .setOwnershipCommitment(ownershipCommitment)
+                .setChainId(chainId)
+                .setStatus(ACTIVE)
+                .setNextMessageId(nextMessageId)
+                .setReceivedRunningHash(ByteString.copyFrom(new byte[32]))
+                .setSentRunningHash(ByteString.copyFrom(new byte[32]))
+                .setVerifierContract(recordItemBuilder.contractId())
+                .setVerifierFingerprint(recordItemBuilder.bytes(32))
+                .build();
+    }
+
+    private List<ClprMessage> allMessages() {
+        final var messages = new ArrayList<ClprMessage>();
+        clprMessageRepository.findAll().forEach(messages::add);
+        return messages;
+    }
+
+    private void assertClprMessages(
+            ByteString channelId,
+            long nextMessageId,
+            ByteString runningHash,
+            long expectedTimestamp,
+            List<String> expectedData) {
+        final var messages = allMessages();
+        assertThat(messages).hasSize(expectedData.size());
+        for (var i = 0; i < expectedData.size(); i++) {
+            final var messageId = i + 1L;
+            final var data = expectedData.get(i);
+            final var message = messages.stream()
+                    .filter(item -> item.getMessageId() == messageId)
+                    .findFirst()
+                    .orElseThrow();
+            assertThat(message.getMessageType()).isEqualTo(MESSAGE_FIELD_NUMBER);
+            assertThat(message.getConsensusTimestamp()).isEqualTo(expectedTimestamp);
+            assertThat(message.getChannelId()).containsExactly(DomainUtils.toBytes(channelId));
+            assertThat(message.getConnectorId()).hasSize(32);
+            assertThat(message.getSender()).hasSize(20);
+            assertThat(message.getTargetApplication()).hasSize(20);
+            assertThat(message.getRunningHash()).hasSize(32);
+            assertThat(message.getMessageData())
+                    .containsExactly(ByteString.copyFromUtf8(data).toByteArray());
+        }
+        final var persisted =
+                clprChannelRepository.findById(DomainUtils.toBytes(channelId)).orElseThrow();
+        assertThat(persisted.getStatus()).isEqualTo(ACTIVE.getNumber());
+        assertThat(persisted.getNextMessageId()).isEqualTo(nextMessageId);
+        assertThat(persisted.getSentRunningHash()).containsExactly(DomainUtils.toBytes(runningHash));
+    }
+
+    private StateChange channelStateChange(ByteString channelId, com.hederahashgraph.api.proto.java.ClprChannel value) {
+        return StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE)
+                .setMapUpdate(clprChannelMapUpdate(channelId, value))
+                .build();
+    }
+
+    private StateChanges clprSendMessageChanges(
+            ByteString channelId,
+            com.hederahashgraph.api.proto.java.ClprChannel updatedChannel,
+            List<ClprMessageValue> messages) {
+        final var changes = StateChanges.newBuilder().addStateChanges(channelStateChange(channelId, updatedChannel));
+        for (var i = 0; i < messages.size(); i++) {
+            changes.addStateChanges(messageStateChange(channelId, i + 1L, messages.get(i)));
+        }
+        return changes.build();
+    }
+
+    private StateChange connectorStateChange(
+            ClprConnectorKey key, com.hederahashgraph.api.proto.java.ClprConnector value) {
+        return StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))
+                        .setValue(MapChangeValue.newBuilder().setClprConnectorValue(value)))
+                .build();
+    }
+
+    private ClprMessageChannel createClprMessageChannel(String chainId, long nextMessageId) {
+        final var channelId = recordItemBuilder.bytes(32);
+        final var publicKey = recordItemBuilder.bytes(64);
+        final var commitment = DomainUtils.fromBytes(
+                SignatureUtils.keccak256(DomainUtils.toBytes(channelId), DomainUtils.toBytes(publicKey)));
+        final var register = recordItemBuilder
+                .clprRegisterChannel()
+                .transactionBody(body -> body.setOwnershipCommitment(commitment))
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var value = activeChannelValue(channelId, commitment, chainId, nextMessageId);
+        final var complete = recordItemBuilder
+                .clprCompleteChannel()
+                .transactionBody(body -> body.setChannelId(channelId).setPublicKey(publicKey))
+                .recordItem(item -> item.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(channelId, clprChannelMapUpdate(channelId, value)))))
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var previousHash = parse(
+                List.of(
+                        blockTransactionBuilder.clprRegisterChannel(register).build(),
+                        blockTransactionBuilder.clprCompleteChannel(complete).build()),
+                null);
+        assertThat(clprChannelRepository.findById(DomainUtils.toBytes(channelId)))
+                .isPresent();
+        return new ClprMessageChannel(channelId, value, previousHash, complete.getConsensusTimestamp());
+    }
+
+    private void finalizeRecordItem(RecordItemBuilder.Builder<?> builder) {
+        builder.contractTransactionPredicate(null)
+                .recordItem(r -> r.congestionPricingMultiplier(
+                                recordItemBuilder.accountId().getAccountNum())
+                        .blockstream(true)
+                        .hapiVersion(HAPI_VERSION));
+    }
+
+    private ContractID hookContractId() {
+        return ContractID.newBuilder()
+                .setContractNum(RecordItem.HOOK_CONTRACT_NUM)
+                .build();
+    }
+
+    private BlockTransaction hookExecution(RecordItem recordItem, BlockTransaction previous) {
+        final var owner = previous.getTransactionBody()
+                .getCryptoTransfer()
+                .getTransfers()
+                .getAccountAmounts(0)
+                .getAccountID();
+        final var hookId = HookId.newBuilder()
+                .setEntityId(HookEntityId.newBuilder().setAccountId(owner))
+                .setHookId(7)
+                .build();
+        final var transaction = blockTransactionBuilder
+                .contractCall(recordItem, false)
+                .previous(previous)
+                .transactionOutputs(outputs -> {
+                    final var output = outputs.get(TransactionOutput.TransactionCase.CONTRACT_CALL);
+                    final var contractCall = output.getContractCall();
+                    final var evmResult =
+                            contractCall.getEvmTransactionResult().toBuilder().setExecutedHookId(hookId);
+                    outputs.put(
+                            TransactionOutput.TransactionCase.CONTRACT_CALL,
+                            output.toBuilder()
+                                    .setContractCall(contractCall.toBuilder().setEvmTransactionResult(evmResult))
+                                    .build());
+                })
+                .build();
+        final var output = transaction
+                .getTransactionOutput(TransactionOutput.TransactionCase.CONTRACT_CALL)
+                .orElseThrow();
+        assertThat(output.getContractCall()
+                        .getEvmTransactionResult()
+                        .getExecutedHookId()
+                        .getHookId())
+                .isEqualTo(7L);
+        return transaction;
+    }
+
+    private ClprMessageKey messageKey(ByteString channelId, long messageId) {
+        return ClprMessageKey.newBuilder()
+                .setChannelId(channelId)
+                .setMessageId(messageId)
+                .build();
+    }
+
+    private StateChange messageStateChange(ByteString channelId, long messageId, ClprMessageValue value) {
+        return StateChange.newBuilder()
+                .setStateId(StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setClprMessageKey(messageKey(channelId, messageId)))
+                        .setValue(MapChangeValue.newBuilder().setClprMessageValue(value)))
+                .build();
+    }
+
+    private ClprMessageValue messageValue(String data, ByteString runningHash) {
+        return ClprMessageValue.newBuilder()
+                .setPayload(ClprMessagePayload.newBuilder()
+                        .setMessage(com.hederahashgraph.api.proto.java.ClprMessage.newBuilder()
+                                .setConnectorId(recordItemBuilder.bytes(32))
+                                .setMessageData(ByteString.copyFromUtf8(data))
+                                .setSender(recordItemBuilder.bytes(20))
+                                .setTargetApplication(recordItemBuilder.bytes(20))))
+                .setRunningHashAfterProcessing(runningHash)
+                .build();
+    }
+
+    private String parse(List<BlockTransaction> transactions, String previousHash) {
+        final var builder = blockFileBuilder.items(transactions);
+        if (previousHash != null) {
+            builder.previousHash(previousHash);
+        }
+        final var blockFile = builder.build();
         final var recordFile = blockFileTransformer.transform(blockFile);
         recordFileParser.parse(recordFile);
+        return blockFile.getHash();
     }
+
+    private void parseClprCall(List<BlockTransaction> transactions, String previousHash, int expectedMessages) {
+        final var blockFile =
+                blockFileBuilder.items(transactions).previousHash(previousHash).build();
+        final var recordFile = blockFileTransformer.transform(blockFile);
+        assertThat(recordFile.getItems()).hasSize(transactions.size());
+        final var root = recordFile.getItems().getFirst();
+        assertThat(root.getClprContext()).isNotNull();
+        assertThat(root.getClprContext().getClprMessages()).hasSize(expectedMessages);
+        assertThat(root.getClprContext().getClprChannels()).hasSize(1);
+        for (var i = 1; i < recordFile.getItems().size(); i++) {
+            assertThat(recordFile.getItems().get(i).getClprContext()).isNull();
+        }
+        recordFileParser.parse(recordFile);
+    }
+
+    private Timestamp timestampAfter(long consensusTimestamp, long nanoseconds) {
+        final var time = consensusTimestamp + nanoseconds;
+        return Timestamp.newBuilder()
+                .setSeconds(Math.floorDiv(time, 1_000_000_000L))
+                .setNanos((int) Math.floorMod(time, 1_000_000_000L))
+                .build();
+    }
+
+    private record ClprMessageChannel(
+            ByteString channelId,
+            com.hederahashgraph.api.proto.java.ClprChannel value,
+            String previousHash,
+            long consensusTimestamp) {}
 }

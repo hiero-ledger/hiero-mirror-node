@@ -593,55 +593,6 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
     }
 
     @Test
-    void clprMessageDoNotPersist() {
-        // given -- a live channel row must already exist since ClprSubmitBundle only ever patches counters
-        final var completeRecordItem = recordItemBuilder.clprCompleteChannel().build();
-        parseRecordItemAndCommit(completeRecordItem);
-        final var channelId =
-                completeRecordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
-
-        entityProperties.getPersist().setClpr(false);
-        final var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
-                .setChannelId(channelId)
-                .setNextMessageId(2)
-                .setStatus(ClprChannelStatus.ACTIVE)
-                .build();
-        final var messageKey = ClprMessageKey.newBuilder()
-                .setChannelId(channelId)
-                .setMessageId(1)
-                .build();
-        final var messageValue = ClprMessageValue.newBuilder()
-                .setPayload(ClprMessagePayload.newBuilder()
-                        .setMessage(com.hederahashgraph.api.proto.java.ClprMessage.newBuilder()
-                                .setConnectorId(recordItemBuilder.bytes(32))
-                                .setMessageData(recordItemBuilder.bytes(16))
-                                .setSender(recordItemBuilder.bytes(20))
-                                .setTargetApplication(recordItemBuilder.bytes(20))))
-                .setRunningHashAfterProcessing(recordItemBuilder.bytes(32))
-                .build();
-        final var recordItem = recordItemBuilder
-                .clprSubmitBundle()
-                .transactionBody(b -> b.setChannelId(channelId))
-                .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
-                                channelId, clprChannelMapUpdate(channelId, channelValue))))
-                        .clprConnectors(List.of())
-                        .clprConnectorsRemoved(List.of())
-                        .clprMessages(List.of(new StateChangeContext.ClprMessageEntry(messageKey, messageValue))))
-                .build();
-
-        // when
-        parseRecordItemAndCommit(recordItem);
-
-        // then
-        assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
-        softly.assertThat(clprMessageRepository.count()).isZero();
-        softly.assertThat(clprChannelRepository.findById(DomainUtils.toBytes(channelId)))
-                .get()
-                .returns(2L, ClprChannel::getNextMessageId);
-    }
-
-    @Test
     void clprMaintenance() {
         final var recordItem = recordItemBuilder.clprMaintenance().build();
         final var manifestValue =
@@ -701,32 +652,6 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
     }
 
     @Test
-    void clprMaintenanceDoNotPersist() {
-        entityProperties.getPersist().setClpr(false);
-        final var recordItem = recordItemBuilder.clprMaintenance().build();
-
-        parseRecordItemAndCommit(recordItem);
-
-        assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
-        softly.assertThat(clprMaintenanceRepository.count()).isZero();
-        // gated by a different flag, so it still persists
-        softly.assertThat(clprEndpointManifestRepository.findLatest()).isNotNull();
-    }
-
-    @Test
-    void clprEndpointManifestDoNotPersist() {
-        entityProperties.getPersist().setClpr(false);
-        final var recordItem = recordItemBuilder.clprMaintenance().build();
-
-        parseRecordItemAndCommit(recordItem);
-
-        assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
-        softly.assertThat(clprEndpointManifestRepository.findLatest()).isNull();
-        // gated by a different flag, so it still persists
-        softly.assertThat(clprMaintenanceRepository.count()).isEqualTo(1);
-    }
-
-    @Test
     void clprUpdateLedgerConfiguration() {
         final var recordItem = recordItemBuilder.clprUpdateLedgerConfiguration().build();
         final var configValue = recordItem
@@ -766,6 +691,70 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
 
         assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
         softly.assertThat(clprLedgerConfigurationRepository.findLatest()).isNull();
+    }
+
+    @Test
+    void clprDoNotPersist() {
+        // given - clpr objects are not persisted
+        entityProperties.getPersist().setClpr(false);
+
+        final var closeChannelRecordItem = recordItemBuilder.clprCloseChannel().build();
+        final var completeChannelRecordItem =
+                recordItemBuilder.clprCompleteChannel().build();
+        final var deregisterConnectorRecordItem =
+                recordItemBuilder.clprDeregisterConnector().build();
+        final var endpointManifestRecordItem = recordItemBuilder
+                .clprMaintenanceEndpointManifestAndLedgerConfiguration()
+                .build();
+        final var ledgerConfigRecordItem =
+                recordItemBuilder.clprMaintenanceLedgerConfiguration().build();
+        final var maintenanceRecordItem = recordItemBuilder.clprMaintenance().build();
+        final var registerChannelRecordItem =
+                recordItemBuilder.clprRegisterChannel().build();
+        final var registerConnectorRecordItem =
+                recordItemBuilder.clprRegisterConnector().build();
+        final var submitBundleRecordItem = recordItemBuilder.clprSubmitBundle().build();
+
+        // when
+        parseRecordItemsAndCommit(List.of(
+                closeChannelRecordItem,
+                completeChannelRecordItem,
+                deregisterConnectorRecordItem,
+                endpointManifestRecordItem,
+                ledgerConfigRecordItem,
+                maintenanceRecordItem,
+                registerChannelRecordItem,
+                registerConnectorRecordItem,
+                submitBundleRecordItem));
+
+        // then
+        assertTransactionAndRecord(
+                closeChannelRecordItem.getTransactionBody(), closeChannelRecordItem.getTransactionRecord());
+        assertTransactionAndRecord(
+                completeChannelRecordItem.getTransactionBody(), completeChannelRecordItem.getTransactionRecord());
+        assertTransactionAndRecord(
+                deregisterConnectorRecordItem.getTransactionBody(),
+                deregisterConnectorRecordItem.getTransactionRecord());
+        assertTransactionAndRecord(
+                endpointManifestRecordItem.getTransactionBody(), endpointManifestRecordItem.getTransactionRecord());
+        assertTransactionAndRecord(
+                ledgerConfigRecordItem.getTransactionBody(), ledgerConfigRecordItem.getTransactionRecord());
+        assertTransactionAndRecord(
+                maintenanceRecordItem.getTransactionBody(), maintenanceRecordItem.getTransactionRecord());
+        assertTransactionAndRecord(
+                registerChannelRecordItem.getTransactionBody(), registerChannelRecordItem.getTransactionRecord());
+        assertTransactionAndRecord(
+                registerConnectorRecordItem.getTransactionBody(), registerConnectorRecordItem.getTransactionRecord());
+        assertTransactionAndRecord(
+                submitBundleRecordItem.getTransactionBody(), submitBundleRecordItem.getTransactionRecord());
+
+        softly.assertThat(clprChannelRepository.count()).isZero();
+        softly.assertThat(clprConnectorRepository.count()).isZero();
+        softly.assertThat(clprEndpointManifestRepository.findLatest()).isNull();
+        softly.assertThat(clprLedgerConfigurationRepository.findLatest()).isNull();
+        softly.assertThat(clprMaintenanceRepository.count()).isZero();
+        softly.assertThat(clprChannelPendingCommitmentRepository.count()).isZero();
+        softly.assertThat(clprMessageRepository.count()).isZero();
     }
 
     private static MapUpdateChange partialClprChannelMapUpdate(
