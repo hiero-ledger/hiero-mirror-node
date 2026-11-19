@@ -10,6 +10,8 @@ import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 import static org.hiero.mirror.common.domain.DomainBuilder.KEY_LENGTH_ECDSA;
 import static org.hiero.mirror.common.domain.DomainBuilder.KEY_LENGTH_ED25519;
 import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION_0_49_0;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprConnectorMapUpdate;
 import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
@@ -23,6 +25,7 @@ import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
+import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hedera.hapi.node.hooks.legacy.EvmHook;
 import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
 import com.hedera.hapi.node.hooks.legacy.EvmHookStorageSlot;
@@ -32,6 +35,8 @@ import com.hedera.hapi.node.hooks.legacy.HookExtensionPoint;
 import com.hedera.hapi.node.hooks.legacy.HookStoreTransactionBody;
 import com.hedera.hapi.node.tss.legacy.LedgerIdNodeContribution;
 import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
+import com.hedera.hapi.services.auxiliary.clpr.legacy.ClprMaintenanceReason;
+import com.hedera.hapi.services.auxiliary.clpr.legacy.ClprMaintenanceTransactionBody;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
@@ -46,6 +51,28 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AssessedCustomFee;
 import com.hederahashgraph.api.proto.java.AssociatedRegisteredNodeList;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprChannelStatus;
+import com.hederahashgraph.api.proto.java.ClprCloseChannelTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprCompleteChannelTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprCompleteConnectorTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprConnector;
+import com.hederahashgraph.api.proto.java.ClprConnectorKey;
+import com.hederahashgraph.api.proto.java.ClprDeregisterConnectorTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprEndpoint;
+import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
+import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
+import com.hederahashgraph.api.proto.java.ClprMessage;
+import com.hederahashgraph.api.proto.java.ClprMessageKey;
+import com.hederahashgraph.api.proto.java.ClprMessagePayload;
+import com.hederahashgraph.api.proto.java.ClprMessageValue;
+import com.hederahashgraph.api.proto.java.ClprRegisterChannelTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprRegisterConnectorTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprServiceEndpoint;
+import com.hederahashgraph.api.proto.java.ClprSignatureScheme;
+import com.hederahashgraph.api.proto.java.ClprSubmitBundleTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprThrottles;
+import com.hederahashgraph.api.proto.java.ClprUpdateLedgerConfigurationTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusDeleteTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusMessageChunkInfo;
@@ -189,6 +216,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
@@ -278,6 +306,211 @@ public final class RecordItemBuilder {
                         .addAllTransactions(transactions.stream()
                                 .map(Transaction::toByteString)
                                 .toList()));
+    }
+
+    public Builder<ClprCloseChannelTransactionBody.Builder> clprCloseChannel() {
+        final var channelId = bytes(32);
+        final var builder = ClprCloseChannelTransactionBody.newBuilder()
+                .setChannelId(channelId)
+                .setOwnershipCommitment(bytes(32));
+        final var clprChannelValue = ClprChannel.newBuilder()
+                .setAckedMessageId(4)
+                .setChannelId(channelId)
+                .setNextMessageId(5)
+                .setReceivedMessageId(3)
+                .setReceivedRunningHash(bytes(32))
+                .setSentRunningHash(bytes(32))
+                .setStatus(ClprChannelStatus.CLOSING)
+                .build();
+        return new Builder<>(TransactionType.CLPRCLOSECHANNEL, builder)
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
+                                channelId, clprChannelMapUpdate(channelId, clprChannelValue)))));
+    }
+
+    public Builder<ClprCompleteChannelTransactionBody.Builder> clprCompleteChannel() {
+        final var channelId = bytes(32);
+        final var verifierContract = contractId();
+        final var builder = ClprCompleteChannelTransactionBody.newBuilder()
+                .setChannelId(channelId)
+                .setConfigProofBytes(bytes(16))
+                .setEndpointManifestProofBytes(bytes(16))
+                .setPublicKey(bytes(64))
+                .setSignature(bytes(64))
+                .setSignatureScheme(ClprSignatureScheme.ED25519)
+                .setVerifierContract(verifierContract);
+        final var clprChannelValue = ClprChannel.newBuilder()
+                .setAckedMessageId(0)
+                .setChainId("hedera:mainnet")
+                .setChannelId(channelId)
+                .setNextMessageId(1)
+                .setOwnershipCommitment(bytes(32))
+                .setReceivedMessageId(0)
+                .setReceivedRunningHash(bytes(32))
+                .setSentRunningHash(bytes(32))
+                .setStatus(ClprChannelStatus.ACTIVE)
+                .setVerifierContract(verifierContract)
+                .setVerifierFingerprint(bytes(32))
+                .build();
+        return new Builder<>(TransactionType.CLPRCOMPLETECHANNEL, builder)
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
+                                channelId, clprChannelMapUpdate(channelId, clprChannelValue)))));
+    }
+
+    public Builder<ClprCompleteConnectorTransactionBody.Builder> clprCompleteConnector() {
+        final var channelId = bytes(32);
+        final var connectorId = bytes(32);
+        final var connectorContract = contractId();
+        final var adminKey = key();
+        final var builder = ClprCompleteConnectorTransactionBody.newBuilder()
+                .setAdminKey(adminKey)
+                .setChannelId(channelId)
+                .setConnectorContract(connectorContract)
+                .setConnectorId(connectorId)
+                .setLockedStake(100_000_000L)
+                .setPublicKey(bytes(64))
+                .setSalt(bytes(32))
+                .setSignature(bytes(64))
+                .setSignatureScheme(ClprSignatureScheme.ECDSA_SECP256K1);
+        final var clprConnectorValue = ClprConnector.newBuilder()
+                .setAdminKey(adminKey)
+                .setChannelId(channelId)
+                .setConnectorContract(connectorContract)
+                .setConnectorId(connectorId)
+                .setLockedStake(100_000_000L)
+                .build();
+        final var key = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
+        return new Builder<>(TransactionType.CLPRCOMPLETECONNECTOR, builder)
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprConnectors(List.of(new StateChangeContext.ClprConnectorEntry(
+                                key, clprConnectorMapUpdate(key, clprConnectorValue)))));
+    }
+
+    public Builder<ClprDeregisterConnectorTransactionBody.Builder> clprDeregisterConnector() {
+        final var builder = ClprDeregisterConnectorTransactionBody.newBuilder()
+                .setChannelId(bytes(32))
+                .setConnectorId(bytes(32))
+                .setStakeRecipient(accountId());
+        return new Builder<>(TransactionType.CLPRDEREGISTERCONNECTOR, builder);
+    }
+
+    public Builder<ClprMaintenanceTransactionBody.Builder> clprMaintenance() {
+        final var builder = ClprMaintenanceTransactionBody.newBuilder()
+                .setReason(ClprMaintenanceReason.ENDPOINT_MANIFEST_RECONCILIATION);
+        final var manifest = ClprEndpointManifest.newBuilder()
+                .setServiceAddress(bytes(20))
+                .setVersion(2)
+                .addEndpoints(ClprEndpoint.newBuilder()
+                        .setAccountId(bytes(20))
+                        .setServiceEndpoint(ClprServiceEndpoint.newBuilder()
+                                .setIpAddress("10.0.0.1")
+                                .setPort(50211))
+                        .setTlsCertificate(bytes(64)))
+                .build();
+        return new Builder<>(TransactionType.CLPRMAINTENANCE, builder)
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprEndpointManifestUpdate(SingletonUpdateChange.newBuilder()
+                                .setClprEndpointManifestValue(manifest)
+                                .build()));
+    }
+
+    public Builder<ClprRegisterChannelTransactionBody.Builder> clprRegisterChannel() {
+        final var ownershipCommitment = bytes(32);
+        final var builder = ClprRegisterChannelTransactionBody.newBuilder().setOwnershipCommitment(ownershipCommitment);
+        return new Builder<>(TransactionType.CLPRREGISTERCHANNEL, builder);
+    }
+
+    public Builder<ClprRegisterConnectorTransactionBody.Builder> clprRegisterConnector() {
+        final var builder = ClprRegisterConnectorTransactionBody.newBuilder()
+                .setChannelId(bytes(32))
+                .setCommitment(bytes(32));
+        return new Builder<>(TransactionType.CLPRREGISTERCONNECTOR, builder);
+    }
+
+    public Builder<ClprSubmitBundleTransactionBody.Builder> clprSubmitBundle() {
+        final var channelId = bytes(32);
+        final var builder = ClprSubmitBundleTransactionBody.newBuilder()
+                .setBundlePayload(bytes(64))
+                .setChannelId(channelId)
+                .setEndpointNodeId(3);
+        final var clprChannelValue = ClprChannel.newBuilder()
+                .setAckedMessageId(0)
+                .setChannelId(channelId)
+                .setNextMessageId(2)
+                .setReceivedMessageId(0)
+                .setReceivedRunningHash(bytes(32))
+                .setSentRunningHash(bytes(32))
+                .setStatus(ClprChannelStatus.ACTIVE)
+                .build();
+        final var messageKey = ClprMessageKey.newBuilder()
+                .setChannelId(channelId)
+                .setMessageId(1)
+                .build();
+        final var messageValue = ClprMessageValue.newBuilder()
+                .setPayload(ClprMessagePayload.newBuilder()
+                        .setMessage(ClprMessage.newBuilder()
+                                .setConnectorId(bytes(32))
+                                .setMessageData(bytes(16))
+                                .setSender(bytes(20))
+                                .setTargetApplication(bytes(20))))
+                .setRunningHashAfterProcessing(bytes(32))
+                .build();
+        final var patchedConnectorId = bytes(32);
+        final var patchedConnectorValue = ClprConnector.newBuilder()
+                .setAdminKey(key())
+                .setChannelId(channelId)
+                .setConnectorContract(contractId())
+                .setConnectorId(patchedConnectorId)
+                .setInFlightMessageCount(1)
+                .setLockedStake(90_000_000L)
+                .setSlashCount(1)
+                .build();
+        final var patchedConnectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(patchedConnectorId)
+                .build();
+        final var removedConnectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(bytes(32))
+                .build();
+        return new Builder<>(TransactionType.CLPRSUBMITBUNDLE, builder)
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
+                                channelId, clprChannelMapUpdate(channelId, clprChannelValue))))
+                        .clprConnectors(List.of(new StateChangeContext.ClprConnectorEntry(
+                                patchedConnectorKey,
+                                clprConnectorMapUpdate(patchedConnectorKey, patchedConnectorValue))))
+                        .clprConnectorsRemoved(List.of(removedConnectorKey))
+                        .clprMessages(List.of(new StateChangeContext.ClprMessageEntry(messageKey, messageValue))));
+    }
+
+    public Builder<ClprUpdateLedgerConfigurationTransactionBody.Builder> clprUpdateLedgerConfiguration() {
+        final var configuration = ClprLedgerConfiguration.newBuilder()
+                .setChainId("hedera:mainnet")
+                .setInitialTrustAnchor(bytes(32))
+                .setInitialTrustAnchorId(bytes(32))
+                .setProtocolVersion(1)
+                .setServiceAddress(bytes(20))
+                .setThrottles(ClprThrottles.newBuilder()
+                        .setMaxGasPerMessage(15_000_000L)
+                        .setMaxLocalEndpoints(39)
+                        .setMaxMessagePayloadBytes(8192)
+                        .setMaxMessagesPerBundle(100)
+                        .setMaxPeerEndpoints(39)
+                        .setMaxQueueDepth(1000)
+                        .setMaxSyncBytes(4_194_304L))
+                .build();
+        final var builder =
+                ClprUpdateLedgerConfigurationTransactionBody.newBuilder().setConfiguration(configuration);
+        return new Builder<>(TransactionType.CLPRUPDATELEDGERCONFIGURATION, builder)
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
+                                .setClprLedgerConfigurationValue(configuration)
+                                .build()));
     }
 
     public Builder<ConsensusCreateTopicTransactionBody.Builder> consensusCreateTopic() {
