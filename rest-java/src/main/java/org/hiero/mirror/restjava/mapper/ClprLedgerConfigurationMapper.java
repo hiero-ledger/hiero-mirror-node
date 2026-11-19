@@ -23,13 +23,18 @@ public interface ClprLedgerConfigurationMapper
     org.hiero.mirror.rest.model.ClprLedgerConfiguration map(ClprLedgerConfiguration configuration);
 
     default ClprPeerThrottles mapThrottles(ClprLedgerConfiguration configuration) {
+        final var throttle = configuration.getThrottle();
+        if (throttle == null) {
+            return new ClprPeerThrottles();
+        }
+
         return new ClprPeerThrottles()
-                .maxGasPerMessage(configuration.getMaxGasPerMessage())
-                .maxLocalEndpoints(configuration.getMaxLocalEndpoints())
-                .maxMessagePayloadBytes(configuration.getMaxMessagePayloadBytes())
-                .maxMessagesPerBundle(configuration.getMaxMessagesPerBundle())
-                .maxPeerEndpoints(configuration.getMaxPeerEndpoints())
-                .maxQueueDepth(configuration.getMaxQueueDepth())
-                .maxSyncBytes(configuration.getMaxSyncBytes());
+                .maxGasPerMessage(throttle.getMaxGasPerMessage())
+                .maxLocalEndpoints(throttle.getMaxLocalEndpoints())
+                .maxMessagePayloadBytes(throttle.getMaxMessagePayloadBytes())
+                .maxMessagesPerBundle(throttle.getMaxMessagesPerBundle())
+                .maxPeerEndpoints(throttle.getMaxPeerEndpoints())
+                .maxQueueDepth(throttle.getMaxQueueDepth())
+                .maxSyncBytes(throttle.getMaxSyncBytes());
     }
 }

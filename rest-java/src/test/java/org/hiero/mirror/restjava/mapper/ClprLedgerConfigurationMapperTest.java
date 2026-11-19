@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.hiero.mirror.rest.model.ClprPeerThrottles;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,15 +28,17 @@ final class ClprLedgerConfigurationMapperTest {
                 .consensusTimestamp(1726874345_123456789L)
                 .initialTrustAnchor(new byte[] {0x33, 0x44})
                 .initialTrustAnchorId(new byte[] {(byte) 0x9f, (byte) 0x8e})
-                .maxGasPerMessage(15_000_000L)
-                .maxLocalEndpoints(39L)
-                .maxMessagePayloadBytes(65_536L)
-                .maxMessagesPerBundle(1000L)
-                .maxPeerEndpoints(38L)
-                .maxQueueDepth(10_000L)
-                .maxSyncBytes(4_194_304L)
                 .protocolVersion(1L)
                 .serviceAddress(new byte[] {0x01, 0x6e})
+                .throttle(ClprThrottle.builder()
+                        .maxGasPerMessage(15_000_000L)
+                        .maxLocalEndpoints(39L)
+                        .maxMessagePayloadBytes(65_536L)
+                        .maxMessagesPerBundle(1000L)
+                        .maxPeerEndpoints(38L)
+                        .maxQueueDepth(10_000L)
+                        .maxSyncBytes(4_194_304L)
+                        .build())
                 .build();
 
         // when
