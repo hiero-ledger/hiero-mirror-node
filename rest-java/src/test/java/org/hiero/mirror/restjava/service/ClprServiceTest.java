@@ -14,14 +14,19 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
+import org.hiero.mirror.rest.model.ClprConnectorStatus;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
+import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapperImpl;
+import org.hiero.mirror.restjava.mapper.ClprConnectorMapperImpl;
 import org.hiero.mirror.restjava.mapper.CommonMapperImpl;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
+import org.hiero.mirror.restjava.repository.ClprConnectorRepository;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,16 +37,21 @@ import org.springframework.data.domain.Sort.Direction;
 final class ClprServiceTest {
 
     private static final byte[] CHANNEL_ID = new byte[] {1, 2, 3};
+    private static final String CONNECTOR_CREATED_TIMESTAMP = "created_timestamp";
+    private static final byte[] CONNECTOR_ID = new byte[] {4, 5};
     private static final String CREATED_TIMESTAMP = "createdTimestamp";
 
     private ClprChannelRepository channelRepository;
+    private ClprConnectorRepository connectorRepository;
     private ClprService service;
 
     @BeforeEach
     void setup() {
         channelRepository = mock(ClprChannelRepository.class);
         final var channelMapper = new ClprChannelMapperImpl(new CommonMapperImpl());
-        service = new ClprServiceImpl(channelMapper, channelRepository);
+        connectorRepository = mock(ClprConnectorRepository.class);
+        final var connectorMapper = new ClprConnectorMapperImpl(new CommonMapperImpl());
+        service = new ClprServiceImpl(channelMapper, channelRepository, connectorMapper, connectorRepository);
     }
 
     @Test
@@ -255,8 +265,140 @@ final class ClprServiceTest {
         verifyNoInteractions(channelRepository);
     }
 
+    @Test
+    void getConnectorsByIdWithoutTimestamp() {
+        // given
+        when(connectorRepository.findByChannelIdAndConnectorId(CHANNEL_ID, CONNECTOR_ID))
+                .thenReturn(connector(org.hiero.mirror.common.domain.clpr.ClprConnectorStatus.ACTIVE));
+        final var request = ClprConnectorsRequest.builder()
+                .channelId(CHANNEL_ID)
+                .connectorId(CONNECTOR_ID)
+                .build();
+
+        // when / then
+        assertThat(service.getConnectors(request)).singleElement().satisfies(c -> {
+            assertThat(c.getChannelId()).isEqualTo("0x010203");
+            assertThat(c.getConnectorId()).isEqualTo("0x0405");
+            assertThat(c.getLockedStake()).isEqualTo("100");
+            assertThat(c.getStatus()).isEqualTo(ClprConnectorStatus.ACTIVE);
+        });
+    }
+
+    @Test
+    void getConnectorsByIdWithoutTimestampFiltersByStatus() {
+        // given
+        when(connectorRepository.findByChannelIdAndConnectorId(CHANNEL_ID, CONNECTOR_ID))
+                .thenReturn(connector(org.hiero.mirror.common.domain.clpr.ClprConnectorStatus.ACTIVE));
+        final var builder =
+                ClprConnectorsRequest.builder().channelId(CHANNEL_ID).connectorId(CONNECTOR_ID);
+
+        // when / then
+        assertThat(service.getConnectors(
+                        builder.status(ClprConnectorStatus.ACTIVE).build()))
+                .hasSize(1);
+        assertThat(service.getConnectors(
+                        builder.status(ClprConnectorStatus.DELETED).build()))
+                .isEmpty();
+    }
+
+    @Test
+    void getConnectorsByIdNotFound() {
+        // given
+        final var request = ClprConnectorsRequest.builder()
+                .channelId(CHANNEL_ID)
+                .connectorId(CONNECTOR_ID)
+                .build();
+
+        // when / then
+        assertThat(service.getConnectors(request)).isEmpty();
+    }
+
+    @Test
+    void getConnectorsByIdAsOfTimestamp() {
+        // given: eq becomes lte, so the as-of range is (0, 150]
+        final var request = ClprConnectorsRequest.builder()
+                .channelId(CHANNEL_ID)
+                .connectorId(CONNECTOR_ID)
+                .status(ClprConnectorStatus.DELETED)
+                .timestamp(timestamp(param(RangeOperator.EQ, 150L)))
+                .build();
+
+        // when
+        service.getConnectors(request);
+
+        // then
+        verify(connectorRepository)
+                .findByChannelIdAndConnectorIdAndTimestampBetween(CHANNEL_ID, CONNECTOR_ID, 0L, 150L, "DELETED");
+    }
+
+    @Test
+    void getConnectorsList() {
+        // given
+        final var page = PageRequest.of(0, 25, Sort.by(Direction.DESC, CONNECTOR_CREATED_TIMESTAMP));
+        when(connectorRepository.findByChannelIdAndCreatedTimestampBetween(CHANNEL_ID, 0L, Long.MAX_VALUE, null, page))
+                .thenReturn(List.of(
+                        connector(org.hiero.mirror.common.domain.clpr.ClprConnectorStatus.ACTIVE),
+                        connector(org.hiero.mirror.common.domain.clpr.ClprConnectorStatus.PENDING)));
+
+        // when / then
+        assertThat(service.getConnectors(
+                        ClprConnectorsRequest.builder().channelId(CHANNEL_ID).build()))
+                .extracting(c -> c.getStatus())
+                .containsExactly(ClprConnectorStatus.ACTIVE, ClprConnectorStatus.PENDING);
+    }
+
+    @Test
+    void getConnectorsListWithStatusAndOrder() {
+        // given
+        final var request = ClprConnectorsRequest.builder()
+                .channelId(CHANNEL_ID)
+                .order(Direction.ASC)
+                .status(ClprConnectorStatus.PENDING)
+                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LT, 200L)))
+                .build();
+
+        // when
+        service.getConnectors(request);
+
+        // then
+        verify(connectorRepository)
+                .findByChannelIdAndCreatedTimestampBetween(
+                        CHANNEL_ID,
+                        100L,
+                        199L,
+                        "PENDING",
+                        PageRequest.of(0, 25, Sort.by(Direction.ASC, CONNECTOR_CREATED_TIMESTAMP)));
+    }
+
+    @Test
+    void getConnectorsRejectsPendingWithConnectorId() {
+        // given
+        final var request = ClprConnectorsRequest.builder()
+                .channelId(CHANNEL_ID)
+                .connectorId(CONNECTOR_ID)
+                .status(ClprConnectorStatus.PENDING)
+                .build();
+
+        // when / then
+        assertThatThrownBy(() -> service.getConnectors(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("connector.id can't be combined with status PENDING");
+        verifyNoInteractions(connectorRepository);
+    }
+
     private static ClprChannelDto channel(int status) {
         return item(CHANNEL_ID, 0L, status);
+    }
+
+    private static ClprConnector connector(org.hiero.mirror.common.domain.clpr.ClprConnectorStatus status) {
+        return ClprConnector.builder()
+                .channelId(CHANNEL_ID)
+                .commitment(new byte[] {6})
+                .connectorId(CONNECTOR_ID)
+                .createdTimestamp(1_000L)
+                .lockedStake(100L)
+                .status(status)
+                .build();
     }
 
     private static TimestampParameter param(RangeOperator operator, long value) {
