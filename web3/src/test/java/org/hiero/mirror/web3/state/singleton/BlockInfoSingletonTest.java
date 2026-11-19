@@ -31,7 +31,7 @@ class BlockInfoSingletonTest {
                         .blockHashes(Bytes.EMPTY)
                         .consTimeOfLastHandledTxn(convertToTimestamp(recordFile.getConsensusEnd()))
                         .firstConsTimeOfCurrentBlock(convertToTimestamp(recordFile.getConsensusStart()))
-                        .firstConsTimeOfLastBlock(convertToTimestamp(recordFile.getConsensusStart()))
+                        .firstConsTimeOfLastBlock(convertToTimestamp(recordFile.getConsensusStart() - 2_000_000_000L))
                         .lastBlockNumber(recordFile.getIndex() - 1)
                         .migrationRecordsStreamed(true)
                         .build());
@@ -48,7 +48,7 @@ class BlockInfoSingletonTest {
                         .blockHashes(Bytes.EMPTY)
                         .consTimeOfLastHandledTxn(convertToTimestamp(recordFile.getConsensusEnd()))
                         .firstConsTimeOfCurrentBlock(convertToTimestamp(recordFile.getConsensusStart()))
-                        .firstConsTimeOfLastBlock(convertToTimestamp(recordFile.getConsensusStart()))
+                        .firstConsTimeOfLastBlock(convertToTimestamp(recordFile.getConsensusStart() - 2_000_000_000L))
                         .lastBlockNumber(41L)
                         .migrationRecordsStreamed(true)
                         .build());
@@ -64,9 +64,9 @@ class BlockInfoSingletonTest {
         assertThat(blockInfoSingleton.get())
                 .isEqualTo(BlockInfo.newBuilder()
                         .blockHashes(Bytes.EMPTY)
-                        .consTimeOfLastHandledTxn(convertToTimestamp(timeNanos))
+                        .consTimeOfLastHandledTxn(convertToTimestamp(timeNanos + 2_000_000_000L))
                         .firstConsTimeOfCurrentBlock(convertToTimestamp(timeNanos))
-                        .firstConsTimeOfLastBlock(convertToTimestamp(timeNanos))
+                        .firstConsTimeOfLastBlock(convertToTimestamp(timeNanos - 2_000_000_000L))
                         .lastBlockNumber(recordFile.getIndex() - 1)
                         .migrationRecordsStreamed(true)
                         .build());
