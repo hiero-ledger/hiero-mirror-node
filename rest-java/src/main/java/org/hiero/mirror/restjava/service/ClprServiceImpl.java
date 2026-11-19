@@ -4,27 +4,41 @@ package org.hiero.mirror.restjava.service;
 
 import static com.hederahashgraph.api.proto.java.ClprChannelStatus.valueOf;
 
+import com.hederahashgraph.api.proto.java.ClprMessagePayload.PayloadCase;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
+import org.hiero.mirror.rest.model.ClprMessage;
+import org.hiero.mirror.rest.model.ClprMessageType;
+import org.hiero.mirror.restjava.RestJavaProperties;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
+import org.hiero.mirror.restjava.dto.ClprMessagesRequest;
+import org.hiero.mirror.restjava.dto.ClprMessagesResult;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
+import org.hiero.mirror.restjava.mapper.ClprMessageMapper;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
+import org.hiero.mirror.restjava.repository.ClprMessageRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 
 @Named
 @RequiredArgsConstructor
 final class ClprServiceImpl implements ClprService {
 
+    private static final String CONSENSUS_TIMESTAMP = "consensusTimestamp";
     private static final String CREATED_TIMESTAMP = "createdTimestamp";
 
     private final ClprChannelMapper channelMapper;
     private final ClprChannelRepository channelRepository;
+    private final ClprMessageMapper messageMapper;
+    private final ClprMessageRepository messageRepository;
+    private final RestJavaProperties properties;
 
     @Override
     public List<ClprChannel> getChannels(ClprChannelsRequest request) {
@@ -36,6 +50,68 @@ final class ClprServiceImpl implements ClprService {
         final var data =
                 status != null || request.getChannelId() != null ? findChannels(request) : findAllChannels(request);
         return channelMapper.map(data);
+    }
+
+    @Override
+    public ClprMessagesResult getMessages(ClprMessagesRequest request) {
+        final var timestamp = request.getTimestamp();
+        final var bounds = getBounds(timestamp);
+        long lower = bounds.lower();
+        long upper = bounds.upper();
+
+        // An open side is bound by the channel's history, so an unknown channel has no messages
+        if (!timestamp.hasLowerAndUpper()) {
+            final var channel = channelRepository.findByChannelId(request.getChannelId());
+            if (channel == null) {
+                return new ClprMessagesResult(List.of(), null);
+            }
+
+            lower = Math.max(lower, channel.createdTimestamp());
+            upper = Math.min(upper, DomainUtils.now());
+            if (lower > upper) {
+                return new ClprMessagesResult(List.of(), null);
+            }
+        }
+
+        return getBoundedMessages(request, lower, upper);
+    }
+
+    /**
+     * Messages are partitioned by timestamp, so a range wider than the maximum is truncated to limit the partitions
+     * scanned. Descending keeps the newest part and ascending keeps the oldest part, and the result says where to
+     * continue from so the client can reach the rest.
+     */
+    private ClprMessagesResult getBoundedMessages(ClprMessagesRequest request, long lower, long upper) {
+        final long maxRange = properties.getMaxClprMessagesTimestampRange().toNanos();
+        if (upper - lower <= maxRange) {
+            return new ClprMessagesResult(findMessages(request, new TimestampBounds(lower, upper)), null);
+        }
+
+        final long resume;
+        if (request.getOrder() == Direction.ASC) {
+            upper = lower + maxRange;
+            resume = upper;
+        } else {
+            lower = upper - maxRange;
+            resume = lower;
+        }
+
+        return new ClprMessagesResult(findMessages(request, new TimestampBounds(lower, upper)), resume);
+    }
+
+    private List<ClprMessage> findMessages(ClprMessagesRequest request, TimestampBounds bounds) {
+        final var channelId = request.getChannelId();
+        final var connectorId = request.getConnectorId();
+        final var type = request.getType();
+        final var typeNumber = type != null ? getPayloadNumber(type) : null;
+        final var page = PageRequest.of(0, request.getLimit(), Sort.by(request.getOrder(), CONSENSUS_TIMESTAMP));
+
+        final var messages = connectorId != null
+                ? messageRepository.findByChannelIdAndConnectorIdAndTimestampBetween(
+                        channelId, connectorId, bounds.lower(), bounds.upper(), typeNumber, page)
+                : messageRepository.findByChannelIdAndTimestampBetween(
+                        channelId, bounds.lower(), bounds.upper(), typeNumber, page);
+        return messageMapper.map(messages);
     }
 
     /**
@@ -90,6 +166,15 @@ final class ClprServiceImpl implements ClprService {
 
         final var bounds = getBounds(request.getTimestamp());
         return channelRepository.findPendingByCreatedTimestampBetween(bounds.lower(), bounds.upper(), getPage(request));
+    }
+
+    /** The stored message type is the payload's proto oneof field number. */
+    private static int getPayloadNumber(ClprMessageType type) {
+        return switch (type) {
+            case CONTROL -> PayloadCase.CONTROL.getNumber();
+            case DATA -> PayloadCase.MESSAGE.getNumber();
+            case RESPONSE -> PayloadCase.MESSAGE_REPLY.getNumber();
+        };
     }
 
     private static PageRequest getPage(ClprChannelsRequest request) {
