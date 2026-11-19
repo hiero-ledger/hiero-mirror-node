@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.166.2'
+      version: '0.167.1'
   dependsOn:
     - name: mirror
       namespace: common
@@ -54,7 +54,6 @@ spec:
       hostname: "*.mirrornode.hedera.com"
     importer:
       env:
-        HIERO_MIRROR_IMPORTER_MIGRATION_BACKFILLTRANSACTIONHASHMIGRATION_PARAMS_STARTTIMESTAMP: "0"
         HIERO_MIRROR_IMPORTER_NETWORK: "MAINNET"
         HIERO_MIRROR_IMPORTER_PARSER_RECORD_SIDECAR_ENABLED: "true"
         HIERO_MIRROR_IMPORTER_RECONCILIATION_ENABLED: "false"
