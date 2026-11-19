@@ -10,10 +10,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.ArrayList;
 import java.util.HexFormat;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -21,6 +18,7 @@ import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelEndpointManifest;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.hiero.mirror.rest.model.ClprPeerThrottles;
+import org.hiero.mirror.rest.model.ClprServiceEndpoint;
 import org.hiero.mirror.rest.model.ClprSignatureScheme;
 import org.hiero.mirror.rest.model.TimestampRangeNullable;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
@@ -59,21 +57,17 @@ public interface ClprChannelMapper extends CollectionMapper<ClprChannelDto, Clpr
     @Override
     ClprChannel map(ClprChannelDto channel);
 
-    default Map<String, Object> mapEndpoint(ClprEndpoint endpoint) {
-        final var map = new LinkedHashMap<String, Object>();
-        map.put("account_id", hex(endpoint.getAccountId()));
-
+    default org.hiero.mirror.rest.model.ClprEndpoint mapEndpoint(ClprEndpoint endpoint) {
         final var serviceEndpoint = endpoint.getServiceEndpoint();
-        if (serviceEndpoint != null) {
-            final var serviceEndpointMap = new LinkedHashMap<String, Object>();
-            serviceEndpointMap.put("ip_address", serviceEndpoint.ipAddress());
-            serviceEndpointMap.put("port", serviceEndpoint.port());
-            map.put("service_endpoint", serviceEndpointMap);
-        }
-
-        map.put("tls_certificate", hex(endpoint.getTlsCertificate()));
-        map.values().removeIf(Objects::isNull);
-        return map;
+        return new org.hiero.mirror.rest.model.ClprEndpoint()
+                .accountId(hex(endpoint.getAccountId()))
+                .serviceEndpoint(
+                        serviceEndpoint != null
+                                ? new ClprServiceEndpoint()
+                                        .ipAddress(serviceEndpoint.ipAddress())
+                                        .port(serviceEndpoint.port())
+                                : null)
+                .tlsCertificate(hex(endpoint.getTlsCertificate()));
     }
 
     /** Builds the API's {@code {endpoints, version}} object from the stored endpoint list JSON and version. */
@@ -90,7 +84,7 @@ public interface ClprChannelMapper extends CollectionMapper<ClprChannelDto, Clpr
             throw new InvalidMappingException("Failed to parse the endpoint manifest", e);
         }
 
-        final var mapped = new ArrayList<Map<String, Object>>(endpoints.size());
+        final var mapped = new ArrayList<org.hiero.mirror.rest.model.ClprEndpoint>(endpoints.size());
         for (final var endpoint : endpoints) {
             mapped.add(mapEndpoint(endpoint));
         }
