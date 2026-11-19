@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>, EntityStakeRepositoryCustom {
 
-    @Query(value = "select endStakePeriod from EntityStake where id = :stakingRewardAccount")
+    @Query(value = "select end_stake_period from entity_stake where id = :stakingRewardAccount", nativeQuery = true)
     Optional<Long> getEndStakePeriod(long stakingRewardAccount);
 
     @Modifying
