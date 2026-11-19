@@ -55,9 +55,10 @@ class ContractUpdateTransactionHandler extends AbstractEntityCrudTransactionHand
     protected void doUpdateEntity(Entity entity, RecordItem recordItem) {
         var transactionBody = recordItem.getTransactionBody().getContractUpdateInstance();
 
-        // Sidecar migration updates include deleted contracts, so leave deleted unset to not undelete them
+        // Sidecar migration updates aren't state changes, so don't add a history row or undelete deleted contracts
         if (isSidecarMigration(recordItem)) {
             entity.setDeleted(null);
+            entity.setTimestampRange(null);
         }
 
         if (transactionBody.hasExpirationTime()) {

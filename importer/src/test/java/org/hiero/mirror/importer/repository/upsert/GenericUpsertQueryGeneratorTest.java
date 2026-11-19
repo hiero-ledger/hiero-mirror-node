@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
-import org.hiero.mirror.common.domain.token.Nft;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
@@ -355,10 +354,6 @@ class GenericUpsertQueryGeneratorTest extends ImporterIntegrationTest {
                             left join entity e on e.id = t.id
                           where
                             t.timestamp_range is not null
-                            and not (
-                              e.deleted is true
-                              and t.deleted is null
-                            )
                         ),
                         existing_history as (
                           insert into
@@ -697,13 +692,6 @@ class GenericUpsertQueryGeneratorTest extends ImporterIntegrationTest {
         assertThat(generator).isInstanceOf(GenericUpsertQueryGenerator.class);
         assertThat(format(generator.getUpsertQuery()))
                 .contains("and coalesce(e_created_timestamp, created_timestamp) is not null");
-    }
-
-    @Test
-    void skipUpdateWhenDeleted() {
-        final var guard = "and not (e.deleted is true and t.deleted is null)";
-        assertThat(factory.get(Entity.class).getUpsertQuery()).contains(guard);
-        assertThat(factory.get(Nft.class).getUpsertQuery()).doesNotContain(guard);
     }
 
     private String format(String sql) {

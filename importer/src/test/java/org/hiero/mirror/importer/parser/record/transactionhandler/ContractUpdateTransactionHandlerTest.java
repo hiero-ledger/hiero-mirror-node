@@ -238,7 +238,7 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
         verify(entityListener)
                 .onEntity(assertArg(entity -> assertThat(entity)
                         .returns(null, Entity::getDeleted)
-                        .returns(Range.atLeast(recordItem.getConsensusTimestamp()), Entity::getTimestampRange)
+                        .returns(null, Entity::getTimestampRange)
                         .returns(CONTRACT, Entity::getType)));
     }
 

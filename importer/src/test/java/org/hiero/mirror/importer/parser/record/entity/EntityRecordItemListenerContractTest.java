@@ -59,7 +59,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.ObjectAssert;
-import org.assertj.core.groups.Tuple;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -772,16 +771,7 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
         parseRecordItemAndCommit(recordItem);
 
         // then
-        softly.assertThat(entityRepository.findAll())
-                .hasSize(1)
-                .first()
-                .returns(entityId.getId(), Entity::getId)
-                .returns(entityId.getNum(), Entity::getNum)
-                .returns(entityId.getRealm(), Entity::getRealm)
-                .returns(entityId.getShard(), Entity::getShard)
-                .returns(recordItem.getConsensusTimestamp(), Entity::getTimestampLower)
-                .returns(null, Entity::getTimestampUpper)
-                .returns(CONTRACT, Entity::getType);
+        softly.assertThat(entityRepository.count()).isZero();
         softly.assertThat(entityHistoryRepository.count()).isZero();
         softly.assertThat(contractRepository.findAll())
                 .hasSize(1)
@@ -821,13 +811,9 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
                 .returns(entity.getNum(), Entity::getNum)
                 .returns(entity.getRealm(), Entity::getRealm)
                 .returns(entity.getShard(), Entity::getShard)
-                .returns(recordItem.getConsensusTimestamp(), Entity::getTimestampLower)
-                .returns(null, Entity::getTimestampUpper)
+                .returns(entity.getTimestampRange(), Entity::getTimestampRange)
                 .returns(CONTRACT, Entity::getType);
-        softly.assertThat(entityHistoryRepository.findAll())
-                .hasSize(1)
-                .extracting(e -> e.getType())
-                .containsOnly(CONTRACT);
+        softly.assertThat(entityHistoryRepository.count()).isZero();
         softly.assertThat(contractRepository.findAll())
                 .hasSize(1)
                 .first()
@@ -859,23 +845,16 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
             parseRecordItemAndCommit(migrationUpdate);
         }
 
-        // then skipped, or a deleted revision when in the same batch as the delete
+        // then
         final long deleteTimestamp = contractDelete.getConsensusTimestamp();
-        final long migrationTimestamp = migrationUpdate.getConsensusTimestamp();
-        final var expectedHistory = new ArrayList<Tuple>();
-        expectedHistory.add(tuple(false, Range.closedOpen(entity.getTimestampLower(), deleteTimestamp)));
-        if (singleRecordFile) {
-            expectedHistory.add(tuple(true, Range.closedOpen(deleteTimestamp, migrationTimestamp)));
-        }
-
         softly.assertThat(entityRepository.findById(entity.getId()))
                 .get()
                 .returns(true, Entity::getDeleted)
-                .returns(singleRecordFile ? migrationTimestamp : deleteTimestamp, Entity::getTimestampLower)
+                .returns(deleteTimestamp, Entity::getTimestampLower)
                 .returns(CONTRACT, Entity::getType);
         softly.assertThat(findHistory(EntityHistory.class))
                 .extracting(EntityHistory::getDeleted, EntityHistory::getTimestampRange)
-                .containsExactlyInAnyOrderElementsOf(expectedHistory);
+                .containsExactly(tuple(false, Range.closedOpen(entity.getTimestampLower(), deleteTimestamp)));
     }
 
     @Test

@@ -30,11 +30,4 @@ public @interface Upsertable {
      * @return whether partial updates are enabled
      */
     boolean skipPartialUpdate() default false;
-
-    /**
-     * Controls whether an update that doesn't set deleted is skipped for a deleted domain. Requires history.
-     *
-     * @return whether updates to deleted domains are skipped
-     */
-    boolean skipUpdateWhenDeleted() default false;
 }
