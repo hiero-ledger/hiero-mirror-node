@@ -11,11 +11,8 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.util.CommonUtils;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
-import org.hiero.mirror.restjava.common.Constants;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 
 @RequiredArgsConstructor
@@ -41,8 +38,6 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
                 persistHookStorage(EntityId.of(ownerId.getId() + 1), HOOK_ID, keys.get(4)); // different ownerId
         final var storage6 = persistHookStorage(ownerId, HOOK_ID + 1, keys.get(5)); // different hookId
 
-        final var sort = Sort.by(order, Constants.KEY);
-
         final var expectedHookStorage = order.isAscending() ? List.of(storage1, storage4) : List.of(storage4, storage1);
 
         // when
@@ -57,7 +52,8 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
                         storage5.getKey(), // existing, but for different ownerId
                         storage6.getKey() // existing, but for different hookId
                         ),
-                PageRequest.of(0, 10, sort));
+                order,
+                10);
 
         // then
         assertThat(hookStorage).isNotNull().containsExactlyElementsOf(expectedHookStorage);
@@ -77,14 +73,12 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
         persistHookStorage(EntityId.of(ownerId.getId() + 1), HOOK_ID, keys.get(4)); // different ownerId
         final var storage6 = persistHookStorage(ownerId, HOOK_ID + 1, keys.get(5)); // different hookId
 
-        final var sort = Sort.by(order, Constants.KEY);
-
         final var expectedResponse =
                 order.isAscending() ? List.of(storage1, storage2, storage4) : List.of(storage4, storage2, storage1);
 
         // when
         final var hookStorage = repository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
-                ownerId.getId(), HOOK_ID, storage1.getKey(), storage6.getKey(), PageRequest.of(0, 10, sort));
+                ownerId.getId(), HOOK_ID, storage1.getKey(), storage6.getKey(), order, 10);
 
         // then
         assertThat(hookStorage).isNotNull().containsExactlyElementsOf(expectedResponse);
@@ -92,7 +86,7 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
 
     @ParameterizedTest
     @EnumSource(Direction.class)
-    void findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalseRespectsOrderLimitAndPagination(Direction order) {
+    void findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalseRespectsOrderAndLimit(Direction order) {
         // given
         final var keys = generateKeys(4);
         final var ownerId = domainBuilder.entityId();
@@ -102,35 +96,34 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
         final var storage3 = persistHookStorage(ownerId, HOOK_ID, keys.get(2));
         final var storage4 = persistHookStorage(ownerId, HOOK_ID, keys.get(3));
 
-        final var sort = Sort.by(order, Constants.KEY);
-
         final var hookStorage = order.isAscending()
                 ? List.of(storage1, storage2, storage3, storage4)
                 : List.of(storage4, storage3, storage2, storage1);
 
-        final var expectedPage0 = hookStorage.subList(0, LIMIT);
-        final var expectedPage1 = hookStorage.subList(LIMIT, hookStorage.size());
+        final var expectedLimited = hookStorage.subList(0, LIMIT);
 
         // when
-        final var page0 = repository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
+        final var limited = repository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
                 ownerId.getId(),
                 HOOK_ID,
                 List.of(storage1.getKey(), storage2.getKey(), storage3.getKey(), storage4.getKey()),
-                PageRequest.of(0, LIMIT, sort));
+                order,
+                LIMIT);
 
-        final var page1 = repository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
+        final var all = repository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
                 ownerId.getId(),
                 HOOK_ID,
                 List.of(storage1.getKey(), storage2.getKey(), storage3.getKey(), storage4.getKey()),
-                PageRequest.of(1, LIMIT, sort));
+                order,
+                10);
 
-        assertThat(page0).isNotNull().hasSize(expectedPage0.size()).containsExactlyElementsOf(expectedPage0);
-        assertThat(page1).isNotNull().hasSize(expectedPage1.size()).containsExactlyElementsOf(expectedPage1);
+        assertThat(limited).isNotNull().hasSize(expectedLimited.size()).containsExactlyElementsOf(expectedLimited);
+        assertThat(all).isNotNull().hasSize(hookStorage.size()).containsExactlyElementsOf(hookStorage);
     }
 
     @ParameterizedTest
     @EnumSource(Direction.class)
-    void findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalseRespectsOrderLimitAndPagination(Direction order) {
+    void findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalseRespectsOrderAndLimit(Direction order) {
         // given
         final var keys = generateKeys(5);
         final var ownerId = domainBuilder.entityId();
@@ -141,23 +134,20 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
         final var storage4 = persistHookStorage(ownerId, HOOK_ID, keys.get(3));
         persistHookStorage(ownerId, HOOK_ID, keys.get(4));
 
-        final var sort = Sort.by(order, Constants.KEY);
-
         final var hookStorage =
                 order.isAscending() ? List.of(storage2, storage3, storage4) : List.of(storage4, storage3, storage2);
 
-        final var expectedPage0 = hookStorage.subList(0, LIMIT);
-        final var expectedPage1 = hookStorage.subList(LIMIT, hookStorage.size());
+        final var expectedLimited = hookStorage.subList(0, LIMIT);
 
         // when
-        final var page0 = repository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
-                ownerId.getId(), HOOK_ID, storage2.getKey(), storage4.getKey(), PageRequest.of(0, LIMIT, sort));
-        final var page1 = repository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
-                ownerId.getId(), HOOK_ID, storage2.getKey(), storage4.getKey(), PageRequest.of(1, LIMIT, sort));
+        final var limited = repository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
+                ownerId.getId(), HOOK_ID, storage2.getKey(), storage4.getKey(), order, LIMIT);
+        final var all = repository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
+                ownerId.getId(), HOOK_ID, storage2.getKey(), storage4.getKey(), order, 10);
 
         // then
-        assertThat(page0).isNotNull().hasSize(expectedPage0.size()).containsExactlyElementsOf(expectedPage0);
-        assertThat(page1).isNotNull().hasSize(expectedPage1.size()).containsExactlyElementsOf(expectedPage1);
+        assertThat(limited).isNotNull().hasSize(expectedLimited.size()).containsExactlyElementsOf(expectedLimited);
+        assertThat(all).isNotNull().hasSize(hookStorage.size()).containsExactlyElementsOf(hookStorage);
     }
 
     private HookStorage persistHookStorage(EntityId ownerId, long hookId, byte[] key) {
