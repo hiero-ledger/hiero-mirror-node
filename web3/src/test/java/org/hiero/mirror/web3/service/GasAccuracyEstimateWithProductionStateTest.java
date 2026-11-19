@@ -40,7 +40,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallServiceTest {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final V0490FileSchema FILE_SCHEMA = new V0490FileSchema();
     private static final JsonNode DYNAMIC_TRANSFER_TO_STAKING_REWARDS_ACCOUNT =
             loadFixture("transfer-to-staking-reward-account-previewnet-state.json");
     private static final byte[] PREVIEWNET_SIMPLE_FEE_SCHEDULE =
@@ -135,12 +134,6 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
         final long stateTimestamp = consensusStart - 1L;
 
         persistSystemFile(systemEntity.exchangeRateFile(), exchangeRateBytes(fixture.get("exchange_rate")), 1L);
-        persistSystemFile(
-                systemEntity.feeScheduleFile(),
-                FILE_SCHEMA
-                        .genesisFeeSchedules(evmProperties.getVersionedConfiguration())
-                        .toByteArray(),
-                2L);
         persistSystemFile(systemEntity.simpleFeeScheduleFile(), simpleFeeSchedule, 3L);
         persistSystemFile(systemEntity.throttleDefinitionFile(), throttleDefinitionBytes(), 4L);
 

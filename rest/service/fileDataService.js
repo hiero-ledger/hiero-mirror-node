@@ -14,8 +14,6 @@ import {MAX_LONG, NANOS_PER_SECOND} from '../constants.js';
 
 const NANOSECONDS_PER_HOUR = 60n * 60n * NANOS_PER_SECOND;
 const FEE_DIVISOR_FACTOR = 1000n;
-const MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP = 1779296400389248896n;
-const TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP = 1777482002529719510n;
 
 /**
  * File data retrieval business logic
@@ -171,7 +169,7 @@ class FileDataService extends BaseService {
 
     const [exchangeRate, feeSchedule] = await Promise.all([
       this.getExchangeRate(filterQueries),
-      this.#getFeeSchedule(filterQueries, consensusTimestamp),
+      this.#getFeeSchedule(filterQueries),
     ]);
 
     if (!feeSchedule || !exchangeRate) {
@@ -188,30 +186,9 @@ class FileDataService extends BaseService {
     return gasPrice;
   }
 
-  #getFeeSchedule = async (filterQueries, consensusTimestamp) => {
-    const switchoverTimestamp = this.#getSimpleFeesSwitchoverTimestamp();
-    const refTimestampNanos = consensusTimestamp != null ? consensusTimestamp : switchoverTimestamp;
-
-    if (refTimestampNanos >= switchoverTimestamp) {
-      return this.#fallbackRetry(
-        EntityId.systemEntity.simpleFeeScheduleFile.getEncodedId(),
-        filterQueries,
-        FeeSchedule
-      );
-    }
-
-    return this.#fallbackRetry(EntityId.systemEntity.feeScheduleFile.getEncodedId(), filterQueries, FeeSchedule);
+  #getFeeSchedule = async (filterQueries) => {
+    return this.#fallbackRetry(EntityId.systemEntity.simpleFeeScheduleFile.getEncodedId(), filterQueries, FeeSchedule);
   };
-
-  #getSimpleFeesSwitchoverTimestamp() {
-    const network = config.network?.toUpperCase();
-    if (network === 'TESTNET') {
-      return TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP;
-    } else if (network === 'MAINNET') {
-      return MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP;
-    }
-    return 0n;
-  }
 
   #buildFilterQueries(consensusTimestamp) {
     if (consensusTimestamp == null) {

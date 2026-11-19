@@ -133,7 +133,7 @@ class FileDataRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void getFileForFeeSchedules() {
-        var feeScheduleFileId = systemEntity.feeScheduleFile();
+        var feeScheduleFileId = systemEntity.simpleFeeScheduleFile();
         var expected = domainBuilder
                 .fileData()
                 .customize(f ->

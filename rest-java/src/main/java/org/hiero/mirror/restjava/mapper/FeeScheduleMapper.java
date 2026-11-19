@@ -4,7 +4,6 @@ package org.hiero.mirror.restjava.mapper;
 
 import static org.hiero.mirror.restjava.mapper.CommonMapper.QUALIFIER_TIMESTAMP;
 
-import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
@@ -13,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.hiero.hapi.support.fees.Extra;
-import org.hiero.hapi.support.fees.ExtraFeeDefinition;
 import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.NetworkFee;
@@ -27,8 +25,6 @@ import org.springframework.data.domain.Sort;
 
 @Mapper(config = MapperConfiguration.class)
 public interface FeeScheduleMapper {
-
-    long FEE_DIVISOR_FACTOR = 1000L;
 
     Comparator<NetworkFee> ASC_COMPARATOR =
             Comparator.comparing(NetworkFee::getTransactionType, String.CASE_INSENSITIVE_ORDER);
@@ -66,32 +62,6 @@ public interface FeeScheduleMapper {
                 .filter(Objects::nonNull)
                 .sorted(getComparator(order))
                 .toList();
-    }
-
-    default FeeSchedule map(CurrentAndNextFeeSchedule currentAndNextFeeSchedule, long refTimestampNanos) {
-        var feeSchedule = currentAndNextFeeSchedule.getCurrentFeeSchedule();
-
-        if (refTimestampNanos > feeSchedule.getExpiryTime().getSeconds() * DomainUtils.NANOS_PER_SECOND) {
-            feeSchedule = currentAndNextFeeSchedule.getNextFeeSchedule();
-        }
-
-        for (final var transactionFeeSchedule : feeSchedule.getTransactionFeeScheduleList()) {
-            if (ENABLED_TRANSACTION_TYPES.containsKey(transactionFeeSchedule.getHederaFunctionality())
-                    && transactionFeeSchedule.getFeesCount() > 0) {
-                final var feeData = transactionFeeSchedule.getFees(0);
-
-                if (feeData.hasServicedata()) {
-                    return FeeSchedule.newBuilder()
-                            .extras(ExtraFeeDefinition.newBuilder()
-                                    .name(Extra.GAS)
-                                    .fee(feeData.getServicedata().getGas() / FEE_DIVISOR_FACTOR)
-                                    .build())
-                            .build();
-                }
-            }
-        }
-
-        return FeeSchedule.DEFAULT;
     }
 
     private long getReferenceTimestampNanos(SystemFile<?> feeScheduleFile, Bound bound) {

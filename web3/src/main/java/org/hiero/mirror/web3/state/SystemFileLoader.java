@@ -8,7 +8,6 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SY
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import com.google.protobuf.ByteString;
-import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.NodeAddressBook;
 import com.hedera.hapi.node.state.file.File;
@@ -62,7 +61,6 @@ public final class SystemFileLoader {
     private final FileDataRepository fileDataRepository;
     private final SystemEntity systemEntity;
     private final FileID exchangeRateFileId;
-    private final FileID feeSchedulesFileId;
     private final FileID simpleFeeSchedulesFileId;
     private final CacheManager exchangeRatesCacheManager;
     private final CacheManager defaultSystemFileCacheManager;
@@ -90,7 +88,6 @@ public final class SystemFileLoader {
         this.fileDataRepository = fileDataRepository;
         this.systemEntity = systemEntity;
         this.exchangeRateFileId = Utils.toFileID(systemEntity.exchangeRateFile());
-        this.feeSchedulesFileId = Utils.toFileID(systemEntity.feeScheduleFile());
         this.simpleFeeSchedulesFileId = Utils.toFileID(systemEntity.simpleFeeScheduleFile());
         this.exchangeRatesCacheManager = exchangeRatesCacheManager;
         this.defaultSystemFileCacheManager = defaultSystemFileCacheManager;
@@ -110,9 +107,7 @@ public final class SystemFileLoader {
 
         var cacheManager = defaultSystemFileCacheManager;
 
-        if (fileId.equals(exchangeRateFileId)
-                || fileId.equals(feeSchedulesFileId)
-                || fileId.equals(simpleFeeSchedulesFileId)) {
+        if (fileId.equals(exchangeRateFileId) || fileId.equals(simpleFeeSchedulesFileId)) {
             cacheManager = exchangeRatesCacheManager;
             consensusTimestamp = roundDownToHour(consensusTimestamp);
         }
@@ -194,9 +189,6 @@ public final class SystemFileLoader {
         var files = List.of(
                 new SystemFile(load(systemEntity.addressBookFile101(), addressBookMock), NodeAddressBook.PROTOBUF),
                 new SystemFile(load(systemEntity.addressBookFile102(), addressBookMock), NodeAddressBook.PROTOBUF),
-                new SystemFile(
-                        load(systemEntity.feeScheduleFile(), fileSchema.genesisFeeSchedules(configuration)),
-                        CurrentAndNextFeeSchedule.PROTOBUF),
                 new SystemFile(
                         load(
                                 systemEntity.simpleFeeScheduleFile(),

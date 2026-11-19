@@ -13,8 +13,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
-import com.hedera.hapi.node.base.FeeSchedule;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.NodeAddressBook;
 import com.hedera.hapi.node.base.ServicesConfigurationList;
@@ -31,7 +29,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -110,19 +107,6 @@ class SystemFileLoaderTest {
         var nodeAddressBook = NodeAddressBook.PROTOBUF.parse(file.contents());
         assertThat(nodeAddressBook).isNotNull().isNotEqualTo(NodeAddressBook.DEFAULT);
         assertThat(nodeAddressBook.nodeAddress()).isNotNull().hasSize(1);
-    }
-
-    @Test
-    void loadFeeSchedule() throws Exception {
-        var fileId = fileId(systemEntity.feeScheduleFile());
-        var file = systemFileLoader.load(fileId, getCurrentTimestamp());
-        assertFile(file, fileId);
-        var feeSchedule = CurrentAndNextFeeSchedule.PROTOBUF.parse(file.contents());
-        assertThat(feeSchedule).isNotNull().isNotEqualTo(CurrentAndNextFeeSchedule.DEFAULT);
-        assertThat(feeSchedule.currentFeeSchedule())
-                .isNotNull()
-                .extracting(FeeSchedule::transactionFeeSchedule, InstanceOfAssertFactories.LIST)
-                .hasSizeGreaterThanOrEqualTo(72);
     }
 
     @Test
@@ -216,26 +200,6 @@ class SystemFileLoaderTest {
     }
 
     @Test
-    void loadFeesWithRetrySuccessfully() {
-        var fileId = fileId(systemEntity.feeScheduleFile());
-        var expected = getFile(fileId, fileSchema.genesisFeeSchedules(configuration));
-        var entityId = toEntityId(fileId).getId();
-        assertFile(expected, fileId);
-        when(fileDataRepository.getFileAtTimestamp(eq(entityId), anyLong()))
-                .thenReturn(Optional.of(FileData.builder()
-                        .fileData(expected.contents().toByteArray())
-                        .build()));
-
-        final var actual = systemFileLoader.load(fileId, 250L);
-
-        assertThat(actual)
-                .isNotNull()
-                .returns(expected.contents(), File::contents)
-                .returns(fileId, File::fileId);
-        verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(entityId), anyLong());
-    }
-
-    @Test
     void loadSimpleFeesWithRetrySuccessfully() {
         var fileId = fileId(systemEntity.simpleFeeScheduleFile());
         var expected = getFile(fileId, fileSchema.genesisSimpleFeesSchedules(configuration));
@@ -305,7 +269,6 @@ class SystemFileLoaderTest {
     @CsvSource({
         "101, true",
         "102, true",
-        "111, true",
         "112, true",
         "113, true",
         "121, true",
