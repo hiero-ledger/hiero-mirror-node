@@ -66,5 +66,6 @@ spec:
       enabled: true
     web3:
       env:
-        HIERO_MIRROR_WEB3_EVM_NETWORK: OTHER
+        # This env uses testnet state and we want to avoid WRONG_CHAIN_ID errors
+        HIERO_MIRROR_WEB3_EVM_NETWORK: TESTNET
 
