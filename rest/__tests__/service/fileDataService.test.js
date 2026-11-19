@@ -16,6 +16,7 @@ import {
   ExtraFeeDefinitionSchema,
   FeeScheduleSchema as SimpleFeeScheduleSchema,
 } from '../../gen/fees/fee_schedule_pb.js';
+import config from '../../config';
 import {ExchangeRate, FeeSchedule, FileData} from '../../model';
 import {FileDataService} from '../../service';
 import integrationDomainOps from '../integrationDomainOps';
@@ -24,10 +25,12 @@ import EntityId from '../../entityId';
 
 setupIntegrationTest();
 
-// Past the exchange-rate fixture's current expiry, so gas conversion uses the next rate.
+const MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP = 1779296400389248896n;
 const TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP = 1777482002529719510n;
+const SIMPLE_FEES_SWITCHOVER_TIMESTAMP = TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP;
 
 const exchangeRateEntityId = EntityId.systemEntity.exchangeRateFile;
+const feeScheduleEntityId = EntityId.systemEntity.feeScheduleFile;
 const simpleFeeScheduleEntityId = EntityId.systemEntity.simpleFeeScheduleFile;
 
 const exchangeRateFiles = [
@@ -307,31 +310,31 @@ describe('FileDataService.getGasPrice tests', () => {
     FileDataService.clearFeeScheduleCache();
   });
 
-  const earlierTs = TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP - 1000n;
-  const laterTs = TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP;
-  const afterLaterTs = TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP + 1000n;
+  const postSwitchoverTs = SIMPLE_FEES_SWITCHOVER_TIMESTAMP + 1000n;
+  const preSwitchoverTs = SIMPLE_FEES_SWITCHOVER_TIMESTAMP - 1000n;
+  const atSwitchoverTs = SIMPLE_FEES_SWITCHOVER_TIMESTAMP;
 
   const latestGasTinycents = 789;
-  const previousGasTinycents = 123;
+  const previousLegacyGas = 123000;
 
   const feeScheduleFiles = [
     {
-      consensus_timestamp: earlierTs.toString(),
-      entity_id: simpleFeeScheduleEntityId.toString(),
-      file_data: makeSimpleFeeScheduleFileData(previousGasTinycents),
+      consensus_timestamp: preSwitchoverTs.toString(),
+      entity_id: feeScheduleEntityId.toString(),
+      file_data: makeFeeScheduleFileData(previousLegacyGas, 2000000000),
       transaction_type: 17,
     },
     {
-      consensus_timestamp: laterTs.toString(),
+      consensus_timestamp: atSwitchoverTs.toString(),
       entity_id: simpleFeeScheduleEntityId.toString(),
       file_data: makeSimpleFeeScheduleFileData(latestGasTinycents),
       transaction_type: 19,
     },
   ];
 
-  // gas=789 tinycents, next rate (now > current_expiration): hbar=30000, cent=435305 → 54n
+  // Post switchover: gas=789 tinycents, next rate (now > current_expiration): hbar=30000, cent=435305 → 54n
   const expectedLatestGasPrice = 54n;
-  // gas=123 tinycents → 8n
+  // Pre switchover: legacy gas=123000 / 1000 = 123 tinycents → 8n
   const expectedPreviousGasPrice = 8n;
 
   test('FileDataService.getGasPrice - No match', async () => {
@@ -342,23 +345,23 @@ describe('FileDataService.getGasPrice tests', () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
-    const result = await FileDataService.getGasPrice(afterLaterTs);
+    const result = await FileDataService.getGasPrice(postSwitchoverTs);
     expect(result).toBe(expectedLatestGasPrice);
   });
 
-  test('FileDataService.getGasPrice - uses the simple fee file at its consensus timestamp', async () => {
+  test('FileDataService.getGasPrice - uses simple fees at exact switchover timestamp', async () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
-    const result = await FileDataService.getGasPrice(laterTs);
+    const result = await FileDataService.getGasPrice(atSwitchoverTs);
     expect(result).toBe(expectedLatestGasPrice);
   });
 
-  test('FileDataService.getGasPrice - Row match w previous simple fees', async () => {
+  test('FileDataService.getGasPrice - Row match w previous legacy fees', async () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     await integrationDomainOps.loadFileData(exchangeRateFiles);
 
-    const result = await FileDataService.getGasPrice(earlierTs);
+    const result = await FileDataService.getGasPrice(preSwitchoverTs);
     expect(result).toBe(expectedPreviousGasPrice);
   });
 
@@ -366,14 +369,14 @@ describe('FileDataService.getGasPrice tests', () => {
     await integrationDomainOps.loadFileData(feeScheduleFiles);
     // no exchange rate data loaded
 
-    await expect(FileDataService.getGasPrice(afterLaterTs)).resolves.toBeNull();
+    await expect(FileDataService.getGasPrice(postSwitchoverTs)).resolves.toBeNull();
   });
 
   test('FileDataService.getGasPrice - Returns null when fee schedule is missing', async () => {
     await integrationDomainOps.loadFileData(exchangeRateFiles);
     // no fee schedule data loaded
 
-    await expect(FileDataService.getGasPrice(afterLaterTs)).resolves.toBeNull();
+    await expect(FileDataService.getGasPrice(postSwitchoverTs)).resolves.toBeNull();
   });
 
   test('FileDataService.getGasPrice - Returns cached result on repeated call with same filter', async () => {
@@ -382,8 +385,8 @@ describe('FileDataService.getGasPrice tests', () => {
 
     const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');
 
-    const first = await FileDataService.getGasPrice(afterLaterTs);
-    const second = await FileDataService.getGasPrice(afterLaterTs);
+    const first = await FileDataService.getGasPrice(postSwitchoverTs);
+    const second = await FileDataService.getGasPrice(postSwitchoverTs);
 
     expect(first).not.toBeNull();
     expect(second).toEqual(first); // same value served from cache
@@ -399,25 +402,26 @@ describe('FileDataService.getGasPrice tests', () => {
 
     const spy = jest.spyOn(FileDataService, 'getLatestFileDataContents');
 
-    const gasPriceMap = await FileDataService.getGasPrices([afterLaterTs, afterLaterTs, afterLaterTs]);
+    const gasPriceMap = await FileDataService.getGasPrices([postSwitchoverTs, postSwitchoverTs, postSwitchoverTs]);
 
-    expect(gasPriceMap.get(afterLaterTs)).toBe(expectedLatestGasPrice);
+    expect(gasPriceMap.get(postSwitchoverTs)).toBe(expectedLatestGasPrice);
     // one fee schedule + one exchange rate load for the same hour bucket
     expect(spy).toHaveBeenCalledTimes(2);
 
     spy.mockRestore();
   });
 
-  test('getGasPrices resolves timestamps in different hours', async () => {
-    // Cache keys are hour-truncated, so choose timestamps far enough apart to avoid sharing a bucket.
+  test('getGasPrices resolves pre and post switchover timestamps in different hours', async () => {
+    // Cache keys are hour-truncated, so choose timestamps far enough apart to avoid sharing a bucket
+    // across the legacy → simple fee schedule switchover.
     const nanosPerHour = 3_600_000_000_000n;
-    const preTs = TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP - nanosPerHour;
-    const postTs = TESTNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP + nanosPerHour;
+    const preTs = SIMPLE_FEES_SWITCHOVER_TIMESTAMP - nanosPerHour;
+    const postTs = SIMPLE_FEES_SWITCHOVER_TIMESTAMP + nanosPerHour;
     const spacedFeeScheduleFiles = [
       {
         consensus_timestamp: preTs.toString(),
-        entity_id: simpleFeeScheduleEntityId.toString(),
-        file_data: makeSimpleFeeScheduleFileData(previousGasTinycents),
+        entity_id: feeScheduleEntityId.toString(),
+        file_data: makeFeeScheduleFileData(previousLegacyGas, 2000000000),
         transaction_type: 17,
       },
       {
@@ -435,6 +439,41 @@ describe('FileDataService.getGasPrice tests', () => {
 
     expect(gasPriceMap.get(preTs)).toBe(expectedPreviousGasPrice);
     expect(gasPriceMap.get(postTs)).toBe(expectedLatestGasPrice);
+  });
+
+  test('FileDataService.getGasPrice - uses mainnet switchover when network is MAINNET', async () => {
+    const originalNetwork = config.network;
+    config.network = 'MAINNET';
+    FileDataService.clearFeeScheduleCache();
+
+    try {
+      const nanosPerHour = 3_600_000_000_000n;
+      const mainnetPre = MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP - nanosPerHour;
+      const mainnetPost = MAINNET_SIMPLE_FEES_SWITCHOVER_TIMESTAMP + nanosPerHour;
+      const mainnetFiles = [
+        {
+          consensus_timestamp: mainnetPre.toString(),
+          entity_id: feeScheduleEntityId.toString(),
+          file_data: makeFeeScheduleFileData(previousLegacyGas, 2000000000),
+          transaction_type: 17,
+        },
+        {
+          consensus_timestamp: mainnetPost.toString(),
+          entity_id: simpleFeeScheduleEntityId.toString(),
+          file_data: makeSimpleFeeScheduleFileData(latestGasTinycents),
+          transaction_type: 19,
+        },
+      ];
+
+      await integrationDomainOps.loadFileData(mainnetFiles);
+      await integrationDomainOps.loadFileData(exchangeRateFiles);
+
+      await expect(FileDataService.getGasPrice(mainnetPre)).resolves.toBe(expectedPreviousGasPrice);
+      await expect(FileDataService.getGasPrice(mainnetPost)).resolves.toBe(expectedLatestGasPrice);
+    } finally {
+      config.network = originalNetwork;
+      FileDataService.clearFeeScheduleCache();
+    }
   });
 });
 

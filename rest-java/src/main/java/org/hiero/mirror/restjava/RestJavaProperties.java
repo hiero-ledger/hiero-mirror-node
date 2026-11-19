@@ -12,6 +12,8 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Data;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.validator.DataSizeMax;
 import org.hiero.mirror.common.validator.DataSizeMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -79,11 +81,16 @@ public class RestJavaProperties {
         }
     }
 
+    @Getter
+    @RequiredArgsConstructor
     public enum HederaNetwork {
-        DEMO,
-        MAINNET,
-        PREVIEWNET,
-        TESTNET,
-        OTHER
+        DEMO(0),
+        MAINNET(1779296400389248896L),
+        PREVIEWNET(0),
+        TESTNET(1777482002529719510L),
+        OTHER(0);
+
+        // The consensus timestamp at which consensus nodes enabled simple fees on the network
+        private final long simpleFeesTimestamp;
     }
 }

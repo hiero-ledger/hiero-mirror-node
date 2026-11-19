@@ -134,6 +134,8 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
         final long stateTimestamp = consensusStart - 1L;
 
         persistSystemFile(systemEntity.exchangeRateFile(), exchangeRateBytes(fixture.get("exchange_rate")), 1L);
+        // genesisFeeSchedules() was removed upstream. Set default file in future PR.
+        persistSystemFile(systemEntity.feeScheduleFile(), Bytes.EMPTY.toByteArray(), 2L);
         persistSystemFile(systemEntity.simpleFeeScheduleFile(), simpleFeeSchedule, 3L);
         persistSystemFile(systemEntity.throttleDefinitionFile(), throttleDefinitionBytes(), 4L);
 
