@@ -378,10 +378,13 @@ stackgres:
       requests:
         cpu: "500m"
         memory: "2Gi"
+  deploy:
+    restapi: false
   enabled: false
   operator:
     image:
       name: gcr.io/mirrornode/stackgres-operator
+
 testkube:
   enabled: false
   executor:

@@ -25,6 +25,7 @@ import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.DownloaderProperties;
 import org.hiero.mirror.importer.downloader.balance.BalanceDownloaderProperties;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverProperties;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.exception.InvalidConfigurationException;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
@@ -48,6 +49,7 @@ final class DateRangeCalculatorTest {
     private AccountBalanceFileRepository accountBalanceFileRepository;
 
     private BlockProperties blockProperties;
+    private CutoverProperties cutoverProperties;
     private ImporterProperties importerProperties;
     private List<DownloaderProperties> downloaderPropertiesList;
     private DateRangeCalculator dateRangeCalculator;
@@ -60,12 +62,17 @@ final class DateRangeCalculatorTest {
         importerProperties = new ImporterProperties();
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.TESTNET);
         blockProperties = new BlockProperties(importerProperties);
+        cutoverProperties = new CutoverProperties();
         var commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
         var balanceDownloaderProperties = new BalanceDownloaderProperties(commonDownloaderProperties);
         var recordDownloaderProperties = new RecordDownloaderProperties(commonDownloaderProperties);
         downloaderPropertiesList = List.of(balanceDownloaderProperties, recordDownloaderProperties);
         dateRangeCalculator = new DateRangeCalculator(
-                accountBalanceFileRepository, blockProperties, importerProperties, recordFileRepository);
+                accountBalanceFileRepository,
+                blockProperties,
+                cutoverProperties,
+                importerProperties,
+                recordFileRepository);
 
         balanceDownloaderProperties.setEnabled(true);
         recordDownloaderProperties.setEnabled(true);
@@ -74,12 +81,18 @@ final class DateRangeCalculatorTest {
         streamFileRepositories.putIfAbsent(StreamType.RECORD, recordFileRepository);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void notSetAndDatabaseEmpty(final boolean blockstream) {
+    @ParameterizedTest(name = "blockstream({0}) cutover({1})")
+    @CsvSource(textBlock = """
+            true, true
+            true, false
+            false, true
+            false, false
+            """)
+    void notSetAndDatabaseEmpty(final boolean blockstream, final boolean cutover) {
         blockProperties.setEnabled(blockstream);
+        cutoverProperties.setEnabled(cutover);
         final var expectedDate = blockstream ? Instant.EPOCH : STARTUP_TIME;
-        final var expectedFilter = new DateRangeFilter(expectedDate, null);
+        final var expectedFilter = new DateRangeFilter(blockstream || cutover ? Instant.EPOCH : STARTUP_TIME, null);
         for (var downloaderProperties : downloaderPropertiesList) {
             var streamType = downloaderProperties.getStreamType();
             assertThat(dateRangeCalculator.getLastStreamFile(streamType))
