@@ -30,7 +30,6 @@ import com.hederahashgraph.api.proto.java.SignaturePair;
 import com.hederahashgraph.api.proto.java.ThresholdKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
-import jakarta.persistence.EntityManager;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.KeyPairGenerator;
@@ -43,7 +42,7 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -150,7 +149,6 @@ import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
 import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
-import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
 import org.hiero.mirror.common.domain.transaction.LiveHash;
 import org.hiero.mirror.common.domain.transaction.NetworkFreeze;
 import org.hiero.mirror.common.domain.transaction.Prng;
@@ -168,6 +166,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
 
@@ -187,7 +186,7 @@ public class DomainBuilder {
     }
 
     private final CommonProperties commonProperties;
-    private final EntityManager entityManager;
+    private final JdbcAggregateTemplate jdbcAggregateTemplate;
     private final TransactionOperations transactionOperations;
     private final AtomicLong num = new AtomicLong(0L);
     private final AtomicInteger transactionIndex = new AtomicInteger(0);
@@ -248,13 +247,13 @@ public class DomainBuilder {
                 .publicKey(text(64))
                 .stake(0L);
 
-        var serviceEndpoints = new HashSet<AddressBookServiceEndpoint>();
+        var serviceEndpoints = new LinkedHashSet<AddressBookServiceEndpoint>();
         builder.serviceEndpoints(serviceEndpoints);
 
         for (int i = 0; i < endpoints; ++i) {
-            var endpoint = addressBookServiceEndpoint()
-                    .customize(a -> a.consensusTimestamp(consensusTimestamp).nodeId(nodeId))
-                    .get();
+            var endpoint = addressBookServiceEndpoint().get();
+            endpoint.setConsensusTimestamp(consensusTimestamp);
+            endpoint.setNodeId(nodeId);
             serviceEndpoints.add(endpoint);
         }
 
@@ -274,8 +273,8 @@ public class DomainBuilder {
                 .consensusTimestamp(timestamp())
                 .ipAddressV4(ipAddress)
                 .nodeId(number())
-                .domainName("")
-                .port(50211);
+                .port(50211)
+                .domainName("");
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -546,9 +545,9 @@ public class DomainBuilder {
                 .callOperationType(CallOperationType.OP_CALL.getNumber())
                 .callType(ContractActionType.CALL.getNumber())
                 .consensusTimestamp(timestamp())
+                .index((int) number())
                 .gas(100L)
                 .gasUsed(50L)
-                .index((int) number())
                 .input(bytes(256))
                 .payerAccountId(entityId())
                 .recipientAccount(entityId())
@@ -1100,10 +1099,10 @@ public class DomainBuilder {
 
         var builder = NodeStake.builder()
                 .consensusTimestamp(timestamp)
+                .nodeId(number())
                 .epochDay(getEpochDay(timestamp))
                 .maxStake(maxStake)
                 .minStake(maxStake / 2L)
-                .nodeId(number())
                 .rewardRate(number())
                 .stake(stake)
                 .stakeNotRewarded(TINYBARS_IN_ONE_HBAR)
@@ -1278,8 +1277,8 @@ public class DomainBuilder {
                 .balance(number())
                 .balanceTimestamp(timestamp)
                 .createdTimestamp(timestamp)
-                .freezeStatus(null)
-                .kycStatus(null)
+                .freezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE)
+                .kycStatus(TokenKycStatusEnum.NOT_APPLICABLE)
                 .timestampRange(Range.atLeast(timestamp))
                 .tokenId(id());
         return new DomainWrapperImpl<>(builder, builder::build);
@@ -1295,8 +1294,8 @@ public class DomainBuilder {
                 .balance(number())
                 .balanceTimestamp(timestamp)
                 .createdTimestamp(timestamp)
-                .freezeStatus(null)
-                .kycStatus(null)
+                .freezeStatus(TokenFreezeStatusEnum.NOT_APPLICABLE)
+                .kycStatus(TokenKycStatusEnum.NOT_APPLICABLE)
                 .timestampRange(Range.closedOpen(timestamp, timestamp + 10))
                 .tokenId(id());
         return new DomainWrapperImpl<>(builder, builder::build);
@@ -1465,11 +1464,6 @@ public class DomainBuilder {
                 .highVolumePricingMultiplier(1L)
                 .index(transactionIndex())
                 .initialBalance(10000000L)
-                .itemizedTransfer(List.of(ItemizedTransfer.builder()
-                        .amount(100L)
-                        .entityId(entityId())
-                        .isApproval(false)
-                        .build()))
                 .maxCustomFees(new byte[][] {bytes(6), bytes(8)})
                 .maxFee(100000000L)
                 .memo(bytes(10))
@@ -1787,11 +1781,12 @@ public class DomainBuilder {
         public T persist() {
             T entity = get();
 
-            if (entityManager == null) {
-                throw new IllegalStateException("Unable to persist entity without an EntityManager");
+            if (jdbcAggregateTemplate == null || transactionOperations == null) {
+                throw new IllegalStateException(
+                        "Unable to persist entity without JdbcAggregateTemplate and TransactionOperations");
             }
 
-            transactionOperations.executeWithoutResult(t -> entityManager.persist(entity));
+            transactionOperations.executeWithoutResult(t -> jdbcAggregateTemplate.insert(entity));
             log.trace("Inserted {}", entity);
             return entity;
         }

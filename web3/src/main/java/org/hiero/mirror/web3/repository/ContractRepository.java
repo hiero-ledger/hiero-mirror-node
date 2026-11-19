@@ -9,8 +9,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.web3.state.ContractRuntimeBytecode;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
@@ -20,10 +21,10 @@ public interface ContractRepository extends CrudRepository<Contract, Long> {
             cacheNames = CACHE_NAME_CONTRACT,
             cacheManager = CACHE_MANAGER_CONTRACT,
             unless = "@spelHelper.isNullOrEmpty(#result)")
-    @Query(value = "select runtime_bytecode from contract where id = :contractId", nativeQuery = true)
-    Optional<byte[]> findRuntimeBytecode(final Long contractId);
+    @Query("select runtime_bytecode from contract where id = :contractId")
+    Optional<ContractRuntimeBytecode> findRuntimeBytecode(final Long contractId);
 
-    @Query(value = """
+    @Query("""
                     with active_contracts as (
                         (
                             select id
@@ -47,7 +48,7 @@ public interface ContractRepository extends CrudRepository<Contract, Long> {
                     from contract c
                     inner join active_contracts ac on ac.id = c.id
                     where c.runtime_bytecode is not null
-                    """, nativeQuery = true)
+                    """)
     List<Contract> findByIdsAndConsensusTimestamp(
             @Param("contractIds") final Collection<Long> contractIds,
             @Param("consensusTimestamp") long consensusTimestamp);

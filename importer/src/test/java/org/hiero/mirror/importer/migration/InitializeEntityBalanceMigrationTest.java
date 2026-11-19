@@ -276,7 +276,8 @@ final class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest
 
         txnTemplate.executeWithoutResult(s -> migration.onEnd(accountBalanceFile1));
 
-        // then
+        // then the first onEnd ran the migration and initialized the balances
+        setExpectedBalance();
         assertThat(entityRepository.findAll())
                 .containsExactlyInAnyOrder(account, account2, accountDeleted, contract, topic);
 
@@ -318,7 +319,9 @@ final class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest
         // when
         migration.onEnd(accountBalanceFile1);
 
-        // then
+        // then the migration ran and initialized the balances. With JPA findAll() returned the same managed
+        // instances as the expected objects, so the balance changes didn't need to be applied to the expectation.
+        setExpectedBalance();
         assertThat(entityRepository.findAll())
                 .containsExactlyInAnyOrder(account, account2, accountDeleted, contract, topic);
     }

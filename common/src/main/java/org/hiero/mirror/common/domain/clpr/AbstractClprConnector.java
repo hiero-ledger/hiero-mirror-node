@@ -4,11 +4,6 @@ package org.hiero.mirror.common.domain.clpr;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.Convert;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.MappedSuperclass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AllArgsConstructor;
@@ -16,35 +11,32 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Embedded;
 
 /**
  * On-ledger state for a single CLPR Connector, keyed by {@code (channelId, commitment)} since {@code connectorId}
  * isn't known until {@code ClprCompleteConnector} reveals it.
  */
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
-@IdClass(AbstractClprConnector.Id.class)
 @Upsertable(history = true, skipPartialUpdate = true)
 public abstract class AbstractClprConnector implements History {
 
     @ToString.Exclude
     private byte[] adminKey;
 
-    @jakarta.persistence.Id
+    @Transient
     private byte[] channelId;
 
-    @jakarta.persistence.Id
+    @Transient
     private byte[] commitment;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId connectorContractId;
 
     // Null until ClprCompleteConnector reveals it.
@@ -76,18 +68,27 @@ public abstract class AbstractClprConnector implements History {
 
     private Long slashCount;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId stakeRecipientId;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ClprConnectorStatus status;
 
     private Range<Long> timestampRange;
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @JsonIgnore
     public Id getId() {
         return new Id(channelId, commitment);
+    }
+
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.channelId = id.getChannelId();
+        this.commitment = id.getCommitment();
     }
 
     @AllArgsConstructor

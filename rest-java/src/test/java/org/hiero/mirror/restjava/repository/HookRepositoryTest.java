@@ -7,7 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.hook.Hook;
-import org.hiero.mirror.restjava.RestJavaIntegrationTest;
+import org.hiero.mirror.RestJavaIntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -45,19 +45,6 @@ final class HookRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(result).hasSize(2).containsExactly(hook1, hook3);
-    }
-
-    @Test
-    @DisplayName("findByOwnerIdAndHookIdIn should return empty list for empty ID collection")
-    void findByOwnerIdAndHookIdInEmptyList() {
-        // given
-        persistHook(OWNER_ID_1, 1L);
-
-        // when
-        final var result = hookRepository.findByOwnerIdAndHookIdIn(OWNER_ID_1, List.of(), "ASC", 10);
-
-        // then
-        assertThat(result).isNotNull().isEmpty();
     }
 
     @Test

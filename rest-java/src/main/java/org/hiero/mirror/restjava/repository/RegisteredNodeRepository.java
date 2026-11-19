@@ -5,7 +5,7 @@ package org.hiero.mirror.restjava.repository;
 import java.util.List;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.jspecify.annotations.Nullable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
 public interface RegisteredNodeRepository extends PagingAndSortingRepository<RegisteredNode, Long> {
@@ -30,7 +30,7 @@ public interface RegisteredNodeRepository extends PagingAndSortingRepository<Reg
               case when :order = 'ASC' then registered_node_id end asc,
               case when :order = 'DESC' then registered_node_id end desc
             limit :limit
-            """, nativeQuery = true)
+            """)
     List<RegisteredNode> findRegisteredNodes(
             long lowerBound, long upperBound, @Nullable Short type, String order, int limit);
 }

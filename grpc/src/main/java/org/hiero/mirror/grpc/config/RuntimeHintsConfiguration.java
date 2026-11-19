@@ -2,10 +2,12 @@
 
 package org.hiero.mirror.grpc.config;
 
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.DEFAULT_CATEGORIES;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
 
 import jakarta.annotation.Nullable;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
+import org.hiero.mirror.grpc.service.NetworkServiceImpl;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
@@ -23,6 +25,9 @@ final class RuntimeHintsConfiguration {
 
             // Register @Validated classes where @Valid is used on method parameter
             registerReflectionTypes(hints, TopicMessageFilter.class.getName());
+
+            // Register types deserialized by Jackson that are not discovered by Spring AOT
+            registerReflectionTypes(hints, DEFAULT_CATEGORIES, NetworkServiceImpl.ServiceEndpointRow.class);
         }
     }
 }

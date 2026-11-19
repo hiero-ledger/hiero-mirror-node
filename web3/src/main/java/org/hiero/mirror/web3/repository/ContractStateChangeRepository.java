@@ -4,19 +4,19 @@ package org.hiero.mirror.web3.repository;
 
 import java.util.List;
 import org.hiero.mirror.common.domain.contract.ContractStateChange;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface ContractStateChangeRepository extends CrudRepository<ContractStateChange, ContractStateChange.Id> {
 
-    @Query(value = """
+    @Query("""
             select *
             from contract_state_change
             where consensus_timestamp = :consensusTimestamp
               and (contract_id > :contractId or (contract_id = :contractId and slot > :slot))
             order by contract_id, slot
             limit :limit
-            """, nativeQuery = true)
+            """)
     List<ContractStateChange> findByConsensusTimestamp(
             long consensusTimestamp, long contractId, byte[] slot, int limit);
 
@@ -26,7 +26,7 @@ public interface ContractStateChangeRepository extends CrudRepository<ContractSt
      * (contract_id, slot) primary-key order: pass a key strictly before the first row to start, then the last row of
      * the previous page.
      */
-    @Query(value = """
+    @Query("""
             select *
             from contract_state_change
             where consensus_timestamp = :consensusTimestamp
@@ -34,7 +34,7 @@ public interface ContractStateChangeRepository extends CrudRepository<ContractSt
               and (contract_id > :contractId or (contract_id = :contractId and slot > :slot))
             order by contract_id, slot
             limit :limit
-            """, nativeQuery = true)
+            """)
     List<ContractStateChange> findModifiedByConsensusTimestamp(
             long consensusTimestamp, long contractId, byte[] slot, int limit);
 }

@@ -4,19 +4,17 @@ package org.hiero.mirror.importer.repository;
 
 import java.util.Optional;
 import org.hiero.mirror.common.domain.job.ReconciliationJob;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Modifying;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface ReconciliationJobRepository extends CrudRepository<ReconciliationJob, Long>, RetentionRepository {
 
-    @Query(value = "select * from reconciliation_job order by timestamp_start desc limit 1", nativeQuery = true)
+    @Query("select * from reconciliation_job order by timestamp_start desc limit 1")
     Optional<ReconciliationJob> findLatest();
 
     @Modifying
     @Override
-    @Query(
-            value = "delete from reconciliation_job where consensus_timestamp <= :consensusTimestamp",
-            nativeQuery = true)
+    @Query("delete from reconciliation_job where consensus_timestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

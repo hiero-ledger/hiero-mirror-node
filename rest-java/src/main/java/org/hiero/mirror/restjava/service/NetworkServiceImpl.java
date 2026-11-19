@@ -6,7 +6,7 @@ import static java.lang.Long.MAX_VALUE;
 
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
-import jakarta.persistence.EntityNotFoundException;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Collection;

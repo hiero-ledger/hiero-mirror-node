@@ -444,13 +444,13 @@ final class PrestateControllerTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(action -> action.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerAccountId)
                         .caller(payerAccountId)
                         .callerType(EntityType.ACCOUNT)
                         .recipientAccount(null)
                         .recipientContract(contractId)
-                        .value(0L)
-                        .index(0))
+                        .value(0L))
                 .persist();
         domainBuilder
                 .contractResult()

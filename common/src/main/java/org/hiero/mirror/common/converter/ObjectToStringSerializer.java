@@ -13,10 +13,14 @@ import java.io.IOException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S6548")
 public class ObjectToStringSerializer extends JsonSerializer<Object> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ObjectToStringSerializer.class);
 
     public static final ObjectToStringSerializer INSTANCE = new ObjectToStringSerializer();
     public static final ObjectMapper OBJECT_MAPPER;

@@ -81,6 +81,23 @@ class NodeStakeRepositoryTest extends GrpcIntegrationTest {
                         nodeStakeOneOne.getStake()));
     }
 
+    @Test
+    void findAllStakeByConsensusTimestampCachesByArgument() {
+        final long consensusTimestamp = 10L;
+        nodeStake(consensusTimestamp, 1L, 100L);
+
+        final var first = nodeStakeRepository.findAllStakeByConsensusTimestamp(consensusTimestamp);
+        assertThat(first).containsAllEntriesOf(Map.of(1L, 100L));
+
+        // Remove the backing data
+        nodeStakeRepository.deleteAll();
+        assertThat(nodeStakeRepository.findAllByConsensusTimestamp(consensusTimestamp))
+                .isEmpty();
+
+        final var second = nodeStakeRepository.findAllStakeByConsensusTimestamp(consensusTimestamp);
+        assertThat(second).isEqualTo(first);
+    }
+
     private NodeStake nodeStake(long consensusTimestamp, long nodeId, long stake) {
         return domainBuilder
                 .nodeStake()

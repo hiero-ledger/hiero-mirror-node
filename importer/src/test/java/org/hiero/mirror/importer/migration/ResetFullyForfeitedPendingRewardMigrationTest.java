@@ -104,23 +104,33 @@ final class ResetFullyForfeitedPendingRewardMigrationTest extends ImporterIntegr
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(nodeId1).epochDay(endStakePeriod))
+                .customize(ns -> ns.consensusTimestamp(domainBuilder.timestamp())
+                        .nodeId(nodeId1)
+                        .epochDay(endStakePeriod))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(nodeId1).epochDay(endStakePeriod - 1))
+                .customize(ns -> ns.consensusTimestamp(domainBuilder.timestamp())
+                        .nodeId(nodeId1)
+                        .epochDay(endStakePeriod - 1))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(nodeId1).epochDay(endStakePeriod - 1))
+                .customize(ns -> ns.consensusTimestamp(domainBuilder.timestamp())
+                        .nodeId(nodeId1)
+                        .epochDay(endStakePeriod - 1))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(nodeId2).epochDay(endStakePeriod - 365))
+                .customize(ns -> ns.consensusTimestamp(domainBuilder.timestamp())
+                        .nodeId(nodeId2)
+                        .epochDay(endStakePeriod - 365))
                 .persist();
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.nodeId(nodeId3).epochDay(endStakePeriod - 364))
+                .customize(ns -> ns.consensusTimestamp(domainBuilder.timestamp())
+                        .nodeId(nodeId3)
+                        .epochDay(endStakePeriod - 364))
                 .persist();
 
         // when

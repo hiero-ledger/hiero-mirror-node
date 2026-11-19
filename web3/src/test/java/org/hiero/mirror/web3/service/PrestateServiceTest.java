@@ -266,22 +266,22 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(changedAccount)
-                        .value(50L)
-                        .index(0))
+                        .value(50L))
                 .persist();
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(1)
                         .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(unchangedAccount)
-                        .value(0L)
-                        .index(1))
+                        .value(0L))
                 .persist();
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
@@ -310,23 +310,23 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(null)
                         .recipientContract(tokenId)
-                        .value(25L)
-                        .index(0))
+                        .value(25L))
                 .persist();
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(1)
                         .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(changedAccount)
-                        .value(50L)
-                        .index(1))
+                        .value(50L))
                 .persist();
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
@@ -921,12 +921,12 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerId)
                         .caller(accountId)
                         .callerType(EntityType.ACCOUNT)
                         .recipientContract(contractId)
-                        .value(0L)
-                        .index(0))
+                        .value(0L))
                 .persist();
 
         final var response = prestateService.processPrestateCall(createRequest(hash, false, false, false));
@@ -994,12 +994,12 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(hollowAccount)
-                        .value(25L)
-                        .index(0))
+                        .value(25L))
                 .persist();
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
@@ -1040,12 +1040,12 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(failedAccount)
-                        .value(25L)
-                        .index(0))
+                        .value(25L))
                 .persist();
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
@@ -1087,12 +1087,12 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerId)
                         .caller(payerId)
                         .callerType(EntityType.ACCOUNT)
                         .recipientContract(contractId)
-                        .value(0L)
-                        .index(0))
+                        .value(0L))
                 .persist();
 
         final var response = prestateService.processPrestateCall(createRequest(hash, true, false, false));
@@ -1193,24 +1193,24 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerId)
                         .caller(caller1)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(recipientAccount1)
                         .recipientContract(recipientContract1)
-                        .value(0L)
-                        .index(0))
+                        .value(0L))
                 .persist();
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(1)
                         .payerAccountId(payerId)
                         .caller(caller2)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(recipientAccount2)
                         .recipientContract(recipientContract2)
-                        .value(0L)
-                        .index(1))
+                        .value(0L))
                 .persist();
 
         final var response = prestateService.processPrestateCall(createRequest(hash, false, false, false));
@@ -1283,12 +1283,12 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerId)
                         .caller(contractId)
                         .callerType(EntityType.CONTRACT)
                         .recipientAccount(accountId)
-                        .value(transferValue)
-                        .index(0))
+                        .value(transferValue))
                 .persist();
 
         return new Fixture(hash, createdTimestamp, consensusTimestamp, payerId, contractId, accountId);
@@ -1312,6 +1312,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index((int) domainBuilder.number())
                         .payerAccountId(payerId)
                         .caller(payerId)
                         .callerType(EntityType.ACCOUNT)
@@ -1341,13 +1342,13 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerId)
                         .caller(payerId)
                         .callerType(EntityType.ACCOUNT)
                         .recipientAccount(null)
                         .recipientContract(contractId)
-                        .value(transferValue)
-                        .index(0))
+                        .value(transferValue))
                 .persist();
 
         return new Fixture(hash, createdTimestamp, consensusTimestamp, payerId, contractId, null);
@@ -1425,6 +1426,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
         domainBuilder
                 .contractAction()
                 .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                        .index(0)
                         .payerAccountId(payerAccountId)
                         .caller(caller)
                         .callerType(callerType)
@@ -1432,8 +1434,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                         .callDepth(callDepth)
                         .recipientAccount(null)
                         .recipientContract(recipientContract)
-                        .value(value)
-                        .index(0))
+                        .value(value))
                 .persist();
     }
 
@@ -1553,13 +1554,13 @@ final class PrestateServiceTest extends Web3IntegrationTest {
             domainBuilder
                     .contractAction()
                     .customize(a -> a.consensusTimestamp(consensusTimestamp)
+                            .index(index)
                             .payerAccountId(payerId)
                             .caller(accountId)
                             .callerType(EntityType.CONTRACT)
                             .recipientAccount(null)
                             .recipientContract(null)
-                            .value(0L)
-                            .index(index))
+                            .value(0L))
                     .persist();
         }
 

@@ -3,6 +3,7 @@
 package org.hiero.mirror.restjava.config;
 
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_METHODS;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_ONLY;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.NONE;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
@@ -19,6 +20,8 @@ import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.Year;
 import java.util.Objects;
+import org.hibernate.validator.internal.util.logging.Log_$logger;
+import org.hibernate.validator.internal.util.logging.Messages_$bundle;
 import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.restjava.config.RuntimeHintsConfiguration.CustomRuntimeHints;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
@@ -51,6 +54,7 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.jdbc.datasource.ConnectionProxy;
 
 @Configuration(proxyBeanMethods = false)
 @ImportRuntimeHints(CustomRuntimeHints.class)
@@ -68,6 +72,8 @@ final class RuntimeHintsConfiguration {
             registerPackage(hints, loader, ThrottleGroup.class.getPackageName());
             registerPackage(hints, loader, NumberRangeParameter.class.getPackageName());
 
+            registerReflectionTypes(hints, CONSTRUCTORS_ONLY, Log_$logger.class, Messages_$bundle.class);
+
             registerResourcePatterns(
                     hints,
                     "com/hedera/nativelib/hints/**",
@@ -76,6 +82,8 @@ final class RuntimeHintsConfiguration {
                     "genesis/**");
 
             registerJooqClasses(hints, loader);
+
+            hints.proxies().registerJdkProxy(ConnectionProxy.class);
         }
 
         /**

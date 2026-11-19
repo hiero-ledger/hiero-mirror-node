@@ -18,7 +18,7 @@ import org.springframework.util.CollectionUtils;
 
 @Named
 @RequiredArgsConstructor
-final class FeeTopicStore implements ReadableTopicStore {
+public final class FeeTopicStore implements ReadableTopicStore {
 
     private final TopicRepository topicRepository;
     private final CustomFeeRepository customFeeRepository;

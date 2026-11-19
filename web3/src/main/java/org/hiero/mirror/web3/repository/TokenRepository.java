@@ -11,7 +11,7 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface TokenRepository extends CrudRepository<Token, Long> {
@@ -31,7 +31,7 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
             select t.type
             from token t
             where token_id = :tokenId
-            """, nativeQuery = true)
+            """)
     Optional<TokenTypeEnum> findTypeByTokenId(Long tokenId);
 
     /**
@@ -63,7 +63,7 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
                     )
                     order by timestamp_range desc
                     limit 1
-                    """, nativeQuery = true)
+                    """)
     Optional<Token> findByTokenIdAndTimestamp(long tokenId, long blockTimestamp);
 
     /**
@@ -101,6 +101,6 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
                         consensus_timestamp > :blockTimestamp - 2678400000000000
                     )
                     select coalesce((select sum(balance) from snapshot), 0) + coalesce((select sum(amount) from change), 0)
-                    """, nativeQuery = true)
+                    """)
     long findFungibleTotalSupplyByTokenIdAndTimestamp(long tokenId, long blockTimestamp, long treasuryAccountId);
 }

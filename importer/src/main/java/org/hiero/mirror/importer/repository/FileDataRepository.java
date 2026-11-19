@@ -6,7 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.file.FileData;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface FileDataRepository extends CrudRepository<FileData, Long> {
@@ -15,7 +15,7 @@ public interface FileDataRepository extends CrudRepository<FileData, Long> {
             from file_data
             where consensus_timestamp between :start and :end and entity_id = :encodedEntityId and transaction_type = :transactionType
             order by consensus_timestamp
-            """, nativeQuery = true)
+            """)
     List<FileData> findFilesInRange(long start, long end, long encodedEntityId, int transactionType);
 
     @Query(value = """
@@ -24,7 +24,7 @@ public interface FileDataRepository extends CrudRepository<FileData, Long> {
             where consensus_timestamp < :consensusTimestamp and entity_id = :encodedEntityId and transaction_type in (:transactionTypes)
             order by consensus_timestamp desc
             limit 1
-            """, nativeQuery = true)
+            """)
     Optional<FileData> findLatestMatchingFile(
             long consensusTimestamp, long encodedEntityId, List<Integer> transactionTypes);
 
@@ -34,11 +34,11 @@ public interface FileDataRepository extends CrudRepository<FileData, Long> {
             where consensus_timestamp > :startConsensusTimestamp and consensus_timestamp < :endConsensusTimestamp and entity_id in (:entityIds)
             order by consensus_timestamp
             limit :limit
-            """, nativeQuery = true)
+            """)
     List<FileData> findAddressBooksBetween(
             long startConsensusTimestamp, long endConsensusTimestamp, Collection<Long> entityIds, long limit);
 
-    @Query(nativeQuery = true, value = """
+    @Query("""
             select
               max(consensus_timestamp) as consensus_timestamp,
               :fileId as entity_id,

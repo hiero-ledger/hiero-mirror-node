@@ -6,11 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.Transient;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Collections;
@@ -24,14 +19,18 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Entity
-@IdClass(SidecarFile.Id.class)
 @NoArgsConstructor
+@Table
 public class SidecarFile implements Persistable<SidecarFile.Id> {
 
     @JsonIgnore
@@ -43,20 +42,18 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     @ToString.Exclude
     private byte[] bytes;
 
-    @jakarta.persistence.Id
+    @Transient
     private long consensusEnd;
 
     private Integer count;
 
-    @Enumerated
     private DigestAlgorithm hashAlgorithm;
 
     @ToString.Exclude
     private byte[] hash;
 
-    @Column(name = "id")
     @JsonProperty("id")
-    @jakarta.persistence.Id
+    @Transient
     private int index;
 
     private String name;
@@ -73,6 +70,9 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Integer> types = Collections.emptyList();
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @JsonIgnore
     @Override
     public Id getId() {
@@ -85,10 +85,21 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.consensusEnd = id.getConsensusEnd();
+        this.index = id.getIndex();
+    }
+
+    @AllArgsConstructor
     @Data
+    @NoArgsConstructor
     public static class Id implements Serializable {
 
         @Serial
@@ -96,6 +107,7 @@ public class SidecarFile implements Persistable<SidecarFile.Id> {
 
         private long consensusEnd;
 
+        @Column("id")
         private int index;
     }
 }

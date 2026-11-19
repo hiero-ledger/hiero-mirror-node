@@ -2,15 +2,9 @@
 
 package org.hiero.mirror.common.domain.addressbook;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToMany;
-import java.util.ArrayList;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,15 +12,18 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.MappedCollection;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Builder(toBuilder = true)
 @Data
-@Entity
+@Table
 @NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 public class AddressBook {
+
     // consensusTimestamp + 1ns of transaction containing final fileAppend operation
     @Id
     private Long startConsensusTimestamp;
@@ -36,18 +33,19 @@ public class AddressBook {
 
     @EqualsAndHashCode.Exclude
     @Builder.Default
-    @OneToMany(
-            cascade = {CascadeType.ALL},
-            orphanRemoval = true,
-            fetch = FetchType.EAGER)
-    @JoinColumn(name = "consensusTimestamp")
-    private List<AddressBookEntry> entries = new ArrayList<>();
+    @ToString.Exclude
+    @MappedCollection(idColumn = "consensus_timestamp")
+    private Set<AddressBookEntry> entries = new HashSet<>();
 
     @ToString.Exclude
     private byte[] fileData;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId fileId;
 
     private Integer nodeCount;
+
+    @JsonIgnore
+    public Long getId() {
+        return startConsensusTimestamp;
+    }
 }

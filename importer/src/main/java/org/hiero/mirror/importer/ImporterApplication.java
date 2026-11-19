@@ -3,11 +3,16 @@
 package org.hiero.mirror.importer;
 
 import org.hiero.mirror.common.CommonConfiguration;
+import org.hiero.mirror.common.repository.MergingJdbcRepository;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 
 @Import(CommonConfiguration.class)
+@EnableJdbcRepositories(
+        basePackages = "org.hiero.mirror.importer.repository",
+        repositoryBaseClass = MergingJdbcRepository.class)
 @SpringBootApplication
 public class ImporterApplication {
 

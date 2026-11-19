@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
-import org.hiero.mirror.restjava.RestJavaIntegrationTest;
+import org.hiero.mirror.RestJavaIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;

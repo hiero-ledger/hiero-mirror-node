@@ -215,10 +215,10 @@ class NodeStakeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTe
             long stakingPeriod) {
         return NodeStake.builder()
                 .consensusTimestamp(consensusTimestamp)
+                .nodeId(nodeStakeProto.getNodeId())
                 .epochDay(epochDay)
                 .maxStake(nodeStakeProto.getMaxStake())
                 .minStake(nodeStakeProto.getMinStake())
-                .nodeId(nodeStakeProto.getNodeId())
                 .rewardRate(nodeStakeProto.getRewardRate())
                 .stake(nodeStakeProto.getStake())
                 .stakeNotRewarded(nodeStakeProto.getStakeNotRewarded())

@@ -337,8 +337,8 @@ final class FixPendingRewardForfeitTest extends AbstractStakingMigrationTest {
         domainBuilder
                 .nodeStake()
                 .customize(ns -> ns.consensusTimestamp(nodeStakeConsensusTimestamp)
-                        .epochDay(epochDay)
                         .nodeId(NODE_ID)
+                        .epochDay(epochDay)
                         .rewardRate(rewardRate))
                 .persist();
     }

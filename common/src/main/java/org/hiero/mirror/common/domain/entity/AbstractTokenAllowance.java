@@ -4,21 +4,19 @@ package org.hiero.mirror.common.domain.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.Convert;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.MappedSuperclass;
 import java.io.Serial;
 import java.io.Serializable;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
-@IdClass(AbstractTokenAllowance.Id.class)
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
@@ -29,20 +27,22 @@ public abstract class AbstractTokenAllowance implements FungibleAllowance {
 
     private Long amountGranted;
 
-    @jakarta.persistence.Id
+    @Transient
     private long owner;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
-    @jakarta.persistence.Id
+    @Transient
     private long spender;
 
     private Range<Long> timestampRange;
 
-    @jakarta.persistence.Id
+    @Transient
     private long tokenId;
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @JsonIgnore
     public AbstractTokenAllowance.Id getId() {
         Id id = new Id();
@@ -52,7 +52,19 @@ public abstract class AbstractTokenAllowance implements FungibleAllowance {
         return id;
     }
 
+    public void setId(AbstractTokenAllowance.Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.owner = id.getOwner();
+        this.spender = id.getSpender();
+        this.tokenId = id.getTokenId();
+    }
+
+    @AllArgsConstructor
     @Data
+    @NoArgsConstructor
     public static class Id implements Serializable {
 
         @Serial

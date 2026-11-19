@@ -2,23 +2,21 @@
 
 package org.hiero.mirror.common.domain.tss;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Range;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
 import java.util.List;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
@@ -29,9 +27,28 @@ public abstract class AbstractLedger implements History {
 
     // Informational only, not used in TSS signature verification
     @Builder.Default
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<LedgerNodeContribution> nodeContributions = List.of();
+    @Column("node_contributions")
+    @JsonIgnore
+    private LedgerNodeContributionListHolder nodeContributionsColumn = LedgerNodeContributionListHolder.of(List.of());
 
     private Range<Long> timestampRange;
+
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    public List<LedgerNodeContribution> getNodeContributions() {
+        return nodeContributionsColumn == null ? null : nodeContributionsColumn.items();
+    }
+
+    public void setNodeContributions(List<LedgerNodeContribution> nodeContributions) {
+        this.nodeContributionsColumn = LedgerNodeContributionListHolder.of(nodeContributions);
+    }
+
+    public abstract static class AbstractLedgerBuilder<
+            C extends AbstractLedger, B extends AbstractLedgerBuilder<C, B>> {
+
+        public B nodeContributions(List<LedgerNodeContribution> nodeContributions) {
+            this.nodeContributionsColumn$value = LedgerNodeContributionListHolder.of(nodeContributions);
+            this.nodeContributionsColumn$set = true;
+            return self();
+        }
+    }
 }

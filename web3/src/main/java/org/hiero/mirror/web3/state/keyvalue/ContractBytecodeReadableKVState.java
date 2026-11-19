@@ -19,6 +19,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.ContractRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.state.ContractRuntimeBytecode;
 import org.jspecify.annotations.NonNull;
 
 @Named
@@ -49,6 +50,7 @@ final class ContractBytecodeReadableKVState extends AbstractContractReadableKVSt
 
         return contractRepository
                 .findRuntimeBytecode(entityId.getId())
+                .map(ContractRuntimeBytecode::getRuntimeBytecode)
                 .map(Bytes::wrap)
                 .map(Bytecode::new)
                 .orElse(null);

@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.Transaction;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -22,7 +22,7 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
      * ID, including a scheduled {@code ContractCall} or {@code ContractCreate} executed under its {@code ScheduleCreate}'s
      * transaction ID. Duplicate transactions and child records are excluded.
      */
-    @Query(value = """
+    @Query("""
             select *
             from transaction
             where payer_account_id = :payerAccountId
@@ -37,7 +37,7 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
                   )
             order by consensus_timestamp
             limit 1
-            """, nativeQuery = true)
+            """)
     Optional<Transaction> findByTransactionId(
             @Param("payerAccountId") long payerAccountId,
             @Param("validStartNs") long validStartNs,
@@ -63,7 +63,7 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
                 parentConsensusTimestamp, parentConsensusTimestamp - PRECEDING_CRYPTO_CREATE_WINDOW_NS, payerAccountId);
     }
 
-    @Query(value = """
+    @Query("""
             select entity_id
             from transaction
             where payer_account_id = :payerAccountId
@@ -73,7 +73,7 @@ public interface TransactionRepository extends CrudRepository<Transaction, Long>
               and consensus_timestamp <= :parentConsensusTimestamp
               and parent_consensus_timestamp = :parentConsensusTimestamp
               and entity_id is not null
-            """, nativeQuery = true)
+            """)
     List<Long> findSuccessfulCryptoCreateChildEntityIds(
             @Param("parentConsensusTimestamp") long parentConsensusTimestamp,
             @Param("consensusTimestampStart") long consensusTimestampStart,

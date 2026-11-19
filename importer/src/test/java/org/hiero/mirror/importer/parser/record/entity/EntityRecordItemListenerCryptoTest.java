@@ -2633,7 +2633,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                 () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
                 () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
                 () -> assertEquals(HookType.EVM, dbHook.getType()),
-                () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
+                () -> assertEquals(EntityId.of(accountId), dbHook.getOwnerId()),
                 () -> assertEquals(recordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
                 () -> assertFalse(dbHook.getDeleted()));
     }
@@ -2671,7 +2671,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                 () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
                 () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
                 () -> assertEquals(HookType.EVM, dbHook.getType()),
-                () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
+                () -> assertEquals(EntityId.of(accountId), dbHook.getOwnerId()),
                 () -> assertEquals(
                         createAccountWithHooksRecordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
                 () -> assertFalse(dbHook.getDeleted()));

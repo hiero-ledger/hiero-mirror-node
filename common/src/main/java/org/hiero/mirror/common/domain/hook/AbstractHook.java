@@ -4,11 +4,6 @@ package org.hiero.mirror.common.domain.hook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.Convert;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.MappedSuperclass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AllArgsConstructor;
@@ -16,19 +11,17 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
-@IdClass(AbstractHook.Id.class)
 @Upsertable(history = true)
 public abstract class AbstractHook implements History {
 
@@ -45,7 +38,6 @@ public abstract class AbstractHook implements History {
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_COALESCE)
     private byte[] adminKey;
 
-    @Convert(converter = EntityIdConverter.class)
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_COALESCE)
     private EntityId contractId;
 
@@ -55,35 +47,43 @@ public abstract class AbstractHook implements History {
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     private Boolean deleted;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     private HookExtensionPoint extensionPoint;
 
-    @jakarta.persistence.Id
+    @Transient
     private long hookId;
 
-    @jakarta.persistence.Id
-    private long ownerId;
+    @Transient
+    private EntityId ownerId;
 
     private Range<Long> timestampRange;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @UpsertColumn(coalesce = UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE)
     private HookType type;
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @JsonIgnore
     public Id getId() {
         return new Id(hookId, ownerId);
     }
 
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.hookId = id.getHookId();
+        this.ownerId = id.getOwnerId();
+    }
+
     public void setOwnerId(EntityId ownerId) {
-        this.ownerId = ownerId.getId();
+        this.ownerId = ownerId;
     }
 
     public void setOwnerId(long ownerId) {
-        this.ownerId = ownerId;
+        this.ownerId = EntityId.of(ownerId);
     }
 
     @AllArgsConstructor
@@ -94,6 +94,22 @@ public abstract class AbstractHook implements History {
         private static final long serialVersionUID = -8745629837592847563L;
 
         private long hookId;
-        private long ownerId;
+        private EntityId ownerId;
+
+        public Id(long hookId, long ownerId) {
+            this(hookId, EntityId.of(ownerId));
+        }
+    }
+
+    public abstract static class AbstractHookBuilder<C extends AbstractHook, B extends AbstractHookBuilder<C, B>> {
+
+        public B ownerId(EntityId ownerId) {
+            this.ownerId = ownerId;
+            return self();
+        }
+
+        public B ownerId(long ownerId) {
+            return ownerId(EntityId.of(ownerId));
+        }
     }
 }
