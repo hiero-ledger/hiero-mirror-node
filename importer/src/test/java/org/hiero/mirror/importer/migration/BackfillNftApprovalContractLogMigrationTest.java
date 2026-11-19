@@ -555,6 +555,42 @@ final class BackfillNftApprovalContractLogMigrationTest
     }
 
     @Test
+    void snapshotsOnlyApprovalsThatCanMissLogs() {
+        long start = domainBuilder.timestamp();
+        block(start, 76);
+        transaction(start + 100);
+        var owner = EntityId.of(1001);
+        // Its Approval log was not skipped, so the block is never visited
+        nft(start + 100, 1, owner, 1002, null, domainBuilder.id());
+        long next = start + 5000;
+        block(next, 76);
+        transaction(next + 100);
+        transaction(next + 200);
+        var affected = nft(next + 100, 2, owner, 1002, null, domainBuilder.id());
+        approvalForAll(next + 100, affected.getTokenId(), 0, 0, owner, 1002);
+        // An ApprovalForAll log of another token does not qualify
+        var otherToken = nft(next + 200, 3, owner, 1002, null, domainBuilder.id());
+        approvalForAll(next + 200, otherToken.getTokenId() + 1, 1, 1, owner, 1002);
+        var delegated = nft(next + 200, 4, owner, 1002);
+        assertThat(migration.performSynchronousSteps()).isTrue();
+
+        long initial = migration.getInitial();
+
+        assertThat(jdbcOperations.queryForList(
+                        "select serial_number from nft_approval_snapshot_temp order by serial_number", Long.class))
+                .containsExactly(affected.getSerialNumber(), delegated.getSerialNumber());
+        var last = migration.getTransactionOperations().execute(_ -> migration.migratePartial(initial));
+        assertThat(last).contains(next - 1);
+        last = migration.getTransactionOperations().execute(_ -> migration.migratePartial(next - 1));
+        assertThat(last).isEmpty();
+        assertThat(logs())
+                .filteredOn(l -> Arrays.equals(l.getTopic0(), APPROVAL))
+                .singleElement()
+                .extracting(ContractLog::getTopic3)
+                .isEqualTo(new byte[] {2});
+    }
+
+    @Test
     void stopsAtOldestApproval() {
         long start = domainBuilder.timestamp();
         // Blocks older than every serial approval are not visited

@@ -187,17 +187,31 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
             ) where consensus_timestamp between :start and :end and transaction_index is not null
             """;
 
+    // Snapshot only the serial approvals restore() can recover: those with an ApprovalForAll log of the same token in
+    // their transaction, and delegated ones, which produce no log at all since HAPI 0.77.0. Nearly every other block
+    // holding a serial approval needs no fix, so this avoids visiting each of them. restore() checks both conditions
+    // again. contract_log is colocated with nft and nft_history by token in v2, so the lookup runs on the shards.
     private static final String SNAPSHOT_APPROVALS = """
             create table if not exists nft_approval_snapshot_temp as
             select account_id, delegating_spender, spender, token_id, serial_number,
               lower(timestamp_range) as consensus_timestamp
-            from nft
-            where spender is not null and account_id is not null and lower(timestamp_range) <= ?
+            from nft n
+            where spender is not null and account_id is not null and lower(timestamp_range) <= :upperBound
+              and (delegating_spender is not null or exists (
+                select 1 from contract_log l
+                where l.contract_id = n.token_id and l.consensus_timestamp = lower(n.timestamp_range)
+                  and l.topic0 = :approvalForAll
+              ))
             union
             select account_id, delegating_spender, spender, token_id, serial_number,
               lower(timestamp_range) as consensus_timestamp
-            from nft_history
-            where spender is not null and account_id is not null and lower(timestamp_range) <= ?
+            from nft_history h
+            where spender is not null and account_id is not null and lower(timestamp_range) <= :upperBound
+              and (delegating_spender is not null or exists (
+                select 1 from contract_log l
+                where l.contract_id = h.token_id and l.consensus_timestamp = lower(h.timestamp_range)
+                  and l.topic0 = :approvalForAll
+              ))
             """;
 
     private final EntityProperties entityProperties;
@@ -229,10 +243,12 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
         // Snapshot both sources once instead of scanning NFT revisions for every batch. A single statement sees a
         // consistent view even as concurrent updates move revisions into nft_history; UNION deduplicates revisions.
         // Keep this indexed snapshot across restarts, alongside the progress checkpoint.
-        final var jdbcOperations = getJdbcOperations();
-        jdbcOperations.update(SNAPSHOT_APPROVALS, initialUpperBound, initialUpperBound);
-        jdbcOperations.execute("create index if not exists nft_approval_snapshot_temp_timestamp on " + APPROVALS_TABLE
-                + " (consensus_timestamp)");
+        final var params =
+                new MapSqlParameterSource("upperBound", initialUpperBound).addValue("approvalForAll", APPROVAL_FOR_ALL);
+        getNamedParameterJdbcOperations().update(SNAPSHOT_APPROVALS, params);
+        getJdbcOperations()
+                .execute("create index if not exists nft_approval_snapshot_temp_timestamp on " + APPROVALS_TABLE
+                        + " (consensus_timestamp)");
         return initialUpperBound;
     }
 
