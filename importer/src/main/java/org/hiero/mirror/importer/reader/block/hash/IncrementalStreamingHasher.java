@@ -2,14 +2,13 @@
 
 package org.hiero.mirror.importer.reader.block.hash;
 
+import static org.hiero.mirror.common.util.DomainUtils.createSha256Digest;
 import static org.hiero.mirror.importer.reader.block.hash.HashUtils.hashLeaf;
-import static org.hiero.mirror.importer.reader.block.hash.ShaMessageDigestFactory.SHA_256_SIZE;
-import static org.hiero.mirror.importer.reader.block.hash.ShaMessageDigestFactory.SHA_384_SIZE;
-import static org.hiero.mirror.importer.reader.block.hash.ShaMessageDigestFactory.createMessageDigest;
 
 import java.security.MessageDigest;
 import java.util.LinkedList;
 import java.util.List;
+import org.bouncycastle.util.encoders.Hex;
 
 /**
  * A memory-efficient Merkle tree hasher that computes root hashes in a streaming fashion.
@@ -23,31 +22,20 @@ import java.util.List;
  */
 final class IncrementalStreamingHasher {
 
-    static final byte[] EMPTY_TREE_SHA_256_HASH =
-            createMessageDigest(SHA_256_SIZE).digest(new byte[] {0x0});
-    static final byte[] EMPTY_TREE_SHA_384_HASH =
-            createMessageDigest(SHA_384_SIZE).digest(new byte[] {0x0});
+    /** An empty tree's root is the leaf hash of no data */
+    private static final byte[] EMPTY_TREE_HASH =
+            Hex.decode("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d");
 
     /** The hashing algorithm used for computing the hashes. */
-    private final MessageDigest digest;
+    private final MessageDigest digest = createSha256Digest();
 
-    private final int digestSize;
     /** A list to store intermediate hashes as we build the tree. */
     private final List<byte[]> hashList = new LinkedList<>();
     /** The count of leaves in the tree. */
     private long leafCount;
 
-    public IncrementalStreamingHasher(final int digestSize) {
-        this.digest = ShaMessageDigestFactory.createMessageDigest(digestSize);
-        this.digestSize = digestSize;
-    }
-
-    public static byte[] getEmptyTreeHash(final int digestSize) {
-        return switch (digestSize) {
-            case SHA_256_SIZE -> EMPTY_TREE_SHA_256_HASH;
-            case SHA_384_SIZE -> EMPTY_TREE_SHA_384_HASH;
-            default -> throw new IllegalArgumentException("Unsupported digest size " + digestSize);
-        };
+    public static byte[] getEmptyTreeHash() {
+        return EMPTY_TREE_HASH;
     }
 
     /**
@@ -80,7 +68,7 @@ final class IncrementalStreamingHasher {
     public byte[] computeRootHash() {
         if (hashList.isEmpty()) {
             // This value is precomputed as the hash of an empty tree; therefore it should _not_ be hashed as a leaf
-            return getEmptyTreeHash(digestSize);
+            return getEmptyTreeHash();
         }
 
         if (hashList.size() == 1) {

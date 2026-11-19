@@ -1,8 +1,8 @@
 [
   {
     "block": 0,
-    "blockHash": "uSoOcoQxNudtZLRHmr5xRGFJ6ulFlCpVkJGy66zOy79Eblzud7HXmWraO10BGNBe",
-    "expectedRootHash": "6gXxZsMRh+2XEFovdXrdnKPW1uX0p8JtlreK3MvMLJX1+WmnzBaW/WtfSazGuzWg",
+    "blockHash": "6y4cu/luDVFDayXIm0uMPq7hfJDpafTWQEr4laznUKA=",
+    "expectedRootHash": "q/jbRS2WV6uo1EWFN5QQ2prltDE0tF1a7F8+5tMxmHo=",
     "merklePaths": [
       {
         "nextPathIndex": 2,
@@ -11,84 +11,84 @@
       {
         "siblings": [
           {
-            "hash": "22Cc+zCK8yffvlToVTOO0ob7kxVwbgrI76ynandyPxy0JXM7MckEa7oMGiGSfn+9"
+            "hash": "k+tS0cpjpATmTe0kdedY1t+KggKAgMq2LOyQ21DLabY="
           },
           {
-            "hash": "TtLoClaJllMWDEK+IUUVBU84Ln4gFyE4YAsdDmZzwsMwiPxgiFNqpa1R7XxkolT9"
+            "hash": "+vOIjzT7YLx9fvWdz5dOfZ2+nglLZQWaW3tHdJFd6f0="
           },
           {
-            "hash": "oKwy15WJ3erRqyA8hGUOlH4nX0y3ZD3YmWkS9f88YkyQq+JZG3lS9rRGXLH3AZnD"
+            "hash": "1X0MN54kQZb6LmZifSyxW8WqPOtTWaARW40+3hm6T3s="
           },
           {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
-          },
-          {
-            "isLeft": true,
-            "hash": "wsQ3BgDUVIXphy0ylqTaBB0LdPqRi64h2Rb/ljf0X8asLbCruRA9JYAL3PvJGMbO"
-          },
-          {
-            "hash": "w5yEUQDjtDCNxcSBbZZWpkUzwG60E5gjlzhEV3Xakl2xvrVYP4lNdQGFbemBNWfH"
-          },
-          {
-            "hash": "/rrgBqQoZEeoDc1UMNQ5Fx2Qcb7UFho6f1OAt1AW1SCORIsAjJkKBSlgBuie/H83"
-          },
-          {
-            "hash": "004DuVFfMVbFQCIYAwaGK7rx9cwBPjKUSQKqffVObUD+k/iGABUCmy9Zylv327HL"
-          },
-          {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
           },
           {
             "isLeft": true,
-            "hash": "iKFyMv9MvyiIJn6wsU9hpYEIXaQQ2BMePaO0szKAsMgMNsoyQ3JtI/h/zTV1lBuG"
+            "hash": "R9puxl/Weuv1DjCHq+8aCRL3Pds9RhVzUs4BGvtVNgI="
           },
           {
-            "hash": "CvzQfYS60EGmJNk3Fp4O+FXA//0Uv89XvkXnWdO3aPtHBz5vZDVyb7JJ0ggDhzfD"
+            "hash": "fBEtryeZ7e7oI9jNNhObtBoO0bgbnWqpsFjSykLjFL8="
           },
           {
-            "hash": "DVAH1wXI3PrCj2ea5bMp4kzw3gC+vXC4OnGYWpv/RvcSfkQyNwJeVL8uzGH1hlTm"
+            "hash": "PGSmcwG+FTSo7HfFO+1VwJU6hHWxsABgdiJWJ/GczM0="
           },
           {
-            "hash": "rRQ1foC3TSQy/8XzwuazDAgHEPWiJ6cVSHHJuJ8SrGGJtyOHSLoPvWndkCOMggih"
+            "hash": "LDxq//NQJH/DIkX9SNZGp30JW3gITnHGcv256Kpxu6s="
           },
           {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
-          },
-          {
-            "isLeft": true,
-            "hash": "Yy1Mbhlhl8WpOySbX+lNHCdlQ5OW0NUqodtKxOfBaLJO/rkL/SP0YcoNKZaI3Cym"
-          },
-          {
-            "hash": "cn0Ddk8hX88jkCBuJ7THFudcsor1mvg0YtXMz/Mu/GVzeYtE0w/k7B+cKpyStplD"
-          },
-          {
-            "hash": "RNTgGz49T2CudBOxhuvW5jgmc32GbmvUCnB5IaeEHzUuKPuulSPTkOzB5t9zK6Fq"
-          },
-          {
-            "hash": "0ucoGyOgFpzUzk6Y81qhhg3M2Cq2jq76djXY4JLD66a86/6rIcaeFWQ8hXATbqu8"
-          },
-          {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
           },
           {
             "isLeft": true,
-            "hash": "znJinguZ3lXCj+Unho/twmWbt/yXBpuMR0B0kLek1zETadNtumi6ZDieG9OovVIY"
+            "hash": "GauQ3qA5w/bn44C21R9VwvLzTfmxpw2wVUKr/wZHRG0="
           },
           {
-            "hash": "BdoXf4WCEndsm3NIJ7C4TDDweNRRJqqSgBqKiN3lzbdbAcYdMhQTd2FegpGoUlwO"
+            "hash": "DIP1bMtbCongIpU3tbBlttG+x5Z9Hr7EmhOmqs443Ok="
           },
           {
-            "hash": "lbGRmXLsb2EqHMNynKogINix1X+C9CCCFyCWmUPL1EDLd1K710ljf4Am8YjJLsfV"
+            "hash": "Nh3jT94CSiZqpCDHRPRK1QD1w3mOvaTZOXGFvcdVaIw="
           },
           {
-            "hash": "6YOxpdswmQwQoVLCZj8cHLWapR/HA+CFwZ/YbPwzK3JhKfCtReOjAqJCuAHmmAUX"
+            "hash": "Rk43GIyzI8ETvgEsdTK4RgDyoEMHG2CM8JQM22LLsDM="
           },
           {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
+          },
+          {
+            "isLeft": true,
+            "hash": "xtckO1ZeP3JLEolA8p5fCm8cn0m2JIAROpdVXBt4vTw="
+          },
+          {
+            "hash": "BNiolUnBa5cQsscPxLQP4ZB/6Gd1U17zxaDSUk/2P1Q="
+          },
+          {
+            "hash": "OLZ0FHoS48riWX8Xoas2/DCHNUfEoAu3k36CJHkM3L0="
+          },
+          {
+            "hash": "kBZGUjCx3Yfv7z6I+YmvFpNtCVWhuwdE0r5ahaJ+yv8="
+          },
+          {
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
+          },
+          {
+            "isLeft": true,
+            "hash": "IEUkO68LSmkGhhg6toZDXKWoqmgLQUF8OqdS7upJdDU="
+          },
+          {
+            "hash": "GF3dtM3V1oOhQrgYhI1dFUMlMMEvUYp8qzW/y5oUPbY="
+          },
+          {
+            "hash": "TU10nsL1cK8n6ml3cxMphWeYpUrmYpBoylQOHGQCZ34="
+          },
+          {
+            "hash": "fYst2pEDMp2owTs4r/koSlDgZKt31PJDT5Jx1Y8wPiE="
+          },
+          {
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
           }
         ],
         "nextPathIndex": 2,
-        "hash": "uSoOcoQxNudtZLRHmr5xRGFJ6ulFlCpVkJGy66zOy79Eblzud7HXmWraO10BGNBe"
+        "hash": "6y4cu/luDVFDayXIm0uMPq7hfJDpafTWQEr4laznUKA="
       },
       {
         "nextPathIndex": 4294967295
@@ -97,8 +97,8 @@
   },
   {
     "block": 1,
-    "blockHash": "bf8uIiwZm7Q7HuyWNUyu0Vm7BKaU3EtfQMpn3cWMr3DndK3EIVcXVbI9vdRe4unV",
-    "expectedRootHash": "6gXxZsMRh+2XEFovdXrdnKPW1uX0p8JtlreK3MvMLJX1+WmnzBaW/WtfSazGuzWg",
+    "blockHash": "rPtnIpWTsGI0xAZMmJtbh7RIQAr4KGj4D0VpYxmWYhE=",
+    "expectedRootHash": "uUui4X2b3exblQXdGUWoFVhyvXG2BG3grbr46tA2FH8=",
     "merklePaths": [
       {
         "nextPathIndex": 2,
@@ -107,68 +107,68 @@
       {
         "siblings": [
           {
-            "hash": "w5yEUQDjtDCNxcSBbZZWpkUzwG60E5gjlzhEV3Xakl2xvrVYP4lNdQGFbemBNWfH"
+            "hash": "fBEtryeZ7e7oI9jNNhObtBoO0bgbnWqpsFjSykLjFL8="
           },
           {
-            "hash": "/rrgBqQoZEeoDc1UMNQ5Fx2Qcb7UFho6f1OAt1AW1SCORIsAjJkKBSlgBuie/H83"
+            "hash": "PGSmcwG+FTSo7HfFO+1VwJU6hHWxsABgdiJWJ/GczM0="
           },
           {
-            "hash": "004DuVFfMVbFQCIYAwaGK7rx9cwBPjKUSQKqffVObUD+k/iGABUCmy9Zylv327HL"
+            "hash": "LDxq//NQJH/DIkX9SNZGp30JW3gITnHGcv256Kpxu6s="
           },
           {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
-          },
-          {
-            "isLeft": true,
-            "hash": "iKFyMv9MvyiIJn6wsU9hpYEIXaQQ2BMePaO0szKAsMgMNsoyQ3JtI/h/zTV1lBuG"
-          },
-          {
-            "hash": "CvzQfYS60EGmJNk3Fp4O+FXA//0Uv89XvkXnWdO3aPtHBz5vZDVyb7JJ0ggDhzfD"
-          },
-          {
-            "hash": "DVAH1wXI3PrCj2ea5bMp4kzw3gC+vXC4OnGYWpv/RvcSfkQyNwJeVL8uzGH1hlTm"
-          },
-          {
-            "hash": "rRQ1foC3TSQy/8XzwuazDAgHEPWiJ6cVSHHJuJ8SrGGJtyOHSLoPvWndkCOMggih"
-          },
-          {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
           },
           {
             "isLeft": true,
-            "hash": "Yy1Mbhlhl8WpOySbX+lNHCdlQ5OW0NUqodtKxOfBaLJO/rkL/SP0YcoNKZaI3Cym"
+            "hash": "GauQ3qA5w/bn44C21R9VwvLzTfmxpw2wVUKr/wZHRG0="
           },
           {
-            "hash": "cn0Ddk8hX88jkCBuJ7THFudcsor1mvg0YtXMz/Mu/GVzeYtE0w/k7B+cKpyStplD"
+            "hash": "DIP1bMtbCongIpU3tbBlttG+x5Z9Hr7EmhOmqs443Ok="
           },
           {
-            "hash": "RNTgGz49T2CudBOxhuvW5jgmc32GbmvUCnB5IaeEHzUuKPuulSPTkOzB5t9zK6Fq"
+            "hash": "Nh3jT94CSiZqpCDHRPRK1QD1w3mOvaTZOXGFvcdVaIw="
           },
           {
-            "hash": "0ucoGyOgFpzUzk6Y81qhhg3M2Cq2jq76djXY4JLD66a86/6rIcaeFWQ8hXATbqu8"
+            "hash": "Rk43GIyzI8ETvgEsdTK4RgDyoEMHG2CM8JQM22LLsDM="
           },
           {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
           },
           {
             "isLeft": true,
-            "hash": "znJinguZ3lXCj+Unho/twmWbt/yXBpuMR0B0kLek1zETadNtumi6ZDieG9OovVIY"
+            "hash": "xtckO1ZeP3JLEolA8p5fCm8cn0m2JIAROpdVXBt4vTw="
           },
           {
-            "hash": "BdoXf4WCEndsm3NIJ7C4TDDweNRRJqqSgBqKiN3lzbdbAcYdMhQTd2FegpGoUlwO"
+            "hash": "BNiolUnBa5cQsscPxLQP4ZB/6Gd1U17zxaDSUk/2P1Q="
           },
           {
-            "hash": "lbGRmXLsb2EqHMNynKogINix1X+C9CCCFyCWmUPL1EDLd1K710ljf4Am8YjJLsfV"
+            "hash": "OLZ0FHoS48riWX8Xoas2/DCHNUfEoAu3k36CJHkM3L0="
           },
           {
-            "hash": "6YOxpdswmQwQoVLCZj8cHLWapR/HA+CFwZ/YbPwzK3JhKfCtReOjAqJCuAHmmAUX"
+            "hash": "kBZGUjCx3Yfv7z6I+YmvFpNtCVWhuwdE0r5ahaJ+yv8="
           },
           {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
+          },
+          {
+            "isLeft": true,
+            "hash": "IEUkO68LSmkGhhg6toZDXKWoqmgLQUF8OqdS7upJdDU="
+          },
+          {
+            "hash": "GF3dtM3V1oOhQrgYhI1dFUMlMMEvUYp8qzW/y5oUPbY="
+          },
+          {
+            "hash": "TU10nsL1cK8n6ml3cxMphWeYpUrmYpBoylQOHGQCZ34="
+          },
+          {
+            "hash": "fYst2pEDMp2owTs4r/koSlDgZKt31PJDT5Jx1Y8wPiE="
+          },
+          {
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
           }
         ],
         "nextPathIndex": 2,
-        "hash": "bf8uIiwZm7Q7HuyWNUyu0Vm7BKaU3EtfQMpn3cWMr3DndK3EIVcXVbI9vdRe4unV"
+        "hash": "rPtnIpWTsGI0xAZMmJtbh7RIQAr4KGj4D0VpYxmWYhE="
       },
       {
         "nextPathIndex": 4294967295
@@ -177,8 +177,8 @@
   },
   {
     "block": 2,
-    "blockHash": "4ZovgLbr2KOVk3zTgjVWclMgIDTRR5wVMA16s2SVlcBTYM46z9g4IO7jBngztTPl",
-    "expectedRootHash": "6gXxZsMRh+2XEFovdXrdnKPW1uX0p8JtlreK3MvMLJX1+WmnzBaW/WtfSazGuzWg",
+    "blockHash": "jS5H+ZNdCeI/6Wv0ZLnbwhTYHf3hDjCU/JWKcbafvnE=",
+    "expectedRootHash": "NEQbn3AOBtt4LfT05hv7p6wXVifZsgKsZApPKMZgc80=",
     "merklePaths": [
       {
         "nextPathIndex": 2,
@@ -187,52 +187,52 @@
       {
         "siblings": [
           {
-            "hash": "CvzQfYS60EGmJNk3Fp4O+FXA//0Uv89XvkXnWdO3aPtHBz5vZDVyb7JJ0ggDhzfD"
+            "hash": "DIP1bMtbCongIpU3tbBlttG+x5Z9Hr7EmhOmqs443Ok="
           },
           {
-            "hash": "DVAH1wXI3PrCj2ea5bMp4kzw3gC+vXC4OnGYWpv/RvcSfkQyNwJeVL8uzGH1hlTm"
+            "hash": "Nh3jT94CSiZqpCDHRPRK1QD1w3mOvaTZOXGFvcdVaIw="
           },
           {
-            "hash": "rRQ1foC3TSQy/8XzwuazDAgHEPWiJ6cVSHHJuJ8SrGGJtyOHSLoPvWndkCOMggih"
+            "hash": "Rk43GIyzI8ETvgEsdTK4RgDyoEMHG2CM8JQM22LLsDM="
           },
           {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
-          },
-          {
-            "isLeft": true,
-            "hash": "Yy1Mbhlhl8WpOySbX+lNHCdlQ5OW0NUqodtKxOfBaLJO/rkL/SP0YcoNKZaI3Cym"
-          },
-          {
-            "hash": "cn0Ddk8hX88jkCBuJ7THFudcsor1mvg0YtXMz/Mu/GVzeYtE0w/k7B+cKpyStplD"
-          },
-          {
-            "hash": "RNTgGz49T2CudBOxhuvW5jgmc32GbmvUCnB5IaeEHzUuKPuulSPTkOzB5t9zK6Fq"
-          },
-          {
-            "hash": "0ucoGyOgFpzUzk6Y81qhhg3M2Cq2jq76djXY4JLD66a86/6rIcaeFWQ8hXATbqu8"
-          },
-          {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
           },
           {
             "isLeft": true,
-            "hash": "znJinguZ3lXCj+Unho/twmWbt/yXBpuMR0B0kLek1zETadNtumi6ZDieG9OovVIY"
+            "hash": "xtckO1ZeP3JLEolA8p5fCm8cn0m2JIAROpdVXBt4vTw="
           },
           {
-            "hash": "BdoXf4WCEndsm3NIJ7C4TDDweNRRJqqSgBqKiN3lzbdbAcYdMhQTd2FegpGoUlwO"
+            "hash": "BNiolUnBa5cQsscPxLQP4ZB/6Gd1U17zxaDSUk/2P1Q="
           },
           {
-            "hash": "lbGRmXLsb2EqHMNynKogINix1X+C9CCCFyCWmUPL1EDLd1K710ljf4Am8YjJLsfV"
+            "hash": "OLZ0FHoS48riWX8Xoas2/DCHNUfEoAu3k36CJHkM3L0="
           },
           {
-            "hash": "6YOxpdswmQwQoVLCZj8cHLWapR/HA+CFwZ/YbPwzK3JhKfCtReOjAqJCuAHmmAUX"
+            "hash": "kBZGUjCx3Yfv7z6I+YmvFpNtCVWhuwdE0r5ahaJ+yv8="
           },
           {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
+          },
+          {
+            "isLeft": true,
+            "hash": "IEUkO68LSmkGhhg6toZDXKWoqmgLQUF8OqdS7upJdDU="
+          },
+          {
+            "hash": "GF3dtM3V1oOhQrgYhI1dFUMlMMEvUYp8qzW/y5oUPbY="
+          },
+          {
+            "hash": "TU10nsL1cK8n6ml3cxMphWeYpUrmYpBoylQOHGQCZ34="
+          },
+          {
+            "hash": "fYst2pEDMp2owTs4r/koSlDgZKt31PJDT5Jx1Y8wPiE="
+          },
+          {
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
           }
         ],
         "nextPathIndex": 2,
-        "hash": "4ZovgLbr2KOVk3zTgjVWclMgIDTRR5wVMA16s2SVlcBTYM46z9g4IO7jBngztTPl"
+        "hash": "jS5H+ZNdCeI/6Wv0ZLnbwhTYHf3hDjCU/JWKcbafvnE="
       },
       {
         "nextPathIndex": 4294967295
@@ -241,8 +241,8 @@
   },
   {
     "block": 3,
-    "blockHash": "rV4yBTsadYQcKbiLNurMTskWz0WglVts057Xu3RBWgclDsjZMWLifvoqx1uJPNHi",
-    "expectedRootHash": "6gXxZsMRh+2XEFovdXrdnKPW1uX0p8JtlreK3MvMLJX1+WmnzBaW/WtfSazGuzWg",
+    "blockHash": "Hq6CUnursXiUl8K1alxJKa/iJclfmwuHjoI20c9TsDg=",
+    "expectedRootHash": "ObW9xObC05eyupAA6w2yYBuIhm/1C/s2vCuFAx6tzWw=",
     "merklePaths": [
       {
         "nextPathIndex": 2,
@@ -251,36 +251,36 @@
       {
         "siblings": [
           {
-            "hash": "cn0Ddk8hX88jkCBuJ7THFudcsor1mvg0YtXMz/Mu/GVzeYtE0w/k7B+cKpyStplD"
+            "hash": "BNiolUnBa5cQsscPxLQP4ZB/6Gd1U17zxaDSUk/2P1Q="
           },
           {
-            "hash": "RNTgGz49T2CudBOxhuvW5jgmc32GbmvUCnB5IaeEHzUuKPuulSPTkOzB5t9zK6Fq"
+            "hash": "OLZ0FHoS48riWX8Xoas2/DCHNUfEoAu3k36CJHkM3L0="
           },
           {
-            "hash": "0ucoGyOgFpzUzk6Y81qhhg3M2Cq2jq76djXY4JLD66a86/6rIcaeFWQ8hXATbqu8"
+            "hash": "kBZGUjCx3Yfv7z6I+YmvFpNtCVWhuwdE0r5ahaJ+yv8="
           },
           {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
           },
           {
             "isLeft": true,
-            "hash": "znJinguZ3lXCj+Unho/twmWbt/yXBpuMR0B0kLek1zETadNtumi6ZDieG9OovVIY"
+            "hash": "IEUkO68LSmkGhhg6toZDXKWoqmgLQUF8OqdS7upJdDU="
           },
           {
-            "hash": "BdoXf4WCEndsm3NIJ7C4TDDweNRRJqqSgBqKiN3lzbdbAcYdMhQTd2FegpGoUlwO"
+            "hash": "GF3dtM3V1oOhQrgYhI1dFUMlMMEvUYp8qzW/y5oUPbY="
           },
           {
-            "hash": "lbGRmXLsb2EqHMNynKogINix1X+C9CCCFyCWmUPL1EDLd1K710ljf4Am8YjJLsfV"
+            "hash": "TU10nsL1cK8n6ml3cxMphWeYpUrmYpBoylQOHGQCZ34="
           },
           {
-            "hash": "6YOxpdswmQwQoVLCZj8cHLWapR/HA+CFwZ/YbPwzK3JhKfCtReOjAqJCuAHmmAUX"
+            "hash": "fYst2pEDMp2owTs4r/koSlDgZKt31PJDT5Jx1Y8wPiE="
           },
           {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
           }
         ],
         "nextPathIndex": 2,
-        "hash": "rV4yBTsadYQcKbiLNurMTskWz0WglVts057Xu3RBWgclDsjZMWLifvoqx1uJPNHi"
+        "hash": "Hq6CUnursXiUl8K1alxJKa/iJclfmwuHjoI20c9TsDg="
       },
       {
         "nextPathIndex": 4294967295
@@ -289,8 +289,8 @@
   },
   {
     "block": 4,
-    "blockHash": "8Hz6NrOOi+iyv6fResvEZ8CQwzX1KVAlDZvpvrQBCqH79aY/8ElKowzPa9xYAdp2",
-    "expectedRootHash": "6gXxZsMRh+2XEFovdXrdnKPW1uX0p8JtlreK3MvMLJX1+WmnzBaW/WtfSazGuzWg",
+    "blockHash": "2edX1QDYRDyHFqlYdNTxtR3zZpYF+UAcwlq54eC7d1w=",
+    "expectedRootHash": "jTADQ7LT8sUYuCBNg9e/IC28CRnJehwCnTMIOKPdUaY=",
     "merklePaths": [
       {
         "nextPathIndex": 2,
@@ -299,20 +299,20 @@
       {
         "siblings": [
           {
-            "hash": "BdoXf4WCEndsm3NIJ7C4TDDweNRRJqqSgBqKiN3lzbdbAcYdMhQTd2FegpGoUlwO"
+            "hash": "GF3dtM3V1oOhQrgYhI1dFUMlMMEvUYp8qzW/y5oUPbY="
           },
           {
-            "hash": "lbGRmXLsb2EqHMNynKogINix1X+C9CCCFyCWmUPL1EDLd1K710ljf4Am8YjJLsfV"
+            "hash": "TU10nsL1cK8n6ml3cxMphWeYpUrmYpBoylQOHGQCZ34="
           },
           {
-            "hash": "6YOxpdswmQwQoVLCZj8cHLWapR/HA+CFwZ/YbPwzK3JhKfCtReOjAqJCuAHmmAUX"
+            "hash": "fYst2pEDMp2owTs4r/koSlDgZKt31PJDT5Jx1Y8wPiE="
           },
           {
-            "hash": "z352R/V4BwBvT1hw0iELW0A40ACyv6cRvO639KMnNGtQxh/aTlxoEQsDznCPuRz4"
+            "hash": "wswE3sebPV2tZxEVhovDP7mX6PND/NExidtkWco1tgE="
           }
         ],
         "nextPathIndex": 2,
-        "hash": "8Hz6NrOOi+iyv6fResvEZ8CQwzX1KVAlDZvpvrQBCqH79aY/8ElKowzPa9xYAdp2"
+        "hash": "2edX1QDYRDyHFqlYdNTxtR3zZpYF+UAcwlq54eC7d1w="
       },
       {
         "nextPathIndex": 4294967295
