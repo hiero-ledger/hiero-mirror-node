@@ -63,8 +63,7 @@ final class ClprConnectorMapperTest {
         assertThat(actual.getPublicKey()).isEqualTo("0x04a1");
         assertThat(actual.getSalt()).isEqualTo("0x01");
         assertThat(actual.getSignature()).isEqualTo("0x9f8e");
-        assertThat(actual.getSignatureScheme())
-                .isEqualTo(org.hiero.mirror.rest.model.ClprSignatureScheme.ED25519);
+        assertThat(actual.getSignatureScheme()).isEqualTo(org.hiero.mirror.rest.model.ClprSignatureScheme.ED25519);
         assertThat(actual.getSlashCount()).isEqualTo(1L);
         assertThat(actual.getStakeRecipientId()).isEqualTo("0.0.1001");
         assertThat(actual.getStatus()).isEqualTo(org.hiero.mirror.rest.model.ClprConnectorStatus.DELETED);
