@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.clpr;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Range;
 import java.util.List;
@@ -16,6 +17,7 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.InsertOnlyProperty;
 
 /**
@@ -66,19 +68,9 @@ public abstract class AbstractClprChannel implements History {
 
     private Long peerConfigTimestamp;
 
-    private Long peerMaxGasPerMessage;
-
-    private Long peerMaxLocalEndpoints;
-
-    private Long peerMaxMessagePayloadBytes;
-
-    private Long peerMaxMessagesPerBundle;
-
-    private Long peerMaxPeerEndpoints;
-
-    private Long peerMaxQueueDepth;
-
-    private Long peerMaxSyncBytes;
+    @Embedded.Nullable(prefix = "peer_")
+    @JsonUnwrapped(prefix = "peer_")
+    private ClprThrottle peerThrottle;
 
     @InsertOnlyProperty
     private byte[] publicKey;
@@ -92,11 +84,14 @@ public abstract class AbstractClprChannel implements History {
     @InsertOnlyProperty
     private byte[] signature;
 
+    // Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number -- preserved as-is even if this mirror
+    // node doesn't recognize it yet, rather than losing a value a newer consensus node sent.
     @InsertOnlyProperty
-    private ClprSignatureScheme signatureScheme;
+    private Integer signatureScheme;
 
+    // Raw com.hederahashgraph.api.proto.java.ClprChannelStatus wire number, same reasoning as signatureScheme above.
     @ToString.Include
-    private ClprChannelStatus status;
+    private Integer status;
 
     @ToString.Include
     private Range<Long> timestampRange;

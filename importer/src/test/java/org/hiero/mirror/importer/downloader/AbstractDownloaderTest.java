@@ -84,6 +84,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.ResourceUtils;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
@@ -91,7 +93,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 @CustomLog
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
 
     private static final Pattern STREAM_FILENAME_INSTANT_PATTERN =
@@ -394,6 +396,21 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         downloader.download();
         verifyUnsuccessful();
         assertThat(signatureStatusCounts()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Last stream file is of a different stream type")
+    void lastStreamFileTypeMismatch(final CapturedOutput output) {
+        fileCopier.copy();
+        final var streamFile = streamType.newStreamFile();
+        streamFile.setName("0000000000000000100.blk");
+        doReturn(Optional.of(streamFile)).when(dateRangeProcessor).getLastStreamFile(streamType);
+
+        downloader.download();
+
+        verifyUnsuccessful();
+        assertThat(output)
+                .contains("Last stream file 0000000000000000100.blk is of type BLOCK, expected " + streamType);
     }
 
     @Test

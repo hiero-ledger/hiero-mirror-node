@@ -52,6 +52,7 @@ import org.hiero.mirror.importer.parser.contractresult.SyntheticContractResultSe
 import org.hiero.mirror.importer.parser.contractresult.TransferContractResult;
 import org.hiero.mirror.importer.parser.record.RecordItemListener;
 import org.hiero.mirror.importer.parser.record.RecordParserProperties;
+import org.hiero.mirror.importer.parser.record.transactionhandler.ClprStateChangeHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
 import org.hiero.mirror.importer.util.Utility;
@@ -61,6 +62,7 @@ import org.hiero.mirror.importer.util.Utility;
 @RequiredArgsConstructor
 public class EntityRecordItemListener implements RecordItemListener {
 
+    private final ClprStateChangeHandler clprStateChangeHandler;
     private final CommonParserProperties commonParserProperties;
     private final ContractResultService contractResultService;
     private final EntityIdService entityIdService;
@@ -157,6 +159,8 @@ public class EntityRecordItemListener implements RecordItemListener {
         }
 
         contractResultService.process(recordItem, transaction);
+        // No-op unless recordItem (or a hook/batch it triggered) invoked CLPR sendMessage.
+        clprStateChangeHandler.process(recordItem);
 
         var entityTransactions = recordItem.getEntityTransactions();
         if (!entityTransactions.isEmpty()) {

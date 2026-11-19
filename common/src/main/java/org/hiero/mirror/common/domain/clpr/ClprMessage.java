@@ -48,9 +48,12 @@ public class ClprMessage implements Persistable<ClprMessage.Id> {
     @Transient
     private long messageId;
 
-    private ClprMessageType messageType;
+    // Raw com.hederahashgraph.api.proto.java.ClprMessagePayload oneof field number (MESSAGE/MESSAGE_REPLY/CONTROL),
+    // or an unrecognized field number for a future payload variant -- preserved as-is rather than dropped.
+    private int messageType;
 
-    private ClprMessageReplyStatus replyStatus;
+    // Raw com.hederahashgraph.api.proto.java.ClprMessageReplyStatus wire number, same reasoning as messageType above.
+    private Integer replyStatus;
 
     private Long replyToMessageId;
 

@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.clpr;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,6 +12,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Table;
 
 /**
@@ -35,24 +37,14 @@ public class ClprLedgerConfiguration implements Persistable<Long> {
     @ToString.Exclude
     private byte[] initialTrustAnchorId;
 
-    private Long maxGasPerMessage;
-
-    private Long maxLocalEndpoints;
-
-    private Long maxMessagePayloadBytes;
-
-    private Long maxMessagesPerBundle;
-
-    private Long maxPeerEndpoints;
-
-    private Long maxQueueDepth;
-
-    private Long maxSyncBytes;
-
     private long protocolVersion;
 
     @ToString.Exclude
     private byte[] serviceAddress;
+
+    @Embedded.Nullable
+    @JsonUnwrapped
+    private ClprThrottle throttle;
 
     @JsonIgnore
     @Override

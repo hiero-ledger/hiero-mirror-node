@@ -80,7 +80,8 @@ public enum TransactionType {
     CLPRSUBMITBUNDLE(86, EntityOperation.NONE),
     CLPRREGISTERCONNECTOR(88, EntityOperation.NONE),
     CLPRDEREGISTERCONNECTOR(89, EntityOperation.NONE),
-    CLPRCOMPLETECONNECTOR(90, EntityOperation.NONE);
+    CLPRCOMPLETECONNECTOR(90, EntityOperation.NONE),
+    CLPRMAINTENANCE(92, EntityOperation.NONE);
 
     private static final Map<Integer, TransactionType> idMap =
             Arrays.stream(values()).collect(Collectors.toMap(TransactionType::getProtoId, Function.identity()));

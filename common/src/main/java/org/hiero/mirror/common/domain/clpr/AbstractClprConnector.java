@@ -62,7 +62,9 @@ public abstract class AbstractClprConnector implements History {
     @ToString.Exclude
     private byte[] signature;
 
-    private ClprSignatureScheme signatureScheme;
+    // Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number -- preserved as-is even if this mirror
+    // node doesn't recognize it yet, rather than losing a value a newer consensus node sent.
+    private Integer signatureScheme;
 
     private Long slashCount;
 
