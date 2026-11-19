@@ -368,6 +368,9 @@ class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .protocolVersion(expectedLedgerConfiguration.getProtocolVersion())
                 .serviceAddress(expectedLedgerConfiguration.getServiceAddress())
                 .throttle(expectedLedgerConfiguration.getThrottle())
+                // The configuration's own last-modified timestamp, distinct from the enclosing message's
+                // consensusTimestamp below -- this is the value consensus uses to order config updates.
+                .timestamp(configurationTimestamp)
                 .build();
 
         final var expectedControlMessage = domainBuilder

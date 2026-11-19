@@ -8,12 +8,19 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.cl
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprConnectorMapUpdate;
 
 import com.google.common.collect.Range;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
+import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
+import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
+import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hederahashgraph.api.proto.java.ClprChannelStatus;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ClprMessageKey;
 import com.hederahashgraph.api.proto.java.ClprMessagePayload;
 import com.hederahashgraph.api.proto.java.ClprMessageValue;
+import com.hederahashgraph.api.proto.java.ClprThrottles;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
@@ -40,7 +47,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerTest {
+final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerTest {
 
     private final ClprChannelPendingCommitmentRepository clprChannelPendingCommitmentRepository;
     private final ClprChannelRepository clprChannelRepository;
@@ -63,8 +70,8 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprRegisterChannel() {
-        var recordItem = recordItemBuilder.clprRegisterChannel().build();
-        var body = recordItem.getTransactionBody().getClprRegisterChannel();
+        final var recordItem = recordItemBuilder.clprRegisterChannel().build();
+        final var body = recordItem.getTransactionBody().getClprRegisterChannel();
 
         parseRecordItemAndCommit(recordItem);
 
@@ -84,7 +91,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprRegisterChannelInvalidTransaction() {
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprRegisterChannel()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .build();
@@ -99,13 +106,13 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
     void clprCompleteChannel() {
         // given -- a pending commitment row must already exist since completion only patches it (its
         // created_timestamp carries forward via coalesce) rather than inserting it fresh
-        var registerRecordItem = recordItemBuilder.clprRegisterChannel().build();
+        final var registerRecordItem = recordItemBuilder.clprRegisterChannel().build();
         parseRecordItemAndCommit(registerRecordItem);
-        var ownershipCommitment =
+        final var ownershipCommitment =
                 registerRecordItem.getTransactionBody().getClprRegisterChannel().getOwnershipCommitment();
 
-        var channelId = recordItemBuilder.bytes(32);
-        var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+        final var channelId = recordItemBuilder.bytes(32);
+        final var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setChainId("hedera:mainnet")
                 .setChannelId(channelId)
                 .setOwnershipCommitment(ownershipCommitment)
@@ -113,13 +120,13 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
                 .setVerifierContract(recordItemBuilder.contractId())
                 .setVerifierFingerprint(recordItemBuilder.bytes(32))
                 .build();
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprCompleteChannel()
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
                                 channelId, clprChannelMapUpdate(channelId, channelValue)))))
                 .build();
-        var body = recordItem.getTransactionBody().getClprCompleteChannel();
+        final var body = recordItem.getTransactionBody().getClprCompleteChannel();
 
         // when
         parseRecordItemAndCommit(recordItem);
@@ -150,7 +157,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprCompleteChannelInvalidTransaction() {
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprCompleteChannel()
                 .status(ResponseCodeEnum.INSUFFICIENT_ACCOUNT_BALANCE)
                 .build();
@@ -165,20 +172,20 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
     @Test
     void clprChannelDoNotPersist() {
         // given -- seed the pending commitment with persistence enabled, then disable it for the completion
-        var registerRecordItem = recordItemBuilder.clprRegisterChannel().build();
+        final var registerRecordItem = recordItemBuilder.clprRegisterChannel().build();
         parseRecordItemAndCommit(registerRecordItem);
-        var ownershipCommitment =
+        final var ownershipCommitment =
                 registerRecordItem.getTransactionBody().getClprRegisterChannel().getOwnershipCommitment();
 
         entityProperties.getPersist().setClprChannel(false);
-        var channelId = recordItemBuilder.bytes(32);
-        var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+        final var channelId = recordItemBuilder.bytes(32);
+        final var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setChannelId(channelId)
                 .setOwnershipCommitment(ownershipCommitment)
                 .setStatus(ClprChannelStatus.ACTIVE)
                 .setVerifierContract(recordItemBuilder.contractId())
                 .build();
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprCompleteChannel()
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
@@ -199,11 +206,11 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
     @Test
     void clprCloseChannel() {
         // given -- a live channel row must already exist since ClprCloseChannel only ever patches counters/status
-        var completeRecordItem = recordItemBuilder.clprCompleteChannel().build();
+        final var completeRecordItem = recordItemBuilder.clprCompleteChannel().build();
         parseRecordItemAndCommit(completeRecordItem);
-        var channelId =
+        final var channelId =
                 completeRecordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
-        var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+        final var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setAckedMessageId(4)
                 .setChannelId(channelId)
                 .setNextMessageId(5)
@@ -212,7 +219,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
                 .setSentRunningHash(recordItemBuilder.bytes(32))
                 .setStatus(ClprChannelStatus.CLOSING)
                 .build();
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprCloseChannel()
                 .transactionBody(b -> b.setChannelId(channelId))
                 .recordItem(r -> r.clprContextBuilder()
@@ -237,8 +244,9 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
     @Test
     void clprCloseChannelSweepsAbandonedCommitment() {
         // given -- no ClprChannel state change is present, e.g. a ClprRegisterChannel commitment was never completed
-        var pendingCommitment = domainBuilder.clprChannelPendingCommitment().persist();
-        var recordItem = recordItemBuilder
+        final var pendingCommitment =
+                domainBuilder.clprChannelPendingCommitment().persist();
+        final var recordItem = recordItemBuilder
                 .clprCloseChannel()
                 .transactionBody(b ->
                         b.setOwnershipCommitment(DomainUtils.fromBytes(pendingCommitment.getOwnershipCommitment())))
@@ -258,7 +266,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprCloseChannelInvalidTransaction() {
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprCloseChannel()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .build();
@@ -272,8 +280,8 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprRegisterConnector() {
-        var recordItem = recordItemBuilder.clprRegisterConnector().build();
-        var body = recordItem.getTransactionBody().getClprRegisterConnector();
+        final var recordItem = recordItemBuilder.clprRegisterConnector().build();
+        final var body = recordItem.getTransactionBody().getClprRegisterConnector();
 
         parseRecordItemAndCommit(recordItem);
 
@@ -290,7 +298,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprRegisterConnectorInvalidTransaction() {
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprRegisterConnector()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .build();
@@ -304,7 +312,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
     @Test
     void clprConnectorDoNotPersist() {
         entityProperties.getPersist().setClprConnector(false);
-        var recordItem = recordItemBuilder.clprRegisterConnector().build();
+        final var recordItem = recordItemBuilder.clprRegisterConnector().build();
 
         parseRecordItemAndCommit(recordItem);
 
@@ -314,9 +322,10 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprCompleteConnector() {
-        var recordItem = recordItemBuilder.clprCompleteConnector().build();
-        var body = recordItem.getTransactionBody().getClprCompleteConnector();
-        var connectorValue = recordItem.getClprContext().getClprConnector().value();
+        final var recordItem = recordItemBuilder.clprCompleteConnector().build();
+        final var body = recordItem.getTransactionBody().getClprCompleteConnector();
+        final var connectorValue =
+                recordItem.getClprContext().getClprConnector().value();
 
         parseRecordItemAndCommit(recordItem);
 
@@ -338,7 +347,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprCompleteConnectorInvalidTransaction() {
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprCompleteConnector()
                 .status(ResponseCodeEnum.INSUFFICIENT_ACCOUNT_BALANCE)
                 .build();
@@ -352,13 +361,13 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
     @Test
     void clprDeregisterConnector() {
         // given -- a registered/completed connector row must already exist since deregistration looks up its commitment
-        var seedConnector = domainBuilder.clprConnector().persist();
-        var recordItem = recordItemBuilder
+        final var seedConnector = domainBuilder.clprConnector().persist();
+        final var recordItem = recordItemBuilder
                 .clprDeregisterConnector()
                 .transactionBody(b -> b.setChannelId(DomainUtils.fromBytes(seedConnector.getChannelId()))
                         .setConnectorId(DomainUtils.fromBytes(seedConnector.getConnectorId())))
                 .build();
-        var body = recordItem.getTransactionBody().getClprDeregisterConnector();
+        final var body = recordItem.getTransactionBody().getClprDeregisterConnector();
 
         // when
         parseRecordItemAndCommit(recordItem);
@@ -376,8 +385,8 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprDeregisterConnectorInvalidTransaction() {
-        var seedConnector = domainBuilder.clprConnector().persist();
-        var recordItem = recordItemBuilder
+        final var seedConnector = domainBuilder.clprConnector().persist();
+        final var recordItem = recordItemBuilder
                 .clprDeregisterConnector()
                 .transactionBody(b -> b.setChannelId(DomainUtils.fromBytes(seedConnector.getChannelId()))
                         .setConnectorId(DomainUtils.fromBytes(seedConnector.getConnectorId())))
@@ -396,23 +405,23 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
     @Test
     void clprSubmitBundle() {
         // given -- the live channel row and both referenced connector rows must already exist
-        var completeRecordItem = recordItemBuilder.clprCompleteChannel().build();
+        final var completeRecordItem = recordItemBuilder.clprCompleteChannel().build();
         parseRecordItemAndCommit(completeRecordItem);
-        var channelId =
+        final var channelId =
                 completeRecordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
 
-        var patchedConnectorId = domainBuilder.bytes(32);
+        final var patchedConnectorId = domainBuilder.bytes(32);
         domainBuilder
                 .clprConnector()
                 .customize(c -> c.channelId(DomainUtils.toBytes(channelId)).connectorId(patchedConnectorId))
                 .persist();
-        var removedConnectorId = domainBuilder.bytes(32);
+        final var removedConnectorId = domainBuilder.bytes(32);
         domainBuilder
                 .clprConnector()
                 .customize(c -> c.channelId(DomainUtils.toBytes(channelId)).connectorId(removedConnectorId))
                 .persist();
 
-        var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+        final var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setAckedMessageId(0)
                 .setChannelId(channelId)
                 .setNextMessageId(2)
@@ -421,11 +430,11 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
                 .setSentRunningHash(recordItemBuilder.bytes(32))
                 .setStatus(ClprChannelStatus.ACTIVE)
                 .build();
-        var messageKey = ClprMessageKey.newBuilder()
+        final var messageKey = ClprMessageKey.newBuilder()
                 .setChannelId(channelId)
                 .setMessageId(1)
                 .build();
-        var messageValue = ClprMessageValue.newBuilder()
+        final var messageValue = ClprMessageValue.newBuilder()
                 .setPayload(ClprMessagePayload.newBuilder()
                         .setMessage(com.hederahashgraph.api.proto.java.ClprMessage.newBuilder()
                                 .setConnectorId(DomainUtils.fromBytes(patchedConnectorId))
@@ -434,21 +443,21 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
                                 .setTargetApplication(recordItemBuilder.bytes(20))))
                 .setRunningHashAfterProcessing(recordItemBuilder.bytes(32))
                 .build();
-        var patchedConnectorKey = ClprConnectorKey.newBuilder()
+        final var patchedConnectorKey = ClprConnectorKey.newBuilder()
                 .setChannelId(channelId)
                 .setConnectorId(DomainUtils.fromBytes(patchedConnectorId))
                 .build();
-        var patchedConnectorValue = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
+        final var patchedConnectorValue = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
                 .setLockedStake(90_000_000L)
                 .setSlashCount(1)
                 .setInFlightMessageCount(1)
                 .build();
-        var removedConnectorKey = ClprConnectorKey.newBuilder()
+        final var removedConnectorKey = ClprConnectorKey.newBuilder()
                 .setChannelId(channelId)
                 .setConnectorId(DomainUtils.fromBytes(removedConnectorId))
                 .build();
 
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprSubmitBundle()
                 .transactionBody(b -> b.setChannelId(channelId))
                 .recordItem(r -> r.clprContextBuilder()
@@ -490,8 +499,92 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
     }
 
     @Test
+    void clprSubmitBundlePeerConfigTimestampHistorizes() {
+        // given -- the live channel row must already exist. peer_config_timestamp/peer_throttles track the peer's
+        // ledger configuration (consensus enforces strictly increasing config updates per channel), not per-message
+        // traffic, so a partial update touching either must still historize the prior channel version.
+        final var completeRecordItem = recordItemBuilder.clprCompleteChannel().build();
+        parseRecordItemAndCommit(completeRecordItem);
+        final var channelId =
+                completeRecordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
+
+        final var firstPeerConfigTimestamp =
+                Timestamp.newBuilder().setSeconds(1_700_000_000L).setNanos(1).build();
+        final var firstChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setPeerConfigTimestamp(firstPeerConfigTimestamp)
+                .setPeerThrottles(
+                        ClprThrottles.newBuilder().setMaxMessagesPerBundle(10).build())
+                .build();
+        final var firstRecordItem = recordItemBuilder
+                .clprSubmitBundle()
+                .transactionBody(b -> b.setChannelId(channelId))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
+                                channelId, partialClprChannelMapUpdate(channelId, firstChannelValue))))
+                        .clprConnectors(List.of())
+                        .clprConnectorsRemoved(List.of())
+                        .clprMessages(List.of()))
+                .build();
+
+        // when -- first update sets both peer fields
+        parseRecordItemAndCommit(firstRecordItem);
+
+        // then
+        softly.assertThat(clprChannelRepository.findById(DomainUtils.toBytes(channelId)))
+                .get()
+                .returns(DomainUtils.timestampInNanosMax(firstPeerConfigTimestamp), ClprChannel::getPeerConfigTimestamp)
+                .satisfies(
+                        channel -> softly.assertThat(channel.getPeerThrottle().getMaxMessagesPerBundle())
+                                .isEqualTo(10L));
+        softly.assertThat(findHistory(ClprChannel.class))
+                .singleElement()
+                .returns(
+                        Range.closedOpen(
+                                completeRecordItem.getConsensusTimestamp(), firstRecordItem.getConsensusTimestamp()),
+                        ClprChannel::getTimestampRange);
+
+        // given -- second update touches only peer_config_timestamp; peer_throttles must carry forward unchanged
+        final var secondPeerConfigTimestamp =
+                Timestamp.newBuilder().setSeconds(1_700_000_100L).setNanos(2).build();
+        final var secondChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setPeerConfigTimestamp(secondPeerConfigTimestamp)
+                .build();
+        final var secondRecordItem = recordItemBuilder
+                .clprSubmitBundle()
+                .transactionBody(b -> b.setChannelId(channelId))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
+                                channelId, partialClprChannelMapUpdate(channelId, secondChannelValue))))
+                        .clprConnectors(List.of())
+                        .clprConnectorsRemoved(List.of())
+                        .clprMessages(List.of()))
+                .build();
+
+        // when
+        parseRecordItemAndCommit(secondRecordItem);
+
+        // then -- peer_config_timestamp advances, peer_throttles is carried forward unchanged, and the first
+        // version historizes
+        softly.assertThat(clprChannelRepository.findById(DomainUtils.toBytes(channelId)))
+                .get()
+                .returns(
+                        DomainUtils.timestampInNanosMax(secondPeerConfigTimestamp), ClprChannel::getPeerConfigTimestamp)
+                .satisfies(
+                        channel -> softly.assertThat(channel.getPeerThrottle().getMaxMessagesPerBundle())
+                                .isEqualTo(10L));
+        softly.assertThat(findHistory(ClprChannel.class))
+                .hasSize(2)
+                .anySatisfy(channel -> softly.assertThat(channel)
+                        .returns(
+                                Range.closedOpen(
+                                        firstRecordItem.getConsensusTimestamp(),
+                                        secondRecordItem.getConsensusTimestamp()),
+                                ClprChannel::getTimestampRange));
+    }
+
+    @Test
     void clprSubmitBundleInvalidTransaction() {
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprSubmitBundle()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .build();
@@ -507,22 +600,22 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
     @Test
     void clprMessageDoNotPersist() {
         // given -- a live channel row must already exist since ClprSubmitBundle only ever patches counters
-        var completeRecordItem = recordItemBuilder.clprCompleteChannel().build();
+        final var completeRecordItem = recordItemBuilder.clprCompleteChannel().build();
         parseRecordItemAndCommit(completeRecordItem);
-        var channelId =
+        final var channelId =
                 completeRecordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
 
         entityProperties.getPersist().setClprMessage(false);
-        var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+        final var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setChannelId(channelId)
                 .setNextMessageId(2)
                 .setStatus(ClprChannelStatus.ACTIVE)
                 .build();
-        var messageKey = ClprMessageKey.newBuilder()
+        final var messageKey = ClprMessageKey.newBuilder()
                 .setChannelId(channelId)
                 .setMessageId(1)
                 .build();
-        var messageValue = ClprMessageValue.newBuilder()
+        final var messageValue = ClprMessageValue.newBuilder()
                 .setPayload(ClprMessagePayload.newBuilder()
                         .setMessage(com.hederahashgraph.api.proto.java.ClprMessage.newBuilder()
                                 .setConnectorId(recordItemBuilder.bytes(32))
@@ -531,7 +624,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
                                 .setTargetApplication(recordItemBuilder.bytes(20))))
                 .setRunningHashAfterProcessing(recordItemBuilder.bytes(32))
                 .build();
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprSubmitBundle()
                 .transactionBody(b -> b.setChannelId(channelId))
                 .recordItem(r -> r.clprContextBuilder()
@@ -555,8 +648,8 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprMaintenance() {
-        var recordItem = recordItemBuilder.clprMaintenance().build();
-        var manifestValue =
+        final var recordItem = recordItemBuilder.clprMaintenance().build();
+        final var manifestValue =
                 recordItem.getClprContext().getClprEndpointManifestUpdate().getClprEndpointManifestValue();
 
         parseRecordItemAndCommit(recordItem);
@@ -577,8 +670,9 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprMaintenanceLedgerConfiguration() {
-        var recordItem = recordItemBuilder.clprMaintenanceLedgerConfiguration().build();
-        var configValue =
+        final var recordItem =
+                recordItemBuilder.clprMaintenanceLedgerConfiguration().build();
+        final var configValue =
                 recordItem.getClprContext().getClprLedgerConfigurationUpdate().getClprLedgerConfigurationValue();
 
         parseRecordItemAndCommit(recordItem);
@@ -599,7 +693,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprMaintenanceInvalidTransaction() {
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprMaintenance()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .build();
@@ -614,7 +708,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
     @Test
     void clprMaintenanceDoNotPersist() {
         entityProperties.getPersist().setClprMaintenance(false);
-        var recordItem = recordItemBuilder.clprMaintenance().build();
+        final var recordItem = recordItemBuilder.clprMaintenance().build();
 
         parseRecordItemAndCommit(recordItem);
 
@@ -627,7 +721,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
     @Test
     void clprEndpointManifestDoNotPersist() {
         entityProperties.getPersist().setClprEndpointManifest(false);
-        var recordItem = recordItemBuilder.clprMaintenance().build();
+        final var recordItem = recordItemBuilder.clprMaintenance().build();
 
         parseRecordItemAndCommit(recordItem);
 
@@ -639,8 +733,8 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprUpdateLedgerConfiguration() {
-        var recordItem = recordItemBuilder.clprUpdateLedgerConfiguration().build();
-        var configValue = recordItem
+        final var recordItem = recordItemBuilder.clprUpdateLedgerConfiguration().build();
+        final var configValue = recordItem
                 .getTransactionBody()
                 .getClprUpdateLedgerConfiguration()
                 .getConfiguration();
@@ -668,7 +762,7 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
     @Test
     void clprUpdateLedgerConfigurationInvalidTransaction() {
-        var recordItem = recordItemBuilder
+        final var recordItem = recordItemBuilder
                 .clprUpdateLedgerConfiguration()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .build();
@@ -677,5 +771,14 @@ class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerT
 
         assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
         softly.assertThat(clprLedgerConfigurationRepository.findLatest()).isNull();
+    }
+
+    private static MapUpdateChange partialClprChannelMapUpdate(
+            ByteString channelId, com.hederahashgraph.api.proto.java.ClprChannel value) {
+        return MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(channelId)))
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(value))
+                .build();
     }
 }
