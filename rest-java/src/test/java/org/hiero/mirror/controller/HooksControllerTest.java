@@ -29,7 +29,6 @@ import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.rest.model.HooksResponse;
 import org.hiero.mirror.rest.model.HooksStorageResponse;
 import org.hiero.mirror.rest.model.Links;
-import org.hiero.mirror.restjava.dto.HookStorageSlot;
 import org.hiero.mirror.restjava.mapper.HookMapper;
 import org.hiero.mirror.restjava.mapper.HookStorageMapper;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;
@@ -69,7 +68,6 @@ final class HooksControllerTest extends ControllerTest {
 
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
-            persistAccount(EntityId.of(ACCOUNT_ID), ALIAS, EVM_ADDRESS);
             persistHook(EntityId.of(ACCOUNT_ID));
 
             return uriSpec.uri("", EntityId.of(ACCOUNT_ID));
@@ -116,16 +114,13 @@ final class HooksControllerTest extends ControllerTest {
             final var actual = restClient.get().uri("", address).retrieve().toEntity(HooksResponse.class);
 
             // then
-            final var body = actual.getBody();
-            assertThat(body).isNotNull();
-            assertThat(body).isEqualTo(expectedResponse);
+            assertThat(actual.getBody()).isNotNull().isEqualTo(expectedResponse);
             assertThat(actual.getHeaders().containsHeader(HttpHeaders.LINK)).isFalse();
         }
 
         @Test
         void noHooksFound() {
             // given
-            persistAccount(EntityId.of(ACCOUNT_ID), ALIAS, EVM_ADDRESS);
             persistHook(EntityId.of(ACCOUNT_ID + 1));
             final var expectedHooks = hookMapper.map(Collections.emptyList());
             final var expectedResponse = new HooksResponse();
@@ -147,8 +142,6 @@ final class HooksControllerTest extends ControllerTest {
 
             final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(ACCOUNT_ID));
             final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), ACCOUNT_ID);
-
-            persistAccount(ownerId, ALIAS, EVM_ADDRESS);
 
             final var hook1 = persistHook(ownerId);
             final var hook2 = persistHook(ownerId);
@@ -182,10 +175,8 @@ final class HooksControllerTest extends ControllerTest {
                     .toEntity(HooksResponse.class);
 
             // then
-            final var body = actual.getBody();
-            assertThat(body).isNotNull();
-            assertThat(body).isEqualTo(expectedResponse);
-            assertThat(body.getHooks()).hasSize(limit);
+            assertThat(actual.getBody()).isNotNull().isEqualTo(expectedResponse);
+            assertThat(actual.getBody().getHooks()).hasSize(limit);
             assertThat(actual.getHeaders().containsHeaderValue(HttpHeaders.LINK, LINK_HEADER.formatted(nextLink)));
         }
 
@@ -195,48 +186,44 @@ final class HooksControllerTest extends ControllerTest {
                 nullValues = "NULL",
                 value = {
                     // --- SCENARIO 1: 'eq' or no-op (defaults to eq) ---
-                    // Placeholders use MessageFormat {0}..{3}; do not wrap patterns in single quotes (quotes make {}
-                    // literals).
-                    "?hook.id=eq:{1}|1", // Single eq
-                    "?hook.id={1}|1", // Single no-op
-                    "?hook.id=eq:{1}&hook.id=eq:{2}|2,1", // Multiple eq
-                    "?hook.id={1}&hook.id={2}|2,1", // Multiple no-op
-                    "?hook.id=eq:{1}&hook.id={3}|3,1", // Multiple eq
-                    "?hook.id=eq:{1}&hook.id={1}|1", // Duplicate eq
-                    "?hook.id=eq:{0}&hook.id={1}&hook.id=eq:{2}|2,1,0", // Mixed eq and
+                    "'?hook.id=eq:{1}' | 1", // Single eq
+                    "'?hook.id={1}' | 1", // Single no-op
+                    "'?hook.id=eq:{1}&hook.id=eq:{2}' | 2,1", // Multiple eq
+                    "'?hook.id={1}&hook.id={2}' | 2,1", // Multiple no-op
+                    "'?hook.id=eq:{1}&hook.id={3}' | 3,1", // Multiple eq
+                    "'?hook.id=eq:{1}&hook.id={1}' | 1", // Duplicate eq
+                    "'?hook.id=eq:{0}&hook.id={1}&hook.id=eq:{2}' | 2,1,0", // Mixed eq and
                     // --- SCENARIO 2: Range only ---
-                    "?hook.id=lt:{2}|1,0", // Single lt
-                    "?hook.id=lte:{2}|2,1,0", // Single lte
-                    "?hook.id=gt:{1}|3,2", // Single gt
-                    "?hook.id=gte:{1}|3,2,1", // Single gte
-                    "?hook.id=lt:{2}&hook.id=lt:{3}|1,0", // Multiple lt
-                    "?hook.id=lte:{2}&hook.id=lt:{2}|1,0", // Multiple lt/lte
-                    "?hook.id=gt:{1}&hook.id=gt:{0}|3,2", // Multiple gt
-                    "?hook.id=gte:{1}&hook.id=gt:{1}|3,2", // Multiple gt/gte
-                    "?hook.id=gt:{0}&hook.id=lt:{3}|2,1", // Range (gt + lt)
-                    "?hook.id=gte:{1}&hook.id=lte:{2}|2,1", // Range (gte + lte)
-                    "?hook.id=gt:{3}&hook.id=lt:{0}|NULL", // Range (gt + lt) no overlap
-                    "?hook.id=gt:{2}&hook.id=lt:{2}|NULL", // Range (gt + lt) no overlap edge
+                    "'?hook.id=lt:{2}' | 1,0", // Single lt
+                    "'?hook.id=lte:{2}'| 2,1,0", // Single lte
+                    "'?hook.id=gt:{1}' | 3,2", // Single gt
+                    "'?hook.id=gte:{1}'| 3,2,1", // Single gte
+                    "'?hook.id=lt:{2}&hook.id=lt:{3}' | 1,0", // Multiple lt
+                    "'?hook.id=lte:{2}&hook.id=lt:{2}' | 1,0", // Multiple lt/lte
+                    "'?hook.id=gt:{1}&hook.id=gt:{0}' | 3,2", // Multiple gt
+                    "'?hook.id=gte:{1}&hook.id=gt:{1}' | 3,2", // Multiple gt/gte
+                    "'?hook.id=gt:{0}&hook.id=lt:{3}' | 2,1", // Range (gt + lt)
+                    "'?hook.id=gte:{1}&hook.id=lte:{2}' | 2,1", // Range (gte + lte)
+                    "'?hook.id=gt:{3}&hook.id=lt:{0}' | NULL", // Range (gt + lt) no overlap
+                    "'?hook.id=gt:{2}&hook.id=lt:{2}' | NULL", // Range (gt + lt) no overlap edge
                     // --- SCENARIO 3: 'eq'/'no-op' + Range (No Overlap) ---
-                    "?hook.id=eq:{0}&hook.id=gt:{1}|NULL", // eq + gt no overlap
-                    "?hook.id={3}&hook.id=lt:{2}|NULL", // no-op + lt no overlap
-                    "?hook.id=eq:{1}&hook.id=gt:{1}|NULL", // eq + gt edge no overlap
-                    "?hook.id={1}&hook.id=lt:{1}|NULL", // no-op + lt edge no overlap
+                    "'?hook.id=eq:{0}&hook.id=gt:{1}' | NULL", // eq + gt no overlap
+                    "'?hook.id={3}&hook.id=lt:{2}' | NULL", // no-op + lt no overlap
+                    "'?hook.id=eq:{1}&hook.id=gt:{1}' | NULL", // eq + gt edge no overlap
+                    "'?hook.id={1}&hook.id=lt:{1}' | NULL", // no-op + lt edge no overlap
                     // --- SCENARIO 4: 'eq'/'no-op' + Range (Overlap) ---
-                    "?hook.id=eq:{1}&hook.id=gt:{0}|1", // eq + gt overlap
-                    "?hook.id={1}&hook.id=gte:{1}|1", // no-op + gte edge overlap
-                    "?hook.id=eq:{2}&hook.id=lt:{3}|2", // eq + lt overlap
-                    "?hook.id={2}&hook.id=lte:{2}|2", // no-op + lte edge overlap
-                    "?hook.id=eq:{1}&hook.id={2}&hook.id=gt:{0}|2,1", // Multi eq/no-op + gt (all overlap)
-                    "?hook.id=eq:{1}&hook.id={2}&hook.id=gt:{1}|2", // Multi eq/no-op + gt (partial overlap)
-                    "?hook.id=eq:{0}&hook.id={1}&hook.id={2}&hook.id=gt:{0}&hook.id=lt:{2}|1"
+                    "'?hook.id=eq:{1}&hook.id=gt:{0}' | 1", // eq + gt overlap
+                    "'?hook.id={1}&hook.id=gte:{1}' | 1", // no-op + gte edge overlap
+                    "'?hook.id=eq:{2}&hook.id=lt:{3}' | 2", // eq + lt overlap
+                    "'?hook.id={2}&hook.id=lte:{2}' | 2", // no-op + lte edge overlap
+                    "'?hook.id=eq:{1}&hook.id={2}&hook.id=gt:{0}' | 2,1", // Multi eq/no-op + gt (all overlap)
+                    "'?hook.id=eq:{1}&hook.id={2}&hook.id=gt:{1}' | 2", // Multi eq/no-op + gt (partial overlap)
+                    "'?hook.id=eq:{0}&hook.id={1}&hook.id={2}&hook.id=gt:{0}&hook.id=lt:{2}' | 1"
                 })
         void hookIdBounds(String parameters, String expectedIndices) {
             // given
             final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(ACCOUNT_ID));
             final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), ACCOUNT_ID);
-
-            persistAccount(ownerId, ALIAS, EVM_ADDRESS);
 
             final var hooks = new ArrayList<Hook>();
             for (int i = 0; i < 4; i++) {
@@ -261,19 +248,17 @@ final class HooksControllerTest extends ControllerTest {
             expectedResponse.setLinks(new Links());
 
             // when
-            final var formattedParams = formatHookIdQuery(parameters, hooks).trim();
+            final var formattedParams = formatHookIds(parameters, hooks);
 
             final var actual =
                     restClient.get().uri(formattedParams, ACCOUNT_ID).retrieve().body(HooksResponse.class);
 
             // then
-            assertThat(actual).isNotNull();
-            assertThat(actual).isEqualTo(expectedResponse);
+            assertThat(actual).isNotNull().isEqualTo(expectedResponse);
         }
 
         @Test
         void invalidHookIdTooManyParameters() {
-            persistAccount(EntityId.of(ACCOUNT_ID), ALIAS, EVM_ADDRESS);
             // given
             final var params = IntStream.range(0, MAX_REPEATED_QUERY_PARAMETERS + 1)
                     .mapToObj(i -> "hook.id=eq:" + i)
@@ -294,7 +279,6 @@ final class HooksControllerTest extends ControllerTest {
 
         @Test
         void invalidLimitTooLow() {
-            persistAccount(EntityId.of(ACCOUNT_ID), ALIAS, EVM_ADDRESS);
             validateError(
                     () -> restClient
                             .get()
@@ -307,7 +291,6 @@ final class HooksControllerTest extends ControllerTest {
 
         @Test
         void invalidLimitTooHigh() {
-            persistAccount(EntityId.of(ACCOUNT_ID), ALIAS, EVM_ADDRESS);
             validateError(
                     () -> restClient
                             .get()
@@ -320,7 +303,6 @@ final class HooksControllerTest extends ControllerTest {
 
         @Test
         void invalidLimitFormat() {
-            persistAccount(EntityId.of(ACCOUNT_ID), ALIAS, EVM_ADDRESS);
             validateError(
                     () -> restClient
                             .get()
@@ -333,7 +315,6 @@ final class HooksControllerTest extends ControllerTest {
 
         @Test
         void invalidOrder() {
-            persistAccount(EntityId.of(ACCOUNT_ID), ALIAS, EVM_ADDRESS);
             validateError(
                     () -> restClient
                             .get()
@@ -354,7 +335,6 @@ final class HooksControllerTest extends ControllerTest {
                     "?hook.id=gte::123" // double colon
                 })
         void invalidHookIdFormat(String queryString) {
-            persistAccount(EntityId.of(ACCOUNT_ID), ALIAS, EVM_ADDRESS);
             validateError(
                     () -> restClient
                             .get()
@@ -404,12 +384,15 @@ final class HooksControllerTest extends ControllerTest {
                     .persist();
         }
 
-        /** Fills {@code {0}}..{@code {3}} with hook ids — avoids {@link java.text.MessageFormat} number formatting. */
-        private static String formatHookIdQuery(String template, List<Hook> hooks) {
+        /**
+         * Replaces the {0}..{3} placeholders with the hook ids. MessageFormat isn't used since it formats numbers
+         * with grouping separators.
+         */
+        private static String formatHookIds(String template, List<Hook> hooks) {
             var result = template;
-            for (int i = 0; i < 4; i++) {
-                result =
-                        result.replace("{" + i + "}", Long.toString(hooks.get(i).getHookId()));
+            for (int i = 0; i < hooks.size(); i++) {
+                result = result.replace(
+                        "{" + i + "}", String.valueOf(hooks.get(i).getHookId()));
             }
             return result;
         }
@@ -476,7 +459,7 @@ final class HooksControllerTest extends ControllerTest {
             final var hookStorage1 = persistHookStorage(ownerId, HOOK_ID, KEY1);
             final var hookStorage2 = persistHookStorage(ownerId, HOOK_ID, incrementHex(KEY1, 1));
 
-            final var expectedHookStorage = mapExpectedHookStorage(List.of(hookStorage1, hookStorage2));
+            final var expectedHookStorage = hookStorageMapper.map(List.of(hookStorage1, hookStorage2));
 
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setOwnerId(ownerId.toString());
@@ -486,7 +469,7 @@ final class HooksControllerTest extends ControllerTest {
 
             // when
             final var actual =
-                    restClient.get().uri("", address, hookId).retrieve().body(HooksStorageResponse.class);
+                    restClient.get().uri("", ownerId, hookId).retrieve().body(HooksStorageResponse.class);
 
             // then
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
@@ -499,7 +482,7 @@ final class HooksControllerTest extends ControllerTest {
             final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
 
             persistHookStorage(ownerId, HOOK_ID + 1, KEY1);
-            final var expectedHookStorage = mapExpectedHookStorage(Collections.emptyList());
+            final var expectedHookStorage = hookStorageMapper.map(Collections.emptyList());
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setLinks(new Links());
@@ -530,7 +513,7 @@ final class HooksControllerTest extends ControllerTest {
             final var expectedHookStorageEntities =
                     order.equals("asc") ? List.of(hookStorage1, hookStorage2) : List.of(hookStorage3, hookStorage2);
 
-            final var expectedHookStorage = mapExpectedHookStorage(expectedHookStorageEntities);
+            final var expectedHookStorage = hookStorageMapper.map(expectedHookStorageEntities);
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setOwnerId(ownerId.toString());
@@ -663,7 +646,7 @@ final class HooksControllerTest extends ControllerTest {
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setOwnerId(ownerId.toString());
-            expectedResponse.setStorage(mapExpectedHookStorage(mapped));
+            expectedResponse.setStorage(hookStorageMapper.map(mapped));
 
             if (ordered.size() > limit) {
                 final var last = limited.getLast();
@@ -704,37 +687,29 @@ final class HooksControllerTest extends ControllerTest {
         @Test
         @DisplayName("historical storage returns only the latest value per key")
         void historicalStorageReturnsLatestValuePerKey() {
-            // given — the importer appends one hook_storage_change row per change, so a single key has
-            // multiple rows in the queried window; the endpoint must collapse them to the latest value
+            // given
             final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
             final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
-            final byte[] key = HexFormat.of().parseHex(KEY1.replace("0x", ""));
+            final var key = HexFormat.of().parseHex(KEY1.replace("0x", ""));
 
-            persistHookStorageChangeWithValue(
+            persistHookStorageChange(
                     ownerId,
                     HOOK_ID,
                     key,
                     TimestampParameter.valueOf(TIMESTAMP1).value(),
                     new byte[] {0x0a});
-            final var latest = persistHookStorageChangeWithValue(
+            final var latest = persistHookStorageChange(
                     ownerId,
                     HOOK_ID,
                     key,
                     TimestampParameter.valueOf(TIMESTAMP2).value(),
                     new byte[] {0x0b});
 
-            final var expectedSlot = HookStorage.builder()
-                    .ownerId(ownerId.getId())
-                    .hookId(HOOK_ID)
-                    .key(key)
-                    .modifiedTimestamp(latest.getConsensusTimestamp())
-                    .value(new byte[] {0x0b})
-                    .build();
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
-            expectedResponse.setOwnerId(ownerId.toString());
-            expectedResponse.setStorage(mapExpectedHookStorage(List.of(expectedSlot)));
             expectedResponse.setLinks(new Links());
+            expectedResponse.setOwnerId(ownerId.toString());
+            expectedResponse.setStorage(hookStorageMapper.map(List.of(hookStorage(latest))));
 
             // when
             final var actual = restClient
@@ -745,44 +720,36 @@ final class HooksControllerTest extends ControllerTest {
                     .retrieve()
                     .body(HooksStorageResponse.class);
 
-            // then — one slot with the latest value, not one row per change
-            assertThat(actual.getStorage()).hasSize(1);
+            // then
             assertThat(actual).isEqualTo(expectedResponse);
         }
 
         @Test
         @DisplayName("historical storage returns the deletion when it is the latest change for a key")
         void historicalStorageReturnsLatestDeletedChange() {
-            // given — the slot is written and then deleted within the queried window
+            // given
             final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
             final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
-            final byte[] key = HexFormat.of().parseHex(KEY1.replace("0x", ""));
+            final var key = HexFormat.of().parseHex(KEY1.replace("0x", ""));
 
-            persistHookStorageChangeWithValue(
+            persistHookStorageChange(
                     ownerId,
                     HOOK_ID,
                     key,
                     TimestampParameter.valueOf(TIMESTAMP1).value(),
                     new byte[] {0x0a});
-            final var deletion = persistHookStorageChangeWithValue(
+            final var deletion = persistHookStorageChange(
                     ownerId,
                     HOOK_ID,
                     key,
                     TimestampParameter.valueOf(TIMESTAMP2).value(),
                     new byte[0]);
 
-            final var expectedSlot = HookStorage.builder()
-                    .ownerId(ownerId.getId())
-                    .hookId(HOOK_ID)
-                    .key(key)
-                    .modifiedTimestamp(deletion.getConsensusTimestamp())
-                    .value(new byte[0])
-                    .build();
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
-            expectedResponse.setOwnerId(ownerId.toString());
-            expectedResponse.setStorage(mapExpectedHookStorage(List.of(expectedSlot)));
             expectedResponse.setLinks(new Links());
+            expectedResponse.setOwnerId(ownerId.toString());
+            expectedResponse.setStorage(hookStorageMapper.map(List.of(hookStorage(deletion))));
 
             // when
             final var actual = restClient
@@ -793,21 +760,8 @@ final class HooksControllerTest extends ControllerTest {
                     .retrieve()
                     .body(HooksStorageResponse.class);
 
-            // then — the empty value at the deletion timestamp, not the stale value written before it
+            // then
             assertThat(actual).isEqualTo(expectedResponse);
-        }
-
-        private HookStorageChange persistHookStorageChangeWithValue(
-                EntityId ownerId, long hookId, byte[] key, long timestamp, byte[] valueWritten) {
-            return domainBuilder
-                    .hookStorageChange()
-                    .customize(hook -> hook.ownerId(ownerId.getId())
-                            .consensusTimestamp(timestamp)
-                            .hookId(hookId)
-                            .key(key)
-                            .valueRead(new byte[] {0x01, 0x02})
-                            .valueWritten(valueWritten))
-                    .persist();
         }
 
         static Stream<Arguments> provideKeyQueries() {
@@ -860,7 +814,7 @@ final class HooksControllerTest extends ControllerTest {
                         .toList();
             }
 
-            final var expectedHookStorage = mapExpectedHookStorage(expectedHookStorageList);
+            final var expectedHookStorage = hookStorageMapper.map(expectedHookStorageList);
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setLinks(new Links());
@@ -1005,7 +959,7 @@ final class HooksControllerTest extends ControllerTest {
 
             final var list =
                     expectedHookStorageList.stream().map(h -> hookStorage(h)).toList();
-            final var expectedHookStorage = mapExpectedHookStorage(list);
+            final var expectedHookStorage = hookStorageMapper.map(list);
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setLinks(new Links());
@@ -1186,6 +1140,19 @@ final class HooksControllerTest extends ControllerTest {
                     .persist();
         }
 
+        private HookStorageChange persistHookStorageChange(
+                EntityId ownerId, long hookId, byte[] key, long timestamp, byte[] valueWritten) {
+            return domainBuilder
+                    .hookStorageChange()
+                    .customize(change -> change.consensusTimestamp(timestamp)
+                            .hookId(hookId)
+                            .key(key)
+                            .ownerId(ownerId.getId())
+                            .valueRead(new byte[] {0x01, 0x02})
+                            .valueWritten(valueWritten))
+                    .persist();
+        }
+
         private static String incrementHex(String hex, long amount) {
             if (amount < 0) {
                 throw new IllegalArgumentException("Increment amount must be non-negative");
@@ -1195,21 +1162,6 @@ final class HooksControllerTest extends ControllerTest {
             value = value.add(BigInteger.valueOf(amount));
 
             return StringUtils.leftPad(value.toString(16), 64, '0');
-        }
-
-        private List<org.hiero.mirror.rest.model.HookStorage> mapExpectedHookStorage(List<HookStorage> domainStorage) {
-            return hookStorageMapper.map(domainStorage.stream()
-                    .map(HooksStorageEndpointTest::toHookStorageSlot)
-                    .toList());
-        }
-
-        private static HookStorageSlot toHookStorageSlot(HookStorage hs) {
-            long ts = hs.getModifiedTimestamp() != null ? hs.getModifiedTimestamp() : 0L;
-            byte[] value = hs.getValue();
-            if (value == null) {
-                value = new byte[0];
-            }
-            return new HookStorageSlot(ts, hs.getKey(), value);
         }
     }
 }

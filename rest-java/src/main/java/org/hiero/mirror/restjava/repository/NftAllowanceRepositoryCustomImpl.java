@@ -13,11 +13,9 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
-import org.hiero.mirror.restjava.converter.LongRangeConverter;
 import org.hiero.mirror.restjava.dto.NftAllowanceRequest;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
-import org.jooq.Record;
 import org.jooq.SortField;
 import org.springframework.data.domain.Sort.Direction;
 
@@ -45,18 +43,7 @@ class NftAllowanceRepositoryCustomImpl implements NftAllowanceRepositoryCustom {
                 .where(condition)
                 .orderBy(SORT_ORDERS.get(new OrderSpec(byOwner, request.getOrder())))
                 .limit(request.getLimit())
-                .fetch(NftAllowanceRepositoryCustomImpl::mapRecord);
-    }
-
-    private static NftAllowance mapRecord(Record r) {
-        return NftAllowance.builder()
-                .approvedForAll(r.get(NFT_ALLOWANCE.APPROVED_FOR_ALL))
-                .payerAccountId(EntityId.of(r.get(NFT_ALLOWANCE.PAYER_ACCOUNT_ID)))
-                .owner(r.get(NFT_ALLOWANCE.OWNER))
-                .spender(r.get(NFT_ALLOWANCE.SPENDER))
-                .tokenId(r.get(NFT_ALLOWANCE.TOKEN_ID))
-                .timestampRange(LongRangeConverter.INSTANCE.convert(r.get(NFT_ALLOWANCE.TIMESTAMP_RANGE)))
-                .build();
+                .fetchInto(NftAllowance.class);
     }
 
     private Condition getBaseCondition(EntityId accountId, boolean byOwner) {

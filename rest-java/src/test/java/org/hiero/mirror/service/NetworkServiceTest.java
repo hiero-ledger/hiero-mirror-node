@@ -4,31 +4,25 @@ package org.hiero.mirror.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyShort;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.Assertions;
-import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
+import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.RangeOperator;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.RegisteredNodesRequest;
-import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.hiero.mirror.restjava.repository.RegisteredNodeRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.hiero.mirror.restjava.service.Bound;
 import org.hiero.mirror.restjava.service.NetworkService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.data.domain.Sort;
@@ -62,7 +56,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     @Test
     void throwsIfNoStakePresent() {
         assertThatThrownBy(networkService::getLatestNetworkStake)
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("No network stake data found");
     }
 
@@ -255,36 +249,24 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                 .customize(ab -> ab.startConsensusTimestamp(timestamp))
                 .persist();
 
-        // Nested endpoints omitted: JDBC persistence expects prefixed FK columns this table does not have.
+        // Create 3 network nodes with different node IDs
         domainBuilder
-                .addressBookEntry(0)
+                .addressBookEntry(2)
                 .customize(e -> e.consensusTimestamp(timestamp).nodeId(1L))
                 .persist();
         domainBuilder
-                .addressBookEntry(0)
+                .addressBookEntry(2)
                 .customize(e -> e.consensusTimestamp(timestamp).nodeId(2L))
                 .persist();
         domainBuilder
-                .addressBookEntry(0)
+                .addressBookEntry(2)
                 .customize(e -> e.consensusTimestamp(timestamp).nodeId(3L))
                 .persist();
 
         // Add corresponding node stake data
-        domainBuilder
-                .nodeStake()
-                .customize(
-                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(1L))
-                .persist();
-        domainBuilder
-                .nodeStake()
-                .customize(
-                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(2L))
-                .persist();
-        domainBuilder
-                .nodeStake()
-                .customize(
-                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(3L))
-                .persist();
+        domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
+        domainBuilder.nodeStake().customize(ns -> ns.nodeId(2L)).persist();
+        domainBuilder.nodeStake().customize(ns -> ns.nodeId(3L)).persist();
 
         // Add corresponding node data
         domainBuilder.node().customize(n -> n.nodeId(1L)).persist();
@@ -381,7 +363,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void getRegisteredNodesWithoutTypeCallsFindBetween() {
+    void getRegisteredNodesWithoutType() {
         // given
         final var node = new RegisteredNode();
         final var request = RegisteredNodesRequest.builder()
@@ -393,24 +375,18 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                 .type(null)
                 .build();
 
-        when(repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-                        eq(1L), eq(10L), isNull(), eq(-1), eq(25)))
-                .thenReturn(List.of(node));
+        when(repository.findRegisteredNodes(1L, 10L, null, "DESC", 25)).thenReturn(List.of(node));
 
         // when
         final var result = networkService.getRegisteredNodes(request);
 
         // then
         Assertions.assertThat(result).containsExactly(node);
-        verify(repository)
-                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(eq(1L), eq(10L), isNull(), eq(-1), eq(25));
-        verify(repository, never())
-                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-                        anyLong(), anyLong(), anyShort(), anyInt(), anyInt());
+        verify(repository).findRegisteredNodes(1L, 10L, null, "DESC", 25);
     }
 
     @Test
-    void getRegisteredNodesWithTypeCallsFindBetweenAndTypeIn() {
+    void getRegisteredNodesWithType() {
         // given
         final var node = new RegisteredNode();
         final var request = RegisteredNodesRequest.builder()
@@ -418,9 +394,9 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                 .order(Sort.Direction.ASC)
                 .type(RegisteredNodeType.MIRROR_NODE)
                 .build();
+        final var type = RegisteredNodeType.MIRROR_NODE.getId();
 
-        when(repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-                        eq(0L), eq(Long.MAX_VALUE), eq(RegisteredNodeType.MIRROR_NODE.getId()), eq(1), eq(10)))
+        when(repository.findRegisteredNodes(0L, Long.MAX_VALUE, type, "ASC", 10))
                 .thenReturn(List.of(node));
 
         // when
@@ -428,11 +404,6 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
 
         // then
         Assertions.assertThat(result).containsExactly(node);
-        verify(repository)
-                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-                        eq(0L), eq(Long.MAX_VALUE), eq(RegisteredNodeType.MIRROR_NODE.getId()), eq(1), eq(10));
-        verify(repository, never())
-                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-                        anyLong(), anyLong(), isNull(), anyInt(), anyInt());
+        verify(repository).findRegisteredNodes(0L, Long.MAX_VALUE, type, "ASC", 10);
     }
 }

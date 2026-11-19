@@ -2,14 +2,15 @@
 
 package org.hiero.mirror.restjava.service;
 
-import java.util.List;
+import java.util.Collection;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.restjava.dto.HookStorageRequest;
+import org.hiero.mirror.restjava.dto.HookStorageResult;
 import org.hiero.mirror.restjava.dto.HooksRequest;
 
 public interface HookService {
 
-    HookStorageResult getHookStorage(HookStorageRequest request);
+    Collection<Hook> getHooks(HooksRequest hooksRequest);
 
-    List<Hook> getHooks(HooksRequest request);
+    HookStorageResult getHookStorage(HookStorageRequest request);
 }
