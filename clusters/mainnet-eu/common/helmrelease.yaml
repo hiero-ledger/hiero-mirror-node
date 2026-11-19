@@ -81,6 +81,9 @@ spec:
                   requests:
                     storage: 250Gi
     traefik:
+      resources:
+        limits:
+          memory: 2400Mi
       service:
         annotations:
           cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mirrornode-mainnet-eu"} } }'
