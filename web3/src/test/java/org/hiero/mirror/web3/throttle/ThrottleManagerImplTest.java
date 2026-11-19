@@ -21,7 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
@@ -94,20 +94,13 @@ final class ThrottleManagerImplTest {
     }
 
     @ParameterizedTest
-    @CsvSource({
-        // The refund share is half of the 1,000,000 gas limit.
-        "0, 0",
-        "200000, 200000",
-        "500000, 500000",
-        "900000, 500000",
-        "1000000, 500000"
-    })
-    void restoreRefundableGas(final long refundableGas, final long expectedRefund) {
+    @ValueSource(longs = {0L, 200_000L, 1_000_000L})
+    void restoreAddsScaledGas(final long gas) {
         final var gasLimitBucket = drainedBucket();
 
-        refundManager(gasLimitBucket).restoreRefundableGas(1_000_000L, refundableGas);
+        refundManager(gasLimitBucket).restore(gas);
 
-        assertThat(gasLimitBucket.getAvailableTokens()).isEqualTo(throttleProperties.scaleGas(expectedRefund));
+        assertThat(gasLimitBucket.getAvailableTokens()).isEqualTo(throttleProperties.scaleGas(gas));
     }
 
     @Test
@@ -313,7 +306,6 @@ final class ThrottleManagerImplTest {
     }
 
     private ThrottleManager refundManager(final Bucket gasLimitBucket) {
-        throttleProperties.setGasLimitRefundPercent(50);
         return new ThrottleManagerImpl(gasLimitBucket, createBucket(10L), throttleProperties);
     }
 

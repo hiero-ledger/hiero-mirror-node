@@ -20,6 +20,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
+import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 
 @CustomLog
@@ -33,14 +34,10 @@ public class ContractExecutionService extends ContractCallService {
             BinaryGasEstimator binaryGasEstimator,
             RecordFileService recordFileService,
             EvmProperties evmProperties,
+            ThrottleProperties throttleProperties,
             TransactionExecutionService transactionExecutionService) {
-        super(meterRegistry, recordFileService, evmProperties, transactionExecutionService);
+        super(meterRegistry, recordFileService, evmProperties, throttleProperties, transactionExecutionService);
         this.binaryGasEstimator = binaryGasEstimator;
-    }
-
-    /** Runs the call in a new {@link ContractCallContext} and returns only the result hex string. */
-    public String processCall(final ContractExecutionParameters params) {
-        return processCallWithGas(params).result();
     }
 
     /**
@@ -52,46 +49,11 @@ public class ContractExecutionService extends ContractCallService {
         return processCallWithGas(params, ctx).result();
     }
 
-    /** Runs the call in a new {@link ContractCallContext} and returns both the result and the gas used. */
-    public ContractExecutionResult processCallWithGas(final ContractExecutionParameters params) {
-        return ContractCallContext.run(ctx -> processCallWithGas(params, ctx));
-    }
-
     /**
-     * This method estimates the amount of gas required to execute a smart contract function. The estimation process
-     * involves two steps:
-     * <p>
-     * 1. Firstly, a call is made with user inputted gas value (default and maximum value for this parameter is 15
-     * million) to determine if the call estimation is possible. This step is intended to quickly identify any issues
-     * that would prevent the estimation from succeeding.
-     * <p>
-     * 2. Finally, if the first step is successful, a binary search is initiated. The lower bound of the search is the
-     * gas used in the first step, while the upper bound is the inputted gas parameter. A 5% safety margin is added
-     * to the successful limit, independently of storage refunds.
+     * Runs the call in {@code ctx}, which must be the bound {@link ContractCallContext}, and returns both the result and
+     * the gas used.
      */
-    private Bytes estimateGas(final ContractExecutionParameters params, final ContractCallContext context) {
-        final var processingResult = callContract(params, context);
-        final var gasUsedByInitialCall = processingResult.gasUsed();
-
-        final var status = ResponseCodeEnum.SUCCESS.toString();
-        final var estimatedGas = binaryGasEstimator.search(
-                (totalGas, iterations) -> updateMetrics(params, totalGas, iterations, status),
-                gas -> doProcessCall(params, gas, true),
-                gasUsedByInitialCall,
-                params.getGas());
-
-        if (estimatedGas > evmProperties.getMaxGasLimit()) {
-            throw new MirrorEvmTransactionException(
-                    ResponseCodeEnum.MAX_GAS_LIMIT_EXCEEDED.name(),
-                    "Gas estimate exceeds the maximum gas limit",
-                    HEX_PREFIX,
-                    processingResult);
-        }
-
-        return Bytes.ofUnsignedLong(estimatedGas);
-    }
-
-    private ContractExecutionResult processCallWithGas(
+    public ContractExecutionResult processCallWithGas(
             final ContractExecutionParameters params, final ContractCallContext ctx) {
         ctx.setApi(CALL);
         final var stopwatch = Stopwatch.createStarted();
@@ -130,5 +92,39 @@ public class ContractExecutionService extends ContractCallService {
         }
 
         return new ContractExecutionResult(stringResult, gasUsed);
+    }
+
+    /**
+     * This method estimates the amount of gas required to execute a smart contract function. The estimation process
+     * involves two steps:
+     * <p>
+     * 1. Firstly, a call is made with user inputted gas value (default and maximum value for this parameter is 15
+     * million) to determine if the call estimation is possible. This step is intended to quickly identify any issues
+     * that would prevent the estimation from succeeding.
+     * <p>
+     * 2. Finally, if the first step is successful, a binary search is initiated. The lower bound of the search is the
+     * gas used in the first step, while the upper bound is the inputted gas parameter. A 5% safety margin is added
+     * to the successful limit, independently of storage refunds.
+     */
+    private Bytes estimateGas(final ContractExecutionParameters params, final ContractCallContext context) {
+        final var processingResult = callContract(params, context);
+        final var gasUsedByInitialCall = processingResult.gasUsed();
+
+        final var status = ResponseCodeEnum.SUCCESS.toString();
+        final var estimatedGas = binaryGasEstimator.search(
+                (totalGas, iterations) -> updateMetrics(params, totalGas, iterations, status),
+                gas -> doProcessCall(params, gas, true),
+                gasUsedByInitialCall,
+                params.getGas());
+
+        if (estimatedGas > evmProperties.getMaxGasLimit()) {
+            throw new MirrorEvmTransactionException(
+                    ResponseCodeEnum.MAX_GAS_LIMIT_EXCEEDED.name(),
+                    "Gas estimate exceeds the maximum gas limit",
+                    HEX_PREFIX,
+                    processingResult);
+        }
+
+        return Bytes.ofUnsignedLong(estimatedGas);
     }
 }

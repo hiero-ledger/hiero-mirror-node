@@ -52,12 +52,6 @@ final class ThrottleManagerImpl implements ThrottleManager {
         }
     }
 
-    @Override
-    public void restoreRefundableGas(final long gasLimit, final long refundableGas) {
-        final long refundShare = (long) (gasLimit * throttleProperties.getGasLimitRefundPercent() / 100f);
-        restore(Math.min(refundableGas, refundShare));
-    }
-
     private void action(RequestProperties filter, ContractCallRequest request) {
         switch (filter.getAction()) {
             case LOG -> log.info("{}", request);

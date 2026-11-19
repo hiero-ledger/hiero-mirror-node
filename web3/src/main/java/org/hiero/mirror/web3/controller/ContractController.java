@@ -49,14 +49,12 @@ class ContractController {
 
         throttleManager.throttle(request);
         return ContractCallContext.run(ctx -> {
+            // Until the EVM runs, none of the reserved gas has been used, so all of it is refundable.
+            ctx.setRefundableGas(request.getGas());
             try {
                 return new ContractCallResponse(contractExecutionService.processCall(params, ctx));
-            } catch (IllegalArgumentException | InvalidParametersException e) {
-                // Processing did not complete, so restore the consumed tokens.
-                throttleManager.restore(request.getGas());
-                throw e;
             } finally {
-                throttleManager.restoreRefundableGas(request.getGas(), ctx.getRefundableGas());
+                throttleManager.restore(ctx.getRefundableGas());
             }
         });
     }

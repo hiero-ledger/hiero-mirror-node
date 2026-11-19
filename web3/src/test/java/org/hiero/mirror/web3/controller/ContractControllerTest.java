@@ -358,6 +358,7 @@ final class ContractControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), error))));
         verify(throttleManager).restore(request.getGas());
+        verify(throttleManager).restore(anyLong());
     }
 
     @Test
@@ -370,6 +371,21 @@ final class ContractControllerTest {
                 .andExpect(content()
                         .string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Invalid hex value"))));
         verify(throttleManager).restore(request.getGas());
+        verify(throttleManager).restore(anyLong());
+    }
+
+    @Test
+    void callWithIllegalArgumentExceptionAfterExecutionRestoresRefundableGas() throws Exception {
+        final var request = request();
+        final long refundableGas = 21_000L;
+
+        given(service.processCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
+            throw new IllegalArgumentException("Invalid hex value");
+        });
+        contractCall(request).andExpect(status().isBadRequest());
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
     }
 
     @Test
@@ -382,7 +398,8 @@ final class ContractControllerTest {
             return HEX_PREFIX;
         });
         contractCall(request).andExpect(status().isOk());
-        verify(throttleManager).restoreRefundableGas(request.getGas(), refundableGas);
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
     }
 
     @Test
@@ -395,7 +412,8 @@ final class ContractControllerTest {
             throw new MirrorEvmTransactionException(CONTRACT_REVERT_EXECUTED, "detail", HEX_PREFIX);
         });
         contractCall(request).andExpect(status().isBadRequest());
-        verify(throttleManager).restoreRefundableGas(request.getGas(), refundableGas);
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
     }
 
     @Test

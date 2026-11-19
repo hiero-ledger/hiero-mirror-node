@@ -9,9 +9,4 @@ public interface ThrottleManager {
     void throttle(ContractCallRequest request);
 
     void restore(long gas);
-
-    /**
-     * Returns the refundable gas of an execution, capped at the configured refund share of its gas limit.
-     */
-    void restoreRefundableGas(long gasLimit, long refundableGas);
 }

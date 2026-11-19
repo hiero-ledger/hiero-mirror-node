@@ -56,11 +56,6 @@ public class ContractCallContext {
     @Setter
     private CallServiceParameters callServiceParameters;
 
-    /**
-     * Gas the controller may return to the throttle after the request's EVM execution: the gas it did not use, or its
-     * whole gas limit when it failed having used all of it or produced no result. Zero until the execution ends. Gas
-     * estimation search iterations do not update it, because no throttle gas was reserved for them.
-     */
     @Setter
     private long refundableGas;
 

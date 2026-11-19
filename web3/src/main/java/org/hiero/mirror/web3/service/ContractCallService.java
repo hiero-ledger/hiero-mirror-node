@@ -24,6 +24,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.Utils;
+import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.Suppliers;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.jspecify.annotations.Nullable;
@@ -46,12 +47,14 @@ public abstract class ContractCallService {
     private final MeterProvider<Counter> gasLimitCounter;
     private final MeterProvider<Counter> gasUsedCounter;
     private final RecordFileService recordFileService;
+    private final ThrottleProperties throttleProperties;
     private final TransactionExecutionService transactionExecutionService;
 
     protected ContractCallService(
             MeterRegistry meterRegistry,
             RecordFileService recordFileService,
             EvmProperties evmProperties,
+            ThrottleProperties throttleProperties,
             TransactionExecutionService transactionExecutionService) {
         this.invocationCounter = Counter.builder(EVM_INVOCATION_METRIC)
                 .description("The number of EVM invocations")
@@ -64,6 +67,7 @@ public abstract class ContractCallService {
                 .withRegistry(meterRegistry);
         this.recordFileService = recordFileService;
         this.evmProperties = evmProperties;
+        this.throttleProperties = throttleProperties;
         this.transactionExecutionService = transactionExecutionService;
     }
 
@@ -156,12 +160,17 @@ public abstract class ContractCallService {
         gasLimitCounter.withTag(TAG_TYPE, callType).increment(parameters.getGas());
     }
 
-    private static long refundableGas(final long gasLimit, final @Nullable EvmTransactionResult result) {
-        // A failed execution reports its whole gas limit as used, so all of it is refundable.
+    private long refundableGas(final long gasLimit, final @Nullable EvmTransactionResult result) {
+        // If the transaction fails, gasUsed is equal to gasLimit, so refund the configured percent of the gas limit.
+        final long gasLimitToRestoreBaseline = (long) (gasLimit * throttleProperties.getGasLimitRefundPercent() / 100f);
         if (result == null || (!result.isSuccessful() && result.gasUsed() == gasLimit)) {
-            return gasLimit;
+            return gasLimitToRestoreBaseline;
         }
-        return gasLimit - result.gasUsed();
+
+        // The transaction was successful or reverted, so refund the remaining gas or the configured percent of the
+        // gas limit - whichever is lower.
+        final long gasRemaining = gasLimit - result.gasUsed();
+        return Math.min(gasRemaining, gasLimitToRestoreBaseline);
     }
 
     private String getBlock() {
