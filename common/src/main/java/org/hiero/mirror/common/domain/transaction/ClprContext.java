@@ -50,8 +50,7 @@ public class ClprContext {
      * only expect one.
      */
     public @Nullable ClprChannelEntry getClprChannel() {
-        final var iterator = clprChannels.iterator();
-        return iterator.hasNext() ? iterator.next() : null;
+        return clprChannels.isEmpty() ? null : clprChannels.getFirst();
     }
 
     /**
@@ -59,7 +58,6 @@ public class ClprContext {
      * that only expect one.
      */
     public @Nullable ClprConnectorEntry getClprConnector() {
-        final var iterator = clprConnectors.iterator();
-        return iterator.hasNext() ? iterator.next() : null;
+        return clprConnectors.isEmpty() ? null : clprConnectors.getFirst();
     }
 }

@@ -9,15 +9,15 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class ClprMaintenanceRepositoryTest extends ImporterIntegrationTest {
+final class ClprMaintenanceRepositoryTest extends ImporterIntegrationTest {
 
     private final ClprMaintenanceRepository clprMaintenanceRepository;
 
     @Test
     void prune() {
         domainBuilder.clprMaintenance().persist();
-        var clprMaintenance2 = domainBuilder.clprMaintenance().persist();
-        var clprMaintenance3 = domainBuilder.clprMaintenance().persist();
+        final var clprMaintenance2 = domainBuilder.clprMaintenance().persist();
+        final var clprMaintenance3 = domainBuilder.clprMaintenance().persist();
 
         clprMaintenanceRepository.prune(clprMaintenance2.getConsensusTimestamp());
 
@@ -26,7 +26,7 @@ class ClprMaintenanceRepositoryTest extends ImporterIntegrationTest {
 
     @Test
     void save() {
-        var clprMaintenance = domainBuilder.clprMaintenance().persist();
+        final var clprMaintenance = domainBuilder.clprMaintenance().persist();
         assertThat(clprMaintenanceRepository.findById(clprMaintenance.getConsensusTimestamp()))
                 .get()
                 .isEqualTo(clprMaintenance);

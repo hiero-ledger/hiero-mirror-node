@@ -35,6 +35,7 @@ import com.hederahashgraph.api.proto.java.ClprMessageReplyStatus;
 import com.hederahashgraph.api.proto.java.ClprMessageValue;
 import com.hederahashgraph.api.proto.java.ClprThrottles;
 import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.List;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
@@ -272,6 +273,34 @@ final class ClprStateChangeHandlerTest {
     }
 
     @Test
+    void processChannelPeerConfigTimestamp() {
+        // given -- the incoming peer's ledger-configuration timestamp, which consensus uses to order config
+        // updates (strictly increasing per Channel), must be mapped onto the channel rather than dropped
+        mockEmptyClprState();
+        final var channelId = domainBuilder.bytes(32);
+        final var peerConfigTimestamp = Timestamp.newBuilder()
+                .setSeconds(1_700_000_000L)
+                .setNanos(987_654_321)
+                .build();
+        final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(channelId))
+                .setPeerConfigTimestamp(peerConfigTimestamp)
+                .build();
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(
+                        DomainUtils.fromBytes(channelId), clprChannelMapUpdate(clprChannelValue))));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener).onClprChannel(channelCaptor.capture());
+        assertThat(channelCaptor.getValue())
+                .returns(DomainUtils.timestampInNanosMax(peerConfigTimestamp), ClprChannel::getPeerConfigTimestamp);
+    }
+
+    @Test
     void processChannelFullUpdateAlwaysHistorizes() {
         // given -- a full update (partial=false) can't tell us which field actually changed, so it must always
         // historize even when only counter-type fields (next_message_id, acked_message_id) are set
@@ -357,6 +386,37 @@ final class ClprStateChangeHandlerTest {
     }
 
     @Test
+    void processChannelPartialPeerConfigTimestampHistorizes() {
+        // given -- a partial update touching only peer_config_timestamp (not a counter field) must historize, since
+        // it tracks the peer's ledger configuration rather than per-message traffic
+        mockEmptyClprState();
+        final var channelId = domainBuilder.bytes(32);
+        long consensusTimestamp = domainBuilder.timestamp();
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+        final var peerConfigTimestamp =
+                Timestamp.newBuilder().setSeconds(1_700_000_000L).setNanos(1).build();
+        final var partialValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setPeerConfigTimestamp(peerConfigTimestamp)
+                .build();
+        final var mapUpdate = MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(partialValue))
+                .build();
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), mapUpdate)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener).onClprChannel(channelCaptor.capture());
+        assertThat(channelCaptor.getValue())
+                .returns(DomainUtils.timestampInNanosMax(peerConfigTimestamp), ClprChannel::getPeerConfigTimestamp)
+                .returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
+    }
+
+    @Test
     void processChannelPartialClearedFieldHistorizesWithDefaultValue() {
         // given -- trust_anchor explicitly cleared (not just omitted) in an otherwise counter-only partial update
         // must historize, and the cleared field must be set to its proto default rather than left absent
@@ -437,6 +497,8 @@ final class ClprStateChangeHandlerTest {
         // given
         mockEmptyClprState();
         final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final long consensusTimestamp = domainBuilder.timestamp();
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         final var dataKey = ClprMessageKey.newBuilder()
                 .setChannelId(channelId)
@@ -477,6 +539,12 @@ final class ClprStateChangeHandlerTest {
                 .setMessageId(3)
                 .build();
         final var controlRunningHash = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        // Deliberately different from consensusTimestamp -- the control configuration's own timestamp must not be
+        // confused with the enclosing message's consensus/enqueue timestamp.
+        final var configTimestamp = Timestamp.newBuilder()
+                .setSeconds(1_700_000_000L)
+                .setNanos(123_456_789)
+                .build();
         final var controlValue = ClprMessageValue.newBuilder()
                 .setRunningHashAfterProcessing(controlRunningHash)
                 .setPayload(ClprMessagePayload.newBuilder()
@@ -485,6 +553,7 @@ final class ClprStateChangeHandlerTest {
                                         .setConfiguration(ClprLedgerConfiguration.newBuilder()
                                                 .setProtocolVersion(1)
                                                 .setChainId("hedera:mainnet")
+                                                .setTimestamp(configTimestamp)
                                                 .setThrottles(ClprThrottles.newBuilder()
                                                         .setMaxMessagesPerBundle(100))))))
                 .build();
@@ -539,9 +608,13 @@ final class ClprStateChangeHandlerTest {
                                 .returns(1L, ClprControlConfiguration::getProtocolVersion)
                                 .returns("hedera:mainnet", ClprControlConfiguration::getChainId)
                                 .returns(
+                                        DomainUtils.timestampInNanosMax(configTimestamp),
+                                        ClprControlConfiguration::getTimestamp)
+                                .returns(
                                         100L,
                                         configuration ->
                                                 configuration.getThrottle().getMaxMessagesPerBundle())));
+        assertThat(DomainUtils.timestampInNanosMax(configTimestamp)).isNotEqualTo(consensusTimestamp);
 
         verify(entityListener, never()).onClprMessage(argThat(m -> m.getMessageId() == 4));
     }
@@ -566,6 +639,37 @@ final class ClprStateChangeHandlerTest {
 
         // then
         verifyNoInteractions(entityListener);
+    }
+
+    @Test
+    void processMessageControlAbsentConfiguration() {
+        // given -- a ConfigUpdate without an enclosed configuration is a valid protocol case (the consensus-node
+        // bundle validator accepts and ignores it); absence must be preserved, not collapsed into a default-valued
+        // ClprControlConfiguration
+        mockEmptyClprState();
+        final var key = ClprMessageKey.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setMessageId(1)
+                .build();
+        final var value = ClprMessageValue.newBuilder()
+                .setRunningHashAfterProcessing(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setPayload(ClprMessagePayload.newBuilder()
+                        .setControl(ClprControlMessage.newBuilder().setConfigUpdate(ClprConfigUpdate.newBuilder())))
+                .build();
+        when(clprContext.getClprMessages()).thenReturn(List.of(new ClprMessageEntry(key, value)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var messageCaptor = ArgumentCaptor.forClass(ClprMessage.class);
+        verify(entityListener).onClprMessage(messageCaptor.capture());
+        assertThat(messageCaptor
+                        .getValue()
+                        .getControlMessage()
+                        .getConfigUpdate()
+                        .getConfiguration())
+                .isNull();
     }
 
     @Test

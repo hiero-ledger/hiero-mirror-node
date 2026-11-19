@@ -8,6 +8,7 @@ import static org.springframework.transaction.support.TransactionSynchronization
 
 import jakarta.inject.Named;
 import java.util.Objects;
+import lombok.CustomLog;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.importer.repository.ClprEndpointManifestRepository;
 import org.jspecify.annotations.NullMarked;
@@ -34,6 +35,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @NullMarked
 @Named
 @CacheConfig(cacheNames = CACHE_NAME, cacheManager = CACHE_CLPR_ENDPOINT_MANIFEST)
+@CustomLog
 class ClprEndpointManifestService {
 
     private static final Object CACHE_KEY = "latest";
@@ -61,6 +63,7 @@ class ClprEndpointManifestService {
                 @Override
                 public void afterCompletion(int status) {
                     if (status != STATUS_COMMITTED) {
+                        log.info("Evicting cache for CLPR endpoint manifest");
                         cache.evict(CACHE_KEY);
                     }
                 }

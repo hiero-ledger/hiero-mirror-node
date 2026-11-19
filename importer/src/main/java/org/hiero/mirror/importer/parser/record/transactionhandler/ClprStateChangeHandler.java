@@ -371,6 +371,8 @@ public final class ClprStateChangeHandler {
 
     private ClprControlConfiguration toControlConfiguration(
             com.hederahashgraph.api.proto.java.ClprLedgerConfiguration configuration) {
+        final var configTimestamp =
+                configuration.hasTimestamp() ? DomainUtils.timestampInNanosMax(configuration.getTimestamp()) : null;
         return ClprControlConfiguration.builder()
                 .protocolVersion(Integer.toUnsignedLong(configuration.getProtocolVersion()))
                 .chainId(configuration.getChainId())
@@ -378,19 +380,24 @@ public final class ClprStateChangeHandler {
                 .initialTrustAnchor(DomainUtils.toBytes(configuration.getInitialTrustAnchor()))
                 .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()))
                 .throttle(ClprThrottleConverter.from(configuration))
+                .timestamp(configTimestamp)
                 .build();
     }
 
     private @Nullable ClprControlMessage toControlMessage(
             com.hederahashgraph.api.proto.java.ClprControlMessage control, long consensusTimestamp) {
         return switch (control.getPayloadCase()) {
-            case CONFIG_UPDATE ->
-                ClprControlMessage.builder()
+            case CONFIG_UPDATE -> {
+                final var configUpdate = control.getConfigUpdate();
+                final var configuration = configUpdate.hasConfiguration()
+                        ? toControlConfiguration(configUpdate.getConfiguration())
+                        : null;
+                yield ClprControlMessage.builder()
                         .configUpdate(ClprConfigUpdate.builder()
-                                .configuration(toControlConfiguration(
-                                        control.getConfigUpdate().getConfiguration()))
+                                .configuration(configuration)
                                 .build())
                         .build();
+            }
             default -> {
                 // PAYLOAD_NOT_SET would indicate a future, not-yet-understood protocol version
                 Utility.handleRecoverableError(

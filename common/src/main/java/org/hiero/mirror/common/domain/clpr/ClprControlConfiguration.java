@@ -24,4 +24,5 @@ public class ClprControlConfiguration {
     private long protocolVersion;
     private byte[] serviceAddress;
     private ClprThrottle throttle;
+    private Long timestamp;
 }
