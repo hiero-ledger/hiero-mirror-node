@@ -10,6 +10,7 @@ import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprMaintenance;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
@@ -69,6 +70,8 @@ public interface EntityListener {
     default void onClprEndpointManifest(ClprEndpointManifest clprEndpointManifest) throws ImporterException {}
 
     default void onClprLedgerConfiguration(ClprLedgerConfiguration clprLedgerConfiguration) throws ImporterException {}
+
+    default void onClprMaintenance(ClprMaintenance clprMaintenance) throws ImporterException {}
 
     default void onClprMessage(ClprMessage clprMessage) throws ImporterException {}
 

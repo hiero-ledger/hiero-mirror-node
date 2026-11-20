@@ -10,11 +10,13 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface ReconciliationJobRepository extends CrudRepository<ReconciliationJob, Long>, RetentionRepository {
 
-    @Query(nativeQuery = true, value = "select * from reconciliation_job order by timestamp_start desc limit 1")
+    @Query(value = "select * from reconciliation_job order by timestamp_start desc limit 1", nativeQuery = true)
     Optional<ReconciliationJob> findLatest();
 
     @Modifying
     @Override
-    @Query("delete from ReconciliationJob where consensusTimestamp <= ?1")
+    @Query(
+            value = "delete from reconciliation_job where consensus_timestamp <= :consensusTimestamp",
+            nativeQuery = true)
     int prune(long consensusTimestamp);
 }

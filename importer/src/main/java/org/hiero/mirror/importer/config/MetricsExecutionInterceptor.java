@@ -10,8 +10,8 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -32,7 +32,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 @CustomLog
 @Named
 @RequiredArgsConstructor
-public class MetricsExecutionInterceptor implements ExecutionInterceptor {
+final class MetricsExecutionInterceptor implements ExecutionInterceptor {
 
     static final ExecutionAttribute<ResponseSizeSubscriber> SIZE = new ExecutionAttribute<>("size");
     static final ExecutionAttribute<Instant> START_TIME = new ExecutionAttribute<>("start-time");
@@ -48,7 +48,9 @@ public class MetricsExecutionInterceptor implements ExecutionInterceptor {
     static final String TAG_SHARD = "shard";
     static final String TAG_STATUS = "status";
     static final String TAG_TYPE = "type";
-    static final String QUERY_START_AFTER = "start-after";
+    static final String QUERY_LIST_TYPE = "list-type=";
+    static final String QUERY_PREFIX = "prefix=";
+    static final String QUERY_START_AFTER = "start-after=";
 
     private static final Pattern ENTITY_ID_PATTERN =
             Pattern.compile("/(balance|record)(s_)?(\\d{1,10})\\.\\d{1,10}\\.(\\d{1,10})");
@@ -105,40 +107,46 @@ public class MetricsExecutionInterceptor implements ExecutionInterceptor {
             }
 
             if (responseSizeSubscriber != null) {
-                responseSizeMetric
-                        .tags(tags)
-                        .register(meterRegistry)
-                        .record(Double.valueOf(responseSizeSubscriber.getSize()));
+                responseSizeMetric.tags(tags).register(meterRegistry).record((double) responseSizeSubscriber.getSize());
             }
         } catch (Exception e) {
-            log.warn("Unable to collect S3 metrics", e);
+            log.warn("Unable to collect S3 metrics: {}", e.getMessage());
         }
     }
 
-    private UriAttributes getUriAttributes(URI uri) {
-        var query = uri.getQuery();
-        var uriComponent = query != null && query.contains(QUERY_START_AFTER) ? query : uri.getPath();
-        var action = getAction(uriComponent);
+    private UriAttributes getUriAttributes(final URI uri) {
+        final var action = getAction(uri.toString());
+        final var query = Objects.requireNonNullElse(uri.getQuery(), "");
+        final var hasStartAfter = query.contains(QUERY_START_AFTER);
+        final var uriComponent = hasStartAfter ? query : uri.getPath();
 
-        Matcher accountIdMatcher = ENTITY_ID_PATTERN.matcher(uriComponent);
+        final var accountIdMatcher = ENTITY_ID_PATTERN.matcher(uriComponent);
         if (accountIdMatcher.find()) {
-            var shard = accountIdMatcher.group(3);
-            var nodeId = String.valueOf(Long.parseLong(accountIdMatcher.group(4)) - 3L);
-            var streamType = accountIdMatcher.group(1);
+            final var shard = accountIdMatcher.group(3);
+            final var nodeId = String.valueOf(Long.parseLong(accountIdMatcher.group(4)) - 3L);
+            final var streamType = accountIdMatcher.group(1);
             return new UriAttributes(action, nodeId, shard, streamType.toUpperCase());
         }
 
         if (uriComponent.contains(BLOCK_PATH_SEGMENT)) {
-            var shard = String.valueOf(commonProperties.getShard());
+            final var shard = String.valueOf(commonProperties.getShard());
             return new UriAttributes(action, BLOCK_NODE, shard, StreamType.BLOCK.name());
         }
 
-        throw new IllegalStateException("Could not detect an account ID or block path in URI: " + uri);
+        // The recent-block-streams bucket root list has no prefix or start-after
+        if (ACTION_LIST.equals(action) && !hasStartAfter && !query.contains(QUERY_PREFIX)) {
+            final var shard = String.valueOf(commonProperties.getShard());
+            return new UriAttributes(action, BLOCK_NODE, shard, StreamType.BLOCK.name());
+        }
+
+        throw new IllegalStateException(
+                "Could not detect an account ID, block path, or blockstream bucket root list in URI: " + uri);
     }
 
     // Instead of tagging the URI path, simplify it to the 3 actions we use from the S3 API
-    private String getAction(String uri) {
-        if (uri.contains(QUERY_START_AFTER)) {
+    private String getAction(final String uri) {
+        // All lists use ListObjectsV2
+        if (uri.contains(QUERY_LIST_TYPE)) {
             return ACTION_LIST;
         } else if (uri.contains(StreamType.SIGNATURE_SUFFIX)) {
             return ACTION_SIGNATURE;

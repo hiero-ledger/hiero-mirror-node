@@ -29,4 +29,16 @@ class ClprMessageRepositoryTest extends ImporterIntegrationTest {
         var clprMessage = domainBuilder.clprMessage().persist();
         assertThat(clprMessageRepository.findById(clprMessage.getId())).get().isEqualTo(clprMessage);
     }
+
+    @Test
+    void saveControlMessage() {
+        var clprMessage = domainBuilder.clprControlMessage().persist();
+        assertThat(clprMessageRepository.findById(clprMessage.getId())).get().isEqualTo(clprMessage);
+    }
+
+    @Test
+    void saveResponseMessage() {
+        var clprMessage = domainBuilder.clprResponseMessage().persist();
+        assertThat(clprMessageRepository.findById(clprMessage.getId())).get().isEqualTo(clprMessage);
+    }
 }

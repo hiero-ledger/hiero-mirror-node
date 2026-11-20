@@ -18,6 +18,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.StorageContract;
 import org.hyperledger.besu.datatypes.Address;
@@ -78,11 +79,15 @@ class StorageContractTest extends AbstractContractCallServiceHistoricalTest {
         // Clearing slot 1 requires this limit before the storage refund is applied.
         final long requiredGasLimit = 26_469L;
         final var executionResult =
-                assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(getContractExecutionParameters(
-                        callData, contractAddress, Address.ZERO, 0L, ETH_CALL, requiredGasLimit)));
+                assertDoesNotThrow(() -> ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(
+                        getContractExecutionParameters(
+                                callData, contractAddress, Address.ZERO, 0L, ETH_CALL, requiredGasLimit),
+                        ctx)));
         assertThat(executionResult.gasUsed()).isLessThan(requiredGasLimit);
-        assertThatThrownBy(() -> contractExecutionService.processCall(getContractExecutionParameters(
-                        callData, contractAddress, Address.ZERO, 0L, ETH_CALL, requiredGasLimit - 1)))
+        final var insufficientGasParams = getContractExecutionParameters(
+                callData, contractAddress, Address.ZERO, 0L, ETH_CALL, requiredGasLimit - 1);
+        assertThatThrownBy(() -> ContractCallContext.run(
+                        ctx -> contractExecutionService.processCall(insufficientGasParams, ctx)))
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessage("INSUFFICIENT_GAS");
 
@@ -93,8 +98,11 @@ class StorageContractTest extends AbstractContractCallServiceHistoricalTest {
         assertThat(isWithinExpectedGasRange(estimatedGas, requiredGasLimit))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimatedGas, requiredGasLimit)
                 .isTrue();
-        final var executionAtEstimate = assertDoesNotThrow(() -> contractExecutionService.processCallWithGas(
-                getContractExecutionParameters(callData, contractAddress, Address.ZERO, 0L, ETH_CALL, estimatedGas)));
+        final var executionAtEstimate =
+                assertDoesNotThrow(() -> ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(
+                        getContractExecutionParameters(
+                                callData, contractAddress, Address.ZERO, 0L, ETH_CALL, estimatedGas),
+                        ctx)));
         assertThat(executionAtEstimate).isEqualTo(executionResult);
     }
 

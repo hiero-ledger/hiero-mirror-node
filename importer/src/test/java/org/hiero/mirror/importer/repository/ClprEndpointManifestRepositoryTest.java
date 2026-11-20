@@ -55,4 +55,16 @@ class ClprEndpointManifestRepositoryTest extends ImporterIntegrationTest {
 
         assertThat(actual).get().extracting(ClprEndpointManifest::getEndpoints).isEqualTo(endpoints);
     }
+
+    @Test
+    void findLatest() {
+        domainBuilder.clprEndpointManifest().persist();
+        var latest = domainBuilder.clprEndpointManifest().persist();
+        assertThat(clprEndpointManifestRepository.findLatest()).isEqualTo(latest);
+    }
+
+    @Test
+    void findLatestEmpty() {
+        assertThat(clprEndpointManifestRepository.findLatest()).isNull();
+    }
 }

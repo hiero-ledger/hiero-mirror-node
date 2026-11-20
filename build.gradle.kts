@@ -17,10 +17,10 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "26.2.0")
-    set("blockNodeVersion", "0.45.1")
+    set("blockNodeVersion", "0.46.0")
     set("commons-codec.version", "1.23.0") // Temporary until next Spring Boot
     set("consensusNodeVersion", "0.78.2")
-    set("hederaCryptographyVersion", "3.27.0")
+    set("hederaCryptographyVersion", "3.29.1")
     set("jackson-bom.version", "3.3.0") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.23.0") // Temporary until next Spring Boot
     set("jooq.version", "3.21.9") // Must match buildSrc/build.gradle.kts

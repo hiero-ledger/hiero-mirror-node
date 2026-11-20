@@ -73,6 +73,7 @@ public class ContractSimulateService extends ContractCallService {
 
     private final HederaGasCalculator gasCalculator;
     private final RecordFileService recordFileService;
+    private final ThrottleManager throttleManager;
     private final Web3Properties web3Properties;
 
     public ContractSimulateService(
@@ -84,15 +85,10 @@ public class ContractSimulateService extends ContractCallService {
             ThrottleProperties throttleProperties,
             TransactionExecutionService transactionExecutionService,
             Web3Properties web3Properties) {
-        super(
-                throttleManager,
-                throttleProperties,
-                meterRegistry,
-                recordFileService,
-                evmProperties,
-                transactionExecutionService);
+        super(meterRegistry, recordFileService, evmProperties, throttleProperties, transactionExecutionService);
         this.gasCalculator = gasCalculator;
         this.recordFileService = recordFileService;
+        this.throttleManager = throttleManager;
         this.web3Properties = web3Properties;
     }
 

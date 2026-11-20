@@ -20,7 +20,7 @@ public interface NodeStakeRepository extends CrudRepository<NodeStake, NodeStake
     @Override
     @Query(
             nativeQuery = true,
-            value = "delete from node_stake where consensus_timestamp <= ?1 "
+            value = "delete from node_stake where consensus_timestamp <= :consensusTimestamp "
                     + "and epoch_day < (select max(epoch_day) from node_stake) - 366")
     int prune(long consensusTimestamp);
 }

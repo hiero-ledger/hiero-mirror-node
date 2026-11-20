@@ -5,6 +5,9 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
+import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
+import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.annotation.Resource;
@@ -17,6 +20,7 @@ import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.downloader.block.BlockFileTransformer;
 import org.hiero.mirror.importer.parser.domain.BlockFileBuilder;
@@ -32,6 +36,12 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
                     .withEqualsForType(Object::equals, PendingAirdropId.class)
                     .withEqualsForType(Object::equals, TransactionRecord.class)
                     .withEqualsForType(Object::equals, TransactionSidecarRecord.class)
+                    .withEqualsForType(Object::equals, ClprChannel.class)
+                    .withEqualsForType(Object::equals, ClprEndpointManifest.class)
+                    .withEqualsForType(Object::equals, ClprLedgerConfiguration.class)
+                    .withEqualsForType(Object::equals, StateChangeContext.ClprChannelEntry.class)
+                    .withEqualsForType(Object::equals, StateChangeContext.ClprConnectorEntry.class)
+                    .withEqualsForType(Object::equals, StateChangeContext.ClprMessageEntry.class)
                     .build();
 
     @Resource

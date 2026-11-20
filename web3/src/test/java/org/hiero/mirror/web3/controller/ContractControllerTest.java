@@ -44,6 +44,7 @@ import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.web3.ApiProperties;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
@@ -242,7 +243,7 @@ final class ContractControllerTest {
         final var exceptionMessage = "No such contract or token";
         final var request = request();
 
-        given(service.processCall(any())).willThrow(new EntityNotFoundException(exceptionMessage));
+        given(service.processCall(any(), any())).willThrow(new EntityNotFoundException(exceptionMessage));
 
         contractCall(request)
                 .andExpect(status().isNotFound())
@@ -314,7 +315,7 @@ final class ContractControllerTest {
                 .andExpect(status().isOk());
 
         // Verify that the value field defaults to 0 when explicitly set to null
-        verify(service).processCall(argThat(params -> params.getValue() == 0L));
+        verify(service).processCall(argThat(params -> params.getValue() == 0L), any());
     }
 
     @Test
@@ -354,7 +355,7 @@ final class ContractControllerTest {
         final var request = request();
         request.setData("0xa26388bb");
 
-        given(service.processCall(any()))
+        given(service.processCall(any(), any()))
                 .willThrow(new MirrorEvmTransactionException(
                         CONTRACT_REVERT_EXECUTED, detailedErrorMessage, hexDataErrorMessage));
 
@@ -370,30 +371,74 @@ final class ContractControllerTest {
         final var error = "No such contract or token";
         final var request = request();
 
-        given(service.processCall(any())).willThrow(new InvalidParametersException(error));
+        given(service.processCall(any(), any())).willThrow(new InvalidParametersException(error));
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), error))));
         verify(throttleManager).restore(request.getGas());
+        verify(throttleManager).restore(anyLong());
     }
 
     @Test
     void callWithIllegalArgumentExceptionRestoresThrottle() throws Exception {
         final var request = request();
 
-        given(service.processCall(any())).willThrow(new IllegalArgumentException("Invalid hex value"));
+        given(service.processCall(any(), any())).willThrow(new IllegalArgumentException("Invalid hex value"));
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content()
                         .string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Invalid hex value"))));
         verify(throttleManager).restore(request.getGas());
+        verify(throttleManager).restore(anyLong());
+    }
+
+    @Test
+    void callWithIllegalArgumentExceptionAfterExecutionRestoresRefundableGas() throws Exception {
+        final var request = request();
+        final long refundableGas = 21_000L;
+
+        given(service.processCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
+            throw new IllegalArgumentException("Invalid hex value");
+        });
+        contractCall(request).andExpect(status().isBadRequest());
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
+    }
+
+    @Test
+    void callRestoresRefundableGas() throws Exception {
+        final var request = request();
+        final long refundableGas = 21_000L;
+
+        given(service.processCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
+            return HEX_PREFIX;
+        });
+        contractCall(request).andExpect(status().isOk());
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
+    }
+
+    @Test
+    void callWithRevertRestoresRefundableGas() throws Exception {
+        final var request = request();
+        final long refundableGas = 21_000L;
+
+        given(service.processCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
+            throw new MirrorEvmTransactionException(CONTRACT_REVERT_EXECUTED, "detail", HEX_PREFIX);
+        });
+        contractCall(request).andExpect(status().isBadRequest());
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
     }
 
     @Test
     void callWithNotSupportedPrecompile() throws Exception {
         final var request = request();
 
-        given(service.processCall(any())).willThrow(new PrecompileNotSupportedException(StringUtils.EMPTY));
+        given(service.processCall(any(), any())).willThrow(new PrecompileNotSupportedException(StringUtils.EMPTY));
         contractCall(request)
                 .andExpect(status().isNotImplemented())
                 .andExpect(content()
@@ -462,7 +507,7 @@ final class ContractControllerTest {
     @Test
     void callWithBlockNumberNotFoundExceptionTest() throws Exception {
         final var request = request();
-        given(service.processCall(any())).willThrow(new BlockNumberNotFoundException());
+        given(service.processCall(any(), any())).willThrow(new BlockNumberNotFoundException());
 
         contractCall(request)
                 .andExpect(status().isBadRequest())
@@ -477,7 +522,7 @@ final class ContractControllerTest {
         final var request = request();
         request.setData("0xa26388bb");
 
-        given(service.processCall(any()))
+        given(service.processCall(any(), any()))
                 .willThrow(new MirrorEvmTransactionException(responseCode, "internal detail", "0xdeadbeef"));
 
         // On 5xx the detail and data must be redacted so internal server-side state is never leaked to the client.
@@ -533,7 +578,7 @@ final class ContractControllerTest {
 
         verify(throttleManager, never()).throttle(any());
         verify(throttleManager, never()).restore(anyLong());
-        verify(service, never()).processCall(any());
+        verify(service, never()).processCall(any(), any());
     }
 
     @Test
@@ -547,7 +592,7 @@ final class ContractControllerTest {
 
         verify(throttleManager, never()).throttle(any());
         verify(throttleManager, never()).restore(anyLong());
-        verify(service, never()).processCall(any());
+        verify(service, never()).processCall(any(), any());
     }
 
     @Test
@@ -561,7 +606,7 @@ final class ContractControllerTest {
 
         verify(throttleManager, never()).throttle(any());
         verify(throttleManager, never()).restore(anyLong());
-        verify(service, never()).processCall(any());
+        verify(service, never()).processCall(any(), any());
     }
 
     @Test
@@ -623,7 +668,7 @@ final class ContractControllerTest {
     @SneakyThrows
     void handlesQueryTimeoutException(CapturedOutput capturedOutput) {
         final var request = request();
-        given(service.processCall(any())).willThrow(new QueryTimeoutException("Query timeout"));
+        given(service.processCall(any(), any())).willThrow(new QueryTimeoutException("Query timeout"));
 
         contractCall(request)
                 .andExpect(status().isServiceUnavailable())
