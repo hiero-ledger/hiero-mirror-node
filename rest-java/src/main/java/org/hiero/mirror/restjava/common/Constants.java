@@ -15,6 +15,7 @@ public class Constants {
 
     // Parameter names
     public static final String ACCOUNT_ID = "account.id";
+    public static final String CHANNEL_ID = "channel.id";
     public static final String FILE_ID = "file.id";
     public static final String HIGH_VOLUME_THROTTLE = "high_volume_throttle";
     public static final String HOOK_ID = "hook.id";
@@ -28,6 +29,7 @@ public class Constants {
     public static final String REGISTERED_NODE_TYPE = "type";
     public static final String SENDER_ID = "sender.id";
     public static final String SERIAL_NUMBER = "serialnumber";
+    public static final String STATUS = "status";
     public static final String TIMESTAMP = "timestamp";
     public static final String TOKEN_ID = "token.id";
 
