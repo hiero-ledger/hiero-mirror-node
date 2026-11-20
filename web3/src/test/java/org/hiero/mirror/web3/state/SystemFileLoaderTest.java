@@ -126,7 +126,11 @@ class SystemFileLoaderTest {
         var feeSchedule = CurrentAndNextFeeSchedule.PROTOBUF.parse(file.contents());
         assertThat(feeSchedule).isNotEqualTo(CurrentAndNextFeeSchedule.DEFAULT);
         assertThat(feeSchedule.currentFeeScheduleOrThrow().transactionFeeSchedule())
-                .hasSizeGreaterThanOrEqualTo(72);
+                .extracting(TransactionFeeSchedule::hederaFunctionality)
+                .containsExactly(
+                        HederaFunctionality.CONTRACT_CALL,
+                        HederaFunctionality.CONTRACT_CREATE,
+                        HederaFunctionality.ETHEREUM_TRANSACTION);
     }
 
     @Test

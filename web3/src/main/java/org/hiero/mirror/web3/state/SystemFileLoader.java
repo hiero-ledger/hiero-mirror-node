@@ -9,10 +9,13 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
+import com.hedera.hapi.node.base.FeeComponents;
+import com.hedera.hapi.node.base.FeeData;
 import com.hedera.hapi.node.base.FeeSchedule;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.HederaFunctionality;
 import com.hedera.hapi.node.base.NodeAddressBook;
+import com.hedera.hapi.node.base.TransactionFeeSchedule;
 import com.hedera.hapi.node.state.file.File;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
@@ -62,7 +65,16 @@ import org.springframework.core.retry.RetryTemplate;
 public final class SystemFileLoader {
 
     private static final long FEE_DIVISOR_FACTOR = 1000L;
+    private static final long GENESIS_SERVICE_GAS = 852_000L;
     private static final long NANOS_PER_HOUR = 3600L * DomainUtils.NANOS_PER_SECOND;
+    private static final CurrentAndNextFeeSchedule GENESIS_FEE_SCHEDULE = CurrentAndNextFeeSchedule.newBuilder()
+            .currentFeeSchedule(FeeSchedule.newBuilder()
+                    .transactionFeeSchedule(List.of(
+                            genesisTransactionFeeSchedule(HederaFunctionality.CONTRACT_CALL),
+                            genesisTransactionFeeSchedule(HederaFunctionality.CONTRACT_CREATE),
+                            genesisTransactionFeeSchedule(HederaFunctionality.ETHEREUM_TRANSACTION)))
+                    .build())
+            .build();
     private static final Set<HederaFunctionality> GAS_PRICED_FUNCTIONALITIES = Set.of(
             HederaFunctionality.CONTRACT_CALL,
             HederaFunctionality.CONTRACT_CREATE,
@@ -129,51 +141,39 @@ public final class SystemFileLoader {
         final var cacheKey = new CacheKey(fileId, consensusTimestamp);
         log.debug("Looking up {}", cacheKey);
         final var cache = cacheManager.getCache(CACHE_NAME);
-        final long timestamp = consensusTimestamp;
-
-        // Consensus nodes only read the simple fee file. Before simple fees were enabled, present the legacy
-        // schedule converted into that format.
-        final boolean shouldUseLegacyFeesFile =
-                fileId.equals(simpleFeeSchedulesFileId) && consensusTimestamp < simpleFeesTimestamp();
         if (cache == null) {
-            return shouldUseLegacyFeesFile ? convertLegacyFeeSchedule(timestamp) : loadFromDB(fileId, timestamp);
-        }
-        if (shouldUseLegacyFeesFile) {
-            return cache.get(cacheKey, () -> convertLegacyFeeSchedule(timestamp));
+            return loadFromDB(fileId, consensusTimestamp);
         }
         return cache.get(cacheKey, () -> loadFromDB(fileId, cacheKey.timestamp()));
     }
 
     private @Nullable File loadFromDB(FileID fileId, long consensusTimestamp) {
-        var systemFile = getSystemFiles().get(fileId);
+        // Consensus nodes only read the simple fee file. Before simple fees were enabled, load the legacy file and
+        // present it in the simple fee format.
+        final boolean legacyFeeFile =
+                fileId.equals(simpleFeeSchedulesFileId) && consensusTimestamp < simpleFeesTimestamp();
+        final var resolvedFileId = legacyFeeFile ? feeSchedulesFileId : fileId;
+        var systemFile = getSystemFiles().get(resolvedFileId);
         if (systemFile == null) {
             return null;
         }
 
-        return loadWithRetry(fileId, consensusTimestamp, systemFile);
-    }
-
-    private File convertLegacyFeeSchedule(long consensusTimestamp) {
-        final var legacy = load(feeSchedulesFileId, consensusTimestamp);
-        if (legacy != null && legacy.contents() != null) {
-            final var converted = toSimpleFeeSchedule(legacy.contents(), consensusTimestamp);
-            if (converted != null) {
-                return File.newBuilder()
-                        .contents(converted)
-                        .fileId(simpleFeeSchedulesFileId)
-                        .build();
-            }
+        final var result = loadWithRetry(resolvedFileId, consensusTimestamp, systemFile);
+        if (!legacyFeeFile) {
+            return result;
         }
 
-        final var simpleFeeSchedule = loadFromDB(simpleFeeSchedulesFileId, consensusTimestamp);
-        if (simpleFeeSchedule != null) {
-            return simpleFeeSchedule;
+        final var contents = result.contents();
+        final var converted = toSimpleFeeSchedule(contents, consensusTimestamp);
+        if (converted != null) {
+            return File.newBuilder()
+                    .contents(converted)
+                    .fileId(simpleFeeSchedulesFileId)
+                    .build();
         }
-        final var registered = getSystemFiles().get(simpleFeeSchedulesFileId);
-        if (registered == null) {
-            throw new IllegalStateException("Simple fee schedule file is not registered");
-        }
-        return registered.genesisFile();
+
+        final var simpleFeeSchedule = getSystemFiles().get(simpleFeeSchedulesFileId);
+        return simpleFeeSchedule == null ? null : simpleFeeSchedule.genesisFile();
     }
 
     private @Nullable Bytes toSimpleFeeSchedule(Bytes legacyBytes, long consensusTimestamp) {
@@ -292,7 +292,9 @@ public final class SystemFileLoader {
                 new SystemFile(load(systemEntity.addressBookFile101(), addressBookMock), NodeAddressBook.PROTOBUF),
                 new SystemFile(load(systemEntity.addressBookFile102(), addressBookMock), NodeAddressBook.PROTOBUF),
                 new SystemFile(
-                        load(systemEntity.feeScheduleFile(), GenesisFeeSchedules.protobufBytes()),
+                        load(
+                                systemEntity.feeScheduleFile(),
+                                CurrentAndNextFeeSchedule.PROTOBUF.toBytes(GENESIS_FEE_SCHEDULE)),
                         CurrentAndNextFeeSchedule.PROTOBUF),
                 new SystemFile(
                         load(
@@ -325,6 +327,17 @@ public final class SystemFileLoader {
                 .deleted(false)
                 .expirationSecond(maxExpiry())
                 .fileId(fileId)
+                .build();
+    }
+
+    private static TransactionFeeSchedule genesisTransactionFeeSchedule(HederaFunctionality functionality) {
+        return TransactionFeeSchedule.newBuilder()
+                .hederaFunctionality(functionality)
+                .fees(FeeData.newBuilder()
+                        .servicedata(FeeComponents.newBuilder()
+                                .gas(GENESIS_SERVICE_GAS)
+                                .build())
+                        .build())
                 .build();
     }
 
