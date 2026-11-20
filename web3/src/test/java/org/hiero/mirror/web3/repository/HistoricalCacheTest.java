@@ -5,12 +5,13 @@ package org.hiero.mirror.web3.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.OPTIONAL;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_HISTORICAL;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_HISTORICAL_CONTRACT_STATE;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_HISTORICAL_TOKEN;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_ACCOUNT_BALANCE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_ALIAS;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_CONTRACT_STATE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_ENTITY;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_EVM_ADDRESS;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN_ACCOUNT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN_BALANCE;
 
@@ -43,6 +44,12 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
     @Qualifier(CACHE_MANAGER_HISTORICAL)
     private final CacheManager historicalCacheManager;
 
+    @Qualifier(CACHE_MANAGER_HISTORICAL_CONTRACT_STATE)
+    private final CacheManager historicalContractStateCacheManager;
+
+    @Qualifier(CACHE_MANAGER_HISTORICAL_TOKEN)
+    private final CacheManager historicalTokenCacheManager;
+
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenBalanceRepository tokenBalanceRepository;
     private final TokenRepository tokenRepository;
@@ -54,6 +61,7 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
         final long timestamp = domainBuilder.timestamp();
 
         assertCached(
+                historicalCacheManager,
                 CACHE_NAME_ACCOUNT_BALANCE,
                 () -> accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
                         accountId, timestamp, treasury),
@@ -68,7 +76,7 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
         final int callers = 32;
         final var start = new CountDownLatch(1);
         final var results = new ArrayList<Future<?>>(callers);
-        final long before = loads(CACHE_NAME_ENTITY);
+        final long before = loads(historicalCacheManager, CACHE_NAME_ENTITY);
 
         try (final var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             for (int i = 0; i < callers; i++) {
@@ -83,7 +91,7 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
             }
         }
 
-        assertThat(loads(CACHE_NAME_ENTITY) - before).isOne();
+        assertThat(loads(historicalCacheManager, CACHE_NAME_ENTITY) - before).isOne();
     }
 
     @Test
@@ -94,7 +102,8 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
 
         // A copy of the slot proves byte array arguments are keyed by content, not identity
         assertCached(
-                CACHE_NAME_CONTRACT_STATE,
+                historicalContractStateCacheManager,
+                CACHE_NAME,
                 () -> contractStateRepository.findStorageByBlockTimestamp(
                         contractId, Arrays.copyOf(change.getSlot(), change.getSlot().length), timestamp),
                 () -> contractStateRepository.findStorageByBlockTimestamp(contractId, change.getSlot(), timestamp + 1));
@@ -104,14 +113,14 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
     void emptyResultIsCached() {
         final long id = domainBuilder.id();
         final long timestamp = domainBuilder.timestamp();
-        final long before = loads(CACHE_NAME_ENTITY);
+        final long before = loads(historicalCacheManager, CACHE_NAME_ENTITY);
 
         assertThat(entityRepository.findActiveByIdAndTimestamp(id, timestamp)).isEmpty();
         domainBuilder.entity(id, timestamp).persist();
 
         // The entity did not exist at that block when first queried; the cached absence is still served
         assertThat(entityRepository.findActiveByIdAndTimestamp(id, timestamp)).isEmpty();
-        assertThat(loads(CACHE_NAME_ENTITY) - before).isOne();
+        assertThat(loads(historicalCacheManager, CACHE_NAME_ENTITY) - before).isOne();
     }
 
     @Test
@@ -120,6 +129,7 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
         final long timestamp = entity.getTimestampLower();
 
         assertCached(
+                historicalCacheManager,
                 CACHE_NAME_EVM_ADDRESS,
                 () -> entityRepository.findActiveByEvmAddressAndTimestamp(entity.getEvmAddress(), timestamp),
                 () -> entityRepository.findActiveByEvmAddressAndTimestamp(entity.getEvmAddress(), timestamp + 1));
@@ -131,6 +141,7 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
         final long timestamp = entity.getTimestampLower();
 
         assertCached(
+                historicalCacheManager,
                 CACHE_NAME_ALIAS,
                 () -> entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(entity.getAlias(), timestamp),
                 () -> entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(entity.getAlias(), timestamp + 1));
@@ -142,6 +153,7 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
         final long timestamp = entity.getTimestampLower();
 
         assertCached(
+                historicalCacheManager,
                 CACHE_NAME_ENTITY,
                 () -> entityRepository.findActiveByIdAndTimestamp(entity.getId(), timestamp),
                 () -> entityRepository.findActiveByIdAndTimestamp(entity.getId(), timestamp + 1));
@@ -153,7 +165,8 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
         final long timestamp = token.getTimestampLower();
 
         assertCached(
-                CACHE_NAME_TOKEN,
+                historicalTokenCacheManager,
+                CACHE_NAME,
                 () -> tokenRepository.findByTokenIdAndTimestamp(token.getTokenId(), timestamp),
                 () -> tokenRepository.findByTokenIdAndTimestamp(token.getTokenId(), timestamp + 1));
     }
@@ -166,6 +179,7 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
         final long timestamp = tokenAccount.getTimestampLower();
 
         assertCached(
+                historicalCacheManager,
                 CACHE_NAME_TOKEN_ACCOUNT,
                 () -> tokenAccountRepository.findByIdAndTimestamp(accountId, tokenId, timestamp),
                 () -> tokenAccountRepository.findByIdAndTimestamp(accountId, tokenId, timestamp + 1));
@@ -179,6 +193,7 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
         final long timestamp = domainBuilder.timestamp();
 
         assertCached(
+                historicalCacheManager,
                 CACHE_NAME_TOKEN_BALANCE,
                 () -> tokenBalanceRepository.findHistoricalTokenBalanceUpToTimestamp(
                         tokenId, accountId, timestamp, treasury),
@@ -190,21 +205,25 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
      * Calls {@code sameBlock} twice and {@code otherBlock} once, expecting one load for the repeated block and a
      * second load for the other block.
      */
-    private <T> void assertCached(final String cacheName, final Supplier<T> sameBlock, final Supplier<T> otherBlock) {
-        final long before = loads(cacheName);
+    private <T> void assertCached(
+            final CacheManager cacheManager,
+            final String cacheName,
+            final Supplier<T> sameBlock,
+            final Supplier<T> otherBlock) {
+        final long before = loads(cacheManager, cacheName);
         final var first = sameBlock.get();
         assertThat(first).asInstanceOf(OPTIONAL).isPresent();
         assertThat(sameBlock.get()).isEqualTo(first);
-        assertThat(loads(cacheName) - before).isOne();
+        assertThat(loads(cacheManager, cacheName) - before).isOne();
 
         otherBlock.get();
-        assertThat(loads(cacheName) - before).isEqualTo(2L);
+        assertThat(loads(cacheManager, cacheName) - before).isEqualTo(2L);
     }
 
     /** Cumulative load count; clearing a cache between tests does not reset its statistics. */
     @SuppressWarnings("unchecked")
-    private long loads(final String cacheName) {
-        final var cache = Objects.requireNonNull(historicalCacheManager.getCache(cacheName));
+    private long loads(final CacheManager cacheManager, final String cacheName) {
+        final var cache = Objects.requireNonNull(cacheManager.getCache(cacheName));
         return ((Cache<Object, Object>) cache.getNativeCache()).stats().loadCount();
     }
 }

@@ -30,6 +30,8 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_CONTRACT_STATE = "contractState";
     public static final String CACHE_MANAGER_ENTITY = "entity";
     public static final String CACHE_MANAGER_HISTORICAL = "historical";
+    public static final String CACHE_MANAGER_HISTORICAL_CONTRACT_STATE = "historicalContractState";
+    public static final String CACHE_MANAGER_HISTORICAL_TOKEN = "historicalToken";
     public static final String CACHE_MANAGER_RECORD_FILE_LATEST = "recordFileLatest";
     public static final String CACHE_MANAGER_RECORD_FILE_EARLIEST = "recordFileEarliest";
     public static final String CACHE_MANAGER_RECORD_FILE_HASH = "recordFileHash";
@@ -43,7 +45,6 @@ public class EvmConfiguration {
     public static final String CACHE_NAME = "default";
     public static final String CACHE_NAME_ACCOUNT_BALANCE = "accountBalance";
     public static final String CACHE_NAME_CONTRACT = "contract";
-    public static final String CACHE_NAME_CONTRACT_STATE = "contractState";
     public static final String CACHE_NAME_ENTITY = "entity";
     public static final String CACHE_NAME_EVM_ADDRESS = "evmAddress";
     public static final String CACHE_NAME_ALIAS = "alias";
@@ -125,12 +126,22 @@ public class EvmConfiguration {
                 CACHE_NAME_TOKEN_ACCOUNT,
                 CACHE_NAME_TOKEN_BALANCE));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getHistorical());
-        caffeineCacheManager.registerCustomCache(
-                CACHE_NAME_CONTRACT_STATE,
-                Caffeine.from(cacheProperties.getHistoricalContractState()).build());
-        caffeineCacheManager.registerCustomCache(
-                CACHE_NAME_TOKEN,
-                Caffeine.from(cacheProperties.getHistoricalToken()).build());
+        return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_HISTORICAL_CONTRACT_STATE)
+    CacheManager cacheManagerHistoricalContractState() {
+        final var caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME));
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getHistoricalContractState());
+        return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_HISTORICAL_TOKEN)
+    CacheManager cacheManagerHistoricalToken() {
+        final var caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME));
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getHistoricalToken());
         return caffeineCacheManager;
     }
 
