@@ -6,6 +6,7 @@ import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_I
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_STORAGE_VALUE;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapDeleteChange;
@@ -13,6 +14,9 @@ import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ClprChannel;
+import com.hederahashgraph.api.proto.java.ClprConnector;
+import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.SlotKey;
@@ -30,6 +34,32 @@ public final class StateChangeTestUtils {
 
     public static ByteString bytes(int size) {
         return ByteString.copyFrom(CommonUtils.nextBytes(size));
+    }
+
+    public static MapUpdateChange clprChannelMapUpdate(ClprChannel value) {
+        return MapUpdateChange.newBuilder()
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(value))
+                .build();
+    }
+
+    public static MapUpdateChange clprChannelMapUpdate(ByteString channelId, ClprChannel value) {
+        return MapUpdateChange.newBuilder()
+                .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(channelId)))
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(value))
+                .build();
+    }
+
+    public static MapUpdateChange clprConnectorMapUpdate(ClprConnectorKey key, ClprConnector value) {
+        return MapUpdateChange.newBuilder()
+                .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))
+                .setValue(MapChangeValue.newBuilder().setClprConnectorValue(value))
+                .build();
+    }
+
+    public static MapUpdateChange clprConnectorMapUpdate(ClprConnector value) {
+        return MapUpdateChange.newBuilder()
+                .setValue(MapChangeValue.newBuilder().setClprConnectorValue(value))
+                .build();
     }
 
     public static StateChange contractStorageMapDeleteChange(ContractID contractId, ByteString slot) {

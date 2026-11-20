@@ -30,6 +30,7 @@ import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
@@ -57,13 +58,15 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
         final long gasUsed =
                 DYNAMIC_TRANSFER_TO_STAKING_REWARDS_ACCOUNT.get("gas_used").asLong();
         final var block = BlockType.of(request.get("block").asText());
-        final long estimated = longValueOf.applyAsLong(contractExecutionService.processCall(estimateParameters(
+        final var params = estimateParameters(
                 block,
                 request.get("data").asText(),
                 Address.fromHexString(request.get("from").asText()),
                 Address.fromHexString(request.get("to").asText()),
                 request.path("value").asLong(0L),
-                request.get("gas").asLong())));
+                request.get("gas").asLong());
+        final long estimated = longValueOf.applyAsLong(
+                ContractCallContext.run(ctx -> contractExecutionService.processCall(params, ctx)));
 
         assertThat(isWithinExpectedGasRange(estimated, gasUsed))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimated, gasUsed)
@@ -76,13 +79,15 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
         final var request = CONTRACT_CREATE_WITH_INITIAL_VALUE.get("request");
         final long gasUsed = CONTRACT_CREATE_WITH_INITIAL_VALUE.get("gas_used").asLong();
         final var block = BlockType.of(request.get("block").asText());
-        final long estimated = longValueOf.applyAsLong(contractExecutionService.processCall(estimateParameters(
+        final var params = estimateParameters(
                 block,
                 request.get("data").asText(),
                 Address.fromHexString(request.get("from").asText()),
                 Address.ZERO,
                 request.path("value").asLong(0L),
-                request.get("gas").asLong())));
+                request.get("gas").asLong());
+        final long estimated = longValueOf.applyAsLong(
+                ContractCallContext.run(ctx -> contractExecutionService.processCall(params, ctx)));
 
         assertThat(isWithinExpectedGasRange(estimated, gasUsed))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimated, gasUsed)
