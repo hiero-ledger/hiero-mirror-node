@@ -62,7 +62,7 @@ spec:
           mirror:
             test:
               acceptance:
-                network: OTHER
+                network: TESTNET
       enabled: true
     web3:
       env:
