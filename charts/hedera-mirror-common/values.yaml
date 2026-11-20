@@ -326,6 +326,13 @@ promtail:
     - effect: NoSchedule
       operator: Exists
 
+psc:  # Publishes traefik's web entrypoint through GKE Private Service Connect
+  enabled: false
+  connectionPreference: ACCEPT_MANUAL
+  consumerAllowList: []
+  natSubnets: []
+  proxyProtocol: false
+
 stackgres:
   cert:
     collectorSecretName: stackgres-collector
