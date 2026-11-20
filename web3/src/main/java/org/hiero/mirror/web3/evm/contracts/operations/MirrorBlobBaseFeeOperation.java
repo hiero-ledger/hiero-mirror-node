@@ -6,6 +6,7 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50
 
 import com.hedera.hapi.node.base.SemanticVersion;
 import jakarta.inject.Named;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
@@ -21,11 +22,11 @@ final class MirrorBlobBaseFeeOperation extends BlobBaseFeeOperation implements V
 
     @Override
     public OperationResult executeFixedCostOperation(final MessageFrame frame) {
-        final var blobBaseFee = ContractCallContext.getEvmBlockOverrideSafe().blobBaseFee();
+        final var blobBaseFee = ContractCallContext.getBlockOverrideSafe().blobBaseFee();
         if (blobBaseFee == null) {
             return super.executeFixedCostOperation(frame);
         }
-        frame.pushStackItem(blobBaseFee.toBytes());
+        frame.pushStackItem(Bytes.ofUnsignedLong(blobBaseFee));
         return successResponse;
     }
 

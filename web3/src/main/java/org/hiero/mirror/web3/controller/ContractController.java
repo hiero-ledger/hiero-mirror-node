@@ -21,7 +21,6 @@ import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hyperledger.besu.datatypes.Address;
-import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -103,8 +102,8 @@ class ContractController {
                 .build();
     }
 
-    private void validateBlockOverrides(final @Nullable BlockOverride blockOverride) {
-        if (blockOverride != null && !web3Properties.isEnableBlockOverrides()) {
+    private void validateBlockOverrides(final BlockOverride blockOverride) {
+        if (!blockOverride.isEmpty() && !web3Properties.isEnableBlockOverrides()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Block overrides are not supported.");
         }
     }

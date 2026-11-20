@@ -875,80 +875,82 @@ final class ContractControllerTest {
     void callRejectsBlockOverrideWhenDisabled() throws Exception {
         web3Properties.setEnableBlockOverrides(false);
         final var request = request();
-        final var override = new BlockOverride();
-        override.setBlockNumber(256L);
+        final var override = BlockOverride.builder().blockNumber(256L).build();
         request.setBlockOverride(override);
 
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(new StringContains("Block overrides are not supported.")));
-        verify(service, never()).processCall(any());
+        verify(service, never()).processCall(any(), any());
     }
 
     @Test
     void callWithoutBlockOverrideSucceedsWhenBlockOverridesDisabled() throws Exception {
         web3Properties.setEnableBlockOverrides(false);
-        given(service.processCall(any())).willReturn("0x0");
+        given(service.processCall(any(), any())).willReturn("0x0");
 
         contractCall(request()).andExpect(status().isOk());
-        verify(service).processCall(argThat(params -> params.getBlockOverride() == null));
+        verify(service).processCall(argThat(params -> params.getBlockOverride().isEmpty()), any());
     }
 
     @Test
     void callAcceptsBlockOverrideNumber() throws Exception {
-        given(service.processCall(any())).willReturn("0x0");
+        given(service.processCall(any(), any())).willReturn("0x0");
         final var request = request();
-        final var override = new BlockOverride();
-        override.setBlockNumber(256L);
+        final var override = BlockOverride.builder().blockNumber(256L).build();
         request.setBlockOverride(override);
 
         contractCall(request).andExpect(status().isOk());
-        verify(service).processCall(argThat(params -> {
-            final var blockOverride = params.getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(256L).equals(blockOverride.getBlockNumber())
-                    && blockOverride.getTime() == null;
-        }));
+        verify(service)
+                .processCall(
+                        argThat(params -> {
+                            final var blockOverride = params.getBlockOverride();
+                            return Long.valueOf(256L).equals(blockOverride.blockNumber())
+                                    && blockOverride.time() == null;
+                        }),
+                        any());
     }
 
     @Test
     void callAcceptsBlockOverrideTime() throws Exception {
-        given(service.processCall(any())).willReturn("0x0");
+        given(service.processCall(any(), any())).willReturn("0x0");
         final var request = request();
-        final var override = new BlockOverride();
-        override.setTime(1710874816L);
+        final var override = BlockOverride.builder().time(1710874816L).build();
         request.setBlockOverride(override);
 
         contractCall(request).andExpect(status().isOk());
-        verify(service).processCall(argThat(params -> {
-            final var blockOverride = params.getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(1710874816L).equals(blockOverride.getTime())
-                    && blockOverride.getBlockNumber() == null;
-        }));
+        verify(service)
+                .processCall(
+                        argThat(params -> {
+                            final var blockOverride = params.getBlockOverride();
+                            return Long.valueOf(1710874816L).equals(blockOverride.time())
+                                    && blockOverride.blockNumber() == null;
+                        }),
+                        any());
     }
 
     @Test
     void callAcceptsBlockOverrideNumberAndTime() throws Exception {
-        given(service.processCall(any())).willReturn("0x0");
+        given(service.processCall(any(), any())).willReturn("0x0");
         final var request = request();
-        final var override = new BlockOverride();
-        override.setBlockNumber(256L);
-        override.setTime(1710874816L);
+        final var override =
+                BlockOverride.builder().blockNumber(256L).time(1710874816L).build();
         request.setBlockOverride(override);
 
         contractCall(request).andExpect(status().isOk());
-        verify(service).processCall(argThat(params -> {
-            final var blockOverride = params.getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(256L).equals(blockOverride.getBlockNumber())
-                    && Long.valueOf(1710874816L).equals(blockOverride.getTime());
-        }));
+        verify(service)
+                .processCall(
+                        argThat(params -> {
+                            final var blockOverride = params.getBlockOverride();
+                            return Long.valueOf(256L).equals(blockOverride.blockNumber())
+                                    && Long.valueOf(1710874816L).equals(blockOverride.time());
+                        }),
+                        any());
     }
 
     @Test
     void callAcceptsEveryBlockOverrideField() throws Exception {
-        given(service.processCall(any())).willReturn("0x0");
+        given(service.processCall(any(), any())).willReturn("0x0");
         mockMvc.perform(post(CALL_URI)
                         .accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -959,17 +961,19 @@ final class ContractControllerTest {
                                  "prev_randao":123456789,"time":1793619195}}
                                 """))
                 .andExpect(status().isOk());
-        verify(service).processCall(argThat(params -> {
-            final var blockOverride = params.getBlockOverride();
-            return blockOverride != null
-                    && Long.valueOf(0L).equals(blockOverride.getBaseFeePerGas())
-                    && Long.valueOf(1L).equals(blockOverride.getBlobBaseFee())
-                    && Long.valueOf(80L).equals(blockOverride.getBlockNumber())
-                    && "0x0000000000000000000000000000000000000062".equals(blockOverride.getFeeRecipient())
-                    && Long.valueOf(15_000_000L).equals(blockOverride.getGasLimit())
-                    && Long.valueOf(123_456_789L).equals(blockOverride.getPrevRandao())
-                    && Long.valueOf(1_793_619_195L).equals(blockOverride.getTime());
-        }));
+        verify(service)
+                .processCall(
+                        argThat(params -> {
+                            final var blockOverride = params.getBlockOverride();
+                            return Long.valueOf(0L).equals(blockOverride.baseFeePerGas())
+                                    && Long.valueOf(1L).equals(blockOverride.blobBaseFee())
+                                    && Long.valueOf(80L).equals(blockOverride.blockNumber())
+                                    && "0x0000000000000000000000000000000000000062".equals(blockOverride.feeRecipient())
+                                    && Long.valueOf(15_000_000L).equals(blockOverride.gasLimit())
+                                    && Long.valueOf(123_456_789L).equals(blockOverride.prevRandao())
+                                    && Long.valueOf(1_793_619_195L).equals(blockOverride.time());
+                        }),
+                        any());
     }
 
     @ParameterizedTest
@@ -1004,13 +1008,13 @@ final class ContractControllerTest {
                                 {"to":"0x00000000000000000000000000000000000004e4","block_override":{"%s":%s}}
                                 """.formatted(field, value)))
                 .andExpect(status().isBadRequest());
-        verify(service, never()).processCall(any());
+        verify(service, never()).processCall(any(), any());
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"gasPrice", "gas_price"})
     void callAcceptsGasPriceCamelCaseAndSnakeCase(final String field) throws Exception {
-        given(service.processCall(any())).willReturn("0x0");
+        given(service.processCall(any(), any())).willReturn("0x0");
         mockMvc.perform(post(CALL_URI)
                         .accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -1018,7 +1022,7 @@ final class ContractControllerTest {
                                 {"to":"0x00000000000000000000000000000000000004e4","%s":100}
                                 """.formatted(field)))
                 .andExpect(status().isOk());
-        verify(service).processCall(argThat(params -> params.getGasPrice() == 100L));
+        verify(service).processCall(argThat(params -> params.getGasPrice() == 100L), any());
     }
 
     @ParameterizedTest
@@ -1031,7 +1035,7 @@ final class ContractControllerTest {
                                 {"to":"0x00000000000000000000000000000000000004e4","%s":-1}
                                 """.formatted(field)))
                 .andExpect(status().isBadRequest());
-        verify(service, never()).processCall(any());
+        verify(service, never()).processCall(any(), any());
     }
 
     private ContractCallRequest request() {

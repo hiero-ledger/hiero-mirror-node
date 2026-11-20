@@ -10,15 +10,14 @@ import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hyperledger.besu.datatypes.Address;
-import org.jspecify.annotations.Nullable;
 
 @Value
 @Builder
 public class ContractExecutionParameters implements CallServiceParameters {
     private final BlockType block;
 
-    @Nullable
-    private final BlockOverride blockOverride;
+    @Builder.Default
+    private final BlockOverride blockOverride = BlockOverride.EMPTY;
 
     private final byte[] callData;
     private final CallType callType;

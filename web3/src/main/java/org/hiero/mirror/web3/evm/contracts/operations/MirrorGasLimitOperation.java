@@ -6,10 +6,10 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_30
 
 import com.hedera.hapi.node.base.SemanticVersion;
 import jakarta.inject.Named;
-import org.apache.tuweni.units.bigints.UInt256;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
+import org.hyperledger.besu.evm.internal.Words;
 import org.hyperledger.besu.evm.operation.GasLimitOperation;
 
 /**
@@ -25,11 +25,11 @@ final class MirrorGasLimitOperation extends GasLimitOperation implements Version
 
     @Override
     public OperationResult executeFixedCostOperation(final MessageFrame frame) {
-        final var gasLimit = ContractCallContext.getEvmBlockOverrideSafe().gasLimit();
+        final var gasLimit = ContractCallContext.getBlockOverrideSafe().gasLimit();
         if (gasLimit == null) {
             return super.executeFixedCostOperation(frame);
         }
-        frame.pushStackItem(UInt256.valueOf(gasLimit));
+        frame.pushStackItem(Words.longBytes(gasLimit));
         return successResponse;
     }
 

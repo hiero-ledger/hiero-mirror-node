@@ -6,6 +6,7 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_30
 
 import com.hedera.hapi.node.base.SemanticVersion;
 import jakarta.inject.Named;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
@@ -24,11 +25,11 @@ final class MirrorBaseFeeOperation extends BaseFeeOperation implements Versioned
 
     @Override
     public OperationResult executeFixedCostOperation(final MessageFrame frame) {
-        final var baseFee = ContractCallContext.getEvmBlockOverrideSafe().baseFee();
+        final var baseFee = ContractCallContext.getBlockOverrideSafe().baseFeePerGas();
         if (baseFee == null) {
             return super.executeFixedCostOperation(frame);
         }
-        frame.pushStackItem(baseFee.toBytes());
+        frame.pushStackItem(Bytes.ofUnsignedLong(baseFee));
         return successResponse;
     }
 

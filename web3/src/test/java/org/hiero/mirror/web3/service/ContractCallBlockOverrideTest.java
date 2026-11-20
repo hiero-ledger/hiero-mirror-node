@@ -22,7 +22,6 @@ import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.web3j.generated.EvmCodes;
 import org.hyperledger.besu.datatypes.Address;
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -61,45 +60,44 @@ class ContractCallBlockOverrideTest extends AbstractContractCallServiceTest {
 
     @Test
     void withoutOverrideReturnsFrameDefaults() {
-        assertThat(call(contract.call_getBlockBaseFee(), null)).isEqualTo(BigInteger.ZERO);
-        assertThat(call(contract.call_getBlobBaseFee(), null)).isEqualTo(BigInteger.ONE);
-        assertThat(call(contract.call_getBlockGasLimit(), null)).isEqualTo(BigInteger.valueOf(TRANSACTION_GAS_LIMIT));
-        assertThat(call(contract.call_getBlockNumber(), null)).isEqualTo(BigInteger.valueOf(recordFile.getIndex()));
-        assertThat(call(contract.call_getBlockTimestamp(), null))
+        assertThat(call(contract.call_getBlockBaseFee(), BlockOverride.EMPTY)).isEqualTo(BigInteger.ZERO);
+        assertThat(call(contract.call_getBlobBaseFee(), BlockOverride.EMPTY)).isEqualTo(BigInteger.ONE);
+        assertThat(call(contract.call_getBlockGasLimit(), BlockOverride.EMPTY))
+                .isEqualTo(BigInteger.valueOf(TRANSACTION_GAS_LIMIT));
+        assertThat(call(contract.call_getBlockNumber(), BlockOverride.EMPTY))
+                .isEqualTo(BigInteger.valueOf(recordFile.getIndex()));
+        assertThat(call(contract.call_getBlockTimestamp(), BlockOverride.EMPTY))
                 .isEqualTo(BigInteger.valueOf(getUnixSeconds(recordFile.getConsensusStart())));
-        assertThat(address(call(contract.call_getBlockCoinbase(), null)))
+        assertThat(address(call(contract.call_getBlockCoinbase(), BlockOverride.EMPTY)))
                 .isEqualTo(toAddress(systemEntity.networkAdminFeeAccount()));
-        assertThat(call(contract.call_getBlockPrevrandao(), null)).isNotEqualTo(BigInteger.valueOf(PREV_RANDAO));
+        assertThat(call(contract.call_getBlockPrevrandao(), BlockOverride.EMPTY))
+                .isNotEqualTo(BigInteger.valueOf(PREV_RANDAO));
     }
 
     @Test
     void baseFeePerGas() {
-        final var override = new BlockOverride();
-        override.setBaseFeePerGas(BASE_FEE);
+        final var override = BlockOverride.builder().baseFeePerGas(BASE_FEE).build();
 
         assertThat(call(contract.call_getBlockBaseFee(), override)).isEqualTo(BigInteger.valueOf(BASE_FEE));
     }
 
     @Test
     void blobBaseFee() {
-        final var override = new BlockOverride();
-        override.setBlobBaseFee(BLOB_BASE_FEE);
+        final var override = BlockOverride.builder().blobBaseFee(BLOB_BASE_FEE).build();
 
         assertThat(call(contract.call_getBlobBaseFee(), override)).isEqualTo(BigInteger.valueOf(BLOB_BASE_FEE));
     }
 
     @Test
     void blockNumber() {
-        final var override = new BlockOverride();
-        override.setBlockNumber(BLOCK_NUMBER);
+        final var override = BlockOverride.builder().blockNumber(BLOCK_NUMBER).build();
 
         assertThat(call(contract.call_getBlockNumber(), override)).isEqualTo(BigInteger.valueOf(BLOCK_NUMBER));
     }
 
     @Test
     void feeRecipient() {
-        final var override = new BlockOverride();
-        override.setFeeRecipient(FEE_RECIPIENT);
+        final var override = BlockOverride.builder().feeRecipient(FEE_RECIPIENT).build();
 
         assertThat(address(call(contract.call_getBlockCoinbase(), override)))
                 .isEqualTo(Address.fromHexString(FEE_RECIPIENT));
@@ -107,32 +105,28 @@ class ContractCallBlockOverrideTest extends AbstractContractCallServiceTest {
 
     @Test
     void gasLimit() {
-        final var override = new BlockOverride();
-        override.setGasLimit(1L);
+        final var override = BlockOverride.builder().gasLimit(1L).build();
 
         assertThat(call(contract.call_getBlockGasLimit(), override)).isEqualTo(BigInteger.ONE);
     }
 
     @Test
     void prevRandao() {
-        final var override = new BlockOverride();
-        override.setPrevRandao(PREV_RANDAO);
+        final var override = BlockOverride.builder().prevRandao(PREV_RANDAO).build();
 
         assertThat(call(contract.call_getBlockPrevrandao(), override)).isEqualTo(BigInteger.valueOf(PREV_RANDAO));
     }
 
     @Test
     void prevRandaoMaxValue() {
-        final var override = new BlockOverride();
-        override.setPrevRandao(Long.MAX_VALUE);
+        final var override = BlockOverride.builder().prevRandao(Long.MAX_VALUE).build();
 
         assertThat(call(contract.call_getBlockPrevrandao(), override)).isEqualTo(BigInteger.valueOf(Long.MAX_VALUE));
     }
 
     @Test
     void time() {
-        final var override = new BlockOverride();
-        override.setTime(TIME);
+        final var override = BlockOverride.builder().time(TIME).build();
 
         assertThat(call(contract.call_getBlockTimestamp(), override)).isEqualTo(BigInteger.valueOf(TIME));
     }
@@ -155,8 +149,8 @@ class ContractCallBlockOverrideTest extends AbstractContractCallServiceTest {
     void overrideDoesNotLeakIntoNextCall() {
         call(contract.call_getBlockCoinbase(), fullOverride());
 
-        assertThat(call(contract.call_getBlockBaseFee(), null)).isEqualTo(BigInteger.ZERO);
-        assertThat(address(call(contract.call_getBlockCoinbase(), null)))
+        assertThat(call(contract.call_getBlockBaseFee(), BlockOverride.EMPTY)).isEqualTo(BigInteger.ZERO);
+        assertThat(address(call(contract.call_getBlockCoinbase(), BlockOverride.EMPTY)))
                 .isEqualTo(toAddress(systemEntity.networkAdminFeeAccount()));
     }
 
@@ -167,7 +161,7 @@ class ContractCallBlockOverrideTest extends AbstractContractCallServiceTest {
     void estimateGasAcceptsEveryField(final CallType callType) {
         final var params = parameters(contract.call_getBlockCoinbase().encodeFunctionCall(), fullOverride(), callType);
 
-        final var result = contractExecutionService.processCallWithGas(params);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(params, ctx));
 
         assertThat(result.gasUsed()).isPositive();
         if (callType == ETH_CALL) {
@@ -176,14 +170,14 @@ class ContractCallBlockOverrideTest extends AbstractContractCallServiceTest {
         }
     }
 
-    private BigInteger call(final RemoteFunctionCall<?> functionCall, final @Nullable BlockOverride override) {
+    private BigInteger call(final RemoteFunctionCall<?> functionCall, final BlockOverride override) {
         final var params = parameters(functionCall.encodeFunctionCall(), override, ETH_CALL);
-        final var result = contractExecutionService.processCall(params);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(params, ctx));
         return new BigInteger(1, Bytes.fromHexString(result).toArrayUnsafe());
     }
 
     private ContractExecutionParameters parameters(
-            final String data, final @Nullable BlockOverride override, final CallType callType) {
+            final String data, final BlockOverride override, final CallType callType) {
         return ContractExecutionParameters.builder()
                 .block(testWeb3jService.getBlockType())
                 .blockOverride(override)
@@ -200,15 +194,15 @@ class ContractCallBlockOverrideTest extends AbstractContractCallServiceTest {
     }
 
     private static BlockOverride fullOverride() {
-        final var override = new BlockOverride();
-        override.setBaseFeePerGas(BASE_FEE);
-        override.setBlobBaseFee(BLOB_BASE_FEE);
-        override.setBlockNumber(BLOCK_NUMBER);
-        override.setFeeRecipient(FEE_RECIPIENT);
-        override.setGasLimit(GAS_LIMIT);
-        override.setPrevRandao(PREV_RANDAO);
-        override.setTime(TIME);
-        return override;
+        return BlockOverride.builder()
+                .baseFeePerGas(BASE_FEE)
+                .blobBaseFee(BLOB_BASE_FEE)
+                .blockNumber(BLOCK_NUMBER)
+                .feeRecipient(FEE_RECIPIENT)
+                .gasLimit(GAS_LIMIT)
+                .prevRandao(PREV_RANDAO)
+                .time(TIME)
+                .build();
     }
 
     private static Address address(final BigInteger value) {

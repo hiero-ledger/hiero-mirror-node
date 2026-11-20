@@ -39,10 +39,15 @@ final class BlockStreamInfoSingleton implements SingletonState<BlockStreamInfo> 
         if (recordFile == null) {
             return FALLBACK;
         }
-        final var blockTime = Utils.convertToTimestamp(context.evmBlockTimeNanos(recordFile.getConsensusStart()));
-        final var blockEndTime = Utils.convertToTimestamp(context.evmBlockTimeNanos(recordFile.getConsensusEnd()));
+        final var blockOverride = context.getBlockOverride();
+        final var overrideTimeNanos = blockOverride.timeNanos();
+        final var overrideBlockNumber = blockOverride.blockNumber();
+        final var blockTime = Utils.convertToTimestamp(
+                overrideTimeNanos != null ? overrideTimeNanos : recordFile.getConsensusStart());
+        final var blockEndTime =
+                Utils.convertToTimestamp(overrideTimeNanos != null ? overrideTimeNanos : recordFile.getConsensusEnd());
         return BlockStreamInfo.newBuilder()
-                .blockNumber(context.evmBlockNumber(recordFile.getIndex()))
+                .blockNumber(overrideBlockNumber != null ? overrideBlockNumber : recordFile.getIndex())
                 .blockTime(blockTime)
                 .lastHandleTime(blockEndTime)
                 .blockEndTime(blockEndTime)

@@ -12,7 +12,7 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.common.EvmBlockOverride;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -31,7 +31,6 @@ class BlockInfoSingletonTest {
                         .blockHashes(Bytes.EMPTY)
                         .consTimeOfLastHandledTxn(convertToTimestamp(recordFile.getConsensusEnd()))
                         .firstConsTimeOfCurrentBlock(convertToTimestamp(recordFile.getConsensusStart()))
-                        .firstConsTimeOfLastBlock(convertToTimestamp(recordFile.getConsensusStart() - 2_000_000_000L))
                         .lastBlockNumber(recordFile.getIndex() - 1)
                         .migrationRecordsStreamed(true)
                         .build());
@@ -41,14 +40,13 @@ class BlockInfoSingletonTest {
     void getUsesBlockOverrideNumber() {
         final var context = ContractCallContext.get();
         context.setBlockSupplier(() -> recordFile);
-        context.setEvmBlockOverride(new EvmBlockOverride(null, null, 42L, null, null, null, null));
+        context.setBlockOverride(BlockOverride.builder().blockNumber(42L).build());
 
         assertThat(blockInfoSingleton.get())
                 .isEqualTo(BlockInfo.newBuilder()
                         .blockHashes(Bytes.EMPTY)
                         .consTimeOfLastHandledTxn(convertToTimestamp(recordFile.getConsensusEnd()))
                         .firstConsTimeOfCurrentBlock(convertToTimestamp(recordFile.getConsensusStart()))
-                        .firstConsTimeOfLastBlock(convertToTimestamp(recordFile.getConsensusStart() - 2_000_000_000L))
                         .lastBlockNumber(41L)
                         .migrationRecordsStreamed(true)
                         .build());
@@ -59,14 +57,14 @@ class BlockInfoSingletonTest {
         final var context = ContractCallContext.get();
         context.setBlockSupplier(() -> recordFile);
         final var timeNanos = 1_710_858_432_000_000_000L;
-        context.setEvmBlockOverride(new EvmBlockOverride(null, null, null, null, null, null, timeNanos));
+        context.setBlockOverride(BlockOverride.builder().time(1_710_858_432L).build());
+        final long blockPeriodNanos = recordFile.getConsensusEnd() - recordFile.getConsensusStart();
 
         assertThat(blockInfoSingleton.get())
                 .isEqualTo(BlockInfo.newBuilder()
                         .blockHashes(Bytes.EMPTY)
-                        .consTimeOfLastHandledTxn(convertToTimestamp(timeNanos + 2_000_000_000L))
+                        .consTimeOfLastHandledTxn(convertToTimestamp(timeNanos + blockPeriodNanos))
                         .firstConsTimeOfCurrentBlock(convertToTimestamp(timeNanos))
-                        .firstConsTimeOfLastBlock(convertToTimestamp(timeNanos - 2_000_000_000L))
                         .lastBlockNumber(recordFile.getIndex() - 1)
                         .migrationRecordsStreamed(true)
                         .build());

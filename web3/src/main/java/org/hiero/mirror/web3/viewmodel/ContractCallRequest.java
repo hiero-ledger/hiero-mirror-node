@@ -21,7 +21,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
-import org.jspecify.annotations.Nullable;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -35,9 +34,10 @@ public class ContractCallRequest {
     @NotNull
     private BlockType block = BlockType.LATEST;
 
-    @Nullable
+    @JsonSetter(nulls = Nulls.SKIP)
+    @NotNull
     @Valid
-    private BlockOverride blockOverride;
+    private BlockOverride blockOverride = BlockOverride.EMPTY;
 
     @Hex(maxLength = DATA_MAX_LENGTH)
     private String data;

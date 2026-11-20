@@ -75,7 +75,7 @@ public class ContractExecutionService extends ContractCallService {
                 ctx.setStateOverrides(addressToAccounts);
             }
 
-            ctx.applyBlockOverride(params.getBlockOverride());
+            ctx.setBlockOverride(params.getBlockOverride());
 
             Bytes result;
             if (params.isEstimate()) {

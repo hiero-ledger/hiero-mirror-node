@@ -49,7 +49,6 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.common.EvmBlockOverride;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
@@ -69,6 +68,7 @@ import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
 import org.hyperledger.besu.datatypes.Address;
@@ -248,8 +248,8 @@ class TransactionExecutionServiceTest {
         final var ctx = ContractCallContext.get();
         ctx.setCallServiceParameters(params);
         ctx.setTimestamp(Optional.of(consensusNanos));
-        final long overrideNanos = consensusNanos + DomainUtils.NANOS_PER_SECOND * 30;
-        ctx.setEvmBlockOverride(new EvmBlockOverride(null, null, null, null, null, null, overrideNanos));
+        final long overrideSeconds = consensusNanos / DomainUtils.NANOS_PER_SECOND + 30;
+        ctx.setBlockOverride(BlockOverride.builder().time(overrideSeconds).build());
 
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
         var transactionRecord = mock(TransactionRecord.class);

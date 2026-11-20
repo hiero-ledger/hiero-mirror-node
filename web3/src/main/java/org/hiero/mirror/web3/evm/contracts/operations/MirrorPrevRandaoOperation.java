@@ -26,7 +26,7 @@ final class MirrorPrevRandaoOperation extends CustomPrevRandaoOperation implemen
 
     @Override
     public OperationResult execute(final MessageFrame frame, final EVM evm) {
-        final var prevRandao = ContractCallContext.getEvmBlockOverrideSafe().prevRandao();
+        final var prevRandao = ContractCallContext.getBlockOverrideSafe().prevRandaoBytes();
         if (prevRandao == null) {
             return super.execute(frame, evm);
         }

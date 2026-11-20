@@ -22,7 +22,6 @@ import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
-import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings("deprecation")
 @Getter
@@ -98,11 +97,11 @@ public class ContractCallContext {
     private long traceDataBytes;
 
     /**
-     * The current {@code block_override}. {@link EvmBlockOverride#EMPTY} keeps the bound record file's block header and
-     * the message frame values.
+     * The current {@code block_override}. {@link BlockOverride#EMPTY} keeps the bound record file's block header and the
+     * message frame values.
      */
     @Setter
-    private EvmBlockOverride evmBlockOverride = EvmBlockOverride.EMPTY;
+    private BlockOverride blockOverride = BlockOverride.EMPTY;
 
     private ContractCallContext() {}
 
@@ -125,8 +124,8 @@ public class ContractCallContext {
      * Safe helper that returns the current call's {@code block_override} without throwing when unbound. An unbound
      * context, such as executor warm-up at startup, has no override.
      */
-    public static EvmBlockOverride getEvmBlockOverrideSafe() {
-        return SCOPED_VALUE.isBound() ? SCOPED_VALUE.get().getEvmBlockOverride() : EvmBlockOverride.EMPTY;
+    public static BlockOverride getBlockOverrideSafe() {
+        return SCOPED_VALUE.isBound() ? SCOPED_VALUE.get().getBlockOverride() : BlockOverride.EMPTY;
     }
 
     @SneakyThrows
@@ -205,19 +204,5 @@ public class ContractCallContext {
 
     public RecordFile getRecordFile() {
         return blockSupplier.get();
-    }
-
-    public void applyBlockOverride(final @Nullable BlockOverride override) {
-        evmBlockOverride = EvmBlockOverride.from(override);
-    }
-
-    public long evmBlockNumber(final long fallback) {
-        final var blockNumber = evmBlockOverride.blockNumber();
-        return blockNumber != null ? blockNumber : fallback;
-    }
-
-    public long evmBlockTimeNanos(final long fallback) {
-        final var timeNanos = evmBlockOverride.timeNanos();
-        return timeNanos != null ? timeNanos : fallback;
     }
 }
