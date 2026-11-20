@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.reader.block.hash;
 
+import static org.hiero.mirror.common.util.DomainUtils.createSha256Digest;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
 import com.hedera.hapi.block.stream.protoc.MerklePath;
@@ -30,7 +31,7 @@ final class BlockStateProofHasherImpl implements BlockStateProofHasher {
         }
 
         final var branches = new Branch[pathCount];
-        final var digest = ShaMessageDigestFactory.createMessageDigest(currentRootHash.length);
+        final var digest = createSha256Digest();
         final var joined = new boolean[pathCount];
         boolean foundRootHash = false;
         int joinedCount = 0;
