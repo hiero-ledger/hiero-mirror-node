@@ -9,7 +9,9 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
+import com.hedera.hapi.node.base.FeeSchedule;
 import com.hedera.hapi.node.base.FileID;
+import com.hedera.hapi.node.base.HederaFunctionality;
 import com.hedera.hapi.node.base.NodeAddressBook;
 import com.hedera.hapi.node.state.file.File;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
@@ -27,6 +29,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -35,7 +38,8 @@ import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.ArrayUtils;
-import org.hiero.hapi.support.fees.FeeSchedule;
+import org.hiero.hapi.support.fees.Extra;
+import org.hiero.hapi.support.fees.ExtraFeeDefinition;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -56,7 +60,14 @@ import org.springframework.core.retry.RetryTemplate;
 @CustomLog
 public final class SystemFileLoader {
 
+    private static final long FEE_DIVISOR_FACTOR = 1000L;
+    private static final long MAINNET_SIMPLE_FEES_TIMESTAMP = 1779296400389248896L;
+    private static final long TESTNET_SIMPLE_FEES_TIMESTAMP = 1777482002529719510L;
     private static final long NANOS_PER_HOUR = 3600L * DomainUtils.NANOS_PER_SECOND;
+    private static final Set<HederaFunctionality> GAS_PRICED_FUNCTIONALITIES = Set.of(
+            HederaFunctionality.CONTRACT_CALL,
+            HederaFunctionality.CONTRACT_CREATE,
+            HederaFunctionality.ETHEREUM_TRANSACTION);
 
     private final EvmProperties properties;
     private final FileDataRepository fileDataRepository;
@@ -109,22 +120,28 @@ public final class SystemFileLoader {
         }
 
         var cacheManager = defaultSystemFileCacheManager;
-
         if (fileId.equals(exchangeRateFileId)
                 || fileId.equals(feeSchedulesFileId)
                 || fileId.equals(simpleFeeSchedulesFileId)) {
             cacheManager = exchangeRatesCacheManager;
-            consensusTimestamp = roundDownToHour(consensusTimestamp);
+            consensusTimestamp = feeFileCacheTimestamp(fileId, consensusTimestamp);
         }
 
         final var cacheKey = new CacheKey(fileId, consensusTimestamp);
         log.debug("Looking up {}", cacheKey);
         final var cache = cacheManager.getCache(CACHE_NAME);
+        final long timestamp = consensusTimestamp;
 
+        // Consensus nodes only read the simple fee file. Before simple fees were enabled, present the legacy
+        // schedule converted into that format.
+        final boolean shouldUseLegacyFeesFile =
+                fileId.equals(simpleFeeSchedulesFileId) && consensusTimestamp < simpleFeesTimestamp();
         if (cache == null) {
-            return loadFromDB(fileId, consensusTimestamp);
+            return shouldUseLegacyFeesFile ? convertLegacyFeeSchedule(timestamp) : loadFromDB(fileId, timestamp);
         }
-
+        if (shouldUseLegacyFeesFile) {
+            return cache.get(cacheKey, () -> convertLegacyFeeSchedule(timestamp));
+        }
         return cache.get(cacheKey, () -> loadFromDB(fileId, cacheKey.timestamp()));
     }
 
@@ -135,6 +152,91 @@ public final class SystemFileLoader {
         }
 
         return loadWithRetry(fileId, consensusTimestamp, systemFile);
+    }
+
+    private File convertLegacyFeeSchedule(long consensusTimestamp) {
+        final var legacy = load(feeSchedulesFileId, consensusTimestamp);
+        if (legacy != null && legacy.contents() != null) {
+            final var converted = toSimpleFeeSchedule(legacy.contents(), consensusTimestamp);
+            if (converted != null) {
+                return File.newBuilder()
+                        .contents(converted)
+                        .fileId(simpleFeeSchedulesFileId)
+                        .build();
+            }
+        }
+
+        final var simpleFeeSchedule = loadFromDB(simpleFeeSchedulesFileId, consensusTimestamp);
+        if (simpleFeeSchedule != null) {
+            return simpleFeeSchedule;
+        }
+        final var registered = getSystemFiles().get(simpleFeeSchedulesFileId);
+        if (registered == null) {
+            throw new IllegalStateException("Simple fee schedule file is not registered");
+        }
+        return registered.genesisFile();
+    }
+
+    private @Nullable Bytes toSimpleFeeSchedule(Bytes legacyBytes, long consensusTimestamp) {
+        try {
+            final var legacy = CurrentAndNextFeeSchedule.PROTOBUF.parse(legacyBytes);
+            var schedule = legacy.currentFeeScheduleOrElse(FeeSchedule.DEFAULT);
+            final long expirySeconds =
+                    schedule.hasExpiryTime() ? schedule.expiryTimeOrThrow().seconds() : 0L;
+            if (consensusTimestamp > expirySeconds * DomainUtils.NANOS_PER_SECOND && legacy.hasNextFeeSchedule()) {
+                schedule = legacy.nextFeeScheduleOrThrow();
+            }
+
+            for (final var transactionFee : schedule.transactionFeeSchedule()) {
+                final var functionality = transactionFee.hederaFunctionality();
+                if (functionality == null
+                        || !GAS_PRICED_FUNCTIONALITIES.contains(functionality)
+                        || transactionFee.fees().isEmpty()) {
+                    continue;
+                }
+                final var feeData = transactionFee.fees().getFirst();
+                // The consensus node prices one unit of gas from the service component only.
+                // Node and network gas values are not part of that price.
+                if (!feeData.hasServicedata()) {
+                    continue;
+                }
+                final long gasTinycents = feeData.servicedataOrThrow().gas() / FEE_DIVISOR_FACTOR;
+                final var simple = org.hiero.hapi.support.fees.FeeSchedule.newBuilder()
+                        .extras(ExtraFeeDefinition.newBuilder()
+                                .name(Extra.GAS)
+                                .fee(gasTinycents)
+                                .build())
+                        .build();
+                return org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF.toBytes(simple);
+            }
+        } catch (ParseException ex) {
+            log.warn("Unable to convert legacy fee schedule at {}", consensusTimestamp, ex);
+        }
+        return null;
+    }
+
+    private long simpleFeesTimestamp() {
+        return switch (properties.getNetwork()) {
+            case MAINNET -> MAINNET_SIMPLE_FEES_TIMESTAMP;
+            case TESTNET -> TESTNET_SIMPLE_FEES_TIMESTAMP;
+            case PREVIEWNET, OTHER -> 0L;
+        };
+    }
+
+    /**
+     * Fee files are cached by the hour. A request before the simple-fees switchover and one after it can fall in the
+     * same hour, so that hour uses two cache keys.
+     */
+    private long feeFileCacheTimestamp(FileID fileId, long consensusTimestamp) {
+        final long hour = roundDownToHour(consensusTimestamp);
+        if (!fileId.equals(simpleFeeSchedulesFileId)) {
+            return hour;
+        }
+        final long switchover = simpleFeesTimestamp();
+        if (switchover == 0L || hour != roundDownToHour(switchover)) {
+            return hour;
+        }
+        return consensusTimestamp < switchover ? hour : switchover;
     }
 
     public boolean isSystemFile(final FileID fileId) {
@@ -194,8 +296,9 @@ public final class SystemFileLoader {
         var files = List.of(
                 new SystemFile(load(systemEntity.addressBookFile101(), addressBookMock), NodeAddressBook.PROTOBUF),
                 new SystemFile(load(systemEntity.addressBookFile102(), addressBookMock), NodeAddressBook.PROTOBUF),
-                // 0.0.111 is retired upstream and has no genesis schedule. Historical rows are still parsed.
-                new SystemFile(load(systemEntity.feeScheduleFile(), Bytes.EMPTY), CurrentAndNextFeeSchedule.PROTOBUF),
+                new SystemFile(
+                        load(systemEntity.feeScheduleFile(), GenesisFeeSchedules.protobufBytes()),
+                        CurrentAndNextFeeSchedule.PROTOBUF),
                 new SystemFile(
                         load(
                                 systemEntity.simpleFeeScheduleFile(),

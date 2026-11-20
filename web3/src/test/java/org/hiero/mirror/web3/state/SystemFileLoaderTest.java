@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -14,11 +15,15 @@ import static org.mockito.Mockito.when;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
+import com.hedera.hapi.node.base.FeeComponents;
+import com.hedera.hapi.node.base.FeeData;
 import com.hedera.hapi.node.base.FeeSchedule;
 import com.hedera.hapi.node.base.FileID;
+import com.hedera.hapi.node.base.HederaFunctionality;
 import com.hedera.hapi.node.base.NodeAddressBook;
 import com.hedera.hapi.node.base.ServicesConfigurationList;
 import com.hedera.hapi.node.base.TimestampSeconds;
+import com.hedera.hapi.node.base.TransactionFeeSchedule;
 import com.hedera.hapi.node.state.file.File;
 import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
@@ -31,6 +36,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import org.hiero.hapi.support.fees.Extra;
+import org.hiero.hapi.support.fees.ExtraFeeDefinition;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -116,9 +123,10 @@ class SystemFileLoaderTest {
         var fileId = fileId(systemEntity.feeScheduleFile());
         var file = systemFileLoader.load(fileId, getCurrentTimestamp());
         assertFile(file, fileId);
-        assertThat(file.contents()).isEqualTo(Bytes.EMPTY);
-        assertThat(CurrentAndNextFeeSchedule.PROTOBUF.parse(file.contents()))
-                .isEqualTo(CurrentAndNextFeeSchedule.DEFAULT);
+        var feeSchedule = CurrentAndNextFeeSchedule.PROTOBUF.parse(file.contents());
+        assertThat(feeSchedule).isNotEqualTo(CurrentAndNextFeeSchedule.DEFAULT);
+        assertThat(feeSchedule.currentFeeScheduleOrThrow().transactionFeeSchedule())
+                .hasSizeGreaterThanOrEqualTo(72);
     }
 
     @Test
@@ -129,6 +137,67 @@ class SystemFileLoaderTest {
         var simpleFeeSchedule = org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF.parse(file.contents());
         assertThat(simpleFeeSchedule).isNotNull().isNotEqualTo(org.hiero.hapi.support.fees.FeeSchedule.DEFAULT);
         assertThat(simpleFeeSchedule.services()).isNotNull().hasSizeGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    void loadSimpleFeeScheduleBeforeSwitchoverConvertsLegacyGas() throws Exception {
+        final long beforeSwitchover = 1_700_000_000_000_000_000L;
+        final var legacyFileId = fileId(systemEntity.feeScheduleFile());
+        final var simpleFileId = fileId(systemEntity.simpleFeeScheduleFile());
+        stubFile(
+                legacyFileId,
+                legacyFeeSchedule(852_000L, 2_000_000_000L, 123_000L).toByteArray());
+
+        final var file = systemFileLoader.load(simpleFileId, beforeSwitchover);
+
+        assertThat(file).isNotNull().returns(simpleFileId, File::fileId);
+        final var simple = org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF.parse(file.contents());
+        assertThat(simple.extras())
+                .singleElement()
+                .returns(Extra.GAS, ExtraFeeDefinition::name)
+                .returns(852L, ExtraFeeDefinition::fee);
+    }
+
+    @Test
+    void loadSimpleFeeScheduleBeforeSwitchoverUsesNextScheduleAfterExpiry() throws Exception {
+        final long beforeSwitchover = 1_700_000_000_000_000_000L;
+        final var legacyFileId = fileId(systemEntity.feeScheduleFile());
+        final var simpleFileId = fileId(systemEntity.simpleFeeScheduleFile());
+        stubFile(legacyFileId, legacyFeeSchedule(852_000L, 1L, 123_000L).toByteArray());
+
+        final var file = systemFileLoader.load(simpleFileId, beforeSwitchover);
+
+        assertThat(file).isNotNull().returns(simpleFileId, File::fileId);
+        final var simple = org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF.parse(file.contents());
+        assertThat(simple.extras()).singleElement().returns(123L, ExtraFeeDefinition::fee);
+    }
+
+    @Test
+    void loadSimpleFeeScheduleAtSwitchoverUsesStoredSimpleFile() throws Exception {
+        final long atSwitchover = 1_777_482_002_529_719_510L;
+        final var legacyFileId = fileId(systemEntity.feeScheduleFile());
+        final var simpleFileId = fileId(systemEntity.simpleFeeScheduleFile());
+        final var stored = org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF.toBytes(
+                org.hiero.hapi.support.fees.FeeSchedule.newBuilder()
+                        .extras(ExtraFeeDefinition.newBuilder()
+                                .name(Extra.GAS)
+                                .fee(7L)
+                                .build())
+                        .build());
+        lenient()
+                .when(fileDataRepository.getFileAtTimestamp(
+                        eq(toEntityId(legacyFileId).getId()), anyLong()))
+                .thenReturn(Optional.of(FileData.builder()
+                        .fileData(legacyFeeSchedule(852_000L, 2_000_000_000L, 123_000L)
+                                .toByteArray())
+                        .consensusTimestamp(1L)
+                        .build()));
+        stubFile(simpleFileId, stored.toByteArray());
+
+        final var file = systemFileLoader.load(simpleFileId, atSwitchover);
+
+        assertThat(file).isNotNull().returns(simpleFileId, File::fileId);
+        assertThat(file.contents()).isEqualTo(stored);
     }
 
     @Test
@@ -248,7 +317,7 @@ class SystemFileLoaderTest {
                         .fileData(expected.contents().toByteArray())
                         .build()));
 
-        final var actual = systemFileLoader.load(fileId, 250L);
+        final var actual = systemFileLoader.load(fileId, 1_777_485_600_000_000_000L);
 
         assertThat(actual)
                 .isNotNull()
@@ -402,6 +471,33 @@ class SystemFileLoaderTest {
                 .currentRate(current)
                 .nextRate(current.copyBuilder().centEquiv(cents * 2).build())
                 .build());
+    }
+
+    private void stubFile(FileID fileId, byte[] contents) {
+        when(fileDataRepository.getFileAtTimestamp(eq(toEntityId(fileId).getId()), anyLong()))
+                .thenReturn(Optional.of(FileData.builder()
+                        .fileData(contents)
+                        .consensusTimestamp(1L)
+                        .build()));
+    }
+
+    private static Bytes legacyFeeSchedule(long currentGas, long expirySeconds, long nextGas) {
+        return CurrentAndNextFeeSchedule.PROTOBUF.toBytes(CurrentAndNextFeeSchedule.newBuilder()
+                .currentFeeSchedule(feeSchedule(currentGas, expirySeconds))
+                .nextFeeSchedule(feeSchedule(nextGas, expirySeconds + 1_000L))
+                .build());
+    }
+
+    private static FeeSchedule feeSchedule(long gas, long expirySeconds) {
+        return FeeSchedule.newBuilder()
+                .expiryTime(new TimestampSeconds(expirySeconds))
+                .transactionFeeSchedule(TransactionFeeSchedule.newBuilder()
+                        .hederaFunctionality(HederaFunctionality.CONTRACT_CALL)
+                        .fees(FeeData.newBuilder()
+                                .servicedata(FeeComponents.newBuilder().gas(gas).build())
+                                .build())
+                        .build())
+                .build();
     }
 
     private FileID fileId(EntityId fileId) {
