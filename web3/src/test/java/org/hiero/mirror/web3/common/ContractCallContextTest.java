@@ -3,11 +3,14 @@
 package org.hiero.mirror.web3.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.stateOverride;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
@@ -45,6 +48,22 @@ class ContractCallContextTest {
 
         assertThat(context.getTimestamp()).isEmpty();
         assertThat(context.getTimestampForSystemFiles()).isEmpty();
+    }
+
+    @Test
+    void testGetTimestampForActionsReturnsSetTimestamp() {
+        var context = ContractCallContext.get();
+        var timestamp = 123L;
+        context.setApi(ApiEndpointName.ACTIONS);
+        context.setTimestamp(Optional.of(timestamp));
+        context.setCallServiceParameters(ContractExecutionParameters.builder()
+                .block(BlockType.LATEST)
+                .callData(new byte[0])
+                .gasPrice(0L)
+                .build());
+
+        assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));
+        assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(timestamp + 1));
     }
 
     @Test
@@ -88,6 +107,23 @@ class ContractCallContextTest {
     }
 
     @Test
+    void testGetTimestampForHistoricalActionsFallsBackToRecordFile() {
+        var context = ContractCallContext.get();
+        var consensusEnd = 1_786_518_658_483_854_104L;
+        context.setApi(ApiEndpointName.ACTIONS);
+        context.setCallServiceParameters(ContractExecutionParameters.builder()
+                .block(BlockType.of("39156482"))
+                .callData(new byte[0])
+                .gasPrice(0L)
+                .build());
+        context.setBlockSupplier(() ->
+                RecordFile.builder().consensusEnd(consensusEnd).index(39156482L).build());
+
+        assertThat(context.getTimestamp()).isEqualTo(Optional.of(consensusEnd));
+        assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(consensusEnd + 1));
+    }
+
+    @Test
     void testGetTimestampForSystemFilesFallsBackToRecordFileWhenNotOpcodeReplay() {
         var context = ContractCallContext.get();
         var consensusEnd = 1_786_518_658_483_854_104L;
@@ -100,5 +136,51 @@ class ContractCallContextTest {
                 RecordFile.builder().consensusEnd(consensusEnd).index(39156482L).build());
 
         assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(consensusEnd + 1));
+    }
+
+    @Test
+    void remainingMillisUsesDeadlineWhenSet() {
+        var context = ContractCallContext.get();
+        context.setDeadlineMillis(context.getStartTime() + 1_000);
+
+        assertThat(context.remainingMillis(4_000)).isBetween(0L, 1_000L);
+        assertThat(context.isDeadlineExceeded()).isFalse();
+    }
+
+    @Test
+    void remainingMillisFallsBackWhenDeadlineUnset() {
+        var context = ContractCallContext.get();
+
+        assertThat(context.remainingMillis(4_000)).isBetween(0L, 4_000L);
+        assertThat(context.isDeadlineExceeded()).isFalse();
+    }
+
+    @Test
+    void remainingMillisNegativeWhenDeadlinePassed() {
+        var context = ContractCallContext.get();
+        context.setDeadlineMillis(context.getStartTime() - 1);
+
+        assertThat(context.remainingMillis(4_000)).isNegative();
+        assertThat(context.isDeadlineExceeded()).isTrue();
+    }
+
+    @Test
+    void applyStateOverridesReplacesPreviousAndClearsWhenEmpty() {
+        final var context = ContractCallContext.get();
+        final var first = stateOverride("00000000000000000000000000000000000004e4");
+        final var second = stateOverride("00000000000000000000000000000000000004e5");
+
+        context.applyStateOverrides(List.of(first));
+        assertThat(context.getStateOverrides()).containsValue(first);
+
+        context.applyStateOverrides(List.of());
+        assertThat(context.getStateOverrides()).isNull();
+
+        context.applyStateOverrides(null);
+        assertThat(context.getStateOverrides()).isNull();
+
+        context.applyStateOverrides(List.of(first));
+        context.applyStateOverrides(List.of(second));
+        assertThat(context.getStateOverrides()).containsValue(second).doesNotContainValue(first);
     }
 }

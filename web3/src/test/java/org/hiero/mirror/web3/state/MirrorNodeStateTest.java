@@ -114,7 +114,17 @@ final class MirrorNodeStateTest {
 
     @Test
     void testGetWritableStatesWithKVReturnsMapStateWhenFlagDisabled() {
-        final var scheduleStates = mirrorNodeState.getWritableStates(ScheduleService.NAME);
+        final var props = new EvmProperties();
+        props.setSharedWritableState(false);
+        final var state = new MirrorNodeState(new LinkedList<>(), new LinkedList<>(), new CacheProperties(), props);
+        final var scheduleStates = state.getWritableStates(ScheduleService.NAME);
         assertThat(scheduleStates.get(SCHEDULE_ID_BY_EQUALITY_STATE_ID)).isInstanceOf(MapWritableKVState.class);
+    }
+
+    @Test
+    void defaultWritableStateDoesNotUseCaffeine() {
+        assertThat(new EvmProperties().isSharedWritableState()).isFalse();
+        assertThat(mirrorNodeState.getWritableStates(ScheduleService.NAME).get(SCHEDULE_ID_BY_EQUALITY_STATE_ID))
+                .isExactlyInstanceOf(MapWritableKVState.class);
     }
 }

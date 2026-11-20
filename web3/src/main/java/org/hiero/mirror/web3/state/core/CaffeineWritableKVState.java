@@ -69,6 +69,11 @@ public final class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, 
     }
 
     @Override
+    protected boolean useRequestWriteCache() {
+        return true;
+    }
+
+    @Override
     public long sizeOfDataSource() {
         return readableBackingStore.size();
     }

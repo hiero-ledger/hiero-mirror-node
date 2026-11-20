@@ -8,13 +8,53 @@ import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.core.StreamWriteConstraints;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
 import com.hedera.node.config.data.JumboTransactionsConfig;
+import java.util.List;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
+import org.springframework.boot.http.converter.autoconfigure.ServerHttpMessageConvertersCustomizer;
+import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer;
 import org.springframework.boot.jackson2.autoconfigure.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration(proxyBeanMethods = false)
 class JacksonConfiguration {
+
+    /**
+     * Parsing limits for {@code /contracts/call/actions}. {@link ActionTraceRequest#MAX_DOCUMENT_LENGTH} caps the
+     * request body, which bounds calldata and state overrides across every bundle. Other request types keep the shared
+     * mapper. The trace mapper applies the same Spring Boot customizers, so property naming and defaults match.
+     */
+    @Bean
+    ServerHttpMessageConvertersCustomizer actionTraceJsonLimits(
+            final JsonFactory jsonFactory, final List<JsonMapperBuilderCustomizer> customizers) {
+        final var factory = jsonFactory
+                .rebuild()
+                .streamReadConstraints(tools.jackson.core.StreamReadConstraints.builder()
+                        .maxDocumentLength(ActionTraceRequest.MAX_DOCUMENT_LENGTH)
+                        .maxNameLength(100)
+                        .maxNestingDepth(10)
+                        .maxNumberLength(19)
+                        .maxStringLength((int) DATA_MAX_LENGTH)
+                        .maxTokenCount(ActionTraceRequest.MAX_JSON_TOKENS)
+                        .build())
+                .build();
+        final var builder = JsonMapper.builder(factory);
+        for (final var customizer : customizers) {
+            customizer.customize(builder);
+        }
+        final var traceMapper = builder.build();
+        return converters -> converters.configureMessageConverters(converter -> {
+            if (converter instanceof JacksonJsonHttpMessageConverter jackson) {
+                jackson.registerMappersForType(
+                        ActionTraceRequest.class, mappers -> mappers.put(MediaType.APPLICATION_JSON, traceMapper));
+            }
+        });
+    }
 
     // Configure JSON parsing limits to reject malicious input
     @Bean

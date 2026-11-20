@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
@@ -28,6 +29,9 @@ public class ContractCallRequest {
     public static final int ADDRESS_LENGTH = 40;
     public static final long DATA_MAX_LENGTH = 300_000L;
 
+    /** Maximum transactions across every bundle in one {@code debug_traceCallMany} request. */
+    public static final int MAX_TRACE_TRANSACTIONS = 16;
+
     @JsonSerialize(using = BlockTypeSerializer.class)
     @JsonSetter(nulls = Nulls.SKIP)
     @NotNull
@@ -44,6 +48,9 @@ public class ContractCallRequest {
     @Min(21_000)
     private long gas = 15_000_000L;
 
+    // Public API name is camelCase, so it must be pinned against the global SNAKE_CASE naming strategy
+    @JsonAlias("gas_price")
+    @JsonProperty("gasPrice")
     @Min(0)
     private long gasPrice;
 
@@ -53,7 +60,7 @@ public class ContractCallRequest {
     @JsonProperty("state_overrides")
     @NotNull
     @Size(max = 10)
-    private List<@Valid StateOverride> stateOverrides = new ArrayList<>();
+    private List<@NotNull @Valid StateOverride> stateOverrides = new ArrayList<>();
 
     @PositiveOrZero
     private long value;

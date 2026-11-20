@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public enum ApiEndpointName {
+    ACTIONS("/api/v1/contracts/call/actions"),
     CALL("/api/v1/contracts/call"),
     /**
      * Response header defaults merged into the other endpoints. Not a request path.

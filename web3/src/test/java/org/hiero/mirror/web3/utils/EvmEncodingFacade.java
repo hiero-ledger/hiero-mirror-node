@@ -8,7 +8,9 @@ import com.hedera.node.app.hapi.utils.contracts.ParsingConstants;
 import com.hedera.node.app.hapi.utils.contracts.ParsingConstants.FunctionType;
 import lombok.experimental.UtilityClass;
 import org.apache.tuweni.bytes.Bytes;
+import org.jspecify.annotations.NullUnmarked;
 
+@NullUnmarked
 @UtilityClass
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class EvmEncodingFacade {

@@ -49,4 +49,41 @@ class WritableKVStateBaseTest {
         when(readableKVStateBase.get(accountID)).thenReturn(account);
         assertThat(writableKVStateBase.getOriginalValue(accountID)).isEqualTo(account);
     }
+
+    @Test
+    void nestedWrapperCommitReachesDelegateOnlyWhenOuterCommits() {
+        final var accountID = mock(AccountID.class);
+        final var account = mock(Account.class);
+        final var delegate =
+                new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVStateBase);
+        final var outer = new WrappedWritableKVState<>(delegate);
+        final var inner = new WrappedWritableKVState<>(outer);
+
+        inner.put(accountID, account);
+        assertThat(outer.get(accountID)).isNull();
+        assertThat(delegate.get(accountID)).isNull();
+
+        inner.commit();
+        assertThat(outer.get(accountID)).isSameAs(account);
+        assertThat(delegate.get(accountID)).isNull();
+
+        outer.commit();
+        assertThat(delegate.get(accountID)).isSameAs(account);
+    }
+
+    @Test
+    void abandonedWrapperLeavesParentUnchanged() {
+        final var accountID = mock(AccountID.class);
+        final var account = mock(Account.class);
+        final var delegate =
+                new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVStateBase);
+        final var outer = new WrappedWritableKVState<>(delegate);
+        outer.put(accountID, account);
+
+        final var inner = new WrappedWritableKVState<>(outer);
+        inner.put(accountID, mock(Account.class));
+
+        outer.commit();
+        assertThat(delegate.get(accountID)).isSameAs(account);
+    }
 }

@@ -10,13 +10,18 @@ hiero:
           response:
             headers:
               # Merged into every endpoint's response headers on startup unless overridden below.
+              "Access-Control-Allow-Origin": "*"
               "x-cluster-id": "${hiero.mirror.common.clusterId}"
+        actions:
+          enabled: false
+          request:
+            throttle: 100
+          response:
+            timeout: 4s
         call:
           enabled: true
           response:
             timeout: 4s
-            headers:
-              "Access-Control-Allow-Origin": "*"
         opcodes:
           enabled: true
           request:
@@ -24,7 +29,6 @@ hiero:
           response:
             timeout: 10s
             headers:
-              "Access-Control-Allow-Origin": "*"
               "Cache-Control": "public, max-age=600"
         prestate:
           enabled: false
@@ -33,7 +37,6 @@ hiero:
           response:
             timeout: 4s
             headers:
-              "Access-Control-Allow-Origin": "*"
               "Cache-Control": "public, max-age=600"
       db:
         host: 127.0.0.1
@@ -104,6 +107,7 @@ spring:
       minimum-idle: 4
       validation-timeout: 3000
   jackson:
+    property-naming-strategy: SNAKE_CASE
     use-jackson2-defaults: true
   jpa:
     database: PostgreSQL
