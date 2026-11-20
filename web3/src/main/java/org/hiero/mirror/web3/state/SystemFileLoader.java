@@ -41,6 +41,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.hapi.support.fees.Extra;
 import org.hiero.hapi.support.fees.ExtraFeeDefinition;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.HederaNetwork;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -61,8 +62,6 @@ import org.springframework.core.retry.RetryTemplate;
 public final class SystemFileLoader {
 
     private static final long FEE_DIVISOR_FACTOR = 1000L;
-    private static final long MAINNET_SIMPLE_FEES_TIMESTAMP = 1779296400389248896L;
-    private static final long TESTNET_SIMPLE_FEES_TIMESTAMP = 1777482002529719510L;
     private static final long NANOS_PER_HOUR = 3600L * DomainUtils.NANOS_PER_SECOND;
     private static final Set<HederaFunctionality> GAS_PRICED_FUNCTIONALITIES = Set.of(
             HederaFunctionality.CONTRACT_CALL,
@@ -216,11 +215,7 @@ public final class SystemFileLoader {
     }
 
     private long simpleFeesTimestamp() {
-        return switch (properties.getNetwork()) {
-            case MAINNET -> MAINNET_SIMPLE_FEES_TIMESTAMP;
-            case TESTNET -> TESTNET_SIMPLE_FEES_TIMESTAMP;
-            case PREVIEWNET, OTHER -> 0L;
-        };
+        return HederaNetwork.valueOf(properties.getNetwork().name()).getSimpleFeesTimestamp();
     }
 
     /**
