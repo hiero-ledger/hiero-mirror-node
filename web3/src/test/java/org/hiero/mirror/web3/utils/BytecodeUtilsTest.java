@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.AbstractContractCallServiceTest;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.web3j.TestWeb3jService;
@@ -46,7 +47,8 @@ class BytecodeUtilsTest extends AbstractContractCallServiceTest {
         final var serviceParameters =
                 testWeb3jService.serviceParametersForTopLevelContractCreate(EvmCodes.BINARY, ETH_CALL, Address.ZERO);
         assertThat(BytecodeUtils.extractRuntimeBytecode(EvmCodes.BINARY))
-                .isEqualTo(contractExecutionService.processCall(serviceParameters));
+                .isEqualTo(
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)));
     }
 
     @Test
@@ -54,7 +56,8 @@ class BytecodeUtilsTest extends AbstractContractCallServiceTest {
         final var serviceParameters =
                 testWeb3jService.serviceParametersForTopLevelContractCreate(EthCall.BINARY, ETH_CALL, Address.ZERO);
         assertThat(BytecodeUtils.extractRuntimeBytecode(EthCall.BINARY))
-                .isEqualTo(contractExecutionService.processCall(serviceParameters));
+                .isEqualTo(
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)));
     }
 
     @Test
@@ -62,7 +65,8 @@ class BytecodeUtilsTest extends AbstractContractCallServiceTest {
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 ExchangeRatePrecompileHistorical.BINARY, ETH_CALL, Address.ZERO);
         assertThat(BytecodeUtils.extractRuntimeBytecode(ExchangeRatePrecompileHistorical.BINARY))
-                .isEqualTo(contractExecutionService.processCall(serviceParameters));
+                .isEqualTo(
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)));
     }
 
     @Test

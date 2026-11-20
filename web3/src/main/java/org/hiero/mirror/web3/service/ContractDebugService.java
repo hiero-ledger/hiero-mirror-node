@@ -30,6 +30,7 @@ import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
+import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.Suppliers;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.springframework.dao.QueryTimeoutException;
@@ -50,8 +51,9 @@ public class ContractDebugService extends ContractCallService {
             TransactionRepository transactionRepository,
             MeterRegistry meterRegistry,
             EvmProperties evmProperties,
+            ThrottleProperties throttleProperties,
             TransactionExecutionService transactionExecutionService) {
-        super(meterRegistry, recordFileService, evmProperties, transactionExecutionService);
+        super(meterRegistry, recordFileService, evmProperties, throttleProperties, transactionExecutionService);
         this.contractActionRepository = contractActionRepository;
         this.recordFileService = recordFileService;
         this.transactionRepository = transactionRepository;

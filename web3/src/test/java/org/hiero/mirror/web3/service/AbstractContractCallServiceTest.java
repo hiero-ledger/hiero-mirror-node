@@ -64,6 +64,7 @@ import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.tableusage.EndpointContext;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
@@ -253,8 +254,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected ContractExecutionResult verifyEthCallAndEstimateGas(
             final RemoteFunctionCall<TransactionReceipt> functionCall, final Contract contract) {
-        final var executionResult = contractExecutionService.processCallWithGas(
-                getContractExecutionParameters(functionCall, contract), GasUsageListener.NONE);
+        final var executionResult = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(
+                getContractExecutionParameters(functionCall, contract), ctx));
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
@@ -285,8 +286,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Contract contract,
             final Address payerAddress,
             final long value) {
-        final var executionResult = contractExecutionService.processCallWithGas(
-                getContractExecutionParameters(functionCall, contract, payerAddress, value), GasUsageListener.NONE);
+        final var executionResult = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(
+                getContractExecutionParameters(functionCall, contract, payerAddress, value), ctx));
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();

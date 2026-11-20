@@ -10,9 +10,9 @@ import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.springframework.data.domain.Sort.Direction;
 
 @RequiredArgsConstructor
 final class HookRepositoryTest extends RestJavaIntegrationTest {
@@ -39,10 +39,9 @@ final class HookRepositoryTest extends RestJavaIntegrationTest {
         persistHook(OWNER_ID_2, 1L);
 
         final var hookIdsToFind = List.of(1L, 3L, 5L);
-        final var pageable = PageRequest.of(0, 10, Sort.by("hookId").ascending());
 
         // when
-        final var result = hookRepository.findByOwnerIdAndHookIdIn(OWNER_ID_1, hookIdsToFind, pageable);
+        final var result = hookRepository.findByOwnerIdAndHookIdIn(OWNER_ID_1, hookIdsToFind, "ASC", 10);
 
         // then
         assertThat(result).hasSize(2).containsExactly(hook1, hook3);
@@ -53,10 +52,9 @@ final class HookRepositoryTest extends RestJavaIntegrationTest {
     void findByOwnerIdAndHookIdInEmptyList() {
         // given
         persistHook(OWNER_ID_1, 1L);
-        final var pageable = PageRequest.of(0, 10, Sort.by("hookId").ascending());
 
         // when
-        final var result = hookRepository.findByOwnerIdAndHookIdIn(OWNER_ID_1, List.of(), pageable);
+        final var result = hookRepository.findByOwnerIdAndHookIdIn(OWNER_ID_1, List.of(), "ASC", 10);
 
         // then
         assertThat(result).isNotNull().isEmpty();
@@ -73,10 +71,8 @@ final class HookRepositoryTest extends RestJavaIntegrationTest {
         persistHook(OWNER_ID_1, 5L);
         persistHook(OWNER_ID_2, 3L);
 
-        final var pageable = PageRequest.of(0, 10, Sort.by("hookId").ascending());
-
         // when
-        final var result = hookRepository.findByOwnerIdAndHookIdBetween(OWNER_ID_1, 2L, 4L, pageable);
+        final var result = hookRepository.findByOwnerIdAndHookIdBetween(OWNER_ID_1, 2L, 4L, "ASC", 10);
 
         // then
         assertThat(result).hasSize(3).containsExactly(hook2, hook3, hook4);
@@ -89,12 +85,50 @@ final class HookRepositoryTest extends RestJavaIntegrationTest {
         persistHook(OWNER_ID_1, 1L);
         persistHook(OWNER_ID_1, 2L);
         persistHook(OWNER_ID_1, 3L);
-        final var pageable = Pageable.unpaged();
 
         // when
-        final var result = hookRepository.findByOwnerIdAndHookIdBetween(OWNER_ID_1, 100L, 200L, pageable);
+        final var result = hookRepository.findByOwnerIdAndHookIdBetween(OWNER_ID_1, 100L, 200L, "ASC", 10);
 
         // then
         assertThat(result).isNotNull().isEmpty();
+    }
+
+    @ParameterizedTest
+    @EnumSource(Direction.class)
+    @DisplayName("findByOwnerIdAndHookIdBetween should respect the order and limit")
+    void findByOwnerIdAndHookIdBetweenRespectsOrderAndLimit(Direction order) {
+        // given
+        final var hook1 = persistHook(OWNER_ID_1, 1L);
+        final var hook2 = persistHook(OWNER_ID_1, 2L);
+        final var hook3 = persistHook(OWNER_ID_1, 3L);
+        final var hook4 = persistHook(OWNER_ID_1, 4L);
+
+        final var expected = order.isAscending() ? List.of(hook1, hook2) : List.of(hook4, hook3);
+
+        // when
+        final var result = hookRepository.findByOwnerIdAndHookIdBetween(OWNER_ID_1, 0L, 10L, order.name(), 2);
+
+        // then
+        assertThat(result).containsExactlyElementsOf(expected);
+    }
+
+    @ParameterizedTest
+    @EnumSource(Direction.class)
+    @DisplayName("findByOwnerIdAndHookIdIn should respect the order and limit")
+    void findByOwnerIdAndHookIdInRespectsOrderAndLimit(Direction order) {
+        // given
+        final var hook1 = persistHook(OWNER_ID_1, 1L);
+        final var hook2 = persistHook(OWNER_ID_1, 2L);
+        final var hook3 = persistHook(OWNER_ID_1, 3L);
+        final var hook4 = persistHook(OWNER_ID_1, 4L);
+
+        final var expected = order.isAscending() ? List.of(hook1, hook2) : List.of(hook4, hook3);
+
+        // when
+        final var result =
+                hookRepository.findByOwnerIdAndHookIdIn(OWNER_ID_1, List.of(1L, 2L, 3L, 4L), order.name(), 2);
+
+        // then
+        assertThat(result).containsExactlyElementsOf(expected);
     }
 }

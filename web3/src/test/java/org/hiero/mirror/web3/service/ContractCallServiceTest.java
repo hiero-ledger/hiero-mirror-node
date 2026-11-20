@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_INVALID;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_VALUE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
 import com.google.common.collect.Range;
+import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.services.utils.EntityIdUtils;
@@ -46,7 +48,6 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.time.YearMonth;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -67,6 +68,7 @@ import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
+import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
@@ -160,7 +162,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var serviceParameters = getContractExecutionParameters(HEX_PREFIX, receiverAddress);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then
         assertThat(result).isEqualTo(HEX_PREFIX);
@@ -308,7 +310,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 contractCallData, toAddress(payer.toEntityId()), receiverAddress, 0L, ETH_ESTIMATE_GAS);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParametersEstimateGas);
+        final var result =
+                ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParametersEstimateGas, ctx));
         final var estimatedGasUsed = longValueOf.applyAsLong(result);
 
         // Then
@@ -362,10 +365,10 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 getContractExecutionParameters(HEX_PREFIX, receiverAddress, senderAddress, 7L, ETH_ESTIMATE_GAS);
 
         // When
-        final var executionResult = assertDoesNotThrow(
-                () -> contractExecutionService.processCallWithGas(serviceParameters, GasUsageListener.NONE));
-        final var estimatedGasUsed = assertDoesNotThrow(
-                        () -> contractExecutionService.processCallWithGas(estimateGasParameters, GasUsageListener.NONE))
+        final var executionResult = assertDoesNotThrow(() ->
+                ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(serviceParameters, ctx)));
+        final var estimatedGasUsed = assertDoesNotThrow(() -> ContractCallContext.run(
+                        ctx -> contractExecutionService.processCallWithGas(estimateGasParameters, ctx)))
                 .gasUsed();
 
         // Then
@@ -395,10 +398,10 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .build();
 
         // When
-        final var executionResult = assertDoesNotThrow(
-                () -> contractExecutionService.processCallWithGas(serviceParameters, GasUsageListener.NONE));
-        final var estimatedGasUsed = assertDoesNotThrow(
-                        () -> contractExecutionService.processCallWithGas(estimateGasParameters, GasUsageListener.NONE))
+        final var executionResult = assertDoesNotThrow(() ->
+                ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(serviceParameters, ctx)));
+        final var estimatedGasUsed = assertDoesNotThrow(() -> ContractCallContext.run(
+                        ctx -> contractExecutionService.processCallWithGas(estimateGasParameters, ctx)))
                 .gasUsed();
 
         // Then
@@ -425,7 +428,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var originalMaxGasLimit = evmProperties.getMaxGasLimit();
         try {
             evmProperties.setMaxGasLimit(21_000L);
-            assertThatThrownBy(() -> contractExecutionService.processCall(estimate))
+            assertThatThrownBy(
+                            () -> ContractCallContext.run(ctx -> contractExecutionService.processCall(estimate, ctx)))
                     .isInstanceOf(MirrorEvmTransactionException.class)
                     .hasMessage(ResponseCodeEnum.MAX_GAS_LIMIT_EXCEEDED.name());
         } finally {
@@ -547,7 +551,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 getContractExecutionParameters("0x12345678", Address.fromHexString(contract.getContractAddress()));
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then
         assertThat(result).isEqualTo(HEX_PREFIX);
@@ -565,7 +569,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 BlockType.LATEST, HEX_PREFIX, toAddress(payer.toEntityId()), receiverAddress, ETH_CALL, 10L);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then
         assertThat(result).isEqualTo(HEX_PREFIX);
@@ -582,7 +586,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 BlockType.LATEST, HEX_PREFIX, notExistingAccountAddress, receiverAddress, ETH_CALL, 10L);
 
         // Then
-        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+        assertThatThrownBy(() ->
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
 
@@ -599,7 +604,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 BlockType.LATEST, HEX_PREFIX, toAddress(senderEntity.toEntityId()), receiverAddress, ETH_CALL, 10L);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then
         assertThat(result).isEqualTo(HEX_PREFIX);
@@ -617,7 +622,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 BlockType.LATEST, HEX_PREFIX, contractAddress, receiverAddress, ETH_CALL, 10L);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then
         assertThat(result).isEqualTo(HEX_PREFIX);
@@ -636,7 +641,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 wrongFunctionSignature, Address.fromHexString(contract.getContractAddress()));
 
         // Then
-        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+        assertThatThrownBy(() ->
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessage(CONTRACT_REVERT_EXECUTED.name())
                 .hasFieldOrPropertyWithValue("data", HEX_PREFIX);
@@ -655,7 +661,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var serviceParameters = getContractExecutionParametersWithValue(
                 BlockType.LATEST, HEX_PREFIX, toAddress(payer.toEntityId()), receiverAddress, ETH_CALL, -5L);
         // Then
-        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+        assertThatThrownBy(() ->
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessage(CONTRACT_NEGATIVE_VALUE.name());
         assertGasLimit(serviceParameters);
@@ -675,11 +682,13 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 BlockType.LATEST, HEX_PREFIX, senderAddress, receiverAddress, ETH_CALL, value);
         // Then
         if (validatePayerBalance) {
-            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+            assertThatThrownBy(() -> ContractCallContext.run(
+                            ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
                     .isInstanceOf(MirrorEvmTransactionException.class)
                     .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
         } else {
-            assertDoesNotThrow(() -> contractExecutionService.processCall(serviceParameters));
+            assertDoesNotThrow(
+                    () -> ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)));
         }
         assertGasLimit(serviceParameters);
         evmProperties.setValidatePayerBalance(true);
@@ -702,11 +711,13 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 BlockType.of("0x96"), HEX_PREFIX, senderAddress, receiverAddress, ETH_CALL, value);
         // Then
         if (validatePayerBalance) {
-            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+            assertThatThrownBy(() -> ContractCallContext.run(
+                            ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
                     .isInstanceOf(MirrorEvmTransactionException.class)
                     .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
         } else {
-            assertDoesNotThrow(() -> contractExecutionService.processCall(serviceParameters));
+            assertDoesNotThrow(
+                    () -> ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)));
         }
         assertGasLimit(serviceParameters);
         evmProperties.setValidatePayerBalance(true);
@@ -864,7 +875,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                         BlockType.LATEST, data, Address.ZERO, receiver, ETH_ESTIMATE_GAS, 0L)
                 .gas(gasLimit)
                 .build();
-        final var estimatedGas = longValueOf.applyAsLong(contractExecutionService.processCall(estimate));
+        final var estimatedGas = longValueOf.applyAsLong(
+                ContractCallContext.run(ctx -> contractExecutionService.processCall(estimate, ctx)));
         final var estimatedGasCall = contractExecutionParametersBuilder(
                         BlockType.LATEST, data, Address.ZERO, receiver, ETH_CALL, 0L)
                 .gas(estimatedGas)
@@ -878,11 +890,11 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .gas(gasWithoutSafetyMargin)
                 .build();
         final var unpaddedExecution = assertDoesNotThrow(
-                () -> contractExecutionService.processCallWithGas(unpaddedCall, GasUsageListener.NONE));
+                () -> ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(unpaddedCall, ctx)));
         assertThat(unpaddedExecution.result()).isEqualTo(expectedResult);
         assertThat(estimatedGas).isGreaterThan(gasWithoutSafetyMargin).isLessThanOrEqualTo(gasLimit);
-        final var freshExecution = assertDoesNotThrow(
-                () -> contractExecutionService.processCallWithGas(estimatedGasCall, GasUsageListener.NONE));
+        final var freshExecution = assertDoesNotThrow(() ->
+                ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(estimatedGasCall, ctx)));
         assertThat(freshExecution.result()).isEqualTo(expectedResult);
     }
 
@@ -909,7 +921,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var actualGas = 1538019L;
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
         final var estimatedGas = longValueOf.applyAsLong(result);
 
         // Then
@@ -927,7 +939,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var actualGas = 1538019L;
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
         final var estimatedGas = longValueOf.applyAsLong(result);
 
         // Then
@@ -945,7 +957,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 contract.getContractBinary(), ETH_CALL, Address.ZERO);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then
         assertGasLimit(serviceParameters);
@@ -1020,7 +1032,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
     @ParameterizedTest
     @MethodSource("provideParametersForErcPrecompileExceptionalHalt")
-    void ercPrecompileExceptionalHaltReportsWholeGasLimit(final CallType callType) {
+    void ercPrecompileExceptionalHaltRefundsWholeGasLimit(final CallType callType) {
         // Given
         final var token = fungibleTokenPersist();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
@@ -1033,29 +1045,17 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
         final var serviceParameters = getContractExecutionParametersWithValue(
                 BlockType.LATEST, functionCall.encodeFunctionCall(), Address.ZERO, Address.ZERO, callType, 100L);
-        final var gasLimits = new ArrayList<Long>();
-        final var results = new ArrayList<EvmTransactionResult>();
 
         // When
-        try {
-            contractExecutionService.processCall(serviceParameters, (gasLimit, result) -> {
-                gasLimits.add(gasLimit);
-                results.add(result);
-            });
-        } catch (MirrorEvmTransactionException e) {
-            // Ignore as this is not what we want to verify here.
-        }
+        final long refundableGas = refundableGasAfterExecution(serviceParameters);
 
-        // Then the throttle returns only its refund share, because the execution used its whole gas limit.
-        assertThat(gasLimits).isEqualTo(List.of(TRANSACTION_GAS_LIMIT));
-        final var result = results.getFirst();
-        assertThat(result == null || (!result.isSuccessful() && result.gasUsed() == TRANSACTION_GAS_LIMIT))
-                .isTrue();
+        // Then the whole gas limit is refundable, because the execution used all of it.
+        assertThat(refundableGas).isEqualTo(TRANSACTION_GAS_LIMIT);
     }
 
     @ParameterizedTest
     @MethodSource("ercPrecompileCallTypeArgumentsProvider")
-    void ercPrecompileContractRevertReportsGasUsed(final CallType callType, final long gasLimit) {
+    void ercPrecompileContractRevertRefundsUnusedGas(final CallType callType, final long gasLimit) {
         // Given
         final var payer = accountEntityWithEvmAddressPersist();
         accountBalancePersist(payer, payer.getBalance());
@@ -1074,27 +1074,17 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .gas(gasLimit)
                 .build();
         final var expectedGasUsed = gasUsedAfterExecution(serviceParameters);
-        final var gasLimits = new ArrayList<Long>();
-        final var results = new ArrayList<EvmTransactionResult>();
 
         // When
-        try {
-            contractExecutionService.processCall(serviceParameters, (limit, result) -> {
-                gasLimits.add(limit);
-                results.add(result);
-            });
-        } catch (MirrorEvmTransactionException e) {
-            // Ignore as this is not what we want to verify here.
-        }
+        final long refundableGas = refundableGasAfterExecution(serviceParameters);
 
         // Then
-        assertThat(gasLimits).isEqualTo(List.of(gasLimit));
-        assertThat(results.getFirst().gasUsed()).isEqualTo(expectedGasUsed);
+        assertThat(refundableGas).isEqualTo(gasLimit - expectedGasUsed);
     }
 
     @ParameterizedTest
     @MethodSource("ercPrecompileCallTypeArgumentsProvider")
-    void ercPrecompileSuccessReportsGasUsed(final CallType callType, final long gasLimit) {
+    void ercPrecompileSuccessRefundsUnusedGas(final CallType callType, final long gasLimit) {
         // Given
         final var token = fungibleTokenPersist();
         final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
@@ -1111,19 +1101,12 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                 .gas(gasLimit)
                 .build();
         final var expectedGasUsed = gasUsedAfterExecution(serviceParameters);
-        final var gasLimits = new ArrayList<Long>();
-        final var results = new ArrayList<EvmTransactionResult>();
 
         // When
-        contractExecutionService.processCall(serviceParameters, (limit, result) -> {
-            gasLimits.add(limit);
-            results.add(result);
-        });
+        final long refundableGas = refundableGasAfterExecution(serviceParameters);
 
         // Then
-        assertThat(gasLimits).isEqualTo(List.of(gasLimit));
-        assertThat(results.getFirst().isSuccessful()).isTrue();
-        assertThat(results.getFirst().gasUsed()).isEqualTo(expectedGasUsed);
+        assertThat(refundableGas).isEqualTo(gasLimit - expectedGasUsed);
     }
 
     @ParameterizedTest
@@ -1138,7 +1121,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var serviceParameters = getContractExecutionParameters(HEX_PREFIX, address);
 
         // Then
-        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+        assertThatThrownBy(() ->
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessage(CONTRACT_EXECUTION_EXCEPTION.name());
     }
@@ -1166,10 +1150,51 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var serviceParameters = getContractExecutionParametersWithValue(
                 BlockType.LATEST, hexData, toAddress(senderAccount.getId()), tokenAddress, ETH_CALL, 0L);
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then
         assertThat(result).isEqualTo("0x0000000000000000000000000000000000000000000000000000000000000001");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        // The refund percent is 50, so at most 500,000 of the 1,000,000 gas limit is refundable.
+        "100000, true, 500000",
+        "800000, true, 200000",
+        "800000, false, 200000",
+        "1000000, false, 500000"
+    })
+    void refundableGasIsCappedAtRefundPercent(
+            final long gasUsed, final boolean successful, final long expectedRefundableGas) {
+        // Given
+        final var throttleProperties = new ThrottleProperties();
+        throttleProperties.setGasLimitRefundPercent(50);
+        final var functionResult =
+                ContractFunctionResult.newBuilder().gasUsed(gasUsed).build();
+        final var mockedTransactionExecutionService = mock(TransactionExecutionService.class);
+        given(mockedTransactionExecutionService.execute(any(), anyLong()))
+                .willReturn(new EvmTransactionResult(successful ? SUCCESS : FAIL_INVALID, functionResult));
+        final var service = new ContractExecutionService(
+                meterRegistry,
+                binaryGasEstimator,
+                recordFileService,
+                evmProperties,
+                throttleProperties,
+                mockedTransactionExecutionService);
+        final var params = contractExecutionParametersBuilder(
+                        BlockType.LATEST, HEX_PREFIX, Address.ZERO, Address.ZERO, ETH_CALL, 0L)
+                .gas(1_000_000L)
+                .build();
+
+        // When
+        try {
+            service.doProcessCall(params, params.getGas(), false);
+        } catch (MirrorEvmTransactionException e) {
+            // Failed executions still record their refundable gas.
+        }
+
+        // Then
+        assertThat(ContractCallContext.get().getRefundableGas()).isEqualTo(expectedRefundableGas);
     }
 
     @ParameterizedTest
@@ -1184,7 +1209,12 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var mockedTransactionExecutionService = mock(TransactionExecutionService.class);
         given(mockedTransactionExecutionService.execute(any(), anyLong())).willThrow(failure);
         final var service = new ContractExecutionService(
-                meterRegistry, binaryGasEstimator, recordFileService, evmProperties, mockedTransactionExecutionService);
+                meterRegistry,
+                binaryGasEstimator,
+                recordFileService,
+                evmProperties,
+                new ThrottleProperties(),
+                mockedTransactionExecutionService);
         final var params = getContractExecutionParameters(HEX_PREFIX, Address.ZERO);
 
         // When / Then
@@ -1195,6 +1225,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     assertThat(exception.getData()).isEmpty();
                 });
         assertThat(output.getAll().contains(INTERNAL_DETAIL)).isEqualTo(!estimate);
+        // With no result, the whole gas limit is refundable, but gas estimation iterations do not record it.
+        assertThat(ContractCallContext.get().getRefundableGas()).isEqualTo(estimate ? 0L : params.getGas());
     }
 
     private double getGasUsedBeforeExecution(final CallType callType) {
@@ -1300,11 +1332,21 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
     private long hollowCreationGas(final Address sender, final BlockType block) {
         final var hollowAlias = Address.wrap(Bytes.wrap(domainBuilder.evmAddress()));
-        return contractExecutionService
-                .processCallWithGas(
+        return ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(
                         getContractExecutionParametersWithValue(block, HEX_PREFIX, sender, hollowAlias, ETH_CALL, 1L),
-                        GasUsageListener.NONE)
+                        ctx))
                 .gasUsed();
+    }
+
+    private long refundableGasAfterExecution(final ContractExecutionParameters serviceParameters) {
+        return ContractCallContext.run(ctx -> {
+            try {
+                contractExecutionService.processCall(serviceParameters, ctx);
+            } catch (MirrorEvmTransactionException e) {
+                // Failed executions still record their refundable gas.
+            }
+            return ctx.getRefundableGas();
+        });
     }
 
     private Address persistAliasedAccountAddress() {
@@ -1336,7 +1378,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final var serviceParameters = getContractExecutionParameters(HEX_PREFIX, NON_EXISTING_ADDRESS);
 
             // When
-            final var result = contractExecutionService.processCall(serviceParameters);
+            final var result =
+                    ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
             // Then
             assertThat(result).isEqualTo(HEX_PREFIX);
@@ -1354,7 +1397,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     BlockType.LATEST, HEX_PREFIX, getAliasAddressFromEntity(payer), NON_EXISTING_ADDRESS, ETH_CALL, 1L);
 
             // When
-            final var result = contractExecutionService.processCall(serviceParameters);
+            final var result =
+                    ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
             // Then
             assertThat(result).isEqualTo(HEX_PREFIX);
@@ -1377,7 +1421,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     10000000L);
 
             // When
-            final var result = contractExecutionService.processCall(serviceParameters);
+            final var result =
+                    ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
             // Then
             final long expectedGas = 607854L;
@@ -1400,7 +1445,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     getAliasAddressFromEntity(sender), getAliasAddressFromEntity(receiver), 0L, 1000L);
 
             // Then
-            assertThatThrownBy(() -> contractExecutionService.processCall(params))
+            assertThatThrownBy(() -> ContractCallContext.run(ctx -> contractExecutionService.processCall(params, ctx)))
                     .isInstanceOf(MirrorEvmTransactionException.class)
                     .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
         }
@@ -1414,7 +1459,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     getAliasAddressFromEntity(sender), getAliasAddressFromEntity(receiver), 1_000_000L, 0L);
 
             // Then
-            assertThatThrownBy(() -> contractExecutionService.processCall(params))
+            assertThatThrownBy(() -> ContractCallContext.run(ctx -> contractExecutionService.processCall(params, ctx)))
                     .isInstanceOf(MirrorEvmTransactionException.class)
                     .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
         }
@@ -1427,7 +1472,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     Address.ZERO, getAliasAddressFromEntity(receiver), 0L, 0L);
 
             // Then
-            assertDoesNotThrow(() -> contractExecutionService.processCall(params));
+            assertDoesNotThrow(() -> ContractCallContext.run(ctx -> contractExecutionService.processCall(params, ctx)));
         }
 
         @Test
@@ -1439,7 +1484,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     getAliasAddressFromEntity(sender), getAliasAddressFromEntity(receiver), 0L, 0L);
 
             // Then
-            assertDoesNotThrow(() -> contractExecutionService.processCall(params));
+            assertDoesNotThrow(() -> ContractCallContext.run(ctx -> contractExecutionService.processCall(params, ctx)));
         }
     }
 
@@ -1476,7 +1521,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .build();
 
             // When
-            final var result = contractExecutionService.processCallWithGas(params, GasUsageListener.NONE);
+            final var result = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(params, ctx));
 
             // Then
             assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(new BigInteger(slotValue, 16));
@@ -1510,7 +1555,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .build();
 
             // When
-            final var result = contractExecutionService.processCallWithGas(params, GasUsageListener.NONE);
+            final var result = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(params, ctx));
 
             // Then
             assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(new BigInteger(slotValue, 16));
@@ -1541,7 +1586,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .build();
 
             // When
-            final var result = contractExecutionService.processCallWithGas(params, GasUsageListener.NONE);
+            final var result = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(params, ctx));
 
             // Then: EthCall logic runs at the StorageContract address
             assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(BigInteger.valueOf(4L));
@@ -1586,7 +1631,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .build();
 
             // When
-            final var result = contractExecutionService.processCallWithGas(params, GasUsageListener.NONE);
+            final var result = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(params, ctx));
 
             // Then: Alias resolution must not bypass the code and storage overrides
             assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(new BigInteger(slotValue, 16));
@@ -1627,7 +1672,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .build();
 
             // When
-            final var result = contractExecutionService.processCallWithGas(params, GasUsageListener.NONE);
+            final var result = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(params, ctx));
 
             // Then: The overridden code runs at the non-existing address and reads the overridden storage
             assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(new BigInteger(slotValue, 16));
@@ -1656,7 +1701,8 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .build();
 
             // Then: The random bytecode gets executed, which results in CONTRACT_EXECUTION_EXCEPTION
-            assertThatThrownBy(() -> contractExecutionService.processCallWithGas(params, GasUsageListener.NONE))
+            assertThatThrownBy(() ->
+                            ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(params, ctx)))
                     .isInstanceOf(MirrorEvmTransactionException.class)
                     .hasMessageContaining(ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION.name());
         }
@@ -1686,7 +1732,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .build();
 
             // When
-            final var result = contractExecutionService.processCallWithGas(params, GasUsageListener.NONE);
+            final var result = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(params, ctx));
 
             // Then
             assertThat(decodeFirst(result.result(), Uint256.class).getValue())
@@ -1733,10 +1779,10 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     contractAddress,
                     ETH_CALL,
                     0L);
-            final var numericBalance =
-                    contractExecutionService.processCallWithGas(numericParams.build(), GasUsageListener.NONE);
-            final var aliasBalance =
-                    contractExecutionService.processCallWithGas(aliasParams.build(), GasUsageListener.NONE);
+            final var numericBalance = ContractCallContext.run(
+                    ctx -> contractExecutionService.processCallWithGas(numericParams.build(), ctx));
+            final var aliasBalance = ContractCallContext.run(
+                    ctx -> contractExecutionService.processCallWithGas(aliasParams.build(), ctx));
             assertThat(decodeFirst(numericBalance.result(), Uint256.class).getValue())
                     .isEqualTo(BigInteger.valueOf(initialBalance));
             assertThat(decodeFirst(aliasBalance.result(), Uint256.class).getValue())
@@ -1751,10 +1797,10 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final var overrides = List.of(numericOverride, aliasOverride);
 
             // When
-            final var numericResult = contractExecutionService.processCallWithGas(
-                    numericParams.stateOverrides(overrides).build(), GasUsageListener.NONE);
-            final var aliasResult = contractExecutionService.processCallWithGas(
-                    aliasParams.stateOverrides(overrides).build(), GasUsageListener.NONE);
+            final var numericResult = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(
+                    numericParams.stateOverrides(overrides).build(), ctx));
+            final var aliasResult = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(
+                    aliasParams.stateOverrides(overrides).build(), ctx));
 
             // Then: Alias resolution must not bypass the account balance override.
             assertThat(decodeFirst(numericResult.result(), Uint256.class).getValue())
@@ -1763,10 +1809,10 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .isEqualTo(BigInteger.valueOf(200L));
 
             // Overrides must not change the balances returned by subsequent ordinary requests.
-            final var numericBalanceAfter = contractExecutionService.processCallWithGas(
-                    numericParams.stateOverrides(List.of()).build(), GasUsageListener.NONE);
-            final var aliasBalanceAfter = contractExecutionService.processCallWithGas(
-                    aliasParams.stateOverrides(List.of()).build(), GasUsageListener.NONE);
+            final var numericBalanceAfter = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(
+                    numericParams.stateOverrides(List.of()).build(), ctx));
+            final var aliasBalanceAfter = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(
+                    aliasParams.stateOverrides(List.of()).build(), ctx));
             assertThat(decodeFirst(numericBalanceAfter.result(), Uint256.class).getValue())
                     .isEqualTo(BigInteger.valueOf(initialBalance));
             assertThat(decodeFirst(aliasBalanceAfter.result(), Uint256.class).getValue())
@@ -1797,7 +1843,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .build();
 
             // When
-            final var result = contractExecutionService.processCallWithGas(params, GasUsageListener.NONE);
+            final var result = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(params, ctx));
 
             // Then
             assertThat(decodeFirst(result.result(), Uint256.class).getValue()).isEqualTo(BigInteger.valueOf(100L));
@@ -1842,7 +1888,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
                     .build();
 
             // When
-            final var result = contractExecutionService.processCallWithGas(params, GasUsageListener.NONE);
+            final var result = ContractCallContext.run(ctx -> contractExecutionService.processCallWithGas(params, ctx));
 
             // Then
             assertThat(capturedNonce.get()).isEqualTo(42L);

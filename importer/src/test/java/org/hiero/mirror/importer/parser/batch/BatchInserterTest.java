@@ -17,6 +17,7 @@ import java.io.Reader;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import javax.sql.DataSource;
@@ -29,6 +30,8 @@ import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.CommonParserProperties;
+import org.hiero.mirror.importer.repository.ClprEndpointManifestRepository;
+import org.hiero.mirror.importer.repository.ClprLedgerConfigurationRepository;
 import org.hiero.mirror.importer.repository.CryptoTransferRepository;
 import org.hiero.mirror.importer.repository.TokenTransferRepository;
 import org.hiero.mirror.importer.repository.TopicMessageRepository;
@@ -43,24 +46,35 @@ class BatchInserterTest extends ImporterIntegrationTest {
     private final CryptoTransferRepository cryptoTransferRepository;
     private final TopicMessageRepository topicMessageRepository;
     private final TokenTransferRepository tokenTransferRepository;
+    private final ClprLedgerConfigurationRepository clprLedgerConfigurationRepository;
+    private final ClprEndpointManifestRepository clprEndpointManifestRepository;
 
     @Test
     void persist() {
-        var cryptoTransfers = new ArrayList<CryptoTransfer>();
+        final var cryptoTransfers = new ArrayList<CryptoTransfer>();
         cryptoTransfers.add(domainBuilder.cryptoTransfer().get());
         cryptoTransfers.add(domainBuilder.cryptoTransfer().get());
         cryptoTransfers.add(domainBuilder.cryptoTransfer().get());
 
-        var tokenTransfers = new ArrayList<TokenTransfer>();
+        final var tokenTransfers = new ArrayList<TokenTransfer>();
         tokenTransfers.add(domainBuilder.tokenTransfer().get());
         tokenTransfers.add(domainBuilder.tokenTransfer().get());
         tokenTransfers.add(domainBuilder.tokenTransfer().get());
+
+        final var clprConfiguration = Collections.singletonList(
+                domainBuilder.clprLedgerConfiguration().get());
+        final var clprEndpointManifest =
+                Collections.singletonList(domainBuilder.clprEndpointManifest().get());
 
         batchInserter.persist(cryptoTransfers);
         batchInserter.persist(tokenTransfers);
+        batchInserter.persist(clprConfiguration);
+        batchInserter.persist(clprEndpointManifest);
 
         assertThat(cryptoTransferRepository.findAll()).containsExactlyInAnyOrderElementsOf(cryptoTransfers);
         assertThat(tokenTransferRepository.findAll()).containsExactlyInAnyOrderElementsOf(tokenTransfers);
+        assertThat(clprLedgerConfigurationRepository.findAll()).containsExactlyInAnyOrderElementsOf(clprConfiguration);
+        assertThat(clprEndpointManifestRepository.findAll()).containsExactlyInAnyOrderElementsOf(clprEndpointManifest);
     }
 
     @Test

@@ -17,6 +17,7 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.ThrottleException;
@@ -98,14 +99,15 @@ class ContractController {
         validateStateOverrides(params.getStateOverrides());
 
         throttleManager.throttle(request);
-        try {
-            final var result = contractExecutionService.processCall(params, throttleManager::restoreUnusedGas);
-            return new ContractCallResponse(result);
-        } catch (IllegalArgumentException | InvalidParametersException e) {
-            // Processing did not complete, so restore the consumed tokens.
-            throttleManager.restore(request.getGas());
-            throw e;
-        }
+        return ContractCallContext.run(ctx -> {
+            // Until the EVM runs, none of the reserved gas has been used, so all of it is refundable.
+            ctx.setRefundableGas(request.getGas());
+            try {
+                return new ContractCallResponse(contractExecutionService.processCall(params, ctx));
+            } finally {
+                throttleManager.restore(ctx.getRefundableGas());
+            }
+        });
     }
 
     private ContractExecutionParameters constructServiceParameters(final ContractCallRequest request) {

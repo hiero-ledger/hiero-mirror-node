@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.service;
 import static org.hiero.mirror.web3.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -19,6 +18,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
+import org.hiero.mirror.web3.throttle.ThrottleProperties;
 
 @CustomLog
 @Named
@@ -31,58 +31,54 @@ public class ContractExecutionService extends ContractCallService {
             BinaryGasEstimator binaryGasEstimator,
             RecordFileService recordFileService,
             EvmProperties evmProperties,
+            ThrottleProperties throttleProperties,
             TransactionExecutionService transactionExecutionService) {
-        super(meterRegistry, recordFileService, evmProperties, transactionExecutionService);
+        super(meterRegistry, recordFileService, evmProperties, throttleProperties, transactionExecutionService);
         this.binaryGasEstimator = binaryGasEstimator;
     }
 
-    /** Runs the call without reporting gas usage, for callers that did not reserve throttle gas. */
-    @VisibleForTesting
-    public String processCall(final ContractExecutionParameters params) {
-        return processCall(params, GasUsageListener.NONE);
-    }
-
-    /** Returns only the result hex string. */
-    public String processCall(final ContractExecutionParameters params, final GasUsageListener gasUsageListener) {
-        return processCallWithGas(params, gasUsageListener).result();
+    /**
+     * Runs the call in {@code ctx}, which must be the bound {@link ContractCallContext}, and returns only the result hex
+     * string. Afterwards {@code ctx} holds the {@link ContractCallContext#getRefundableGas() refundable gas} of the
+     * executed call, or of the first call of a gas estimate, so the caller can return the throttle gas it did not use.
+     */
+    public String processCall(final ContractExecutionParameters params, final ContractCallContext ctx) {
+        return processCallWithGas(params, ctx).result();
     }
 
     /**
-     * Returns both the result and the gas used. {@code gasUsageListener} is told about the executed call, or the first
-     * call of a gas estimate, so the caller can return the throttle gas it did not use.
+     * Runs the call in {@code ctx}, which must be the bound {@link ContractCallContext}, and returns both the result and
+     * the gas used.
      */
     public ContractExecutionResult processCallWithGas(
-            final ContractExecutionParameters params, final GasUsageListener gasUsageListener) {
-        return ContractCallContext.run(ctx -> {
-            ctx.setApi(CALL);
-            ctx.setGasUsageListener(gasUsageListener);
-            var stopwatch = Stopwatch.createStarted();
-            var stringResult = "";
-            long gasUsed;
+            final ContractExecutionParameters params, final ContractCallContext ctx) {
+        ctx.setApi(CALL);
+        final var stopwatch = Stopwatch.createStarted();
+        var stringResult = "";
+        long gasUsed;
 
-            try {
-                updateGasLimitMetric(params);
+        try {
+            updateGasLimitMetric(params);
 
-                ctx.applyStateOverrides(params.getStateOverrides());
+            ctx.applyStateOverrides(params.getStateOverrides());
 
-                Bytes result;
-                if (params.isEstimate()) {
-                    result = estimateGas(params, ctx);
-                    gasUsed = result.toLong();
-                } else {
-                    final var ethCallTxnResult = callContract(params, ctx);
-                    result = Objects.requireNonNullElse(
-                            Bytes.fromHexString(ethCallTxnResult.contractCallResult()), Bytes.EMPTY);
-                    gasUsed = ethCallTxnResult.gasUsed();
-                }
-
-                stringResult = result.toHexString();
-            } finally {
-                log.debug("Processed request {} in {}: {}", params, stopwatch, stringResult);
+            Bytes result;
+            if (params.isEstimate()) {
+                result = estimateGas(params, ctx);
+                gasUsed = result.toLong();
+            } else {
+                final var ethCallTxnResult = callContract(params, ctx);
+                result = Objects.requireNonNullElse(
+                        Bytes.fromHexString(ethCallTxnResult.contractCallResult()), Bytes.EMPTY);
+                gasUsed = ethCallTxnResult.gasUsed();
             }
 
-            return new ContractExecutionResult(stringResult, gasUsed);
-        });
+            stringResult = result.toHexString();
+        } finally {
+            log.debug("Processed request {} in {}: {}", params, stopwatch, stringResult);
+        }
+
+        return new ContractExecutionResult(stringResult, gasUsed);
     }
 
     /**

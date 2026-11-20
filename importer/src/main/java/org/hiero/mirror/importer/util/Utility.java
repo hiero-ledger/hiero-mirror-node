@@ -226,6 +226,20 @@ public class Utility {
         }
     }
 
+    /**
+     * Clamps a raw protobuf enum/field-number wire value into {@code smallint} range, logging a recoverable error
+     * if clamping was needed -- mirrors how {@code RecordItem.parseTransactionType()} handles a raw transaction
+     * type too large to store.
+     */
+    public static int toSmallint(String description, int value) {
+        if (DomainUtils.isSmallint(value)) {
+            return value;
+        }
+
+        handleRecoverableError("{} {} exceeds smallint range", description, value);
+        return DomainUtils.toSmallint(value);
+    }
+
     private static byte[] stripHexPrefix(byte[] data) {
         // If the first two bytes are hex prefix '0x', strip them
         if (data.length >= 2 && data[0] == (byte) 0x30 && data[1] == (byte) 0x78) {

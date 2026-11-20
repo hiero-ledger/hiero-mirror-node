@@ -21,6 +21,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -60,7 +61,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then - multiplySimpleNumbers returns 2 * 2 = 4
         assertThat(result).isEqualTo("0x0000000000000000000000000000000000000000000000000000000000000004");
@@ -79,7 +80,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var serviceParameters =
                 getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         assertThat(result).isNotEqualTo("0x0000000000000000000000000000000000000000000000000000000000000004");
         evmProperties.setEvmVersion(EVM_VERSION_0_70);
@@ -102,7 +103,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
         final var decodedResult =
                 TypeDecoder.decodeUtf8String(result, 66).getValue(); // offset 66 - 2 for "0x" prefix and 64 for offset
         // Then - returnStorageData returns the string "test", ABI-encoded
@@ -126,7 +127,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
         final var decodedResult =
                 TypeDecoder.decodeUtf8String(result, 66).getValue(); // offset 66 - 2 for "0x" prefix and 64 for offset
         // Then
@@ -149,7 +150,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then
         final int prefixForOffsetAndLength = 128;
@@ -170,7 +171,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 getContractExecutionParameters(Bytes.EMPTY, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then
         assertThat(result).isEqualTo(HEX_PREFIX);
@@ -186,7 +187,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 getContractExecutionParameters(Bytes.EMPTY, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then
         assertThat(result).isEqualTo(HEX_PREFIX);
@@ -208,7 +209,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 getContractExecutionParameters(Bytes.EMPTY, accountAddress, senderAddress, 1L, ETH_CALL);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then - no-op
         assertThat(result).isEqualTo(HEX_PREFIX);
@@ -230,7 +231,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 getContractExecutionParameters(Bytes.EMPTY, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then - delegation to a precompile/system contract should result in a no-op
         assertThat(result).isEqualTo(HEX_PREFIX);
@@ -250,13 +251,15 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 getContractExecutionParameters(Bytes.EMPTY, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
         //        // When
-        //        final var result = contractExecutionService.processCall(serviceParameters);
+        //        final var result = ContractCallContext.run(ctx ->
+        // contractExecutionService.processCall(serviceParameters, ctx));
         //
         //        // Then - no-op
         //        assertThat(result).isEqualTo(HEX_PREFIX);
 
         // Temporary. The real assertion according to HIP-1340 is above.
-        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+        assertThatThrownBy(() ->
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessageContaining(CONTRACT_EXECUTION_EXCEPTION.name());
     }
@@ -286,7 +289,8 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
 
         // Then - results in literal execution of the delegation indicator (which will fail since 0xef is a banned op
         // code)
-        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+        assertThatThrownBy(() ->
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessageContaining(CONTRACT_EXECUTION_EXCEPTION.name());
     }
@@ -311,7 +315,8 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
         // Then
-        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+        assertThatThrownBy(() ->
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessageContaining(CONTRACT_EXECUTION_EXCEPTION.name());
     }
@@ -336,7 +341,8 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
         // Then
-        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+        assertThatThrownBy(() ->
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessageContaining(CONTRACT_EXECUTION_EXCEPTION.name());
     }
@@ -359,7 +365,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 List.of(storageOverride(accountAddress.toHexString(), slotValue, useStateDiff)));
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then - delegated StorageContract code runs in the EOA context and observes the overridden slot
         assertThat(result).isEqualTo(HEX_PREFIX + slotValue);
@@ -382,7 +388,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
                 List.of(storageOverride(accountAddress.toHexString(), "22".repeat(32), useStateDiff)));
 
         // When
-        final var result = contractExecutionService.processCall(serviceParameters);
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
         // Then - multiplySimpleNumbers still returns 4, proving delegated code executed
         assertThat(result).isEqualTo("0x0000000000000000000000000000000000000000000000000000000000000004");
@@ -404,7 +410,8 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var serviceParameters = getContractExecutionParameters(callData, accountAddress, List.of(codeOverride));
 
         // Then - the designator is executed as bytecode; 0xef is a banned opcode
-        assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+        assertThatThrownBy(() ->
+                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessageContaining(CONTRACT_EXECUTION_EXCEPTION.name());
     }

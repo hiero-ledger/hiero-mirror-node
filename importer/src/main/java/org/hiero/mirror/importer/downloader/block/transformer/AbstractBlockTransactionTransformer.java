@@ -76,7 +76,38 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         }
 
         transformSmartContractResult(blockTransactionTransformation);
+        transformClprSendMessageSideEffects(blockTransactionTransformation);
         doTransform(blockTransactionTransformation);
+    }
+
+    /**
+     * CLPR's {@code sendMessage} system contract runs synchronously inside {@code ContractCall}/
+     * {@code EthereumTransaction} handling, so its state changes land in that same transaction's
+     * {@code StateChanges}. No-op for transactions that don't touch CLPR state.
+     *
+     * <p>Children share their parent's {@code StateChangeContext} by reference, so without the parent check below
+     * they'd reprocess the same CLPR state changes a second time.
+     */
+    private void transformClprSendMessageSideEffects(BlockTransactionTransformation blockTransactionTransformation) {
+        final var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful() || blockTransaction.getParent() != null) {
+            return;
+        }
+
+        final var stateChangeContext = blockTransaction.getStateChangeContext();
+        if (!stateChangeContext.hasClprState()) {
+            return;
+        }
+
+        final var clprChannels = stateChangeContext.getClprChannels();
+        final var clprConnectors = stateChangeContext.getClprConnectors();
+        final var clprContextBuilder = blockTransactionTransformation
+                .recordItemBuilder()
+                .clprContextBuilder()
+                .clprChannels(clprChannels)
+                .clprMessages(stateChangeContext.getClprMessages())
+                .clprConnectors(clprConnectors)
+                .clprConnectorsRemoved(stateChangeContext.getClprConnectorsRemoved());
     }
 
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {

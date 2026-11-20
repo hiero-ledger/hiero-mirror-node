@@ -3,6 +3,7 @@
 package org.hiero.mirror.restjava.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.any;
@@ -30,7 +31,6 @@ import org.hiero.mirror.restjava.repository.HookStorageChangeRepository;
 import org.hiero.mirror.restjava.repository.HookStorageRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 @RequiredArgsConstructor
@@ -66,7 +66,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
         final var hook = new Hook();
 
         when(entityService.lookup(any())).thenReturn(ownerId);
-        when(hookRepository.findByOwnerIdAndHookIdIn(eq(ownerId.getId()), anyList(), any()))
+        when(hookRepository.findByOwnerIdAndHookIdIn(eq(ownerId.getId()), anyList(), any(), anyInt()))
                 .thenReturn(List.of(hook));
 
         final var request = HooksRequest.builder()
@@ -81,7 +81,12 @@ final class HookServiceTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(result).containsExactly(hook);
-        verify(hookRepository).findByOwnerIdAndHookIdIn(eq(ownerId.getId()), eq(List.of(1L, 2L)), any());
+        verify(hookRepository)
+                .findByOwnerIdAndHookIdIn(
+                        eq(ownerId.getId()),
+                        eq(List.of(1L, 2L)),
+                        eq(request.getOrder().name()),
+                        eq(request.getLimit()));
     }
 
     @Test
@@ -91,7 +96,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
         final var hook = new Hook();
 
         when(entityService.lookup(any())).thenReturn(ownerId);
-        when(hookRepository.findByOwnerIdAndHookIdBetween(eq(ownerId.getId()), eq(10L), eq(20L), any()))
+        when(hookRepository.findByOwnerIdAndHookIdBetween(eq(ownerId.getId()), eq(10L), eq(20L), any(), anyInt()))
                 .thenReturn(List.of(hook));
 
         final var request = HooksRequest.builder()
@@ -107,7 +112,13 @@ final class HookServiceTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(result).containsExactly(hook);
-        verify(hookRepository).findByOwnerIdAndHookIdBetween(eq(ownerId.getId()), eq(10L), eq(20L), any());
+        verify(hookRepository)
+                .findByOwnerIdAndHookIdBetween(
+                        eq(ownerId.getId()),
+                        eq(10L),
+                        eq(20L),
+                        eq(request.getOrder().name()),
+                        eq(request.getLimit()));
     }
 
     @Test
@@ -117,7 +128,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
         final var hook = new Hook();
 
         when(entityService.lookup(any())).thenReturn(ownerId);
-        when(hookRepository.findByOwnerIdAndHookIdIn(eq(ownerId.getId()), eq(List.of(15L)), any()))
+        when(hookRepository.findByOwnerIdAndHookIdIn(eq(ownerId.getId()), eq(List.of(15L)), any(), anyInt()))
                 .thenReturn(List.of(hook));
 
         final var request = HooksRequest.builder()
@@ -134,7 +145,12 @@ final class HookServiceTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(result).containsExactly(hook);
-        verify(hookRepository).findByOwnerIdAndHookIdIn(eq(ownerId.getId()), eq(List.of(15L)), any());
+        verify(hookRepository)
+                .findByOwnerIdAndHookIdIn(
+                        eq(ownerId.getId()),
+                        eq(List.of(15L)),
+                        eq(request.getOrder().name()),
+                        eq(request.getLimit()));
     }
 
     @Test
@@ -168,7 +184,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
 
         when(entityService.lookup(any())).thenReturn(EntityId.of(OWNER_ID));
         when(hookStorageRepository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
-                        eq(OWNER_ID), eq(1L), any(byte[].class), any(byte[].class), any()))
+                        eq(OWNER_ID), eq(1L), any(byte[].class), any(byte[].class), any(), anyInt()))
                 .thenReturn(List.of(hookStorage));
 
         final var request = HookStorageRequest.builder()
@@ -192,7 +208,8 @@ final class HookServiceTest extends RestJavaIntegrationTest {
                         eq(1L),
                         eq(request.getKeyLowerBound()),
                         eq(request.getKeyUpperBound()),
-                        any(PageRequest.class));
+                        eq(request.getOrder()),
+                        eq(request.getLimit()));
     }
 
     @Test
@@ -202,7 +219,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
 
         when(entityService.lookup(any())).thenReturn(EntityId.of(OWNER_ID));
         when(hookStorageRepository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
-                        eq(OWNER_ID), eq(1L), anyList(), any()))
+                        eq(OWNER_ID), eq(1L), anyList(), any(), anyInt()))
                 .thenReturn(List.of(hookStorage));
 
         final var request = HookStorageRequest.builder()
@@ -231,7 +248,8 @@ final class HookServiceTest extends RestJavaIntegrationTest {
                             return Arrays.equals(actual.get(0), KEY_MIN_BYTES)
                                     && Arrays.equals(actual.get(1), KEY_MAX_BYTES);
                         }),
-                        any(PageRequest.class));
+                        eq(request.getOrder()),
+                        eq(request.getLimit()));
     }
 
     @Test
@@ -262,9 +280,10 @@ final class HookServiceTest extends RestJavaIntegrationTest {
         // then
         assertThat(result).isEmpty();
         verify(hookStorageRepository, never())
-                .findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(anyLong(), anyLong(), anyList(), any());
+                .findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(anyLong(), anyLong(), anyList(), any(), anyInt());
         verify(hookStorageRepository, never())
-                .findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(anyLong(), anyLong(), any(), any(), any());
+                .findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
+                        anyLong(), anyLong(), any(), any(), any(), anyInt());
     }
 
     @Test

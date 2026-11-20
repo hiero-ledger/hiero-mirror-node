@@ -7,14 +7,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.web3.throttle.ThrottleManagerImpl.GAS_PER_SECOND_LIMIT_EXCEEDED;
 import static org.hiero.mirror.web3.throttle.ThrottleManagerImpl.REQUEST_PER_SECOND_LIMIT_EXCEEDED;
 
-import com.hedera.hapi.node.base.ResponseCodeEnum;
-import com.hedera.hapi.node.contract.ContractFunctionResult;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import java.time.Duration;
 import java.util.List;
 import org.hiero.mirror.web3.exception.ThrottleException;
-import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.throttle.RequestFilter.FilterField;
 import org.hiero.mirror.web3.throttle.RequestFilter.FilterType;
 import org.hiero.mirror.web3.throttle.RequestProperties.ActionType;
@@ -24,7 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
@@ -132,30 +129,13 @@ final class ThrottleManagerImplTest {
     }
 
     @ParameterizedTest
-    @CsvSource({
-        // The refund share is half of the 1,000,000 gas limit.
-        "800000, SUCCESS, 200000",
-        "100000, SUCCESS, 500000",
-        "400000, CONTRACT_REVERT_EXECUTED, 500000",
-        "1000000, CONTRACT_REVERT_EXECUTED, 500000"
-    })
-    void restoreUnusedGas(final long gasUsed, final ResponseCodeEnum status, final long expectedRefund) {
-        final var gasLimitBucket = drainedBucket();
-        final var result = new EvmTransactionResult(
-                status, ContractFunctionResult.newBuilder().gasUsed(gasUsed).build());
-
-        refundManager(gasLimitBucket).restoreUnusedGas(1_000_000L, result);
-
-        assertThat(gasLimitBucket.getAvailableTokens()).isEqualTo(throttleProperties.scaleGas(expectedRefund));
-    }
-
-    @Test
-    void restoreUnusedGasWithoutResultReturnsRefundShare() {
+    @ValueSource(longs = {0L, 200_000L, 1_000_000L})
+    void restoreAddsScaledGas(final long gas) {
         final var gasLimitBucket = drainedBucket();
 
-        refundManager(gasLimitBucket).restoreUnusedGas(1_000_000L, null);
+        refundManager(gasLimitBucket).restore(gas);
 
-        assertThat(gasLimitBucket.getAvailableTokens()).isEqualTo(throttleProperties.scaleGas(500_000L));
+        assertThat(gasLimitBucket.getAvailableTokens()).isEqualTo(throttleProperties.scaleGas(gas));
     }
 
     @Test
@@ -361,7 +341,6 @@ final class ThrottleManagerImplTest {
     }
 
     private ThrottleManager refundManager(final Bucket gasLimitBucket) {
-        throttleProperties.setGasLimitRefundPercent(50);
         return new ThrottleManagerImpl(gasLimitBucket, createBucket(10L), throttleProperties);
     }
 

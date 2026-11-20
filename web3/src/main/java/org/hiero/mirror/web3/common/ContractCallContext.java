@@ -81,6 +81,9 @@ public class ContractCallContext {
     private GasUsageListener gasUsageListener = GasUsageListener.NONE;
 
     @Setter
+    private long refundableGas;
+
+    @Setter
     private EntityNumber entityNumber;
 
     /**
