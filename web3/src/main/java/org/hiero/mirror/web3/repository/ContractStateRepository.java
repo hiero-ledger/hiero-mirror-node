@@ -2,10 +2,14 @@
 
 package org.hiero.mirror.web3.repository;
 
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_HISTORICAL;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_CONTRACT_STATE;
+
 import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.web3.state.ContractSlotValue;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -38,6 +42,7 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
      * @param blockTimestamp The block timestamp up to which to retrieve the storage value.
      * @return An {@code Optional} containing the byte array of the storage value if found, or an empty {@code Optional} if not.
      */
+    @Cacheable(cacheNames = CACHE_NAME_CONTRACT_STATE, cacheManager = CACHE_MANAGER_HISTORICAL, sync = true)
     @Query(value = """
             select
                 coalesce(value_written, value_read) as value

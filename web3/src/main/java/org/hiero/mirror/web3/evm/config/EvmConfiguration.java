@@ -29,6 +29,7 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_CONTRACT_SLOTS = "contractSlots";
     public static final String CACHE_MANAGER_CONTRACT_STATE = "contractState";
     public static final String CACHE_MANAGER_ENTITY = "entity";
+    public static final String CACHE_MANAGER_HISTORICAL = "historical";
     public static final String CACHE_MANAGER_RECORD_FILE_LATEST = "recordFileLatest";
     public static final String CACHE_MANAGER_RECORD_FILE_EARLIEST = "recordFileEarliest";
     public static final String CACHE_MANAGER_RECORD_FILE_HASH = "recordFileHash";
@@ -40,7 +41,10 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_TOKEN = "token";
     public static final String CACHE_MANAGER_TOKEN_TYPE = "tokenType";
     public static final String CACHE_NAME = "default";
+    public static final String CACHE_NAME_ACCOUNT_BALANCE = "accountBalance";
     public static final String CACHE_NAME_CONTRACT = "contract";
+    public static final String CACHE_NAME_CONTRACT_STATE = "contractState";
+    public static final String CACHE_NAME_ENTITY = "entity";
     public static final String CACHE_NAME_EVM_ADDRESS = "evmAddress";
     public static final String CACHE_NAME_ALIAS = "alias";
     public static final String CACHE_NAME_NFT = "nft";
@@ -51,6 +55,7 @@ public class EvmConfiguration {
     public static final String CACHE_NAME_TOKEN_ACCOUNT_COUNT = "tokenAccountCount";
     public static final String CACHE_NAME_TOKEN_ALLOWANCE = "tokenAllowance";
     public static final String CACHE_NAME_TOKEN_AIRDROP = "tokenAirdrop";
+    public static final String CACHE_NAME_TOKEN_BALANCE = "tokenBalance";
     public static final SemanticVersion EVM_VERSION_0_30 = new SemanticVersion(0, 30, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_34 = new SemanticVersion(0, 34, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_38 = new SemanticVersion(0, 38, 0, "", "");
@@ -102,6 +107,30 @@ public class EvmConfiguration {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME, CACHE_NAME_EVM_ADDRESS, CACHE_NAME_ALIAS));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getEntity());
+        return caffeineCacheManager;
+    }
+
+    /**
+     * Caches lookups pinned to a historical block timestamp. Their results do not change once the block is ingested,
+     * so concurrent requests for the same block (e.g. one contract queried for many users) share a single query.
+     */
+    @Bean(CACHE_MANAGER_HISTORICAL)
+    CacheManager cacheManagerHistorical() {
+        final var caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheNames(Set.of(
+                CACHE_NAME_ACCOUNT_BALANCE,
+                CACHE_NAME_ALIAS,
+                CACHE_NAME_ENTITY,
+                CACHE_NAME_EVM_ADDRESS,
+                CACHE_NAME_TOKEN_ACCOUNT,
+                CACHE_NAME_TOKEN_BALANCE));
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getHistorical());
+        caffeineCacheManager.registerCustomCache(
+                CACHE_NAME_CONTRACT_STATE,
+                Caffeine.from(cacheProperties.getHistoricalContractState()).build());
+        caffeineCacheManager.registerCustomCache(
+                CACHE_NAME_TOKEN,
+                Caffeine.from(cacheProperties.getHistoricalToken()).build());
         return caffeineCacheManager;
     }
 
