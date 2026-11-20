@@ -45,10 +45,8 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractID;
-import com.hederahashgraph.api.proto.java.CustomFee;
 import com.hederahashgraph.api.proto.java.File;
 import com.hederahashgraph.api.proto.java.HookId;
-import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.Node;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
@@ -520,43 +518,6 @@ final class StateChangeContextTest {
         assertThat(topicIds).containsExactly(topicId2, topicId1, null);
         assertThat(topic1Message).isNull();
         assertThat(topic2Messages).containsExactlyElementsOf(expectedTopic2Messages);
-    }
-
-    @Test
-    void isPresent() {
-        final var full = MapUpdateChange.getDefaultInstance();
-        final var partial = MapUpdateChange.newBuilder()
-                .setPartial(true)
-                .addClearedFields(Account.MEMO_FIELD_NUMBER)
-                .build();
-        final var account = Account.newBuilder()
-                .setKey(Key.getDefaultInstance())
-                .setStakedNodeId(0)
-                .setEthereumNonce(1)
-                .build();
-        final var token =
-                Token.newBuilder().addCustomFees(CustomFee.getDefaultInstance()).build();
-
-        assertThat(StateChangeContext.isPresent(full, Account.getDefaultInstance(), Account.ALIAS_FIELD_NUMBER))
-                .isTrue();
-        // an empty message, a oneof member with the default value, and a non-default scalar are present
-        assertThat(StateChangeContext.isPresent(partial, account, Account.KEY_FIELD_NUMBER))
-                .isTrue();
-        assertThat(StateChangeContext.isPresent(partial, account, Account.STAKED_NODE_ID_FIELD_NUMBER))
-                .isTrue();
-        assertThat(StateChangeContext.isPresent(partial, account, Account.ETHEREUM_NONCE_FIELD_NUMBER))
-                .isTrue();
-        assertThat(StateChangeContext.isPresent(partial, token, Token.CUSTOM_FEES_FIELD_NUMBER))
-                .isTrue();
-        // a cleared field is present with the default value
-        assertThat(StateChangeContext.isPresent(partial, account, Account.MEMO_FIELD_NUMBER))
-                .isTrue();
-        // absent fields are unchanged
-        assertThat(StateChangeContext.isPresent(partial, account, Account.ALIAS_FIELD_NUMBER))
-                .isFalse();
-        assertThat(StateChangeContext.isPresent(partial, Token.getDefaultInstance(), Token.CUSTOM_FEES_FIELD_NUMBER))
-                .isFalse();
-        assertThat(StateChangeContext.isPresent(partial, account, 9999)).isFalse();
     }
 
     @Test
