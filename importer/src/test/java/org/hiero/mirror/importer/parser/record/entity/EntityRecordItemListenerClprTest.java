@@ -578,6 +578,31 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
     }
 
     @Test
+    void clprSubmitBundleWithoutStateChanges() {
+        // A successful SubmitBundle can have no CLPR state changes (e.g. ReplyValidation.OrderingViolated).
+        // The test builder normally adds channel, connector, and message changes, so clear all of them.
+        final var recordItem = recordItemBuilder
+                .clprSubmitBundle()
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of())
+                        .clprConnectors(List.of())
+                        .clprConnectorsRemoved(List.of())
+                        .clprMessages(List.of()))
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
+        softly.assertThat(clprChannelPendingCommitmentRepository.count()).isZero();
+        softly.assertThat(clprChannelRepository.count()).isZero();
+        softly.assertThat(clprConnectorRepository.count()).isZero();
+        softly.assertThat(clprMessageRepository.count()).isZero();
+        softly.assertThat(clprEndpointManifestRepository.findLatest()).isNull();
+        softly.assertThat(clprLedgerConfigurationRepository.findLatest()).isNull();
+        softly.assertThat(clprMaintenanceRepository.count()).isZero();
+    }
+
+    @Test
     void clprSubmitBundleInvalidTransaction() {
         final var recordItem = recordItemBuilder
                 .clprSubmitBundle()
