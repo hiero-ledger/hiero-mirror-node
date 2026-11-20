@@ -16,8 +16,14 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
             @NonNull final String serviceName,
             final int stateId,
             @NonNull final ReadableKVState<K, V> readableBackingStore) {
-        super(serviceName, stateId);
+        super(stateId, serviceName, RequestCache.write(stateId), RequestCache.read(stateId));
         this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
+    }
+
+    /** Nothing is flushed: the write cache of the request is where the modifications of this state are kept. */
+    @Override
+    public void commit() {
+        // No-op as we don't persist updates in web3.
     }
 
     @Override
