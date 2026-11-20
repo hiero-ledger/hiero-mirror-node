@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.utils.Constants.MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
@@ -77,48 +78,75 @@ public class ContractDebugService extends ContractCallService {
      * transactions before it, while a failed or reverted transaction's changes are rolled back. A timeout returns the
      * actions collected so far.
      *
-     * @param traceCall        the trace to run
-     * @param gasUsageListener told about each transaction that runs, so the caller can return the throttle gas it did
-     *                         not use, and the reserved gas of the transactions that never ran
+     * @param traceCall the trace to run
      */
-    public List<ActionResponse> processTraceCall(final TraceCall traceCall, final GasUsageListener gasUsageListener) {
-        return ContractCallContext.run(context -> {
-            // One record-file supplier for the whole trace, so every transaction runs in the same block.
-            context.setApi(ACTIONS);
-            context.setBlockSupplier(Suppliers.memoize(() -> recordFileService
-                    .findByBlockType(traceCall.getBlock())
-                    .orElseThrow(BlockNumberNotFoundException::new)));
-            context.setDeadlineMillis(
-                    context.getStartTime() + traceCall.getTimeout().toMillis());
-            context.applyStateOverrides(traceCall.getStateOverrides());
-            context.setGasUsageListener(gasUsageListener);
-            final var actionContext = new ActionContext();
-            actionContext.setOnlyTopCall(traceCall.isOnlyTopCall());
-            context.setActionContext(actionContext);
+    @VisibleForTesting
+    public List<ActionResponse> processTraceCall(final TraceCall traceCall) {
+        return ContractCallContext.run(context -> processTraceCall(traceCall, context));
+    }
 
-            final var bundles = traceCall.getBundles();
-            int remaining = transactionCount(bundles);
-            try {
-                // A single transaction at latest reads current state like eth_call. Otherwise every transaction reads
-                // one pinned state, so a record file imported mid-request cannot change it.
-                if (!BlockType.LATEST.equals(traceCall.getBlock()) || remaining > 1) {
-                    context.setTimestamp(Optional.of(resolveStateTimestamp(context.getRecordFile(), traceCall)));
-                }
-                for (final var bundle : bundles) {
-                    for (final var transaction : bundle.getTransactions()) {
+    /**
+     * Runs the trace in {@code context}, which must be the bound {@link ContractCallContext}. Afterwards
+     * {@code context} holds the {@link ContractCallContext#getRefundableGas() refundable gas} of the whole trace: the
+     * unused gas of each transaction that ran, plus the whole gas limit of each transaction that did not, because a
+     * failure or timeout stopped the trace first. The caller can then return the throttle gas the trace did not use.
+     *
+     * @param traceCall the trace to run
+     * @param context   the bound contract call context
+     */
+    public List<ActionResponse> processTraceCall(final TraceCall traceCall, final ContractCallContext context) {
+        final var bundles = traceCall.getBundles();
+        // The reserved gas of the transactions that have not run yet. None of it has been used, so all of it is
+        // refundable. Each transaction takes its gas limit out of it before it runs.
+        long unstartedGas = reservedGas(bundles);
+        // The gas the transactions that ran did not use. Gas they consumed is never refunded.
+        long unusedGas = 0L;
+        context.setRefundableGas(unstartedGas);
+
+        // One record-file supplier for the whole trace, so every transaction runs in the same block.
+        context.setApi(ACTIONS);
+        context.setBlockSupplier(Suppliers.memoize(() -> recordFileService
+                .findByBlockType(traceCall.getBlock())
+                .orElseThrow(BlockNumberNotFoundException::new)));
+        context.setDeadlineMillis(
+                context.getStartTime() + traceCall.getTimeout().toMillis());
+        context.applyStateOverrides(traceCall.getStateOverrides());
+        final var actionContext = new ActionContext();
+        actionContext.setOnlyTopCall(traceCall.isOnlyTopCall());
+        context.setActionContext(actionContext);
+
+        int remaining = transactionCount(bundles);
+        try {
+            // A single transaction at latest reads current state like eth_call. Otherwise every transaction reads
+            // one pinned state, so a record file imported mid-request cannot change it.
+            if (!BlockType.LATEST.equals(traceCall.getBlock()) || remaining > 1) {
+                context.setTimestamp(Optional.of(resolveStateTimestamp(context.getRecordFile(), traceCall)));
+            }
+            for (final var bundle : bundles) {
+                for (final var transaction : bundle.getTransactions()) {
+                    final long gasLimit = transaction.getGas();
+                    unstartedGas -= gasLimit;
+                    // The execution replaces this with the gas it did not use, so a transaction that fails before the
+                    // EVM runs keeps its whole gas limit refundable.
+                    context.setRefundableGas(gasLimit);
+                    try {
                         executeTransaction(context, actionContext, transaction, --remaining > 0);
+                    } finally {
+                        unusedGas += context.getRefundableGas();
                     }
                 }
-                return actionResponse(context);
-            } catch (final QueryTimeoutException _) {
-                throw new TraceTimeoutException(actionResponse(context));
-            } catch (final MirrorEvmTransactionException exception) {
-                if (actionContext.isTimedOut()) {
-                    throw new TraceTimeoutException(actionResponse(context));
-                }
-                throw exception;
             }
-        });
+            return actionResponse(context);
+        } catch (final QueryTimeoutException _) {
+            throw new TraceTimeoutException(actionResponse(context));
+        } catch (final MirrorEvmTransactionException exception) {
+            if (actionContext.isTimedOut()) {
+                throw new TraceTimeoutException(actionResponse(context));
+            }
+            throw exception;
+        } finally {
+            context.setRefundableGas(unusedGas + unstartedGas);
+        }
     }
 
     @Override
@@ -192,6 +220,16 @@ public class ContractDebugService extends ContractCallService {
                 .orElseThrow(() -> new InvalidParametersException(
                         "transaction_index exceeds the number of transactions in the block"));
         return transactionTimestamp + 1;
+    }
+
+    private static long reservedGas(final List<TraceBundle> bundles) {
+        long gas = 0L;
+        for (final var bundle : bundles) {
+            for (final var transaction : bundle.getTransactions()) {
+                gas += transaction.getGas();
+            }
+        }
+        return gas;
     }
 
     private static int transactionCount(final List<TraceBundle> bundles) {

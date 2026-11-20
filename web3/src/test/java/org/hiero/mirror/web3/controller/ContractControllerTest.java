@@ -58,7 +58,6 @@ import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.exception.TraceTimeoutException;
 import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
-import org.hiero.mirror.web3.service.GasUsageListener;
 import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.throttle.EndpointThrottle;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
@@ -505,13 +504,16 @@ final class ContractControllerTest {
         clearInvocations(throttleManager);
         final var request = traceRequest();
         transaction(request).setValue(0);
-        given(contractDebugService.processTraceCall(any(), any())).willThrow(new InvalidParametersException("invalid"));
+        // The service failed before any transaction started, so all the reserved gas is refundable.
+        given(contractDebugService.processTraceCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(THROTTLE_GAS_LIMIT);
+            throw new InvalidParametersException("invalid");
+        });
 
         contractActionsCall(request).andExpect(status().isBadRequest());
         verify(contractDebugService).processTraceCall(any(), any());
         verify(endpointThrottle).throttle(ACTIONS);
         verify(throttleManager).throttle(argThat((ContractCallRequest call) -> call.getGas() == THROTTLE_GAS_LIMIT));
-        // The service failed before any transaction started, so the controller returns that transaction's gas once.
         verify(throttleManager).restore(THROTTLE_GAS_LIMIT);
         verify(throttleManager, never()).restoreRequest();
     }
@@ -847,7 +849,7 @@ final class ContractControllerTest {
     }
 
     @Test
-    void actionsCallRestoresGasOfUnstartedTransactionsWhenTraceStopsEarly() throws Exception {
+    void actionsCallRestoresRefundableGasWhenTraceStopsEarly() throws Exception {
         enableActionsApi();
         final var request = traceRequest();
         transaction(request).setValue(0);
@@ -860,20 +862,17 @@ final class ContractControllerTest {
         third.setGas(50_000L);
         request.getBundles().add(bundleOf(second));
         request.getBundles().add(bundleOf(third));
-        // The first two transactions run and report their gas, then the second one fails.
+        // The first two transactions run, then the second one fails. The service leaves their unused gas plus the
+        // whole gas limit of the third one as refundable.
+        final long refundableGas = 10_000L + 20_000L + 50_000L;
         given(contractDebugService.processTraceCall(any(), any())).willAnswer(invocation -> {
-            final GasUsageListener listener = invocation.getArgument(1);
-            listener.executed(30_000L, null);
-            listener.executed(40_000L, null);
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
             throw new MirrorEvmTransactionException(ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND, "sender not found", "0x");
         });
 
         contractActionsCall(request).andExpect(status().isBadRequest());
-        verify(throttleManager).restoreUnusedGas(30_000L, null);
-        verify(throttleManager).restoreUnusedGas(40_000L, null);
-        verify(throttleManager).restore(50_000L);
-        verify(throttleManager, never()).restore(30_000L);
-        verify(throttleManager, never()).restore(40_000L);
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
     }
 
     @Test

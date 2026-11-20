@@ -126,15 +126,13 @@ public abstract class ContractCallService {
             }
             throw new MirrorEvmTransactionException(ResponseCodeEnum.FAIL_INVALID, EMPTY, EMPTY);
         } catch (MirrorEvmTransactionException e) {
-            // Keep the failed result so the refundable gas and gas usage listener reflect how much gas it used.
+            // Keep the failed result so the refundable gas reflects how much gas it used.
             result = e.getResult();
             status = e.getMessage();
             throw e;
         } finally {
             if (!estimate) {
-                final var ctx = ContractCallContext.get();
-                ctx.setRefundableGas(refundableGas(params.getGas(), result));
-                ctx.getGasUsageListener().executed(params.getGas(), result);
+                ContractCallContext.get().setRefundableGas(refundableGas(params.getGas(), result));
             }
 
             // Only record metric if EVM is invoked and not inside estimate loop

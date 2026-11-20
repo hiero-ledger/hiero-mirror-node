@@ -155,8 +155,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(
-                traceCall(params, false, INTEGRATION_TIMEOUT), GasUsageListener.NONE);
+        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
 
         // Then
         assertThat(result).containsExactly(topLevelAction);
@@ -171,8 +170,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result =
-                contractDebugService.processTraceCall(traceCall(params, true, DEFAULT_TIMEOUT), GasUsageListener.NONE);
+        final var result = contractDebugService.processTraceCall(traceCall(params, true, DEFAULT_TIMEOUT));
 
         // Then
         assertThat(result).containsExactly(topLevelAction);
@@ -188,8 +186,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         publishFixtureBlock();
 
         // When
-        final var result = contractDebugService.processTraceCall(
-                traceCall(params, false, INTEGRATION_TIMEOUT), GasUsageListener.NONE);
+        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
 
         // Then
         assertThat(result).isNotEmpty();
@@ -205,10 +202,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         publishFixtureBlock();
 
         // When
-        final var allActions = contractDebugService.processTraceCall(
-                traceCall(params, false, INTEGRATION_TIMEOUT), GasUsageListener.NONE);
-        final var topCallOnly = contractDebugService.processTraceCall(
-                traceCall(params, true, INTEGRATION_TIMEOUT), GasUsageListener.NONE);
+        final var allActions = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
+        final var topCallOnly = contractDebugService.processTraceCall(traceCall(params, true, INTEGRATION_TIMEOUT));
 
         // Then
         assertThat(allActions).hasSize(1);
@@ -226,21 +221,16 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var params = getContractExecutionParameters(functionCall, contract);
         publishFixtureBlock();
 
-        final var allActions = contractDebugService.processTraceCall(
-                traceCall(params, false, INTEGRATION_TIMEOUT), GasUsageListener.NONE);
-        final var topCallsOnly = contractDebugService.processTraceCall(
-                TraceCall.builder()
-                        .bundles(List.of(
-                                TraceBundle.builder()
-                                        .transactions(List.of(params, params))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(params))
-                                        .build()))
-                        .onlyTopCall(true)
-                        .timeout(INTEGRATION_TIMEOUT)
-                        .build(),
-                GasUsageListener.NONE);
+        final var allActions = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
+        final var topCallsOnly = contractDebugService.processTraceCall(TraceCall.builder()
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(params, params))
+                                .build(),
+                        TraceBundle.builder().transactions(List.of(params)).build()))
+                .onlyTopCall(true)
+                .timeout(INTEGRATION_TIMEOUT)
+                .build());
 
         assertThat(allActions).hasSize(1);
         assertThat(allActions.getFirst().getCalls()).isNotEmpty();
@@ -264,15 +254,12 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         codeOverride.setCode(BytecodeUtils.extractRuntimeBytecode(EthCall.BINARY));
         final var balanceOverride = balanceOverride(account, 100L);
 
-        final var result = contractDebugService.processTraceCall(
-                TraceCall.builder()
-                        .bundles(List.of(TraceBundle.builder()
-                                .transactions(List.of(params))
-                                .build()))
-                        .stateOverrides(List.of(codeOverride, balanceOverride))
-                        .timeout(INTEGRATION_TIMEOUT)
-                        .build(),
-                GasUsageListener.NONE);
+        final var result = contractDebugService.processTraceCall(TraceCall.builder()
+                .bundles(List.of(
+                        TraceBundle.builder().transactions(List.of(params)).build()))
+                .stateOverrides(List.of(codeOverride, balanceOverride))
+                .timeout(INTEGRATION_TIMEOUT)
+                .build());
 
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().getError()).isNull();
@@ -291,20 +278,13 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 getContractExecutionParameters(contract.call_getAccountBalance(secondAccount.toHexString()), contract);
         publishFixtureBlock();
 
-        final var result = contractDebugService.processTraceCall(
-                TraceCall.builder()
-                        .bundles(List.of(
-                                TraceBundle.builder()
-                                        .transactions(List.of(firstCall))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(secondCall))
-                                        .build()))
-                        .stateOverrides(
-                                List.of(balanceOverride(firstAccount, 100L), balanceOverride(secondAccount, 200L)))
-                        .timeout(INTEGRATION_TIMEOUT)
-                        .build(),
-                GasUsageListener.NONE);
+        final var result = contractDebugService.processTraceCall(TraceCall.builder()
+                .bundles(List.of(
+                        TraceBundle.builder().transactions(List.of(firstCall)).build(),
+                        TraceBundle.builder().transactions(List.of(secondCall)).build()))
+                .stateOverrides(List.of(balanceOverride(firstAccount, 100L), balanceOverride(secondAccount, 200L)))
+                .timeout(INTEGRATION_TIMEOUT)
+                .build());
 
         assertThat(result).hasSize(2);
         assertThat(result).allSatisfy(action -> assertThat(action.getError()).isNull());
@@ -317,8 +297,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var deadlineWindow = new AtomicLong();
         stubActionsAndCaptureDeadline(deadlineWindow, action("0x02", TypeEnum.CALL));
 
-        contractDebugService.processTraceCall(
-                traceCall(executionParameters(), false, Duration.ofSeconds(2)), GasUsageListener.NONE);
+        contractDebugService.processTraceCall(traceCall(executionParameters(), false, Duration.ofSeconds(2)));
 
         assertThat(deadlineWindow).hasValue(Duration.ofSeconds(2).toMillis());
     }
@@ -330,8 +309,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var params = getContractExecutionParameters(functionCall, contract);
         publishFixtureBlock();
 
-        final var result = contractDebugService.processTraceCall(
-                traceCall(params, false, INTEGRATION_TIMEOUT), GasUsageListener.NONE);
+        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
 
         assertThat(result).isNotEmpty();
         assertThat(result.getFirst().getCalls())
@@ -357,18 +335,16 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        final var result = contractDebugService.processTraceCall(
-                TraceCall.builder()
-                        .bundles(List.of(
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build()))
-                        .timeout(DEFAULT_TIMEOUT)
-                        .build(),
-                GasUsageListener.NONE);
+        final var result = contractDebugService.processTraceCall(TraceCall.builder()
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .build());
 
         assertThat(result).containsExactly(first, second);
         assertThat(remaining).isEmpty();
@@ -406,8 +382,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         assertThat(executionTimestamp(block, -1)).contains(fifth);
         assertThat(executionTimestamp(block, 0)).contains(first - 1);
 
-        assertThatThrownBy(
-                        () -> contractDebugService.processTraceCall(traceCallAtIndex(block, 6), GasUsageListener.NONE))
+        assertThatThrownBy(() -> contractDebugService.processTraceCall(traceCallAtIndex(block, 6)))
                 .isInstanceOf(InvalidParametersException.class)
                 .hasMessage("transaction_index exceeds the number of transactions in the block");
     }
@@ -437,8 +412,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         assertThat(executionTimestamp(block, 2)).contains(lastTransaction + 1);
         assertThat(executionTimestamp(block, -1)).contains(consensusEnd);
 
-        assertThatThrownBy(
-                        () -> contractDebugService.processTraceCall(traceCallAtIndex(block, 3), GasUsageListener.NONE))
+        assertThatThrownBy(() -> contractDebugService.processTraceCall(traceCallAtIndex(block, 3)))
                 .isInstanceOf(InvalidParametersException.class)
                 .hasMessage("transaction_index exceeds the number of transactions in the block");
     }
@@ -466,19 +440,17 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        contractDebugService.processTraceCall(
-                TraceCall.builder()
-                        .block(BlockType.of("21"))
-                        .bundles(List.of(
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters(), executionParameters()))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build()))
-                        .timeout(DEFAULT_TIMEOUT)
-                        .build(),
-                GasUsageListener.NONE);
+        contractDebugService.processTraceCall(TraceCall.builder()
+                .block(BlockType.of("21"))
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .build());
 
         assertThat(timestamps)
                 .containsExactly(Optional.of(consensusEnd), Optional.of(consensusEnd), Optional.of(consensusEnd));
@@ -520,8 +492,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
     @Test
     void processTraceCallRejectsTransactionIndexForUnknownBlock() {
-        assertThatThrownBy(() -> contractDebugService.processTraceCall(
-                        traceCallAtIndex(BlockType.of("999999"), 1), GasUsageListener.NONE))
+        assertThatThrownBy(() -> contractDebugService.processTraceCall(traceCallAtIndex(BlockType.of("999999"), 1)))
                 .isInstanceOf(BlockNumberNotFoundException.class);
     }
 
@@ -542,20 +513,18 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        contractDebugService.processTraceCall(
-                TraceCall.builder()
-                        .block(BlockType.of(Long.toString(recordFile.getIndex())))
-                        .bundles(List.of(
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters(), executionParameters()))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build()))
-                        .timeout(DEFAULT_TIMEOUT)
-                        .transactionIndex(0)
-                        .build(),
-                GasUsageListener.NONE);
+        contractDebugService.processTraceCall(TraceCall.builder()
+                .block(BlockType.of(Long.toString(recordFile.getIndex())))
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .transactionIndex(0)
+                .build());
 
         final long base = consensusStart - 1;
         assertThat(timestamps).containsExactly(Optional.of(base), Optional.of(base), Optional.of(base));
@@ -590,29 +559,27 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        contractDebugService.processTraceCall(
-                TraceCall.builder()
-                        .block(BlockType.of("16"))
-                        .bundles(List.of(
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters(), executionParameters()))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters(), executionParameters()))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build()))
-                        .timeout(DEFAULT_TIMEOUT)
-                        .transactionIndex(2)
-                        .build(),
-                GasUsageListener.NONE);
+        contractDebugService.processTraceCall(TraceCall.builder()
+                .block(BlockType.of("16"))
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .transactionIndex(2)
+                .build());
 
         final var stateRead = Optional.of(stateTimestamp + 1_001L);
         assertThat(timestamps)
@@ -635,18 +602,16 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        contractDebugService.processTraceCall(
-                TraceCall.builder()
-                        .bundles(List.of(
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters(), executionParameters()))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build()))
-                        .timeout(DEFAULT_TIMEOUT)
-                        .build(),
-                GasUsageListener.NONE);
+        contractDebugService.processTraceCall(TraceCall.builder()
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .build());
 
         assertThat(timestamps).containsExactly(Optional.of(pinnedEnd), Optional.of(pinnedEnd), Optional.of(pinnedEnd));
     }
@@ -674,23 +639,21 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        final var result = contractDebugService.processTraceCall(
-                TraceCall.builder()
-                        .block(BlockType.of(Long.toString(recordFile.getIndex())))
-                        .bundles(List.of(
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters(), executionParameters()))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build()))
-                        .stateOverrides(List.of(stateOverride))
-                        .timeout(DEFAULT_TIMEOUT)
-                        .build(),
-                GasUsageListener.NONE);
+        final var result = contractDebugService.processTraceCall(TraceCall.builder()
+                .block(BlockType.of(Long.toString(recordFile.getIndex())))
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build()))
+                .stateOverrides(List.of(stateOverride))
+                .timeout(DEFAULT_TIMEOUT)
+                .build());
 
         assertThat(result).hasSize(4);
         assertThat(snapshots).hasSize(4);
@@ -726,39 +689,41 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         final var thrown = catchThrowableOfType(
                 MirrorEvmTransactionException.class,
-                () -> contractDebugService.processTraceCall(
-                        TraceCall.builder()
-                                .bundles(List.of(
-                                        TraceBundle.builder()
-                                                .transactions(List.of(executionParameters()))
-                                                .build(),
-                                        TraceBundle.builder()
-                                                .transactions(List.of(executionParameters()))
-                                                .build()))
-                                .timeout(DEFAULT_TIMEOUT)
-                                .build(),
-                        GasUsageListener.NONE));
+                () -> contractDebugService.processTraceCall(TraceCall.builder()
+                        .bundles(List.of(
+                                TraceBundle.builder()
+                                        .transactions(List.of(executionParameters()))
+                                        .build(),
+                                TraceBundle.builder()
+                                        .transactions(List.of(executionParameters()))
+                                        .build()))
+                        .timeout(DEFAULT_TIMEOUT)
+                        .build()));
 
         assertThat(thrown.getResponseCode()).isEqualTo(PAYER_ACCOUNT_NOT_FOUND);
         assertThat(thrown.getDetail()).isEqualTo("sender not found");
     }
 
     @Test
-    void processTraceCallReportsGasOfTransactionsThatRan() {
+    void processTraceCallRefundsUnusedGasAndGasOfTransactionsThatDidNotRun() {
         final var first = action("0x01", TypeEnum.CALL);
         final var calls = new AtomicInteger();
-        final var reported = new ArrayList<Long>();
-        // The second bundle's transaction fails, so the third bundle never starts.
+        // Each transaction that runs uses a third of its gas. The second bundle's transaction fails, so the third
+        // bundle never starts.
         doAnswer(invocation -> {
+                    final long gasLimit = invocation.getArgument(1);
+                    final var functionResult = ContractFunctionResult.newBuilder()
+                            .gasUsed(gasLimit / 3)
+                            .build();
                     if (calls.incrementAndGet() > 1) {
-                        throw new MirrorEvmTransactionException(PAYER_ACCOUNT_NOT_FOUND, "sender not found", "0x");
+                        throw new MirrorEvmTransactionException(
+                                PAYER_ACCOUNT_NOT_FOUND.name(),
+                                "sender not found",
+                                "0x",
+                                new EvmTransactionResult(PAYER_ACCOUNT_NOT_FOUND, functionResult));
                     }
                     ContractCallContext.get().getActionContext().addAction(first, 0);
-                    return new EvmTransactionResult(
-                            SUCCESS,
-                            ContractFunctionResult.newBuilder()
-                                    .gasUsed(TRANSACTION_GAS_LIMIT)
-                                    .build());
+                    return new EvmTransactionResult(SUCCESS, functionResult);
                 })
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
@@ -782,26 +747,64 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .value(0L)
                 .build();
 
-        assertThatThrownBy(() -> contractDebugService.processTraceCall(
-                        TraceCall.builder()
-                                .bundles(List.of(
-                                        TraceBundle.builder()
-                                                .transactions(List.of(executionParameters()))
-                                                .build(),
-                                        TraceBundle.builder()
-                                                .transactions(List.of(failedParams))
-                                                .build(),
-                                        TraceBundle.builder()
-                                                .transactions(List.of(skippedParams))
-                                                .build()))
-                                .timeout(DEFAULT_TIMEOUT)
+        final var traceCall = TraceCall.builder()
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
                                 .build(),
-                        (gasLimit, result) -> reported.add(gasLimit)))
-                .isInstanceOf(MirrorEvmTransactionException.class)
-                .hasMessageContaining(PAYER_ACCOUNT_NOT_FOUND.name());
+                        TraceBundle.builder()
+                                .transactions(List.of(failedParams))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(skippedParams))
+                                .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .build();
+
+        final long refundableGas = ContractCallContext.run(context -> {
+            assertThatThrownBy(() -> contractDebugService.processTraceCall(traceCall, context))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessageContaining(PAYER_ACCOUNT_NOT_FOUND.name());
+            return context.getRefundableGas();
+        });
+
         assertThat(calls).hasValue(2);
-        // Only the transactions that ran are reported. The controller returns the reserved gas of the rest.
-        assertThat(reported).containsExactly(TRANSACTION_GAS_LIMIT, TRANSACTION_GAS_LIMIT / 2);
+        // The unused two thirds of each transaction that ran, plus the whole gas limit of the one that did not.
+        assertThat(refundableGas)
+                .isEqualTo(
+                        TRANSACTION_GAS_LIMIT * 2 / 3 + TRANSACTION_GAS_LIMIT / 2 * 2 / 3 + TRANSACTION_GAS_LIMIT / 4);
+    }
+
+    @Test
+    void processTraceCallRefundsUnusedGasOfEveryTransaction() {
+        // Each transaction uses a third of its gas.
+        doAnswer(invocation -> {
+                    final long gasLimit = invocation.getArgument(1);
+                    return new EvmTransactionResult(
+                            SUCCESS,
+                            ContractFunctionResult.newBuilder()
+                                    .gasUsed(gasLimit / 3)
+                                    .build());
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+        final var traceCall = TraceCall.builder()
+                .bundles(List.of(
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters(), executionParameters()))
+                                .build(),
+                        TraceBundle.builder()
+                                .transactions(List.of(executionParameters()))
+                                .build()))
+                .timeout(DEFAULT_TIMEOUT)
+                .build();
+
+        final long refundableGas = ContractCallContext.run(context -> {
+            contractDebugService.processTraceCall(traceCall, context);
+            return context.getRefundableGas();
+        });
+
+        assertThat(refundableGas).isEqualTo(3 * TRANSACTION_GAS_LIMIT * 2 / 3);
     }
 
     /**
@@ -958,7 +961,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 })
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
-        contractDebugService.processTraceCall(traceCallAtIndex(block, transactionIndex), GasUsageListener.NONE);
+        contractDebugService.processTraceCall(traceCallAtIndex(block, transactionIndex));
         assertThat(timestamps).hasSize(1);
         return timestamps.getFirst();
     }

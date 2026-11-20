@@ -20,7 +20,6 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
-import org.hiero.mirror.web3.service.GasUsageListener;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -75,11 +74,9 @@ public class ContractCallContext {
     private CallServiceParameters callServiceParameters;
 
     /**
-     * Told about each EVM execution of this request, so the controller can return the throttle gas it did not use.
+     * Throttle gas the controller returns once the request ends. A trace adds up the refunds of the transactions that
+     * ran and the whole gas limit of those that did not.
      */
-    @Setter
-    private GasUsageListener gasUsageListener = GasUsageListener.NONE;
-
     @Setter
     private long refundableGas;
 

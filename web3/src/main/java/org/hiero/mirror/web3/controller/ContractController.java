@@ -12,7 +12,6 @@ import jakarta.validation.Valid;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ActionResponse;
@@ -80,16 +79,13 @@ class ContractController {
 
         final var traceCall = toTraceCall(request);
         throttleActions(request);
-        final var executed = new AtomicInteger();
-        try {
-            return contractDebugService.processTraceCall(traceCall, (gasLimit, result) -> {
-                executed.incrementAndGet();
-                throttleManager.restoreUnusedGas(gasLimit, result);
-            });
-        } catch (final RuntimeException exception) {
-            restoreUnstartedGas(request, executed.get());
-            throw exception;
-        }
+        return ContractCallContext.run(ctx -> {
+            try {
+                return contractDebugService.processTraceCall(traceCall, ctx);
+            } finally {
+                throttleManager.restore(ctx.getRefundableGas());
+            }
+        });
     }
 
     @PostMapping(value = "/call")
@@ -180,22 +176,6 @@ class ContractController {
             return parsed.compareTo(effective) < 0 ? parsed : effective;
         } catch (IllegalArgumentException _) {
             throw new InvalidParametersException("Invalid timeout: " + timeout);
-        }
-    }
-
-    /**
-     * Returns the reserved gas of every transaction after the first {@code started}. Each started transaction already
-     * returned its unused gas through the gas usage listener.
-     */
-    private void restoreUnstartedGas(final ActionTraceRequest request, final int started) {
-        int index = 0;
-        for (final var bundle : request.getBundles()) {
-            for (final var transaction : bundle.getTransactions()) {
-                if (index >= started) {
-                    throttleManager.restore(transaction.getGas());
-                }
-                index++;
-            }
         }
     }
 
