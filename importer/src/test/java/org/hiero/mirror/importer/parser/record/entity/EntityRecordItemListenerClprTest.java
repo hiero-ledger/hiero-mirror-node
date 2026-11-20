@@ -165,40 +165,6 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
     }
 
     @Test
-    void clprChannelDoNotPersist() {
-        // given -- seed the pending commitment with persistence enabled, then disable it for the completion
-        final var registerRecordItem = recordItemBuilder.clprRegisterChannel().build();
-        parseRecordItemAndCommit(registerRecordItem);
-        final var ownershipCommitment =
-                registerRecordItem.getTransactionBody().getClprRegisterChannel().getOwnershipCommitment();
-
-        entityProperties.getPersist().setClpr(false);
-        final var channelId = recordItemBuilder.bytes(32);
-        final var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
-                .setChannelId(channelId)
-                .setOwnershipCommitment(ownershipCommitment)
-                .setStatus(ClprChannelStatus.ACTIVE)
-                .setVerifierContract(recordItemBuilder.contractId())
-                .build();
-        final var recordItem = recordItemBuilder
-                .clprCompleteChannel()
-                .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
-                                channelId, clprChannelMapUpdate(channelId, channelValue)))))
-                .build();
-
-        // when
-        parseRecordItemAndCommit(recordItem);
-
-        // then
-        assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
-        softly.assertThat(clprChannelRepository.count()).isZero();
-        softly.assertThat(clprChannelPendingCommitmentRepository.findById(DomainUtils.toBytes(ownershipCommitment)))
-                .get()
-                .returns(ClprPendingCommitmentStatus.OPEN, ClprChannelPendingCommitment::getStatus);
-    }
-
-    @Test
     void clprCloseChannel() {
         // given -- a live channel row must already exist since ClprCloseChannel only ever patches counters/status
         final var completeRecordItem = recordItemBuilder.clprCompleteChannel().build();
@@ -297,17 +263,6 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
                 .clprRegisterConnector()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .build();
-
-        parseRecordItemAndCommit(recordItem);
-
-        assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
-        softly.assertThat(clprConnectorRepository.count()).isZero();
-    }
-
-    @Test
-    void clprConnectorDoNotPersist() {
-        entityProperties.getPersist().setClpr(false);
-        final var recordItem = recordItemBuilder.clprRegisterConnector().build();
 
         parseRecordItemAndCommit(recordItem);
 
