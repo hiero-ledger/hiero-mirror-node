@@ -200,10 +200,11 @@ jobs:
           solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
 
           helm dependency update charts/hedera-mirror
-          # --force: solo's compatibility check uses its default mirror version, not the local chart
+          # Pass the local chart's version so solo's compatibility check passes. Don't use --force: it also forces block
+          # node integration, which overrides DISABLE_IMPORTER_SPRING_PROFILES and disables the record downloader
           DISABLE_IMPORTER_SPRING_PROFILES=true solo mirror node add --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
-            --deployment "${SOLO_DEPLOYMENT}" \
-            -f mirror.yaml --force --mirror-node-chart-dir ./charts --pinger --enable-ingress
+            --deployment "${SOLO_DEPLOYMENT}" --mirror-node-version "v${TAG}" \
+            -f mirror.yaml --mirror-node-chart-dir ./charts --pinger --enable-ingress
           APP_VERSION=$(helm ls -n "${SOLO_NAMESPACE}" -o json \
             | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
           IMPORTER_IMAGE_TAG=$(kubectl get -n "${SOLO_NAMESPACE}" deployment "${HELM_RELEASE_NAME}-importer" -o yaml | \
