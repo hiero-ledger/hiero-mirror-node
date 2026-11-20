@@ -285,19 +285,49 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
-    public BlockTransactionBuilder.Builder clprMaintenance(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder clprDeregisterConnector(RecordItem recordItem) {
+        final var body = recordItem.getTransactionBody().getClprDeregisterConnector();
+        final var key = ClprConnectorKey.newBuilder()
+                .setChannelId(body.getChannelId())
+                .setConnectorId(body.getConnectorId())
+                .build();
         final var stateChange = StateChange.newBuilder()
-                .setStateId(StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE)
-                .setSingletonUpdate(recordItem.getClprContext().getClprEndpointManifestUpdate())
+                .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
+                .setMapDelete(MapDeleteChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key)))
                 .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(),
-                List.of(StateChanges.newBuilder()
-                        .setConsensusTimestamp(timestamp(recordItem.getConsensusTimestamp()))
-                        .addStateChanges(stateChange)
-                        .build()),
+                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder clprMaintenance(RecordItem recordItem) {
+        final var clprContext = recordItem.getClprContext();
+        final var stateChangesBuilder =
+                StateChanges.newBuilder().setConsensusTimestamp(timestamp(recordItem.getConsensusTimestamp()));
+
+        final var endpointManifestUpdate = clprContext.getClprEndpointManifestUpdate();
+        if (endpointManifestUpdate != null) {
+            stateChangesBuilder.addStateChanges(StateChange.newBuilder()
+                    .setStateId(StateIdentifier.STATE_ID_CLPR_ENDPOINT_MANIFEST_VALUE)
+                    .setSingletonUpdate(endpointManifestUpdate));
+        }
+
+        final var ledgerConfigurationUpdate = clprContext.getClprLedgerConfigurationUpdate();
+        if (ledgerConfigurationUpdate != null) {
+            stateChangesBuilder.addStateChanges(StateChange.newBuilder()
+                    .setStateId(StateIdentifier.STATE_ID_CLPR_LEDGER_CONFIGURATION_VALUE)
+                    .setSingletonUpdate(ledgerConfigurationUpdate));
+        }
+
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Map.of(),
+                List.of(stateChangesBuilder.build()),
                 Collections.emptyList());
     }
 

@@ -208,11 +208,11 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
 
     protected void parseRecordItemsAndCommit(List<RecordItem> recordItems) {
         transactionTemplate.executeWithoutResult(status -> {
-            Instant instant = Instant.ofEpochSecond(0, recordItems.get(0).getConsensusTimestamp());
-            String filename = StreamFilename.getFilename(StreamType.RECORD, DATA, instant);
-            long consensusStart = recordItems.get(0).getConsensusTimestamp();
-            long consensusEnd = recordItems.get(recordItems.size() - 1).getConsensusTimestamp();
-            RecordFile recordFile = recordFile(consensusStart, consensusEnd, filename);
+            final var instant = Instant.ofEpochSecond(0, recordItems.getFirst().getConsensusTimestamp());
+            final var filename = StreamFilename.getFilename(StreamType.RECORD, DATA, instant);
+            final var consensusStart = recordItems.getFirst().getConsensusTimestamp();
+            final var consensusEnd = recordItems.getLast().getConsensusTimestamp();
+            final var recordFile = recordFile(consensusStart, consensusEnd, filename);
 
             // process each record item
             for (RecordItem recordItem : recordItems) {
