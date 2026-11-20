@@ -61,7 +61,6 @@ class BlockSingletonConcurrencyTest extends AbstractConcurrencyTest {
                         .blockHashes(Bytes.EMPTY)
                         .consTimeOfLastHandledTxn(convertToTimestamp(historical.getConsensusEnd()))
                         .firstConsTimeOfCurrentBlock(convertToTimestamp(historical.getConsensusStart()))
-                        .firstConsTimeOfLastBlock(convertToTimestamp(historical.getConsensusStart()))
                         .lastBlockNumber(999_999L)
                         .migrationRecordsStreamed(true)
                         .build());

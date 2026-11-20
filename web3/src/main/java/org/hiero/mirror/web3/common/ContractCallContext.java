@@ -19,6 +19,7 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 
@@ -94,6 +95,13 @@ public class ContractCallContext {
      */
     @Setter
     private long traceDataBytes;
+
+    /**
+     * The current {@code block_override}. {@link BlockOverride#EMPTY} keeps the bound record file's block header and the
+     * message frame values.
+     */
+    @Setter
+    private BlockOverride blockOverride = BlockOverride.EMPTY;
 
     private ContractCallContext() {}
 

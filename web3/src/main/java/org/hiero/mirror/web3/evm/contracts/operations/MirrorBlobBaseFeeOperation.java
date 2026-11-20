@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package org.hiero.mirror.web3.evm.contracts.operations;
+
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
+
+import com.hedera.hapi.node.base.SemanticVersion;
+import jakarta.inject.Named;
+import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hyperledger.besu.evm.frame.MessageFrame;
+import org.hyperledger.besu.evm.gascalculator.GasCalculator;
+import org.hyperledger.besu.evm.operation.BlobBaseFeeOperation;
+
+/** {@code BLOBBASEFEE} that returns {@code block_override.blob_base_fee} when it is set. Cancun (v0.50) and later. */
+@Named
+final class MirrorBlobBaseFeeOperation extends BlobBaseFeeOperation implements VersionedOperation {
+
+    MirrorBlobBaseFeeOperation(final GasCalculator gasCalculator) {
+        super(gasCalculator);
+    }
+
+    @Override
+    public OperationResult executeFixedCostOperation(final MessageFrame frame) {
+        final var blobBaseFee = ContractCallContext.get().getBlockOverride().blobBaseFee();
+        if (blobBaseFee == null) {
+            return super.executeFixedCostOperation(frame);
+        }
+        frame.pushStackItem(Bytes.ofUnsignedLong(blobBaseFee));
+        return successResponse;
+    }
+
+    @Override
+    public SemanticVersion minimumEvmVersion() {
+        return EVM_VERSION_0_50;
+    }
+}
