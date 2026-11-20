@@ -2,26 +2,26 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
+import static org.hiero.mirror.common.domain.transaction.StateFields.ACCOUNT_ETHEREUM_NONCE;
+import static org.hiero.mirror.common.domain.transaction.StateFields.ACCOUNT_PENDING_AIRDROP_VALUE;
+import static org.hiero.mirror.common.domain.transaction.StateFields.BYTECODE_CODE;
+import static org.hiero.mirror.common.domain.transaction.StateFields.SLOT_VALUE_VALUE;
+import static org.hiero.mirror.common.domain.transaction.StateFields.TOKEN_TOTAL_SUPPLY;
+import static org.hiero.mirror.common.domain.transaction.StateFields.TOPIC_RUNNING_HASH;
 import static org.hiero.mirror.common.util.DomainUtils.normalize;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
-import com.google.protobuf.Message;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
-import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
-import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
-import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.SlotKey;
-import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
-import com.hederahashgraph.api.proto.java.Topic;
 import com.hederahashgraph.api.proto.java.TopicID;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -224,31 +224,12 @@ public final class StateChangeContext {
     }
 
     /**
-     * Whether a field of a state change value is present, i.e., the update is full, or the field is set or cleared in a
-     * partial update. Any other field in a partial update is unchanged, so its value is absent.
-     */
-    static boolean isPresent(final MapUpdateChange mapUpdate, final Message value, final int fieldNumber) {
-        if (!mapUpdate.getPartial() || mapUpdate.getClearedFieldsList().contains(fieldNumber)) {
-            return true;
-        }
-
-        final var field = value.getDescriptorForType().findFieldByNumber(fieldNumber);
-        if (field == null) {
-            return false;
-        }
-
-        return field.isRepeated() ? value.getRepeatedFieldCount(field) > 0 : value.hasField(field);
-    }
-
-    /**
      * Get the value written to a storage slot, or null if it's omitted from a partial state change, i.e., the slot is
      * written without a net change in the transactional unit.
      */
     private static @Nullable BytesValue getValueWritten(final MapUpdateChange mapUpdate) {
         final var slotValue = mapUpdate.getValue().getSlotValueValue();
-        return isPresent(mapUpdate, slotValue, com.hederahashgraph.api.proto.java.SlotValue.VALUE_FIELD_NUMBER)
-                ? BytesValue.of(slotValue.getValue())
-                : null;
+        return SLOT_VALUE_VALUE.isPresent(mapUpdate, slotValue) ? BytesValue.of(slotValue.getValue()) : null;
     }
 
     private void processAccountStateChange(final MapUpdateChange mapUpdate) {
@@ -259,7 +240,7 @@ public final class StateChangeContext {
         // Read the entity id from the key, since the value of a partial update only has the changed fields
         final var accountId = mapUpdate.getKey().getAccountIdKey();
         final var account = mapUpdate.getValue().getAccountValue();
-        if (isPresent(mapUpdate, account, Account.ETHEREUM_NONCE_FIELD_NUMBER)) {
+        if (ACCOUNT_ETHEREUM_NONCE.isPresent(mapUpdate, account)) {
             accountEthereumNonces.putIfAbsent(accountId, account.getEthereumNonce());
         }
 
@@ -288,7 +269,7 @@ public final class StateChangeContext {
 
         var contractId = mapUpdate.getKey().getContractIdKey();
         var bytecode = mapUpdate.getValue().getBytecodeValue();
-        if (isPresent(mapUpdate, bytecode, Bytecode.CODE_FIELD_NUMBER)) {
+        if (BYTECODE_CODE.isPresent(mapUpdate, bytecode)) {
             contractBytecodes.put(contractId, bytecode.getCode());
         }
     }
@@ -352,7 +333,7 @@ public final class StateChangeContext {
         final var pendingAirdropId = mapUpdate.getKey().getPendingAirdropIdKey();
         final var pendingAirdrop = mapUpdate.getValue().getAccountPendingAirdropValue();
         if (pendingAirdropId.hasFungibleTokenType()
-                && isPresent(mapUpdate, pendingAirdrop, AccountPendingAirdrop.PENDING_AIRDROP_VALUE_FIELD_NUMBER)) {
+                && ACCOUNT_PENDING_AIRDROP_VALUE.isPresent(mapUpdate, pendingAirdrop)) {
             pendingFungibleAirdrops.put(
                     pendingAirdropId, pendingAirdrop.getPendingAirdropValue().getAmount());
         }
@@ -374,7 +355,7 @@ public final class StateChangeContext {
         final var tokenId = mapUpdate.getKey().getTokenIdKey();
         tokenIds.add(tokenId);
         final var token = mapUpdate.getValue().getTokenValue();
-        if (isPresent(mapUpdate, token, Token.TOTAL_SUPPLY_FIELD_NUMBER)) {
+        if (TOKEN_TOTAL_SUPPLY.isPresent(mapUpdate, token)) {
             tokenTotalSupplies.put(tokenId, token.getTotalSupply());
         } else {
             tokensWithAbsentTotalSupply.add(tokenId);
@@ -389,9 +370,7 @@ public final class StateChangeContext {
         final var topicId = mapUpdate.getKey().getTopicIdKey();
         topicIds.add(topicId);
         final var topic = mapUpdate.getValue().getTopicValue();
-        if (topic.getSequenceNumber() != 0
-                && isPresent(mapUpdate, topic, Topic.RUNNING_HASH_FIELD_NUMBER)
-                && isPresent(mapUpdate, topic, Topic.SEQUENCE_NUMBER_FIELD_NUMBER)) {
+        if (topic.getSequenceNumber() != 0 && TOPIC_RUNNING_HASH.isPresent(mapUpdate, topic)) {
             topicState.put(
                     topicId,
                     TopicMessage.builder()
