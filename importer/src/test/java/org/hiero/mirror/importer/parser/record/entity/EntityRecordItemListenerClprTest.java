@@ -578,11 +578,71 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
     }
 
     @Test
-    void clprSubmitBundleWithoutStateChanges() {
-        // A successful SubmitBundle can have no CLPR state changes (e.g. ReplyValidation.OrderingViolated).
-        // The test builder normally adds channel, connector, and message changes, so clear all of them.
+    void clprSubmitBundleOrderingViolationPausesActiveChannel() {
+        // Model the block-stream outcome of an out-of-order reply on an ACTIVE channel: consensus pauses
+        // the channel without enqueueing a message. The importer does not validate the bundle payload.
+        final var completeRecordItem = recordItemBuilder.clprCompleteChannel().build();
+        parseRecordItemAndCommit(completeRecordItem);
+        final var channelId =
+                completeRecordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
+        final var existingMessage = domainBuilder
+                .clprMessage()
+                .customize(m -> m.channelId(DomainUtils.toBytes(channelId)).messageId(1L))
+                .persist();
+
+        final var pausedValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setStatus(ClprChannelStatus.PAUSED)
+                .build();
         final var recordItem = recordItemBuilder
                 .clprSubmitBundle()
+                .transactionBody(b -> b.setChannelId(channelId))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
+                                channelId, partialClprChannelMapUpdate(channelId, pausedValue))))
+                        .clprConnectors(List.of())
+                        .clprConnectorsRemoved(List.of())
+                        .clprMessages(List.of()))
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
+        softly.assertThat(clprChannelRepository.findById(DomainUtils.toBytes(channelId)))
+                .get()
+                .returns(ClprChannelStatus.PAUSED_VALUE, ClprChannel::getStatus)
+                .returns(Range.atLeast(recordItem.getConsensusTimestamp()), ClprChannel::getTimestampRange)
+                .returns(completeRecordItem.getConsensusTimestamp(), ClprChannel::getCreatedTimestamp);
+        softly.assertThat(findHistory(ClprChannel.class))
+                .singleElement()
+                .returns(ClprChannelStatus.ACTIVE_VALUE, ClprChannel::getStatus)
+                .returns(
+                        Range.closedOpen(
+                                completeRecordItem.getConsensusTimestamp(), recordItem.getConsensusTimestamp()),
+                        ClprChannel::getTimestampRange);
+        softly.assertThat(clprMessageRepository.findAll())
+                .singleElement()
+                .returns(existingMessage.getChannelId(), ClprMessage::getChannelId)
+                .returns(existingMessage.getMessageId(), ClprMessage::getMessageId)
+                .returns(existingMessage.getMessageData(), ClprMessage::getMessageData);
+        softly.assertThat(clprConnectorRepository.count()).isZero();
+    }
+
+    @Test
+    void clprSubmitBundleOrderingViolationOnPausedChannelHasNoStateChanges() {
+        // Model an out-of-order reply on an already PAUSED channel without manifest/trust-anchor changes.
+        // Consensus returns successfully without writing CLPR state; the inbound bundle is not an outbound
+        // queue entry, and the existing message must remain intact.
+        final var pausedChannel = domainBuilder
+                .clprChannel()
+                .customize(c -> c.status(ClprChannelStatus.PAUSED_VALUE))
+                .persist();
+        final var existingMessage = domainBuilder
+                .clprMessage()
+                .customize(m -> m.channelId(pausedChannel.getChannelId()).messageId(1L))
+                .persist();
+        final var recordItem = recordItemBuilder
+                .clprSubmitBundle()
+                .transactionBody(b -> b.setChannelId(DomainUtils.fromBytes(pausedChannel.getChannelId())))
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of())
                         .clprConnectors(List.of())
@@ -593,10 +653,18 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
         parseRecordItemAndCommit(recordItem);
 
         assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
+        softly.assertThat(clprChannelRepository.findById(pausedChannel.getChannelId()))
+                .get()
+                .returns(ClprChannelStatus.PAUSED_VALUE, ClprChannel::getStatus)
+                .returns(pausedChannel.getTimestampRange(), ClprChannel::getTimestampRange);
+        softly.assertThat(findHistory(ClprChannel.class)).isEmpty();
+        softly.assertThat(clprMessageRepository.findAll())
+                .singleElement()
+                .returns(existingMessage.getChannelId(), ClprMessage::getChannelId)
+                .returns(existingMessage.getMessageId(), ClprMessage::getMessageId)
+                .returns(existingMessage.getMessageData(), ClprMessage::getMessageData);
         softly.assertThat(clprChannelPendingCommitmentRepository.count()).isZero();
-        softly.assertThat(clprChannelRepository.count()).isZero();
         softly.assertThat(clprConnectorRepository.count()).isZero();
-        softly.assertThat(clprMessageRepository.count()).isZero();
         softly.assertThat(clprEndpointManifestRepository.findLatest()).isNull();
         softly.assertThat(clprLedgerConfigurationRepository.findLatest()).isNull();
         softly.assertThat(clprMaintenanceRepository.count()).isZero();
