@@ -21,7 +21,7 @@ final class MirrorCoinbaseOperation extends CoinbaseOperation implements Version
 
     @Override
     public OperationResult executeFixedCostOperation(final MessageFrame frame) {
-        final var feeRecipient = ContractCallContext.getBlockOverrideSafe().feeRecipientAddress();
+        final var feeRecipient = ContractCallContext.get().getBlockOverride().feeRecipientAddress();
         if (feeRecipient == null) {
             return super.executeFixedCostOperation(frame);
         }

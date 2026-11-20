@@ -25,7 +25,7 @@ final class MirrorGasLimitOperation extends GasLimitOperation implements Version
 
     @Override
     public OperationResult executeFixedCostOperation(final MessageFrame frame) {
-        final var gasLimit = ContractCallContext.getBlockOverrideSafe().gasLimit();
+        final var gasLimit = ContractCallContext.get().getBlockOverride().gasLimit();
         if (gasLimit == null) {
             return super.executeFixedCostOperation(frame);
         }

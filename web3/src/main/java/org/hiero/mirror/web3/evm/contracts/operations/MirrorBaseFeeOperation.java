@@ -25,7 +25,7 @@ final class MirrorBaseFeeOperation extends BaseFeeOperation implements Versioned
 
     @Override
     public OperationResult executeFixedCostOperation(final MessageFrame frame) {
-        final var baseFee = ContractCallContext.getBlockOverrideSafe().baseFeePerGas();
+        final var baseFee = ContractCallContext.get().getBlockOverride().baseFeePerGas();
         if (baseFee == null) {
             return super.executeFixedCostOperation(frame);
         }

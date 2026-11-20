@@ -22,7 +22,7 @@ final class MirrorBlobBaseFeeOperation extends BlobBaseFeeOperation implements V
 
     @Override
     public OperationResult executeFixedCostOperation(final MessageFrame frame) {
-        final var blobBaseFee = ContractCallContext.getBlockOverrideSafe().blobBaseFee();
+        final var blobBaseFee = ContractCallContext.get().getBlockOverride().blobBaseFee();
         if (blobBaseFee == null) {
             return super.executeFixedCostOperation(frame);
         }

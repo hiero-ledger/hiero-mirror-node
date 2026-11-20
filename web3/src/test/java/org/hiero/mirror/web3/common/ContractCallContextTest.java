@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
@@ -107,30 +106,5 @@ class ContractCallContextTest {
     @Test
     void blockOverrideDefaultsToEmpty() {
         assertThat(ContractCallContext.get().getBlockOverride()).isSameAs(BlockOverride.EMPTY);
-    }
-
-    @Test
-    void getBlockOverrideSafeReturnsCurrentOverride() {
-        final var context = ContractCallContext.get();
-        final var override = BlockOverride.builder()
-                .feeRecipient("0x0000000000000000000000000000000000000062")
-                .gasLimit(1L)
-                .build();
-
-        assertThat(ContractCallContext.getBlockOverrideSafe()).isEqualTo(BlockOverride.EMPTY);
-
-        context.setBlockOverride(override);
-        assertThat(ContractCallContext.getBlockOverrideSafe())
-                .isSameAs(override)
-                .isNotEqualTo(BlockOverride.EMPTY);
-    }
-
-    @Test
-    void getBlockOverrideSafeReturnsEmptyWhenUnbound() {
-        // The scoped context is not bound on another thread.
-        final var result = CompletableFuture.supplyAsync(ContractCallContext::getBlockOverrideSafe)
-                .join();
-
-        assertThat(result).isEqualTo(BlockOverride.EMPTY);
     }
 }

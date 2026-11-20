@@ -120,14 +120,6 @@ public class ContractCallContext {
         return SCOPED_VALUE.isBound() && SCOPED_VALUE.get().isBalanceCall();
     }
 
-    /**
-     * Safe helper that returns the current call's {@code block_override} without throwing when unbound. An unbound
-     * context, such as executor warm-up at startup, has no override.
-     */
-    public static BlockOverride getBlockOverrideSafe() {
-        return SCOPED_VALUE.isBound() ? SCOPED_VALUE.get().getBlockOverride() : BlockOverride.EMPTY;
-    }
-
     @SneakyThrows
     public static <T> T run(Function<ContractCallContext, T> function) {
         return ScopedValue.where(SCOPED_VALUE, new ContractCallContext())
