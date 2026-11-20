@@ -34,6 +34,20 @@ class ContractCallContextTest {
     }
 
     @Test
+    void resetDiscardsWritesAndKeepsReads() {
+        final var context = ContractCallContext.get();
+        context.getReadCacheState(1).put("read", "database");
+        context.getWriteCacheState(1).put("updated", "value");
+        context.getWriteCacheState(2).put("deleted", null);
+
+        context.reset();
+
+        assertThat(context.getWriteCacheState(1)).isEmpty();
+        assertThat(context.getWriteCacheState(2)).isEmpty();
+        assertThat(context.getReadCacheState(1)).containsEntry("read", "database");
+    }
+
+    @Test
     void testGetTimestampNonHistorical() {
         var context = ContractCallContext.get();
         context.setTimestamp(Optional.of(123L));

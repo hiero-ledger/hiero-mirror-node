@@ -172,6 +172,8 @@ final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
                 MapReadableKVState.class,
                 SCHEDULED_COUNTS_STATE_ID,
                 MapReadableKVState.class,
+                SCHEDULED_ORDERS_STATE_ID,
+                MapReadableKVState.class,
                 SCHEDULED_USAGES_STATE_ID,
                 MapReadableKVState.class);
         verifyServiceDataSources(states, ScheduleService.NAME, scheduleServiceDataSources);
