@@ -15,6 +15,7 @@ import com.hederahashgraph.api.proto.java.Duration;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -67,7 +68,7 @@ final class HistoricalAccountInfoMigrationTest extends ImporterIntegrationTest {
 
     @Test
     void checksum() {
-        assertThat(historicalAccountInfoMigration.getChecksum()).isEqualTo(3);
+        assertThat(historicalAccountInfoMigration.getChecksum()).isEqualTo(4);
     }
 
     @Test
@@ -302,6 +303,195 @@ final class HistoricalAccountInfoMigrationTest extends ImporterIntegrationTest {
     void skipMigrationFalse() {
         assertThat(historicalAccountInfoMigration.skipMigration(mock(Configuration.class)))
                 .isFalse();
+    }
+
+    @Test
+    void updatesKeyActiveBeforeSnapshot() {
+        final Entity entity = createEntity(2L, EntityType.ACCOUNT, true);
+        final AccountInfo accountInfo = correctedKey(2L, "new");
+
+        assertThat(historicalAccountInfoMigration.updateKey(accountInfo)).isTrue();
+
+        assertThat(entityRepository.findById(entity.getId()).orElseThrow().getKey())
+                .containsExactly(accountInfo.getKey().toByteArray());
+        assertThat(entityRepository.findById(entity.getId()).orElseThrow().getMemo())
+                .isEqualTo("Bar");
+    }
+
+    @Test
+    void keepsKeyChangedAfterSnapshot() {
+        final long id = 2L;
+        final long afterSnapshot = HistoricalAccountInfoMigration.KEY_SNAPSHOT_TIMESTAMP + 1;
+        final Entity entity = createEntity(id, EntityType.ACCOUNT, true);
+        entity.setTimestampRange(Range.atLeast(afterSnapshot));
+        entityRepository.save(entity);
+        final byte[] currentKey = entity.getKey().clone();
+        final byte[] historicalKey = Key.newBuilder()
+                .setEd25519(ByteString.copyFromUtf8("old"))
+                .build()
+                .toByteArray();
+        domainBuilder
+                .entityHistory(EntityId.of(id))
+                .customize(history -> history.key(historicalKey).timestampRange(Range.closedOpen(0L, afterSnapshot)))
+                .persist();
+
+        assertThat(historicalAccountInfoMigration.updateKey(correctedKey(id, "new")))
+                .isTrue();
+
+        assertThat(entityRepository.findById(id).orElseThrow().getKey()).containsExactly(currentKey);
+        assertThat(historicalKey(id))
+                .containsExactly(correctedKey(id, "new").getKey().toByteArray());
+    }
+
+    @Test
+    void updatesCurrentKeyWhenItStillMatchesHistoricalKey() {
+        final long id = 2L;
+        final long afterSnapshot = HistoricalAccountInfoMigration.KEY_SNAPSHOT_TIMESTAMP + 1;
+        final byte[] historicalKey = Key.newBuilder()
+                .setEd25519(ByteString.copyFromUtf8("old"))
+                .build()
+                .toByteArray();
+        final Entity entity = createEntity(id, EntityType.ACCOUNT, true);
+        entity.setKey(historicalKey);
+        entity.setTimestampRange(Range.atLeast(afterSnapshot));
+        entityRepository.save(entity);
+        domainBuilder
+                .entityHistory(EntityId.of(id))
+                .customize(history ->
+                        history.key(historicalKey.clone()).timestampRange(Range.closedOpen(0L, afterSnapshot)))
+                .persist();
+
+        final AccountInfo corrected = correctedKey(id, "new");
+        assertThat(historicalAccountInfoMigration.updateKey(corrected)).isTrue();
+
+        assertThat(entityRepository.findById(id).orElseThrow().getKey())
+                .containsExactly(corrected.getKey().toByteArray());
+        assertThat(entityRepository.findById(id).orElseThrow().getMemo()).isEqualTo("Bar");
+        assertThat(historicalKey(id)).containsExactly(corrected.getKey().toByteArray());
+    }
+
+    @Test
+    void propagatesKeyThroughLaterRowsWithTheSameKey() {
+        final long id = 2L;
+        final long snapshot = HistoricalAccountInfoMigration.KEY_SNAPSHOT_TIMESTAMP;
+        final long affectedEnd = snapshot + 1;
+        final long laterEnd = snapshot + 2;
+        final byte[] oldKey = ed25519("old");
+        final Entity entity = createEntity(id, EntityType.ACCOUNT, true);
+        entity.setKey(oldKey.clone());
+        entity.setTimestampRange(Range.atLeast(laterEnd));
+        entityRepository.save(entity);
+        persistHistory(id, oldKey, 0L, snapshot);
+        persistHistory(id, oldKey, snapshot, affectedEnd);
+        persistHistory(id, oldKey, affectedEnd, laterEnd);
+
+        final byte[] corrected = correctedKey(id, "new").getKey().toByteArray();
+        assertThat(historicalAccountInfoMigration.updateKey(correctedKey(id, "new")))
+                .isTrue();
+
+        final List<byte[]> keys = historicalKeys(id);
+        assertThat(keys).hasSize(3);
+        assertThat(keys.get(0)).containsExactly(oldKey);
+        assertThat(keys.get(1)).containsExactly(corrected);
+        assertThat(keys.get(2)).containsExactly(corrected);
+        assertThat(entityRepository.findById(id).orElseThrow().getKey()).containsExactly(corrected);
+    }
+
+    @Test
+    void stopsPropagatingKeyAtFirstDifferentLaterRow() {
+        final long id = 2L;
+        final long snapshot = HistoricalAccountInfoMigration.KEY_SNAPSHOT_TIMESTAMP;
+        final long affectedEnd = snapshot + 10;
+        final long sameEnd = snapshot + 20;
+        final long changedEnd = snapshot + 30;
+        final byte[] oldKey = ed25519("old");
+        final byte[] changedKey = ed25519("changed");
+        final Entity entity = createEntity(id, EntityType.ACCOUNT, true);
+        entity.setKey(oldKey.clone());
+        entity.setTimestampRange(Range.atLeast(changedEnd));
+        entityRepository.save(entity);
+        persistHistory(id, oldKey, snapshot, affectedEnd);
+        persistHistory(id, oldKey, affectedEnd, sameEnd);
+        persistHistory(id, changedKey, sameEnd, changedEnd);
+
+        final byte[] corrected = correctedKey(id, "new").getKey().toByteArray();
+        assertThat(historicalAccountInfoMigration.updateKey(correctedKey(id, "new")))
+                .isTrue();
+
+        final List<byte[]> keys = historicalKeys(id);
+        assertThat(keys).hasSize(3);
+        assertThat(keys.get(0)).containsExactly(corrected);
+        assertThat(keys.get(1)).containsExactly(corrected);
+        assertThat(keys.get(2)).containsExactly(changedKey);
+        assertThat(entityRepository.findById(id).orElseThrow().getKey()).containsExactly(oldKey);
+    }
+
+    @Test
+    void stopsPropagatingWhenCurrentEntityKeyChanged() {
+        final long id = 2L;
+        final long snapshot = HistoricalAccountInfoMigration.KEY_SNAPSHOT_TIMESTAMP;
+        final long entityLower = snapshot + 10;
+        final long laterEnd = snapshot + 20;
+        final byte[] oldKey = ed25519("old");
+        final byte[] changedKey = ed25519("changed");
+        final Entity entity = createEntity(id, EntityType.ACCOUNT, true);
+        entity.setKey(changedKey);
+        entity.setTimestampRange(Range.atLeast(entityLower));
+        entityRepository.save(entity);
+        persistHistory(id, oldKey, snapshot, entityLower);
+        persistHistory(id, oldKey, entityLower, laterEnd);
+
+        final byte[] corrected = correctedKey(id, "new").getKey().toByteArray();
+        assertThat(historicalAccountInfoMigration.updateKey(correctedKey(id, "new")))
+                .isTrue();
+
+        final List<byte[]> keys = historicalKeys(id);
+        assertThat(keys).hasSize(2);
+        assertThat(keys.get(0)).containsExactly(corrected);
+        assertThat(keys.get(1)).containsExactly(oldKey);
+        assertThat(entityRepository.findById(id).orElseThrow().getKey()).containsExactly(changedKey);
+    }
+
+    @Test
+    void skipsKeyThatAlreadyMatches() {
+        final AccountInfo accountInfo = correctedKey(2L, "123");
+        final Entity entity = createEntity(2L, EntityType.ACCOUNT, true);
+
+        assertThat(historicalAccountInfoMigration.updateKey(accountInfo)).isFalse();
+        assertThat(entityRepository.findById(entity.getId()).orElseThrow().getKey())
+                .containsExactly(entity.getKey());
+    }
+
+    private static AccountInfo correctedKey(long accountNum, String key) {
+        return AccountInfo.newBuilder()
+                .setAccountID(AccountID.newBuilder().setAccountNum(accountNum).build())
+                .setKey(Key.newBuilder()
+                        .setEd25519(ByteString.copyFromUtf8(key))
+                        .build())
+                .build();
+    }
+
+    private static byte[] ed25519(String key) {
+        return Key.newBuilder().setEd25519(ByteString.copyFromUtf8(key)).build().toByteArray();
+    }
+
+    private void persistHistory(long id, byte[] key, long lower, long upper) {
+        domainBuilder
+                .entityHistory(EntityId.of(id))
+                .customize(history -> history.key(key.clone()).timestampRange(Range.closedOpen(lower, upper)))
+                .persist();
+    }
+
+    private byte[] historicalKey(long id) {
+        return jdbcOperations.queryForObject(
+                "select key from entity_history where id = ?", (result, row) -> result.getBytes(1), id);
+    }
+
+    private List<byte[]> historicalKeys(long id) {
+        return jdbcOperations.query(
+                "select key from entity_history where id = ? order by lower(timestamp_range)",
+                (result, row) -> result.getBytes(1),
+                id);
     }
 
     @SuppressWarnings("deprecation")
