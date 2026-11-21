@@ -8,7 +8,6 @@ import static com.hederahashgraph.api.proto.java.ClprMessagePayload.CONTROL_FIEL
 import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_REPLY_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprMessageReplyStatus.SUCCESS_VALUE;
-import static com.hederahashgraph.api.proto.java.ClprSignatureScheme.ED25519_VALUE;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
@@ -67,8 +66,6 @@ import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
-import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitmentHistory;
 import org.hiero.mirror.common.domain.clpr.ClprConfigUpdate;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorHistory;
@@ -80,7 +77,6 @@ import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMaintenance;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
-import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.hiero.mirror.common.domain.contract.Contract;
@@ -311,14 +307,12 @@ public class DomainBuilder {
                 .endpointManifestVersion(0L)
                 .lastConfigTimestamp(timestamp())
                 .nextMessageId(1L)
-                .ownershipCommitment(bytes(32))
                 .peerConfigTimestamp(timestamp())
-                .publicKey(bytes(64))
+                .peerVerifier(bytes(20))
                 .receivedMessageId(0L)
                 .receivedRunningHash(bytes(32))
+                .salt(bytes(32))
                 .sentRunningHash(bytes(32))
-                .signature(bytes(64))
-                .signatureScheme(ED25519_VALUE)
                 .status(ACTIVE_VALUE)
                 .timestampRange(Range.atLeast(createdTimestamp))
                 .trustAnchor(bytes(32))
@@ -348,13 +342,11 @@ public class DomainBuilder {
                 .endpointManifestProofBytes(bytes(16))
                 .endpointManifestVersion(0L)
                 .nextMessageId(1L)
-                .ownershipCommitment(bytes(32))
-                .publicKey(bytes(64))
+                .peerVerifier(bytes(20))
                 .receivedMessageId(0L)
                 .receivedRunningHash(bytes(32))
+                .salt(bytes(32))
                 .sentRunningHash(bytes(32))
-                .signature(bytes(64))
-                .signatureScheme(ED25519_VALUE)
                 .status(ACTIVE_VALUE)
                 .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10))
                 .trustAnchor(bytes(32))
@@ -364,47 +356,16 @@ public class DomainBuilder {
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
-    public DomainWrapper<
-                    ClprChannelPendingCommitment,
-                    ClprChannelPendingCommitment.ClprChannelPendingCommitmentBuilder<?, ?>>
-            clprChannelPendingCommitment() {
-        var createdTimestamp = timestamp();
-        var builder = ClprChannelPendingCommitment.builder()
-                .createdTimestamp(createdTimestamp)
-                .ownershipCommitment(bytes(32))
-                .status(ClprPendingCommitmentStatus.OPEN)
-                .timestampRange(Range.atLeast(createdTimestamp));
-        return new DomainWrapperImpl<>(builder, builder::build);
-    }
-
-    public DomainWrapper<
-                    ClprChannelPendingCommitmentHistory,
-                    ClprChannelPendingCommitmentHistory.ClprChannelPendingCommitmentHistoryBuilder<?, ?>>
-            clprChannelPendingCommitmentHistory() {
-        var createdTimestamp = timestamp();
-        var builder = ClprChannelPendingCommitmentHistory.builder()
-                .createdTimestamp(createdTimestamp)
-                .ownershipCommitment(bytes(32))
-                .status(ClprPendingCommitmentStatus.OPEN)
-                .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10));
-        return new DomainWrapperImpl<>(builder, builder::build);
-    }
-
     public DomainWrapper<ClprConnector, ClprConnector.ClprConnectorBuilder<?, ?>> clprConnector() {
         var createdTimestamp = timestamp();
         var builder = ClprConnector.builder()
                 .adminKey(key())
                 .channelId(bytes(32))
-                .commitment(bytes(32))
                 .connectorContractId(entityId())
                 .connectorId(bytes(32))
                 .createdTimestamp(createdTimestamp)
                 .inFlightMessageCount(0L)
                 .lockedStake(100_000_000L)
-                .publicKey(bytes(64))
-                .salt(bytes(32))
-                .signature(bytes(64))
-                .signatureScheme(ED25519_VALUE)
                 .slashCount(0L)
                 .status(ClprConnectorStatus.ACTIVE)
                 .timestampRange(Range.atLeast(createdTimestamp));
@@ -417,16 +378,11 @@ public class DomainBuilder {
         var builder = ClprConnectorHistory.builder()
                 .adminKey(key())
                 .channelId(bytes(32))
-                .commitment(bytes(32))
                 .connectorContractId(entityId())
                 .connectorId(bytes(32))
                 .createdTimestamp(createdTimestamp)
                 .inFlightMessageCount(0L)
                 .lockedStake(100_000_000L)
-                .publicKey(bytes(64))
-                .salt(bytes(32))
-                .signature(bytes(64))
-                .signatureScheme(ED25519_VALUE)
                 .slashCount(0L)
                 .status(ClprConnectorStatus.ACTIVE)
                 .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10));

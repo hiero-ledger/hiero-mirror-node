@@ -13,14 +13,11 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
-import org.hiero.mirror.importer.repository.ClprConnectorRepository;
-import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
 final class ClprDeregisterConnectorTransactionHandler extends AbstractTransactionHandler {
 
-    private final ClprConnectorRepository clprConnectorRepository;
     private final EntityListener entityListener;
 
     @Override
@@ -39,21 +36,9 @@ final class ClprDeregisterConnectorTransactionHandler extends AbstractTransactio
         recordItem.addEntityId(stakeRecipientId);
 
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
-        final var channelId = DomainUtils.toBytes(transactionBody.getChannelId());
-        final var connectorId = DomainUtils.toBytes(transactionBody.getConnectorId());
-        final var commitment = clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(channelId, connectorId);
-        if (commitment == null) {
-            Utility.handleRecoverableError(
-                    "No clpr_connector found for channelId/connectorId pair for successful "
-                            + "ClprDeregisterConnector at {}",
-                    consensusTimestamp);
-            return;
-        }
-
         final var connector = ClprConnector.builder()
-                .channelId(channelId)
-                .commitment(commitment)
-                .connectorId(connectorId)
+                .channelId(DomainUtils.toBytes(transactionBody.getChannelId()))
+                .connectorId(DomainUtils.toBytes(transactionBody.getConnectorId()))
                 .status(ClprConnectorStatus.DELETED)
                 .stakeRecipientId(stakeRecipientId)
                 .timestampRange(Range.atLeast(consensusTimestamp))

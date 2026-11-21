@@ -39,9 +39,6 @@ public class StateFields {
             new StateField<>(ClprChannel.LAST_CONFIG_TIMESTAMP_FIELD_NUMBER, ClprChannel::hasLastConfigTimestamp);
     public static final StateField<ClprChannel> CLPR_CHANNEL_NEXT_MESSAGE_ID =
             new StateField<>(ClprChannel.NEXT_MESSAGE_ID_FIELD_NUMBER, v -> v.getNextMessageId() != 0);
-    public static final StateField<ClprChannel> CLPR_CHANNEL_OWNERSHIP_COMMITMENT = new StateField<>(
-            ClprChannel.OWNERSHIP_COMMITMENT_FIELD_NUMBER,
-            v -> !v.getOwnershipCommitment().isEmpty());
     public static final StateField<ClprChannel> CLPR_CHANNEL_PEER_CONFIG_TIMESTAMP =
             new StateField<>(ClprChannel.PEER_CONFIG_TIMESTAMP_FIELD_NUMBER, ClprChannel::hasPeerConfigTimestamp);
     public static final StateField<ClprChannel> CLPR_CHANNEL_PEER_THROTTLES =
@@ -51,6 +48,8 @@ public class StateFields {
     public static final StateField<ClprChannel> CLPR_CHANNEL_RECEIVED_RUNNING_HASH = new StateField<>(
             ClprChannel.RECEIVED_RUNNING_HASH_FIELD_NUMBER,
             v -> !v.getReceivedRunningHash().isEmpty());
+    public static final StateField<ClprChannel> CLPR_CHANNEL_SALT =
+            new StateField<>(ClprChannel.SALT_FIELD_NUMBER, v -> !v.getSalt().isEmpty());
     public static final StateField<ClprChannel> CLPR_CHANNEL_SENT_RUNNING_HASH = new StateField<>(
             ClprChannel.SENT_RUNNING_HASH_FIELD_NUMBER,
             v -> !v.getSentRunningHash().isEmpty());

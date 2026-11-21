@@ -6,12 +6,9 @@ import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @CustomLog
@@ -36,14 +33,9 @@ final class ClprCloseChannelTransactionHandler extends AbstractTransactionHandle
         final var clprContext = recordItem.getClprContext();
         final var entry = clprContext == null ? null : clprContext.getClprChannel();
         if (entry == null) {
-            final var transactionBody = recordItem.getTransactionBody().getClprCloseChannel();
-            log.info("Sweeping abandoned ClprChannelPendingCommitment at {}", consensusTimestamp);
-            final var commitment = ClprChannelPendingCommitment.builder()
-                    .ownershipCommitment(DomainUtils.toBytes(transactionBody.getOwnershipCommitment()))
-                    .status(ClprPendingCommitmentStatus.DELETED)
-                    .timestampRange(Range.atLeast(consensusTimestamp))
-                    .build();
-            entityListener.onClprChannelPendingCommitment(commitment);
+            // No Channel record exists: an admin sweep of a legacy pending ownership commitment from a
+            // network that predates ClprOpenChannel. No such commitment can exist in this mirror node's data.
+            log.info("Ignoring legacy ClprChannelPendingCommitment sweep at {}", consensusTimestamp);
             return;
         }
 

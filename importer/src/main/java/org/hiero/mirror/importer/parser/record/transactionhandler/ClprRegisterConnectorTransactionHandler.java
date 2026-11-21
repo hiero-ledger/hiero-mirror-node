@@ -7,6 +7,7 @@ import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -30,17 +31,23 @@ final class ClprRegisterConnectorTransactionHandler extends AbstractTransactionH
             return;
         }
 
-        // channel_id is on the transaction body itself -- the consensus node validates it references an existing
-        // Channel and rejects the transaction otherwise, so no state-change lookup is needed here.
+        // Every field the Connector row needs is on the transaction body itself -- the consensus node derives and
+        // verifies connector_id from the identity key and salt, and validates channel_id and connector_contract, so
+        // no state-change lookup is needed here.
         final var transactionBody = recordItem.getTransactionBody().getClprRegisterConnector();
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var connectorContractId = EntityId.of(transactionBody.getConnectorContract());
         final var connector = ClprConnector.builder()
+                .adminKey(DomainUtils.toBytes(transactionBody.getAdminKey().toByteString()))
                 .channelId(DomainUtils.toBytes(transactionBody.getChannelId()))
-                .commitment(DomainUtils.toBytes(transactionBody.getCommitment()))
+                .connectorContractId(connectorContractId)
+                .connectorId(DomainUtils.toBytes(transactionBody.getConnectorId()))
                 .createdTimestamp(consensusTimestamp)
-                .status(ClprConnectorStatus.PENDING)
+                .lockedStake(transactionBody.getLockedStake())
+                .status(ClprConnectorStatus.ACTIVE)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprConnector(connector);
+        recordItem.addEntityId(connectorContractId);
     }
 }

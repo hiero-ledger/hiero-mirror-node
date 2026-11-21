@@ -40,13 +40,12 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
+import org.hiero.mirror.common.domain.clpr.AbstractClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
-import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -54,12 +53,10 @@ import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannel
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnectorEntry;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprMessageEntry;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.downloader.block.BlockFileTransformer;
 import org.hiero.mirror.importer.parser.domain.BlockFileBuilder;
 import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
-import org.hiero.mirror.importer.repository.ClprChannelPendingCommitmentRepository;
 import org.hiero.mirror.importer.repository.ClprChannelRepository;
 import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.hiero.mirror.importer.repository.ClprLedgerConfigurationRepository;
@@ -81,7 +78,6 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
     private final BlockFileBuilder blockFileBuilder;
     private final BlockFileTransformer blockFileTransformer;
     private final BlockTransactionBuilder blockTransactionBuilder;
-    private final ClprChannelPendingCommitmentRepository clprChannelPendingCommitmentRepository;
     private final ClprChannelRepository clprChannelRepository;
     private final ClprConnectorRepository clprConnectorRepository;
     private final ClprLedgerConfigurationRepository clprLedgerConfigurationRepository;
@@ -95,66 +91,48 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {0, 1, 2, 3, 4, 5, 6})
+    @ValueSource(ints = {0, 1, 2, 3, 4})
     void clprChannelAndConnectorLifecycle(int commitIndex) {
-        // RegisterChannel -> CompleteChannel -> RegisterConnector -> CompleteConnector -> sendMessage ->
-        // SubmitBundle. Every transaction passes through BlockFileTransformer and RecordFileParser.
+        // OpenChannel -> RegisterConnector -> sendMessage -> SubmitBundle. Every transaction passes through
+        // BlockFileTransformer and RecordFileParser.
         final var channelId = recordItemBuilder.bytes(32);
-        final var channelPublicKey = recordItemBuilder.bytes(64);
-        final var ownershipCommitment = DomainUtils.fromBytes(
-                SignatureUtils.keccak256(DomainUtils.toBytes(channelId), DomainUtils.toBytes(channelPublicKey)));
         final var connectorId = recordItemBuilder.bytes(32);
-        final var connectorPublicKey = recordItemBuilder.bytes(64);
-        final var connectorCommitment = DomainUtils.fromBytes(
-                SignatureUtils.keccak256(DomainUtils.toBytes(connectorId), DomainUtils.toBytes(connectorPublicKey)));
         final var connectorKey = ClprConnectorKey.newBuilder()
                 .setChannelId(channelId)
                 .setConnectorId(connectorId)
                 .build();
 
-        // Block 1: the commitment exists, but the channel ID has not been revealed.
-        final var registerChannel = recordItemBuilder
-                .clprRegisterChannel()
-                .transactionBody(b -> b.setOwnershipCommitment(ownershipCommitment))
-                .customize(this::finalizeRecordItem)
-                .build();
-
-        // Block 2: the reveal creates the channel and completes its ownership commitment.
-        final var activeChannel = activeChannelValue(channelId, ownershipCommitment, "hiero:testing", 1);
-        final var completeChannel = recordItemBuilder
-                .clprCompleteChannel()
-                .transactionBody(b -> b.setChannelId(channelId).setPublicKey(channelPublicKey))
+        // Block 1: the channel is opened directly, active immediately.
+        final var activeChannel = activeChannelValue(channelId, "hiero:testing", 1);
+        final var openChannel = recordItemBuilder
+                .clprOpenChannel()
+                .transactionBody(b -> b.setChannelId(channelId))
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(
                                 new ClprChannelEntry(channelId, clprChannelMapUpdate(channelId, activeChannel)))))
                 .customize(this::finalizeRecordItem)
                 .build();
 
-        // Block 3: the connector has only a pending commitment.
-        final var registerConnector = recordItemBuilder
-                .clprRegisterConnector()
-                .transactionBody(b -> b.setChannelId(channelId).setCommitment(connectorCommitment))
-                .customize(this::finalizeRecordItem)
-                .build();
-
-        // Block 4: the connector ID is revealed and it becomes active.
+        // Block 2: the connector is registered directly, active immediately.
         final var activeConnector = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
                 .setChannelId(channelId)
                 .setConnectorId(connectorId)
                 .setConnectorContract(recordItemBuilder.contractId())
                 .setLockedStake(100_000_000L)
                 .build();
-        final var completeConnector = recordItemBuilder
-                .clprCompleteConnector()
-                .transactionBody(b ->
-                        b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(connectorPublicKey))
+        final var registerConnector = recordItemBuilder
+                .clprRegisterConnector()
+                .transactionBody(b -> b.setChannelId(channelId)
+                        .setConnectorId(connectorId)
+                        .setConnectorContract(activeConnector.getConnectorContract())
+                        .setLockedStake(100_000_000L))
                 .recordItem(r -> r.clprContextBuilder()
                         .clprConnectors(
                                 List.of(new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(activeConnector)))))
                 .customize(this::finalizeRecordItem)
                 .build();
 
-        // Block 5: the CLPR system-contract side effects belong to an ordinary ContractCall.
+        // Block 3: the CLPR system-contract side effects belong to an ordinary ContractCall.
         final var sentRunningHash = recordItemBuilder.bytes(32);
         final var sender = recordItemBuilder.bytes(20);
         final var targetApplication = recordItemBuilder.bytes(20);
@@ -186,7 +164,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                         .build()))
                 .build();
 
-        // Block 6: the bundle produces a reply and transitions the channel to CLOSING.
+        // Block 4: the bundle produces a reply and transitions the channel to CLOSING.
         final var replyRunningHash = recordItemBuilder.bytes(32);
         final var receivedRunningHash = recordItemBuilder.bytes(32);
         final var reply = ClprMessageValue.newBuilder()
@@ -220,16 +198,10 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         parseFiles(
                 transformFiles(List.of(
                         List.of(blockTransactionBuilder
-                                .clprRegisterChannel(registerChannel)
-                                .build()),
-                        List.of(blockTransactionBuilder
-                                .clprCompleteChannel(completeChannel)
+                                .clprOpenChannel(openChannel)
                                 .build()),
                         List.of(blockTransactionBuilder
                                 .clprRegisterConnector(registerConnector)
-                                .build()),
-                        List.of(blockTransactionBuilder
-                                .clprCompleteConnector(completeConnector)
                                 .build()),
                         List.of(sendMessageBlock),
                         List.of(blockTransactionBuilder
@@ -237,45 +209,24 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                                 .build()))),
                 commitIndex);
 
-        assertThat(clprChannelPendingCommitmentRepository.findById(DomainUtils.toBytes(ownershipCommitment)))
-                .get()
-                .returns(ClprPendingCommitmentStatus.COMPLETED, ClprChannelPendingCommitment::getStatus)
-                .returns(registerChannel.getConsensusTimestamp(), ClprChannelPendingCommitment::getCreatedTimestamp);
-        assertThat(findHistory(ClprChannelPendingCommitment.class))
-                .singleElement()
-                .returns(ClprPendingCommitmentStatus.OPEN, ClprChannelPendingCommitment::getStatus)
-                .returns(
-                        Range.closedOpen(
-                                registerChannel.getConsensusTimestamp(), completeChannel.getConsensusTimestamp()),
-                        ClprChannelPendingCommitment::getTimestampRange);
-        assertThat(clprConnectorRepository.findByChannelIdAndConnectorId(
-                        DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
+        assertThat(clprConnectorRepository.findById(
+                        new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId))))
                 .get()
                 .returns(ClprConnectorStatus.ACTIVE, ClprConnector::getStatus)
-                .returns(completeConnector.getConsensusTimestamp(), ClprConnector::getCreatedTimestamp)
+                .returns(registerConnector.getConsensusTimestamp(), ClprConnector::getCreatedTimestamp)
                 .returns(100_000_000L, ClprConnector::getLockedStake)
                 .returns(1L, ClprConnector::getInFlightMessageCount);
-        // The pending connector becomes ACTIVE on completion, then the ContractCall changes its
-        // in-flight message count. Both transitions must be historized regardless of commit boundaries.
+        // The connector is created ACTIVE at registration, then the ContractCall changes its in-flight message
+        // count via a full (non-partial) state change, which must historize the row regardless of commit
+        // boundaries.
         final var connectorHistory = findHistory(ClprConnector.class);
-        assertThat(connectorHistory).hasSize(2);
         assertThat(connectorHistory)
-                .filteredOn(connector -> connector.getStatus() == ClprConnectorStatus.PENDING)
                 .singleElement()
                 .returns(registerConnector.getConsensusTimestamp(), ClprConnector::getCreatedTimestamp)
                 .returns(0L, ClprConnector::getInFlightMessageCount)
                 .returns(
                         Range.closedOpen(
-                                registerConnector.getConsensusTimestamp(), completeConnector.getConsensusTimestamp()),
-                        ClprConnector::getTimestampRange);
-        assertThat(connectorHistory)
-                .filteredOn(connector -> connector.getStatus() == ClprConnectorStatus.ACTIVE)
-                .singleElement()
-                .returns(completeConnector.getConsensusTimestamp(), ClprConnector::getCreatedTimestamp)
-                .returns(0L, ClprConnector::getInFlightMessageCount)
-                .returns(
-                        Range.closedOpen(
-                                completeConnector.getConsensusTimestamp(), sendMessage.getConsensusTimestamp()),
+                                registerConnector.getConsensusTimestamp(), sendMessage.getConsensusTimestamp()),
                         ClprConnector::getTimestampRange);
 
         final var messages = allMessages();
@@ -315,54 +266,38 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         assertThat(findHistory(ClprChannel.class))
                 .extracting(ClprChannel::getTimestampRange)
                 .contains(
-                        Range.closedOpen(completeChannel.getConsensusTimestamp(), sendMessage.getConsensusTimestamp()),
+                        Range.closedOpen(openChannel.getConsensusTimestamp(), sendMessage.getConsensusTimestamp()),
                         Range.closedOpen(sendMessage.getConsensusTimestamp(), submitBundle.getConsensusTimestamp()));
 
         assertThat(clprMessageRepository.count()).isEqualTo(2);
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {0, 1, 2})
+    @ValueSource(ints = {0, 1})
     void clprCloseChannelAdminSweep(int commitIndex) {
-        // An unrevealed channel has a pending commitment but no channel row or clpr_channel_value state change.
-        final var ownershipCommitment = recordItemBuilder.bytes(32);
-        final var register = recordItemBuilder
-                .clprRegisterChannel()
-                .transactionBody(b -> b.setOwnershipCommitment(ownershipCommitment))
-                .customize(this::finalizeRecordItem)
-                .build();
-
-        // The absence of a channel state change is intentional: the close handler must use the body commitment.
+        // An admin sweep of a legacy pending ownership commitment from a network that predates ClprOpenChannel: no
+        // Channel row or clpr_channel_value state change exists for it, and no such commitment can exist in this
+        // mirror node's data, so the transaction is a no-op.
         final var sweep = recordItemBuilder
                 .clprCloseChannel()
-                .transactionBody(
-                        b -> b.setChannelId(recordItemBuilder.bytes(32)).setOwnershipCommitment(ownershipCommitment))
+                .transactionBody(b ->
+                        b.setChannelId(recordItemBuilder.bytes(32)).setOwnershipCommitment(recordItemBuilder.bytes(32)))
                 .recordItem(r -> r.clprContextBuilder().clprChannels(List.of()))
                 .customize(this::finalizeRecordItem)
                 .build();
-        final var recordFiles = transformFiles(List.of(
-                List.of(blockTransactionBuilder.clprRegisterChannel(register).build()),
-                List.of(blockTransactionBuilder.clprCloseChannel(sweep).build())));
+        final var recordFiles = transformFiles(
+                List.of(List.of(blockTransactionBuilder.clprCloseChannel(sweep).build())));
         assertThat(recordFiles.getLast().getItems()).singleElement().satisfies(item -> {
             assertThat(item.getClprContext()).isNotNull();
             assertThat(item.getClprContext().getClprChannels()).isEmpty();
         });
         parseFiles(recordFiles, commitIndex);
 
-        assertThat(clprChannelPendingCommitmentRepository.findById(DomainUtils.toBytes(ownershipCommitment)))
-                .get()
-                .returns(ClprPendingCommitmentStatus.DELETED, ClprChannelPendingCommitment::getStatus);
-        assertThat(findHistory(ClprChannelPendingCommitment.class))
-                .singleElement()
-                .returns(ClprPendingCommitmentStatus.OPEN, ClprChannelPendingCommitment::getStatus)
-                .returns(
-                        Range.closedOpen(register.getConsensusTimestamp(), sweep.getConsensusTimestamp()),
-                        ClprChannelPendingCommitment::getTimestampRange);
         assertThat(clprChannelRepository.count()).isZero();
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {0, 1, 2, 3})
+    @ValueSource(ints = {0, 1, 2})
     void clprControlMessageConfigPropagation(int commitIndex) {
         final var channel = createClprMessageChannel("eip155:298", 7);
         final var connectorId = recordItemBuilder.bytes(32);
@@ -494,7 +429,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {0, 1, 2, 3})
+    @ValueSource(ints = {0, 1, 2})
     void clprSendMessageFromContractCall(int commitIndex) {
         final var channel = createClprMessageChannel("hiero:testing", 1);
         final var call = recordItemBuilder
@@ -518,7 +453,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {0, 1, 2, 3})
+    @ValueSource(ints = {0, 1, 2})
     void clprSendMessageFromEthereumTransaction(int commitIndex) {
         final var channel = createClprMessageChannel("hiero:testing", 1);
         final var ethereum = recordItemBuilder
@@ -542,7 +477,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {0, 1, 2, 3})
+    @ValueSource(ints = {0, 1, 2})
     void clprSendMessageFromHookExecution(int commitIndex) {
         final var channel = createClprMessageChannel("hiero:testing", 1);
         final var parentTimestamp = timestampAfter(channel.consensusTimestamp(), 1);
@@ -586,7 +521,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
      * atomic batches on consensus nodes, so this is a parser resilience test rather than a valid network scenario.
      */
     @ParameterizedTest
-    @ValueSource(ints = {0, 1, 2, 3})
+    @ValueSource(ints = {0, 1, 2})
     void clprSendMessageFromAtomicBatchWithHookContractCallAndEthereum(int commitIndex) {
         final var channel = createClprMessageChannel("hiero:testing", 1);
         final var batchTimestamp = timestampAfter(channel.consensusTimestamp(), 1);
@@ -672,10 +607,9 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
     }
 
     private com.hederahashgraph.api.proto.java.ClprChannel activeChannelValue(
-            ByteString channelId, ByteString ownershipCommitment, String chainId, long nextMessageId) {
+            ByteString channelId, String chainId, long nextMessageId) {
         return com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setChannelId(channelId)
-                .setOwnershipCommitment(ownershipCommitment)
                 .setChainId(chainId)
                 .setStatus(ACTIVE)
                 .setNextMessageId(nextMessageId)
@@ -754,26 +688,17 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
 
     private ClprMessageChannel createClprMessageChannel(String chainId, long nextMessageId) {
         final var channelId = recordItemBuilder.bytes(32);
-        final var publicKey = recordItemBuilder.bytes(64);
-        final var commitment = DomainUtils.fromBytes(
-                SignatureUtils.keccak256(DomainUtils.toBytes(channelId), DomainUtils.toBytes(publicKey)));
-        final var register = recordItemBuilder
-                .clprRegisterChannel()
-                .transactionBody(body -> body.setOwnershipCommitment(commitment))
-                .customize(this::finalizeRecordItem)
-                .build();
-        final var value = activeChannelValue(channelId, commitment, chainId, nextMessageId);
-        final var complete = recordItemBuilder
-                .clprCompleteChannel()
-                .transactionBody(body -> body.setChannelId(channelId).setPublicKey(publicKey))
+        final var value = activeChannelValue(channelId, chainId, nextMessageId);
+        final var openChannel = recordItemBuilder
+                .clprOpenChannel()
+                .transactionBody(body -> body.setChannelId(channelId))
                 .recordItem(item -> item.clprContextBuilder()
                         .clprChannels(List.of(new ClprChannelEntry(channelId, clprChannelMapUpdate(channelId, value)))))
                 .customize(this::finalizeRecordItem)
                 .build();
         final var setupFiles = List.of(
-                List.of(blockTransactionBuilder.clprRegisterChannel(register).build()),
-                List.of(blockTransactionBuilder.clprCompleteChannel(complete).build()));
-        return new ClprMessageChannel(channelId, value, setupFiles, complete.getConsensusTimestamp());
+                List.of(blockTransactionBuilder.clprOpenChannel(openChannel).build()));
+        return new ClprMessageChannel(channelId, value, setupFiles, openChannel.getConsensusTimestamp());
     }
 
     private void finalizeRecordItem(RecordItemBuilder.Builder<?> builder) {

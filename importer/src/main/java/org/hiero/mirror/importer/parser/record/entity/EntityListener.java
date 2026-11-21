@@ -6,7 +6,6 @@ import java.util.Collection;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
@@ -61,9 +60,6 @@ public interface EntityListener {
     default void onAssessedCustomFee(AssessedCustomFee assessedCustomFee) throws ImporterException {}
 
     default void onClprChannel(ClprChannel clprChannel) throws ImporterException {}
-
-    default void onClprChannelPendingCommitment(ClprChannelPendingCommitment clprChannelPendingCommitment)
-            throws ImporterException {}
 
     default void onClprConnector(ClprConnector clprConnector) throws ImporterException {}
 

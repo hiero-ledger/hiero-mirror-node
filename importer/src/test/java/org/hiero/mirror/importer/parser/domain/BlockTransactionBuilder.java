@@ -237,7 +237,7 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
-    public BlockTransactionBuilder.Builder clprCompleteChannel(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder clprOpenChannel(RecordItem recordItem) {
         final var clprContext = recordItem.getClprContext();
         final var clprChannelEntry = Optional.ofNullable(clprContext)
                 .map(ClprContext::getClprChannel)
@@ -247,36 +247,8 @@ public class BlockTransactionBuilder {
         }
 
         final var channelId =
-                recordItem.getTransactionBody().getClprCompleteChannel().getChannelId();
+                recordItem.getTransactionBody().getClprOpenChannel().getChannelId();
         final var stateChange = clprChannelStateChange(channelId, clprChannelEntry.value());
-        return new BlockTransactionBuilder.Builder(
-                recordItem.getTransaction(),
-                transactionResult(recordItem),
-                Map.of(),
-                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
-                Collections.emptyList());
-    }
-
-    public BlockTransactionBuilder.Builder clprCompleteConnector(RecordItem recordItem) {
-        final var clprContext = recordItem.getClprContext();
-        final var clprConnectorEntry = Optional.ofNullable(clprContext)
-                .map(ClprContext::getClprConnector)
-                .orElse(null);
-        if (clprConnectorEntry == null) {
-            return defaultBlockItem(recordItem);
-        }
-
-        final var body = recordItem.getTransactionBody().getClprCompleteConnector();
-        final var key = ClprConnectorKey.newBuilder()
-                .setChannelId(body.getChannelId())
-                .setConnectorId(body.getConnectorId())
-                .build();
-        final var stateChange = StateChange.newBuilder()
-                .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
-                .setMapUpdate(MapUpdateChange.newBuilder()
-                        .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))
-                        .setValue(MapChangeValue.newBuilder().setClprConnectorValue(clprConnectorEntry.value())))
-                .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
@@ -331,35 +303,25 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
-    public BlockTransactionBuilder.Builder clprRegisterChannel(RecordItem recordItem) {
-        final var stateChange = StateChange.newBuilder()
-                .setStateId(StateIdentifier.STATE_ID_CLPR_PENDING_COMMITMENTS_VALUE)
-                .setMapUpdate(MapUpdateChange.newBuilder()
-                        .setKey(MapChangeKey.newBuilder()
-                                .setProtoBytesKey(BytesValue.of(recordItem
-                                        .getTransactionBody()
-                                        .getClprRegisterChannel()
-                                        .getOwnershipCommitment())))
-                        .setValue(MapChangeValue.newBuilder().setProtoBytesValue(BytesValue.getDefaultInstance())))
-                .build();
-        return new BlockTransactionBuilder.Builder(
-                recordItem.getTransaction(),
-                transactionResult(recordItem),
-                Map.of(),
-                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
-                Collections.emptyList());
-    }
-
     public BlockTransactionBuilder.Builder clprRegisterConnector(RecordItem recordItem) {
+        final var clprContext = recordItem.getClprContext();
+        final var clprConnectorEntry = Optional.ofNullable(clprContext)
+                .map(ClprContext::getClprConnector)
+                .orElse(null);
+        if (clprConnectorEntry == null) {
+            return defaultBlockItem(recordItem);
+        }
+
+        final var body = recordItem.getTransactionBody().getClprRegisterConnector();
+        final var key = ClprConnectorKey.newBuilder()
+                .setChannelId(body.getChannelId())
+                .setConnectorId(body.getConnectorId())
+                .build();
         final var stateChange = StateChange.newBuilder()
-                .setStateId(StateIdentifier.STATE_ID_CLPR_PENDING_CONNECTOR_COMMITMENTS_VALUE)
+                .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
-                        .setKey(MapChangeKey.newBuilder()
-                                .setProtoBytesKey(BytesValue.of(recordItem
-                                        .getTransactionBody()
-                                        .getClprRegisterConnector()
-                                        .getCommitment())))
-                        .setValue(MapChangeValue.newBuilder().setProtoBytesValue(BytesValue.getDefaultInstance())))
+                        .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))
+                        .setValue(MapChangeValue.newBuilder().setClprConnectorValue(clprConnectorEntry.value())))
                 .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
