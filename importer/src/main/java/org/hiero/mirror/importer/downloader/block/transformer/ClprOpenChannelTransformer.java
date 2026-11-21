@@ -13,15 +13,15 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
  * {@link org.hiero.mirror.common.domain.transaction.ClprContext#getClprChannel()}.
  */
 @Named
-final class ClprCompleteChannelTransformer extends AbstractClprChannelTransformer {
+final class ClprOpenChannelTransformer extends AbstractClprChannelTransformer {
 
     @Override
     protected ByteString getChannelId(TransactionBody transactionBody) {
-        return transactionBody.getClprCompleteChannel().getChannelId();
+        return transactionBody.getClprOpenChannel().getChannelId();
     }
 
     @Override
     public TransactionType getType() {
-        return TransactionType.CLPRCOMPLETECHANNEL;
+        return TransactionType.CLPROPENCHANNEL;
     }
 }

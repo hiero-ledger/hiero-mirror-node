@@ -20,7 +20,6 @@ public class CacheConfiguration {
 
     public static final String CACHE_ADDRESS_BOOK = "addressBook";
     public static final String CACHE_ALIAS = "alias";
-    public static final String CACHE_CLPR_CONNECTOR_COMMITMENT = "clprConnectorCommitment";
     public static final String CACHE_CLPR_ENDPOINT_MANIFEST = "clprEndpointManifest";
     public static final String CACHE_CLPR_LEDGER_CONFIGURATION = "clprLedgerConfiguration";
     public static final String CACHE_FILE_DATA = "fileData";
@@ -40,11 +39,6 @@ public class CacheConfiguration {
     @Bean(CACHE_ALIAS)
     CacheManager cacheManagerAlias() {
         return cacheManager(cacheProperties.getAlias());
-    }
-
-    @Bean(CACHE_CLPR_CONNECTOR_COMMITMENT)
-    CacheManager cacheManagerClprConnectorCommitment() {
-        return cacheManager(cacheProperties.getClprConnector());
     }
 
     @Bean(CACHE_CLPR_ENDPOINT_MANIFEST)

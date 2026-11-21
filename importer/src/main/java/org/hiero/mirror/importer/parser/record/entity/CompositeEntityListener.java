@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
@@ -82,12 +81,6 @@ final class CompositeEntityListener implements EntityListener {
     @Override
     public void onClprChannel(ClprChannel clprChannel) throws ImporterException {
         onEach(EntityListener::onClprChannel, clprChannel);
-    }
-
-    @Override
-    public void onClprChannelPendingCommitment(ClprChannelPendingCommitment clprChannelPendingCommitment)
-            throws ImporterException {
-        onEach(EntityListener::onClprChannelPendingCommitment, clprChannelPendingCommitment);
     }
 
     @Override

@@ -74,14 +74,12 @@ public enum TransactionType {
     REGISTEREDNODEUPDATE(79, EntityOperation.UPDATE),
     REGISTEREDNODEDELETE(80, EntityOperation.DELETE),
     CLPRUPDATELEDGERCONFIGURATION(82, EntityOperation.NONE),
-    CLPRREGISTERCHANNEL(83, EntityOperation.NONE),
-    CLPRCOMPLETECHANNEL(84, EntityOperation.NONE),
     CLPRCLOSECHANNEL(85, EntityOperation.NONE),
     CLPRSUBMITBUNDLE(86, EntityOperation.NONE),
     CLPRREGISTERCONNECTOR(88, EntityOperation.NONE),
     CLPRDEREGISTERCONNECTOR(89, EntityOperation.NONE),
-    CLPRCOMPLETECONNECTOR(90, EntityOperation.NONE),
-    CLPRMAINTENANCE(92, EntityOperation.NONE);
+    CLPRMAINTENANCE(92, EntityOperation.NONE),
+    CLPROPENCHANNEL(94, EntityOperation.NONE);
 
     private static final Map<Integer, TransactionType> idMap =
             Arrays.stream(values()).collect(Collectors.toMap(TransactionType::getProtoId, Function.identity()));

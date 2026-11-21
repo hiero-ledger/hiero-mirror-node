@@ -4,6 +4,7 @@ package org.hiero.mirror.common.domain.clpr;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
+import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -24,8 +25,8 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
 /**
- * On-ledger state for a single CLPR Connector, keyed by {@code (channelId, commitment)} since {@code connectorId}
- * isn't known until {@code ClprCompleteConnector} reveals it.
+ * On-ledger state for a single CLPR Connector, keyed by {@code (channelId, connectorId)} and created in ACTIVE
+ * status by a single {@code ClprRegisterConnector} transaction.
  */
 @Data
 @MappedSuperclass
@@ -35,44 +36,27 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 @Upsertable(history = true, skipPartialUpdate = true)
 public abstract class AbstractClprConnector implements History {
 
+    @Column(updatable = false)
     @ToString.Exclude
     private byte[] adminKey;
 
     @jakarta.persistence.Id
     private byte[] channelId;
 
-    @jakarta.persistence.Id
-    private byte[] commitment;
-
+    @Column(updatable = false)
     @Convert(converter = EntityIdConverter.class)
     private EntityId connectorContractId;
 
-    // Null until ClprCompleteConnector reveals it.
+    @jakarta.persistence.Id
     private byte[] connectorId;
 
-    // Reset fresh by every ClprCompleteConnector, including reactivation after deregistration -- not the row's
-    // original registration time.
+    @Column(updatable = false)
     private Long createdTimestamp;
 
     private Long inFlightMessageCount;
 
     // Mutable: ClprSubmitBundle slashing reduces this.
     private Long lockedStake;
-
-    // Not updatable=false: null at registration, set once by ClprCompleteConnector -- on an UPDATE of the existing
-    // row, not an INSERT, since the row already exists from registration.
-    @ToString.Exclude
-    private byte[] publicKey;
-
-    @ToString.Exclude
-    private byte[] salt;
-
-    @ToString.Exclude
-    private byte[] signature;
-
-    // Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number -- preserved as-is even if this mirror
-    // node doesn't recognize it yet, rather than losing a value a newer consensus node sent.
-    private Integer signatureScheme;
 
     private Long slashCount;
 
@@ -87,7 +71,7 @@ public abstract class AbstractClprConnector implements History {
 
     @JsonIgnore
     public Id getId() {
-        return new Id(channelId, commitment);
+        return new Id(channelId, connectorId);
     }
 
     @AllArgsConstructor
@@ -98,6 +82,6 @@ public abstract class AbstractClprConnector implements History {
         private static final long serialVersionUID = 5327164893021746587L;
 
         private byte[] channelId;
-        private byte[] commitment;
+        private byte[] connectorId;
     }
 }

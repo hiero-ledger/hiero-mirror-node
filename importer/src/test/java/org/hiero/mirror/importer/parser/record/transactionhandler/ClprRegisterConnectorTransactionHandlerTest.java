@@ -10,6 +10,7 @@ import com.hederahashgraph.api.proto.java.ClprRegisterConnectorTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
@@ -26,18 +27,24 @@ final class ClprRegisterConnectorTransactionHandlerTest extends AbstractTransact
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
                 .setClprRegisterConnector(ClprRegisterConnectorTransactionBody.newBuilder()
-                        .setCommitment(DomainUtils.fromBytes(domainBuilder.bytes(32)))
-                        .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32))));
+                        .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                        .setConnectorId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                        .setIdentityKey(recordItemBuilder.key())
+                        .setSalt(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                        .setConnectorContract(contractId)
+                        .setAdminKey(recordItemBuilder.key())
+                        .setLockedStake(100_000_000L));
     }
 
     @Override
     protected EntityType getExpectedEntityIdType() {
-        return null;
+        return EntityType.CONTRACT;
     }
 
     @Test
     void updateTransaction() {
-        // given -- channel_id and commitment are both on the transaction body, so no state change is needed
+        // given -- every field the Connector row needs is on the transaction body itself, so no state change is
+        // needed
         final var recordItem = getRecordItem(
                 getDefaultTransactionBody().build(),
                 getDefaultTransactionRecord().build());
@@ -52,10 +59,13 @@ final class ClprRegisterConnectorTransactionHandlerTest extends AbstractTransact
         long consensusTimestamp = recordItem.getConsensusTimestamp();
         verify(entityListener).onClprConnector(captor.capture());
         assertThat(captor.getValue())
+                .returns(DomainUtils.toBytes(body.getAdminKey().toByteString()), ClprConnector::getAdminKey)
                 .returns(DomainUtils.toBytes(body.getChannelId()), ClprConnector::getChannelId)
-                .returns(DomainUtils.toBytes(body.getCommitment()), ClprConnector::getCommitment)
+                .returns(EntityId.of(body.getConnectorContract()), ClprConnector::getConnectorContractId)
+                .returns(DomainUtils.toBytes(body.getConnectorId()), ClprConnector::getConnectorId)
                 .returns(consensusTimestamp, ClprConnector::getCreatedTimestamp)
-                .returns(ClprConnectorStatus.PENDING, ClprConnector::getStatus)
+                .returns(body.getLockedStake(), ClprConnector::getLockedStake)
+                .returns(ClprConnectorStatus.ACTIVE, ClprConnector::getStatus)
                 .returns(Range.atLeast(consensusTimestamp), ClprConnector::getTimestampRange);
     }
 }

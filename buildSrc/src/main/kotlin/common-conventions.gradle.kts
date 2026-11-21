@@ -2,7 +2,10 @@
 
 plugins { id("org.owasp.dependencycheck") }
 
-repositories { mavenCentral() }
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
 
 val resources = rootDir.resolve("buildSrc").resolve("src").resolve("main").resolve("resources")
 

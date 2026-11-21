@@ -16,8 +16,6 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.util.List;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
-import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -82,28 +80,18 @@ final class ClprCloseChannelTransactionHandlerTest extends AbstractTransactionHa
 
     @Test
     void updateTransactionAbandonedCommitment() {
-        // given
+        // given -- no Channel record exists: a legacy pending-commitment sweep from a network that predates
+        // ClprOpenChannel. No such commitment can exist in this mirror node's data, so nothing is written.
         final var recordItem = buildRecordItem(
                 getDefaultTransactionBody().build(),
                 getDefaultTransactionRecord().build(),
                 null);
-        final var body = recordItem.getTransactionBody().getClprCloseChannel();
         final var transaction = domainBuilder.transaction().get();
-        final var captor = ArgumentCaptor.forClass(ClprChannelPendingCommitment.class);
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(entityListener).onClprChannelPendingCommitment(captor.capture());
-        assertThat(captor.getValue())
-                .returns(
-                        DomainUtils.toBytes(body.getOwnershipCommitment()),
-                        ClprChannelPendingCommitment::getOwnershipCommitment)
-                .returns(ClprPendingCommitmentStatus.DELETED, ClprChannelPendingCommitment::getStatus)
-                .returns(
-                        Range.atLeast(recordItem.getConsensusTimestamp()),
-                        ClprChannelPendingCommitment::getTimestampRange);
         verifyNoMoreInteractions(entityListener);
     }
 
