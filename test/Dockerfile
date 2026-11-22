@@ -1,4 +1,4 @@
-FROM eclipse-temurin:25.0.5_8-jre-resolute@sha256:b6e00330337143a2c1a20f1c1c693d4b6ce9a3c30ade8b9d03fc68cc9e3871e7
+FROM eclipse-temurin:25.0.5_8-jre-resolute@sha256:480ef64e4540d45b0301e8afb7873bd3fa61ce93c5f66273eb569420718f38e2
 
 ENV JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=80 -XX:-UseBASE64Intrinsics"
 WORKDIR /app
