@@ -1000,10 +1000,9 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(ESTIMATE_GAS, GET_COUNTER);
         assertThat(callContract(data, address).getResult()).isEqualTo("0x");
         var balanceData = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, asAddress(address));
-        var initialBalance = callContract(balanceData, estimateContractAddress).getResultAsNumber();
-        // A consensus fee can land between these reads. The persisted balance only has to stay nearer the
-        // pre-call snapshot than the override.
-        final var overriddenBalance = BigInteger.valueOf(200);
+        // One million hbar. Above any balance the acceptance suite assigns. Long.MAX_VALUE makes the
+        // consensus node report a non-zero net hbar change and fail the call with FAIL_INVALID.
+        final var overriddenBalance = BigInteger.valueOf(100_000_000_000_000L);
         var overrides = List.of(StateOverrideBuilder.forAddress(address)
                 .code(runtimeBytecode)
                 .stateDiff(3, 41)
@@ -1025,12 +1024,9 @@ public class CallFeature extends AbstractFeature {
         assertThat(callContract(data, address).getResult())
                 .as("The code override must not persist")
                 .isEqualTo("0x");
-        var balanceAfter = callContract(balanceData, estimateContractAddress).getResultAsNumber();
-        // Some other test might affect the BOB's balance, so this is why we don't have an exact balance check.
-        // The assert verifies the account stays near its real balance and away from the state overridden balance.
-        assertThat(balanceAfter.subtract(initialBalance).abs())
+        assertThat(callContract(balanceData, estimateContractAddress).getResultAsNumber())
                 .as("The balance override must not persist")
-                .isLessThan(initialBalance.subtract(overriddenBalance).abs().max(BigInteger.ONE));
+                .isLessThan(overriddenBalance);
     }
 
     private void assertMetadataTokenName(String data, TokenClient.TokenNameEnum tokenNameEnum) {
