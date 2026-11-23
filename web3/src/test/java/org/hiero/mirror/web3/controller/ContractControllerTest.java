@@ -25,13 +25,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -40,6 +39,7 @@ import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.config.JacksonConfiguration;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
@@ -81,12 +81,14 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import tools.jackson.databind.json.JsonMapper;
 
 @ExtendWith({MockitoExtension.class, SpringExtension.class, OutputCaptureExtension.class})
 @WebMvcTest(controllers = ContractController.class)
@@ -100,10 +102,7 @@ final class ContractControllerTest {
     private MockMvc mockMvc;
 
     @Resource
-    private ObjectMapper objectMapper;
-
-    // Matches the snake_case naming used by the Jackson 3 HTTP message converter
-    private ObjectMapper requestMapper;
+    private JsonMapper jsonMapper;
 
     @Resource
     private Web3Properties web3Properties;
@@ -120,7 +119,6 @@ final class ContractControllerTest {
 
     @BeforeEach
     void setUp() {
-        requestMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
         web3Properties.setEnableBlockOverrides(true);
         web3Properties.setEnableStateOverrides(true);
         throttleManager.throttle(any(ContractCallRequest.class));
@@ -129,7 +127,7 @@ final class ContractControllerTest {
 
     @SneakyThrows
     private String convert(Object object) {
-        return requestMapper.writeValueAsString(object);
+        return jsonMapper.writeValueAsString(object);
     }
 
     @SneakyThrows
@@ -1012,6 +1010,41 @@ final class ContractControllerTest {
     }
 
     @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "\"blockOverride\":{\"time\":1}",
+                "\"block_override\":{\"blockNumber\":1}",
+                "\"block_override\":{\"unknown\":1}",
+                "\"stateOverrides\":[]",
+                "\"state_overrides\":[{\"address\":\"0x00000000000000000000000000000000000004e2\",\"unknown\":1}]",
+                "\"unknown\":1",
+            })
+    void callRejectsUnknownField(final String field) throws Exception {
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4",%s}
+                                """.formatted(field)))
+                .andExpect(status().isBadRequest());
+        verify(service, never()).processCall(any(), any());
+    }
+
+    @Test
+    void callRejectsRequestExceedingJsonConstraints() throws Exception {
+        final var overrides = String.join(",", Collections.nCopies(2_600, "{\"address\":\"a\"}"));
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4","state_overrides":[%s]}
+                                """.formatted(overrides)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("Token count")));
+        verify(service, never()).processCall(any(), any());
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"gasPrice", "gas_price"})
     void callAcceptsGasPriceCamelCaseAndSnakeCase(final String field) throws Exception {
         given(service.processCall(any(), any())).willReturn("0x0");
@@ -1062,6 +1095,7 @@ final class ContractControllerTest {
     }
 
     @TestConfiguration
+    @Import(JacksonConfiguration.class)
     public static class TestConfig {
 
         @Bean

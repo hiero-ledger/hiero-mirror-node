@@ -106,6 +106,7 @@ spring:
   jackson:
     deserialization:
       accept-float-as-int: false
+      fail-on-unknown-properties: true
     mapper:
       allow-coercion-of-scalars: false
     property-naming-strategy: SNAKE_CASE

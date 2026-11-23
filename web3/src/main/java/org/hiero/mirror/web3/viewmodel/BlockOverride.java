@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.viewmodel;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ADDRESS_LENGTH;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Builder;
@@ -33,7 +32,6 @@ import org.jspecify.annotations.Nullable;
  * @param time          EVM {@code block.timestamp} in Unix seconds
  */
 @Builder
-@JsonIgnoreProperties(ignoreUnknown = true)
 @NullMarked
 public record BlockOverride(
         @Nullable @PositiveOrZero Long baseFeePerGas,
