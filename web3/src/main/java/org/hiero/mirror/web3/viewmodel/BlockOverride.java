@@ -15,6 +15,7 @@ import org.hiero.mirror.web3.validation.Hex;
 import org.hyperledger.besu.datatypes.Address;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * EVM block context override. Every field is optional, and an omitted field keeps the value of the bound record file or
@@ -33,6 +34,7 @@ import org.jspecify.annotations.Nullable;
  */
 @Builder
 @NullMarked
+@Validated
 public record BlockOverride(
         @Nullable @PositiveOrZero Long baseFeePerGas,
         @Nullable @Positive Long blobBaseFee,
