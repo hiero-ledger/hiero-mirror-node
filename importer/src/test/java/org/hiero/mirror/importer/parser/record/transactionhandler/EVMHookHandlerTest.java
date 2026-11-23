@@ -4,7 +4,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
-import static org.hiero.mirror.importer.parser.record.transactionhandler.EVMHookHandler.keccak256;
+import static org.hiero.mirror.common.util.SignatureUtils.keccak256;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.any;

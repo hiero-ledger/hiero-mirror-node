@@ -89,4 +89,21 @@ final class SpelHelperTest {
         assertThat(spelHelper.getCacheKey(new byte[] {1, 2, 3}))
                 .isNotEqualTo(spelHelper.getCacheKey(new byte[] {1, 2, 4}));
     }
+
+    @Test
+    void getCacheKeyComposite() {
+        final var first = new byte[] {1, 2, 3};
+        final var second = new byte[] {4, 5};
+        assertThat(spelHelper.getCacheKey(first, second))
+                .isEqualTo(spelHelper.getCacheKey(first.clone(), second.clone()))
+                .hasSameHashCodeAs(spelHelper.getCacheKey(first.clone(), second.clone()));
+    }
+
+    @Test
+    void getCacheKeyCompositeDifferentBoundary() {
+        // same concatenated bytes, different split point -- distinguishable since the key is positional, not a
+        // single concatenated value
+        assertThat(spelHelper.getCacheKey(new byte[] {1, 2}, new byte[] {3}))
+                .isNotEqualTo(spelHelper.getCacheKey(new byte[] {1}, new byte[] {2, 3}));
+    }
 }

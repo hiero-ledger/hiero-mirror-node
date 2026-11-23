@@ -14,14 +14,10 @@ import org.hiero.mirror.restjava.dto.HooksRequest;
 import org.hiero.mirror.restjava.repository.HookRepository;
 import org.hiero.mirror.restjava.repository.HookStorageChangeRepository;
 import org.hiero.mirror.restjava.repository.HookStorageRepository;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 
 @Named
 @RequiredArgsConstructor
 final class HookServiceImpl implements HookService {
-
-    private static final String HOOK_ID = "hookId";
 
     private final HookRepository hookRepository;
     private final HookStorageRepository hookStorageRepository;
@@ -30,14 +26,14 @@ final class HookServiceImpl implements HookService {
 
     @Override
     public Collection<Hook> getHooks(HooksRequest request) {
-        final var sort = Sort.by(request.getOrder(), HOOK_ID);
-        final var page = PageRequest.of(0, request.getLimit(), sort);
         final var id = entityService.lookup(request.getOwnerId());
+        final var order = request.getOrder().name();
+        final int limit = request.getLimit();
         final long lowerBound = request.getLowerBound();
         final long upperBound = request.getUpperBound();
 
         if (request.getHookIds().isEmpty()) {
-            return hookRepository.findByOwnerIdAndHookIdBetween(id.getId(), lowerBound, upperBound, page);
+            return hookRepository.findByOwnerIdAndHookIdBetween(id.getId(), lowerBound, upperBound, order, limit);
         } else {
             // Both equal and range filters are present.
             final var idsInRange = request.getHookIds().stream()
@@ -48,7 +44,7 @@ final class HookServiceImpl implements HookService {
                 return List.of();
             }
 
-            return hookRepository.findByOwnerIdAndHookIdIn(id.getId(), idsInRange, page);
+            return hookRepository.findByOwnerIdAndHookIdIn(id.getId(), idsInRange, order, limit);
         }
     }
 
@@ -59,12 +55,18 @@ final class HookServiceImpl implements HookService {
         }
 
         final var ownerId = entityService.lookup(request.getOwnerId());
-        final var page = request.getPageRequest();
+        final var order = request.getOrder();
+        final int limit = request.getLimit();
         final var keys = request.getKeys();
 
         if (keys.isEmpty()) {
             final var hookStorage = hookStorageRepository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
-                    ownerId.getId(), request.getHookId(), request.getKeyLowerBound(), request.getKeyUpperBound(), page);
+                    ownerId.getId(),
+                    request.getHookId(),
+                    request.getKeyLowerBound(),
+                    request.getKeyUpperBound(),
+                    order,
+                    limit);
 
             return new HookStorageResult(ownerId, hookStorage);
         }
@@ -76,13 +78,12 @@ final class HookServiceImpl implements HookService {
         }
 
         final var hookStorage = hookStorageRepository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
-                ownerId.getId(), request.getHookId(), keysInRange, page);
+                ownerId.getId(), request.getHookId(), keysInRange, order, limit);
 
         return new HookStorageResult(ownerId, hookStorage);
     }
 
     private HookStorageResult getHookStorageChange(HookStorageRequest request) {
-        final var page = request.getPageRequest();
         final var ownerId = entityService.lookup(request.getOwnerId());
         final long hookId = request.getHookId();
 
@@ -102,7 +103,13 @@ final class HookServiceImpl implements HookService {
 
         if (requestHasKeys) {
             changes = hookStorageChangeRepository.findByKeyInAndTimestampBetween(
-                    ownerId.getId(), hookId, keys, timestampLowerBound, timestampUpperBound, page);
+                    ownerId.getId(),
+                    hookId,
+                    keys,
+                    timestampLowerBound,
+                    timestampUpperBound,
+                    request.getOrder(),
+                    request.getLimit());
         } else {
             changes = hookStorageChangeRepository.findByKeyBetweenAndTimestampBetween(
                     ownerId.getId(),
@@ -111,7 +118,8 @@ final class HookServiceImpl implements HookService {
                     request.getKeyUpperBound(),
                     timestampLowerBound,
                     timestampUpperBound,
-                    page);
+                    request.getOrder(),
+                    request.getLimit());
         }
 
         return new HookStorageResult(ownerId, changes);

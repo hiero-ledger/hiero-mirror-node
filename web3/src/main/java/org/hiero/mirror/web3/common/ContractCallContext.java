@@ -57,6 +57,9 @@ public class ContractCallContext {
     private CallServiceParameters callServiceParameters;
 
     @Setter
+    private long refundableGas;
+
+    @Setter
     private EntityNumber entityNumber;
 
     /**

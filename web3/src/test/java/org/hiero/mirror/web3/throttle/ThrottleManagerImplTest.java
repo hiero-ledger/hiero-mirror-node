@@ -20,6 +20,8 @@ import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
@@ -89,6 +91,16 @@ final class ThrottleManagerImplTest {
     @Test
     void restoreZero() {
         throttleManager.restore(0);
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {0L, 200_000L, 1_000_000L})
+    void restoreAddsScaledGas(final long gas) {
+        final var gasLimitBucket = drainedBucket();
+
+        refundManager(gasLimitBucket).restore(gas);
+
+        assertThat(gasLimitBucket.getAvailableTokens()).isEqualTo(throttleProperties.scaleGas(gas));
     }
 
     @Test
@@ -280,6 +292,21 @@ final class ThrottleManagerImplTest {
         request.setTo("0x00000000000000000000000000000000000004e4");
         request.setValue(1L);
         return request;
+    }
+
+    /** A gas bucket with no tokens left that does not refill during the test. */
+    private static Bucket drainedBucket() {
+        final var limit = Bandwidth.builder()
+                .capacity(1_000L)
+                .refillIntervally(1_000L, Duration.ofDays(1))
+                .build();
+        final var bucket = Bucket.builder().addLimit(limit).build();
+        bucket.tryConsumeAsMuchAsPossible();
+        return bucket;
+    }
+
+    private ThrottleManager refundManager(final Bucket gasLimitBucket) {
+        return new ThrottleManagerImpl(gasLimitBucket, createBucket(10L), throttleProperties);
     }
 
     private ThrottleManager createThrottleManager() {
