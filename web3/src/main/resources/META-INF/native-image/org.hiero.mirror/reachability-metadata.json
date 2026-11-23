@@ -70,7 +70,7 @@
       },
       {
         "returnType": "int",
-        "parameterTypes": ["void*", "int", "int", "int", "byte"],
+        "parameterTypes": ["void*", "int", "int", "int", "jbyte"],
         "options": { "critical": { "allowHeapAccess": true } }
       },
       {
