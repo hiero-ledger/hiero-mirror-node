@@ -25,7 +25,6 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.clpr.AbstractClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
-import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
@@ -36,12 +35,10 @@ import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnect
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
-import org.hiero.mirror.common.util.SignatureUtils;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.domain.RecordFileBuilder;
-import org.hiero.mirror.importer.repository.ClprChannelPendingCommitmentRepository;
 import org.hiero.mirror.importer.repository.ClprChannelRepository;
 import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.hiero.mirror.importer.repository.ClprLedgerConfigurationRepository;
@@ -70,7 +67,6 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
     private static final ContractID HTS_PRECOMPILE_CONTRACT_ID =
             ContractID.newBuilder().setContractNum(0x167).build();
 
-    private final ClprChannelPendingCommitmentRepository clprChannelPendingCommitmentRepository;
     private final ClprChannelRepository clprChannelRepository;
     private final ClprConnectorRepository clprConnectorRepository;
     private final ClprLedgerConfigurationRepository clprLedgerConfigurationRepository;
@@ -399,17 +395,9 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
 
     @Test
     void clprChannelLifecycle() {
-        // given -- register, complete, submit a bundle, then close, correlated by channel_id and
-        // ownership_commitment = keccak256(channel_id || public_key); exercises the in-batch upsert-merge logic
+        // given -- open, submit a bundle, then close, correlated by channel_id; exercises the in-batch upsert-merge
+        // logic
         final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
-        final var publicKey = DomainUtils.fromBytes(domainBuilder.bytes(64));
-        final var ownershipCommitment = DomainUtils.fromBytes(
-                SignatureUtils.keccak256(DomainUtils.toBytes(channelId), DomainUtils.toBytes(publicKey)));
-
-        final var register = recordItemBuilder
-                .clprRegisterChannel()
-                .transactionBody(b -> b.setOwnershipCommitment(ownershipCommitment))
-                .build();
 
         final var clprChannelActive = ClprChannel.newBuilder()
                 .setChannelId(channelId)
@@ -420,13 +408,12 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .setSentRunningHash(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                 .setReceivedMessageId(0)
                 .setReceivedRunningHash(DomainUtils.fromBytes(domainBuilder.bytes(32)))
-                .setOwnershipCommitment(ownershipCommitment)
                 .setVerifierContract(recordItemBuilder.contractId())
                 .setVerifierFingerprint(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                 .build();
-        final var complete = recordItemBuilder
-                .clprCompleteChannel()
-                .transactionBody(b -> b.setChannelId(channelId).setPublicKey(publicKey))
+        final var openChannel = recordItemBuilder
+                .clprOpenChannel()
+                .transactionBody(b -> b.setChannelId(channelId))
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(
                                 List.of(new ClprChannelEntry(channelId, clprChannelMapUpdate(clprChannelActive)))))
@@ -453,7 +440,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                                 List.of(new ClprChannelEntry(channelId, clprChannelMapUpdate(clprChannelClosing)))))
                 .build();
 
-        final var recordFile = recordFileWithItems(List.of(register, complete, submitBundle, closeChannel), null);
+        final var recordFile = recordFileWithItems(List.of(openChannel, submitBundle, closeChannel), null);
 
         // when
         recordFileParser.parse(recordFile);
@@ -461,16 +448,11 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         // then
         assertRecordFile(recordFile);
 
-        final var pendingCommitment = clprChannelPendingCommitmentRepository
-                .findById(DomainUtils.toBytes(ownershipCommitment))
-                .orElseThrow();
-        assertThat(pendingCommitment.getStatus()).isEqualTo(ClprPendingCommitmentStatus.COMPLETED);
-
         final var channel =
                 clprChannelRepository.findById(DomainUtils.toBytes(channelId)).orElseThrow();
         assertThat(channel.getStatus()).isEqualTo(ClprChannelStatus.CLOSING_VALUE);
         assertThat(channel.getNextMessageId()).isEqualTo(2L);
-        // chainId was only set at completion time; merging the later submitBundle/close updates must carry it
+        // chainId was only set at open time; merging the later submitBundle/close updates must carry it
         // forward rather than null it out
         assertThat(channel.getChainId()).isEqualTo("hedera:mainnet");
 
@@ -479,35 +461,14 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
 
     @Test
     void clprConnectorLifecycle() {
-        // given -- register, complete, then deregister, correlated by connector_id and
-        // commitment = keccak256(connector_id || public_key); exercises the in-batch upsert-merge logic
+        // given -- register creates the ACTIVE connector row directly, then deregister closes it, correlated by
+        // channel_id/connector_id; exercises the in-batch upsert-merge logic
         final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
         final var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
-        final var publicKey = DomainUtils.fromBytes(domainBuilder.bytes(64));
-        final var commitment = DomainUtils.fromBytes(
-                SignatureUtils.keccak256(DomainUtils.toBytes(connectorId), DomainUtils.toBytes(publicKey)));
 
         final var register = recordItemBuilder
                 .clprRegisterConnector()
-                .transactionBody(b -> b.setCommitment(commitment).setChannelId(channelId))
-                .build();
-
-        final var connectorKey = ClprConnectorKey.newBuilder()
-                .setChannelId(channelId)
-                .setConnectorId(connectorId)
-                .build();
-        final var clprConnectorValue = ClprConnector.newBuilder()
-                .setConnectorId(connectorId)
-                .setChannelId(channelId)
-                .setConnectorContract(domainBuilder.entityNum(4000L).toContractID())
-                .build();
-        final var complete = recordItemBuilder
-                .clprCompleteConnector()
-                .transactionBody(b ->
-                        b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
-                .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(
-                                new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(clprConnectorValue)))))
+                .transactionBody(b -> b.setChannelId(channelId).setConnectorId(connectorId))
                 .build();
 
         final var stakeRecipient = domainBuilder.entityNum(5000L).toAccountID();
@@ -517,7 +478,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                         b.setChannelId(channelId).setConnectorId(connectorId).setStakeRecipient(stakeRecipient))
                 .build();
 
-        final var recordFile = recordFileWithItems(List.of(register, complete, deregister), null);
+        final var recordFile = recordFileWithItems(List.of(register, deregister), null);
 
         // when
         recordFileParser.parse(recordFile);
@@ -526,54 +487,48 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertRecordFile(recordFile);
 
         final var connector = clprConnectorRepository
-                .findById(new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(commitment)))
+                .findById(
+                        new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .orElseThrow();
         assertThat(connector.getStatus()).isEqualTo(ClprConnectorStatus.DELETED);
         assertThat(connector.getConnectorId()).isEqualTo(DomainUtils.toBytes(connectorId));
-        // connectorContractId was only set at completion time; merging the later deregister update must carry it
+        // connectorContractId was only set at registration time; merging the later deregister update must carry it
         // forward rather than null it out
         assertThat(connector.getConnectorContractId()).isNotNull();
     }
 
     @Test
     void clprConnectorSendMessageThenSubmitBundlePatch() {
-        // given -- register + complete establish the connector, a ContractCall invoking the CLPR sendMessage system
+        // given -- register establishes the connector directly, a ContractCall invoking the CLPR sendMessage system
         // contract bumps in_flight_message_count, then a SubmitBundle reply slashes and decrements it; exercises the
         // cross-handler (ContractCall + ClprSubmitBundle) same-batch merge onto one connector row
         final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
         final var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
-        final var publicKey = DomainUtils.fromBytes(domainBuilder.bytes(64));
-        final var commitment = DomainUtils.fromBytes(
-                SignatureUtils.keccak256(DomainUtils.toBytes(connectorId), DomainUtils.toBytes(publicKey)));
+        final var connectorContract = domainBuilder.entityNum(4100L).toContractID();
 
         final var register = recordItemBuilder
                 .clprRegisterConnector()
-                .transactionBody(b -> b.setCommitment(commitment).setChannelId(channelId))
+                .transactionBody(b -> b.setChannelId(channelId)
+                        .setConnectorId(connectorId)
+                        .setConnectorContract(connectorContract)
+                        .setLockedStake(100_000_000L))
                 .build();
 
         final var connectorKey = ClprConnectorKey.newBuilder()
                 .setChannelId(channelId)
                 .setConnectorId(connectorId)
                 .build();
-        final var clprConnectorComplete = ClprConnector.newBuilder()
+        final var clprConnectorRegistered = ClprConnector.newBuilder()
                 .setConnectorId(connectorId)
                 .setChannelId(channelId)
-                .setConnectorContract(domainBuilder.entityNum(4100L).toContractID())
+                .setConnectorContract(connectorContract)
                 .setLockedStake(100_000_000L)
-                .build();
-        final var complete = recordItemBuilder
-                .clprCompleteConnector()
-                .transactionBody(b ->
-                        b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
-                .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(
-                                new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(clprConnectorComplete)))))
                 .build();
 
         // Each ClprConnector state change is the connector's full current state, not a delta, so later snapshots
         // are derived from the prior one rather than built from scratch.
         final var clprConnectorAfterSend =
-                clprConnectorComplete.toBuilder().setInFlightMessageCount(1).build();
+                clprConnectorRegistered.toBuilder().setInFlightMessageCount(1).build();
         final var sendMessage = recordItemBuilder
                 .contractCall()
                 .recordItem(r -> r.clprContextBuilder()
@@ -593,7 +548,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                                 connectorKey, clprConnectorMapUpdate(clprConnectorAfterBundle)))))
                 .build();
 
-        final var recordFile = recordFileWithItems(List.of(register, complete, sendMessage, submitBundle), null);
+        final var recordFile = recordFileWithItems(List.of(register, sendMessage, submitBundle), null);
 
         // when
         recordFileParser.parse(recordFile);
@@ -602,49 +557,37 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertRecordFile(recordFile);
 
         final var connector = clprConnectorRepository
-                .findById(new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(commitment)))
+                .findById(
+                        new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .orElseThrow();
         assertThat(connector.getInFlightMessageCount()).isZero();
         assertThat(connector.getSlashCount()).isOne();
         assertThat(connector.getLockedStake()).isEqualTo(90_000_000L);
-        // connectorContractId was only set at completion time; merging the sendMessage/submitBundle patches must
+        // connectorContractId was only set at registration time; merging the sendMessage/submitBundle patches must
         // carry it forward rather than null it out
         assertThat(connector.getConnectorContractId()).isNotNull();
     }
 
     @Test
     void clprConnectorBanRemoval() {
-        // given -- register + complete establish the connector, then a SubmitBundle's own state change carries a
-        // map-delete (full ban) for the connector's key rather than a status patch; exercises the generic
-        // connectorsRemoved path backfilling fields from the prior completion rather than nulling them out
+        // given -- register establishes the connector, then a SubmitBundle's own state change carries a map-delete
+        // (full ban) for the connector's key rather than a status patch; exercises the generic connectorsRemoved
+        // path backfilling fields from the prior registration rather than nulling them out
         final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
         final var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
-        final var publicKey = DomainUtils.fromBytes(domainBuilder.bytes(64));
-        final var commitment = DomainUtils.fromBytes(
-                SignatureUtils.keccak256(DomainUtils.toBytes(connectorId), DomainUtils.toBytes(publicKey)));
+        final var connectorContract = domainBuilder.entityNum(4200L).toContractID();
 
         final var register = recordItemBuilder
                 .clprRegisterConnector()
-                .transactionBody(b -> b.setCommitment(commitment).setChannelId(channelId))
+                .transactionBody(b -> b.setChannelId(channelId)
+                        .setConnectorId(connectorId)
+                        .setConnectorContract(connectorContract)
+                        .setLockedStake(100_000_000L))
                 .build();
 
         final var removedConnectorKey = ClprConnectorKey.newBuilder()
                 .setChannelId(channelId)
                 .setConnectorId(connectorId)
-                .build();
-        final var clprConnectorComplete = ClprConnector.newBuilder()
-                .setConnectorId(connectorId)
-                .setChannelId(channelId)
-                .setConnectorContract(domainBuilder.entityNum(4200L).toContractID())
-                .setLockedStake(100_000_000L)
-                .build();
-        final var complete = recordItemBuilder
-                .clprCompleteConnector()
-                .transactionBody(b ->
-                        b.setChannelId(channelId).setConnectorId(connectorId).setPublicKey(publicKey))
-                .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(List.of(new ClprConnectorEntry(
-                                removedConnectorKey, clprConnectorMapUpdate(clprConnectorComplete)))))
                 .build();
 
         final var ban = recordItemBuilder
@@ -652,7 +595,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .recordItem(r -> r.clprContextBuilder().clprConnectorsRemoved(List.of(removedConnectorKey)))
                 .build();
 
-        final var recordFile = recordFileWithItems(List.of(register, complete, ban), null);
+        final var recordFile = recordFileWithItems(List.of(register, ban), null);
 
         // when
         recordFileParser.parse(recordFile);
@@ -661,10 +604,11 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertRecordFile(recordFile);
 
         final var connector = clprConnectorRepository
-                .findById(new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(commitment)))
+                .findById(
+                        new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .orElseThrow();
         assertThat(connector.getStatus()).isEqualTo(ClprConnectorStatus.DELETED);
-        // connectorContractId/lockedStake were only set at completion time; the ban's map-delete carries no patch
+        // connectorContractId/lockedStake were only set at registration time; the ban's map-delete carries no patch
         // of its own, so mergeClprConnector's fillIfAbsent must backfill them rather than leave them null
         assertThat(connector.getConnectorContractId()).isNotNull();
         assertThat(connector.getLockedStake()).isEqualTo(100_000_000L);

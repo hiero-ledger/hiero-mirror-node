@@ -28,10 +28,8 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
-import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -82,7 +80,6 @@ import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.AssessedCustomFeeRepository;
-import org.hiero.mirror.importer.repository.ClprChannelPendingCommitmentRepository;
 import org.hiero.mirror.importer.repository.ClprChannelRepository;
 import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.hiero.mirror.importer.repository.ContractActionRepository;
@@ -142,7 +139,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
     private final AssessedCustomFeeRepository assessedCustomFeeRepository;
-    private final ClprChannelPendingCommitmentRepository clprChannelPendingCommitmentRepository;
     private final ClprChannelRepository clprChannelRepository;
     private final ClprConnectorRepository clprConnectorRepository;
     private final ContractActionRepository contractActionRepository;
@@ -248,141 +244,6 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     }
 
     @Test
-    void onClprChannelPendingCommitment() {
-        // given
-        final var commitment = domainBuilder.clprChannelPendingCommitment().get();
-
-        // when
-        sqlEntityListener.onClprChannelPendingCommitment(commitment);
-        completeFileAndCommit();
-
-        // then
-        assertThat(clprChannelPendingCommitmentRepository.findAll()).containsExactly(commitment);
-        assertThat(findHistory(ClprChannelPendingCommitment.class)).isEmpty();
-    }
-
-    @ParameterizedTest
-    @ValueSource(ints = {1, 2})
-    void onClprChannelPendingCommitmentThenComplete(int commitIndex) {
-        // given
-        final var register = domainBuilder.clprChannelPendingCommitment().get();
-        final var complete = ClprChannelPendingCommitment.builder()
-                .ownershipCommitment(register.getOwnershipCommitment())
-                .status(ClprPendingCommitmentStatus.COMPLETED)
-                .timestampRange(Range.atLeast(register.getCreatedTimestamp() + 1))
-                .build();
-        final var mergedComplete = TestUtils.merge(register, complete);
-
-        // when
-        sqlEntityListener.onClprChannelPendingCommitment(register);
-        if (commitIndex > 1) {
-            completeFileAndCommit();
-            assertThat(clprChannelPendingCommitmentRepository.findAll()).containsExactly(register);
-            assertThat(findHistory(ClprChannelPendingCommitment.class)).isEmpty();
-        }
-
-        sqlEntityListener.onClprChannelPendingCommitment(complete);
-        completeFileAndCommit();
-
-        // then
-        register.setTimestampUpper(complete.getTimestampLower());
-        assertThat(clprChannelPendingCommitmentRepository.findAll()).containsExactly(mergedComplete);
-        assertThat(findHistory(ClprChannelPendingCommitment.class)).containsExactly(register);
-    }
-
-    @ParameterizedTest
-    @ValueSource(ints = {1, 2})
-    void onClprChannelPendingCommitmentThenSweep(int commitIndex) {
-        // given
-        final var register = domainBuilder.clprChannelPendingCommitment().get();
-        final var sweep = ClprChannelPendingCommitment.builder()
-                .ownershipCommitment(register.getOwnershipCommitment())
-                .status(ClprPendingCommitmentStatus.DELETED)
-                .timestampRange(Range.atLeast(register.getCreatedTimestamp() + 1))
-                .build();
-        final var mergedSweep = TestUtils.merge(register, sweep);
-
-        // when
-        sqlEntityListener.onClprChannelPendingCommitment(register);
-        if (commitIndex > 1) {
-            completeFileAndCommit();
-            assertThat(clprChannelPendingCommitmentRepository.findAll()).containsExactly(register);
-            assertThat(findHistory(ClprChannelPendingCommitment.class)).isEmpty();
-        }
-
-        sqlEntityListener.onClprChannelPendingCommitment(sweep);
-        completeFileAndCommit();
-
-        // then
-        register.setTimestampUpper(sweep.getTimestampLower());
-        assertThat(clprChannelPendingCommitmentRepository.findAll()).containsExactly(mergedSweep);
-        assertThat(findHistory(ClprChannelPendingCommitment.class)).containsExactly(register);
-    }
-
-    @ParameterizedTest
-    @ValueSource(ints = {1, 2, 3})
-    void onClprChannelPendingCommitmentSweepThenReregister(int commitIndex) {
-        // given -- re-registering after a sweep must discard the sweep's DELETED status rather than carry it forward
-        final var register1 = domainBuilder.clprChannelPendingCommitment().get();
-        final var sweep = ClprChannelPendingCommitment.builder()
-                .ownershipCommitment(register1.getOwnershipCommitment())
-                .status(ClprPendingCommitmentStatus.DELETED)
-                .timestampRange(Range.atLeast(register1.getCreatedTimestamp() + 1))
-                .build();
-        final var register2 = domainBuilder
-                .clprChannelPendingCommitment()
-                .customize(c -> c.ownershipCommitment(register1.getOwnershipCommitment())
-                        .createdTimestamp(register1.getCreatedTimestamp() + 2)
-                        .timestampRange(Range.atLeast(register1.getCreatedTimestamp() + 2)))
-                .get();
-
-        // when
-        sqlEntityListener.onClprChannelPendingCommitment(register1);
-        if (commitIndex > 1) {
-            completeFileAndCommit();
-            assertThat(clprChannelPendingCommitmentRepository.findAll()).containsExactly(register1);
-            assertThat(findHistory(ClprChannelPendingCommitment.class)).isEmpty();
-        }
-
-        sqlEntityListener.onClprChannelPendingCommitment(sweep);
-        if (commitIndex > 2) {
-            completeFileAndCommit();
-            final var mergedSweep = TestUtils.merge(register1, sweep);
-            assertThat(clprChannelPendingCommitmentRepository.findAll()).containsExactly(mergedSweep);
-        }
-
-        sqlEntityListener.onClprChannelPendingCommitment(register2);
-        completeFileAndCommit();
-
-        // then
-        assertThat(clprChannelPendingCommitmentRepository.findAll()).containsExactly(register2);
-
-        final var closedRegister1 = TestUtils.clone(register1);
-        closedRegister1.setTimestampUpper(sweep.getTimestampLower());
-        final var closedSweep = TestUtils.merge(register1, sweep);
-        closedSweep.setTimestampUpper(register2.getTimestampLower());
-        assertThat(findHistory(ClprChannelPendingCommitment.class)).containsExactly(closedRegister1, closedSweep);
-    }
-
-    @Test
-    void onClprChannelPendingCommitmentOrphanCompletionDropped() {
-        // given -- no corresponding registration ever observed; skipPartialUpdate must drop this silently
-        final var orphanComplete = ClprChannelPendingCommitment.builder()
-                .ownershipCommitment(domainBuilder.bytes(32))
-                .status(ClprPendingCommitmentStatus.COMPLETED)
-                .timestampRange(domainBuilder.timestampRange())
-                .build();
-
-        // when
-        sqlEntityListener.onClprChannelPendingCommitment(orphanComplete);
-        completeFileAndCommit();
-
-        // then
-        assertThat(clprChannelPendingCommitmentRepository.findAll()).isEmpty();
-        assertThat(findHistory(ClprChannelPendingCommitment.class)).isEmpty();
-    }
-
-    @Test
     void onClprChannel() {
         // given
         final var clprChannel = domainBuilder.clprChannel().get();
@@ -412,8 +273,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .sentRunningHash(domainBuilder.bytes(32))
                 .receivedMessageId(complete.getReceivedMessageId() + 2)
                 .receivedRunningHash(domainBuilder.bytes(32))
-                .ownershipCommitment(complete.getOwnershipCommitment())
-                .signatureScheme(complete.getSignatureScheme())
+                .salt(complete.getSalt())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
                 .build();
         final var mergedSubmitBundle = TestUtils.merge(complete, submitBundle);
@@ -426,8 +286,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .sentRunningHash(submitBundle.getSentRunningHash())
                 .receivedMessageId(submitBundle.getReceivedMessageId())
                 .receivedRunningHash(submitBundle.getReceivedRunningHash())
-                .ownershipCommitment(complete.getOwnershipCommitment())
-                .signatureScheme(complete.getSignatureScheme())
+                .salt(complete.getSalt())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
                 .build();
         final var mergedClose = TestUtils.merge(mergedSubmitBundle, close);
@@ -467,16 +326,14 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .channelId(complete.getChannelId())
                 .status(ACTIVE_VALUE)
                 .nextMessageId(complete.getNextMessageId() + 1)
-                .ownershipCommitment(complete.getOwnershipCommitment())
-                .signatureScheme(complete.getSignatureScheme())
+                .salt(complete.getSalt())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
                 .build();
         final var submitBundle2 = ClprChannel.builder()
                 .channelId(complete.getChannelId())
                 .status(ACTIVE_VALUE)
                 .nextMessageId(complete.getNextMessageId() + 2)
-                .ownershipCommitment(complete.getOwnershipCommitment())
-                .signatureScheme(complete.getSignatureScheme())
+                .salt(complete.getSalt())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
                 .build();
         final var mergedSubmitBundle1 = TestUtils.merge(complete, submitBundle1);
@@ -509,8 +366,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .channelId(complete.getChannelId())
                 .status(CLOSING_VALUE)
                 .nextMessageId(complete.getNextMessageId() + 1)
-                .ownershipCommitment(complete.getOwnershipCommitment())
-                .signatureScheme(complete.getSignatureScheme())
+                .salt(complete.getSalt())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
                 .build();
         final var expected = TestUtils.merge(complete, submitBundle);
@@ -559,7 +415,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         final var maliciousUpdate = ClprChannel.builder()
                 .channelId(complete.getChannelId())
                 .chainId("not-the-original-chain-id")
-                .ownershipCommitment(complete.getOwnershipCommitment())
+                .salt(complete.getSalt())
                 .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
                 .build();
 
@@ -591,50 +447,6 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         assertThat(findHistory(ClprConnector.class)).isEmpty();
     }
 
-    @Test
-    void onClprConnectorRegisterThenComplete() {
-        // given -- channel_id/commitment are known at registration (PENDING, connector_id null); completion
-        // recomputes the same commitment to locate and update that row rather than inserting a new one
-        final var channelId = domainBuilder.bytes(32);
-        final var commitment = domainBuilder.bytes(32);
-        final var register = ClprConnector.builder()
-                .channelId(channelId)
-                .commitment(commitment)
-                .createdTimestamp(domainBuilder.timestamp())
-                // Match the columns' DB defaults so the in-memory expected merge below agrees with the real upsert.
-                .inFlightMessageCount(0L)
-                .lockedStake(0L)
-                .slashCount(0L)
-                .status(ClprConnectorStatus.PENDING)
-                .build();
-        register.setTimestampRange(Range.atLeast(register.getCreatedTimestamp()));
-
-        final var complete = ClprConnector.builder()
-                .channelId(channelId)
-                .commitment(commitment)
-                .connectorId(domainBuilder.bytes(32))
-                .connectorContractId(domainBuilder.entityId())
-                .adminKey(domainBuilder.key())
-                .createdTimestamp(register.getCreatedTimestamp() + 1)
-                .lockedStake(100_000_000L)
-                .publicKey(domainBuilder.bytes(64))
-                .status(ClprConnectorStatus.ACTIVE)
-                .timestampRange(Range.atLeast(register.getCreatedTimestamp() + 1))
-                .build();
-        final var expected = TestUtils.merge(register, complete);
-
-        // when
-        sqlEntityListener.onClprConnector(register);
-        completeFileAndCommit();
-        sqlEntityListener.onClprConnector(complete);
-        completeFileAndCommit();
-
-        // then
-        register.setTimestampUpper(complete.getTimestampLower());
-        assertThat(clprConnectorRepository.findAll()).containsExactly(expected);
-        assertThat(findHistory(ClprConnector.class)).containsExactly(register);
-    }
-
     @ParameterizedTest
     @ValueSource(ints = {1, 2})
     void onClprConnectorSubmitBundleNeverHistorized(int commitIndex) {
@@ -642,13 +454,11 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         final var complete = domainBuilder.clprConnector().get();
         final var submitBundle1 = ClprConnector.builder()
                 .channelId(complete.getChannelId())
-                .commitment(complete.getCommitment())
                 .connectorId(complete.getConnectorId())
                 .inFlightMessageCount(complete.getInFlightMessageCount() + 1)
                 .build();
         final var submitBundle2 = ClprConnector.builder()
                 .channelId(complete.getChannelId())
-                .commitment(complete.getCommitment())
                 .connectorId(complete.getConnectorId())
                 .inFlightMessageCount(complete.getInFlightMessageCount())
                 .lockedStake(complete.getLockedStake() - 1_000_000L)
@@ -676,7 +486,6 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // given -- no corresponding creation ever observed; skipPartialUpdate must drop this silently
         final var orphanUpdate = ClprConnector.builder()
                 .channelId(domainBuilder.bytes(32))
-                .commitment(domainBuilder.bytes(32))
                 .connectorId(domainBuilder.bytes(32))
                 .inFlightMessageCount(1L)
                 .timestampRange(domainBuilder.timestampRange())
@@ -700,7 +509,6 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         final var submitBundle = ClprConnector.builder()
                 .channelId(complete.getChannelId())
-                .commitment(complete.getCommitment())
                 .connectorId(complete.getConnectorId())
                 .inFlightMessageCount(complete.getInFlightMessageCount() + 1)
                 .slashCount(complete.getSlashCount() + 1)
@@ -710,7 +518,6 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         final var deregister = ClprConnector.builder()
                 .channelId(complete.getChannelId())
-                .commitment(complete.getCommitment())
                 .connectorId(complete.getConnectorId())
                 .status(ClprConnectorStatus.DELETED)
                 .stakeRecipientId(domainBuilder.entityId())

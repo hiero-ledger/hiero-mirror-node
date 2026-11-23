@@ -26,8 +26,8 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
 /**
- * On-ledger state for a single CLPR Channel, written once {@code channel_id} is known (see
- * {@link ClprChannelPendingCommitment} for the commit-only phase).
+ * On-ledger state for a single CLPR Channel, created in ACTIVE status by a single {@code ClprOpenChannel}
+ * transaction.
  */
 @Data
 @MappedSuperclass
@@ -69,9 +69,6 @@ public abstract class AbstractClprChannel implements History {
 
     private Long nextMessageId;
 
-    @Column(updatable = false)
-    private byte[] ownershipCommitment;
-
     private Long peerConfigTimestamp;
 
     @AttributeOverrides({
@@ -88,23 +85,19 @@ public abstract class AbstractClprChannel implements History {
     private ClprThrottle peerThrottle;
 
     @Column(updatable = false)
-    private byte[] publicKey;
+    private byte[] peerVerifier;
 
     private Long receivedMessageId;
 
     private byte[] receivedRunningHash;
 
+    @Column(updatable = false)
+    private byte[] salt;
+
     private byte[] sentRunningHash;
 
-    @Column(updatable = false)
-    private byte[] signature;
-
-    // Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number -- preserved as-is even if this mirror
+    // Raw com.hederahashgraph.api.proto.java.ClprChannelStatus wire number -- preserved as-is even if this mirror
     // node doesn't recognize it yet, rather than losing a value a newer consensus node sent.
-    @Column(updatable = false)
-    private Integer signatureScheme;
-
-    // Raw com.hederahashgraph.api.proto.java.ClprChannelStatus wire number, same reasoning as signatureScheme above.
     @ToString.Include
     private Integer status;
 

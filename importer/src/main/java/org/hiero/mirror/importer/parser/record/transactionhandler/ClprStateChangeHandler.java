@@ -12,11 +12,11 @@ import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNE
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_ENDPOINT_MANIFEST_VERSION;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_LAST_CONFIG_TIMESTAMP;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_NEXT_MESSAGE_ID;
-import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_OWNERSHIP_COMMITMENT;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_PEER_CONFIG_TIMESTAMP;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_PEER_THROTTLES;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_RECEIVED_MESSAGE_ID;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_RECEIVED_RUNNING_HASH;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_SALT;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_SENT_RUNNING_HASH;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_STATUS;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_TRUST_ANCHOR;
@@ -65,7 +65,6 @@ import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprMessage
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
-import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -90,12 +89,10 @@ public final class ClprStateChangeHandler {
      */
     private static final Set<TransactionType> SELF_PROCESSED_TYPES = EnumSet.of(
             TransactionType.CLPRCLOSECHANNEL,
-            TransactionType.CLPRCOMPLETECHANNEL,
-            TransactionType.CLPRCOMPLETECONNECTOR,
             TransactionType.CLPRDEREGISTERCONNECTOR,
+            TransactionType.CLPROPENCHANNEL,
             TransactionType.CLPRREGISTERCONNECTOR);
 
-    private final ClprConnectorRepository clprConnectorRepository;
     private final ClprEndpointManifestService clprEndpointManifestService;
     private final ClprLedgerConfigurationService clprLedgerConfigurationService;
     private final EntityListener entityListener;
@@ -132,19 +129,11 @@ public final class ClprStateChangeHandler {
         }
 
         for (final var key : clprContext.getClprConnectorsRemoved()) {
-            final var removedConnector = toRemovedConnector(key, transactionType, consensusTimestamp);
-            if (removedConnector != null) {
-                entityListener.onClprConnector(removedConnector);
-            }
+            entityListener.onClprConnector(toRemovedConnector(key, consensusTimestamp));
         }
 
         for (final var entry : clprContext.getClprConnectors()) {
-            final var connector = toConnector(entry, transactionType, consensusTimestamp);
-            if (connector == null) {
-                continue;
-            }
-
-            entityListener.onClprConnector(connector);
+            entityListener.onClprConnector(toConnector(entry, consensusTimestamp));
         }
 
         final var endpointManifestUpdate = clprContext.getClprEndpointManifestUpdate();
@@ -231,8 +220,8 @@ public final class ClprStateChangeHandler {
         if (CLPR_CHANNEL_RECEIVED_RUNNING_HASH.isPresent(mapUpdate, value)) {
             builder.receivedRunningHash(DomainUtils.toBytes(value.getReceivedRunningHash()));
         }
-        if (CLPR_CHANNEL_OWNERSHIP_COMMITMENT.isPresent(mapUpdate, value)) {
-            builder.ownershipCommitment(DomainUtils.toBytes(value.getOwnershipCommitment()));
+        if (CLPR_CHANNEL_SALT.isPresent(mapUpdate, value)) {
+            builder.salt(DomainUtils.toBytes(value.getSalt()));
         }
         if (CLPR_CHANNEL_TRUST_ANCHOR.isPresent(mapUpdate, value)) {
             builder.trustAnchor(DomainUtils.toBytes(value.getTrustAnchor()));
@@ -297,7 +286,7 @@ public final class ClprStateChangeHandler {
 
         final var value = entry.value();
         return CLPR_CHANNEL_STATUS.isPresent(mapUpdate, value)
-                || CLPR_CHANNEL_OWNERSHIP_COMMITMENT.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_SALT.isPresent(mapUpdate, value)
                 || CLPR_CHANNEL_TRUST_ANCHOR.isPresent(mapUpdate, value)
                 || CLPR_CHANNEL_TRUST_ANCHOR_ID.isPresent(mapUpdate, value)
                 || CLPR_CHANNEL_CHANNEL_CONTEXT.isPresent(mapUpdate, value)
@@ -323,44 +312,22 @@ public final class ClprStateChangeHandler {
                 || CLPR_CONNECTOR_ADMIN_KEY.isPresent(mapUpdate, value);
     }
 
-    private byte @Nullable [] lookupCommitment(
-            byte[] channelId, byte[] connectorId, TransactionType transactionType, long consensusTimestamp) {
-        final var commitment = clprConnectorRepository.findCommitmentByChannelIdAndConnectorId(channelId, connectorId);
-        if (commitment == null) {
-            Utility.handleRecoverableError(
-                    "No clpr_connector commitment found via lookup for successful {} at {}",
-                    transactionType,
-                    consensusTimestamp);
-        }
-
-        return commitment;
-    }
-
     private static int toChannelStatus(int status) {
         if (status == PENDING_VALUE) {
-            // PENDING is pre-creation only, tracked via ClprChannelPendingCommitment; an existing ClprChannel
-            // state-change value should never revert to it, but record it rather than drop it if consensus ever
-            // does.
+            // ClprOpenChannel creates a Channel directly in ACTIVE status; an existing ClprChannel state-change
+            // value should never revert to PENDING, but record it rather than drop it if consensus ever does.
             Utility.handleRecoverableError("ClprChannel state change unexpectedly reverted to PENDING status");
         }
 
         return Utility.toSmallint("ClprChannel status", status);
     }
 
-    private @Nullable ClprConnector toConnector(
-            ClprConnectorEntry entry, TransactionType transactionType, long consensusTimestamp) {
+    private ClprConnector toConnector(ClprConnectorEntry entry, long consensusTimestamp) {
         final var key = entry.key();
         final var channelId = DomainUtils.toBytes(key.getChannelId());
         final var connectorId = DomainUtils.toBytes(key.getConnectorId());
-        final var commitment = lookupCommitment(channelId, connectorId, transactionType, consensusTimestamp);
-        if (commitment == null) {
-            return null;
-        }
 
-        final var builder = ClprConnector.builder()
-                .channelId(channelId)
-                .commitment(commitment)
-                .connectorId(connectorId);
+        final var builder = ClprConnector.builder().channelId(channelId).connectorId(connectorId);
         applyConnectorFields(builder, entry);
         if (connectorHistorizes(entry)) {
             builder.timestampRange(Range.atLeast(consensusTimestamp));
@@ -552,19 +519,10 @@ public final class ClprStateChangeHandler {
         return messageBuilder.build();
     }
 
-    private @Nullable ClprConnector toRemovedConnector(
-            ClprConnectorKey key, TransactionType transactionType, long consensusTimestamp) {
-        final var channelId = DomainUtils.toBytes(key.getChannelId());
-        final var connectorId = DomainUtils.toBytes(key.getConnectorId());
-        final var commitment = lookupCommitment(channelId, connectorId, transactionType, consensusTimestamp);
-        if (commitment == null) {
-            return null;
-        }
-
+    private ClprConnector toRemovedConnector(ClprConnectorKey key, long consensusTimestamp) {
         return ClprConnector.builder()
-                .channelId(channelId)
-                .commitment(commitment)
-                .connectorId(connectorId)
+                .channelId(DomainUtils.toBytes(key.getChannelId()))
+                .connectorId(DomainUtils.toBytes(key.getConnectorId()))
                 .status(ClprConnectorStatus.DELETED)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();

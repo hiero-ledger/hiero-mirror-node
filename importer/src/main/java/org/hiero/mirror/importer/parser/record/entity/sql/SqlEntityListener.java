@@ -16,7 +16,6 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
-import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
@@ -120,16 +119,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     public void onClprChannel(ClprChannel clprChannel) {
         if (entityProperties.getPersist().isClpr()) {
             context.merge(ByteBuffer.wrap(clprChannel.getChannelId()), clprChannel, this::mergeClprChannel);
-        }
-    }
-
-    @Override
-    public void onClprChannelPendingCommitment(ClprChannelPendingCommitment clprChannelPendingCommitment) {
-        if (entityProperties.getPersist().isClpr()) {
-            context.merge(
-                    ByteBuffer.wrap(clprChannelPendingCommitment.getOwnershipCommitment()),
-                    clprChannelPendingCommitment,
-                    this::mergeClprPendingCommitment);
         }
     }
 
@@ -542,12 +531,13 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         previous.setTimestampUpper(current.getTimestampLower());
 
         // Channels are only ever created once: per HIP-1535 closing is irreversible and channel_id is permanently
-        // occupied once completed (consensus rejects a second ClprCompleteChannel for the same channel_id even
-        // after CLOSED), so every later touch here is a partial update -- no "fresh creation" branch needed.
+        // occupied once opened (consensus rejects a second ClprOpenChannel for the same channel_id even after
+        // CLOSED), so every later touch here is a partial update -- no "fresh creation" branch needed.
         fillIfAbsent(previous, current, ClprChannel::getCreatedTimestamp, ClprChannel::setCreatedTimestamp);
         fillIfAbsent(previous, current, ClprChannel::getChainId, ClprChannel::setChainId);
         fillIfAbsent(previous, current, ClprChannel::getChannelContext, ClprChannel::setChannelContext);
-        fillIfAbsent(previous, current, ClprChannel::getOwnershipCommitment, ClprChannel::setOwnershipCommitment);
+        fillIfAbsent(previous, current, ClprChannel::getSalt, ClprChannel::setSalt);
+        fillIfAbsent(previous, current, ClprChannel::getPeerVerifier, ClprChannel::setPeerVerifier);
         fillIfAbsent(previous, current, ClprChannel::getVerifierContractId, ClprChannel::setVerifierContractId);
         fillIfAbsent(previous, current, ClprChannel::getVerifierFingerprint, ClprChannel::setVerifierFingerprint);
         fillIfAbsent(previous, current, ClprChannel::getConfigProofBytes, ClprChannel::setConfigProofBytes);
@@ -556,9 +546,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
                 current,
                 ClprChannel::getEndpointManifestProofBytes,
                 ClprChannel::setEndpointManifestProofBytes);
-        fillIfAbsent(previous, current, ClprChannel::getPublicKey, ClprChannel::setPublicKey);
-        fillIfAbsent(previous, current, ClprChannel::getSignature, ClprChannel::setSignature);
-        fillIfAbsent(previous, current, ClprChannel::getSignatureScheme, ClprChannel::setSignatureScheme);
         fillIfAbsent(previous, current, ClprChannel::getStatus, ClprChannel::setStatus);
         fillIfAbsent(previous, current, ClprChannel::getNextMessageId, ClprChannel::setNextMessageId);
         fillIfAbsent(previous, current, ClprChannel::getAckedMessageId, ClprChannel::setAckedMessageId);
@@ -590,48 +577,18 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
         previous.setTimestampUpper(current.getTimestampLower());
 
-        // This row is keyed by (channelId, commitment), and per HIP-1535 a connector commitment stays registered
+        // This row is keyed by (channelId, connectorId), and per HIP-1535 a connector ID stays registered
         // permanently even after deregistration, so it can never be reused by a different registration -- every
         // later touch under this same key is a partial update of the one registration, hence no "fresh creation"
-        // branch needed. (connectorId alone CAN recur across different channels, since it's a hash of the
-        // registrant's own public key/salt and is independent of channelId, but that doesn't collide with this key.)
+        // branch needed.
         fillIfAbsent(previous, current, ClprConnector::getCreatedTimestamp, ClprConnector::setCreatedTimestamp);
-        fillIfAbsent(previous, current, ClprConnector::getConnectorId, ClprConnector::setConnectorId);
         fillIfAbsent(previous, current, ClprConnector::getAdminKey, ClprConnector::setAdminKey);
         fillIfAbsent(previous, current, ClprConnector::getConnectorContractId, ClprConnector::setConnectorContractId);
         fillIfAbsent(previous, current, ClprConnector::getLockedStake, ClprConnector::setLockedStake);
-        fillIfAbsent(previous, current, ClprConnector::getPublicKey, ClprConnector::setPublicKey);
-        fillIfAbsent(previous, current, ClprConnector::getSalt, ClprConnector::setSalt);
-        fillIfAbsent(previous, current, ClprConnector::getSignature, ClprConnector::setSignature);
-        fillIfAbsent(previous, current, ClprConnector::getSignatureScheme, ClprConnector::setSignatureScheme);
         fillIfAbsent(previous, current, ClprConnector::getInFlightMessageCount, ClprConnector::setInFlightMessageCount);
         fillIfAbsent(previous, current, ClprConnector::getSlashCount, ClprConnector::setSlashCount);
         fillIfAbsent(previous, current, ClprConnector::getStakeRecipientId, ClprConnector::setStakeRecipientId);
         fillIfAbsent(previous, current, ClprConnector::getStatus, ClprConnector::setStatus);
-
-        return current;
-    }
-
-    private ClprChannelPendingCommitment mergeClprPendingCommitment(
-            ClprChannelPendingCommitment previous, ClprChannelPendingCommitment current) {
-        previous.setTimestampUpper(current.getTimestampLower());
-
-        // This handles a sweep and re-registration landing in the same batch: ParserContext.merge collapses
-        // same-key writes in-memory before the SQL upsert ever runs, so the SQL layer never sees the swept state.
-        if (current.getCreatedTimestamp() != null
-                && current.getCreatedTimestamp().equals(current.getTimestampLower())) {
-            // Fresh registration -- possibly a re-registration of a commitment previously swept/deregistered -- so
-            // don't carry stale fields forward from the abandoned commitment.
-            return current;
-        }
-
-        fillIfAbsent(
-                previous,
-                current,
-                ClprChannelPendingCommitment::getCreatedTimestamp,
-                ClprChannelPendingCommitment::setCreatedTimestamp);
-        fillIfAbsent(
-                previous, current, ClprChannelPendingCommitment::getStatus, ClprChannelPendingCommitment::setStatus);
 
         return current;
     }

@@ -1,30 +1,6 @@
 -- HIP-1535 CLPR Mirror Node Support
 
-create type clpr_pending_commitment_status as enum ('OPEN', 'COMPLETED', 'DELETED');
-create type clpr_connector_status as enum ('PENDING', 'ACTIVE', 'DELETED');
-
-create table if not exists clpr_channel_pending_commitment
-(
-    created_timestamp     bigint                           not null,
-    timestamp_range       int8range                        not null,
-    status                clpr_pending_commitment_status   not null default 'OPEN',
-    ownership_commitment  bytea                            not null,
-
-    primary key (ownership_commitment)
-);
-
--- Partial index backing the Pending Channels API filter
-create index if not exists clpr_channel_pending_commitment__created_timestamp
-    on clpr_channel_pending_commitment (created_timestamp)
-    where status = 'OPEN';
-
-create table if not exists clpr_channel_pending_commitment_history
-(
-    like clpr_channel_pending_commitment including defaults
-);
-
-create index if not exists clpr_channel_pending_commitment_history__timestamp_range
-    on clpr_channel_pending_commitment_history using gist (timestamp_range);
+create type clpr_connector_status as enum ('ACTIVE', 'DELETED');
 
 create table if not exists clpr_channel
 (
@@ -50,11 +26,10 @@ create table if not exists clpr_channel
     config_proof_bytes              bytea                 not null,
     endpoint_manifest               jsonb                 not null,
     endpoint_manifest_proof_bytes   bytea                 not null,
-    ownership_commitment            bytea                 not null,
-    public_key                      bytea                 not null,
+    peer_verifier                   bytea                 not null,
     received_running_hash           bytea                 not null,
+    salt                            bytea                 not null,
     sent_running_hash               bytea                 not null,
-    signature                       bytea                 not null,
     trust_anchor                    bytea                 not null,
     trust_anchor_id                 bytea                 not null,
     verifier_fingerprint            bytea                 not null,
@@ -63,9 +38,6 @@ create table if not exists clpr_channel
     -- native enum so an unrecognized value from a newer consensus node isn't lost. smallint and ordered last so
     -- this 2-byte column doesn't force alignment padding in front of the wider columns above.
     status                          smallint              not null default 1,
-    -- Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number (0=ECDSA_SECP256K1, 1=ED25519), same
-    -- reasoning as status above.
-    signature_scheme                smallint              not null,
 
     primary key (channel_id)
 );
@@ -89,31 +61,20 @@ select create_distributed_table('clpr_channel_history', 'channel_id', colocate_w
 
 create table if not exists clpr_connector
 (
-    connector_contract_id    bigint,
+    connector_contract_id    bigint                  not null,
     created_timestamp        bigint                  not null,
     in_flight_message_count  bigint                  not null default 0,
     locked_stake             bigint                  not null default 0,
     slash_count              bigint                  not null default 0,
     stake_recipient_id       bigint,
     timestamp_range          int8range               not null,
-    status                   clpr_connector_status   not null default 'PENDING',
-    admin_key                bytea,
+    status                   clpr_connector_status   not null default 'ACTIVE',
+    admin_key                bytea                   not null,
     channel_id               bytea                   not null,
-    commitment               bytea                   not null,
-    connector_id             bytea,
-    public_key               bytea,
-    salt                     bytea,
-    signature                bytea,
-    -- Raw com.hederahashgraph.api.proto.java.ClprSignatureScheme wire number, same reasoning as clpr_channel's
-    -- signature_scheme column. smallint and ordered last, same reasoning as clpr_channel's status column.
-    signature_scheme         smallint,
+    connector_id             bytea                   not null,
 
-    primary key (channel_id, commitment)
+    primary key (channel_id, connector_id)
 );
-
-create unique index if not exists clpr_connector__channel_id_connector_id
-    on clpr_connector (channel_id, connector_id)
-    where connector_id is not null;
 
 create index if not exists clpr_connector__channel_id_created_timestamp
     on clpr_connector (channel_id, created_timestamp);
