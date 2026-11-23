@@ -133,7 +133,7 @@ class TransactionExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
-        commonProperties = new CommonProperties();
+        commonProperties = CommonProperties.getInstance();
         var systemEntity = new SystemEntity(commonProperties);
         evmProperties = new EvmProperties();
         transactionExecutionService = new TransactionExecutionService(
