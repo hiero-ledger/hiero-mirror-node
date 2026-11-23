@@ -123,6 +123,8 @@ class TransactionExecutionServiceTest {
 
     private TransactionExecutionService transactionExecutionService;
 
+    private CommonProperties commonProperties;
+
     private EvmProperties evmProperties;
 
     private static Stream<Arguments> provideCallData() {
@@ -131,7 +133,7 @@ class TransactionExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
-        var commonProperties = new CommonProperties();
+        commonProperties = new CommonProperties();
         var systemEntity = new SystemEntity(commonProperties);
         evmProperties = new EvmProperties();
         transactionExecutionService = new TransactionExecutionService(
@@ -642,28 +644,32 @@ class TransactionExecutionServiceTest {
         private static final long NONCE = 5L;
         private static final Address SENDER_ADDRESS =
                 Address.fromHexString("0x00000000000000000000000000000000000003e9");
-        private static final AccountID SENDER_ID = AccountID.newBuilder()
-                .shardNum(0L)
-                .realmNum(0L)
-                .accountNum(1001L)
-                .build();
+        private static final long SENDER_NUM = 1001L;
+
+        private MapWritableKVState<AccountID, Account> accounts;
 
         @Mock
         private ReadableKVState<AccountID, Account> backingAccounts;
 
-        private MapWritableKVState<AccountID, Account> accounts;
+        private Account sender;
 
-        private final Account sender = Account.newBuilder()
-                .accountId(SENDER_ID)
-                .key(DEFAULT_KEY)
-                .tinybarBalance(BALANCE)
-                .ethereumNonce(NONCE)
-                .build();
+        private AccountID senderId;
 
         @BeforeEach
         void setup() {
+            senderId = AccountID.newBuilder()
+                    .shardNum(commonProperties.getShard())
+                    .realmNum(commonProperties.getRealm())
+                    .accountNum(SENDER_NUM)
+                    .build();
+            sender = Account.newBuilder()
+                    .accountId(senderId)
+                    .key(DEFAULT_KEY)
+                    .tinybarBalance(BALANCE)
+                    .ethereumNonce(NONCE)
+                    .build();
             accounts = new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, backingAccounts);
-            when(accountReadableKVState.get(SENDER_ID)).thenReturn(sender);
+            when(accountReadableKVState.get(senderId)).thenReturn(sender);
         }
 
         @ParameterizedTest
@@ -676,22 +682,22 @@ class TransactionExecutionServiceTest {
             catchThrowable(() -> transactionExecutionService.execute(params(), DEFAULT_GAS));
 
             // Then the fee the executor committed stays, and execute neither rolls it back nor increments the nonce.
-            assertThat(accounts.get(SENDER_ID).tinybarBalance()).isEqualTo(BALANCE - FEE);
-            assertThat(accounts.get(SENDER_ID).ethereumNonce()).isEqualTo(NONCE);
+            assertThat(accounts.get(senderId).tinybarBalance()).isEqualTo(BALANCE - FEE);
+            assertThat(accounts.get(senderId).ethereumNonce()).isEqualTo(NONCE);
         }
 
         @Test
         void laterTransactionReadsSenderAsEarlierTransactionLeftIt() {
             // Given a sender that is hollow in the database, so each transaction completes it in the write cache
             final var hollow = Account.newBuilder()
-                    .accountId(SENDER_ID)
+                    .accountId(senderId)
                     .tinybarBalance(BALANCE)
                     .ethereumNonce(NONCE)
                     .build();
-            when(accountReadableKVState.get(SENDER_ID)).thenReturn(hollow);
+            when(accountReadableKVState.get(senderId)).thenReturn(hollow);
             final var balances = new ArrayList<Long>();
             executorReturns(SUCCESS, 50_000L, () -> {
-                balances.add(accounts.get(SENDER_ID).tinybarBalance());
+                balances.add(accounts.get(senderId).tinybarBalance());
                 chargeFee();
             });
 
@@ -726,8 +732,7 @@ class TransactionExecutionServiceTest {
 
         private void chargeFee() {
             accounts.put(
-                    SENDER_ID,
-                    sender.copyBuilder().tinybarBalance(BALANCE - FEE).build());
+                    senderId, sender.copyBuilder().tinybarBalance(BALANCE - FEE).build());
             accounts.commit();
         }
 

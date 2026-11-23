@@ -99,7 +99,7 @@ final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
                             new V0610TokenSchema(),
                             new V0700TokenSchema()));
 
-    private final Set<Integer> statesNotNeeded = Set.of(SCHEDULED_ORDERS_STATE_ID, STAKING_INFOS_STATE_ID);
+    private final Set<Integer> statesNotNeeded = Set.of(STAKING_INFOS_STATE_ID);
 
     @Test
     void initPopulatesAllServices() {
