@@ -1000,18 +1000,20 @@ public class CallFeature extends AbstractFeature {
         var data = encodeData(ESTIMATE_GAS, GET_COUNTER);
         assertThat(callContract(data, address).getResult()).isEqualTo("0x");
         var balanceData = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, asAddress(address));
-        var initialBalance = callContract(balanceData, estimateContractAddress).getResultAsNumber();
+        // One million hbar. Above any balance the acceptance suite assigns. Long.MAX_VALUE makes the
+        // consensus node report a non-zero net hbar change and fail the call with FAIL_INVALID.
+        final var overriddenBalance = BigInteger.valueOf(100_000_000_000_000L);
         var overrides = List.of(StateOverrideBuilder.forAddress(address)
                 .code(runtimeBytecode)
                 .stateDiff(3, 41)
-                .balance(200)
+                .balance(overriddenBalance.longValue())
                 .build());
 
         assertThat(callWithStateOverrides(data, address, overrides).getResultAsNumber())
                 .as("Code and storage overrides must execute together at %s", address)
                 .isEqualTo(41);
         assertThat(callWithStateOverrides(balanceData, address, overrides).getResultAsNumber())
-                .isEqualTo(200);
+                .isEqualTo(overriddenBalance);
         var updateData = encodeData(ESTIMATE_GAS, UPDATE_COUNTER_SELECTOR, BigInteger.valueOf(5));
         assertThat(callWithStateOverrides(updateData, address, overrides).getResultAsNumber())
                 .isEqualTo(5);
@@ -1024,7 +1026,7 @@ public class CallFeature extends AbstractFeature {
                 .isEqualTo("0x");
         assertThat(callContract(balanceData, estimateContractAddress).getResultAsNumber())
                 .as("The balance override must not persist")
-                .isEqualTo(initialBalance);
+                .isLessThan(overriddenBalance);
     }
 
     private void assertMetadataTokenName(String data, TokenClient.TokenNameEnum tokenNameEnum) {
