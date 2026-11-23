@@ -46,7 +46,7 @@ public class RestJavaProperties {
     public static class FeeEstimation {
 
         /** Whether to estimate the fee of each HAPI transaction before executing it and verify the charged fee. */
-        private boolean enabled = false;
+        private boolean enabled = true;
 
         /**
          * How far, in percent, the fee actually charged for a transaction may deviate from the estimated fee converted
