@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.common;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -45,6 +46,25 @@ class ContractCallContextTest {
         assertThat(context.getWriteCacheState(1)).isEmpty();
         assertThat(context.getWriteCacheState(2)).isEmpty();
         assertThat(context.getReadCacheState(1)).containsEntry("read", "database");
+    }
+
+    @Test
+    void cachesAreKeptPerStateId() {
+        final var context = ContractCallContext.get();
+        final int largeStateId = 10_001;
+        context.getReadCacheState(1).put("key", "small");
+        context.getReadCacheState(largeStateId).put("key", "large");
+        context.getWriteCacheState(largeStateId).put("key", "written");
+
+        assertThat(context.getReadCacheState(1)).containsOnly(Map.entry("key", "small"));
+        assertThat(context.getReadCacheState(largeStateId)).containsOnly(Map.entry("key", "large"));
+        assertThat(context.getWriteCacheState(1)).isEmpty();
+        assertThat(context.getWriteCacheState(largeStateId)).containsOnly(Map.entry("key", "written"));
+
+        context.reset();
+
+        assertThat(context.getWriteCacheState(largeStateId)).isEmpty();
+        assertThat(context.getReadCacheState(largeStateId)).containsOnly(Map.entry("key", "large"));
     }
 
     @Test

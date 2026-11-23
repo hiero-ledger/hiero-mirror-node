@@ -10,6 +10,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import com.hedera.node.app.service.schedule.ScheduleService;
 import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.app.state.recordcache.RecordCacheService;
+import com.swirlds.state.spi.CommittableWritableStates;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableQueueState;
 import com.swirlds.state.spi.ReadableSingletonState;
@@ -55,6 +56,24 @@ final class MirrorNodeStateTest {
     @Test
     void testGetReadableStateForUnsupportedService() {
         assertThat(mirrorNodeState.getReadableStates("").size()).isZero();
+    }
+
+    @Test
+    void commitKeepsReadableStatesOfServiceWithoutQueue() {
+        final var readableStates = mirrorNodeState.getReadableStates(TokenService.NAME);
+
+        commit(TokenService.NAME);
+
+        assertThat(mirrorNodeState.getReadableStates(TokenService.NAME)).isSameAs(readableStates);
+    }
+
+    @Test
+    void commitRebuildsReadableStatesOfServiceWithQueue() {
+        final var readableStates = mirrorNodeState.getReadableStates(RecordCacheService.NAME);
+
+        commit(RecordCacheService.NAME);
+
+        assertThat(mirrorNodeState.getReadableStates(RecordCacheService.NAME)).isNotSameAs(readableStates);
     }
 
     @Test
@@ -116,5 +135,9 @@ final class MirrorNodeStateTest {
     void testGetWritableStatesWithKVReturnsMapStateWhenFlagDisabled() {
         final var scheduleStates = mirrorNodeState.getWritableStates(ScheduleService.NAME);
         assertThat(scheduleStates.get(SCHEDULE_ID_BY_EQUALITY_STATE_ID)).isInstanceOf(MapWritableKVState.class);
+    }
+
+    private void commit(final String serviceName) {
+        ((CommittableWritableStates) mirrorNodeState.getWritableStates(serviceName)).commit();
     }
 }

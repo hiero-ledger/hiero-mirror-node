@@ -127,11 +127,13 @@ public class MirrorNodeState implements State {
                 return new EmptyWritableStates();
             }
             final Map<Integer, Object> data = new ConcurrentHashMap<>();
+            boolean hasQueueState = false;
             for (final var entry : serviceStates.entrySet()) {
                 final var stateId = entry.getKey();
                 final var state = entry.getValue();
                 if (state instanceof Queue<?> queue) {
                     data.put(stateId, new ListWritableQueueState<>(serviceName, stateId, queue));
+                    hasQueueState = true;
                 } else if (state instanceof ReadableKVState<?, ?>) {
                     final var readable = getReadableStates(serviceName).get(stateId);
                     data.put(stateId, buildWritableKVState(serviceName, stateId, readable));
@@ -139,7 +141,10 @@ public class MirrorNodeState implements State {
                     data.put(stateId, new FunctionWritableSingletonState<>(serviceName, stateId, ref));
                 }
             }
-            return new MapWritableStates(data, () -> readableStates.remove(serviceName));
+            // Only a readable queue state keeps what it read in the instance, so only the readable states of a service
+            // with a queue are rebuilt after a commit. The others read through the caches of the request.
+            final Runnable onCommit = hasQueueState ? () -> readableStates.remove(serviceName) : null;
+            return new MapWritableStates(data, onCommit);
         });
     }
 

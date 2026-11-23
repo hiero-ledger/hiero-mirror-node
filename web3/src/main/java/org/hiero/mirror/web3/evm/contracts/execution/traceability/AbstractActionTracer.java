@@ -7,7 +7,6 @@ import static com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils.co
 import static com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils.proxyUpdaterFor;
 import static com.hedera.node.app.service.contract.impl.utils.ConversionUtils.isLongZero;
 import static com.hedera.node.app.service.contract.impl.utils.ConversionUtils.numberOfLongZero;
-import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_SUCCESS;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.COMPLETED_SUCCESS;
 import static org.hyperledger.besu.evm.frame.MessageFrame.Type.CONTRACT_CREATION;
@@ -39,6 +38,7 @@ public abstract class AbstractActionTracer implements ActionSidecarContentTracer
 
     // Size of the template without its call depth and caller and recipient numbers, which vary per action
     private static final int ACTION_TEMPLATE_BYTES = actionTemplateBytes();
+    private static final int BALANCE_OPCODE = 0x31;
 
     // The number of a missing account is unknown, so it is assumed to have the largest number in practice
     private static final int MISSING_NUM_BYTES = 4;
@@ -175,9 +175,10 @@ public abstract class AbstractActionTracer implements ActionSidecarContentTracer
         return isSuccessfulChildCreation ? delimitedSize(frame.getCode().getSize()) : 0;
     }
 
+    // Runs twice for every executed opcode, so the opcode is compared instead of the operation name
     private static boolean isBalanceOperation(final MessageFrame frame) {
-        return frame.getCurrentOperation() != null
-                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName());
+        final var operation = frame.getCurrentOperation();
+        return operation != null && operation.getOpcode() == BALANCE_OPCODE;
     }
 
     // The value is usually zero, so it is left unset
