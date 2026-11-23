@@ -2,14 +2,12 @@
 
 package org.hiero.mirror.web3.service;
 
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.Key;
-import com.hedera.hapi.node.base.KeyList;
 import com.hedera.node.app.service.contract.impl.exec.scope.DefaultVerificationStrategies;
 import com.hedera.node.app.service.contract.impl.exec.scope.HederaNativeOperations;
 import com.hedera.node.app.service.contract.impl.exec.scope.VerificationStrategies;
 import com.hedera.node.app.service.contract.impl.exec.scope.VerificationStrategy;
-import com.hedera.node.app.spi.workflows.HandleContext;
-import java.util.function.Predicate;
 import org.hyperledger.besu.datatypes.Address;
 
 /**
@@ -33,48 +31,17 @@ final class SimulationVerificationStrategies implements VerificationStrategies {
                 sender, requiresDelegatePermission, nativeOperations);
         return new VerificationStrategy() {
             @Override
+            public boolean authorizesAccount(final AccountID accountId) {
+                return activeContractStrategy.authorizesAccount(accountId);
+            }
+
+            @Override
             public Decision decideForPrimitive(final Key key) {
                 return switch (key.key().kind()) {
                     case CONTRACT_ID, DELEGATABLE_CONTRACT_ID -> activeContractStrategy.decideForPrimitive(key);
                     default -> Decision.VALID;
                 };
             }
-
-            @Override
-            public Predicate<Key> asSignatureTestIn(final HandleContext context, final Key maybeEthSenderKey) {
-                final var primitiveTest = asPrimitiveSignatureTestIn(context, maybeEthSenderKey);
-                return key -> matchesKey(key, primitiveTest);
-            }
-        };
-    }
-
-    private static boolean matchesKey(final Key key, final Predicate<Key> primitiveTest) {
-        return switch (key.key().kind()) {
-            case KEY_LIST -> {
-                final var keys = key.keyListOrThrow().keys();
-                if (keys.isEmpty()) {
-                    yield false;
-                }
-                for (final var childKey : keys) {
-                    if (!matchesKey(childKey, primitiveTest)) {
-                        yield false;
-                    }
-                }
-                yield true;
-            }
-            case THRESHOLD_KEY -> {
-                final var thresholdKey = key.thresholdKeyOrThrow();
-                final var keys = thresholdKey.keysOrElse(KeyList.DEFAULT).keys();
-                final var clampedThreshold = Math.max(1, Math.min(thresholdKey.threshold(), keys.size()));
-                var passed = 0;
-                for (final var childKey : keys) {
-                    if (matchesKey(childKey, primitiveTest)) {
-                        passed++;
-                    }
-                }
-                yield passed >= clampedThreshold;
-            }
-            default -> primitiveTest.test(key);
         };
     }
 }
