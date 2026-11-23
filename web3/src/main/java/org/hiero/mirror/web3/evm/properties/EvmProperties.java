@@ -58,8 +58,10 @@ public class EvmProperties {
     @Min(10)
     private long entityNumBuffer = 1000L;
 
+    // Stop the gas estimate search once a successful probe is within this fraction of the initial gas used. Keep it
+    // small: the search slack adds to the 5% safety margin applied to the successful gas limit.
     @Positive
-    private double estimateGasIterationThresholdPercent = 0.10d;
+    private double estimateGasIterationThresholdPercent = 0.02d;
 
     @NotNull
     private SemanticVersion evmVersion = EVM_VERSION;

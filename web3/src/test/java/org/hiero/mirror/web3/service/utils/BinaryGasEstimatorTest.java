@@ -37,13 +37,13 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
     @DisplayName("binarySearch")
     @ParameterizedTest(name = "#{index} (low {0}, high {1}, iterationLimit{2}")
     @CsvSource({
-        "23850, 100000, 6",
-        "35000, 15_000_000, 14",
+        "23850, 100000, 8",
+        "35000, 15_000_000, 15",
         "55555, 58333, 2",
         "77777, 81666, 2",
         "1_000_000, 1_000_000_000, 20",
-        "21000, 15_000_000, 14",
-        "21000, 50_000_000, 15",
+        "21000, 15_000_000, 16",
+        "21000, 50_000_000, 17",
         "1_000_000, 1_000_000_000, 20"
     })
     void binarySearch(final long low, final long high, final int iterationLimit) {
@@ -125,6 +125,61 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
         assertThat(estimated * 20 / 21)
                 .as("the estimate with its safety margin removed must still cover pre-refund execution")
                 .isGreaterThanOrEqualTo(preRefundGasNeeded);
+    }
+
+    /**
+     * Mirrors hedera-evm-testing hip1215-6-scheduleCallRecursion.test.js. The contract calls the HSS system contract
+     * via CALL, so the lowest successful limit is the gas used plus the 63/64 forwarding reserve. The test derives the
+     * expected number of recursive schedules as balance / (estimate * 71) and the network executed 9 of them. With a
+     * coarse search, slack of up to 10% of the gas used stacked with the 5% margin (1,620,710) and lowered the
+     * expectation to 8.
+     */
+    @Test
+    void searchDoesNotStackSearchSlackWithMarginForRecursiveScheduleCall() {
+        final long initialGasUsed = 1_437_577L;
+        final long requiredGasLimit = initialGasUsed + (initialGasUsed - 21_000L) / 63;
+        final long relayGasCap = 15_000_000L;
+        final long tinybarsPerGas = 71L;
+        final long contractBalance = 1_000_000_000L;
+        final long actualRecursiveCalls = 9L;
+
+        final long estimated = binaryGasEstimator.search(
+                (_, b) -> iterations.addAndGet(b),
+                gasLimit -> createTxnResult(initialGasUsed, gasLimit >= requiredGasLimit),
+                initialGasUsed,
+                relayGasCap);
+
+        final long expectedFee = estimated * tinybarsPerGas;
+        final long expectedCalls = (contractBalance - expectedFee) / expectedFee + 1;
+        assertThat(estimated).isEqualTo(1_537_270L);
+        assertThat(expectedCalls).isEqualTo(actualRecursiveCalls);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        // StorageContractTest.testUpdateSlot1Historical: clearing a slot refunds gas after execution
+        "21669, 26469, 15_000_000",
+        // HIP-1215 recursive scheduleCall: 63/64 forwarding reserve for the system contract call
+        "1437577, 1460062, 15_000_000",
+        "50000, 62500, 70000",
+        "35000, 35000, 15_000_000"
+    })
+    void searchAddsSingleMarginOverRequiredGasLimit(long initialGasUsed, long requiredGasLimit, long high) {
+        final long estimated = binaryGasEstimator.search(
+                (_, b) -> iterations.addAndGet(b),
+                gasLimit -> createTxnResult(initialGasUsed, gasLimit >= requiredGasLimit),
+                initialGasUsed,
+                high);
+
+        assertThat(estimated)
+                .as("the estimate keeps the 5% margin over the lowest successful gas limit")
+                .isGreaterThanOrEqualTo(requiredGasLimit + Math.ceilDiv(requiredGasLimit, 20));
+        assertThat(estimated)
+                .as("search slack adds at most the iteration threshold on top of the 5% margin")
+                .isLessThanOrEqualTo((long) Math.ceil(
+                        (requiredGasLimit + initialGasUsed * properties.getEstimateGasIterationThresholdPercent())
+                                * 1.05));
+        assertThat(iterations.get()).isLessThanOrEqualTo(properties.getMaxGasEstimateRetriesCount());
     }
 
     @Test
