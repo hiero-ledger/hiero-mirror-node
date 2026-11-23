@@ -32,8 +32,11 @@ public final class StateChangeTestUtils {
 
     private static final AtomicLong id = new AtomicLong(new SecureRandom().nextLong(1_000, 1_000_000));
 
+    /** Random bytes with a non-zero first byte, so trimming leading zeros from a storage slot or value keeps them. */
     public static ByteString bytes(int size) {
-        return ByteString.copyFrom(CommonUtils.nextBytes(size));
+        final var bytes = CommonUtils.nextBytes(size);
+        bytes[0] |= 1;
+        return ByteString.copyFrom(bytes);
     }
 
     public static MapUpdateChange clprChannelMapUpdate(ClprChannel value) {

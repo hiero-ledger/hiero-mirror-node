@@ -2,40 +2,39 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
-import static com.hederahashgraph.api.proto.java.ClprChannel.ACKED_MESSAGE_ID_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.CHANNEL_CONTEXT_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_VERSION_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.LAST_CONFIG_TIMESTAMP_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.NEXT_MESSAGE_ID_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.OWNERSHIP_COMMITMENT_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.PEER_CONFIG_TIMESTAMP_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.PEER_THROTTLES_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.RECEIVED_MESSAGE_ID_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.RECEIVED_RUNNING_HASH_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.SENT_RUNNING_HASH_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.STATUS_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprChannel.TRUST_ANCHOR_ID_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprChannelStatus.PENDING_VALUE;
-import static com.hederahashgraph.api.proto.java.ClprConnector.ADMIN_KEY_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprConnector.CONNECTOR_CONTRACT_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprConnector.IN_FLIGHT_MESSAGE_COUNT_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprConnector.LOCKED_STAKE_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprConnector.SLASH_COUNT_FIELD_NUMBER;
-// ClprEndpointManifest and ClprLedgerConfiguration both declare SERVICE_ADDRESS_FIELD_NUMBER, so that one constant
-// can't be statically imported from either without colliding; it stays fully qualified at its two use sites below.
-import static com.hederahashgraph.api.proto.java.ClprEndpointManifest.ENDPOINTS_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprEndpointManifest.VERSION_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.CHAIN_ID_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.INITIAL_TRUST_ANCHOR_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.INITIAL_TRUST_ANCHOR_ID_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.PROTOCOL_VERSION_FIELD_NUMBER;
-import static com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.THROTTLES_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprMessagePayload.CONTROL_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_FIELD_NUMBER;
 import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_REPLY_FIELD_NUMBER;
-import static org.hiero.mirror.common.domain.transaction.StateChangeContext.isPresent;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_ACKED_MESSAGE_ID;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_CHANNEL_CONTEXT;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_ENDPOINT_MANIFEST;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_ENDPOINT_MANIFEST_VERSION;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_LAST_CONFIG_TIMESTAMP;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_NEXT_MESSAGE_ID;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_OWNERSHIP_COMMITMENT;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_PEER_CONFIG_TIMESTAMP;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_PEER_THROTTLES;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_RECEIVED_MESSAGE_ID;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_RECEIVED_RUNNING_HASH;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_SENT_RUNNING_HASH;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_STATUS;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_TRUST_ANCHOR;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_TRUST_ANCHOR_ID;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CONNECTOR_ADMIN_KEY;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CONNECTOR_CONNECTOR_CONTRACT;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CONNECTOR_IN_FLIGHT_MESSAGE_COUNT;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CONNECTOR_LOCKED_STAKE;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CONNECTOR_SLASH_COUNT;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_ENDPOINT_MANIFEST_ENDPOINTS;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_ENDPOINT_MANIFEST_SERVICE_ADDRESS;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_ENDPOINT_MANIFEST_VERSION;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_LEDGER_CONFIGURATION_CHAIN_ID;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_LEDGER_CONFIGURATION_INITIAL_TRUST_ANCHOR;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_LEDGER_CONFIGURATION_INITIAL_TRUST_ANCHOR_ID;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_LEDGER_CONFIGURATION_PROTOCOL_VERSION;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_LEDGER_CONFIGURATION_SERVICE_ADDRESS;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_LEDGER_CONFIGURATION_THROTTLES;
 
 import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
@@ -171,19 +170,19 @@ public final class ClprStateChangeHandler {
         final var mapUpdate = entry.mapUpdate();
         final var value = entry.value();
 
-        if (isPresent(mapUpdate, value, CONNECTOR_CONTRACT_FIELD_NUMBER)) {
+        if (CLPR_CONNECTOR_CONNECTOR_CONTRACT.isPresent(mapUpdate, value)) {
             builder.connectorContractId(EntityId.of(value.getConnectorContract()));
         }
-        if (isPresent(mapUpdate, value, ADMIN_KEY_FIELD_NUMBER)) {
+        if (CLPR_CONNECTOR_ADMIN_KEY.isPresent(mapUpdate, value)) {
             builder.adminKey(value.getAdminKey().toByteArray());
         }
-        if (isPresent(mapUpdate, value, LOCKED_STAKE_FIELD_NUMBER)) {
+        if (CLPR_CONNECTOR_LOCKED_STAKE.isPresent(mapUpdate, value)) {
             builder.lockedStake(value.getLockedStake());
         }
-        if (isPresent(mapUpdate, value, SLASH_COUNT_FIELD_NUMBER)) {
+        if (CLPR_CONNECTOR_SLASH_COUNT.isPresent(mapUpdate, value)) {
             builder.slashCount(Integer.toUnsignedLong(value.getSlashCount()));
         }
-        if (isPresent(mapUpdate, value, IN_FLIGHT_MESSAGE_COUNT_FIELD_NUMBER)) {
+        if (CLPR_CONNECTOR_IN_FLIGHT_MESSAGE_COUNT.isPresent(mapUpdate, value)) {
             builder.inFlightMessageCount(value.getInFlightMessageCount());
         }
     }
@@ -214,56 +213,56 @@ public final class ClprStateChangeHandler {
         final var value = entry.value();
         final var builder = ClprChannel.builder().channelId(DomainUtils.toBytes(entry.channelId()));
 
-        if (isPresent(mapUpdate, value, STATUS_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_STATUS.isPresent(mapUpdate, value)) {
             builder.status(toChannelStatus(value.getStatusValue()));
         }
-        if (isPresent(mapUpdate, value, NEXT_MESSAGE_ID_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_NEXT_MESSAGE_ID.isPresent(mapUpdate, value)) {
             builder.nextMessageId(value.getNextMessageId());
         }
-        if (isPresent(mapUpdate, value, ACKED_MESSAGE_ID_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_ACKED_MESSAGE_ID.isPresent(mapUpdate, value)) {
             builder.ackedMessageId(value.getAckedMessageId());
         }
-        if (isPresent(mapUpdate, value, SENT_RUNNING_HASH_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_SENT_RUNNING_HASH.isPresent(mapUpdate, value)) {
             builder.sentRunningHash(DomainUtils.toBytes(value.getSentRunningHash()));
         }
-        if (isPresent(mapUpdate, value, RECEIVED_MESSAGE_ID_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_RECEIVED_MESSAGE_ID.isPresent(mapUpdate, value)) {
             builder.receivedMessageId(value.getReceivedMessageId());
         }
-        if (isPresent(mapUpdate, value, RECEIVED_RUNNING_HASH_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_RECEIVED_RUNNING_HASH.isPresent(mapUpdate, value)) {
             builder.receivedRunningHash(DomainUtils.toBytes(value.getReceivedRunningHash()));
         }
-        if (isPresent(mapUpdate, value, OWNERSHIP_COMMITMENT_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_OWNERSHIP_COMMITMENT.isPresent(mapUpdate, value)) {
             builder.ownershipCommitment(DomainUtils.toBytes(value.getOwnershipCommitment()));
         }
-        if (isPresent(mapUpdate, value, TRUST_ANCHOR_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_TRUST_ANCHOR.isPresent(mapUpdate, value)) {
             builder.trustAnchor(DomainUtils.toBytes(value.getTrustAnchor()));
         }
-        if (isPresent(mapUpdate, value, TRUST_ANCHOR_ID_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_TRUST_ANCHOR_ID.isPresent(mapUpdate, value)) {
             builder.trustAnchorId(DomainUtils.toBytes(value.getTrustAnchorId()));
         }
-        if (isPresent(mapUpdate, value, CHANNEL_CONTEXT_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_CHANNEL_CONTEXT.isPresent(mapUpdate, value)) {
             builder.channelContext(DomainUtils.toBytes(value.getChannelContext()));
         }
-        if (isPresent(mapUpdate, value, ENDPOINT_MANIFEST_VERSION_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_ENDPOINT_MANIFEST_VERSION.isPresent(mapUpdate, value)) {
             builder.endpointManifestVersion(value.getEndpointManifestVersion());
         }
-        if (isPresent(mapUpdate, value, LAST_CONFIG_TIMESTAMP_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_LAST_CONFIG_TIMESTAMP.isPresent(mapUpdate, value)) {
             builder.lastConfigTimestamp(
                     value.hasLastConfigTimestamp()
                             ? DomainUtils.timestampInNanosMax(value.getLastConfigTimestamp())
                             : null);
         }
-        if (isPresent(mapUpdate, value, PEER_CONFIG_TIMESTAMP_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_PEER_CONFIG_TIMESTAMP.isPresent(mapUpdate, value)) {
             builder.peerConfigTimestamp(
                     value.hasPeerConfigTimestamp()
                             ? DomainUtils.timestampInNanosMax(value.getPeerConfigTimestamp())
                             : null);
         }
-        if (isPresent(mapUpdate, value, PEER_THROTTLES_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_PEER_THROTTLES.isPresent(mapUpdate, value)) {
             builder.peerThrottle(
                     value.hasPeerThrottles() ? ClprThrottleConverter.from(value.getPeerThrottles()) : null);
         }
-        if (isPresent(mapUpdate, value, ENDPOINT_MANIFEST_FIELD_NUMBER)) {
+        if (CLPR_CHANNEL_ENDPOINT_MANIFEST.isPresent(mapUpdate, value)) {
             builder.endpointManifest(
                     value.hasEndpointManifest()
                             ? toEndpoints(value.getEndpointManifest().getEndpointsList())
@@ -297,16 +296,16 @@ public final class ClprStateChangeHandler {
         }
 
         final var value = entry.value();
-        return isPresent(mapUpdate, value, STATUS_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, OWNERSHIP_COMMITMENT_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, TRUST_ANCHOR_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, TRUST_ANCHOR_ID_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, CHANNEL_CONTEXT_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, ENDPOINT_MANIFEST_VERSION_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, LAST_CONFIG_TIMESTAMP_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, PEER_CONFIG_TIMESTAMP_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, PEER_THROTTLES_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, ENDPOINT_MANIFEST_FIELD_NUMBER);
+        return CLPR_CHANNEL_STATUS.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_OWNERSHIP_COMMITMENT.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_TRUST_ANCHOR.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_TRUST_ANCHOR_ID.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_CHANNEL_CONTEXT.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_ENDPOINT_MANIFEST_VERSION.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_LAST_CONFIG_TIMESTAMP.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_PEER_CONFIG_TIMESTAMP.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_PEER_THROTTLES.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_ENDPOINT_MANIFEST.isPresent(mapUpdate, value);
     }
 
     // A full update (partial=false) can't tell us which field actually changed, so conservatively always historize,
@@ -320,8 +319,8 @@ public final class ClprStateChangeHandler {
         }
 
         final var value = entry.value();
-        return isPresent(mapUpdate, value, CONNECTOR_CONTRACT_FIELD_NUMBER)
-                || isPresent(mapUpdate, value, ADMIN_KEY_FIELD_NUMBER);
+        return CLPR_CONNECTOR_CONNECTOR_CONTRACT.isPresent(mapUpdate, value)
+                || CLPR_CONNECTOR_ADMIN_KEY.isPresent(mapUpdate, value);
     }
 
     private byte @Nullable [] lookupCommitment(
@@ -432,19 +431,20 @@ public final class ClprStateChangeHandler {
             return null;
         }
 
-        final int serviceAddressField =
-                com.hederahashgraph.api.proto.java.ClprEndpointManifest.SERVICE_ADDRESS_FIELD_NUMBER;
         return ClprEndpointManifest.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .endpoints(
-                        isPresent(update, value, ENDPOINTS_FIELD_NUMBER)
+                        CLPR_ENDPOINT_MANIFEST_ENDPOINTS.isPresent(update, value)
                                 ? toEndpoints(value.getEndpointsList())
                                 : baseline.getEndpoints())
                 .serviceAddress(
-                        isPresent(update, value, serviceAddressField)
+                        CLPR_ENDPOINT_MANIFEST_SERVICE_ADDRESS.isPresent(update, value)
                                 ? DomainUtils.toBytes(value.getServiceAddress())
                                 : baseline.getServiceAddress())
-                .version(isPresent(update, value, VERSION_FIELD_NUMBER) ? value.getVersion() : baseline.getVersion())
+                .version(
+                        CLPR_ENDPOINT_MANIFEST_VERSION.isPresent(update, value)
+                                ? value.getVersion()
+                                : baseline.getVersion())
                 .build();
     }
 
@@ -475,29 +475,30 @@ public final class ClprStateChangeHandler {
             return null;
         }
 
-        final int serviceAddressField =
-                com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.SERVICE_ADDRESS_FIELD_NUMBER;
         return ClprLedgerConfiguration.builder()
-                .chainId(isPresent(update, value, CHAIN_ID_FIELD_NUMBER) ? value.getChainId() : baseline.getChainId())
+                .chainId(
+                        CLPR_LEDGER_CONFIGURATION_CHAIN_ID.isPresent(update, value)
+                                ? value.getChainId()
+                                : baseline.getChainId())
                 .consensusTimestamp(consensusTimestamp)
                 .initialTrustAnchor(
-                        isPresent(update, value, INITIAL_TRUST_ANCHOR_FIELD_NUMBER)
+                        CLPR_LEDGER_CONFIGURATION_INITIAL_TRUST_ANCHOR.isPresent(update, value)
                                 ? DomainUtils.toBytes(value.getInitialTrustAnchor())
                                 : baseline.getInitialTrustAnchor())
                 .initialTrustAnchorId(
-                        isPresent(update, value, INITIAL_TRUST_ANCHOR_ID_FIELD_NUMBER)
+                        CLPR_LEDGER_CONFIGURATION_INITIAL_TRUST_ANCHOR_ID.isPresent(update, value)
                                 ? DomainUtils.toBytes(value.getInitialTrustAnchorId())
                                 : baseline.getInitialTrustAnchorId())
                 .protocolVersion(
-                        isPresent(update, value, PROTOCOL_VERSION_FIELD_NUMBER)
+                        CLPR_LEDGER_CONFIGURATION_PROTOCOL_VERSION.isPresent(update, value)
                                 ? Integer.toUnsignedLong(value.getProtocolVersion())
                                 : baseline.getProtocolVersion())
                 .serviceAddress(
-                        isPresent(update, value, serviceAddressField)
+                        CLPR_LEDGER_CONFIGURATION_SERVICE_ADDRESS.isPresent(update, value)
                                 ? DomainUtils.toBytes(value.getServiceAddress())
                                 : baseline.getServiceAddress())
                 .throttle(
-                        isPresent(update, value, THROTTLES_FIELD_NUMBER)
+                        CLPR_LEDGER_CONFIGURATION_THROTTLES.isPresent(update, value)
                                 ? ClprThrottleConverter.from(value)
                                 : baseline.getThrottle())
                 .build();
