@@ -12,24 +12,20 @@ plugins {
     id("com.github.node-gradle.node")
     id("idea")
     id("java-platform")
-    id("snykcode-extension")
 }
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "26.2.0")
-    set("blockNodeVersion", "0.44.2")
+    set("blockNodeVersion", "0.46.0")
+    set("commons-codec.version", "1.23.0") // Temporary until next Spring Boot
     set("consensusNodeVersion", "0.78.2")
-    set("hederaCryptographyVersion", "3.22.0")
-    set("jackson-bom.version", "3.2.3") // Temporary until next Spring Boot
-    set("jackson-2-bom.version", "2.22.3") // Temporary until next Spring Boot
-    set("jetty.version", "12.1.13") // Temporary until next Spring Boot
+    set("hederaCryptographyVersion", "3.29.1")
+    set("jackson-bom.version", "3.3.0") // Temporary until next Spring Boot
+    set("jackson-2-bom.version", "2.23.0") // Temporary until next Spring Boot
     set("jooq.version", "3.21.9") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("netty.version", "4.2.18.Final") // Temporary until next Spring Boot
-    set("nodeJsVersion", "24.22.1")
-    set("postgresql.version", "42.7.14") // Temporary until next Spring Boot
-    set("tomcat.version", "11.0.27") // Temporary until next Spring Boot
+    set("nodeJsVersion", "24.22.2")
     set("tuweniVersion", "2.3.1")
 }
 
@@ -46,11 +42,11 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-23")
+        api("com.github.luben:zstd-jni:1.5.7-26")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.7.2-jre")
+        api("com.google.guava:guava:33.8.0-jre")
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
@@ -59,7 +55,7 @@ dependencies {
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.2")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.5")
         api("com.hedera.hashgraph:sdk:2.79.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
@@ -76,20 +72,21 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.bouncycastle:bcpkix-jdk18on:1.86") // Temporary until next hedera-app
-        api("org.bouncycastle:bcprov-jdk18on:1.86")
+        api("org.bouncycastle:bcpkix-jdk18on:1.87") // Temporary until next hedera-app
+        api("org.bouncycastle:bcprov-jdk18on:1.87")
         api("org.gaul:s3proxy:4.1.1")
-        api("org.graalvm.nativeimage:svm:25.0.4.1.1")
+        api("org.graalvm.nativeimage:svm:25.0.5.0.3")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu.internal:besu-crypto-algorithms:$besuVersion")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
         api("org.hyperledger.besu:evm:$besuVersion")
+        api("org.json:json:20260814") // Temporary until next hedera-app
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
-        api("org.web3j:core:6.0.0")
+        api("org.web3j:core:6.1.0")
         api("org.xerial.snappy:snappy-java:1.1.10.12") // Temporary until next Besu
-        api("software.amazon.awssdk:bom:2.56.0")
+        api("software.amazon.awssdk:bom:2.58.0")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

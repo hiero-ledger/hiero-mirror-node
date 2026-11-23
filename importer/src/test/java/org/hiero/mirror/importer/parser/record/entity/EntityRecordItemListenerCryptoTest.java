@@ -98,6 +98,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
+import org.springframework.data.util.Version;
 
 @RequiredArgsConstructor
 final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListenerTest {
@@ -214,6 +215,64 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                 .filteredOn(contractLog -> contractLog.getConsensusTimestamp() == recordItem.getConsensusTimestamp())
                 .isNotEmpty()
                 .allMatch(ContractLog::isSynthetic);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void cryptoApproveAllowanceDelegatedApprovedForAllFalse(final boolean preHapi077) {
+        // given
+        final var nftAllowance = domainBuilder
+                .nftAllowance()
+                .customize(a -> a.approvedForAll(true))
+                .persist();
+        final var nft = domainBuilder
+                .nft()
+                .customize(
+                        n -> n.accountId(EntityId.of(nftAllowance.getOwner())).tokenId(nftAllowance.getTokenId()))
+                .persist();
+        final var delegatingSpender = recordItemBuilder.accountId();
+        final var recordItem = recordItemBuilder
+                .cryptoApproveAllowance()
+                .transactionBody(b -> b.clear()
+                        .addNftAllowances(NftAllowance.newBuilder()
+                                .setApprovedForAll(BoolValue.of(false))
+                                .setDelegatingSpender(delegatingSpender)
+                                .setOwner(EntityId.of(nftAllowance.getOwner()).toAccountID())
+                                .addSerialNumbers(nft.getSerialNumber())
+                                .setSpender(
+                                        EntityId.of(nftAllowance.getSpender()).toAccountID())
+                                .setTokenId(
+                                        EntityId.of(nftAllowance.getTokenId()).toTokenID())))
+                .recordItem(r -> r.hapiVersion(preHapi077 ? new Version(0, 76, 0) : HAPI_VERSION_0_77_0))
+                .build();
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var expectedNft = nft.toBuilder()
+                .delegatingSpender(EntityId.of(delegatingSpender).getId())
+                .spender(nftAllowance.getSpender())
+                .timestampRange(Range.atLeast(consensusTimestamp))
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(nftRepository.findAll()).containsExactly(expectedNft);
+
+        final var nftAllowanceHistory = findHistory(org.hiero.mirror.common.domain.entity.NftAllowance.class);
+        if (!preHapi077) {
+            // the delegating spender only approves the serial, the owner's approved for all allowance stays intact
+            assertThat(nftAllowanceRepository.findAll()).containsExactly(nftAllowance);
+            assertThat(nftAllowanceHistory).isEmpty();
+        } else {
+            // before HAPI 0.77.0, consensus nodes also revoke the owner's approved for all allowance to the spender
+            final var revoked = TestUtils.clone(nftAllowance);
+            revoked.setApprovedForAll(false);
+            revoked.setPayerAccountId(recordItem.getPayerAccountId());
+            revoked.setTimestampLower(consensusTimestamp);
+            nftAllowance.setTimestampUpper(consensusTimestamp);
+            assertThat(nftAllowanceRepository.findAll()).containsExactly(revoked);
+            assertThat(nftAllowanceHistory).containsExactly(nftAllowance);
+        }
     }
 
     @Test

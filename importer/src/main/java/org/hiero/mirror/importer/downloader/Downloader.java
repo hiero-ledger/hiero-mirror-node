@@ -11,6 +11,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.math.BigDecimal;
@@ -21,12 +22,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -45,6 +46,7 @@ import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
 import org.hiero.mirror.importer.downloader.provider.TransientProviderException;
 import org.hiero.mirror.importer.exception.FileOperationException;
 import org.hiero.mirror.importer.exception.HashMismatchException;
+import org.hiero.mirror.importer.exception.InvalidConfigurationException;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
 import org.hiero.mirror.importer.reader.StreamFileReader;
 import org.hiero.mirror.importer.reader.signature.SignatureFileReader;
@@ -58,6 +60,10 @@ import reactor.core.scheduler.Schedulers;
 public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> {
 
     public static final String STREAM_CLOSE_LATENCY_METRIC_NAME = "hiero.mirror.importer.stream.close.latency";
+
+    static final String SIGNATURE_VERIFICATION_METRIC_NAME = "hiero.mirror.importer.stream.signature.verification";
+
+    static final String STREAM_VERIFICATION_METRIC_NAME = "hiero.mirror.importer.stream.verification";
 
     private static final String HASH_TYPE_FILE = "File";
     private static final String HASH_TYPE_METADATA = "Metadata";
@@ -90,11 +96,11 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
 
     // Metrics
     private final MeterRegistry meterRegistry;
-    private final Map<Long, Counter> nodeSignatureStatusMetricMap = new ConcurrentHashMap<>();
     private final Timer cloudStorageLatencyMetric;
     private final Timer downloadLatencyMetric;
+    private final MeterProvider<Counter> signatureVerificationMetric;
     private final Timer streamCloseMetric;
-    private final Timer.Builder streamVerificationMetric;
+    private final MeterProvider<Timer> streamVerificationMetric;
 
     @SuppressWarnings({"java:S107", "java:S3740"})
     protected Downloader(
@@ -133,14 +139,20 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                 .tag("type", streamType.toString())
                 .register(meterRegistry);
 
+        signatureVerificationMetric = Counter.builder(SIGNATURE_VERIFICATION_METRIC_NAME)
+                .description("The number of signatures verified from a particular node")
+                .tag("type", streamType.toString())
+                .withRegistry(meterRegistry);
+
         streamCloseMetric = Timer.builder(STREAM_CLOSE_LATENCY_METRIC_NAME)
                 .description("The difference between the consensus start of the current and the last stream file")
                 .tag("type", streamType.toString())
                 .register(meterRegistry);
 
-        streamVerificationMetric = Timer.builder("hiero.mirror.importer.stream.verification")
+        streamVerificationMetric = Timer.builder(STREAM_VERIFICATION_METRIC_NAME)
                 .description("The duration in seconds it took to verify consensus and hash chain of a stream file")
-                .tag("type", streamType.toString());
+                .tag("type", streamType.toString())
+                .withRegistry(meterRegistry);
     }
 
     public abstract void download();
@@ -151,7 +163,8 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
         }
 
         try {
-            var sigFilesMap = downloadAndParseSigFiles();
+            final var nodes = partialCollection(consensusNodeService.getNodes());
+            final var sigFilesMap = downloadAndParseSigFiles(nodes);
 
             // Following is a cost optimization to not unnecessarily list the public demo bucket once complete
             if (sigFilesMap.isEmpty()
@@ -161,7 +174,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
             }
 
             // Verify signature files and download corresponding files of valid signature files
-            verifySigsAndDownloadDataFiles(sigFilesMap);
+            verifySigsAndDownloadDataFiles(sigFilesMap, nodes);
         } catch (SignatureVerificationException e) {
             log.warn(e.getMessage());
         } catch (Exception e) {
@@ -198,14 +211,21 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
      * Download and parse all signature files with a timestamp later than the last valid file. Put signature files into
      * a multi-map sorted and grouped by the timestamp.
      *
+     * @param nodes the nodes to download signature files from
      * @return a multi-map of signature file objects from different nodes, grouped by filename
      */
-    private Multimap<StreamFilename, StreamFileSignature> downloadAndParseSigFiles() {
+    private Multimap<StreamFilename, StreamFileSignature> downloadAndParseSigFiles(
+            final Collection<ConsensusNode> nodes) {
         // Limit to 1 signature file if downloader is disabled
         long listLimit = downloaderProperties.isEnabled() ? Long.MAX_VALUE : 1;
         var stopwatch = Stopwatch.createStarted();
-        var nodes = partialCollection(consensusNodeService.getNodes());
         var startAfterFilename = getStartAfterFilename();
+        // EPOCH is a record filename, so it can't be checked against other stream types
+        if (startAfterFilename != StreamFilename.EPOCH && startAfterFilename.getStreamType() != streamType) {
+            throw new InvalidConfigurationException("Last stream file %s is of type %s, expected %s"
+                    .formatted(startAfterFilename.getFilename(), startAfterFilename.getStreamType(), streamType));
+        }
+
         log.debug("Asking for new signature files created after file: {}", startAfterFilename);
 
         final var signatures = Objects.requireNonNull(Flux.fromIterable(nodes)
@@ -272,12 +292,12 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
      * hash until we find a match.
      *
      * @param sigFilesMap signature files grouped by filename
+     * @param nodes       the nodes the signature files were downloaded from
      */
     @SuppressWarnings("java:S135")
-    private void verifySigsAndDownloadDataFiles(Multimap<StreamFilename, StreamFileSignature> sigFilesMap) {
-        var nodeIds = consensusNodeService.getNodes().stream()
-                .map(ConsensusNode::getNodeId)
-                .collect(Collectors.toSet());
+    private void verifySigsAndDownloadDataFiles(
+            final Multimap<StreamFilename, StreamFileSignature> sigFilesMap, final Collection<ConsensusNode> nodes) {
+        var nodeIds = nodes.stream().map(ConsensusNode::getNodeId).collect(Collectors.toSet());
         StreamFilename earliestFilename = null;
 
         for (var sigFilenameIter = sigFilesMap.keySet().iterator(); sigFilenameIter.hasNext(); ) {
@@ -293,8 +313,13 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                 earliestFilename = sigFilename;
             }
 
+            boolean valid = false;
             try {
                 nodeSignatureVerifier.verify(signatures);
+                valid = verifySignatures(signatures, earliestFilename);
+                if (!valid) {
+                    log.error("None of the data files could be verified, signatures: {}", signatures);
+                }
             } catch (SignatureVerificationException ex) {
                 var statusMapMessage = statusMap(signatures, nodeIds);
                 if (sigFilenameIter.hasNext()) {
@@ -303,17 +328,12 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                 }
 
                 throw new SignatureVerificationException(ex.getMessage() + ": " + statusMapMessage);
+            } finally {
+                recordSignatureStatuses(signatures, nodeIds);
+                streamVerificationMetric
+                        .withTags("success", String.valueOf(valid))
+                        .record(Duration.between(startTime, Instant.now()));
             }
-
-            boolean valid = verifySignatures(signatures, earliestFilename);
-            if (!valid) {
-                log.error("None of the data files could be verified, signatures: {}", signatures);
-            }
-
-            streamVerificationMetric
-                    .tag("success", String.valueOf(valid))
-                    .register(meterRegistry)
-                    .record(Duration.between(startTime, Instant.now()));
         }
     }
 
@@ -458,32 +478,33 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
         var missingNodes = new TreeSet<>(Sets.difference(nodeIds, seenNodes));
         statusMap.put(SignatureStatus.NOT_FOUND, missingNodes);
 
-        String signatureStreamType = signatures.stream()
-                .map(StreamFileSignature::getStreamType)
-                .map(StreamType::toString)
-                .findFirst()
-                .orElse("UNKNOWN");
-
-        for (var entry : statusMap.entrySet()) {
-            entry.getValue().forEach(nodeId -> {
-                Counter counter = nodeSignatureStatusMetricMap.computeIfAbsent(
-                        nodeId, n -> newStatusMetric(nodeId, signatureStreamType, entry.getKey()));
-                counter.increment();
-            });
-        }
-
         // remove CONSENSUS_REACHED for logging purposes
         statusMap.remove(SignatureStatus.CONSENSUS_REACHED);
         return statusMap;
     }
 
-    private Counter newStatusMetric(Long nodeId, String streamType, SignatureStatus status) {
-        return Counter.builder("hiero.mirror.importer.stream.signature.verification")
-                .description("The number of signatures verified from a particular node")
-                .tag("node", nodeId.toString())
-                .tag("type", streamType)
-                .tag("status", status.toString())
-                .register(meterRegistry);
+    /**
+     * Counts the signature status of each node that was asked for the signature file of a stream file.
+     */
+    private void recordSignatureStatuses(final Collection<StreamFileSignature> signatures, final Set<Long> nodeIds) {
+        final var missingNodeIds = new HashSet<>(nodeIds);
+        for (final var signature : signatures) {
+            final long nodeId = signature.getNode().getNodeId();
+            missingNodeIds.remove(nodeId);
+            signatureVerificationMetric
+                    .withTags(
+                            "node",
+                            String.valueOf(nodeId),
+                            "status",
+                            signature.getStatus().toString())
+                    .increment();
+        }
+
+        for (final long nodeId : missingNodeIds) {
+            signatureVerificationMetric
+                    .withTags("node", String.valueOf(nodeId), "status", SignatureStatus.NOT_FOUND.toString())
+                    .increment();
+        }
     }
 
     /**

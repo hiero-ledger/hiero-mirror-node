@@ -5,6 +5,7 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.test.e2e.acceptance.config.RestProperties.URL_PREFIX;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.toRestTransactionId;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
@@ -13,11 +14,17 @@ import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
+import com.hedera.hashgraph.sdk.ExchangeRate;
 import com.hedera.hashgraph.sdk.MirrorNodeContractEstimateGasQuery;
 import com.hedera.hashgraph.sdk.SubscriptionHandle;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.TopicMessageQuery;
+import com.hedera.hashgraph.sdk.Transaction;
+import com.hedera.hashgraph.sdk.TransactionId;
 import jakarta.inject.Named;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -52,6 +59,8 @@ import org.hiero.mirror.rest.model.ContractResultsResponse;
 import org.hiero.mirror.rest.model.ContractStateResponse;
 import org.hiero.mirror.rest.model.ContractsResponse;
 import org.hiero.mirror.rest.model.CryptoAllowancesResponse;
+import org.hiero.mirror.rest.model.FeeEstimateMode;
+import org.hiero.mirror.rest.model.FeeEstimateResponse;
 import org.hiero.mirror.rest.model.HooksResponse;
 import org.hiero.mirror.rest.model.HooksStorageResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
@@ -79,6 +88,7 @@ import org.hiero.mirror.rest.model.Topic;
 import org.hiero.mirror.rest.model.TopicMessage;
 import org.hiero.mirror.rest.model.TopicMessagesResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
+import org.hiero.mirror.rest.model.TransactionTypes;
 import org.hiero.mirror.rest.model.TransactionsResponse;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.RestJavaProperties;
@@ -91,6 +101,7 @@ import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.core.retry.Retryable;
+import org.springframework.http.MediaType;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestClient;
 
@@ -403,6 +414,125 @@ public class MirrorNodeClient {
         return callRestJavaEndpoint(feesEndpoint, NetworkFeesResponse.class);
     }
 
+    /**
+     * Estimates the fee of a HAPI transaction using the REST Java {@code POST /api/v1/network/fees} endpoint in
+     * {@code STATE} mode. The high volume throttle is left at the endpoint default.
+     *
+     * @param transaction a single protobuf encoded HAPI {@code Transaction}, as submitted to the network
+     * @return the estimated fee, in tinycents
+     */
+    public FeeEstimateResponse estimateFees(final byte[] transaction) {
+        // Not retried: a missing or not yet ready fee estimation endpoint must not delay the actual HAPI call
+        return restJavaClient
+                .post()
+                .uri("/network/fees?mode={mode}", FeeEstimateMode.STATE)
+                .contentType(MediaType.APPLICATION_PROTOBUF)
+                .body(transaction)
+                .retrieve()
+                .body(FeeEstimateResponse.class);
+    }
+
+    /**
+     * Estimates the fee of a frozen and signed SDK transaction in {@code STATE} mode. The transaction bytes submitted
+     * to the network are signed lazily, so callers should sign the transaction first for the signature count to be
+     * reflected in the estimate. The high volume throttle is left at the endpoint default.
+     *
+     * @param transaction the frozen SDK transaction, signed as it will be when submitted to the network
+     * @return the estimated fee, in tinycents
+     */
+    @SneakyThrows
+    public FeeEstimateResponse estimateFees(final Transaction<?> transaction) {
+        final var transactionList = com.hedera.hashgraph.sdk.proto.TransactionList.parseFrom(transaction.toBytes());
+        if (transactionList.getTransactionListCount() == 0) {
+            throw new IllegalArgumentException("Transaction has no signed transaction bytes to estimate fees for");
+        }
+
+        // The endpoint expects a single Transaction, while the SDK serializes a TransactionList with one entry per
+        // node or chunk. The entries only differ in node account ID, which does not affect the fee.
+        final var singleTransaction = transactionList.getTransactionList(0).toByteArray();
+        return estimateFees(singleTransaction);
+    }
+
+    /**
+     * Verifies that the fee actually charged for a transaction, as reported by the mirror node, is within the given
+     * tolerance of a fee estimate previously obtained from {@link #estimateFees}. The estimate is in tinycents and is
+     * converted to tinybars using the exchange rate from the transaction receipt, e.g. {@code tinybars = tinycents *
+     * hbars / cents}, since one hbar is \(10^8\) tinybars and one cent is \(10^8\) tinycents.
+     *
+     * <p>A contract create also charges gas during EVM execution. That gas is subtracted from the charged fee so the
+     * comparison covers the simple fee, including the base fee, keys, and hooks.
+     *
+     * @param transactionId the ID of the executed transaction
+     * @param exchangeRate the exchange rate from the transaction receipt
+     * @param estimate the fee estimate obtained before the transaction was executed
+     * @param tolerancePercent the maximum allowed deviation between the charged and estimated fee, in percent
+     * @return the mirror node transactions for {@code transactionId}, for reuse by later assertions
+     */
+    public TransactionByIdResponse verifyFeeEstimate(
+            final TransactionId transactionId,
+            final ExchangeRate exchangeRate,
+            final FeeEstimateResponse estimate,
+            final double tolerancePercent) {
+        if (estimate == null || estimate.getTotal() <= 0) {
+            log.debug("Skipping fee verification for {} since the estimate has no total", transactionId);
+            return null;
+        }
+
+        final long expectedTinybars = BigDecimal.valueOf(estimate.getTotal())
+                .multiply(BigDecimal.valueOf(exchangeRate.hbars))
+                .divide(BigDecimal.valueOf(exchangeRate.cents), 0, RoundingMode.HALF_UP)
+                .longValue();
+        final var restTransactionId = toRestTransactionId(transactionId);
+        final var transactionsResponse = getTransactions(restTransactionId);
+        final var transactions = transactionsResponse.getTransactions();
+        assertThat(transactions).as("Transactions for %s", transactionId).isNotEmpty();
+
+        // Preceding children share the transaction ID and are returned first. The parent transaction is the one with
+        // nonce 0.
+        final var transaction = transactions.stream()
+                .filter(t -> Integer.valueOf(0).equals(t.getNonce()))
+                .findFirst()
+                .orElse(null);
+
+        final var chargedTinybars = transaction.getChargedTxFee();
+        assertThat(chargedTinybars).as("Charged fee for %s", transactionId).isNotNull();
+
+        // A fee-exempt payer, such as genesis account 0.0.2 during fund reclaim, is charged nothing.
+        if (chargedTinybars == 0) {
+            return transactionsResponse;
+        }
+
+        // Contract create charges its simple fee and, separately, gas. Remove the gas so the comparison covers the
+        // base fee, keys, and hooks that the estimate includes.
+        final var comparableTinybars = transaction.getName() == TransactionTypes.CONTRACTCREATEINSTANCE
+                ? chargedTinybars - contractCreateGasTinybars(restTransactionId)
+                : chargedTinybars;
+
+        final double deviationPercent = expectedTinybars == 0
+                ? 0.0
+                : Math.abs(comparableTinybars - expectedTinybars) * 100.0 / expectedTinybars;
+        assertThat(deviationPercent)
+                .as(
+                        "Charged fee of %d tinybars for %s deviates from the estimated fee of %d tinybars",
+                        comparableTinybars, transactionId, expectedTinybars)
+                .isLessThanOrEqualTo(tolerancePercent);
+        return transactionsResponse;
+    }
+
+    /**
+     * Gas charged for a contract create, in tinybars. The contract result reports gas consumed and the consensus gas
+     * price in tinybars, and that product is included in the record's charged fee on top of the simple fee.
+     */
+    private long contractCreateGasTinybars(final String transactionId) {
+        final var result = getContractResultByTransactionId(transactionId);
+        final var gasConsumed = result.getGasConsumed();
+        final var gasPrice = result.getGasPrice();
+        assertThat(gasConsumed).as("Gas consumed for %s", transactionId).isNotNull();
+        assertThat(gasPrice).as("Gas price for %s", transactionId).isNotBlank();
+        final var priceTinybars = new BigInteger(gasPrice.replaceFirst("^0[xX]", ""), 16).longValueExact();
+        return Math.multiplyExact(gasConsumed, priceTinybars);
+    }
+
     public NetworkSupplyResponse getNetworkSupply() {
         String supplyEndpoint = "/network/supply";
         return callRestJavaEndpoint(supplyEndpoint, NetworkSupplyResponse.class);
@@ -523,6 +653,11 @@ public class MirrorNodeClient {
     public AccountInfo getAccountDetailsByAccountId(@NonNull AccountId accountId) {
         log.debug("Retrieving account details for accountId '{}'", accountId);
         return callRestEndpoint("/accounts/{accountId}", AccountInfo.class, accountId.toString());
+    }
+
+    public AccountInfo getAccountDetailsWithNotFound(String accountId) {
+        log.debug("Verify account '{}' is not found", accountId);
+        return callRestEndpointNoRetry("/accounts/{accountId}", AccountInfo.class, accountId);
     }
 
     public void unSubscribeFromTopic(SubscriptionHandle subscription) {

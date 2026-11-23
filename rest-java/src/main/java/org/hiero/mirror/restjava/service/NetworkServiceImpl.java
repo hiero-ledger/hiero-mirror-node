@@ -3,7 +3,6 @@
 package org.hiero.mirror.restjava.service;
 
 import static java.lang.Long.MAX_VALUE;
-import static org.hiero.mirror.restjava.jooq.domain.tables.RegisteredNode.REGISTERED_NODE;
 
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
@@ -31,8 +30,6 @@ import org.hiero.mirror.restjava.repository.EntityRepository;
 import org.hiero.mirror.restjava.repository.NetworkNodeRepository;
 import org.hiero.mirror.restjava.repository.NetworkStakeRepository;
 import org.hiero.mirror.restjava.repository.RegisteredNodeRepository;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 
 @Named
 @RequiredArgsConstructor
@@ -138,17 +135,14 @@ final class NetworkServiceImpl implements NetworkService {
 
     @Override
     public Collection<RegisteredNode> getRegisteredNodes(RegisteredNodesRequest request) {
-        final var sort = Sort.by(request.getOrder(), REGISTERED_NODE.REGISTERED_NODE_ID.getName());
-        final var page = PageRequest.of(0, request.getLimit(), sort);
-
         final var nodeType = request.getType();
         final var bounds = resolveRegisteredNodeIdBounds(request.getRegisteredNodeIds());
         final long lowerBound = bounds.lowerEndpoint();
         final long upperBound = bounds.upperEndpoint();
 
         final var nodeTypeId = nodeType != null ? nodeType.getId() : null;
-        return registeredNodeRepository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-                lowerBound, upperBound, nodeTypeId, page);
+        return registeredNodeRepository.findRegisteredNodes(
+                lowerBound, upperBound, nodeTypeId, request.getOrder().name(), request.getLimit());
     }
 
     private static Range<Long> resolveRegisteredNodeIdBounds(List<NumberRangeParameter> registeredNodeIdRanges) {

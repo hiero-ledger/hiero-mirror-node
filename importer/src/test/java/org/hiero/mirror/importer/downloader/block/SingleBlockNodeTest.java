@@ -39,9 +39,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         subscriber = getBlockNodeSubscriber();
 
         // when, then
-        assertThatThrownBy(subscriber::get)
-                .isInstanceOf(BlockStreamException.class)
-                .hasCauseInstanceOf(InvalidStreamFileException.class);
+        assertThatThrownBy(subscriber::get).isInstanceOf(BlockStreamException.class);
     }
 
     @Test

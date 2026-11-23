@@ -6,27 +6,28 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.google.common.collect.Range;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.io.IOException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.hiero.mirror.common.util.RangeUtils;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings({"java:S6548", "unchecked"}) // Singletons are fine
-public class RangeToStringSerializer extends JsonSerializer<Range<?>> {
+public class RangeToStringSerializer extends JsonSerializer<Range<? extends Number>> {
 
     public static final RangeToStringSerializer INSTANCE = new RangeToStringSerializer();
     private static final Class<?> HANDLED_TYPE = Range.class;
 
     @Override
-    public void serialize(Range<?> range, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+    public void serialize(Range<? extends Number> range, JsonGenerator gen, SerializerProvider serializers)
+            throws IOException {
         if (range != null) {
-            gen.writeString(PostgreSQLGuavaRangeType.INSTANCE.asString(range));
+            gen.writeString(RangeUtils.rangeToString(range));
         }
     }
 
     @Override
-    public Class<Range<?>> handledType() {
-        return (Class<Range<?>>) HANDLED_TYPE;
+    public Class<Range<? extends Number>> handledType() {
+        return (Class<Range<? extends Number>>) HANDLED_TYPE;
     }
 }

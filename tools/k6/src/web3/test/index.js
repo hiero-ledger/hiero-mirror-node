@@ -60,10 +60,13 @@ import * as contractCallPrecompileMintToken from './modificationTests/contractCa
 import * as contractCallPrecompileNestedAssociate from './modificationTests/contractCallPrecompileNestedAssociate.js';
 import * as contractCallPrecompileTransferFungibleToken from './modificationTests/contractCallPrecompileTransferFungibleToken.js';
 import * as contractCallRedirectApprove from './modificationTests/contractCallRedirectApprove.js';
+import * as contractCallRedirectApproveStateOverrides from './modificationTests/contractCallRedirectApproveStateOverrides.js';
 import * as contractCallComplexFunctionTokenLifecycle from './complex-functions/contractCallComplexFunctionsTokenLifecycle.js';
 import * as contractCallComplexFunctionNFTLifecycle from './complex-functions/contractCallComplexFunctionsNFTLifecycle.js';
 import * as opcodesAllDisabled from './opcodes/opcodesAllDisabled.js';
 import * as opcodesAllEnabled from './opcodes/opcodesAllEnabled.js';
+import * as prestateAllDisabled from './prestate/prestateAllDisabled.js';
+import * as prestateAllEnabled from './prestate/prestateAllEnabled.js';
 import * as trafficReplay from './traffic-replay/trafficReplay.js';
 import * as rampUp from './rampUp.js';
 
@@ -153,6 +156,12 @@ if (__ENV.RUN_MODIFICATION_TESTS !== 'false') {
   }
 }
 
+if (__ENV.RUN_STATE_OVERRIDES_TESTS !== 'false') {
+  Object.assign(tests, {
+    contractCallRedirectApproveStateOverrides,
+  });
+}
+
 if (__ENV.RUN_COMPLEX_TESTS !== 'false') {
   Object.assign(tests, {
     contractCallComplexFunctionTokenLifecycle,
@@ -164,6 +173,13 @@ if (__ENV.RUN_OPCODE_TESTS !== 'false' && __ENV.TRANSACTION_IDS) {
   Object.assign(tests, {
     opcodesAllDisabled,
     opcodesAllEnabled,
+  });
+}
+
+if (__ENV.RUN_PRESTATE_TESTS !== 'false' && __ENV.TRANSACTION_IDS) {
+  Object.assign(tests, {
+    prestateAllDisabled,
+    prestateAllEnabled,
   });
 }
 

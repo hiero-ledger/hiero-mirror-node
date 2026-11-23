@@ -6,6 +6,7 @@ import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -106,7 +107,6 @@ class TokenReadableKVStateTest {
     private DomainBuilder domainBuilder;
     private Entity entity;
     private Entity account;
-    private Entity collector;
     private EntityId treasuryAccountId;
 
     @Spy
@@ -131,18 +131,6 @@ class TokenReadableKVStateTest {
                     e.id(TOKEN_ID_FOR_NEGATIVE_TEST.tokenNum());
                     e.num(TOKEN_ID_FOR_NEGATIVE_TEST.tokenNum());
                     e.type(EntityType.ACCOUNT);
-                })
-                .get();
-        collector = domainBuilder
-                .entity()
-                .customize(e -> {
-                    e.id(collectorId.getId());
-                    e.shard(collectorId.getShard());
-                    e.realm(collectorId.getRealm());
-                    e.num(collectorId.getNum());
-                    e.type(EntityType.ACCOUNT);
-                    e.evmAddress(null);
-                    e.alias(null);
                 })
                 .get();
         customFee = new CustomFee();
@@ -454,7 +442,6 @@ class TokenReadableKVStateTest {
         customFee.setRoyaltyFees(royaltyFees);
 
         when(customFeeRepository.findById(TOKEN_ENCODED_ID)).thenReturn(Optional.of(customFee));
-        when(commonEntityAccessor.get(collectorId, Optional.empty())).thenReturn(Optional.of(collector));
 
         final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
         var results = token.customFeesSupplier().get();
@@ -498,7 +485,6 @@ class TokenReadableKVStateTest {
 
         when(customFeeRepository.findByTokenIdAndTimestamp(TOKEN_ENCODED_ID, timestamp.get()))
                 .thenReturn(Optional.of(customFee));
-        when(commonEntityAccessor.get(collectorId, timestamp)).thenReturn(Optional.of(collector));
 
         final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
         var results = token.customFeesSupplier().get();
@@ -537,7 +523,6 @@ class TokenReadableKVStateTest {
         customFee.setRoyaltyFees(royaltyFees);
 
         when(customFeeRepository.findById(TOKEN_ENCODED_ID)).thenReturn(Optional.of(customFee));
-        when(commonEntityAccessor.get(collectorId, Optional.empty())).thenReturn(Optional.of(collector));
 
         final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
         var results = token.customFeesSupplier().get();
@@ -572,7 +557,6 @@ class TokenReadableKVStateTest {
 
         when(customFeeRepository.findByTokenIdAndTimestamp(TOKEN_ENCODED_ID, timestamp.get()))
                 .thenReturn(Optional.of(customFee));
-        when(commonEntityAccessor.get(collectorId, timestamp)).thenReturn(Optional.of(collector));
 
         final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
         var results = token.customFeesSupplier().get();
@@ -615,7 +599,6 @@ class TokenReadableKVStateTest {
         customFee.setFractionalFees(fractionalFees);
 
         when(customFeeRepository.findById(TOKEN_ENCODED_ID)).thenReturn(Optional.of(customFee));
-        when(commonEntityAccessor.get(collectorId, Optional.empty())).thenReturn(Optional.of(collector));
 
         final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
         var results = token.customFeesSupplier().get();
@@ -663,7 +646,6 @@ class TokenReadableKVStateTest {
 
         when(customFeeRepository.findByTokenIdAndTimestamp(TOKEN_ENCODED_ID, timestamp.get()))
                 .thenReturn(Optional.of(customFee));
-        when(commonEntityAccessor.get(collectorId, timestamp)).thenReturn(Optional.of(collector));
 
         final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
         var results = token.customFeesSupplier().get();
@@ -699,7 +681,6 @@ class TokenReadableKVStateTest {
         customFee.setFixedFees(fixedFees);
 
         when(customFeeRepository.findById(TOKEN_ENCODED_ID)).thenReturn(Optional.of(customFee));
-        when(commonEntityAccessor.get(collectorId, Optional.empty())).thenReturn(Optional.of(collector));
 
         final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
         var results = token.customFeesSupplier().get();
@@ -732,7 +713,6 @@ class TokenReadableKVStateTest {
 
         when(customFeeRepository.findByTokenIdAndTimestamp(TOKEN_ENCODED_ID, timestamp.get()))
                 .thenReturn(Optional.of(customFee));
-        when(commonEntityAccessor.get(collectorId, timestamp)).thenReturn(Optional.of(collector));
 
         final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
         var results = token.customFeesSupplier().get();
@@ -751,7 +731,7 @@ class TokenReadableKVStateTest {
     }
 
     @Test
-    void fixedFeeWhenCollectorEntityNotFound() {
+    void fixedFeeCollectorIsAlwaysNumericId() {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         setupToken(Optional.empty());
         when(commonEntityAccessor.get(TOKEN_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
@@ -764,17 +744,18 @@ class TokenReadableKVStateTest {
         customFee.setFixedFees(List.of(fixedFee));
 
         when(customFeeRepository.findById(TOKEN_ENCODED_ID)).thenReturn(Optional.of(customFee));
-        // The collector entity cannot be resolved (e.g. created after the simulated block or never persisted).
-        when(commonEntityAccessor.get(collectorId, Optional.empty())).thenReturn(Optional.empty());
 
         final var token = tokenReadableKVState.readFromDataSource(TOKEN_ID);
-        // Must not throw; the absent collector falls back to the numeric id from the fee itself (0.0.<num>),
         final var results = token.customFeesSupplier().get();
+
+        // Consensus nodes store collectors by account number even when the account has an EVM address, so the
+        // collector entity is never looked up to render an alias
         Assertions.assertThat(results)
                 .hasSize(1)
                 .first()
                 .satisfies(fee ->
                         Assertions.assertThat(fee.feeCollectorAccountId()).isEqualTo(collectorAccountId));
+        verify(commonEntityAccessor, never()).get(eq(collectorId), any());
     }
 
     @Test

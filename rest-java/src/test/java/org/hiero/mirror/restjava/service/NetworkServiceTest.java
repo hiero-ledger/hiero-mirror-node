@@ -4,14 +4,6 @@ package org.hiero.mirror.restjava.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.hiero.mirror.restjava.jooq.domain.tables.RegisteredNode.REGISTERED_NODE;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyShort;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -369,7 +361,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void getRegisteredNodesWithoutTypeCallsFindBetween() {
+    void getRegisteredNodesWithoutType() {
         // given
         final var node = new RegisteredNode();
         final var request = RegisteredNodesRequest.builder()
@@ -381,30 +373,18 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                 .type(null)
                 .build();
 
-        when(repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(eq(1L), eq(10L), isNull(), any()))
-                .thenReturn(List.of(node));
+        when(repository.findRegisteredNodes(1L, 10L, null, "DESC", 25)).thenReturn(List.of(node));
 
         // when
         final var result = networkService.getRegisteredNodes(request);
 
         // then
         Assertions.assertThat(result).containsExactly(node);
-        verify(repository)
-                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-                        eq(1L),
-                        eq(10L),
-                        isNull(),
-                        argThat(pageable -> pageable.getPageNumber() == 0
-                                && pageable.getPageSize() == 25
-                                && pageable.getSort()
-                                        .equals(Sort.by(
-                                                Sort.Direction.DESC, REGISTERED_NODE.REGISTERED_NODE_ID.getName()))));
-        verify(repository, never())
-                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(anyLong(), anyLong(), anyShort(), any());
+        verify(repository).findRegisteredNodes(1L, 10L, null, "DESC", 25);
     }
 
     @Test
-    void getRegisteredNodesWithTypeCallsFindBetweenAndTypeIn() {
+    void getRegisteredNodesWithType() {
         // given
         final var node = new RegisteredNode();
         final var request = RegisteredNodesRequest.builder()
@@ -412,9 +392,9 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                 .order(Sort.Direction.ASC)
                 .type(RegisteredNodeType.MIRROR_NODE)
                 .build();
+        final var type = RegisteredNodeType.MIRROR_NODE.getId();
 
-        when(repository.findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-                        eq(0L), eq(Long.MAX_VALUE), eq(RegisteredNodeType.MIRROR_NODE.getId()), any()))
+        when(repository.findRegisteredNodes(0L, Long.MAX_VALUE, type, "ASC", 10))
                 .thenReturn(List.of(node));
 
         // when
@@ -422,17 +402,6 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
 
         // then
         Assertions.assertThat(result).containsExactly(node);
-        verify(repository)
-                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(
-                        eq(0L),
-                        eq(Long.MAX_VALUE),
-                        eq(RegisteredNodeType.MIRROR_NODE.getId()),
-                        argThat(pageable -> pageable.getPageNumber() == 0
-                                && pageable.getPageSize() == 10
-                                && pageable.getSort()
-                                        .equals(Sort.by(
-                                                Sort.Direction.ASC, REGISTERED_NODE.REGISTERED_NODE_ID.getName()))));
-        verify(repository, never())
-                .findByRegisteredNodeIdBetweenAndDeletedIsFalseAndTypeIs(anyLong(), anyLong(), isNull(), any());
+        verify(repository).findRegisteredNodes(0L, Long.MAX_VALUE, type, "ASC", 10);
     }
 }

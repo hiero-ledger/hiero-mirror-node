@@ -14,16 +14,18 @@ public interface ContractResultRepository extends CrudRepository<ContractResult,
 
     Optional<ContractResult> findByConsensusTimestampAndContractId(long consensusTimestamp, long contractId);
 
-    // Returns the latest consensus timestamp among the given candidates whose result consumed gas (non-null
+    // Returns the latest consensus timestamp among the given candidates whose result consumed gas (positive
     // gas_consumed), i.e. that actually executed. Used to prefer a genuine execution over a pre-execution failure
-    // result sharing a transaction hash, picking the latest when several executed. Batched into one query so a hash
+    // result sharing a transaction hash, picking the latest when several executed. A pre-execution failure such as
+    // WRONG_NONCE can still have a function result, so its gas_consumed is 0 rather than null. Batched into one query
+    // so a hash
     // shared by many results costs a single lookup. contract_id is the citus distribution column of contract_result
     // and equals contract_transaction_hash.entity_id (see ContractResult.toContractTransactionHash), so constraining on
     // it lets citus prune shards instead of scanning every one.
     @Query(
             value = "select consensus_timestamp from contract_result where consensus_timestamp in (:timestamps) "
                     + "and contract_id in (:contractIds) "
-                    + "and gas_consumed is not null "
+                    + "and gas_consumed > 0 "
                     + "order by consensus_timestamp desc limit 1",
             nativeQuery = true)
     Optional<Long> findLatestExecutedTimestamp(Collection<Long> timestamps, Collection<Long> contractIds);

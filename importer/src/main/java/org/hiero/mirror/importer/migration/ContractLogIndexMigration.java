@@ -122,7 +122,6 @@ final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                     )
                     insert into contract_log_migration (
                         bloom,
-                        child,
                         consensus_timestamp,
                         contract_id,
                         data,
@@ -139,7 +138,6 @@ final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                     )
                     select
                         bloom,
-                        child,
                         consensus_timestamp,
                         contract_id,
                         data,

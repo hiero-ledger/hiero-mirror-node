@@ -15,13 +15,13 @@ public interface AccountBalanceFileRepository extends StreamFileRepository<Accou
     @Query(
             nativeQuery = true,
             value =
-                    "select * from account_balance_file where consensus_timestamp < ?1 order by consensus_timestamp desc limit 1")
+                    "select * from account_balance_file where consensus_timestamp < :timestamp order by consensus_timestamp desc limit 1")
     Optional<AccountBalanceFile> findLatestBefore(long timestamp);
 
     @Query(
             nativeQuery = true,
-            value = "select * from account_balance_file where consensus_timestamp >= ?1 "
-                    + "and consensus_timestamp <= ?2 and consensus_timestamp <= (select max(consensus_end) from record_file) "
+            value = "select * from account_balance_file where consensus_timestamp >= :startTimestamp "
+                    + "and consensus_timestamp <= :endTimestamp and consensus_timestamp <= (select max(consensus_end) from record_file) "
                     + "order by consensus_timestamp asc limit 1")
     Optional<AccountBalanceFile> findNextInRange(long startTimestamp, long endTimestamp);
 }

@@ -59,7 +59,6 @@ final class NetworkLedgerLoaderTest {
 
     private static LedgerIdPublicationTransactionBody buildProtoBody() {
         return LedgerIdPublicationTransactionBody.newBuilder()
-                .setHistoryProofVerificationKey(ByteString.copyFrom(new byte[64]))
                 .setLedgerId(ByteString.copyFrom(new byte[32]))
                 .addNodeContributions(LedgerIdNodeContribution.newBuilder()
                         .setHistoryProofKey(ByteString.copyFrom(new byte[64]))

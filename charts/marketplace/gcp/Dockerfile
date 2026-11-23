@@ -1,11 +1,11 @@
-FROM gcr.io/cloud-marketplace-tools/k8s/deployer_helm:13.0.10@sha256:60bc54af5578550df364109be383ea575ea97fdcae4c8236398f8647a5f75bee
+FROM gcr.io/cloud-marketplace-tools/k8s/deployer_helm:13.0.17@sha256:e2f38bc77f3ab3ce8da9d7e2befe793210c8bf2ea4e8a8ce1a5cd3d55db3d008
 
 # Marketplace image still depends upon Helm 3
-# Use kubectl v1.37.0 to address the same vulnerability until the next marketplace deploy_helm image release
-ARG HELM_SHA256=86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb
-ARG HELM_VERSION=4.3.0
-ARG KUBECTL_SHA256=6129359f4e1f3848a5572ccb0b26cf28b8ca08cef38c95a765b2f64a2c961a2f
-ARG KUBECTL_VERSION=v1.37.0
+# Use kubectl v1.37.2 to address the same vulnerability until the next marketplace deploy_helm image release
+ARG HELM_SHA256=0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b
+ARG HELM_VERSION=4.3.1
+ARG KUBECTL_SHA256=c04487523e7aa7d1493f7808174c899db93d7a9cf57531420cd76b9bd415f8f4
+ARG KUBECTL_VERSION=v1.37.2
 ARG YQ_SHA256=c5f056448f973ae7d39b5401949648a78f2dc1947d6a8eb65be60d5c504b9385
 ARG YQ_VERSION=v4.53.6
 

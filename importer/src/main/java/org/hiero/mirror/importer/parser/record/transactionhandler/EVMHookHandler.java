@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
+import static org.hiero.mirror.common.util.SignatureUtils.keccak256;
 
 import com.google.common.collect.Range;
 import com.hedera.hapi.node.hooks.legacy.EvmHookMappingEntries;
@@ -18,7 +19,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.bouncycastle.jcajce.provider.digest.Keccak.Digest256;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
@@ -38,17 +38,6 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
     private final EntityListener entityListener;
     private final EntityIdService entityIdService;
-
-    static byte[] keccak256(byte[] input) {
-        final var d = new Digest256();
-        return d.digest(input);
-    }
-
-    static byte[] keccak256(byte[] key, byte[] mappingSlot) {
-        final var d = new Digest256();
-        d.update(key);
-        return d.digest(mappingSlot);
-    }
 
     /**
      * Processes both hook deletions and hook creations for a given transaction. This method serves as the main entry

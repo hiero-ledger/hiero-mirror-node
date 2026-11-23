@@ -2,6 +2,13 @@
 
 package org.hiero.mirror.common.domain;
 
+import static com.hedera.hapi.services.auxiliary.clpr.legacy.ClprMaintenanceReason.ENDPOINT_MANIFEST_RECONCILIATION_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprChannelStatus.ACTIVE_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.CONTROL_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_REPLY_FIELD_NUMBER;
+import static com.hederahashgraph.api.proto.java.ClprMessageReplyStatus.SUCCESS_VALUE;
+import static com.hederahashgraph.api.proto.java.ClprSignatureScheme.ED25519_VALUE;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
@@ -58,6 +65,24 @@ import org.hiero.mirror.common.domain.addressbook.NodeStake;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprChannelHistory;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitment;
+import org.hiero.mirror.common.domain.clpr.ClprChannelPendingCommitmentHistory;
+import org.hiero.mirror.common.domain.clpr.ClprConfigUpdate;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorHistory;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
+import org.hiero.mirror.common.domain.clpr.ClprControlConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprControlMessage;
+import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
+import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
+import org.hiero.mirror.common.domain.clpr.ClprMaintenance;
+import org.hiero.mirror.common.domain.clpr.ClprMessage;
+import org.hiero.mirror.common.domain.clpr.ClprPendingCommitmentStatus;
+import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -265,6 +290,245 @@ public class DomainBuilder {
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
+    public DomainWrapper<ClprChannel, ClprChannel.ClprChannelBuilder<?, ?>> clprChannel() {
+        var createdTimestamp = timestamp();
+        var builder = ClprChannel.builder()
+                .ackedMessageId(0L)
+                .chainId("hedera:mainnet")
+                .channelContext(bytes(16))
+                .channelId(bytes(32))
+                .configProofBytes(bytes(16))
+                .createdTimestamp(createdTimestamp)
+                .endpointManifest(List.of(ClprEndpoint.builder()
+                        .accountId(bytes(20))
+                        .serviceEndpoint(ClprServiceEndpoint.builder()
+                                .ipAddress("127.0.0.1")
+                                .port(50211)
+                                .build())
+                        .tlsCertificate(bytes(256))
+                        .build()))
+                .endpointManifestProofBytes(bytes(16))
+                .endpointManifestVersion(0L)
+                .lastConfigTimestamp(timestamp())
+                .nextMessageId(1L)
+                .ownershipCommitment(bytes(32))
+                .peerConfigTimestamp(timestamp())
+                .publicKey(bytes(64))
+                .receivedMessageId(0L)
+                .receivedRunningHash(bytes(32))
+                .sentRunningHash(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ED25519_VALUE)
+                .status(ACTIVE_VALUE)
+                .timestampRange(Range.atLeast(createdTimestamp))
+                .trustAnchor(bytes(32))
+                .trustAnchorId(bytes(32))
+                .verifierContractId(entityId())
+                .verifierFingerprint(bytes(32));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprChannelHistory, ClprChannelHistory.ClprChannelHistoryBuilder<?, ?>> clprChannelHistory() {
+        var createdTimestamp = timestamp();
+        var builder = ClprChannelHistory.builder()
+                .ackedMessageId(0L)
+                .chainId("hedera:mainnet")
+                .channelContext(bytes(16))
+                .channelId(bytes(32))
+                .configProofBytes(bytes(16))
+                .createdTimestamp(createdTimestamp)
+                .endpointManifest(List.of(ClprEndpoint.builder()
+                        .accountId(bytes(20))
+                        .serviceEndpoint(ClprServiceEndpoint.builder()
+                                .ipAddress("127.0.0.1")
+                                .port(50211)
+                                .build())
+                        .tlsCertificate(bytes(256))
+                        .build()))
+                .endpointManifestProofBytes(bytes(16))
+                .endpointManifestVersion(0L)
+                .nextMessageId(1L)
+                .ownershipCommitment(bytes(32))
+                .publicKey(bytes(64))
+                .receivedMessageId(0L)
+                .receivedRunningHash(bytes(32))
+                .sentRunningHash(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ED25519_VALUE)
+                .status(ACTIVE_VALUE)
+                .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10))
+                .trustAnchor(bytes(32))
+                .trustAnchorId(bytes(32))
+                .verifierContractId(entityId())
+                .verifierFingerprint(bytes(32));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<
+                    ClprChannelPendingCommitment,
+                    ClprChannelPendingCommitment.ClprChannelPendingCommitmentBuilder<?, ?>>
+            clprChannelPendingCommitment() {
+        var createdTimestamp = timestamp();
+        var builder = ClprChannelPendingCommitment.builder()
+                .createdTimestamp(createdTimestamp)
+                .ownershipCommitment(bytes(32))
+                .status(ClprPendingCommitmentStatus.OPEN)
+                .timestampRange(Range.atLeast(createdTimestamp));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<
+                    ClprChannelPendingCommitmentHistory,
+                    ClprChannelPendingCommitmentHistory.ClprChannelPendingCommitmentHistoryBuilder<?, ?>>
+            clprChannelPendingCommitmentHistory() {
+        var createdTimestamp = timestamp();
+        var builder = ClprChannelPendingCommitmentHistory.builder()
+                .createdTimestamp(createdTimestamp)
+                .ownershipCommitment(bytes(32))
+                .status(ClprPendingCommitmentStatus.OPEN)
+                .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprConnector, ClprConnector.ClprConnectorBuilder<?, ?>> clprConnector() {
+        var createdTimestamp = timestamp();
+        var builder = ClprConnector.builder()
+                .adminKey(key())
+                .channelId(bytes(32))
+                .commitment(bytes(32))
+                .connectorContractId(entityId())
+                .connectorId(bytes(32))
+                .createdTimestamp(createdTimestamp)
+                .inFlightMessageCount(0L)
+                .lockedStake(100_000_000L)
+                .publicKey(bytes(64))
+                .salt(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ED25519_VALUE)
+                .slashCount(0L)
+                .status(ClprConnectorStatus.ACTIVE)
+                .timestampRange(Range.atLeast(createdTimestamp));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprConnectorHistory, ClprConnectorHistory.ClprConnectorHistoryBuilder<?, ?>>
+            clprConnectorHistory() {
+        var createdTimestamp = timestamp();
+        var builder = ClprConnectorHistory.builder()
+                .adminKey(key())
+                .channelId(bytes(32))
+                .commitment(bytes(32))
+                .connectorContractId(entityId())
+                .connectorId(bytes(32))
+                .createdTimestamp(createdTimestamp)
+                .inFlightMessageCount(0L)
+                .lockedStake(100_000_000L)
+                .publicKey(bytes(64))
+                .salt(bytes(32))
+                .signature(bytes(64))
+                .signatureScheme(ED25519_VALUE)
+                .slashCount(0L)
+                .status(ClprConnectorStatus.ACTIVE)
+                .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    // Shape mirrors ClprStateChangeHandler#toMessage's CONTROL case: only controlMessage set, connectorId stays null
+    // since ClprControlMessage has no connector_id field on the wire.
+    public DomainWrapper<ClprMessage, ClprMessage.ClprMessageBuilder> clprControlMessage() {
+        var builder = clprMessageBuilder()
+                .controlMessage(ClprControlMessage.builder()
+                        .configUpdate(ClprConfigUpdate.builder()
+                                .configuration(ClprControlConfiguration.builder()
+                                        .chainId("hedera:mainnet")
+                                        .initialTrustAnchor(bytes(32))
+                                        .initialTrustAnchorId(bytes(32))
+                                        .protocolVersion(1L)
+                                        .serviceAddress(bytes(20))
+                                        .throttle(ClprThrottle.builder()
+                                                .maxGasPerMessage(1_000_000L)
+                                                .maxLocalEndpoints(10L)
+                                                .maxMessagePayloadBytes(6_000L)
+                                                .maxMessagesPerBundle(100L)
+                                                .maxPeerEndpoints(10L)
+                                                .maxQueueDepth(1_000L)
+                                                .maxSyncBytes(6_000_000L)
+                                                .build())
+                                        .build())
+                                .build())
+                        .build())
+                .messageType(CONTROL_FIELD_NUMBER);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprEndpointManifest, ClprEndpointManifest.ClprEndpointManifestBuilder>
+            clprEndpointManifest() {
+        var builder = ClprEndpointManifest.builder()
+                .consensusTimestamp(timestamp())
+                .endpoints(List.of(ClprEndpoint.builder()
+                        .accountId(bytes(20))
+                        .serviceEndpoint(ClprServiceEndpoint.builder()
+                                .ipAddress("127.0.0.1")
+                                .port(50211)
+                                .build())
+                        .tlsCertificate(bytes(256))
+                        .build()))
+                .serviceAddress(bytes(20))
+                .version(1L);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprLedgerConfiguration, ClprLedgerConfiguration.ClprLedgerConfigurationBuilder>
+            clprLedgerConfiguration() {
+        var builder = ClprLedgerConfiguration.builder()
+                .chainId("hedera:mainnet")
+                .consensusTimestamp(timestamp())
+                .initialTrustAnchor(bytes(32))
+                .initialTrustAnchorId(bytes(32))
+                .protocolVersion(1L)
+                .serviceAddress(bytes(20))
+                .throttle(ClprThrottle.builder()
+                        .maxGasPerMessage(1_000_000L)
+                        .maxLocalEndpoints(10L)
+                        .maxMessagePayloadBytes(6_000L)
+                        .maxMessagesPerBundle(100L)
+                        .maxPeerEndpoints(10L)
+                        .maxQueueDepth(1_000L)
+                        .maxSyncBytes(6_000_000L)
+                        .build());
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<ClprMaintenance, ClprMaintenance.ClprMaintenanceBuilder> clprMaintenance() {
+        var builder = ClprMaintenance.builder()
+                .consensusTimestamp(timestamp())
+                .reason(ENDPOINT_MANIFEST_RECONCILIATION_VALUE);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    // Shape mirrors ClprStateChangeHandler#toMessage's MESSAGE case: connectorId/sender/targetApplication/messageData
+    // set, no controlMessage or reply fields.
+    public DomainWrapper<ClprMessage, ClprMessage.ClprMessageBuilder> clprMessage() {
+        var builder = clprMessageBuilder()
+                .connectorId(bytes(32))
+                .messageData(bytes(256))
+                .messageType(MESSAGE_FIELD_NUMBER)
+                .sender(bytes(20))
+                .targetApplication(bytes(20));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    // Shape mirrors ClprStateChangeHandler#toMessage's MESSAGE_REPLY case: replyToMessageId/replyStatus/messageData
+    // set, connectorId stays null since ClprMessageReply has no connector_id field on the wire.
+    public DomainWrapper<ClprMessage, ClprMessage.ClprMessageBuilder> clprResponseMessage() {
+        var builder = clprMessageBuilder()
+                .messageData(bytes(256))
+                .messageType(MESSAGE_REPLY_FIELD_NUMBER)
+                .replyStatus(SUCCESS_VALUE)
+                .replyToMessageId(number());
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
     public DomainWrapper<Contract, Contract.ContractBuilder<?, ?>> contract() {
         var builder = Contract.builder()
                 .fileId(entityId())
@@ -297,7 +561,6 @@ public class DomainBuilder {
     public DomainWrapper<ContractLog, ContractLog.ContractLogBuilder> contractLog() {
         var builder = ContractLog.builder()
                 .bloom(bytes(256))
-                .child(false)
                 .consensusTimestamp(timestamp())
                 .contractId(entityId())
                 .data(bytes(128))
@@ -1405,6 +1668,14 @@ public class DomainBuilder {
 
     private long tinybar() {
         return number() * TINYBARS_IN_ONE_HBAR;
+    }
+
+    private ClprMessage.ClprMessageBuilder clprMessageBuilder() {
+        return ClprMessage.builder()
+                .channelId(bytes(32))
+                .consensusTimestamp(timestamp())
+                .messageId(number())
+                .runningHash(bytes(32));
     }
 
     private FallbackFee fallbackFee() {

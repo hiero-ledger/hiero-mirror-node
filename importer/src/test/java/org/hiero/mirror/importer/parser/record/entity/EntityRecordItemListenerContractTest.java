@@ -5,8 +5,10 @@ package org.hiero.mirror.importer.parser.record.entity;
 import static com.hedera.services.stream.proto.ContractAction.CallerCase.CALLING_CONTRACT;
 import static com.hederahashgraph.api.proto.java.ContractUpdateTransactionBody.StakedIdCase.STAKEDID_NOT_SET;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransaction;
@@ -58,6 +60,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.ObjectAssert;
+import org.hiero.mirror.common.domain.clpr.ClprChannel;
+import org.hiero.mirror.common.domain.clpr.ClprConnector;
+import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -65,6 +70,7 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.contract.ContractStateChange;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
@@ -72,8 +78,11 @@ import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.repository.ClprChannelRepository;
+import org.hiero.mirror.importer.repository.ClprConnectorRepository;
 import org.hiero.mirror.importer.repository.ContractActionRepository;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.ContractStateChangeRepository;
@@ -86,6 +95,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.util.Version;
@@ -95,6 +105,8 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
 
     private static final Version HAPI_VERSION_0_23_0 = new Version(0, 23, 0);
     private final @Qualifier(CACHE_ALIAS) CacheManager cacheManager;
+    private final ClprChannelRepository clprChannelRepository;
+    private final ClprConnectorRepository clprConnectorRepository;
     private final ContractActionRepository contractActionRepository;
     private final ContractLogRepository contractLogRepository;
     private final ContractStateChangeRepository contractStateChangeRepository;
@@ -768,16 +780,7 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
         parseRecordItemAndCommit(recordItem);
 
         // then
-        softly.assertThat(entityRepository.findAll())
-                .hasSize(1)
-                .first()
-                .returns(entityId.getId(), Entity::getId)
-                .returns(entityId.getNum(), Entity::getNum)
-                .returns(entityId.getRealm(), Entity::getRealm)
-                .returns(entityId.getShard(), Entity::getShard)
-                .returns(recordItem.getConsensusTimestamp(), Entity::getTimestampLower)
-                .returns(null, Entity::getTimestampUpper)
-                .returns(CONTRACT, Entity::getType);
+        softly.assertThat(entityRepository.count()).isZero();
         softly.assertThat(entityHistoryRepository.count()).isZero();
         softly.assertThat(contractRepository.findAll())
                 .hasSize(1)
@@ -817,18 +820,75 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
                 .returns(entity.getNum(), Entity::getNum)
                 .returns(entity.getRealm(), Entity::getRealm)
                 .returns(entity.getShard(), Entity::getShard)
-                .returns(recordItem.getConsensusTimestamp(), Entity::getTimestampLower)
-                .returns(null, Entity::getTimestampUpper)
+                .returns(entity.getTimestampRange(), Entity::getTimestampRange)
                 .returns(CONTRACT, Entity::getType);
-        softly.assertThat(entityHistoryRepository.findAll())
-                .hasSize(1)
-                .extracting(e -> e.getType())
-                .containsOnly(CONTRACT);
+        softly.assertThat(entityHistoryRepository.count()).isZero();
         softly.assertThat(contractRepository.findAll())
                 .hasSize(1)
                 .first()
                 .returns(contract.getId(), Contract::getId)
                 .returns(runtimeBytecode, Contract::getRuntimeBytecode);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void contractUpdateSidecarMigrationDeleted(final boolean singleRecordFile) {
+        // given
+        final var entity = domainBuilder
+                .entity()
+                .customize(e -> e.deleted(false).type(CONTRACT))
+                .persist();
+        final var contractId = entity.toEntityId().toContractID();
+        final var contractDelete = recordItemBuilder
+                .contractDelete()
+                .transactionBody(b -> b.setContractID(contractId))
+                .receipt(r -> r.setContractID(contractId))
+                .build();
+        final var migrationUpdate = sidecarMigrationContractUpdate(contractId);
+
+        // when
+        if (singleRecordFile) {
+            parseRecordItemsAndCommit(List.of(contractDelete, migrationUpdate));
+        } else {
+            parseRecordItemAndCommit(contractDelete);
+            parseRecordItemAndCommit(migrationUpdate);
+        }
+
+        // then
+        final long deleteTimestamp = contractDelete.getConsensusTimestamp();
+        softly.assertThat(entityRepository.findById(entity.getId()))
+                .get()
+                .returns(true, Entity::getDeleted)
+                .returns(deleteTimestamp, Entity::getTimestampLower)
+                .returns(CONTRACT, Entity::getType);
+        softly.assertThat(findHistory(EntityHistory.class))
+                .extracting(EntityHistory::getDeleted, EntityHistory::getTimestampRange)
+                .containsExactly(tuple(false, Range.closedOpen(entity.getTimestampLower(), deleteTimestamp)));
+    }
+
+    @Test
+    void contractUpdateSidecarMigrationThenSystemUndelete() {
+        // given
+        final var entity = domainBuilder
+                .entity()
+                .customize(e -> e.deleted(true).type(CONTRACT))
+                .persist();
+        final var contractId = entity.toEntityId().toContractID();
+        final var migrationUpdate = sidecarMigrationContractUpdate(contractId);
+        final var systemUndelete = recordItemBuilder
+                .systemUndelete()
+                .transactionBody(b -> b.clearFileID().setContractID(contractId))
+                .receipt(r -> r.setContractID(contractId))
+                .build();
+
+        // when
+        parseRecordItemsAndCommit(List.of(migrationUpdate, systemUndelete));
+
+        // then
+        softly.assertThat(entityRepository.findById(entity.getId()))
+                .get()
+                .returns(false, Entity::getDeleted)
+                .returns(systemUndelete.getConsensusTimestamp(), Entity::getTimestampLower);
     }
 
     @ParameterizedTest
@@ -1126,6 +1186,43 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
                 () -> assertContractCallResult(contractCallTransactionBody, txnRecord),
                 () -> assertContractStateChanges(recordItem),
                 () -> assertEntityTransactions(recordItem));
+    }
+
+    @Test
+    void contractCallWithClprStateChangeWiring() {
+        // given -- confirms EntityRecordItemListener actually invokes ClprStateChangeHandler.process(). The channel
+        // and connector must pre-exist since skipPartialUpdate drops a patch/removal with no prior create.
+        final var existingChannel = domainBuilder.clprChannel().persist();
+        final var channelId = existingChannel.getChannelId();
+        final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(channelId))
+                .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.PAUSED)
+                .build();
+        final var existingConnector = domainBuilder.clprConnector().persist();
+        final var removedConnectorKey = com.hederahashgraph.api.proto.java.ClprConnectorKey.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(existingConnector.getChannelId()))
+                .setConnectorId(DomainUtils.fromBytes(existingConnector.getConnectorId()))
+                .build();
+        final var recordItem = recordItemBuilder
+                .contractCall()
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(
+                                DomainUtils.fromBytes(channelId), clprChannelMapUpdate(clprChannelValue))))
+                        .clprConnectorsRemoved(List.of(removedConnectorKey)))
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(clprChannelRepository.findAll())
+                .singleElement()
+                .returns(channelId, ClprChannel::getChannelId)
+                .returns(com.hederahashgraph.api.proto.java.ClprChannelStatus.PAUSED_VALUE, ClprChannel::getStatus);
+        assertThat(clprConnectorRepository.findAll())
+                .singleElement()
+                .returns(existingConnector.getConnectorId(), ClprConnector::getConnectorId)
+                .returns(ClprConnectorStatus.DELETED, ClprConnector::getStatus);
     }
 
     @Test
@@ -2037,6 +2134,20 @@ final class EntityRecordItemListenerContractTest extends AbstractEntityRecordIte
         } catch (Exception e) {
             return EntityId.EMPTY;
         }
+    }
+
+    private RecordItem sidecarMigrationContractUpdate(final ContractID contractId) {
+        final var contractBytecode = ContractBytecode.newBuilder()
+                .setContractId(contractId)
+                .setRuntimeBytecode(fromBytes(domainBuilder.bytes(32)));
+        final var sidecar =
+                TransactionSidecarRecord.newBuilder().setMigration(true).setBytecode(contractBytecode);
+        return recordItemBuilder
+                .contractUpdate()
+                .sidecarRecords(s -> s.add(sidecar))
+                .receipt(r -> r.setContractID(contractId))
+                .transactionBody(b -> b.setContractID(contractId))
+                .build();
     }
 
     private SetupResult setupContract(

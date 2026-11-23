@@ -9,6 +9,7 @@ import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 import com.google.protobuf.ByteString;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -24,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.AccessLevel;
@@ -45,6 +47,7 @@ import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.util.Version;
 
 @Builder(buildMethodName = "buildInternal")
@@ -71,13 +74,23 @@ public class RecordItem implements StreamItem {
 
     private final Long accountEthereumNonce;
     private final boolean blockstream;
+
+    @Nullable
+    private final ClprContext clprContext;
+
     private final Long congestionPricingMultiplier;
     private final RecordItem hookParent;
     private final RecordItem parent;
     private final EntityId payerAccountId;
+    // Pending fungible airdrops whose total a block stream omits, their record amount is then the transaction's change
+    @Builder.Default
+    private final Set<PendingAirdropId> pendingAirdropAmountAbsent = Set.of();
+
     private final RecordItem previous;
     private final SignatureMap signatureMap;
     private final boolean successful;
+    // Set when a block stream omits the token total supply, the receipt's newTotalSupply is then not populated
+    private final boolean tokenTotalSupplyAbsent;
     private final Transaction transaction;
     private final TransactionBody transactionBody;
     private final int transactionIndex;
@@ -329,11 +342,16 @@ public class RecordItem implements StreamItem {
 
     public static class RecordItemBuilder {
 
+        private ClprContext.ClprContextBuilder clprContextBuilder;
         private TransactionRecord.Builder transactionRecordBuilder;
 
         public RecordItem build() {
             if (transactionRecordBuilder != null) {
                 transactionRecord = transactionRecordBuilder.build();
+            }
+
+            if (clprContextBuilder != null) {
+                clprContext = clprContextBuilder.build();
             }
 
             parseTransaction();
@@ -344,6 +362,15 @@ public class RecordItem implements StreamItem {
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
             return buildInternal();
+        }
+
+        public ClprContext.ClprContextBuilder clprContextBuilder() {
+            if (clprContextBuilder == null) {
+                clprContextBuilder = clprContext != null ? clprContext.toBuilder() : ClprContext.builder();
+                clprContext = null;
+            }
+
+            return clprContextBuilder;
         }
 
         public RecordItemBuilder transactionRecord(TransactionRecord transactionRecord) {

@@ -38,6 +38,7 @@ public final class AcceptanceTestProperties {
     private static final String DEFAULT_OPERATOR_ID = "0.0.2";
 
     private final FeatureProperties featureProperties;
+    private final RestJavaProperties restJavaProperties;
     private final RestProperties restProperties;
     private final WebClientProperties webClientProperties;
     private final CommonProperties commonProperties;
@@ -80,7 +81,7 @@ public final class AcceptanceTestProperties {
     @NotNull
     @DecimalMax("1000000")
     @DecimalMin("1.0")
-    private BigDecimal operatorBalance = BigDecimal.valueOf(76); // Amount in USD
+    private BigDecimal operatorBalance = BigDecimal.valueOf(77); // Amount in USD
 
     @NotBlank
     private String operatorId;

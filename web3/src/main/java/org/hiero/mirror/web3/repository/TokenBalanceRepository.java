@@ -23,9 +23,9 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
     @Query(value = """
                 select * from token_balance
                 where
-                    token_id = ?1 and
-                    account_id = ?2 and
-                    consensus_timestamp <= ?3
+                    token_id = :tokenId and
+                    account_id = :accountId and
+                    consensus_timestamp <= :blockTimestamp
                 order by consensus_timestamp desc
                 limit 1
                 """, nativeQuery = true)
@@ -50,16 +50,16 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
                     with balance_timestamp as (
                     select consensus_timestamp
                     from account_balance
-                    where account_id = ?4 and
-                        consensus_timestamp > ?3 - 2678400000000000 and consensus_timestamp <= ?3
+                    where account_id = :treasuryAccountId and
+                        consensus_timestamp > :blockTimestamp - 2678400000000000 and consensus_timestamp <= :blockTimestamp
                     order by consensus_timestamp desc
                     limit 1
                     ), base as (
                         select tb.balance
                         from token_balance as tb
                         where
-                            token_id = ?1 and
-                            account_id = ?2 and
+                            token_id = :tokenId and
+                            account_id = :accountId and
                             tb.consensus_timestamp > (select consensus_timestamp from balance_timestamp) - 2678400000000000 and
                             tb.consensus_timestamp <= (select consensus_timestamp from balance_timestamp)
                         order by tb.consensus_timestamp desc
@@ -68,10 +68,10 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
                         select sum(amount) as amount
                         from token_transfer as tt
                         where
-                            token_id = ?1 and
-                            account_id = ?2 and
+                            token_id = :tokenId and
+                            account_id = :accountId and
                             tt.consensus_timestamp > coalesce((select consensus_timestamp from balance_timestamp), 0) and
-                            tt.consensus_timestamp <= ?3
+                            tt.consensus_timestamp <= :blockTimestamp
                     )
                     select coalesce((select balance from base), 0) + coalesce((select amount from change), 0)
                     """, nativeQuery = true)

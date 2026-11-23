@@ -8,8 +8,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Base32;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.InvalidEntityException;
+import org.hiero.mirror.graphql.exception.InvalidInputException;
 import org.hiero.mirror.graphql.viewmodel.Account;
 import org.hiero.mirror.graphql.viewmodel.EntityIdInput;
 import org.hiero.mirror.graphql.viewmodel.HbarUnit;
@@ -52,6 +55,26 @@ class GraphQlUtilsTest {
         assertThat(value).isEqualTo(1L);
     }
 
+    @ValueSource(strings = {"*", "YQ==", "V3Jvbmc6MQ=="})
+    @ParameterizedTest
+    void invalidId(String id) {
+        final var node = new Account();
+        node.setId(id);
+        assertThatThrownBy(() -> GraphQlUtils.getId(node, i -> i.getFirst()))
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessage("Invalid Node.id");
+    }
+
+    @Test
+    void invalidIdEncoding() {
+        final var node = new Account();
+        node.setId("*");
+        assertThatThrownBy(() -> GraphQlUtils.getId(node, i -> i.getFirst()))
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessage("Invalid Node.id")
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
     @Test
     void toEntityId() {
         var input =
@@ -64,10 +87,27 @@ class GraphQlUtilsTest {
     }
 
     @Test
+    void invalidEntityId() {
+        final var input = EntityIdInput.builder()
+                .withShard(0L)
+                .withRealm(0L)
+                .withNum(274877906944L)
+                .build();
+        assertThatThrownBy(() -> GraphQlUtils.toEntityId(input))
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessage("Invalid entity ID")
+                .hasCauseInstanceOf(InvalidEntityException.class);
+    }
+
+    @Test
     void validateOneOf() {
         GraphQlUtils.validateOneOf("a");
-        assertThatThrownBy(GraphQlUtils::validateOneOf).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> GraphQlUtils.validateOneOf("a", "b")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(GraphQlUtils::validateOneOf)
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessage("Must provide exactly one input value but 0 have been provided");
+        assertThatThrownBy(() -> GraphQlUtils.validateOneOf("a", "b"))
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessage("Must provide exactly one input value but 2 have been provided");
     }
 
     @NullAndEmptySource
@@ -114,7 +154,9 @@ class GraphQlUtilsTest {
         assertThat(evmAddress)
                 .satisfiesAnyOf(
                         e -> assertThatThrownBy(() -> GraphQlUtils.decodeEvmAddress(e))
-                                .isInstanceOf(IllegalArgumentException.class),
+                                .isInstanceOf(InvalidInputException.class)
+                                .hasMessage("Unable to decode evmAddress")
+                                .hasCauseInstanceOf(DecoderException.class),
                         e -> assertThat(GraphQlUtils.decodeEvmAddress(e)).isEmpty());
     }
 }

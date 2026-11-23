@@ -85,7 +85,7 @@ public class ScheduleFeature extends AbstractFeature {
 
         // We need this dummy transaction in order to execute the schedule
         try {
-            accountClient.executeTransaction(new AccountCreateTransaction(), null);
+            accountClient.executeTransactionAndRetrieveReceipt(new AccountCreateTransaction());
         } catch (Exception e) {
             log.info("Dummy transaction fails but triggers the schedule execution");
         }

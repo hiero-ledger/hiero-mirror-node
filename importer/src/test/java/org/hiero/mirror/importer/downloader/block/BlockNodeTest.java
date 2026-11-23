@@ -5,7 +5,9 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.downloader.block.BlockNode.CLOSE_METRIC_NAME;
 import static org.hiero.mirror.importer.downloader.block.BlockNode.ERROR_METRIC_NAME;
+import static org.hiero.mirror.importer.downloader.block.BlockNode.STREAM_DURATION_METRIC_NAME;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleEndpointProperties;
 import static org.hiero.mirror.importer.downloader.block.BlockNodeTestUtils.singleServiceEndpoint;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.toParsed;
@@ -15,6 +17,7 @@ import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.withUn
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
 import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
@@ -24,6 +27,7 @@ import io.grpc.Server;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ServerCalls;
@@ -35,9 +39,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -66,6 +70,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
 import org.mockito.ThrowingConsumer;
@@ -170,7 +175,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockNodeService(resources, () -> serverStatusDetailResponse(20, 100));
 
         // when, then
-        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(Optional.ofNullable(expected));
+        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(expected);
     }
 
     @ParameterizedTest
@@ -185,7 +190,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockNodeService(resources, () -> serverStatusDetailResponse(10, 20, 0, 5));
 
         // when, then
-        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(Optional.ofNullable(expected));
+        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(expected);
     }
 
     @ParameterizedTest
@@ -201,7 +206,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockNodeService(resources, () -> serverStatusDetailResponse(5, 15, 0, 10));
 
         // when, then
-        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(Optional.ofNullable(expected));
+        assertThat(node.getBlockOrEarliest(blockNumber)).isEqualTo(expected);
     }
 
     @ParameterizedTest
@@ -215,9 +220,9 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockNodeService(resources, () -> serverStatusDetailResponse(rangeStart, rangeEnd, 20, 100));
 
         // when, then the malformed range is ignored and the valid one is still honored
-        assertThat(node.getBlockOrEarliest(50)).contains(50L);
-        assertThat(node.getBlockOrEarliest(-1)).contains(20L);
-        assertThat(node.getBlockOrEarliest(15)).isEmpty();
+        assertThat(node.getBlockOrEarliest(50)).isEqualTo(50L);
+        assertThat(node.getBlockOrEarliest(-1)).isEqualTo(20L);
+        assertThat(node.getBlockOrEarliest(15)).isNull();
     }
 
     @Test
@@ -226,17 +231,107 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockNodeService(resources, ServerStatusDetailResponse::getDefaultInstance);
 
         // when, then
-        assertThat(node.getBlockOrEarliest(0)).isEmpty();
-        assertThat(node.getBlockOrEarliest(-1)).isEmpty();
+        assertThat(node.getBlockOrEarliest(0)).isNull();
+        assertThat(node.getBlockOrEarliest(-1)).isNull();
     }
 
     @Test
     void getBlockOrEarliestOnError(Resources resources) {
         // given
-        runBlockNodeService(resources, List.of(new StatusException(Status.UNIMPLEMENTED)));
+        runBlockNodeService(resources, List.of(new StatusException(Status.INTERNAL)));
 
         // when, then
-        assertThat(node.getBlockOrEarliest(50)).isEmpty();
+        assertThat(node.getBlockOrEarliest(50)).isNull();
+        assertThat(node.isActive()).isTrue();
+        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isOne();
+    }
+
+    @Test
+    void getBlockOrEarliestOnErrorDeactivatesAfterMaxSubscribeAttempts(final Resources resources) {
+        // given
+        final int maxSubscribeAttempts = streamProperties.getMaxAttempts();
+        final var errors = new ArrayList<>();
+        for (int i = 0; i < maxSubscribeAttempts; i++) {
+            errors.add(new StatusException(Status.INTERNAL));
+        }
+
+        runBlockNodeService(resources, errors);
+
+        // when, then
+        for (int i = 0; i < maxSubscribeAttempts; i++) {
+            assertThat(node.isActive()).isTrue();
+            assertThat(node.getBlockOrEarliest(50)).isNull();
+        }
+
+        assertThat(node.isActive()).isFalse();
+    }
+
+    @Test
+    void getBlockOrEarliestOnInactiveNodeKeepsReadmitTime(
+            final CapturedOutput capturedOutput, final Resources resources) {
+        // given the node is deactivated by an unreachable status call
+        final var unavailable = new StatusException(Status.UNAVAILABLE);
+        runBlockNodeService(resources, List.of(unavailable, unavailable));
+        assertThat(node.getBlockOrEarliest(50)).isNull();
+        assertThat(node.isActive()).isFalse();
+
+        final var readmitDelay = streamProperties.getReadmitDelay();
+        final var now = Instant.now();
+        try (var mockedInstant = Mockito.mockStatic(Instant.class, Mockito.CALLS_REAL_METHODS)) {
+            // when the inactive node fails again halfway through the readmit delay
+            mockedInstant.when(Instant::now).thenReturn(now.plus(readmitDelay.dividedBy(2)));
+            assertThat(node.getBlockOrEarliest(50)).isNull();
+
+            // then it's readmitted after the original readmit delay
+            mockedInstant.when(Instant::now).thenReturn(now.plus(readmitDelay).plusSeconds(1));
+            assertThat(node.tryReadmit(false).isActive()).isTrue();
+        }
+
+        assertThat(capturedOutput.getAll()).containsOnlyOnce("Marking connection to " + node + " as inactive");
+        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(2);
+    }
+
+    @Test
+    void getBlockOrEarliestAndStreamErrorsShareCount(final Resources resources) {
+        // given status errors one less than max subscribe attempts, interrupted by a successful status call
+        final int maxSubscribeAttempts = streamProperties.getMaxAttempts();
+        final var responses = new ArrayList<Object>();
+        for (int i = 0; i < maxSubscribeAttempts - 1; i++) {
+            responses.add(new StatusException(Status.INTERNAL));
+        }
+
+        responses.add(serverStatusDetailResponse(20, 100));
+        final var server = runBlockNodeService(resources, responses);
+        for (int i = 0; i < maxSubscribeAttempts - 1; i++) {
+            assertThat(node.getBlockOrEarliest(50)).isNull();
+        }
+
+        assertThat(node.getBlockOrEarliest(50)).isEqualTo(50L);
+        assertThat(node.isActive()).isTrue();
+
+        // when streaming fails once
+        stopServer(server);
+        runBlockStreamSubscribeService(
+                resources,
+                ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE)));
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
+
+        // then
+        assertThat(node.isActive()).isFalse();
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = Status.Code.class,
+            names = {"PERMISSION_DENIED", "UNAUTHENTICATED", "UNAVAILABLE", "UNIMPLEMENTED"})
+    void getBlockOrEarliestUnreachableOrRejected(final Status.Code code, final Resources resources) {
+        // given
+        runBlockNodeService(resources, List.of(new StatusException(Status.fromCode(code))));
+
+        // when, then
+        assertThat(node.getBlockOrEarliest(50)).isNull();
+        assertThat(node.isActive()).isFalse();
+        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isOne();
     }
 
     @Test
@@ -253,7 +348,40 @@ final class BlockNodeTest extends BlockNodeTestBase {
         });
 
         // when, then
-        assertThat(node.getBlockOrEarliest(50)).isEmpty();
+        assertThat(node.getBlockOrEarliest(50)).isNull();
+        assertThat(node.isActive()).isFalse();
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            20, true
+            100, true
+            19, false
+            101, false
+            """)
+    void hasBlock(final long blockNumber, final boolean expected, final Resources resources) {
+        // given
+        runBlockNodeService(resources, () -> serverStatusDetailResponse(20, 100));
+
+        // when, then
+        assertThat(node.hasBlock(blockNumber)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = Status.Code.class,
+            names = {"INTERNAL", "UNAVAILABLE", "UNIMPLEMENTED"})
+    void hasBlockOnErrorDoesNotDeactivate(final Status.Code code, final Resources resources) {
+        // given
+        runBlockNodeService(resources, List.of(new StatusException(Status.fromCode(code))));
+
+        // when, then
+        assertThatThrownBy(() -> node.hasBlock(50))
+                .isInstanceOf(StatusRuntimeException.class)
+                .extracting(e -> ((StatusRuntimeException) e).getStatus().getCode())
+                .isEqualTo(code);
+        assertThat(node.isActive()).isTrue();
+        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isZero();
     }
 
     @Test
@@ -300,6 +428,64 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @Test
+    void probeBlock(final Resources resources) {
+        // given
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(fullBlockResponses(0)));
+
+        // when
+        final var streamed = new ArrayList<BlockStream>();
+        node.probeBlock(0, accumulate(streamed), TIMEOUT);
+
+        // then
+        assertThat(streamed).hasSize(1).first().satisfies(blockStream -> assertBlockStream(blockStream, 0));
+        assertThat(meterRegistry.find(CLOSE_METRIC_NAME).counters()).isEmpty();
+        assertThat(meterRegistry.find(STREAM_DURATION_METRIC_NAME).timers()).isEmpty();
+    }
+
+    @Test
+    void probeBlockFailureDoesNotDeactivate(final Resources resources) {
+        // given
+        runBlockStreamSubscribeService(
+                resources,
+                ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE)));
+
+        // when the probe fails more times than the max subscribe attempts
+        for (int i = 0; i < streamProperties.getMaxAttempts() + 1; i++) {
+            assertThatThrownBy(() -> node.probeBlock(0, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
+        }
+
+        // then
+        assertThat(node.isActive()).isTrue();
+        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isZero();
+        assertThat(meterRegistry.find(CLOSE_METRIC_NAME).counters()).isEmpty();
+    }
+
+    @Test
+    void probeBlockSuccessDoesNotResetErrors(final Resources resources) {
+        // given streaming fails one less than the max subscribe attempts
+        var server = runBlockStreamSubscribeService(
+                resources,
+                ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE)));
+        for (int i = 0; i < streamProperties.getMaxAttempts() - 1; i++) {
+            assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
+                    .isInstanceOf(BlockStreamException.class);
+        }
+
+        // when a probe succeeds
+        stopServer(server);
+        server = runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(fullBlockResponses(0)));
+        node.probeBlock(0, IGNORE, TIMEOUT);
+
+        // then streaming fails once more and the node becomes inactive
+        stopServer(server);
+        runBlockStreamSubscribeService(
+                resources,
+                ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE)));
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
+        assertThat(node.isActive()).isFalse();
+    }
+
+    @Test
     void stream(Resources resources) {
         // given
         var responses = List.of(
@@ -321,6 +507,33 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 .satisfies(
                         blocks -> assertBlockStream(blocks.getFirst(), 0),
                         blocks -> assertBlockStream(blocks.getLast(), 1));
+        assertThat(meterRegistry.find(STREAM_DURATION_METRIC_NAME).timers())
+                .singleElement()
+                .satisfies(timer -> {
+                    assertThat(timer.getId().getTag("block_node")).isEqualTo(getSubscribeStreamEndpoint());
+                    assertThat(timer.count()).isEqualTo(2);
+                });
+    }
+
+    @Test
+    void streamDurationStartsAtBlockHeader(final Resources resources) {
+        // given the block node pauses between the block header and the rest of the block
+        final var pause = Duration.ofMillis(200);
+        runBlockStreamSubscribeService(resources, responseObserver -> {
+            responseObserver.onNext(subscribeStreamResponse(blockItemSet(blockHead(0))));
+            Uninterruptibles.sleepUninterruptibly(pause);
+            responseObserver.onNext(subscribeStreamResponse(blockItemSet(eventHeader(), blockProof())));
+            responseObserver.onNext(subscribeStreamResponse(0));
+            responseObserver.onCompleted();
+        });
+
+        // when
+        node.streamBlocks(0, null, IGNORE, TIMEOUT);
+
+        // then
+        final var timer = meterRegistry.get(STREAM_DURATION_METRIC_NAME).timer();
+        assertThat(timer.count()).isOne();
+        assertThat(timer.totalTime(TimeUnit.MILLISECONDS)).isGreaterThanOrEqualTo(pause.toMillis());
     }
 
     @Test
@@ -364,6 +577,56 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @Test
+    void streamBlockNumberMismatchUsesHeaderNumber(final Resources resources) {
+        // given
+        final var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(0), eventHeader(), blockProof())),
+                subscribeStreamResponse(1));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when
+        final var streamed = new ArrayList<BlockStream>();
+        node.streamBlocks(0, null, accumulate(streamed), TIMEOUT);
+
+        // then
+        assertThat(streamed).singleElement().satisfies(blockStream -> assertBlockStream(blockStream, 0));
+    }
+
+    @Test
+    void streamFirstBlockNumberNotRequested(final Resources resources) {
+        // given
+        final var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(5), eventHeader(), blockProof())),
+                subscribeStreamResponse(5));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+        final var streamed = new ArrayList<BlockStream>();
+
+        // when, then
+        assertThatThrownBy(() -> node.streamBlocks(0, null, accumulate(streamed), TIMEOUT))
+                .isInstanceOf(BlockStreamException.class)
+                .hasMessageContaining("First block has incorrect block number: received 5, expected 0");
+        assertThat(streamed).isEmpty();
+    }
+
+    @Test
+    void streamLaterBlockNotChecked(final Resources resources) {
+        // given only the first block is bound to the requested start block number
+        final var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(3), eventHeader(), blockProof())),
+                subscribeStreamResponse(3),
+                subscribeStreamResponse(blockItemSet(blockHead(7), eventHeader(), blockProof())),
+                subscribeStreamResponse(7));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+        final var streamed = new ArrayList<BlockStream>();
+
+        // when
+        node.streamBlocks(3, null, accumulate(streamed), TIMEOUT);
+
+        // then
+        assertThat(streamed).hasSize(2);
+    }
+
+    @Test
     void streamIncorrectFirstBlockItem(Resources resources) {
         // given
         var responses = List.of(subscribeStreamResponse(blockItemSet(eventHeader(), blockProof())));
@@ -387,6 +650,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Received block items of a new block while the previous block is still pending");
+        assertThat(meterRegistry.find(STREAM_DURATION_METRIC_NAME).timers()).isEmpty();
     }
 
     @Test
@@ -410,6 +674,47 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(StatusException.class);
+        assertCloseReason("error");
+    }
+
+    @Test
+    void streamUnreachable(final Resources resources) {
+        // given
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromError(new StatusException(Status.UNAVAILABLE)));
+
+        // when, then
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
+                .isInstanceOf(BlockStreamException.class)
+                .hasCauseInstanceOf(StatusException.class);
+        assertThat(node.isActive()).isFalse();
+        assertCloseReason("unreachable");
+    }
+
+    @Test
+    void streamRejected(final Resources resources) {
+        // given
+        runBlockStreamSubscribeService(
+                resources, ResponsesOrError.fromError(new StatusException(Status.UNIMPLEMENTED)));
+
+        // when, then
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
+        assertThat(node.isActive()).isFalse();
+        assertCloseReason("rejected");
+    }
+
+    @Test
+    void streamUnavailableAfterResponse(final Resources resources) {
+        // given
+        runBlockStreamSubscribeService(resources, responseObserver -> {
+            responseObserver.onNext(subscribeStreamResponse(blockItemSet(blockHead(0))));
+            responseObserver.onError(new StatusException(Status.UNAVAILABLE));
+        });
+
+        // when, then
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
+                .isInstanceOf(BlockStreamException.class)
+                .hasCauseInstanceOf(StatusException.class);
+        assertThat(node.isActive()).isTrue();
     }
 
     @Test
@@ -425,7 +730,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
         // when, then
         var streamed = new ArrayList<BlockStream>();
-        node.streamBlocks(0, null, accumulate(streamed), TIMEOUT);
+        node.streamBlocks(1, null, accumulate(streamed), TIMEOUT);
 
         // then
         assertThat(streamed)
@@ -453,6 +758,8 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, Duration.ofMillis(100)))
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(TimeoutException.class);
+        assertThat(node.isActive()).isTrue();
+        assertCloseReason("timeout");
         latch.countDown();
     }
 
@@ -484,7 +791,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
+        assertThatThrownBy(() -> node.streamBlocks(1, null, IGNORE, TIMEOUT))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Too many block items in a pending block: received 4, limit 2");
     }
@@ -686,7 +993,54 @@ final class BlockNodeTest extends BlockNodeTestBase {
         // when, then
         assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
         assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
-        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(2);
+        assertThat(meterRegistry
+                        .get(ERROR_METRIC_NAME)
+                        .tag("block_node", getSubscribeStreamEndpoint())
+                        .counter()
+                        .count())
+                .isEqualTo(2);
+    }
+
+    @Test
+    void streamClosedCompleted(final Resources resources) {
+        // given
+        final var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(0), eventHeader(), blockProof())),
+                subscribeStreamResponse(0),
+                subscribeStreamResponse(SubscribeStreamResponse.Code.SUCCESS));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when
+        final var blockNodes = new ArrayList<String>();
+        node.streamBlocks(
+                0,
+                null,
+                (_, blockNode) -> {
+                    blockNodes.add(blockNode);
+                    return false;
+                },
+                TIMEOUT);
+
+        // then
+        assertThat(blockNodes).containsExactly(getSubscribeStreamEndpoint());
+        assertCloseReason("completed");
+    }
+
+    @Test
+    void streamClosedRescheduled(final Resources resources) {
+        // given
+        final var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(0), eventHeader(), blockProof())),
+                subscribeStreamResponse(0),
+                subscribeStreamResponse(blockItemSet(blockHead(1), eventHeader(), blockProof())),
+                subscribeStreamResponse(1));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when
+        node.streamBlocks(0, null, (_, _) -> true, TIMEOUT);
+
+        // then
+        assertCloseReason("rescheduled");
     }
 
     /**
@@ -701,6 +1055,20 @@ final class BlockNodeTest extends BlockNodeTestBase {
         }
 
         return builder.build();
+    }
+
+    private void assertCloseReason(final String reason) {
+        assertThat(meterRegistry.find(CLOSE_METRIC_NAME).counters())
+                .singleElement()
+                .satisfies(counter -> {
+                    assertThat(counter.getId().getTag("block_node")).isEqualTo(getSubscribeStreamEndpoint());
+                    assertThat(counter.getId().getTag("reason")).isEqualTo(reason);
+                    assertThat(counter.count()).isOne();
+                });
+    }
+
+    private String getSubscribeStreamEndpoint() {
+        return blockNodeProperties.getEndpoints().first().toString();
     }
 
     private BiFunction<BlockStream, String, Boolean> accumulate(Collection<BlockStream> collection) {
@@ -730,7 +1098,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     private void assertBlockStream(
             BlockStream blockStream, long number, ThrowingConsumer<List<BlockItem>> extraBlockItemAssert) {
         assertThat(blockStream)
-                .satisfies(b -> assertThat(b.loadStart())
+                .satisfies(b -> assertThat(b.blockCompleteTime())
                         .isGreaterThan(Instant.now().minusSeconds(10).toEpochMilli()))
                 .returns(BlockFile.getFilename(number, false), BlockStream::filename)
                 .extracting(b -> toParsed(b.blockItems()))
@@ -772,7 +1140,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         startServer(resources, service);
     }
 
-    private void runBlockNodeService(final Resources resources, final List<Object> responseOrError) {
+    private Server runBlockNodeService(final Resources resources, final List<Object> responseOrError) {
         final var iter = responseOrError.iterator();
         final var service = new BlockNodeServiceGrpc.BlockNodeServiceImplBase() {
             @Override
@@ -794,7 +1162,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 responseObserver.onError(new RuntimeException("Unknown"));
             }
         };
-        startServer(resources, service);
+        return startServer(resources, service);
     }
 
     private Server runBlockStreamSubscribeService(

@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static org.hiero.mirror.web3.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.state.Utils.parseHex;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.google.common.base.Stopwatch;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -15,10 +16,10 @@ import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
-import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 
@@ -28,75 +29,69 @@ public class ContractExecutionService extends ContractCallService {
 
     private final BinaryGasEstimator binaryGasEstimator;
 
-    @SuppressWarnings("java:S107")
     public ContractExecutionService(
             MeterRegistry meterRegistry,
             BinaryGasEstimator binaryGasEstimator,
             RecordFileService recordFileService,
-            ThrottleProperties throttleProperties,
-            ThrottleManager throttleManager,
             EvmProperties evmProperties,
+            ThrottleProperties throttleProperties,
             TransactionExecutionService transactionExecutionService) {
-        super(
-                throttleManager,
-                throttleProperties,
-                meterRegistry,
-                recordFileService,
-                evmProperties,
-                transactionExecutionService);
+        super(meterRegistry, recordFileService, evmProperties, throttleProperties, transactionExecutionService);
         this.binaryGasEstimator = binaryGasEstimator;
     }
 
     /**
-     * Backwards compatible method returning only the result hex string.
+     * Runs the call in {@code ctx}, which must be the bound {@link ContractCallContext}, and returns only the result hex
+     * string. Afterwards {@code ctx} holds the {@link ContractCallContext#getRefundableGas() refundable gas} of the
+     * executed call, or of the first call of a gas estimate, so the caller can return the throttle gas it did not use.
      */
-    public String processCall(final ContractExecutionParameters params) {
-        return processCallWithGas(params).result();
+    public String processCall(final ContractExecutionParameters params, final ContractCallContext ctx) {
+        return processCallWithGas(params, ctx).result();
     }
 
     /**
-     * New API that returns both the result and the actual gas used by the execution.
+     * Runs the call in {@code ctx}, which must be the bound {@link ContractCallContext}, and returns both the result and
+     * the gas used.
      */
-    public ContractExecutionResult processCallWithGas(final ContractExecutionParameters params) {
-        return ContractCallContext.run(ctx -> {
-            ctx.setApi(CALL);
-            var stopwatch = Stopwatch.createStarted();
-            var stringResult = "";
-            long gasUsed;
+    public ContractExecutionResult processCallWithGas(
+            final ContractExecutionParameters params, final ContractCallContext ctx) {
+        ctx.setApi(CALL);
+        final var stopwatch = Stopwatch.createStarted();
+        var stringResult = "";
+        long gasUsed;
 
-            try {
-                updateGasLimitMetric(params);
+        try {
+            updateGasLimitMetric(params);
 
-                if (!params.getStateOverrides().isEmpty()) {
-                    final var addressToAccounts = new HashMap<com.hedera.pbj.runtime.io.buffer.Bytes, StateOverride>(
-                            params.getStateOverrides().size());
-                    for (final var stateOverride : params.getStateOverrides()) {
-                        final var address = stateOverride.getAddress();
-                        addressToAccounts.put(
-                                com.hedera.pbj.runtime.io.buffer.Bytes.wrap(parseHex(address)), stateOverride);
-                    }
-
-                    ctx.setStateOverrides(addressToAccounts);
+            if (!params.getStateOverrides().isEmpty()) {
+                final var addressToAccounts = new HashMap<com.hedera.pbj.runtime.io.buffer.Bytes, StateOverride>(
+                        params.getStateOverrides().size());
+                for (final var stateOverride : params.getStateOverrides()) {
+                    final var address = stateOverride.getAddress();
+                    addressToAccounts.put(
+                            com.hedera.pbj.runtime.io.buffer.Bytes.wrap(parseHex(address)), stateOverride);
                 }
 
-                Bytes result;
-                if (params.isEstimate()) {
-                    result = estimateGas(params, ctx);
-                    gasUsed = result.toLong();
-                } else {
-                    final var ethCallTxnResult = callContract(params, ctx);
-                    result = Objects.requireNonNullElse(
-                            Bytes.fromHexString(ethCallTxnResult.contractCallResult()), Bytes.EMPTY);
-                    gasUsed = ethCallTxnResult.gasUsed();
-                }
-
-                stringResult = result.toHexString();
-            } finally {
-                log.debug("Processed request {} in {}: {}", params, stopwatch, stringResult);
+                ctx.setStateOverrides(addressToAccounts);
             }
 
-            return new ContractExecutionResult(stringResult, gasUsed);
-        });
+            Bytes result;
+            if (params.isEstimate()) {
+                result = estimateGas(params, ctx);
+                gasUsed = result.toLong();
+            } else {
+                final var ethCallTxnResult = callContract(params, ctx);
+                result = Objects.requireNonNullElse(
+                        Bytes.fromHexString(ethCallTxnResult.contractCallResult()), Bytes.EMPTY);
+                gasUsed = ethCallTxnResult.gasUsed();
+            }
+
+            stringResult = result.toHexString();
+        } finally {
+            log.debug("Processed request {} in {}: {}", params, stopwatch, stringResult);
+        }
+
+        return new ContractExecutionResult(stringResult, gasUsed);
     }
 
     /**
@@ -108,16 +103,12 @@ public class ContractExecutionService extends ContractCallService {
      * that would prevent the estimation from succeeding.
      * <p>
      * 2. Finally, if the first step is successful, a binary search is initiated. The lower bound of the search is the
-     * gas used in the first step, while the upper bound is the inputted gas parameter.
+     * gas used in the first step, while the upper bound is the inputted gas parameter. A 5% safety margin is added
+     * to the successful limit, independently of storage refunds.
      */
     private Bytes estimateGas(final ContractExecutionParameters params, final ContractCallContext context) {
         final var processingResult = callContract(params, context);
         final var gasUsedByInitialCall = processingResult.gasUsed();
-
-        // sanity check ensuring gasUsed is always lower than the inputted one
-        if (gasUsedByInitialCall >= params.getGas()) {
-            return Bytes.ofUnsignedLong(gasUsedByInitialCall);
-        }
 
         final var status = ResponseCodeEnum.SUCCESS.toString();
         final var estimatedGas = binaryGasEstimator.search(
@@ -125,6 +116,14 @@ public class ContractExecutionService extends ContractCallService {
                 gas -> doProcessCall(params, gas, true),
                 gasUsedByInitialCall,
                 params.getGas());
+
+        if (estimatedGas > evmProperties.getMaxGasLimit()) {
+            throw new MirrorEvmTransactionException(
+                    ResponseCodeEnum.MAX_GAS_LIMIT_EXCEEDED.name(),
+                    "Gas estimate exceeds the maximum gas limit",
+                    HEX_PREFIX,
+                    processingResult);
+        }
 
         return Bytes.ofUnsignedLong(estimatedGas);
     }

@@ -6,13 +6,13 @@ Feature: Contract Base Coverage Feature
 
         Using the Java SDK and the mirror node REST API, create, update and call a smart contract and
         verify proper operation. Use that same parent contract to create a second child contract using
-        the CREATE2 flow, namely by retrieving the child contract bytecode and using it, and a salt value,
+        the CREATE2 flow, namely by retrieving the child contract bytecode and using a salt value
         to compute the child's EVM address and then deploying the contract to that address.
 
         Once the child EVM address is known, issue a crypto transfer transaction to that EVM address, creating
         a hollow account. Verify the account exists and indeed is hollow, but that a contract does not yet
         exist at that EVM address. Then, using a parent contract function, deploy the child contract using
-        the CREATE2 opcode and with the same bytecode and salt, thus this is done to the child EVM address.
+        the CREATE2 opcode and with the same salt, thus this is done to the child EVM address.
 
         With the contract now present, and the account no longer hollow, invoke a function on the child contract
         to cause its self destruction, vacating the EVM address for future use. Also, Finally, delete the original parent

@@ -38,6 +38,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
@@ -66,6 +67,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EmptySource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -223,7 +225,7 @@ final class ContractControllerTest {
         final var exceptionMessage = "No such contract or token";
         final var request = request();
 
-        given(service.processCall(any())).willThrow(new EntityNotFoundException(exceptionMessage));
+        given(service.processCall(any(), any())).willThrow(new EntityNotFoundException(exceptionMessage));
 
         contractCall(request)
                 .andExpect(status().isNotFound())
@@ -295,7 +297,7 @@ final class ContractControllerTest {
                 .andExpect(status().isOk());
 
         // Verify that the value field defaults to 0 when explicitly set to null
-        verify(service).processCall(argThat(params -> params.getValue() == 0L));
+        verify(service).processCall(argThat(params -> params.getValue() == 0L), any());
     }
 
     @Test
@@ -335,7 +337,7 @@ final class ContractControllerTest {
         final var request = request();
         request.setData("0xa26388bb");
 
-        given(service.processCall(any()))
+        given(service.processCall(any(), any()))
                 .willThrow(new MirrorEvmTransactionException(
                         CONTRACT_REVERT_EXECUTED, detailedErrorMessage, hexDataErrorMessage));
 
@@ -351,30 +353,74 @@ final class ContractControllerTest {
         final var error = "No such contract or token";
         final var request = request();
 
-        given(service.processCall(any())).willThrow(new InvalidParametersException(error));
+        given(service.processCall(any(), any())).willThrow(new InvalidParametersException(error));
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), error))));
         verify(throttleManager).restore(request.getGas());
+        verify(throttleManager).restore(anyLong());
     }
 
     @Test
     void callWithIllegalArgumentExceptionRestoresThrottle() throws Exception {
         final var request = request();
 
-        given(service.processCall(any())).willThrow(new IllegalArgumentException("Invalid hex value"));
+        given(service.processCall(any(), any())).willThrow(new IllegalArgumentException("Invalid hex value"));
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content()
                         .string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Invalid hex value"))));
         verify(throttleManager).restore(request.getGas());
+        verify(throttleManager).restore(anyLong());
+    }
+
+    @Test
+    void callWithIllegalArgumentExceptionAfterExecutionRestoresRefundableGas() throws Exception {
+        final var request = request();
+        final long refundableGas = 21_000L;
+
+        given(service.processCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
+            throw new IllegalArgumentException("Invalid hex value");
+        });
+        contractCall(request).andExpect(status().isBadRequest());
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
+    }
+
+    @Test
+    void callRestoresRefundableGas() throws Exception {
+        final var request = request();
+        final long refundableGas = 21_000L;
+
+        given(service.processCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
+            return HEX_PREFIX;
+        });
+        contractCall(request).andExpect(status().isOk());
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
+    }
+
+    @Test
+    void callWithRevertRestoresRefundableGas() throws Exception {
+        final var request = request();
+        final long refundableGas = 21_000L;
+
+        given(service.processCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
+            throw new MirrorEvmTransactionException(CONTRACT_REVERT_EXECUTED, "detail", HEX_PREFIX);
+        });
+        contractCall(request).andExpect(status().isBadRequest());
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
     }
 
     @Test
     void callWithNotSupportedPrecompile() throws Exception {
         final var request = request();
 
-        given(service.processCall(any())).willThrow(new PrecompileNotSupportedException(StringUtils.EMPTY));
+        given(service.processCall(any(), any())).willThrow(new PrecompileNotSupportedException(StringUtils.EMPTY));
         contractCall(request)
                 .andExpect(status().isNotImplemented())
                 .andExpect(content()
@@ -443,7 +489,7 @@ final class ContractControllerTest {
     @Test
     void callWithBlockNumberNotFoundExceptionTest() throws Exception {
         final var request = request();
-        given(service.processCall(any())).willThrow(new BlockNumberNotFoundException());
+        given(service.processCall(any(), any())).willThrow(new BlockNumberNotFoundException());
 
         contractCall(request)
                 .andExpect(status().isBadRequest())
@@ -458,7 +504,7 @@ final class ContractControllerTest {
         final var request = request();
         request.setData("0xa26388bb");
 
-        given(service.processCall(any()))
+        given(service.processCall(any(), any()))
                 .willThrow(new MirrorEvmTransactionException(responseCode, "internal detail", "0xdeadbeef"));
 
         // On 5xx the detail and data must be redacted so internal server-side state is never leaked to the client.
@@ -514,7 +560,7 @@ final class ContractControllerTest {
 
         verify(throttleManager, never()).throttle(any());
         verify(throttleManager, never()).restore(anyLong());
-        verify(service, never()).processCall(any());
+        verify(service, never()).processCall(any(), any());
     }
 
     @Test
@@ -528,7 +574,7 @@ final class ContractControllerTest {
 
         verify(throttleManager, never()).throttle(any());
         verify(throttleManager, never()).restore(anyLong());
-        verify(service, never()).processCall(any());
+        verify(service, never()).processCall(any(), any());
     }
 
     @Test
@@ -542,7 +588,7 @@ final class ContractControllerTest {
 
         verify(throttleManager, never()).throttle(any());
         verify(throttleManager, never()).restore(anyLong());
-        verify(service, never()).processCall(any());
+        verify(service, never()).processCall(any(), any());
     }
 
     @Test
@@ -604,7 +650,7 @@ final class ContractControllerTest {
     @SneakyThrows
     void handlesQueryTimeoutException(CapturedOutput capturedOutput) {
         final var request = request();
-        given(service.processCall(any())).willThrow(new QueryTimeoutException("Query timeout"));
+        given(service.processCall(any(), any())).willThrow(new QueryTimeoutException("Query timeout"));
 
         contractCall(request)
                 .andExpect(status().isServiceUnavailable())
@@ -647,7 +693,7 @@ final class ContractControllerTest {
     void callWithStateOverrideBalance() throws Exception {
         final var override = new StateOverride();
         override.setAddress("0x00000000000000000000000000000000000004e2");
-        override.setBalance("0xde0b6b3a7640000"); // 1 HBAR in tinybars hex
+        override.setBalance(100_000_000L); // 1 HBAR in tinybars
         final var request = request();
         request.setStateOverrides(List.of(override));
         contractCall(request).andExpect(status().isOk());
@@ -657,7 +703,7 @@ final class ContractControllerTest {
     void callWithStateOverrideNonce() throws Exception {
         final var override = new StateOverride();
         override.setAddress("0x00000000000000000000000000000000000004e2");
-        override.setNonce("0x2a");
+        override.setNonce(42L);
         final var request = request();
         request.setStateOverrides(List.of(override));
         contractCall(request).andExpect(status().isOk());
@@ -735,7 +781,7 @@ final class ContractControllerTest {
     void callWithStateOverrideInvalidAddressKey() throws Exception {
         final var override = new StateOverride();
         override.setAddress("0x1234"); // too short (not 40 hex chars)
-        override.setBalance("0x1");
+        override.setBalance(1L);
         final var request = request();
         request.setStateOverrides(List.of(override));
 
@@ -746,7 +792,7 @@ final class ContractControllerTest {
     void callWithStateOverrideUpperCaseAddressPrefix() throws Exception {
         final var override = new StateOverride();
         override.setAddress("0X00000000000000000000000000000000000004e4");
-        override.setBalance("0x1");
+        override.setBalance(1L);
         final var request = request();
         request.setStateOverrides(List.of(override));
 
@@ -755,16 +801,67 @@ final class ContractControllerTest {
         web3Properties.setEnableStateOverrides(false);
     }
 
-    @Test
-    void callWithStateOverrideInvalidNonce() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"balance", "nonce"})
+    void callWithStateOverrideNegativeNumber(final String field) throws Exception {
+        final var override = new StateOverride();
+        override.setAddress("0x00000000000000000000000000000000000004e2");
+        if ("balance".equals(field)) {
+            override.setBalance(-1L);
+        } else {
+            override.setNonce(-1L);
+        }
+        final var request = request();
+        request.setStateOverrides(List.of(override));
+
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains(
+                                "stateOverrides[0]." + field + " field must be greater than or equal to 0")));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "balance, \"0x1\"",
+        "balance, \"abc\"",
+        "balance, 9223372036854775808",
+        "balance, 18446744073709551615",
+        "balance, true",
+        "balance, []",
+        "nonce, \"0x2a\"",
+        "nonce, \"abc\"",
+        "nonce, 9223372036854775808",
+        "nonce, 18446744073709551615",
+        "nonce, true",
+        "nonce, {}"
+    })
+    void callWithStateOverrideInvalidNumber(final String field, final String value) throws Exception {
         mockMvc.perform(post(CALL_URI)
                         .accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"to\": \"0x00000000000000000000000000000000000004e4\","
-                                + "\"state_overrides\": [{\"address\":"
-                                + "\"0x00000000000000000000000000000000000004e2\","
-                                + "\"nonce\": \"-1\"}]}"))
+                        .content(stateOverrideJson(field, value)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"balance, 0", "balance, 9223372036854775807", "nonce, 0", "nonce, 9223372036854775807"})
+    void callWithStateOverrideBoundaryNumber(final String field, final String value) throws Exception {
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(stateOverrideJson(field, value)))
+                .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"balance", "nonce"})
+    void callWithStateOverrideNullNumber(final String field) throws Exception {
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(stateOverrideJson(field, "null")))
+                .andExpect(status().isOk());
     }
 
     private ContractCallRequest request() {
@@ -777,6 +874,13 @@ final class ContractControllerTest {
         request.setTo("0x00000000000000000000000000000000000004e4");
         request.setValue(23);
         return request;
+    }
+
+    private String stateOverrideJson(final String field, final String value) {
+        return """
+                {"to": "0x00000000000000000000000000000000000004e4",
+                 "state_overrides": [{"address": "0x00000000000000000000000000000000000004e2", "%s": %s}]}
+                """.formatted(field, value);
     }
 
     private String numberErrorString(String field, String direction, long num) {

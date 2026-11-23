@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import io.hypersistence.utils.hibernate.type.util.JsonConfiguration;
 import java.io.IOException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -31,9 +30,6 @@ public class ObjectToStringSerializer extends JsonSerializer<Object> {
                 .registerModule(module)
                 .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
                 .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-
-        // Configure hyperpersistence utils so that JsonBinaryType uses the same object mapper
-        JsonConfiguration.INSTANCE.getObjectMapperWrapper().setObjectMapper(OBJECT_MAPPER);
     }
 
     public static void init() {

@@ -108,9 +108,7 @@ class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<Contr
                 .isEqualTo(2);
         assertThat(contractLogRepository.findAll())
                 .hasSize(9)
-                .allSatisfy(contractLog -> assertThat(contractLog)
-                        .returns(true, ContractLog::isChild)
-                        .returns(true, ContractLog::isSynthetic));
+                .allSatisfy(contractLog -> assertThat(contractLog).returns(true, ContractLog::isSynthetic));
         assertThat(tableExists("processed_record_file_temp")).isFalse();
     }
 
@@ -131,8 +129,7 @@ class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<Contr
     private ContractLog contractLogPersist(final int contractLogIndex, final long consensusTimestamp) {
         return domainBuilder
                 .contractLog()
-                .customize(cl -> cl.child(true)
-                        .consensusTimestamp(consensusTimestamp)
+                .customize(cl -> cl.consensusTimestamp(consensusTimestamp)
                         .index(contractLogIndex)
                         .synthetic(true))
                 .persist();

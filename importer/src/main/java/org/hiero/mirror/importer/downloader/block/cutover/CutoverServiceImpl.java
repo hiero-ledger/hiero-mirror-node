@@ -14,15 +14,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Predicate;
-import lombok.AccessLevel;
 import lombok.CustomLog;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -44,9 +40,6 @@ public final class CutoverServiceImpl implements CutoverService {
     private final RecordDownloaderProperties recordDownloaderProperties;
     private final RecordFileRepository recordFileRepository;
     private final Stopwatch wrappedRecordBlockStopwatch = Stopwatch.createUnstarted();
-
-    @Getter(lazy = true, value = AccessLevel.PRIVATE)
-    private final Optional<RecordFile> firstRecordFile = findFirst();
 
     private int blockBackoffMultiplier = 1;
     private @Nullable Instant blockReadmitTime;
@@ -114,28 +107,10 @@ public final class CutoverServiceImpl implements CutoverService {
     }
 
     private static boolean isBlockStream(final Optional<RecordFile> recordFile) {
-        return recordFileMatch(recordFile, v -> v >= BlockStreamReader.VERSION);
-    }
-
-    private static boolean isRecordStream(final Optional<RecordFile> recordFile) {
-        return recordFileMatch(recordFile, v -> v < BlockStreamReader.VERSION);
-    }
-
-    private static boolean recordFileMatch(
-            final Optional<RecordFile> recordFile, final Predicate<Integer> versionMatcher) {
-        return recordFile.map(RecordFile::getVersion).map(versionMatcher::test).orElse(false);
-    }
-
-    private Optional<RecordFile> findFirst() {
-        return recordFileRepository.findFirst();
-    }
-
-    private boolean hasCutover() {
-        final var network =
-                recordDownloaderProperties.getCommon().getImporterProperties().getNetwork();
-        return cutoverProperties.getEnabled() != null
-                ? cutoverProperties.getEnabled()
-                : ImporterProperties.HederaNetwork.hasCutover(network);
+        return recordFile
+                .map(RecordFile::getVersion)
+                .map(v -> v >= BlockStreamReader.VERSION)
+                .orElse(false);
     }
 
     private boolean isActive(final StreamType streamType) {
@@ -148,7 +123,7 @@ public final class CutoverServiceImpl implements CutoverService {
             return false;
         }
 
-        if (!hasCutover() || isCutoverComplete()) {
+        if (!cutoverProperties.isEnabled() || isCutoverComplete()) {
             return streamType == BLOCK ? blockProperties.isEnabled() : recordDownloaderProperties.isEnabled();
         }
 
@@ -181,21 +156,21 @@ public final class CutoverServiceImpl implements CutoverService {
 
     private boolean isCutoverComplete() {
         final boolean isLastBlockStream = isBlockStream(getLastRecordFile());
-        if (isLastBlockStream) {
-            final boolean complete = isRecordStream(getFirstRecordFile());
-            if (!blockProperties.isEnabled() && complete) {
-                final var network = recordDownloaderProperties
-                        .getCommon()
-                        .getImporterProperties()
-                        .getNetwork();
-                log.warn(
-                        "Cutover has completed for network {}, please set hiero.mirror.importer.block.enabled=true "
-                                + "and restart",
-                        network);
+        // The record downloader can't resume from a block, so enable the block source even on networks that never had
+        // record streams. Note this is a fallback logic when cutover is enabled, block is disabled, and record
+        // downloader is enabled.
+        if (isLastBlockStream && !blockProperties.isEnabled()) {
+            final var network = recordDownloaderProperties
+                    .getCommon()
+                    .getImporterProperties()
+                    .getNetwork();
+            log.warn(
+                    "Cutover has completed for network {}, please set hiero.mirror.importer.block.enabled=true "
+                            + "and restart",
+                    network);
 
-                blockProperties.setEnabled(true);
-                recordDownloaderProperties.setEnabled(false);
-            }
+            blockProperties.setEnabled(true);
+            recordDownloaderProperties.setEnabled(false);
         }
 
         return isLastBlockStream;

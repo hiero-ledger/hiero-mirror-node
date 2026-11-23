@@ -20,8 +20,9 @@ final class ManagedChannelBuilderProviderImpl implements ManagedChannelBuilderPr
 
     @Override
     public ManagedChannelBuilder<?> get(final String host, final int port, final boolean useTls) {
+        final var server = "%s:%d".formatted(host, port);
         final var interceptor = new MetricCollectingClientInterceptor(
-                meterRegistry, counter -> counter.tag(TAG_SERVER, host), timer -> timer.tag(TAG_SERVER, host));
+                meterRegistry, counter -> counter.tag(TAG_SERVER, server), timer -> timer.tag(TAG_SERVER, server));
         final var builder = ManagedChannelBuilder.forAddress(host, port)
                 .intercept(interceptor)
                 .decompressorRegistry(DecompressorRegistry.getDefaultInstance().with(zstdCodec, true));

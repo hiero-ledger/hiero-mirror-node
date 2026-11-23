@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.hyperdiskStorageClass.enabled -}}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+  labels: {{ include "hedera-mirror-common.labels" . | nindent 4 }}
+  name: hyperdisk-balanced
+allowVolumeExpansion: true
+parameters:
+  type: hyperdisk-balanced
+provisioner: pd.csi.storage.gke.io
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+{{- end -}}

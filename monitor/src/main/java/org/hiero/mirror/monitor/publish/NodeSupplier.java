@@ -87,8 +87,8 @@ public class NodeSupplier {
                                         "{} of {} nodes are functional",
                                         valid.stream().filter(v -> v).count(),
                                         valid.size()))
-                                .repeatWhen(repeat -> repeat.filter(
-                                                l -> getNodes().isEmpty())
+                                .repeatWhen(repeat -> repeat.takeWhile(
+                                                _ -> getNodes().isEmpty())
                                         .doOnNext(_ -> log.info("Retrying in {} ms", retryBackoff))
                                         .flatMap(_ -> Mono.delay(Duration.ofMillis(retryBackoff), validationScheduler)))
                                 .onErrorResume(t -> {

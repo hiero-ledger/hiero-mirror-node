@@ -20,6 +20,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
+import org.hiero.mirror.importer.downloader.block.cutover.CutoverProperties;
 import org.hiero.mirror.importer.exception.InvalidConfigurationException;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -35,6 +36,7 @@ public final class DateRangeCalculator {
 
     private final AccountBalanceFileRepository accountBalanceFileRepository;
     private final BlockProperties blockProperties;
+    private final CutoverProperties cutoverProperties;
     private final ImporterProperties importerProperties;
     private final RecordFileRepository recordFileRepository;
 
@@ -72,6 +74,8 @@ public final class DateRangeCalculator {
         if (startDate != null) {
             filterStartDate = max(startDate, lastFileInstant);
         } else if (!blockProperties.isEnabled()
+                // With cutover enabled, the block source may stream blocks produced before startup into an empty db
+                && !cutoverProperties.isEnabled()
                 && !DEMO.equalsIgnoreCase(importerProperties.getNetwork())
                 && lastFileInstant == null) {
             filterStartDate = STARTUP_TIME;

@@ -11,6 +11,6 @@ public interface ContractLogRepository extends CrudRepository<ContractLog, Contr
 
     @Modifying
     @Override
-    @Query("delete from ContractLog where consensusTimestamp <= ?1")
+    @Query(value = "delete from contract_log where consensus_timestamp <= :consensusTimestamp", nativeQuery = true)
     int prune(long consensusTimestamp);
 }

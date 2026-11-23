@@ -22,7 +22,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ContractCallRequest;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
-import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.NodeNameEnum;
@@ -88,7 +87,10 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
 
     protected TransactionDetail verifyMirrorTransactionsResponse(MirrorNodeClient mirrorClient, int status) {
         String transactionId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        TransactionByIdResponse mirrorTransactionsResponse = mirrorClient.getTransactions(transactionId);
+        var mirrorTransactionsResponse = networkTransactionResponse.getTransactions();
+        if (mirrorTransactionsResponse == null) {
+            mirrorTransactionsResponse = mirrorClient.getTransactions(transactionId);
+        }
 
         List<TransactionDetail> transactions = mirrorTransactionsResponse.getTransactions();
         assertNotNull(transactions);
