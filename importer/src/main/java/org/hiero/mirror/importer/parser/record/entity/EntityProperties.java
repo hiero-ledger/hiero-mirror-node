@@ -39,6 +39,8 @@ public class EntityProperties {
 
         private boolean claims = false;
 
+        private boolean clpr = true;
+
         private boolean contracts = true;
 
         private boolean contractResults = true;

@@ -391,17 +391,72 @@ public final class RecordItemBuilder {
     }
 
     public Builder<ClprDeregisterConnectorTransactionBody.Builder> clprDeregisterConnector() {
+        final var channelId = bytes(32);
+        final var connectorId = bytes(32);
         final var builder = ClprDeregisterConnectorTransactionBody.newBuilder()
-                .setChannelId(bytes(32))
-                .setConnectorId(bytes(32))
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
                 .setStakeRecipient(accountId());
-        return new Builder<>(TransactionType.CLPRDEREGISTERCONNECTOR, builder);
+        // Real consensus state removes the Connector from its map entirely on deregistration
+        // (ClprDeregisterConnectorHandler's connectorStore.remove(key)), so the shared sendMessage side-effect hook
+        // still generically captures the resulting clpr_connectors deletion -- even though
+        // ClprDeregisterConnectorTransactionHandler ignores ClprContext entirely and rebuilds the DELETED row
+        // straight from this transaction's own body instead.
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
+        return new Builder<>(TransactionType.CLPRDEREGISTERCONNECTOR, builder)
+                .recordItem(r -> r.clprContextBuilder().clprConnectorsRemoved(List.of(connectorKey)));
     }
 
     public Builder<ClprMaintenanceTransactionBody.Builder> clprMaintenance() {
         final var builder = ClprMaintenanceTransactionBody.newBuilder()
                 .setReason(ClprMaintenanceReason.ENDPOINT_MANIFEST_RECONCILIATION);
-        final var manifest = ClprEndpointManifest.newBuilder()
+        final var manifest = clprEndpointManifestValue();
+        return new Builder<>(TransactionType.CLPRMAINTENANCE, builder)
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprEndpointManifestUpdate(SingletonUpdateChange.newBuilder()
+                                .setClprEndpointManifestValue(manifest)
+                                .build()));
+    }
+
+    /**
+     * A {@code ClprMaintenance} firing that only touches the ledger-configuration singleton, e.g. {@code
+     * GENESIS_INITIALIZATION} creating its very first row with no endpoint manifest change alongside it.
+     */
+    public Builder<ClprMaintenanceTransactionBody.Builder> clprMaintenanceLedgerConfiguration() {
+        final var builder =
+                ClprMaintenanceTransactionBody.newBuilder().setReason(ClprMaintenanceReason.GENESIS_INITIALIZATION);
+        final var configuration = clprLedgerConfigurationValue();
+        return new Builder<>(TransactionType.CLPRMAINTENANCE, builder)
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
+                                .setClprLedgerConfigurationValue(configuration)
+                                .build()));
+    }
+
+    /**
+     * A {@code ClprMaintenance} firing that touches both singletons in the same transaction, e.g. {@code
+     * GENESIS_INITIALIZATION} creating both tables' very first rows together.
+     */
+    public Builder<ClprMaintenanceTransactionBody.Builder> clprMaintenanceEndpointManifestAndLedgerConfiguration() {
+        final var builder =
+                ClprMaintenanceTransactionBody.newBuilder().setReason(ClprMaintenanceReason.GENESIS_INITIALIZATION);
+        final var manifest = clprEndpointManifestValue();
+        final var configuration = clprLedgerConfigurationValue();
+        return new Builder<>(TransactionType.CLPRMAINTENANCE, builder)
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprEndpointManifestUpdate(SingletonUpdateChange.newBuilder()
+                                .setClprEndpointManifestValue(manifest)
+                                .build())
+                        .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
+                                .setClprLedgerConfigurationValue(configuration)
+                                .build()));
+    }
+
+    private ClprEndpointManifest clprEndpointManifestValue() {
+        return ClprEndpointManifest.newBuilder()
                 .setServiceAddress(bytes(20))
                 .setVersion(2)
                 .addEndpoints(ClprEndpoint.newBuilder()
@@ -411,11 +466,6 @@ public final class RecordItemBuilder {
                                 .setPort(50211))
                         .setTlsCertificate(bytes(64)))
                 .build();
-        return new Builder<>(TransactionType.CLPRMAINTENANCE, builder)
-                .recordItem(r -> r.clprContextBuilder()
-                        .clprEndpointManifestUpdate(SingletonUpdateChange.newBuilder()
-                                .setClprEndpointManifestValue(manifest)
-                                .build()));
     }
 
     public Builder<ClprRegisterChannelTransactionBody.Builder> clprRegisterChannel() {
@@ -489,7 +539,18 @@ public final class RecordItemBuilder {
     }
 
     public Builder<ClprUpdateLedgerConfigurationTransactionBody.Builder> clprUpdateLedgerConfiguration() {
-        final var configuration = ClprLedgerConfiguration.newBuilder()
+        final var configuration = clprLedgerConfigurationValue();
+        final var builder =
+                ClprUpdateLedgerConfigurationTransactionBody.newBuilder().setConfiguration(configuration);
+        return new Builder<>(TransactionType.CLPRUPDATELEDGERCONFIGURATION, builder)
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
+                                .setClprLedgerConfigurationValue(configuration)
+                                .build()));
+    }
+
+    private ClprLedgerConfiguration clprLedgerConfigurationValue() {
+        return ClprLedgerConfiguration.newBuilder()
                 .setChainId("hedera:mainnet")
                 .setInitialTrustAnchor(bytes(32))
                 .setInitialTrustAnchorId(bytes(32))
@@ -504,13 +565,6 @@ public final class RecordItemBuilder {
                         .setMaxQueueDepth(1000)
                         .setMaxSyncBytes(4_194_304L))
                 .build();
-        final var builder =
-                ClprUpdateLedgerConfigurationTransactionBody.newBuilder().setConfiguration(configuration);
-        return new Builder<>(TransactionType.CLPRUPDATELEDGERCONFIGURATION, builder)
-                .recordItem(r -> r.clprContextBuilder()
-                        .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
-                                .setClprLedgerConfigurationValue(configuration)
-                                .build()));
     }
 
     public Builder<ConsensusCreateTopicTransactionBody.Builder> consensusCreateTopic() {
