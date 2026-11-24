@@ -14,27 +14,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * The topic messages by topic ID query has a variant with and without the optional end time, instead of a nullable end
- * time parameter, so the end time condition is only applied when present.
- */
 public interface TopicMessageRepository extends CrudRepository<TopicMessage, Long> {
-
-    String ORDER_BY_TIMESTAMP = """
-            order by consensus_timestamp asc
-            limit :limit
-            """;
-
-    String SELECT_BY_TOPIC_ID = """
-            select *
-            from topic_message
-            where topic_id = :topicId
-              and consensus_timestamp >= :startTime
-            """;
 
     @Transactional(readOnly = true)
     default Stream<TopicMessage> findByFilter(TopicMessageFilter filter) {
-        final var endTime = filter.getEndTime();
+        final var filterEndTime = filter.getEndTime();
+        final long endTime = filterEndTime != null ? filterEndTime : Long.MAX_VALUE;
         final long topicId = filter.getTopicId().getId();
         final long startTime = filter.getStartTime();
         final int limit = (int) Math.max(Math.min(filter.getLimit(), MAX_PAGE_SIZE), MIN_PAGE_SIZE);
@@ -44,18 +29,18 @@ public interface TopicMessageRepository extends CrudRepository<TopicMessage, Lon
         }
 
         // getResultStream()'s cursor doesn't work with reactive streams, so stream the list
-        final var topicMessages = endTime != null
-                ? findByTopicIdAndTimestamp(topicId, startTime, endTime, limit)
-                : findByTopicIdAndTimestamp(topicId, startTime, limit);
-        return topicMessages.stream();
+        return findByTopicIdAndTimestamp(topicId, startTime, endTime, limit).stream();
     }
 
-    @Query(value = SELECT_BY_TOPIC_ID + ORDER_BY_TIMESTAMP, nativeQuery = true)
-    List<TopicMessage> findByTopicIdAndTimestamp(long topicId, long startTime, int limit);
-
-    @Query(
-            value = SELECT_BY_TOPIC_ID + "  and consensus_timestamp < :endTime\n" + ORDER_BY_TIMESTAMP,
-            nativeQuery = true)
+    @Query(value = """
+            select *
+            from topic_message
+            where topic_id = :topicId
+              and consensus_timestamp >= :startTime
+              and consensus_timestamp < :endTime
+            order by consensus_timestamp asc
+            limit :limit
+            """, nativeQuery = true)
     List<TopicMessage> findByTopicIdAndTimestamp(long topicId, long startTime, long endTime, int limit);
 
     @Query(value = """
