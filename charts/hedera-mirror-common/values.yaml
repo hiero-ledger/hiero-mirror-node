@@ -447,6 +447,7 @@ traefik:
     sendAnonymousUsage: false
   metrics:
     prometheus:
+      addRoutersLabels: true
       addServicesLabels: true
   podDisruptionBudget:
     enabled: true
