@@ -23,7 +23,7 @@ extra.apply {
     set("hederaCryptographyVersion", "3.29.1")
     set("jackson-bom.version", "3.3.0") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.23.0") // Temporary until next Spring Boot
-    set("jooq.version", "3.21.9") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.21.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "26.13.1")
     set("tuweniVersion", "2.3.1")

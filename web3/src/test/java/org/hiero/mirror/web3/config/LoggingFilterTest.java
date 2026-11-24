@@ -69,7 +69,8 @@ final class LoggingFilterTest {
         request.addHeader(X_FORWARDED_FOR, clientIp);
         response.setStatus(HttpStatus.OK.value());
 
-        new ForwardedHeaderFilter().doFilter(request, response, (req, res) -> loggingFilter.doFilter(req, res, chain));
+        new ForwardedHeaderFilter(false)
+                .doFilter(request, response, (req, res) -> loggingFilter.doFilter(req, res, chain));
 
         assertLog(output, "INFO", clientIp + " GET / in \\d+ ms : 200");
     }
