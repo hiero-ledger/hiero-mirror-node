@@ -2133,7 +2133,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         DELETE_TOKEN("deleteTokenExternal", 39095, MUTABLE),
         DISSOCIATE_AND_ASSOCIATE("dissociateAndAssociateTokenExternal", 1434814, MUTABLE),
         DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER("associateTokenDissociateFailTransfer", 1482987, MUTABLE),
-        DISSOCIATE_NFT_AND_TRANSFER("associateTokenDissociateFailTransfer", 1525177, MUTABLE),
+        DISSOCIATE_NFT_AND_TRANSFER("associateTokenDissociateFailTransfer", 1486893, MUTABLE),
         DISSOCIATE_TOKEN("dissociateTokenExternal", 729428, MUTABLE),
         DISSOCIATE_TOKENS("dissociateTokensExternal", 730641, MUTABLE),
         EXCHANGE_RATE_TINYCENTS_TO_TINYBARS("tinycentsToTinybars", 24833, MUTABLE),
