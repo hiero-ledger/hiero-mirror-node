@@ -40,7 +40,6 @@ public interface CommonMapper {
     Pattern PATTERN_ECDSA = Pattern.compile("^(3a21|32250a233a21|2a29080112250a233a21)([A-Fa-f0-9]{66})$");
     Pattern PATTERN_ED25519 = Pattern.compile("^(1220|32240a221220|2a28080112240a221220)([A-Fa-f0-9]{64})$");
     long SECONDS_PER_DAY = 86400L;
-    String TIMESTAMP_ZERO = "0.0";
 
     default String mapByteArrayToHexString(byte[] source) {
         if (source == null) {
