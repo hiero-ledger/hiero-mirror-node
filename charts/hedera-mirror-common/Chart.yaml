@@ -33,7 +33,7 @@ dependencies:
   - condition: traefik.enabled
     name: traefik
     repository: oci://ghcr.io/traefik/helm
-    version: 35.0.0
+    version: 42.4.3
   - alias: zfs
     condition: zfs.enabled
     name: openebs

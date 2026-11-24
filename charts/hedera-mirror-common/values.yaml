@@ -423,7 +423,18 @@ testkube:
     #  - namespace: ""
     #    release: mirror
 
+traefikDashboard:
+  enabled: true
+  password: ""  # Default to a randomly generated password
+  username: admin
+
 traefik:
+  accessLog:
+    enabled: true
+    filters:
+      minDuration: 2s
+      retryAttempts: true
+      statusCodes: 500-599
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
@@ -433,21 +444,12 @@ traefik:
             labelSelector:
               matchLabels:
                 app.kubernetes.io/name: traefik
-  dashboard:
-    enabled: true
-    password: ""  # Default to a randomly generated password
-    username: admin
   deployment:
     kind: DaemonSet
   enabled: true
-  globalArguments: []
-  logs:
-    access:
-      enabled: true
-      filters:
-        minduration: 2s
-        retryattempts: true
-        statuscodes: 500-599
+  global:
+    checkNewVersion: false
+    sendAnonymousUsage: false
   metrics:
     prometheus:
       addServicesLabels: true
@@ -467,19 +469,20 @@ traefik:
       transport:
         respondingTimeouts:
           idleTimeout: 610s
-      tls:
-        enabled: true
+      http:
+        tls:
+          enabled: true
   priorityClassName: critical
   resources:
     limits:
       cpu: 1500m
-      memory: 2000Mi
+      memory: 3Gi
     requests:
       cpu: 1000m
       memory: 500Mi
   service:
-    spec: {}
-    type: ClusterIP
+    spec:
+      type: ClusterIP
 
 zfs:
   alloy:
