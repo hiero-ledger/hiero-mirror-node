@@ -250,18 +250,11 @@ final class CodeDelegationTest extends AbstractContractCallServiceHistoricalTest
         final var serviceParameters =
                 getContractExecutionParameters(Bytes.EMPTY, accountAddress, Address.ZERO, 0L, ETH_CALL);
 
-        //        // When
-        //        final var result = ContractCallContext.run(ctx ->
-        // contractExecutionService.processCall(serviceParameters, ctx));
-        //
-        //        // Then - no-op
-        //        assertThat(result).isEqualTo(HEX_PREFIX);
+        // When
+        final var result = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
 
-        // Temporary. The real assertion according to HIP-1340 is above.
-        assertThatThrownBy(() ->
-                        ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx)))
-                .isInstanceOf(MirrorEvmTransactionException.class)
-                .hasMessageContaining(CONTRACT_EXECUTION_EXCEPTION.name());
+        // Then - no-op
+        assertThat(result).isEqualTo(HEX_PREFIX);
     }
 
     @Test
