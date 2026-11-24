@@ -42,7 +42,7 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.1")
         api("com.esaulpaugh:headlong:13.3.1")
-        api("com.github.luben:zstd-jni:1.5.7-26")
+        api("com.github.luben:zstd-jni:1.5.7-28")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
@@ -75,8 +75,8 @@ dependencies {
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.bouncycastle:bcpkix-jdk18on:1.87") // Temporary until next hedera-app
         api("org.bouncycastle:bcprov-jdk18on:1.87")
-        api("org.gaul:s3proxy:4.1.1")
-        api("org.graalvm.nativeimage:svm:25.0.5.0.3")
+        api("org.gaul:s3proxy:4.2.0")
+        api("org.graalvm.nativeimage:svm:25.0.5.1")
         api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu.internal:besu-crypto-algorithms:$besuVersion")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
@@ -87,7 +87,7 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.1.0")
         api("org.xerial.snappy:snappy-java:1.1.10.12") // Temporary until next Besu
-        api("software.amazon.awssdk:bom:2.58.0")
+        api("software.amazon.awssdk:bom:2.59.7")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
