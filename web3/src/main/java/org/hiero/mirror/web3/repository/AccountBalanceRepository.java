@@ -2,10 +2,14 @@
 
 package org.hiero.mirror.web3.repository;
 
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_HISTORICAL;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_ACCOUNT_BALANCE;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
@@ -58,6 +62,7 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
      *         If there are no crypto transfers between the consensus_timestamp of account_balance and the block timestamp,
      *         the method will return the balance present at consensus_timestamp.
      */
+    @Cacheable(cacheNames = CACHE_NAME_ACCOUNT_BALANCE, cacheManager = CACHE_MANAGER_HISTORICAL, sync = true)
     @Query(value = """
                     with balance_timestamp as (
                         select consensus_timestamp
