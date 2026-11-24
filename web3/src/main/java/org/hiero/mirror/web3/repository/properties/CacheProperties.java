@@ -58,7 +58,7 @@ public class CacheProperties {
      * by querying one large token at many blocks.
      */
     @NotBlank
-    private String historicalToken = "expireAfterWrite=1m,initialCapacity=1000,maximumSize=1000,recordStats";
+    private String historicalToken = "expireAfterWrite=10m,initialCapacity=1000,maximumSize=1000,recordStats";
 
     @Min(1)
     @Max(10000)

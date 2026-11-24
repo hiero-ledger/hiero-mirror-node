@@ -16,9 +16,14 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN_BALANCE;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -26,16 +31,32 @@ import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.interceptor.SimpleKey;
+import org.springframework.cache.interceptor.SimpleKeyGenerator;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.data.repository.Repository;
+import org.springframework.util.ClassUtils;
 
 /**
  * Verifies that lookups pinned to a historical block timestamp are served from the historical cache: a repeated lookup
  * at the same block does not query the database, a lookup at another block does, and concurrent lookups of the same key
- * share one query.
+ * share one query. Also verifies that Spring's default {@link SimpleKeyGenerator}, used by the historical caches,
+ * compares {@code byte[]} arguments by contents rather than by reference, and that no historical cached repository
+ * method takes an argument whose key would fall back to reference equality.
  */
 @RequiredArgsConstructor
 final class HistoricalCacheTest extends Web3IntegrationTest {
+
+    private static final Set<String> HISTORICAL_CACHE_MANAGERS =
+            Set.of(CACHE_MANAGER_HISTORICAL, CACHE_MANAGER_HISTORICAL_CONTRACT_STATE, CACHE_MANAGER_HISTORICAL_TOKEN);
+
+    private static final long KEY_TIMESTAMP = 1_000L;
 
     private final AccountBalanceRepository accountBalanceRepository;
     private final ContractStateRepository contractStateRepository;
@@ -67,6 +88,25 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
                         accountId, timestamp, treasury),
                 () -> accountBalanceRepository.findHistoricalAccountBalanceUpToTimestamp(
                         accountId, timestamp + 1, treasury));
+    }
+
+    @Test
+    void byteArrayKeysAreComparedByContents() {
+        final byte[] address = {1, 2, 3};
+        final var key = SimpleKeyGenerator.generateKey(address, KEY_TIMESTAMP);
+        final var sameContents = SimpleKeyGenerator.generateKey(address.clone(), KEY_TIMESTAMP);
+        final var otherContents = SimpleKeyGenerator.generateKey(new byte[] {1, 2, 4}, KEY_TIMESTAMP);
+
+        assertThat(key).isEqualTo(sameContents).hasSameHashCodeAs(sameContents).isNotEqualTo(otherContents);
+    }
+
+    @Test
+    void collectionOfByteArraysIsComparedByReference() {
+        final byte[] address = {1, 2, 3};
+        final var key = SimpleKeyGenerator.generateKey(List.of(address), KEY_TIMESTAMP);
+        final var sameContents = SimpleKeyGenerator.generateKey(List.of(address.clone()), KEY_TIMESTAMP);
+
+        assertThat(key).isNotEqualTo(sameContents);
     }
 
     @Test
@@ -131,7 +171,8 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
         assertCached(
                 historicalCacheManager,
                 CACHE_NAME_EVM_ADDRESS,
-                () -> entityRepository.findActiveByEvmAddressAndTimestamp(entity.getEvmAddress(), timestamp),
+                () -> entityRepository.findActiveByEvmAddressAndTimestamp(
+                        Arrays.copyOf(entity.getEvmAddress(), entity.getEvmAddress().length), timestamp),
                 () -> entityRepository.findActiveByEvmAddressAndTimestamp(entity.getEvmAddress(), timestamp + 1));
     }
 
@@ -143,7 +184,8 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
         assertCached(
                 historicalCacheManager,
                 CACHE_NAME_ALIAS,
-                () -> entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(entity.getAlias(), timestamp),
+                () -> entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(
+                        Arrays.copyOf(entity.getAlias(), entity.getAlias().length), timestamp),
                 () -> entityRepository.findActiveByEvmAddressOrAliasAndTimestamp(entity.getAlias(), timestamp + 1));
     }
 
@@ -157,6 +199,47 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
                 CACHE_NAME_ENTITY,
                 () -> entityRepository.findActiveByIdAndTimestamp(entity.getId(), timestamp),
                 () -> entityRepository.findActiveByIdAndTimestamp(entity.getId(), timestamp + 1));
+    }
+
+    @Test
+    void historicalCacheableMethodsHaveNoCollectionParameters() throws ClassNotFoundException {
+        final var methods = historicalCacheableMethods();
+        final var byteArrayMethods = methods.stream()
+                .filter(m -> Arrays.asList(m.getParameterTypes()).contains(byte[].class))
+                .map(Method::getName)
+                .toList();
+        final var collectionMethods = methods.stream()
+                .filter(m -> Arrays.stream(m.getParameterTypes())
+                        .anyMatch(t -> Iterable.class.isAssignableFrom(t) || Map.class.isAssignableFrom(t)))
+                .map(m -> m.getDeclaringClass().getSimpleName() + "." + m.getName())
+                .toList();
+
+        assertThat(byteArrayMethods)
+                .contains(
+                        "findActiveByEvmAddressAndTimestamp",
+                        "findActiveByEvmAddressOrAliasAndTimestamp",
+                        "findStorageByBlockTimestamp");
+        assertThat(collectionMethods).isEmpty();
+    }
+
+    @Test
+    void multipleParametersAreWrappedInSimpleKey() {
+        assertThat(SimpleKeyGenerator.generateKey(new byte[] {1, 2, 3}, KEY_TIMESTAMP))
+                .isInstanceOf(SimpleKey.class);
+    }
+
+    @Test
+    void singleByteArrayParameterIsWrappedInSimpleKey() {
+        final byte[] address = {1, 2, 3};
+        final var key = SimpleKeyGenerator.generateKey((Object) address);
+
+        assertThat(key).isInstanceOf(SimpleKey.class).isEqualTo(SimpleKeyGenerator.generateKey((Object)
+                address.clone()));
+    }
+
+    @Test
+    void singleNonArrayParameterIsUsedAsKey() {
+        assertThat(SimpleKeyGenerator.generateKey(KEY_TIMESTAMP)).isEqualTo(KEY_TIMESTAMP);
     }
 
     @Test
@@ -218,6 +301,35 @@ final class HistoricalCacheTest extends Web3IntegrationTest {
 
         otherBlock.get();
         assertThat(loads(cacheManager, cacheName) - before).isEqualTo(2L);
+    }
+
+    /** Repository methods cached by a historical cache manager with the default key generator. */
+    private Collection<Method> historicalCacheableMethods() throws ClassNotFoundException {
+        final var scanner = new ClassPathScanningCandidateComponentProvider(false) {
+            @Override
+            protected boolean isCandidateComponent(final AnnotatedBeanDefinition beanDefinition) {
+                return beanDefinition.getMetadata().isInterface();
+            }
+        };
+        scanner.addIncludeFilter(new AssignableTypeFilter(Repository.class));
+
+        final var methods = new ArrayList<Method>();
+        for (final var candidate : scanner.findCandidateComponents(getClass().getPackageName())) {
+            final var repository =
+                    ClassUtils.forName(candidate.getBeanClassName(), getClass().getClassLoader());
+            for (final var method : repository.getDeclaredMethods()) {
+                final var cacheable = AnnotatedElementUtils.findMergedAnnotation(method, Cacheable.class);
+                if (cacheable != null
+                        && HISTORICAL_CACHE_MANAGERS.contains(cacheable.cacheManager())
+                        && cacheable.key().isEmpty()
+                        && cacheable.keyGenerator().isEmpty()) {
+                    methods.add(method);
+                }
+            }
+        }
+
+        assertThat(methods).isNotEmpty();
+        return methods;
     }
 
     /** Cumulative load count; clearing a cache between tests does not reset its statistics. */
