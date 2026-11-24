@@ -18,6 +18,7 @@ public interface NodeStakeRepository extends CrudRepository<NodeStake, NodeStake
     @Query(value = "select max(consensus_timestamp) from node_stake", nativeQuery = true)
     Optional<Long> findLatestTimestamp();
 
+    @Query(value = "select * from node_stake where consensus_timestamp = :consensusTimestamp", nativeQuery = true)
     List<NodeStake> findAllByConsensusTimestamp(long consensusTimestamp);
 
     // An empty map may be cached, indicating the node_stake table is empty

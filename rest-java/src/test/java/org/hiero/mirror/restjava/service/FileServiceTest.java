@@ -6,11 +6,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.SystemFile;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.junit.jupiter.api.Nested;
