@@ -1032,7 +1032,7 @@ final class ContractControllerTest {
 
     @Test
     void callRejectsRequestExceedingJsonConstraints() throws Exception {
-        final var overrides = String.join(",", Collections.nCopies(2_600, "{\"address\":\"a\"}"));
+        final var overrides = String.join(",", Collections.nCopies(1_800, "{\"address\":\"a\"}"));
         mockMvc.perform(post(CALL_URI)
                         .accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON)

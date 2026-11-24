@@ -15,6 +15,8 @@ public class BlockTypeSerializer extends StdSerializer<BlockType> {
 
     @Override
     public void serialize(BlockType value, JsonGenerator gen, SerializationContext context) {
-        gen.writeString(value.name());
+        if (value != null) {
+            gen.writeString(value.name());
+        }
     }
 }
