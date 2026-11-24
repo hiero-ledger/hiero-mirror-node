@@ -68,6 +68,7 @@ final class RuntimeHintsConfiguration {
                     hints,
                     "com/hedera/nativelib/hints/**",
                     "com/hedera/nativelib/libsecp256k1/**",
+                    "com/hedera/nativelib/libxkcp/**",
                     "com/hedera/nativelib/wraps/**",
                     "darwin-aarch64/**", // besu
                     "darwin-x86-64/**", // besu
