@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.repository;
 
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_HISTORICAL_TOKEN;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_TOKEN;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_TOKEN_TYPE;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
@@ -47,6 +48,7 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
      * @return an Optional containing the token's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
+    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_HISTORICAL_TOKEN, sync = true)
     @Query(value = """
                     (
                         select *
