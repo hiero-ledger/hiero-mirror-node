@@ -2,12 +2,14 @@
 
 package org.hiero.mirror.importer.reader.block.hash;
 
+import static org.hiero.mirror.common.util.DomainUtils.createSha256Digest;
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
+
 import com.hedera.hapi.block.stream.output.protoc.BlockFooter;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import org.hiero.block.internal.protoc.BlockItemUnparsed;
-import org.hiero.mirror.common.util.DomainUtils;
 
 public final class BlockRootHashDigest {
 
@@ -49,44 +51,42 @@ public final class BlockRootHashDigest {
      * @return the block root hash
      */
     public byte[] digest(final Timestamp blockTimestamp, final BlockFooter blockFooter) {
-        final byte[] previousHash = DomainUtils.toBytes(blockFooter.getPreviousBlockRootHash());
-        final int digestSize = previousHash.length;
         final var slots = new ArrayList<byte[]>(SLOT_COUNT);
-        slots.add(previousHash);
-        slots.add(DomainUtils.toBytes(blockFooter.getRootHashOfAllBlockHashesTree()));
-        slots.add(DomainUtils.toBytes(blockFooter.getStartOfBlockStateRootHash()));
-        slots.add(computeBlockItemSubTreeRootHash(consensusHeaders, digestSize));
-        slots.add(computeBlockItemSubTreeRootHash(inputs, digestSize));
-        slots.add(computeBlockItemSubTreeRootHash(outputs, digestSize));
-        slots.add(computeBlockItemSubTreeRootHash(stateChanges, digestSize));
-        slots.add(computeBlockItemSubTreeRootHash(traceDatum, digestSize));
-        appendReservedSlots(digestSize, slots);
+        slots.add(toBytes(blockFooter.getPreviousBlockRootHash()));
+        slots.add(toBytes(blockFooter.getRootHashOfAllBlockHashesTree()));
+        slots.add(toBytes(blockFooter.getStartOfBlockStateRootHash()));
+        slots.add(computeBlockItemSubTreeRootHash(consensusHeaders));
+        slots.add(computeBlockItemSubTreeRootHash(inputs));
+        slots.add(computeBlockItemSubTreeRootHash(outputs));
+        slots.add(computeBlockItemSubTreeRootHash(stateChanges));
+        slots.add(computeBlockItemSubTreeRootHash(traceDatum));
+        appendReservedSlots(slots);
 
-        final byte[] streamedRootHash = streamedRootOf(digestSize, slots);
-        final var digest = ShaMessageDigestFactory.createMessageDigest(digestSize);
+        final byte[] streamedRootHash = streamedRootOf(slots);
+        final var digest = createSha256Digest();
         final byte[] timestampLeaf = HashUtils.hashLeaf(digest, blockTimestamp.toByteArray());
         final byte[] rootHash = HashUtils.hashInternalNode(digest, timestampLeaf, streamedRootHash);
         finalized = true;
         return rootHash;
     }
 
-    static byte[] streamedRootOf(final int digestSize, final List<byte[]> slots) {
-        final var hasher = new IncrementalStreamingHasher(digestSize);
+    static byte[] streamedRootOf(final List<byte[]> slots) {
+        final var hasher = new IncrementalStreamingHasher();
         for (final byte[] slot : slots) {
             hasher.addNodeByHash(slot);
         }
         return hasher.computeRootHash();
     }
 
-    private void appendReservedSlots(final int digestSize, final List<byte[]> slots) {
-        final var emptyHash = IncrementalStreamingHasher.getEmptyTreeHash(digestSize);
+    private void appendReservedSlots(final List<byte[]> slots) {
+        final var emptyHash = IncrementalStreamingHasher.getEmptyTreeHash();
         while (slots.size() < SLOT_COUNT) {
             slots.add(emptyHash);
         }
     }
 
-    private byte[] computeBlockItemSubTreeRootHash(final List<BlockItemUnparsed> blockItems, final int digestSize) {
-        final var hasher = new IncrementalStreamingHasher(digestSize);
+    private byte[] computeBlockItemSubTreeRootHash(final List<BlockItemUnparsed> blockItems) {
+        final var hasher = new IncrementalStreamingHasher();
         for (int i = 0; i < blockItems.size(); i++) {
             // A BlockItemUnparsed keeps its item as the serialized bytes, so serializing it reproduces the block item
             // as produced. Re-serializing a parsed BlockItem may not, e.g., when it has fields unknown to this version

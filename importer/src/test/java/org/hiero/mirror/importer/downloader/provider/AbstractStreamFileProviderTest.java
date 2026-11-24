@@ -5,8 +5,8 @@ package org.hiero.mirror.importer.downloader.provider;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.domain.StreamFilename.SIDECAR_FOLDER;
 import static org.hiero.mirror.importer.downloader.provider.AbstractStreamFileProvider.FORMATTER;
-import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_SHA_256_BLOCK_FILES;
-import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.getSha256BlockStreams;
+import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_BLOCK_FILES;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAMS;
 
 import com.google.common.collect.Streams;
 import java.nio.file.Files;
@@ -153,7 +153,7 @@ abstract class AbstractStreamFileProviderTest {
     void getBlockFile() {
         // given
         createBlockStreamFileCopier().copy();
-        final var expected = streamFileData(TEST_SHA_256_BLOCK_FILES.getFirst().getIndex());
+        final var expected = streamFileData(TEST_BLOCK_FILES.getFirst().getIndex());
 
         // when, then
         StepVerifier.withVirtualTime(() -> streamFileProvider.get(expected.getStreamFilename()))
@@ -520,8 +520,7 @@ abstract class AbstractStreamFileProviderTest {
     private FileCopier createBlockStreamFileCopier() {
         targetRootPath = blockStreamTargetRootPath;
         final var toPath = importerProperties.getNetwork() + "/block";
-        final var fileCopier = FileCopier.create(getSha256BlockStreams(), dataPath)
-                .to(targetRootPath, properties.getPathPrefix(), toPath);
+        final var fileCopier = createFileCopier(Path.of(BLOCK_STREAMS), toPath);
         fileCopier.setIgnoreNonZeroRealmShard(true);
         return fileCopier;
     }
