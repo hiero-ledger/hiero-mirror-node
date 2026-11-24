@@ -423,11 +423,6 @@ testkube:
     #  - namespace: ""
     #    release: mirror
 
-traefikDashboard:
-  enabled: true
-  password: ""  # Default to a randomly generated password
-  username: admin
-
 traefik:
   accessLog:
     enabled: true
@@ -483,6 +478,11 @@ traefik:
   service:
     spec:
       type: ClusterIP
+
+traefikDashboard:
+  enabled: true
+  password: ""  # Default to a randomly generated password
+  username: admin
 
 zfs:
   alloy:
