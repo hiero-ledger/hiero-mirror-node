@@ -21,6 +21,9 @@ monitor:
   enabled: true
   env:
     HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
+    # Solo sets the node's grpc_certificate_hash to the SHA-384 of the DER certificate instead of the PEM, so the
+    # SDK rejects the TLS endpoint
+    HIERO_MIRROR_MONITOR_NODEVALIDATION_TLS: "PLAINTEXT"
   resources:
     limits:
       cpu: 500m

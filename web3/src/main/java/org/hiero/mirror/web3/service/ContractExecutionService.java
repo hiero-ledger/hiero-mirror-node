@@ -75,6 +75,8 @@ public class ContractExecutionService extends ContractCallService {
                 ctx.setStateOverrides(addressToAccounts);
             }
 
+            ctx.setBlockOverride(params.getBlockOverride());
+
             Bytes result;
             if (params.isEstimate()) {
                 result = estimateGas(params, ctx);

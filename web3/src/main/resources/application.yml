@@ -104,6 +104,12 @@ spring:
       minimum-idle: 4
       validation-timeout: 3000
   jackson:
+    deserialization:
+      accept-float-as-int: false
+      fail-on-unknown-properties: true
+    mapper:
+      allow-coercion-of-scalars: false
+    property-naming-strategy: SNAKE_CASE
     use-jackson2-defaults: true
   jpa:
     database: PostgreSQL

@@ -50,6 +50,7 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
@@ -72,6 +73,7 @@ import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.core.MapWritableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
 import org.hyperledger.besu.datatypes.Address;
@@ -214,6 +216,47 @@ class TransactionExecutionServiceTest {
                 .build();
         ContractCallContext.get().setCallServiceParameters(params);
         ContractCallContext.get().setTimestamp(Optional.of(consensusNanos));
+
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+        when(transactionReceipt.status()).thenReturn(SUCCESS);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+        when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        final var consensusTime = ArgumentCaptor.forClass(Instant.class);
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), consensusTime.capture(), any(ActionSidecarContentTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord));
+
+        transactionExecutionService.execute(params, DEFAULT_GAS);
+
+        assertThat(consensusTime.getValue()).isEqualTo(convertToInstant(consensusNanos));
+    }
+
+    @Test
+    void executeIgnoresBlockOverrideTimeForConsensusInstant() {
+        final var consensusNanos = 1_786_518_658_483_854_104L;
+        final var params = ContractExecutionParameters.builder()
+                .block(BlockType.of("39156482"))
+                .callData(new byte[0])
+                .callType(CallType.ETH_CALL)
+                .gas(DEFAULT_GAS)
+                .gasPrice(0L)
+                .isEstimate(false)
+                .isStatic(true)
+                .receiver(Address.fromHexString("0x1234"))
+                .sender(Address.ZERO)
+                .value(0)
+                .build();
+        final var ctx = ContractCallContext.get();
+        ctx.setCallServiceParameters(params);
+        ctx.setTimestamp(Optional.of(consensusNanos));
+        final long overrideSeconds = consensusNanos / DomainUtils.NANOS_PER_SECOND + 30;
+        ctx.setBlockOverride(BlockOverride.builder().time(overrideSeconds).build());
 
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
         var transactionRecord = mock(TransactionRecord.class);

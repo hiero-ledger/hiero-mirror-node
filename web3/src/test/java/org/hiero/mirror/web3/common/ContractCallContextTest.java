@@ -14,6 +14,7 @@ import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -134,5 +135,10 @@ class ContractCallContextTest {
                 RecordFile.builder().consensusEnd(consensusEnd).index(39156482L).build());
 
         assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(consensusEnd + 1));
+    }
+
+    @Test
+    void blockOverrideDefaultsToEmpty() {
+        assertThat(ContractCallContext.get().getBlockOverride()).isSameAs(BlockOverride.EMPTY);
     }
 }
