@@ -13,7 +13,9 @@ import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.ThresholdKey;
 import com.hedera.node.app.service.contract.impl.exec.scope.HederaNativeOperations;
+import com.hedera.node.app.service.contract.impl.exec.scope.VerificationStrategy;
 import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
+import com.hedera.node.app.spi.key.KeyRequirement;
 import com.hedera.node.app.spi.workflows.HandleContext;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.stream.Stream;
@@ -106,8 +108,8 @@ class SimulationVerificationStrategiesTest {
                 ACTIVE_ADDRESS, requiresDelegatePermission, nativeOperations);
 
         assertThat(strategy.decideForPrimitive(key)).isEqualTo(expected ? VALID : INVALID);
-        assertThat(strategy.asSignatureTestIn(handleContext, null).test(key)).isEqualTo(expected);
-        assertThat(strategy.asSignatureTestIn(handleContext, key).test(key)).isEqualTo(expected);
+        assertThat(authorizes(strategy, key, null)).isEqualTo(expected);
+        assertThat(authorizes(strategy, key, key)).isEqualTo(expected);
         verifyNoInteractions(handleContext);
     }
 
@@ -116,12 +118,10 @@ class SimulationVerificationStrategiesTest {
     void acceptsCryptographicKeysWithoutSignatureVerification(final boolean requiresDelegatePermission) {
         final var strategy = verificationStrategies.activatingOnlyContractKeysFor(
                 ACTIVE_ADDRESS, requiresDelegatePermission, nativeOperations);
-        final var signatureTest = strategy.asSignatureTestIn(handleContext, null);
-
         assertThat(strategy.decideForPrimitive(ED25519_KEY)).isEqualTo(VALID);
         assertThat(strategy.decideForPrimitive(ECDSA_KEY)).isEqualTo(VALID);
-        assertThat(signatureTest.test(ED25519_KEY)).isTrue();
-        assertThat(signatureTest.test(ECDSA_KEY)).isTrue();
+        assertThat(authorizes(strategy, ED25519_KEY, null)).isTrue();
+        assertThat(authorizes(strategy, ECDSA_KEY, null)).isTrue();
         verifyNoInteractions(handleContext);
     }
 
@@ -131,7 +131,7 @@ class SimulationVerificationStrategiesTest {
         final var strategy =
                 verificationStrategies.activatingOnlyContractKeysFor(ACTIVE_ADDRESS, false, nativeOperations);
 
-        assertThat(strategy.asSignatureTestIn(handleContext, null).test(key)).isEqualTo(expected);
+        assertThat(authorizes(strategy, key, null)).isEqualTo(expected);
         verifyNoInteractions(handleContext);
     }
 
@@ -170,7 +170,7 @@ class SimulationVerificationStrategiesTest {
         final var strategy =
                 verificationStrategies.activatingOnlyContractKeysFor(ACTIVE_ADDRESS, false, nativeOperations);
 
-        assertThat(strategy.asSignatureTestIn(handleContext, null).test(key)).isEqualTo(expected);
+        assertThat(authorizes(strategy, key, null)).isEqualTo(expected);
         verifyNoInteractions(handleContext);
     }
 
@@ -178,14 +178,13 @@ class SimulationVerificationStrategiesTest {
     void rejectsEmptyAndMissingThresholdKeyLists() {
         final var strategy =
                 verificationStrategies.activatingOnlyContractKeysFor(ACTIVE_ADDRESS, false, nativeOperations);
-        final var signatureTest = strategy.asSignatureTestIn(handleContext, null);
         final var missingKeys = Key.newBuilder()
                 .thresholdKey(ThresholdKey.newBuilder().threshold(1))
                 .build();
 
-        assertThat(signatureTest.test(missingKeys)).isFalse();
-        assertThat(signatureTest.test(thresholdKey(0))).isFalse();
-        assertThat(signatureTest.test(thresholdKey(1))).isFalse();
+        assertThat(authorizes(strategy, missingKeys, null)).isFalse();
+        assertThat(authorizes(strategy, thresholdKey(0), null)).isFalse();
+        assertThat(authorizes(strategy, thresholdKey(1), null)).isFalse();
         verifyNoInteractions(handleContext);
     }
 
@@ -193,17 +192,18 @@ class SimulationVerificationStrategiesTest {
     void evaluatesMixedNestedKeyListsAndThresholds() {
         final var strategy =
                 verificationStrategies.activatingOnlyContractKeysFor(ACTIVE_ADDRESS, false, nativeOperations);
-        final var signatureTest = strategy.asSignatureTestIn(handleContext, null);
         final var validList = keyList(ACTIVE_CONTRACT_KEY, ED25519_KEY);
         final var invalidList = keyList(ACTIVE_CONTRACT_KEY, OTHER_CONTRACT_KEY);
         final var validThreshold = thresholdKey(1, OTHER_CONTRACT_KEY, validList);
         final var invalidThreshold = thresholdKey(2, ED25519_KEY, invalidList);
 
-        assertThat(signatureTest.test(validThreshold)).isTrue();
-        assertThat(signatureTest.test(invalidThreshold)).isFalse();
-        assertThat(signatureTest.test(keyList(ECDSA_KEY, validThreshold))).isTrue();
-        assertThat(signatureTest.test(keyList(ECDSA_KEY, invalidThreshold))).isFalse();
-        assertThat(signatureTest.test(thresholdKey(2, validThreshold, invalidThreshold)))
+        assertThat(authorizes(strategy, validThreshold, null)).isTrue();
+        assertThat(authorizes(strategy, invalidThreshold, null)).isFalse();
+        assertThat(authorizes(strategy, keyList(ECDSA_KEY, validThreshold), null))
+                .isTrue();
+        assertThat(authorizes(strategy, keyList(ECDSA_KEY, invalidThreshold), null))
+                .isFalse();
+        assertThat(authorizes(strategy, thresholdKey(2, validThreshold, invalidThreshold), null))
                 .isFalse();
         verifyNoInteractions(handleContext);
     }
@@ -212,16 +212,19 @@ class SimulationVerificationStrategiesTest {
     void enforcesDelegatePermissionsInsideCompositeKeys() {
         final var strategy =
                 verificationStrategies.activatingOnlyContractKeysFor(ACTIVE_ADDRESS, true, nativeOperations);
-        final var signatureTest = strategy.asSignatureTestIn(handleContext, null);
-
-        assertThat(signatureTest.test(keyList(ED25519_KEY, DELEGATABLE_KEY))).isTrue();
-        assertThat(signatureTest.test(keyList(ED25519_KEY, ACTIVE_CONTRACT_KEY)))
-                .isFalse();
-        assertThat(signatureTest.test(thresholdKey(2, ACTIVE_CONTRACT_KEY, DELEGATABLE_KEY, ED25519_KEY)))
+        assertThat(authorizes(strategy, keyList(ED25519_KEY, DELEGATABLE_KEY), null))
                 .isTrue();
-        assertThat(signatureTest.test(thresholdKey(3, ACTIVE_CONTRACT_KEY, DELEGATABLE_KEY, ED25519_KEY)))
+        assertThat(authorizes(strategy, keyList(ED25519_KEY, ACTIVE_CONTRACT_KEY), null))
+                .isFalse();
+        assertThat(authorizes(strategy, thresholdKey(2, ACTIVE_CONTRACT_KEY, DELEGATABLE_KEY, ED25519_KEY), null))
+                .isTrue();
+        assertThat(authorizes(strategy, thresholdKey(3, ACTIVE_CONTRACT_KEY, DELEGATABLE_KEY, ED25519_KEY), null))
                 .isFalse();
         verifyNoInteractions(handleContext);
+    }
+
+    private boolean authorizes(final VerificationStrategy strategy, final Key key, final Key ethSenderKey) {
+        return strategy.asRequirementTestIn(handleContext, ethSenderKey).test(KeyRequirement.forKey(key));
     }
 
     private static Key keyList(final Key... keys) {

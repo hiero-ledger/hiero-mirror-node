@@ -19,7 +19,7 @@ extra.apply {
     set("besuVersion", "26.2.0")
     set("blockNodeVersion", "0.46.0")
     set("commons-codec.version", "1.23.0") // Temporary until next Spring Boot
-    set("consensusNodeVersion", "0.78.2")
+    set("consensusNodeVersion", "0.79.2")
     set("hederaCryptographyVersion", "3.29.1")
     set("jackson-bom.version", "3.3.0") // Temporary until next Spring Boot
     set("jackson-2-bom.version", "2.23.0") // Temporary until next Spring Boot
@@ -55,6 +55,7 @@ dependencies {
         // Needs to use variable for compare workflow
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
+        api("com.hedera.hashgraph:consensus-fakes:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.80.0-alpha.5")
         api("com.hedera.hashgraph:sdk:2.79.0")
         api("com.ongres.scram:client:2.1")
