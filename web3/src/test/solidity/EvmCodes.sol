@@ -218,6 +218,26 @@ contract EvmCodes {
         return block.timestamp;
     }
 
+    function getBlockNumber() external view returns (uint256) {
+        return block.number;
+    }
+
+    function getBlockCoinbase() external view returns (address) {
+        return block.coinbase;
+    }
+
+    function getBlockBaseFee() external view returns (uint256) {
+        return block.basefee;
+    }
+
+    function getBlockGasLimit() external view returns (uint256) {
+        return block.gaslimit;
+    }
+
+    function getBlobBaseFee() external view returns (uint256) {
+        return block.blobbasefee;
+    }
+
     function getBlockHash(uint256 blockNumber) public view returns (bytes32) {
         return blockhash(blockNumber);
     }

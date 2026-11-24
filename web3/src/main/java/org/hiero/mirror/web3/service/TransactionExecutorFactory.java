@@ -46,6 +46,7 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
 import java.time.InstantSource;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,9 +56,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import org.hiero.consensus.fakes.noop.NoOpMetrics;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.evm.contracts.operations.VersionedOperation;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.state.MirrorNodeState;
-import org.hyperledger.besu.evm.operation.BlockHashOperation;
+import org.hyperledger.besu.evm.operation.Operation;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
@@ -92,8 +94,8 @@ public class TransactionExecutorFactory {
     private static final ScopedTracerBinding scopedTracerBinding = new ScopedTracerBinding();
     private final EntityIdFactory entityIdFactory;
     private final EvmProperties evmProperties;
-    private final BlockHashOperation mirrorBlockHashOperation;
     private final MirrorNodeState mirrorNodeState;
+    private final List<Operation> mirrorOperations;
     private final Map<SemanticVersion, Executor> transactionExecutors = new ConcurrentHashMap<>();
 
     @Async
@@ -128,7 +130,7 @@ public class TransactionExecutorFactory {
         var appProperties = new HashMap<>(evmProperties.getTransactionProperties());
         appProperties.put("contracts.evm.version", "v" + evmVersion.major() + "." + evmVersion.minor());
 
-        final var component = newExecutorComponent(appProperties);
+        final var component = newExecutorComponent(appProperties, customOperations(evmVersion));
         component.stateNetworkInfo().initFrom(mirrorNodeState);
         final var streamMode = component
                 .configProvider()
@@ -151,8 +153,23 @@ public class TransactionExecutorFactory {
         return new Executor(transactionExecutor, exchangeRateManager);
     }
 
+    /**
+     * Mirror node opcode overrides for one EVM version. A {@link VersionedOperation} is left out of versions that do not
+     * define its opcode, so registering it does not enable an opcode the version rejects.
+     */
+    private Set<Operation> customOperations(final SemanticVersion evmVersion) {
+        final var operations = new HashSet<Operation>(mirrorOperations.size());
+        for (final var operation : mirrorOperations) {
+            if (!(operation instanceof VersionedOperation versioned) || versioned.isSupported(evmVersion)) {
+                operations.add(operation);
+            }
+        }
+        return operations;
+    }
+
     @SuppressWarnings("removal")
-    private ExecutorComponent newExecutorComponent(final Map<String, String> properties) {
+    private ExecutorComponent newExecutorComponent(
+            final Map<String, String> properties, final Set<Operation> customOperations) {
         final var bootstrapConfigProvider = new BootstrapConfigProviderImpl(properties);
         final var bootstrapConfig = bootstrapConfigProvider.getConfiguration();
         final var configProvider = new ConfigProviderImpl(false, null, properties);
@@ -182,11 +199,7 @@ public class TransactionExecutorFactory {
                 () -> componentRef.get().appFeeCharging(),
                 entityIdFactory);
         final var contractService = new ContractServiceImpl(
-                appContext,
-                metrics,
-                simulationVerificationStrategies,
-                scopedTracerBinding,
-                Set.of(mirrorBlockHashOperation));
+                appContext, metrics, simulationVerificationStrategies, scopedTracerBinding, customOperations);
         final var utilService = new UtilServiceImpl(
                 appContext,
                 (signedTxn, config) -> componentRef
