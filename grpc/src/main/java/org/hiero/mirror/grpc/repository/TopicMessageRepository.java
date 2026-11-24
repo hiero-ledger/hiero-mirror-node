@@ -29,7 +29,7 @@ public interface TopicMessageRepository extends CrudRepository<TopicMessage, Lon
         }
 
         // getResultStream()'s cursor doesn't work with reactive streams, so stream the list
-        return findByTopicIdAndTimestamp(topicId, startTime, endTime, limit).stream();
+        return findByTopicIdAndTimestampRange(topicId, startTime, endTime, limit).stream();
     }
 
     @Query(value = """
@@ -41,7 +41,7 @@ public interface TopicMessageRepository extends CrudRepository<TopicMessage, Lon
             order by consensus_timestamp asc
             limit :limit
             """, nativeQuery = true)
-    List<TopicMessage> findByTopicIdAndTimestamp(long topicId, long startTime, long endTime, int limit);
+    List<TopicMessage> findByTopicIdAndTimestampRange(long topicId, long startTime, long endTime, int limit);
 
     @Query(value = """
        with related_transaction as (
@@ -61,6 +61,8 @@ public interface TopicMessageRepository extends CrudRepository<TopicMessage, Lon
     // Make the cost estimation of using the index on (topic_id, consensus_timestamp) lower than that of the primary
     // key, so the planner chooses the better index when querying topic messages by id. It only lasts until the end of
     // the current transaction.
+    // Only meant to be called from findByFilter. It relies on findByFilter's read-only transaction to scope the
+    // setting, and it must run in the same transaction as the query it is tuning.
     @Modifying
     @Query(value = "set local random_page_cost = 0", nativeQuery = true)
     void lowerRandomPageCost();
