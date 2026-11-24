@@ -43,13 +43,13 @@ hiero:
         host: 192.168.120.51
         port: 12000
       network: TESTNET`
-	nodeHealthFrequencyEnvKey      = "HIERO_MIRROR_ROSETTA_NODEHEALTH_FREQUENCY"
-	nodeHealthMaxConcurrencyEnvKey = "HIERO_MIRROR_ROSETTA_NODEHEALTH_MAXCONCURRENCY"
-	nodeHealthProbeCooldownEnvKey  = "HIERO_MIRROR_ROSETTA_NODEHEALTH_PROBECOOLDOWN"
-	nodeHealthTimeoutEnvKey        = "HIERO_MIRROR_ROSETTA_NODEHEALTH_TIMEOUT"
-	realmEnvKey                    = "HIERO_MIRROR_COMMON_REALM"
-	serviceEndpoint                = "192.168.0.1:50211"
-	shardEnvKey                    = "HIERO_MIRROR_COMMON_SHARD"
+	nodeHealthFrequencyEnvKey       = "HIERO_MIRROR_ROSETTA_NODEHEALTH_FREQUENCY"
+	nodeHealthMaxConcurrencyEnvKey  = "HIERO_MIRROR_ROSETTA_NODEHEALTH_MAXCONCURRENCY"
+	nodeHealthRecheckCooldownEnvKey = "HIERO_MIRROR_ROSETTA_NODEHEALTH_RECHECKCOOLDOWN"
+	nodeHealthTimeoutEnvKey         = "HIERO_MIRROR_ROSETTA_NODEHEALTH_TIMEOUT"
+	realmEnvKey                     = "HIERO_MIRROR_COMMON_REALM"
+	serviceEndpoint                 = "192.168.0.1:50211"
+	shardEnvKey                     = "HIERO_MIRROR_COMMON_SHARD"
 )
 
 var expectedNodeRefreshInterval = 30 * time.Minute
@@ -62,7 +62,7 @@ func TestLoadDefaultConfig(t *testing.T) {
 	assert.True(t, config.Rosetta.NodeHealth.Enabled)
 	assert.Equal(t, 30*time.Second, config.Rosetta.NodeHealth.Frequency)
 	assert.Equal(t, 20, config.Rosetta.NodeHealth.MaxConcurrency)
-	assert.Equal(t, 10*time.Second, config.Rosetta.NodeHealth.ProbeCooldown)
+	assert.Equal(t, 10*time.Second, config.Rosetta.NodeHealth.RecheckCooldown)
 	assert.Equal(t, 2*time.Second, config.Rosetta.NodeHealth.Timeout)
 }
 
@@ -199,8 +199,8 @@ func TestLoadConfigInvalidNodeHealth(t *testing.T) {
 	}{
 		{
 			name:     "frequency",
-			env:      map[string]string{nodeHealthFrequencyEnvKey: "9s"},
-			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.Frequency is 9s, want min=30s",
+			env:      map[string]string{nodeHealthFrequencyEnvKey: "29s"},
+			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.Frequency is 29s, want min=30s",
 		},
 		{
 			name:     "max concurrency",
@@ -208,19 +208,30 @@ func TestLoadConfigInvalidNodeHealth(t *testing.T) {
 			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.MaxConcurrency is 0, want min=10",
 		},
 		{
-			name:     "probe cooldown",
-			env:      map[string]string{nodeHealthProbeCooldownEnvKey: "4s"},
-			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.ProbeCooldown is 4s, want min=5s",
+			name:     "recheck cooldown below min",
+			env:      map[string]string{nodeHealthRecheckCooldownEnvKey: "4s"},
+			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.RecheckCooldown is 4s, want min=5s",
 		},
 		{
-			name:     "timeout",
+			name:     "recheck cooldown not less than frequency",
+			env:      map[string]string{nodeHealthRecheckCooldownEnvKey: "30s"},
+			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.RecheckCooldown is 30s, want ltfield=Frequency",
+		},
+		{
+			name:     "timeout below min",
 			env:      map[string]string{nodeHealthTimeoutEnvKey: "100ms"},
 			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.Timeout is 100ms, want min=2s",
 		},
 		{
-			name: "frequency and timeout",
+			name:     "timeout above max",
+			env:      map[string]string{nodeHealthTimeoutEnvKey: "11s"},
+			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.Timeout is 11s, want max=10s",
+		},
+		{
+			name: "multiple",
 			env:  map[string]string{nodeHealthFrequencyEnvKey: "0s", nodeHealthTimeoutEnvKey: "200ms"},
 			expected: "Invalid configuration: Mirror.Rosetta.NodeHealth.Frequency is 0s, want min=30s; " +
+				"Mirror.Rosetta.NodeHealth.RecheckCooldown is 10s, want ltfield=Frequency; " +
 				"Mirror.Rosetta.NodeHealth.Timeout is 200ms, want min=2s",
 		},
 	}

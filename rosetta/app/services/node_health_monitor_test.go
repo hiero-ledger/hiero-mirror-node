@@ -36,11 +36,11 @@ var (
 	node4                = hiero.AccountID{Account: 4}
 	node5                = hiero.AccountID{Account: 5}
 	testNodeHealthConfig = config.NodeHealth{
-		Enabled:        true,
-		Frequency:      time.Hour,
-		MaxConcurrency: testMaxConcurrency,
-		ProbeCooldown:  time.Hour,
-		Timeout:        2 * time.Second,
+		Enabled:         true,
+		Frequency:       time.Hour,
+		MaxConcurrency:  testMaxConcurrency,
+		RecheckCooldown: time.Hour,
+		Timeout:         2 * time.Second,
 	}
 )
 
@@ -244,11 +244,32 @@ func TestGetHealthyNodeWhenNoneRecovers(t *testing.T) {
 	assert.Equal(t, int32(3), checks.Load())
 }
 
+func TestGetHealthyNodeWaitsAtMostTimeout(t *testing.T) {
+	// given checks that hang
+	check, _ := gateChecks(t)
+	cfg := testNodeHealthConfig
+	cfg.Timeout = 100 * time.Millisecond
+	m := newTestNodeHealthMonitor(t, cfg, check)
+	markAllUnhealthy(m)
+
+	// when
+	startedAt := time.Now()
+	node, rErr := m.GetHealthyNode(t.Context())
+
+	// then it gives up while the round is still in progress
+	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
+	assert.Equal(t, hiero.AccountID{}, node)
+	assert.Less(t, time.Since(startedAt), time.Second)
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	assert.NotNil(t, m.roundDone)
+}
+
 func TestGetHealthyNodeCoolsDown(t *testing.T) {
 	// given
 	var checks atomic.Int32
 	cfg := testNodeHealthConfig
-	cfg.ProbeCooldown = 200 * time.Millisecond
+	cfg.RecheckCooldown = 200 * time.Millisecond
 	m := newTestNodeHealthMonitor(t, cfg, countChecks(&checks, checkNodes()))
 	markAllUnhealthy(m)
 	_, rErr := m.GetHealthyNode(t.Context())
@@ -261,7 +282,7 @@ func TestGetHealthyNodeCoolsDown(t *testing.T) {
 	assert.Equal(t, int32(3), checks.Load())
 
 	// then it checks the nodes again after the cool-down
-	time.Sleep(cfg.ProbeCooldown)
+	time.Sleep(cfg.RecheckCooldown)
 	_, rErr = m.GetHealthyNode(t.Context())
 	assert.Equal(t, errors.ErrNodeAccountIdsEmpty, rErr)
 	assert.Equal(t, int32(6), checks.Load())
@@ -307,7 +328,7 @@ func TestGetHealthyNodeWhenDisabled(t *testing.T) {
 	assert.Equal(t, node4, node)
 }
 
-func TestReportSubmitError(t *testing.T) {
+func TestRecordSubmitError(t *testing.T) {
 	tests := []struct {
 		name      string
 		enabled   bool

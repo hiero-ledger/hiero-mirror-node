@@ -32,18 +32,19 @@ type NodeHealthMonitor interface {
 }
 
 type nodeHealthMonitor struct {
-	check          func(node hiero.AccountID) error
-	client         *hiero.Client
-	ctx            context.Context
-	enabled        bool
-	frequency      time.Duration
-	maxConcurrency int64
-	mutex          sync.RWMutex
-	probeCooldown  time.Duration
-	recovered      chan struct{} // closed and replaced when a node becomes healthy
-	roundDone      chan struct{} // nil unless a round of health checks is in progress
-	roundStartedAt time.Time
-	unhealthyNodes map[string]time.Time // node to the time of its last failure
+	check           func(node hiero.AccountID) error
+	client          *hiero.Client
+	ctx             context.Context
+	enabled         bool
+	frequency       time.Duration
+	maxConcurrency  int64
+	mutex           sync.RWMutex
+	recheckCooldown time.Duration
+	recovered       chan struct{} // closed and replaced when a node becomes healthy
+	roundDone       chan struct{} // nil unless a round of health checks is in progress
+	roundStartedAt  time.Time
+	timeout         time.Duration
+	unhealthyNodes  map[string]time.Time // node to the time of its last failure
 }
 
 // NewNodeHealthMonitor creates a monitor that, when online and enabled, checks the health of every node right away and
@@ -68,6 +69,7 @@ func NewNodeHealthMonitor(
 		return nil, err
 	}
 
+	// generate a key to sign the health check transaction
 	key, err := hiero.PrivateKeyGenerateEd25519()
 	if err != nil {
 		return nil, err
@@ -87,20 +89,21 @@ func newNodeHealthMonitor(
 	check func(node hiero.AccountID) error,
 ) *nodeHealthMonitor {
 	return &nodeHealthMonitor{
-		check:          check,
-		client:         client,
-		ctx:            ctx,
-		enabled:        true,
-		frequency:      nodeHealth.Frequency,
-		maxConcurrency: int64(nodeHealth.MaxConcurrency),
-		probeCooldown:  nodeHealth.ProbeCooldown,
-		recovered:      make(chan struct{}),
-		unhealthyNodes: make(map[string]time.Time),
+		check:           check,
+		client:          client,
+		ctx:             ctx,
+		enabled:         true,
+		frequency:       nodeHealth.Frequency,
+		maxConcurrency:  int64(nodeHealth.MaxConcurrency),
+		recheckCooldown: nodeHealth.RecheckCooldown,
+		recovered:       make(chan struct{}),
+		timeout:         nodeHealth.Timeout,
+		unhealthyNodes:  make(map[string]time.Time),
 	}
 }
 
-// GetHealthyNode returns a random healthy node. If every node is unhealthy, it returns the first node to recover in a
-// round of health checks, unless the last round started within the cool-down.
+// GetHealthyNode returns a random healthy node. If every node is unhealthy, it waits up to the timeout for a node to
+// recover in a round of health checks, unless the last round started within the cool-down.
 func (m *nodeHealthMonitor) GetHealthyNode(ctx context.Context) (hiero.AccountID, *rTypes.Error) {
 	if !m.enabled {
 		return pickRandomNode(getSdkHealthyNodes(m.client))
@@ -117,18 +120,23 @@ func (m *nodeHealthMonitor) GetHealthyNode(ctx context.Context) (hiero.AccountID
 		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
 	}
 
+	timer := time.NewTimer(m.timeout)
+	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
-		case <-roundDone:
-			nodes, _ = m.getHealthyNodes()
-			return pickRandomNode(nodes)
 		case <-recovered:
 			if nodes, recovered = m.getHealthyNodes(); len(nodes) != 0 {
 				return pickRandomNode(nodes)
 			}
+			continue
+		case <-roundDone:
+		case <-timer.C:
 		}
+
+		nodes, _ = m.getHealthyNodes()
+		return pickRandomNode(nodes)
 	}
 }
 
@@ -261,7 +269,7 @@ func (m *nodeHealthMonitor) startRound(force bool) <-chan struct{} {
 		return m.roundDone
 	}
 
-	if !force && time.Since(m.roundStartedAt) < m.probeCooldown {
+	if !force && time.Since(m.roundStartedAt) < m.recheckCooldown {
 		return nil
 	}
 
