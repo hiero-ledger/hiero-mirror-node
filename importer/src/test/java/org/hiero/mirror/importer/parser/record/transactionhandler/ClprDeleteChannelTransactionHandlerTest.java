@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.google.common.collect.Range;
-import com.hederahashgraph.api.proto.java.ClprCloseChannelTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprDeleteChannelTransactionBody;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -25,17 +25,17 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.util.Version;
 
-final class ClprCloseChannelTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class ClprDeleteChannelTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ClprCloseChannelTransactionHandler(entityListener);
+        return new ClprDeleteChannelTransactionHandler(entityListener);
     }
 
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setClprCloseChannel(ClprCloseChannelTransactionBody.newBuilder()
+                .setClprDeleteChannel(ClprDeleteChannelTransactionBody.newBuilder()
                         .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                         .setOwnershipCommitment(DomainUtils.fromBytes(domainBuilder.bytes(32))));
     }
@@ -49,7 +49,7 @@ final class ClprCloseChannelTransactionHandlerTest extends AbstractTransactionHa
     void updateTransactionChannelExists() {
         // given
         final var transactionBody = getDefaultTransactionBody().build();
-        final var body = transactionBody.getClprCloseChannel();
+        final var body = transactionBody.getClprDeleteChannel();
         final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setChannelId(body.getChannelId())
                 .setStatus(com.hederahashgraph.api.proto.java.ClprChannelStatus.CLOSING)
@@ -81,7 +81,7 @@ final class ClprCloseChannelTransactionHandlerTest extends AbstractTransactionHa
     @Test
     void updateTransactionAbandonedCommitment() {
         // given -- no Channel record exists: a legacy pending-commitment sweep from a network that predates
-        // ClprOpenChannel. No such commitment can exist in this mirror node's data, so nothing is written.
+        // ClprCreateChannel. No such commitment can exist in this mirror node's data, so nothing is written.
         final var recordItem = buildRecordItem(
                 getDefaultTransactionBody().build(),
                 getDefaultTransactionRecord().build(),

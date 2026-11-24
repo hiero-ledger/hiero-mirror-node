@@ -88,10 +88,10 @@ public final class ClprStateChangeHandler {
      * changes, which process() always handles generically.
      */
     private static final Set<TransactionType> SELF_PROCESSED_TYPES = EnumSet.of(
-            TransactionType.CLPRCLOSECHANNEL,
-            TransactionType.CLPRDEREGISTERCONNECTOR,
-            TransactionType.CLPROPENCHANNEL,
-            TransactionType.CLPRREGISTERCONNECTOR);
+            TransactionType.CLPRDELETECHANNEL,
+            TransactionType.CLPRDELETECONNECTOR,
+            TransactionType.CLPRCREATECHANNEL,
+            TransactionType.CLPRCREATECONNECTOR);
 
     private final ClprEndpointManifestService clprEndpointManifestService;
     private final ClprLedgerConfigurationService clprLedgerConfigurationService;
@@ -314,7 +314,7 @@ public final class ClprStateChangeHandler {
 
     private static int toChannelStatus(int status) {
         if (status == PENDING_VALUE) {
-            // ClprOpenChannel creates a Channel directly in ACTIVE status; an existing ClprChannel state-change
+            // ClprCreatehannel creates a Channel directly in ACTIVE status; an existing ClprChannel state-change
             // value should never revert to PENDING, but record it rather than drop it if consensus ever does.
             Utility.handleRecoverableError("ClprChannel state change unexpectedly reverted to PENDING status");
         }

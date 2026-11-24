@@ -14,13 +14,13 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
 @RequiredArgsConstructor
-final class ClprOpenChannelTransactionHandler extends AbstractTransactionHandler {
+final class ClprCreateChannelTransactionHandler extends AbstractTransactionHandler {
 
     private final EntityListener entityListener;
 
     @Override
     public TransactionType getType() {
-        return TransactionType.CLPROPENCHANNEL;
+        return TransactionType.CLPRCREATECHANNEL;
     }
 
     @Override
@@ -29,11 +29,11 @@ final class ClprOpenChannelTransactionHandler extends AbstractTransactionHandler
             return;
         }
 
-        final var transactionBody = recordItem.getTransactionBody().getClprOpenChannel();
+        final var transactionBody = recordItem.getTransactionBody().getClprCreateChannel();
         final var clprContext = recordItem.getClprContext();
         final var entry = clprContext == null ? null : clprContext.getClprChannel();
         if (ClprStateChangeHandler.isMissingStateChange(
-                entry, "clpr_channel_value", "ClprOpenChannel", recordItem.getConsensusTimestamp())) {
+                entry, "clpr_channel_value", "ClprCreateChannel", recordItem.getConsensusTimestamp())) {
             return;
         }
 

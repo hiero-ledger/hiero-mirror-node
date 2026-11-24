@@ -26,7 +26,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 
 /**
  * On-ledger state for a single CLPR Connector, keyed by {@code (channelId, connectorId)} and created in ACTIVE
- * status by a single {@code ClprRegisterConnector} transaction.
+ * status by a single {@code ClprCreateConnector} transaction.
  */
 @Data
 @MappedSuperclass

@@ -53,10 +53,12 @@ import com.hederahashgraph.api.proto.java.AssociatedRegisteredNodeList;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.ClprChannel;
 import com.hederahashgraph.api.proto.java.ClprChannelStatus;
-import com.hederahashgraph.api.proto.java.ClprCloseChannelTransactionBody;
 import com.hederahashgraph.api.proto.java.ClprConnector;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
-import com.hederahashgraph.api.proto.java.ClprDeregisterConnectorTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprCreateChannelTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprCreateConnectorTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprDeleteChannelTransactionBody;
+import com.hederahashgraph.api.proto.java.ClprDeleteConnectorTransactionBody;
 import com.hederahashgraph.api.proto.java.ClprEndpoint;
 import com.hederahashgraph.api.proto.java.ClprEndpointManifest;
 import com.hederahashgraph.api.proto.java.ClprLedgerConfiguration;
@@ -64,8 +66,6 @@ import com.hederahashgraph.api.proto.java.ClprMessage;
 import com.hederahashgraph.api.proto.java.ClprMessageKey;
 import com.hederahashgraph.api.proto.java.ClprMessagePayload;
 import com.hederahashgraph.api.proto.java.ClprMessageValue;
-import com.hederahashgraph.api.proto.java.ClprOpenChannelTransactionBody;
-import com.hederahashgraph.api.proto.java.ClprRegisterConnectorTransactionBody;
 import com.hederahashgraph.api.proto.java.ClprServiceEndpoint;
 import com.hederahashgraph.api.proto.java.ClprSubmitBundleTransactionBody;
 import com.hederahashgraph.api.proto.java.ClprThrottles;
@@ -305,9 +305,9 @@ public final class RecordItemBuilder {
                                 .toList()));
     }
 
-    public Builder<ClprCloseChannelTransactionBody.Builder> clprCloseChannel() {
+    public Builder<ClprDeleteChannelTransactionBody.Builder> clprDeleteChannel() {
         final var channelId = bytes(32);
-        final var builder = ClprCloseChannelTransactionBody.newBuilder()
+        final var builder = ClprDeleteChannelTransactionBody.newBuilder()
                 .setChannelId(channelId)
                 .setOwnershipCommitment(bytes(32));
         final var clprChannelValue = ClprChannel.newBuilder()
@@ -319,16 +319,16 @@ public final class RecordItemBuilder {
                 .setSentRunningHash(bytes(32))
                 .setStatus(ClprChannelStatus.CLOSING)
                 .build();
-        return new Builder<>(TransactionType.CLPRCLOSECHANNEL, builder)
+        return new Builder<>(TransactionType.CLPRDELETECHANNEL, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
                                 channelId, clprChannelMapUpdate(channelId, clprChannelValue)))));
     }
 
-    public Builder<ClprOpenChannelTransactionBody.Builder> clprOpenChannel() {
+    public Builder<ClprCreateChannelTransactionBody.Builder> clprCreateChannel() {
         final var channelId = bytes(32);
         final var verifierContract = contractId();
-        final var builder = ClprOpenChannelTransactionBody.newBuilder()
+        final var builder = ClprCreateChannelTransactionBody.newBuilder()
                 .setChannelId(channelId)
                 .setConfigProofBytes(bytes(16))
                 .setEndpointManifestProofBytes(bytes(16))
@@ -347,29 +347,29 @@ public final class RecordItemBuilder {
                 .setVerifierContract(verifierContract)
                 .setVerifierFingerprint(bytes(32))
                 .build();
-        return new Builder<>(TransactionType.CLPROPENCHANNEL, builder)
+        return new Builder<>(TransactionType.CLPRCREATECHANNEL, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
                                 channelId, clprChannelMapUpdate(channelId, clprChannelValue)))));
     }
 
-    public Builder<ClprDeregisterConnectorTransactionBody.Builder> clprDeregisterConnector() {
+    public Builder<ClprDeleteConnectorTransactionBody.Builder> clprDeleteConnector() {
         final var channelId = bytes(32);
         final var connectorId = bytes(32);
-        final var builder = ClprDeregisterConnectorTransactionBody.newBuilder()
+        final var builder = ClprDeleteConnectorTransactionBody.newBuilder()
                 .setChannelId(channelId)
                 .setConnectorId(connectorId)
                 .setStakeRecipient(accountId());
         // Real consensus state removes the Connector from its map entirely on deregistration
-        // (ClprDeregisterConnectorHandler's connectorStore.remove(key)), so the shared sendMessage side-effect hook
+        // (ClprCreateConnectorHandler's connectorStore.remove(key)), so the shared sendMessage side-effect hook
         // still generically captures the resulting clpr_connectors deletion -- even though
-        // ClprDeregisterConnectorTransactionHandler ignores ClprContext entirely and rebuilds the DELETED row
+        // ClprDeleteConnectorTransactionHandler ignores ClprContext entirely and rebuilds the DELETED row
         // straight from this transaction's own body instead.
         final var connectorKey = ClprConnectorKey.newBuilder()
                 .setChannelId(channelId)
                 .setConnectorId(connectorId)
                 .build();
-        return new Builder<>(TransactionType.CLPRDEREGISTERCONNECTOR, builder)
+        return new Builder<>(TransactionType.CLPRDELETECONNECTOR, builder)
                 .recordItem(r -> r.clprContextBuilder().clprConnectorsRemoved(List.of(connectorKey)));
     }
 
@@ -431,12 +431,12 @@ public final class RecordItemBuilder {
                 .build();
     }
 
-    public Builder<ClprRegisterConnectorTransactionBody.Builder> clprRegisterConnector() {
+    public Builder<ClprCreateConnectorTransactionBody.Builder> clprCreateConnector() {
         final var channelId = bytes(32);
         final var connectorId = bytes(32);
         final var connectorContract = contractId();
         final var adminKey = key();
-        final var builder = ClprRegisterConnectorTransactionBody.newBuilder()
+        final var builder = ClprCreateConnectorTransactionBody.newBuilder()
                 .setAdminKey(adminKey)
                 .setChannelId(channelId)
                 .setConnectorContract(connectorContract)
@@ -455,7 +455,7 @@ public final class RecordItemBuilder {
                 .setChannelId(channelId)
                 .setConnectorId(connectorId)
                 .build();
-        return new Builder<>(TransactionType.CLPRREGISTERCONNECTOR, builder)
+        return new Builder<>(TransactionType.CLPRCREATECONNECTOR, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprConnectors(List.of(new StateChangeContext.ClprConnectorEntry(
                                 key, clprConnectorMapUpdate(key, clprConnectorValue)))));
@@ -466,7 +466,7 @@ public final class RecordItemBuilder {
         final var builder = ClprSubmitBundleTransactionBody.newBuilder()
                 .setBundlePayload(bytes(64))
                 .setChannelId(channelId)
-                .setEndpointNodeId(3);
+                .setEndpointNodeId(3); // TODO this field is deprecated
         final var clprChannelValue = ClprChannel.newBuilder()
                 .setAckedMessageId(0)
                 .setChannelId(channelId)

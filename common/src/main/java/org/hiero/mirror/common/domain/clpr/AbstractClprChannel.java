@@ -26,7 +26,7 @@ import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
 /**
- * On-ledger state for a single CLPR Channel, created in ACTIVE status by a single {@code ClprOpenChannel}
+ * On-ledger state for a single CLPR Channel, created in ACTIVE status by a single {@code ClprCreateChannel}
  * transaction.
  */
 @Data

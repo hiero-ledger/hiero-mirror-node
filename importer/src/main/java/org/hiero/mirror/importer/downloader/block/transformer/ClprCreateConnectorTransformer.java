@@ -13,7 +13,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
  * {@link org.hiero.mirror.common.domain.transaction.ClprContext#getClprConnector()}.
  */
 @Named
-final class ClprRegisterConnectorTransformer extends AbstractBlockTransactionTransformer {
+final class ClprCreateConnectorTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
@@ -23,7 +23,7 @@ final class ClprRegisterConnectorTransformer extends AbstractBlockTransactionTra
         }
 
         final var transactionBody =
-                blockTransactionTransformation.getTransactionBody().getClprRegisterConnector();
+                blockTransactionTransformation.getTransactionBody().getClprCreateConnector();
         final var key = ClprConnectorKey.newBuilder()
                 .setChannelId(transactionBody.getChannelId())
                 .setConnectorId(transactionBody.getConnectorId())
@@ -38,6 +38,6 @@ final class ClprRegisterConnectorTransformer extends AbstractBlockTransactionTra
 
     @Override
     public TransactionType getType() {
-        return TransactionType.CLPRREGISTERCONNECTOR;
+        return TransactionType.CLPRCREATECONNECTOR;
     }
 }

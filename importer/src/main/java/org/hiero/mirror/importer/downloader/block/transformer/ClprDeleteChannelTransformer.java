@@ -14,15 +14,15 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
  * abandoned, still-pending commitment instead of a real Channel closure.
  */
 @Named
-final class ClprCloseChannelTransformer extends AbstractClprChannelTransformer {
+final class ClprDeleteChannelTransformer extends AbstractClprChannelTransformer {
 
     @Override
     protected ByteString getChannelId(TransactionBody transactionBody) {
-        return transactionBody.getClprCloseChannel().getChannelId();
+        return transactionBody.getClprDeleteChannel().getChannelId();
     }
 
     @Override
     public TransactionType getType() {
-        return TransactionType.CLPRCLOSECHANNEL;
+        return TransactionType.CLPRDELETECHANNEL;
     }
 }

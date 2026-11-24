@@ -411,8 +411,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .setVerifierContract(recordItemBuilder.contractId())
                 .setVerifierFingerprint(DomainUtils.fromBytes(domainBuilder.bytes(32)))
                 .build();
-        final var openChannel = recordItemBuilder
-                .clprOpenChannel()
+        final var createChannel = recordItemBuilder
+                .clprCreateChannel()
                 .transactionBody(b -> b.setChannelId(channelId))
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(
@@ -432,15 +432,15 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var clprChannelClosing = clprChannelAfterBundle.toBuilder()
                 .setStatus(ClprChannelStatus.CLOSING)
                 .build();
-        final var closeChannel = recordItemBuilder
-                .clprCloseChannel()
+        final var deleteChannel = recordItemBuilder
+                .clprDeleteChannel()
                 .transactionBody(b -> b.setChannelId(channelId))
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(
                                 List.of(new ClprChannelEntry(channelId, clprChannelMapUpdate(clprChannelClosing)))))
                 .build();
 
-        final var recordFile = recordFileWithItems(List.of(openChannel, submitBundle, closeChannel), null);
+        final var recordFile = recordFileWithItems(List.of(createChannel, submitBundle, deleteChannel), null);
 
         // when
         recordFileParser.parse(recordFile);
@@ -467,13 +467,13 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
 
         final var register = recordItemBuilder
-                .clprRegisterConnector()
+                .clprCreateConnector()
                 .transactionBody(b -> b.setChannelId(channelId).setConnectorId(connectorId))
                 .build();
 
         final var stakeRecipient = domainBuilder.entityNum(5000L).toAccountID();
         final var deregister = recordItemBuilder
-                .clprDeregisterConnector()
+                .clprDeleteConnector()
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setStakeRecipient(stakeRecipient))
                 .build();
@@ -507,7 +507,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var connectorContract = domainBuilder.entityNum(4100L).toContractID();
 
         final var register = recordItemBuilder
-                .clprRegisterConnector()
+                .clprCreateConnector()
                 .transactionBody(b -> b.setChannelId(channelId)
                         .setConnectorId(connectorId)
                         .setConnectorContract(connectorContract)
@@ -578,7 +578,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         final var connectorContract = domainBuilder.entityNum(4200L).toContractID();
 
         final var register = recordItemBuilder
-                .clprRegisterConnector()
+                .clprCreateConnector()
                 .transactionBody(b -> b.setChannelId(channelId)
                         .setConnectorId(connectorId)
                         .setConnectorContract(connectorContract)

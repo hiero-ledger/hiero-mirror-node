@@ -360,7 +360,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     @ValueSource(ints = {1, 2})
     void onClprChannelSubmitBundleHistorizesOnStatusChange(int commitIndex) {
         // given -- a SubmitBundle-driven cascade (e.g. a peer-closed channel) can change status without any
-        // ClprCloseChannel transaction at all; it historizes just like every other SubmitBundle write does today
+        // ClprDeleteChannel transaction at all; it historizes just like every other SubmitBundle write does today
         final var complete = domainBuilder.clprChannel().get();
         final var submitBundle = ClprChannel.builder()
                 .channelId(complete.getChannelId())

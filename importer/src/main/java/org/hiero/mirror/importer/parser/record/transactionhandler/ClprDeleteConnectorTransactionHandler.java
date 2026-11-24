@@ -16,13 +16,13 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
 @RequiredArgsConstructor
-final class ClprRegisterConnectorTransactionHandler extends AbstractTransactionHandler {
+final class ClprDeleteConnectorTransactionHandler extends AbstractTransactionHandler {
 
     private final EntityListener entityListener;
 
     @Override
     public TransactionType getType() {
-        return TransactionType.CLPRREGISTERCONNECTOR;
+        return TransactionType.CLPRDELETECONNECTOR;
     }
 
     @Override
@@ -31,23 +31,18 @@ final class ClprRegisterConnectorTransactionHandler extends AbstractTransactionH
             return;
         }
 
-        // Every field the Connector row needs is on the transaction body itself -- the consensus node derives and
-        // verifies connector_id from the identity key and salt, and validates channel_id and connector_contract, so
-        // no state-change lookup is needed here.
-        final var transactionBody = recordItem.getTransactionBody().getClprRegisterConnector();
+        final var transactionBody = recordItem.getTransactionBody().getClprDeleteConnector();
+        final var stakeRecipientId = EntityId.of(transactionBody.getStakeRecipient());
+        recordItem.addEntityId(stakeRecipientId);
+
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
-        final var connectorContractId = EntityId.of(transactionBody.getConnectorContract());
         final var connector = ClprConnector.builder()
-                .adminKey(DomainUtils.toBytes(transactionBody.getAdminKey().toByteString()))
                 .channelId(DomainUtils.toBytes(transactionBody.getChannelId()))
-                .connectorContractId(connectorContractId)
                 .connectorId(DomainUtils.toBytes(transactionBody.getConnectorId()))
-                .createdTimestamp(consensusTimestamp)
-                .lockedStake(transactionBody.getLockedStake())
-                .status(ClprConnectorStatus.ACTIVE)
+                .status(ClprConnectorStatus.DELETED)
+                .stakeRecipientId(stakeRecipientId)
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprConnector(connector);
-        recordItem.addEntityId(connectorContractId);
     }
 }

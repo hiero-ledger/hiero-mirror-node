@@ -22,12 +22,12 @@ import org.junit.jupiter.api.Test;
 final class ClprTransformerTest extends AbstractTransformerTest {
 
     @Test
-    void clprOpenChannel() {
+    void clprCreateChannel() {
         // given
         final var expectedRecordItem =
-                recordItemBuilder.clprOpenChannel().customize(this::finalize).build();
+                recordItemBuilder.clprCreateChannel().customize(this::finalize).build();
         final var blockTransaction =
-                blockTransactionBuilder.clprOpenChannel(expectedRecordItem).build();
+                blockTransactionBuilder.clprCreateChannel(expectedRecordItem).build();
         final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
@@ -38,11 +38,11 @@ final class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void clprOpenChannelUnsuccessful() {
+    void clprCreateChannelUnsuccessful() {
         // given -- the isSuccessful() guard fires before clprContextBuilder() is ever touched, so the real
         // RecordItem.clprContext stays null rather than an empty-but-present ClprContext
         final var recordItem = recordItemBuilder
-                .clprOpenChannel()
+                .clprCreateChannel()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .customize(this::finalize)
                 .build();
@@ -61,16 +61,16 @@ final class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void clprOpenChannelMissingStateChange() {
+    void clprCreateChannelMissingStateChange() {
         // given -- no clpr_channel_value state change for this transaction; the transformer should leave
         // RecordItem.clprContext.clprChannels empty
         final var expectedRecordItem = recordItemBuilder
-                .clprOpenChannel()
+                .clprCreateChannel()
                 .recordItem(r -> r.clprContextBuilder().clprChannels(List.of()))
                 .customize(this::finalize)
                 .build();
         final var blockTransaction =
-                blockTransactionBuilder.clprOpenChannel(expectedRecordItem).build();
+                blockTransactionBuilder.clprCreateChannel(expectedRecordItem).build();
         final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
@@ -81,10 +81,10 @@ final class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void clprRegisterConnectorUnsuccessful() {
-        // given -- see clprOpenChannelUnsuccessful for why clprContext stays null, not empty
+    void clprCreateConnectorUnsuccessful() {
+        // given -- see clprCreateChannelUnsuccessful for why clprContext stays null, not empty
         final var recordItem = recordItemBuilder
-                .clprRegisterConnector()
+                .clprCreateConnector()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .customize(this::finalize)
                 .build();
@@ -103,17 +103,16 @@ final class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void clprRegisterConnectorMissingStateChange() {
+    void clprCreateConnectorMissingStateChange() {
         // given -- no clpr_connector_value state change for this transaction; the transformer should leave
         // RecordItem.clprContext.clprConnectors empty
         final var expectedRecordItem = recordItemBuilder
-                .clprRegisterConnector()
+                .clprCreateConnector()
                 .recordItem(r -> r.clprContextBuilder().clprConnectors(List.of()))
                 .customize(this::finalize)
                 .build();
-        final var blockTransaction = blockTransactionBuilder
-                .clprRegisterConnector(expectedRecordItem)
-                .build();
+        final var blockTransaction =
+                blockTransactionBuilder.clprCreateConnector(expectedRecordItem).build();
         final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
@@ -201,15 +200,14 @@ final class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void clprRegisterConnector() {
+    void clprCreateConnector() {
         // given
         final var expectedRecordItem = recordItemBuilder
-                .clprRegisterConnector()
+                .clprCreateConnector()
                 .customize(this::finalize)
                 .build();
-        final var blockTransaction = blockTransactionBuilder
-                .clprRegisterConnector(expectedRecordItem)
-                .build();
+        final var blockTransaction =
+                blockTransactionBuilder.clprCreateConnector(expectedRecordItem).build();
         final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
@@ -220,18 +218,17 @@ final class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void clprDeregisterConnector() {
+    void clprDeleteConnector() {
         // given -- no dedicated transformer, falls back to DefaultTransformer; see
-        // RecordItemBuilder.clprDeregisterConnector() for why clprContext still ends up with the connector-removal
+        // RecordItemBuilder.clprDeleteConnector() for why clprContext still ends up with the connector-removal
         // state change via the shared sendMessage side-effect hook, even though
-        // ClprDeregisterConnectorTransactionHandler itself never reads it back
+        // ClprDeleterConnectorTransactionHandler itself never reads it back
         final var expectedRecordItem = recordItemBuilder
-                .clprDeregisterConnector()
+                .clprDeleteConnector()
                 .customize(this::finalize)
                 .build();
-        final var blockTransaction = blockTransactionBuilder
-                .clprDeregisterConnector(expectedRecordItem)
-                .build();
+        final var blockTransaction =
+                blockTransactionBuilder.clprDeleteConnector(expectedRecordItem).build();
         final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
@@ -321,12 +318,12 @@ final class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void clprCloseChannel() {
+    void clprDeleteChannel() {
         // given
         final var expectedRecordItem =
-                recordItemBuilder.clprCloseChannel().customize(this::finalize).build();
+                recordItemBuilder.clprDeleteChannel().customize(this::finalize).build();
         final var blockTransaction =
-                blockTransactionBuilder.clprCloseChannel(expectedRecordItem).build();
+                blockTransactionBuilder.clprDeleteChannel(expectedRecordItem).build();
         final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
@@ -337,10 +334,10 @@ final class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void clprCloseChannelUnsuccessful() {
+    void clprDeleteChannelUnsuccessful() {
         // given -- see clprCompleteChannelUnsuccessful for why clprContext stays null, not empty
         final var recordItem = recordItemBuilder
-                .clprCloseChannel()
+                .clprDeleteChannel()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .customize(this::finalize)
                 .build();
@@ -359,18 +356,18 @@ final class ClprTransformerTest extends AbstractTransformerTest {
     }
 
     @Test
-    void clprCloseChannelAdminSweep() {
+    void clprDeleteChannelAdminSweep() {
         // given -- no Channel existed yet for the supplied channel_id (consensus never revealed one), so this is an
         // admin sweep of an abandoned, never-completed registration rather than a real Channel closure; there's no
         // clpr_channel_value state change to read back, and the transformer should leave
         // RecordItem.clprContext.clprChannel unset
         final var expectedRecordItem = recordItemBuilder
-                .clprCloseChannel()
+                .clprDeleteChannel()
                 .recordItem(r -> r.clprContextBuilder().clprChannels(List.of()))
                 .customize(this::finalize)
                 .build();
         final var blockTransaction =
-                blockTransactionBuilder.clprCloseChannel(expectedRecordItem).build();
+                blockTransactionBuilder.clprDeleteChannel(expectedRecordItem).build();
         final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when

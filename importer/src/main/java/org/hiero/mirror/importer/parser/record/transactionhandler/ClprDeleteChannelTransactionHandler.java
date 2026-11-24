@@ -14,13 +14,13 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 @CustomLog
 @Named
 @RequiredArgsConstructor
-final class ClprCloseChannelTransactionHandler extends AbstractTransactionHandler {
+final class ClprDeleteChannelTransactionHandler extends AbstractTransactionHandler {
 
     private final EntityListener entityListener;
 
     @Override
     public TransactionType getType() {
-        return TransactionType.CLPRCLOSECHANNEL;
+        return TransactionType.CLPRDELETECHANNEL;
     }
 
     @Override
@@ -33,8 +33,9 @@ final class ClprCloseChannelTransactionHandler extends AbstractTransactionHandle
         final var clprContext = recordItem.getClprContext();
         final var entry = clprContext == null ? null : clprContext.getClprChannel();
         if (entry == null) {
+            // TODO:// handle this
             // No Channel record exists: an admin sweep of a legacy pending ownership commitment from a
-            // network that predates ClprOpenChannel. No such commitment can exist in this mirror node's data.
+            // network that predates ClprCreatehannel. No such commitment can exist in this mirror node's data.
             log.info("Ignoring legacy ClprChannelPendingCommitment sweep at {}", consensusTimestamp);
             return;
         }

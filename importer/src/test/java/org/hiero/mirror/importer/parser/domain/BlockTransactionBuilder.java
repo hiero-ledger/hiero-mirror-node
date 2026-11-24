@@ -213,21 +213,22 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
-    public BlockTransactionBuilder.Builder clprCloseChannel(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder clprDeleteChannel(RecordItem recordItem) {
         final var clprContext = recordItem.getClprContext();
         final var clprChannelEntry = Optional.ofNullable(clprContext)
                 .map(ClprContext::getClprChannel)
                 .orElse(null);
+        // TODO:// Should be able to delete this
         if (clprChannelEntry == null) {
             // No Channel exists yet for this channel_id -- consensus never revealed one (the commit-reveal scheme
-            // keeps channel_id secret until ClprCompleteChannel), so this is an admin sweep of an abandoned,
-            // never-completed registration. ClprCloseChannelTransactionHandler reads ownership_commitment straight
+            // keeps channel_id secret until ClprCreateChannel), so this is an admin sweep of an abandoned,
+            // never-completed registration. ClprDeleteChannelTransactionHandler reads ownership_commitment straight
             // off the transaction body for that case, not off a state change, so there's nothing to attach here.
             return defaultBlockItem(recordItem);
         }
 
         final var channelId =
-                recordItem.getTransactionBody().getClprCloseChannel().getChannelId();
+                recordItem.getTransactionBody().getClprDeleteChannel().getChannelId();
         final var stateChange = clprChannelStateChange(channelId, clprChannelEntry.value());
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
@@ -237,7 +238,7 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
-    public BlockTransactionBuilder.Builder clprOpenChannel(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder clprCreateChannel(RecordItem recordItem) {
         final var clprContext = recordItem.getClprContext();
         final var clprChannelEntry = Optional.ofNullable(clprContext)
                 .map(ClprContext::getClprChannel)
@@ -247,7 +248,7 @@ public class BlockTransactionBuilder {
         }
 
         final var channelId =
-                recordItem.getTransactionBody().getClprOpenChannel().getChannelId();
+                recordItem.getTransactionBody().getClprCreateChannel().getChannelId();
         final var stateChange = clprChannelStateChange(channelId, clprChannelEntry.value());
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
@@ -257,8 +258,8 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
-    public BlockTransactionBuilder.Builder clprDeregisterConnector(RecordItem recordItem) {
-        final var body = recordItem.getTransactionBody().getClprDeregisterConnector();
+    public BlockTransactionBuilder.Builder clprDeleteConnector(RecordItem recordItem) {
+        final var body = recordItem.getTransactionBody().getClprDeleteConnector();
         final var key = ClprConnectorKey.newBuilder()
                 .setChannelId(body.getChannelId())
                 .setConnectorId(body.getConnectorId())
@@ -303,7 +304,7 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
-    public BlockTransactionBuilder.Builder clprRegisterConnector(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder clprCreateConnector(RecordItem recordItem) {
         final var clprContext = recordItem.getClprContext();
         final var clprConnectorEntry = Optional.ofNullable(clprContext)
                 .map(ClprContext::getClprConnector)
@@ -312,7 +313,7 @@ public class BlockTransactionBuilder {
             return defaultBlockItem(recordItem);
         }
 
-        final var body = recordItem.getTransactionBody().getClprRegisterConnector();
+        final var body = recordItem.getTransactionBody().getClprCreateConnector();
         final var key = ClprConnectorKey.newBuilder()
                 .setChannelId(body.getChannelId())
                 .setConnectorId(body.getConnectorId())

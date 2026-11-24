@@ -445,9 +445,9 @@ final class ClprStateChangeHandlerTest {
 
     @Test
     void processSkipsSelfProcessedType() {
-        // given -- ClprOpenChannel writes onClprChannel itself; process() must not also patch it generically
+        // given -- ClprCreateChannel writes onClprChannel itself; process() must not also patch it generically
         mockEmptyClprState();
-        when(recordItem.getTransactionType()).thenReturn(TransactionType.CLPROPENCHANNEL.getProtoId());
+        when(recordItem.getTransactionType()).thenReturn(TransactionType.CLPRCREATECHANNEL.getProtoId());
 
         // when
         clprStateChangeHandler.process(recordItem);

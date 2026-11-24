@@ -531,7 +531,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         previous.setTimestampUpper(current.getTimestampLower());
 
         // Channels are only ever created once: per HIP-1535 closing is irreversible and channel_id is permanently
-        // occupied once opened (consensus rejects a second ClprOpenChannel for the same channel_id even after
+        // occupied once opened (consensus rejects a second ClprCreateChannel for the same channel_id even after
         // CLOSED), so every later touch here is a partial update -- no "fresh creation" branch needed.
         fillIfAbsent(previous, current, ClprChannel::getCreatedTimestamp, ClprChannel::setCreatedTimestamp);
         fillIfAbsent(previous, current, ClprChannel::getChainId, ClprChannel::setChainId);
