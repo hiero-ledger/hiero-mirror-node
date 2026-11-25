@@ -23,6 +23,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -49,8 +50,13 @@ final class BackfillNftApprovalContractLogMigrationTest
     @Getter
     private final BackfillNftApprovalContractLogMigration migration;
 
+    @AfterEach
+    void cleanup() {
+        migration.migrationProperties.getParams().remove("maxBlocks");
+    }
+
     @Test
-    void beforeHapi077RestoresOnlyApprovalsWithApprovalForAllLog() {
+    void beforeHapi077RestoresDelegatedApprovalsWithoutApprovalForAllLog() {
         long start = domainBuilder.timestamp();
         block(start, 76);
         transaction(start + 100);
@@ -58,7 +64,7 @@ final class BackfillNftApprovalContractLogMigrationTest
         transaction(start + 300);
         var owner = EntityId.of(1001);
         var affected = nft(start + 100, 1, owner, 1002);
-        // No ApprovalForAll log, so the Approval was not skipped by the defect, e.g. synthetic logs were not persisted
+        // Delegated approvals without an ApprovalForAll log of their token are restored regardless of the HAPI version
         nft(start + 200, 2, owner, 1002);
         var otherToken = nft(start + 300, 3, owner, 1002);
         var anchor = approvalForAll(start + 100, affected.getTokenId(), 0, 0, owner, 1002);
@@ -68,18 +74,25 @@ final class BackfillNftApprovalContractLogMigrationTest
         waitForCompletion();
 
         var logs = logs();
-        assertThat(logs).hasSize(3);
+        assertThat(logs)
+                .extracting(ContractLog::getConsensusTimestamp)
+                .containsExactly(start + 100, start + 100, start + 200, start + 300, start + 300);
+        assertThat(logs).extracting(ContractLog::getIndex).containsExactly(0, 1, 2, 3, 4);
+        assertThat(logs).extracting(ContractLog::getTransactionIndex).containsExactly(0, 0, 1, 2, 2);
         assertThat(logs.get(0)).isEqualTo(anchor);
         assertThat(logs.get(1)).satisfies(l -> {
-            assertThat(l.getConsensusTimestamp()).isEqualTo(start + 100);
             assertThat(l.getContractId()).isEqualTo(EntityId.of(affected.getTokenId()));
-            assertThat(l.getIndex()).isEqualTo(1);
             assertThat(l.getTopic0()).isEqualTo(APPROVAL);
             assertThat(l.getTopic3()).isEqualTo(new byte[] {1});
-            assertThat(l.getTransactionIndex()).isZero();
         });
-        unrelated.setIndex(2);
-        assertThat(logs.get(2)).isEqualTo(unrelated);
+        assertThat(logs.get(2).getTopic3()).isEqualTo(new byte[] {2});
+        unrelated.setIndex(3);
+        unrelated.setTransactionIndex(2);
+        assertThat(logs.get(3)).isEqualTo(unrelated);
+        assertThat(logs.get(4)).satisfies(l -> {
+            assertThat(l.getContractId()).isEqualTo(EntityId.of(otherToken.getTokenId()));
+            assertThat(l.getTopic3()).isEqualTo(new byte[] {3});
+        });
     }
 
     @Test
@@ -111,33 +124,23 @@ final class BackfillNftApprovalContractLogMigrationTest
     }
 
     @Test
-    void hapi077RestoresOnlyDelegatedApprovalsWithoutApprovalForAllLog() {
+    void keepsNullIndexesOfShiftedTransactions() {
         long start = domainBuilder.timestamp();
         block(start);
         transaction(start + 100);
-        transaction(start + 200);
-        transaction(start + 300);
-        var owner = EntityId.of(1001);
-        // Neither delegated nor accompanied by an ApprovalForAll log, so the Approval was not skipped by the defect
-        nft(start + 100, 1, owner, 1002, null, domainBuilder.id());
-        nft(start + 200, 2, owner, 1002);
-        var anchored = nft(start + 300, 3, owner, 1002, null, domainBuilder.id());
-        var anchor = approvalForAll(start + 300, anchored.getTokenId(), 0, 0, owner, 1002);
+        nft(start + 100, 1, EntityId.of(1001), 1002);
+        // The later transaction has an index on its contract result, but not on its log
+        log(start + 200, 0, 0);
+        jdbcOperations.update(
+                "update contract_log set transaction_index = null where consensus_timestamp = ?", start + 200);
+        result(start + 200, 0, 100L);
 
         runMigration();
         waitForCompletion();
 
-        var logs = logs();
-        assertThat(logs)
-                .extracting(ContractLog::getConsensusTimestamp)
-                .containsExactly(start + 200, start + 300, start + 300);
-        assertThat(logs).extracting(ContractLog::getIndex).containsExactly(0, 1, 2);
-        assertThat(logs).extracting(ContractLog::getTransactionIndex).containsExactly(0, 1, 1);
-        assertThat(logs.get(0).getTopic3()).isEqualTo(new byte[] {2});
-        anchor.setIndex(1);
-        anchor.setTransactionIndex(1);
-        assertThat(logs.get(1)).isEqualTo(anchor);
-        assertThat(logs.get(2).getTopic3()).isEqualTo(new byte[] {3});
+        assertThat(logs()).extracting(ContractLog::getConsensusTimestamp).containsExactly(start + 100, start + 200);
+        assertThat(logs()).extracting(ContractLog::getTransactionIndex).containsExactly(0, null);
+        assertResultIndex(start + 200, 1);
     }
 
     @Test
@@ -170,6 +173,31 @@ final class BackfillNftApprovalContractLogMigrationTest
         assertThat(logs.get(2)).isEqualTo(later);
         effect.setIndex(3);
         assertThat(logs.get(3)).isEqualTo(effect);
+    }
+
+    @Test
+    void preservesGapsInLogIndexes() {
+        long start = domainBuilder.timestamp();
+        block(start);
+        transaction(start + 200);
+        nft(start + 200, 1, EntityId.of(1001), 1002);
+        // Only the logs after a restored one move, so the gap before it stays and the earlier log is not rewritten
+        var earlier = log(start + 100, 0, 0);
+        var later = log(start + 300, 5, 1);
+
+        runMigration();
+        waitForCompletion();
+
+        var logs = logs();
+        assertThat(logs)
+                .extracting(ContractLog::getConsensusTimestamp)
+                .containsExactly(start + 100, start + 200, start + 300);
+        assertThat(logs).extracting(ContractLog::getIndex).containsExactly(0, 5, 6);
+        assertThat(logs).extracting(ContractLog::getTransactionIndex).containsExactly(0, 1, 2);
+        assertThat(logs.get(0)).isEqualTo(earlier);
+        later.setIndex(6);
+        later.setTransactionIndex(2);
+        assertThat(logs.get(2)).isEqualTo(later);
     }
 
     @ParameterizedTest
@@ -428,6 +456,67 @@ final class BackfillNftApprovalContractLogMigrationTest
     }
 
     @Test
+    void restoresDelegatedApprovalsAndThoseWithApprovalForAllLog() {
+        long start = domainBuilder.timestamp();
+        block(start);
+        transaction(start + 100);
+        transaction(start + 200);
+        transaction(start + 300);
+        var owner = EntityId.of(1001);
+        // Neither delegated nor accompanied by an ApprovalForAll log, so the Approval was not skipped by the defect
+        nft(start + 100, 1, owner, 1002, null, domainBuilder.id());
+        nft(start + 200, 2, owner, 1002);
+        var anchored = nft(start + 300, 3, owner, 1002, null, domainBuilder.id());
+        var anchor = approvalForAll(start + 300, anchored.getTokenId(), 0, 0, owner, 1002);
+
+        runMigration();
+        waitForCompletion();
+
+        var logs = logs();
+        assertThat(logs)
+                .extracting(ContractLog::getConsensusTimestamp)
+                .containsExactly(start + 200, start + 300, start + 300);
+        assertThat(logs).extracting(ContractLog::getIndex).containsExactly(0, 1, 2);
+        assertThat(logs).extracting(ContractLog::getTransactionIndex).containsExactly(0, 1, 1);
+        assertThat(logs.get(0).getTopic3()).isEqualTo(new byte[] {2});
+        anchor.setIndex(1);
+        anchor.setTransactionIndex(1);
+        assertThat(logs.get(1)).isEqualTo(anchor);
+        assertThat(logs.get(2).getTopic3()).isEqualTo(new byte[] {3});
+    }
+
+    @Test
+    void restoresMultipleBlocksPerBatch() {
+        long start = domainBuilder.timestamp();
+        long second = start + 5000;
+        long third = start + 10000;
+        long serial = 1;
+        for (long blockStart : List.of(start, second, third)) {
+            block(blockStart);
+            transaction(blockStart + 100);
+            nft(blockStart + 100, serial++, EntityId.of(1001), 1002);
+        }
+        migration.migrationProperties.getParams().put("maxBlocks", "2");
+        assertThat(migration.performSynchronousSteps()).isTrue();
+
+        var last = migration.getTransactionOperations().execute(_ -> migration.migratePartial(migration.getInitial()));
+
+        assertThat(last).contains(second - 1);
+        assertThat(logs()).extracting(ContractLog::getConsensusTimestamp).containsExactly(second + 100, third + 100);
+        assertThat(jdbcOperations.queryForObject(
+                        "select upper_bound from nft_approval_contract_log_progress_temp", Long.class))
+                .isEqualTo(second - 1);
+
+        last = migration.getTransactionOperations().execute(_ -> migration.migratePartial(second - 1));
+
+        assertThat(last).isEmpty();
+        assertThat(logs())
+                .extracting(ContractLog::getConsensusTimestamp)
+                .containsExactly(start + 100, second + 100, third + 100);
+        assertThat(tableExists("nft_approval_contract_log_progress_temp")).isFalse();
+    }
+
+    @Test
     void restoresSnapshotAfterSourceRevisionsChange() {
         long start = domainBuilder.timestamp();
         block(start);
@@ -482,6 +571,7 @@ final class BackfillNftApprovalContractLogMigrationTest
         block(next);
         transaction(next + 100);
         nft(next + 100, 3, EntityId.of(1001), 1002);
+        migration.migrationProperties.getParams().put("maxBlocks", "1");
         assertThat(migration.performSynchronousSteps()).isTrue();
         migration
                 .getTransactionOperations()
@@ -572,6 +662,7 @@ final class BackfillNftApprovalContractLogMigrationTest
         var otherToken = nft(next + 200, 3, owner, 1002, null, domainBuilder.id());
         approvalForAll(next + 200, otherToken.getTokenId() + 1, 1, 1, owner, 1002);
         var delegated = nft(next + 200, 4, owner, 1002);
+        migration.migrationProperties.getParams().put("maxBlocks", "1");
         assertThat(migration.performSynchronousSteps()).isTrue();
 
         long initial = migration.getInitial();
@@ -585,9 +676,8 @@ final class BackfillNftApprovalContractLogMigrationTest
         assertThat(last).isEmpty();
         assertThat(logs())
                 .filteredOn(l -> Arrays.equals(l.getTopic0(), APPROVAL))
-                .singleElement()
                 .extracting(ContractLog::getTopic3)
-                .isEqualTo(new byte[] {2});
+                .containsExactly(new byte[] {2}, new byte[] {4});
     }
 
     @Test
@@ -600,6 +690,7 @@ final class BackfillNftApprovalContractLogMigrationTest
         block(next);
         transaction(next + 100);
         nft(next + 100, 1, EntityId.of(1001), 1002);
+        migration.migrationProperties.getParams().put("maxBlocks", "1");
         assertThat(migration.performSynchronousSteps()).isTrue();
 
         var last = migration.getTransactionOperations().execute(_ -> migration.migratePartial(migration.getInitial()));
