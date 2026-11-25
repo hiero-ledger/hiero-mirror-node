@@ -2535,7 +2535,7 @@
         "type": "prometheus",
         "uid": "${prometheus}"
       },
-      "description": "The number of times per second the importer switched from block nodes to cloud storage",
+      "description": "The number of times per second the importer failed over, by type: CLOUD_STORAGE is from block nodes to cloud storage, CONSENSUS_NODE is from the canonical block file path to a consensus node block file path",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2625,9 +2625,9 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(hiero_mirror_importer_block_failover_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) > 0",
+          "expr": "sum by (type) (rate(hiero_mirror_importer_block_failover_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) > 0",
           "interval": "1m",
-          "legendFormat": "failover",
+          "legendFormat": "{{type}}",
           "range": true,
           "refId": "A"
         }

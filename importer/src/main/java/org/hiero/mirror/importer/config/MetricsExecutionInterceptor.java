@@ -52,13 +52,15 @@ final class MetricsExecutionInterceptor implements ExecutionInterceptor {
     static final String QUERY_PREFIX = "prefix=";
     static final String QUERY_START_AFTER = "start-after=";
 
+    // Per HIP-1193, canonical block bucket paths never encode a shard or node, so there's no node to parse out of the
+    // URI. Only the per consensus node fallback paths carry a node id.
+    // Mirrors the "cloud" sentinel BlockFileSource.DEFAULT_NODE_ENDPOINT already uses for the same scenario.
+    private static final String BLOCK_NODE = "cloud";
+    private static final Pattern BLOCK_PATH_PATTERN = Pattern.compile("/block/\\d{4}/");
+    private static final Pattern CONSENSUS_NODE_PATTERN = Pattern.compile("/consensus-node/(\\d{1,10})/\\d{4}/");
     private static final Pattern ENTITY_ID_PATTERN =
             Pattern.compile("/(balance|record)(s_)?(\\d{1,10})\\.\\d{1,10}\\.(\\d{1,10})");
     private static final Pattern SIDECAR_PATTERN = Pattern.compile("Z_\\d{1,2}\\.rcd");
-    private static final String BLOCK_PATH_SEGMENT = "/" + StreamType.BLOCK.getPath() + "/";
-    // Per HIP-1193, block bucket paths never encode a shard or node, so there's no node to parse out of the URI.
-    // Mirrors the "cloud" sentinel BlockFileSource.DEFAULT_NODE_ENDPOINT already uses for the same scenario.
-    private static final String BLOCK_NODE = "cloud";
 
     private final CommonProperties commonProperties;
     private final MeterRegistry meterRegistry;
@@ -128,7 +130,13 @@ final class MetricsExecutionInterceptor implements ExecutionInterceptor {
             return new UriAttributes(action, nodeId, shard, streamType.toUpperCase());
         }
 
-        if (uriComponent.contains(BLOCK_PATH_SEGMENT)) {
+        final var consensusNodeMatcher = CONSENSUS_NODE_PATTERN.matcher(uriComponent);
+        if (consensusNodeMatcher.find()) {
+            final var shard = String.valueOf(commonProperties.getShard());
+            return new UriAttributes(action, consensusNodeMatcher.group(1), shard, StreamType.BLOCK.name());
+        }
+
+        if (BLOCK_PATH_PATTERN.matcher(uriComponent).find()) {
             final var shard = String.valueOf(commonProperties.getShard());
             return new UriAttributes(action, BLOCK_NODE, shard, StreamType.BLOCK.name());
         }

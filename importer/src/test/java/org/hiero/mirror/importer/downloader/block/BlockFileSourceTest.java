@@ -9,6 +9,9 @@ import static org.assertj.core.api.Assertions.from;
 import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 import static org.hiero.mirror.importer.TestUtils.generateRandomByteArray;
 import static org.hiero.mirror.importer.TestUtils.zstd;
+import static org.hiero.mirror.importer.downloader.block.BlockFileSource.CONSENSUS_NODE_FOLDER;
+import static org.hiero.mirror.importer.downloader.block.BlockSource.FAILOVER_METRIC_NAME;
+import static org.hiero.mirror.importer.downloader.block.BlockSource.FAILOVER_TYPE_TAG;
 import static org.hiero.mirror.importer.reader.block.BlockStreamReaderTest.TEST_BLOCK_FILES;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAMS;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
@@ -43,6 +46,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
@@ -55,7 +60,9 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.FileCopier;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
+import org.hiero.mirror.importer.domain.ConsensusNodeStub;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.block.cutover.CutoverProperties;
@@ -65,6 +72,7 @@ import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransac
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
+import org.hiero.mirror.importer.downloader.provider.TransientProviderException;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
@@ -107,6 +115,10 @@ final class BlockFileSourceTest {
     private Path dataPath;
 
     private CommonDownloaderProperties commonDownloaderProperties;
+
+    @Mock
+    private ConsensusNodeService consensusNodeService;
+
     private CutoverService cutoverService;
     private FileCopier fileCopier;
     private ImporterProperties importerProperties;
@@ -173,15 +185,7 @@ final class BlockFileSourceTest {
                 mock(NodeSignatureVerifier.class),
                 cutoverService,
                 mock(TssVerifier.class)));
-        blockFileSource = new BlockFileSource(
-                new BlockStreamReaderImpl(
-                        mock(InitialStateReader.class), new CompositeRecordFileItemReader(new SidecarProperties())),
-                blockStreamVerifier,
-                commonDownloaderProperties,
-                cutoverService,
-                meterRegistry,
-                properties,
-                streamFileProvider);
+        blockFileSource = blockFileSource(streamFileProvider);
 
         fileCopier = FileCopier.create(TestUtils.getResource(BLOCK_STREAMS).toPath(), dataPath)
                 .to(properties.getBucketName())
@@ -425,6 +429,7 @@ final class BlockFileSourceTest {
                 .containsExactly("Downloaded block file " + filename);
         assertThat(countMatches(logs, "Failed to download block file " + filename))
                 .isZero();
+        assertThat(failovers()).isZero();
     }
 
     @Test
@@ -450,23 +455,184 @@ final class BlockFileSourceTest {
     }
 
     @Test
+    void fallbackToNodeWhenCanonicalMissing(final CapturedOutput output) {
+        // given
+        final var block0 = blockFile(0);
+        final var nodePath = nodePath(importerProperties.getNetwork(), 1L);
+        importerProperties.setStartBlockNumber(block0.getIndex());
+        properties.setWriteFiles(true);
+        withNodes(0L, 1L, 2L);
+        filterFiles(nodeFileCopier(nodePath), block0).copy();
+        doNothing().when(blockStreamVerifier).verify(any());
+
+        // when
+        blockFileSource.get();
+
+        // then
+        verify(blockStreamVerifier)
+                .verify(assertArg(b -> assertThat(b)
+                        .returns(block0.getIndex(), BlockFile::getIndex)
+                        .returns(true, from(block -> block.getSize() > 0))));
+
+        final var logs = output.getAll();
+        assertThat(logs)
+                .contains("Block file %s not found in %s".formatted(block0.getName(), canonicalPath()))
+                .contains("Downloaded block file %s from %s".formatted(block0.getName(), nodePath));
+        assertThat(findAllMatches(logs, "Downloaded block file .*\\.blk\\.zstd from \\S+"))
+                .containsExactly("Downloaded block file %s from %s".formatted(block0.getName(), nodePath));
+        verifyArchivedFile(nodePath, block0.getName());
+        assertThat(failovers()).isOne();
+    }
+
+    @SneakyThrows
+    @Test
+    void fallbackToNodeWhenCanonicalCorrupt(final CapturedOutput output) {
+        // given
+        final var block0 = blockFile(0);
+        final var nodePath = nodePath(importerProperties.getNetwork(), 0L);
+        importerProperties.setStartBlockNumber(block0.getIndex());
+        withNodes(0L);
+        final var canonicalFile = fileCopier
+                .getTo()
+                .resolve(StreamType.BLOCK.toBucketFilename(block0.getName()))
+                .toFile();
+        FileUtils.writeByteArrayToFile(canonicalFile, zstd(generateRandomByteArray(1024)));
+        filterFiles(nodeFileCopier(nodePath), block0).copy();
+        doNothing().when(blockStreamVerifier).verify(any());
+
+        // when
+        blockFileSource.get();
+
+        // then
+        verify(blockStreamVerifier).verify(argThat(b -> b.getIndex() == block0.getIndex()));
+
+        final var logs = output.getAll();
+        assertThat(logs)
+                .contains("Failed to get block file %s from %s".formatted(block0.getName(), canonicalPath()))
+                .contains("Downloaded block file %s from %s".formatted(block0.getName(), nodePath));
+        assertThat(failovers()).isOne();
+    }
+
+    @Test
+    void fallbackToNodeWhenCanonicalVerificationFails(final CapturedOutput output) {
+        // given
+        final var block0 = blockFile(0);
+        final var nodePath = nodePath(importerProperties.getNetwork(), 0L);
+        importerProperties.setStartBlockNumber(block0.getIndex());
+        withNodes(0L);
+        filterFiles(block0).copy();
+        filterFiles(nodeFileCopier(nodePath), block0).copy();
+        doThrow(new InvalidStreamFileException(""))
+                .doNothing()
+                .when(blockStreamVerifier)
+                .verify(any(BlockFile.class));
+
+        // when
+        blockFileSource.get();
+
+        // then
+        verify(blockStreamVerifier, times(2)).verify(argThat(b -> b.getIndex() == block0.getIndex()));
+
+        final var logs = output.getAll();
+        assertThat(findAllMatches(logs, "Downloaded block file .*\\.blk\\.zstd from \\S+"))
+                .containsExactly(
+                        "Downloaded block file %s from %s".formatted(block0.getName(), canonicalPath()),
+                        "Downloaded block file %s from %s".formatted(block0.getName(), nodePath));
+        assertThat(logs).contains("Failed to get block file %s from %s".formatted(block0.getName(), canonicalPath()));
+        assertThat(failovers()).isOne();
+    }
+
+    @SneakyThrows
+    @Test
+    void fallbackToNodeFromResettableNetwork(final CapturedOutput output) {
+        // given
+        importerProperties.setNetwork(ImporterProperties.HederaNetwork.PREVIEWNET);
+        final var block0 = blockFile(0);
+        final var formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(ZoneId.of("UTC"));
+        final var latestFolder = importerProperties.getNetwork() + "-" + formatter.format(Instant.now());
+        final var nodePath = nodePath(latestFolder, 2L);
+        importerProperties.setStartBlockNumber(block0.getIndex());
+        withNodes(2L);
+        filterFiles(nodeFileCopier(nodePath), block0).copy();
+        doNothing().when(blockStreamVerifier).verify(any());
+
+        // when
+        blockFileSource.get();
+
+        // then
+        verify(blockStreamVerifier).verify(argThat(b -> b.getIndex() == block0.getIndex()));
+
+        final var logs = output.getAll();
+        assertThat(logs)
+                .contains("Block file %s not found in %s/%s"
+                        .formatted(block0.getName(), latestFolder, StreamType.BLOCK.getPath()))
+                .contains("Downloaded block file %s from %s".formatted(block0.getName(), nodePath));
+    }
+
+    @Test
+    void notFoundInAnyPath(final CapturedOutput output) {
+        // given
+        final var filename = BlockFile.getFilename(0L, true);
+        final var network = importerProperties.getNetwork();
+        withNodes(0L, 1L, 2L);
+
+        // when
+        assertThatThrownBy(blockFileSource::get)
+                .isInstanceOf(BlockStreamException.class)
+                .hasMessage("Failed to download block file " + filename)
+                .hasCauseInstanceOf(TransientProviderException.class);
+
+        // then
+        verify(blockStreamVerifier, never()).verify(any(BlockFile.class));
+
+        final var logs = output.getAll();
+        assertThat(countMatches(logs, "Block file %s not found in ".formatted(filename)))
+                .isEqualTo(4);
+        assertThat(logs).contains("Block file %s not found in %s".formatted(filename, canonicalPath()));
+        for (final long nodeId : List.of(0L, 1L, 2L)) {
+            assertThat(logs).contains("Block file %s not found in %s".formatted(filename, nodePath(network, nodeId)));
+        }
+
+        // All three consensus node paths were tried, but the failover is recorded once
+        assertThat(failovers()).isOne();
+    }
+
+    @Test
+    void sharedTimeout() {
+        // given
+        final var filename = BlockFile.getFilename(0L, true);
+        commonDownloaderProperties.setTimeout(Duration.ofMillis(200L));
+        withNodes(0L, 1L, 2L);
+        final var streamFileProvider = mock(StreamFileProvider.class);
+        when(streamFileProvider.discoverNetwork()).thenReturn(Mono.just(importerProperties.getNetwork()));
+        when(streamFileProvider.get(argThat(f -> f != null && !f.getPath().contains(CONSENSUS_NODE_FOLDER))))
+                .thenReturn(Mono.error(new TransientProviderException(new IllegalStateException("not found"))));
+        when(streamFileProvider.get(argThat(f -> f != null && f.getPath().contains(CONSENSUS_NODE_FOLDER))))
+                .thenReturn(Mono.delay(Duration.ofMillis(300L)).then(Mono.empty()));
+        final var source = blockFileSource(streamFileProvider);
+
+        // when
+        assertThatThrownBy(source::get)
+                .isInstanceOf(BlockStreamException.class)
+                .hasMessage("Failed to download block file " + filename);
+
+        // then the first node exhausts the remaining budget, so the other nodes are never tried
+        verify(streamFileProvider, times(2)).get(any());
+        verify(blockStreamVerifier, never()).verify(any(BlockFile.class));
+        assertThat(failovers()).isOne();
+    }
+
+    @Test
     void timeout(final CapturedOutput output) {
         // given
         final var filename = BlockFile.getFilename(0L, true);
         commonDownloaderProperties.setTimeout(Duration.ofMillis(100L));
+        withNodes(0L, 1L, 2L);
         final var streamFileProvider = mock(StreamFileProvider.class);
         when(streamFileProvider.discoverNetwork()).thenReturn(Mono.just(importerProperties.getNetwork()));
         when(streamFileProvider.get(any()))
                 .thenReturn(Mono.delay(Duration.ofMillis(120L)).then(Mono.empty()));
-        final var source = new BlockFileSource(
-                new BlockStreamReaderImpl(
-                        mock(InitialStateReader.class), new CompositeRecordFileItemReader(new SidecarProperties())),
-                blockStreamVerifier,
-                commonDownloaderProperties,
-                cutoverService,
-                meterRegistry,
-                properties,
-                streamFileProvider);
+        final var source = blockFileSource(streamFileProvider);
 
         // when
         assertThatThrownBy(source::get)
@@ -481,6 +647,8 @@ final class BlockFileSourceTest {
 
         final var logs = output.getAll();
         assertThat(countMatches(logs, "Downloaded block file " + filename)).isZero();
+        // The canonical attempt used up the whole budget, so no consensus node path was tried
+        assertThat(failovers()).isZero();
     }
 
     @Test
@@ -488,15 +656,7 @@ final class BlockFileSourceTest {
         // given
         importerProperties.setStartBlockNumber(-1L);
         final var streamFileProvider = mock(StreamFileProvider.class);
-        final var source = new BlockFileSource(
-                new BlockStreamReaderImpl(
-                        mock(InitialStateReader.class), new CompositeRecordFileItemReader(new SidecarProperties())),
-                blockStreamVerifier,
-                commonDownloaderProperties,
-                cutoverService,
-                meterRegistry,
-                properties,
-                streamFileProvider);
+        final var source = blockFileSource(streamFileProvider);
 
         // when, then
         assertThatThrownBy(source::get)
@@ -568,29 +728,80 @@ final class BlockFileSourceTest {
         assertThat(countMatches(logs, "Downloaded block file " + filename)).isEqualTo(2);
     }
 
+    private BlockFileSource blockFileSource(final StreamFileProvider streamFileProvider) {
+        return new BlockFileSource(
+                new BlockStreamReaderImpl(
+                        mock(InitialStateReader.class), new CompositeRecordFileItemReader(new SidecarProperties())),
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                consensusNodeService,
+                cutoverService,
+                meterRegistry,
+                properties,
+                streamFileProvider);
+    }
+
     private long blockNumber(int index) {
         return blockFile(index).getIndex();
     }
 
+    private String canonicalPath() {
+        return "%s/%s".formatted(importerProperties.getNetwork(), StreamType.BLOCK.getPath());
+    }
+
+    private double failovers() {
+        return meterRegistry
+                .get(FAILOVER_METRIC_NAME)
+                .tag(FAILOVER_TYPE_TAG, BlockSource.FailoverType.CONSENSUS_NODE.name())
+                .counter()
+                .count();
+    }
+
     private FileCopier filterFiles(final BlockFile blockFile) {
+        return filterFiles(fileCopier, blockFile);
+    }
+
+    private FileCopier filterFiles(final FileCopier copier, final BlockFile blockFile) {
         final var filename =
                 StringUtils.substringAfterLast(StreamType.BLOCK.toBucketFilename(blockFile.getName()), "/");
-        return fileCopier.filterFiles(filename);
+        return copier.filterFiles(filename);
+    }
+
+    private FileCopier nodeFileCopier(final String nodePath) {
+        return fileCopier.resetTo(dataPath).to(properties.getBucketName()).to(StringUtils.split(nodePath, "/"));
+    }
+
+    private String nodePath(final String network, final long nodeId) {
+        // Literal folder name so the test pins the bucket path instead of reusing the production constant
+        return "%s/consensus-node/%d".formatted(network, nodeId);
+    }
+
+    private void verifyArchivedFile(final String filename) {
+        verifyArchivedFile(canonicalPath(), filename);
     }
 
     @SneakyThrows
-    private void verifyArchivedFile(final String filename) {
+    private void verifyArchivedFile(final String path, final String filename) {
         final var bucketFilename = StreamType.BLOCK.toBucketFilename(filename);
-        final byte[] expected = FileUtils.readFileToByteArray(
-                fileCopier.getTo().resolve(bucketFilename).toFile());
-        var actualFile = importerProperties
+        final var bucketPath = dataPath.resolve(properties.getBucketName()).resolve(path);
+        final byte[] expected =
+                FileUtils.readFileToByteArray(bucketPath.resolve(bucketFilename).toFile());
+        final var actualFile = importerProperties
                 .getStreamPath()
-                .resolve(importerProperties.getNetwork())
-                .resolve(StreamType.BLOCK.getPath())
+                .resolve(path)
                 .resolve(bucketFilename)
                 .toFile();
         assertThat(actualFile).isFile();
         final byte[] actual = FileUtils.readFileToByteArray(actualFile);
         assertThat(actual).isEqualTo(expected);
+    }
+
+    private void withNodes(final long... nodeIds) {
+        final var nodes = new ArrayList<ConsensusNode>();
+        for (final long nodeId : nodeIds) {
+            nodes.add(ConsensusNodeStub.builder().nodeId(nodeId).build());
+        }
+
+        when(consensusNodeService.getNodes()).thenReturn(nodes);
     }
 }

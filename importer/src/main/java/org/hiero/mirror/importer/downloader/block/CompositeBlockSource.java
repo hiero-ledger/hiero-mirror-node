@@ -25,8 +25,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 @Primary
 final class CompositeBlockSource implements BlockSource {
 
-    static final String FAILOVER_METRIC_NAME = "hiero.mirror.importer.block.failover";
-
     private final SourceHealth blockFileSourceHealth;
     private final BlockNodeDiscoveryService blockNodeDiscoveryService;
     private final SourceHealth blockNodeSubscriberSourceHealth;
@@ -49,9 +47,7 @@ final class CompositeBlockSource implements BlockSource {
         this.blockNodeSubscriberSourceHealth = new SourceHealth(blockNodeSubscriber, BlockSourceType.BLOCK_NODE);
         this.current = new AtomicReference<>(blockNodeSubscriberSourceHealth);
         this.cutoverService = cutoverService;
-        this.failoverMetric = Counter.builder(FAILOVER_METRIC_NAME)
-                .description("The number of times the importer switched from block nodes to cloud storage")
-                .register(meterRegistry);
+        this.failoverMetric = BlockSource.failoverMetric(meterRegistry, FailoverType.CLOUD_STORAGE);
         this.properties = properties;
 
         // The local stream file provider ignores bucket names

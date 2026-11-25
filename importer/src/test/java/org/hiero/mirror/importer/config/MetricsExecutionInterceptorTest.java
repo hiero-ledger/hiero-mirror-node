@@ -137,12 +137,12 @@ final class MetricsExecutionInterceptorTest {
     }
 
     /*
-     * Per HIP-1193, block bucket paths never encode a shard or node (e.g. network/block/0000/0000/.../nnn.blk.gz),
+     * Per HIP-1193, block bucket paths never encode a shard or node (e.g. network/block/0000/0000/0000/7858/853.blk.zstd),
      * so node is tagged with the "cloud" sentinel and shard comes from CommonProperties rather than the URI.
      */
     @Test
     void s3GetObjectExecutionBlock() {
-        var objectKey = "network/block/0000/0000/0000/0000/000000007858853.blk.gz";
+        var objectKey = "network/block/0000/0000/0000/7858/853.blk.zstd";
         var sdkHttpRequest = createGetObjectRequest(objectKey);
 
         when(afterExecutionContext.httpResponse()).thenReturn(sdkHttpResponse);
@@ -153,6 +153,20 @@ final class MetricsExecutionInterceptorTest {
         assertNotNull(executionAttributes.getAttribute(MetricsExecutionInterceptor.START_TIME));
         metricsExecutionInterceptor.afterExecution(afterExecutionContext, executionAttributes);
         verifyTimerTags("signed", "cloud", StreamType.BLOCK);
+    }
+
+    @Test
+    void s3GetObjectExecutionBlockPerNode() {
+        var objectKey = "network/consensus-node/3/0000/0000/0000/7858/853.blk.zstd";
+        var sdkHttpRequest = createGetObjectRequest(objectKey);
+
+        when(afterExecutionContext.httpResponse()).thenReturn(sdkHttpResponse);
+        when(sdkHttpResponse.statusCode()).thenReturn(HTTP_STATUS_SUCCESS);
+        when(afterExecutionContext.httpRequest()).thenReturn(sdkHttpRequest);
+
+        metricsExecutionInterceptor.beforeTransmission(beforeTransmissionContext, executionAttributes);
+        metricsExecutionInterceptor.afterExecution(afterExecutionContext, executionAttributes);
+        verifyTimerTags("signed", "3", StreamType.BLOCK);
     }
 
     /*
