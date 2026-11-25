@@ -18,14 +18,11 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 
 @RequiredArgsConstructor
 final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
-    private static final String CREATED_TIMESTAMP = "createdTimestamp";
     private static final int LIMIT = 2;
 
     private final ClprChannelRepository repository;
@@ -111,6 +108,21 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         assertThat(actual).isEmpty();
     }
 
+    @Test
+    void findAllByCreatedTimestampBetweenFiltersByStatus() {
+        // given
+        final var active = persistChannel(100L, ClprChannelStatus.ACTIVE);
+        persistChannel(200L, ClprChannelStatus.PAUSED);
+        persistPending(300L, ClprPendingCommitmentStatus.OPEN);
+
+        // when
+        final var actual = repository.findAllByCreatedTimestampBetween(
+                0L, Long.MAX_VALUE, ClprChannelStatus.ACTIVE.getNumber(), Direction.ASC, 10);
+
+        // then
+        assertThat(ids(actual)).containsExactly(active.getChannelId());
+    }
+
     @ParameterizedTest
     @EnumSource(Direction.class)
     void findByCreatedTimestampBetween(Direction order) {
@@ -123,10 +135,9 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
         final var expected =
                 order.isAscending() ? List.of(channel1, channel2, channel3) : List.of(channel3, channel2, channel1);
-        final var pageable = PageRequest.of(0, 10, Sort.by(order, CREATED_TIMESTAMP));
 
         // when
-        final var actual = repository.findByCreatedTimestampBetween(200L, 400L, pageable);
+        final var actual = repository.findAllByCreatedTimestampBetween(200L, 400L, null, order, 10);
 
         // then
         assertThat(ids(actual)).containsExactlyElementsOf(channelIds(expected));
@@ -152,10 +163,9 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         final var expected = order.isAscending()
                 ? List.of(channel1.getChannelId(), pending.getOwnershipCommitment(), channel2.getChannelId())
                 : List.of(channel2.getChannelId(), pending.getOwnershipCommitment(), channel1.getChannelId());
-        final var pageable = PageRequest.of(0, 10, Sort.by(order, CREATED_TIMESTAMP));
 
         // when
-        final var actual = repository.findAllChannelsByCreatedTimestampBetween(200L, 400L, pageable);
+        final var actual = repository.findAllByCreatedTimestampBetween(200L, 400L, null, order, 10);
 
         // then
         assertThat(actual)
@@ -183,10 +193,8 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
                 .customize(p -> p.createdTimestamp(300L).status(ClprPendingCommitmentStatus.OPEN))
                 .persist();
         persistChannel(400L, ClprChannelStatus.ACTIVE);
-        final var pageable = PageRequest.of(0, 2, Sort.by(Direction.ASC, CREATED_TIMESTAMP));
-
         // when
-        final var actual = repository.findAllChannelsByCreatedTimestampBetween(0L, Long.MAX_VALUE, pageable);
+        final var actual = repository.findAllByCreatedTimestampBetween(0L, Long.MAX_VALUE, null, Direction.ASC, 2);
 
         // then
         assertThat(actual).extracting(i -> i.createdTimestamp()).containsExactly(200L, 300L);
@@ -199,11 +207,9 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         final var paused = persistChannel(200L, ClprChannelStatus.PAUSED);
         persistChannel(300L, ClprChannelStatus.CLOSED);
 
-        final var pageable = PageRequest.of(0, 10, Sort.by(Direction.ASC, CREATED_TIMESTAMP));
-
         // when
-        final var actual = repository.findByStatusAndCreatedTimestampBetween(
-                ClprChannelStatus.PAUSED.getNumber(), 0L, Long.MAX_VALUE, pageable);
+        final var actual = repository.findAllByCreatedTimestampBetween(
+                0L, Long.MAX_VALUE, ClprChannelStatus.PAUSED.getNumber(), Direction.ASC, 10);
 
         // then
         assertThat(ids(actual)).containsExactly(paused.getChannelId());
@@ -216,10 +222,8 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         persistHistory(channelId, ClprChannelStatus.ACTIVE, Range.closedOpen(100L, 200L));
         final var current = persistChannel(channelId, 100L, ClprChannelStatus.PAUSED, Range.atLeast(200L));
 
-        final var pageable = PageRequest.of(0, 10, Sort.by(Direction.ASC, CREATED_TIMESTAMP));
-
         // when
-        final var actual = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, pageable);
+        final var actual = repository.findAllByCreatedTimestampBetween(0L, Long.MAX_VALUE, null, Direction.ASC, 10);
 
         // then
         assertThat(ids(actual)).containsExactly(current.getChannelId());
@@ -227,25 +231,22 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
     @ParameterizedTest
     @EnumSource(Direction.class)
-    void findByCreatedTimestampBetweenRespectsOrderLimitAndPagination(Direction order) {
+    void findByCreatedTimestampBetweenRespectsOrderAndLimit(Direction order) {
         // given
         final var channel1 = persistChannel(100L, ClprChannelStatus.ACTIVE);
         final var channel2 = persistChannel(200L, ClprChannelStatus.ACTIVE);
         final var channel3 = persistChannel(300L, ClprChannelStatus.ACTIVE);
         final var channel4 = persistChannel(400L, ClprChannelStatus.ACTIVE);
 
-        final var sort = Sort.by(order, CREATED_TIMESTAMP);
         final var all = order.isAscending()
                 ? List.of(channel1, channel2, channel3, channel4)
                 : List.of(channel4, channel3, channel2, channel1);
 
         // when
-        final var page0 = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, PageRequest.of(0, LIMIT, sort));
-        final var page1 = repository.findByCreatedTimestampBetween(0L, Long.MAX_VALUE, PageRequest.of(1, LIMIT, sort));
+        final var actual = repository.findAllByCreatedTimestampBetween(0L, Long.MAX_VALUE, null, order, LIMIT);
 
         // then
-        assertThat(ids(page0)).containsExactlyElementsOf(channelIds(all.subList(0, LIMIT)));
-        assertThat(ids(page1)).containsExactlyElementsOf(channelIds(all.subList(LIMIT, all.size())));
+        assertThat(ids(actual)).containsExactlyElementsOf(channelIds(all.subList(0, LIMIT)));
     }
 
     @ParameterizedTest
@@ -260,10 +261,10 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
         final var expected =
                 order.isAscending() ? List.of(pending1, pending2, pending3) : List.of(pending3, pending2, pending1);
-        final var pageable = PageRequest.of(0, 10, Sort.by(order, CREATED_TIMESTAMP));
 
         // when
-        final var actual = repository.findPendingByCreatedTimestampBetween(200L, 400L, pageable);
+        final var actual = repository.findAllByCreatedTimestampBetween(
+                200L, 400L, ClprChannelStatus.PENDING.getNumber(), order, 10);
 
         // then
         assertThat(actual)
@@ -288,10 +289,10 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
         final var open2 = persistPending(400L, ClprPendingCommitmentStatus.OPEN);
 
         final var expected = order.isAscending() ? List.of(open1, open2) : List.of(open2, open1);
-        final var pageable = PageRequest.of(0, 10, Sort.by(order, CREATED_TIMESTAMP));
 
         // when
-        final var actual = repository.findPendingByCreatedTimestampBetween(0L, Long.MAX_VALUE, pageable);
+        final var actual = repository.findAllByCreatedTimestampBetween(
+                0L, Long.MAX_VALUE, ClprChannelStatus.PENDING.getNumber(), order, 10);
 
         // then
         assertThat(actual)
@@ -303,14 +304,13 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
 
     @ParameterizedTest
     @EnumSource(Direction.class)
-    void findPendingByCreatedTimestampBetweenRespectsOrderLimitAndPagination(Direction order) {
+    void findPendingByCreatedTimestampBetweenRespectsOrderAndLimit(Direction order) {
         // given
         final var pending1 = persistPending(100L, ClprPendingCommitmentStatus.OPEN);
         final var pending2 = persistPending(200L, ClprPendingCommitmentStatus.OPEN);
         final var pending3 = persistPending(300L, ClprPendingCommitmentStatus.OPEN);
         final var pending4 = persistPending(400L, ClprPendingCommitmentStatus.OPEN);
 
-        final var sort = Sort.by(order, CREATED_TIMESTAMP);
         final var all = order.isAscending()
                 ? List.of(pending1, pending2, pending3, pending4)
                 : List.of(pending4, pending3, pending2, pending1);
@@ -319,18 +319,13 @@ final class ClprChannelRepositoryTest extends RestJavaIntegrationTest {
                 .toList();
 
         // when
-        final var page0 =
-                repository.findPendingByCreatedTimestampBetween(0L, Long.MAX_VALUE, PageRequest.of(0, LIMIT, sort));
-        final var page1 =
-                repository.findPendingByCreatedTimestampBetween(0L, Long.MAX_VALUE, PageRequest.of(1, LIMIT, sort));
+        final var actual = repository.findAllByCreatedTimestampBetween(
+                0L, Long.MAX_VALUE, ClprChannelStatus.PENDING.getNumber(), order, LIMIT);
 
         // then
-        assertThat(page0)
+        assertThat(actual)
                 .extracting(ClprChannelDto::ownershipCommitment)
                 .containsExactlyElementsOf(commitments.subList(0, LIMIT));
-        assertThat(page1)
-                .extracting(ClprChannelDto::ownershipCommitment)
-                .containsExactlyElementsOf(commitments.subList(LIMIT, commitments.size()));
     }
 
     private static List<byte[]> channelIds(List<ClprChannel> channels) {

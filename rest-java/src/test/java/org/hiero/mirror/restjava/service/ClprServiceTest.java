@@ -18,21 +18,16 @@ import org.hiero.mirror.rest.model.ClprChannelStatus;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
-import org.hiero.mirror.restjava.mapper.ClprChannelMapperImpl;
-import org.hiero.mirror.restjava.mapper.CommonMapperImpl;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 
 final class ClprServiceTest {
 
     private static final byte[] CHANNEL_ID = new byte[] {1, 2, 3};
-    private static final String CREATED_TIMESTAMP = "createdTimestamp";
 
     private ClprChannelRepository channelRepository;
     private ClprService service;
@@ -40,51 +35,36 @@ final class ClprServiceTest {
     @BeforeEach
     void setup() {
         channelRepository = mock(ClprChannelRepository.class);
-        final var channelMapper = new ClprChannelMapperImpl(new CommonMapperImpl());
-        service = new ClprServiceImpl(channelMapper, channelRepository);
+        service = new ClprServiceImpl(channelRepository);
     }
 
     @Test
-    void getChannelsByIdWithoutTimestamp() {
-        // given
-        final var channel = channel(ACTIVE_VALUE);
-        when(channelRepository.findByChannelId(CHANNEL_ID)).thenReturn(channel);
+    void getChannelsById() {
+        // given: without a timestamp the bounds are open, so this is the current state
+        when(channelRepository.findByChannelIdAndTimestampBetween(CHANNEL_ID, 0L, Long.MAX_VALUE, null))
+                .thenReturn(List.of(channel(ACTIVE_VALUE)));
         final var request = ClprChannelsRequest.builder().channelId(CHANNEL_ID).build();
 
         // when / then
         assertThat(service.getChannels(request)).singleElement().satisfies(c -> {
-            assertThat(c.getChannelId()).isEqualTo("0x010203");
-            assertThat(c.getStatus()).isEqualTo(ClprChannelStatus.ACTIVE);
+            assertThat(c.channelId()).isEqualTo(CHANNEL_ID);
+            assertThat(c.status()).isEqualTo(ACTIVE_VALUE);
         });
     }
 
     @Test
-    void getChannelsByIdWithoutTimestampFiltersByStatus() {
+    void getChannelsByIdWithStatus() {
         // given
-        when(channelRepository.findByChannelId(CHANNEL_ID)).thenReturn(channel(ACTIVE_VALUE));
+        final var request = ClprChannelsRequest.builder()
+                .channelId(CHANNEL_ID)
+                .status(ClprChannelStatus.ACTIVE)
+                .build();
 
-        // when / then
-        assertThat(service.getChannels(ClprChannelsRequest.builder()
-                        .channelId(CHANNEL_ID)
-                        .status(ClprChannelStatus.ACTIVE)
-                        .build()))
-                .hasSize(1);
-        assertThat(service.getChannels(ClprChannelsRequest.builder()
-                        .channelId(CHANNEL_ID)
-                        .status(ClprChannelStatus.PAUSED)
-                        .build()))
-                .isEmpty();
-    }
+        // when
+        service.getChannels(request);
 
-    @Test
-    void getChannelsByIdNotFound() {
-        // given
-        when(channelRepository.findByChannelId(CHANNEL_ID)).thenReturn(null);
-
-        // when / then
-        assertThat(service.getChannels(
-                        ClprChannelsRequest.builder().channelId(CHANNEL_ID).build()))
-                .isEmpty();
+        // then
+        verify(channelRepository).findByChannelIdAndTimestampBetween(CHANNEL_ID, 0L, Long.MAX_VALUE, ACTIVE_VALUE);
     }
 
     @Test
@@ -100,7 +80,7 @@ final class ClprServiceTest {
         // when / then
         assertThat(service.getChannels(request))
                 .singleElement()
-                .satisfies(c -> assertThat(c.getStatus()).isEqualTo(ClprChannelStatus.PAUSED));
+                .satisfies(c -> assertThat(c.status()).isEqualTo(PAUSED_VALUE));
     }
 
     @Test
@@ -122,18 +102,17 @@ final class ClprServiceTest {
     @Test
     void getChannelsList() {
         // given
-        final var page = PageRequest.of(0, 25, Sort.by(Direction.DESC, CREATED_TIMESTAMP));
         final var items = List.of(
                 item(CHANNEL_ID, 3_000L, ACTIVE_VALUE),
                 item(null, 2_000L, PENDING_VALUE),
                 item(new byte[] {9, 9}, 1_000L, CLOSED_VALUE));
-        when(channelRepository.findAllChannelsByCreatedTimestampBetween(0L, Long.MAX_VALUE, page))
+        when(channelRepository.findAllByCreatedTimestampBetween(0L, Long.MAX_VALUE, null, Direction.DESC, 25))
                 .thenReturn(items);
 
         // when / then
         assertThat(service.getChannels(ClprChannelsRequest.builder().build()))
-                .extracting(c -> c.getStatus())
-                .containsExactly(ClprChannelStatus.ACTIVE, ClprChannelStatus.PENDING, ClprChannelStatus.CLOSED);
+                .extracting(ClprChannelDto::status)
+                .containsExactly(ACTIVE_VALUE, PENDING_VALUE, CLOSED_VALUE);
     }
 
     @Test
@@ -150,9 +129,24 @@ final class ClprServiceTest {
         service.getChannels(request);
 
         // then
-        verify(channelRepository)
-                .findByStatusAndCreatedTimestampBetween(
-                        CLOSED_VALUE, 101L, 199L, PageRequest.of(0, 10, Sort.by(Direction.ASC, CREATED_TIMESTAMP)));
+        verify(channelRepository).findAllByCreatedTimestampBetween(101L, 199L, CLOSED_VALUE, Direction.ASC, 10);
+    }
+
+    @Test
+    void getChannelsListPending() {
+        // given
+        final var request = ClprChannelsRequest.builder()
+                .limit(5)
+                .order(Direction.ASC)
+                .status(ClprChannelStatus.PENDING)
+                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 200L)))
+                .build();
+
+        // when
+        service.getChannels(request);
+
+        // then
+        verify(channelRepository).findAllByCreatedTimestampBetween(100L, 200L, PENDING_VALUE, Direction.ASC, 5);
     }
 
     @Test
@@ -189,44 +183,6 @@ final class ClprServiceTest {
         // when / then
         assertThatThrownBy(() -> service.getChannels(request)).isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(channelRepository);
-    }
-
-    @Test
-    void getChannelsPending() {
-        // given
-        final var pending = item(null, 1_000_000_000L, PENDING_VALUE, new byte[] {(byte) 0xab, (byte) 0xcd});
-        final var page = PageRequest.of(0, 25, Sort.by(Direction.DESC, CREATED_TIMESTAMP));
-        when(channelRepository.findPendingByCreatedTimestampBetween(0L, Long.MAX_VALUE, page))
-                .thenReturn(List.of(pending));
-        final var request =
-                ClprChannelsRequest.builder().status(ClprChannelStatus.PENDING).build();
-
-        // when / then
-        assertThat(service.getChannels(request)).singleElement().satisfies(c -> {
-            assertThat(c.getStatus()).isEqualTo(ClprChannelStatus.PENDING);
-            assertThat(c.getOwnershipCommitment()).isEqualTo("0xabcd");
-            assertThat(c.getCreatedTimestamp()).isEqualTo("1.000000000");
-            assertThat(c.getChannelId()).isNull();
-        });
-    }
-
-    @Test
-    void getChannelsPendingWithBoundsOrderAndLimit() {
-        // given
-        final var request = ClprChannelsRequest.builder()
-                .limit(5)
-                .order(Direction.ASC)
-                .status(ClprChannelStatus.PENDING)
-                .timestamp(timestamp(param(RangeOperator.GTE, 100L), param(RangeOperator.LTE, 200L)))
-                .build();
-
-        // when
-        service.getChannels(request);
-
-        // then
-        verify(channelRepository)
-                .findPendingByCreatedTimestampBetween(
-                        100L, 200L, PageRequest.of(0, 5, Sort.by(Direction.ASC, CREATED_TIMESTAMP)));
     }
 
     @Test

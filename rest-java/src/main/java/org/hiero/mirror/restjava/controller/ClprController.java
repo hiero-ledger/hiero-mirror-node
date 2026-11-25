@@ -11,10 +11,8 @@ import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
 import com.google.common.collect.ImmutableSortedMap;
 import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-import java.util.HexFormat;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +22,8 @@ import org.hiero.mirror.rest.model.ClprChannelsResponse;
 import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.restjava.common.LinkFactory;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
+import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
+import org.hiero.mirror.restjava.parameter.ClprId;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.hiero.mirror.restjava.service.ClprService;
@@ -44,39 +44,30 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class ClprController {
 
-    private static final String CHANNEL_ID_PATTERN = "^(?i)(eq:)?0x[0-9a-f]{64}$";
-    private static final String EQ_PREFIX = "eq:";
     private static final Function<ClprChannel, Map<String, String>> EXTRACTOR =
             channel -> ImmutableSortedMap.of(TIMESTAMP, channel.getCreatedTimestamp());
-    private static final String STATUS_PATTERN = "^(?i)(eq:)?(PENDING|ACTIVE|PAUSED|CLOSING|DRAINED|CLOSED)$";
 
+    private final ClprChannelMapper clprChannelMapper;
     private final ClprService clprService;
     private final LinkFactory linkFactory;
 
     @GetMapping("/channels")
     ResponseEntity<ClprChannelsResponse> getChannels(
-            @RequestParam(name = CHANNEL_ID, required = false) @Nullable @Pattern(regexp = CHANNEL_ID_PATTERN)
-                    String channelId,
+            @RequestParam(name = CHANNEL_ID, required = false) @Nullable ClprId channelId,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
             @RequestParam(defaultValue = "desc") Direction order,
-            @RequestParam(name = STATUS, required = false) @Nullable @Pattern(regexp = STATUS_PATTERN) String status,
+            @RequestParam(name = STATUS, required = false) @Nullable ClprChannelStatus status,
             @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
                     TimestampParameter[] timestamps) {
         final var request = ClprChannelsRequest.builder()
-                .channelId(
-                        channelId != null
-                                ? HexFormat.of().parseHex(stripEq(channelId).substring(2))
-                                : null)
+                .channelId(channelId != null ? channelId.bytes() : null)
                 .limit(limit)
                 .order(order)
-                .status(
-                        status != null
-                                ? ClprChannelStatus.fromValue(stripEq(status).toUpperCase())
-                                : null)
+                .status(status)
                 .timestamp(getTimestampBound(channelId != null, timestamps))
                 .build();
 
-        final var channels = clprService.getChannels(request);
+        final var channels = clprChannelMapper.map(clprService.getChannels(request));
 
         // A channel id returns at most one channel, so there is no next page
         final var links = request.getChannelId() != null
@@ -101,11 +92,5 @@ final class ClprController {
         final var bound = new Bound(timestamps, false, TIMESTAMP, null);
         bound.adjustUpperRange();
         return bound;
-    }
-
-    private static String stripEq(String value) {
-        return value.regionMatches(true, 0, EQ_PREFIX, 0, EQ_PREFIX.length())
-                ? value.substring(EQ_PREFIX.length())
-                : value;
     }
 }

@@ -20,17 +20,17 @@ import org.springframework.data.domain.Sort.Direction;
 public class ClprChannelsRequest {
 
     @Nullable
-    byte[] channelId;
+    private final byte[] channelId;
 
     @Builder.Default
-    int limit = Integer.parseInt(DEFAULT_LIMIT);
+    private final int limit = Integer.parseInt(DEFAULT_LIMIT);
 
     @Builder.Default
-    Direction order = Direction.DESC;
+    private final Direction order = Direction.DESC;
 
     @Nullable
-    ClprChannelStatus status;
+    private final ClprChannelStatus status;
 
     @Builder.Default
-    Bound timestamp = Bound.EMPTY;
+    private final Bound timestamp = Bound.EMPTY;
 }

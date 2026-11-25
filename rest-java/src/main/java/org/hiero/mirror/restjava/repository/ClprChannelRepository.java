@@ -6,7 +6,7 @@ import java.util.List;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.jspecify.annotations.Nullable;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 
@@ -97,13 +97,13 @@ public interface ClprChannelRepository extends Repository<ClprChannel, byte[]> {
             """;
 
     /**
-     * Returns channels together with open pending channel commitments, ordered by {@code created_timestamp}, which is
-     * unique across both since they come from different transactions. Every column of both tables is selected; the
-     * ones a table doesn't have are null, so a pending commitment has a null {@code channel_id} and a
-     * {@code PENDING} status. The {@code 'OPEN'} literal is deliberate so the partial index on the pending table can
-     * be used. Spring Data sorts and limits the outer query.
+     * Channels together with open pending channel commitments, which come from different transactions, so
+     * {@code created_timestamp} is unique across both. Every column of both tables is selected; the ones a table
+     * doesn't have are null, so a pending commitment has a null {@code channel_id} and a {@code PENDING} status, which
+     * is what makes {@code status = PENDING} select only pending commitments. The {@code 'OPEN'} literal is deliberate
+     * so the partial index on the pending table can be used.
      */
-    @Query(value = """
+    String SELECT_ALL_CHANNELS = """
             select * from (
                 select
             """ + CHANNEL_COLUMNS + """
@@ -118,18 +118,8 @@ public interface ClprChannelRepository extends Repository<ClprChannel, byte[]> {
                 and created_timestamp >= :lowerBound
                 and created_timestamp <= :upperBound
             ) as u
-            """, nativeQuery = true)
-    List<ClprChannelDto> findAllChannelsByCreatedTimestampBetween(long lowerBound, long upperBound, Pageable pageable);
-
-    /** Returns the channel's current state, or null if there is none. */
-    @Query(value = """
-            select
-            """ + CHANNEL_COLUMNS + """
-            from clpr_channel
-            where channel_id = :channelId
-            """, nativeQuery = true)
-    @Nullable
-    ClprChannelDto findByChannelId(byte[] channelId);
+            where cast(:status as integer) is null or u.status = cast(:status as integer)
+            """;
 
     /**
      * Returns the channel's state as of the given bounds, from the current or the history table: the latest version
@@ -164,44 +154,16 @@ public interface ClprChannelRepository extends Repository<ClprChannel, byte[]> {
     List<ClprChannelDto> findByChannelIdAndTimestampBetween(
             byte[] channelId, long lowerBound, long upperBound, @Nullable Integer status);
 
-    @Query(value = """
-            select
-            """ + CHANNEL_COLUMNS + """
-            from clpr_channel
-            where created_timestamp >= :lowerBound
-            and created_timestamp <= :upperBound
-            """, nativeQuery = true)
-    List<ClprChannelDto> findByCreatedTimestampBetween(long lowerBound, long upperBound, Pageable pageable);
+    @Query(value = SELECT_ALL_CHANNELS + "order by u.createdTimestamp asc limit :limit", nativeQuery = true)
+    List<ClprChannelDto> findAllAsc(long lowerBound, long upperBound, @Nullable Integer status, int limit);
 
-    /**
-     * Same as {@link #findByCreatedTimestampBetween} but filtered by status. It's a separate query, instead of an
-     * optional status parameter, so the planner can use the {@code (status, created_timestamp)} index even with a
-     * generic plan, which an {@code :status is null or ...} predicate prevents.
-     */
-    @Query(value = """
-            select
-            """ + CHANNEL_COLUMNS + """
-            from clpr_channel
-            where status = :status
-            and created_timestamp >= :lowerBound
-            and created_timestamp <= :upperBound
-            """, nativeQuery = true)
-    List<ClprChannelDto> findByStatusAndCreatedTimestampBetween(
-            int status, long lowerBound, long upperBound, Pageable pageable);
+    @Query(value = SELECT_ALL_CHANNELS + "order by u.createdTimestamp desc limit :limit", nativeQuery = true)
+    List<ClprChannelDto> findAllDesc(long lowerBound, long upperBound, @Nullable Integer status, int limit);
 
-    /**
-     * Returns the open pending channel commitments, which are the ones not yet completed or abandoned. The
-     * {@code 'OPEN'} literal is deliberate: a bind parameter may not match the predicate of the partial index
-     * {@code clpr_channel_pending_commitment__created_timestamp}, which is defined {@code where status = 'OPEN'}. The
-     * table isn't distributed in {@code v2}.
-     */
-    @Query(value = """
-            select
-            """ + PENDING_COLUMNS + """
-            from clpr_channel_pending_commitment
-            where status = 'OPEN'
-            and created_timestamp >= :lowerBound
-            and created_timestamp <= :upperBound
-            """, nativeQuery = true)
-    List<ClprChannelDto> findPendingByCreatedTimestampBetween(long lowerBound, long upperBound, Pageable pageable);
+    default List<ClprChannelDto> findAllByCreatedTimestampBetween(
+            long lowerBound, long upperBound, @Nullable Integer status, Direction order, int limit) {
+        return order.isAscending()
+                ? findAllAsc(lowerBound, upperBound, status, limit)
+                : findAllDesc(lowerBound, upperBound, status, limit);
+    }
 }

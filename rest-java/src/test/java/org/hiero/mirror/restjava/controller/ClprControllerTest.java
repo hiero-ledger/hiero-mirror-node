@@ -89,11 +89,8 @@ final class ClprControllerTest extends ControllerTest {
             final var active2 = persistChannel(300L, ClprChannelStatus.ACTIVE);
 
             // when
-            final var actual = restClient
-                    .get()
-                    .uri("?status=eq:ACTIVE&order=asc")
-                    .retrieve()
-                    .body(ClprChannelsResponse.class);
+            final var actual =
+                    restClient.get().uri("?status=ACTIVE&order=asc").retrieve().body(ClprChannelsResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -178,7 +175,7 @@ final class ClprControllerTest extends ControllerTest {
             // when
             final var actual = restClient
                     .get()
-                    .uri("?channel.id={id}", "eq:" + hex(channel.getChannelId()))
+                    .uri("?channel.id={id}", hex(channel.getChannelId()))
                     .retrieve()
                     .toEntity(ClprChannelsResponse.class);
 
@@ -249,7 +246,7 @@ final class ClprControllerTest extends ControllerTest {
 
             // when
             final var actual =
-                    restClient.get().uri("?status=eq:PENDING").retrieve().body(ClprChannelsResponse.class);
+                    restClient.get().uri("?status=PENDING").retrieve().body(ClprChannelsResponse.class);
 
             // then
             assertThat(actual).isNotNull();
@@ -281,8 +278,10 @@ final class ClprControllerTest extends ControllerTest {
         @ValueSource(
                 strings = {
                     "channel.id=0x1234",
+                    "channel.id=eq:0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809",
                     "channel.id=gt:0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809",
-                    "status=eq:UNKNOWN",
+                    "status=UNKNOWN",
+                    "status=eq:ACTIVE",
                     "status=ne:ACTIVE",
                     "limit=0",
                     "limit=101",

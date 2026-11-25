@@ -2456,57 +2456,78 @@ components:
           example: "eip155:1"
         channel_context:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: Verifier-derived context bytes for the channel
         channel_id:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: The channel id. Null for a pending commitment that has not been completed
         config_proof_bytes:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: The proof of the peer ledger configuration supplied when the channel was opened
         created_timestamp:
           $ref: "#/components/schemas/Timestamp"
+          description: The consensus timestamp when the channel or pending commitment was created
         endpoint_manifest:
           $ref: "#/components/schemas/ClprChannelEndpointManifest"
+          description: The peer ledger endpoint manifest
         endpoint_manifest_proof_bytes:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: The proof of the endpoint manifest supplied when the channel was opened
         endpoint_manifest_version:
           format: int64
           type: [integer, "null"]
         last_config_timestamp:
           $ref: "#/components/schemas/TimestampNullable"
+          description: The consensus timestamp of the last configuration update
         next_message_id:
           description: The id the next outbound message will use
           format: int64
           type: [integer, "null"]
         ownership_commitment:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: The ownership commitment, keccak256(channel_id, public_key)
         peer_config_timestamp:
           $ref: "#/components/schemas/TimestampNullable"
+          description: The timestamp of the peer ledger configuration last applied to the channel
         peer_throttles:
           $ref: "#/components/schemas/ClprPeerThrottles"
+          description: The throttle limits advertised by the peer ledger
         public_key:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: The public key of the channel owner
         received_message_id:
           description: The highest message id received from the peer ledger
           format: int64
           type: [integer, "null"]
         received_running_hash:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: The running hash of the messages received from the peer ledger
         sent_running_hash:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: The running hash of the messages sent to the peer ledger
         signature:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: The ownership signature
         signature_scheme:
           $ref: "#/components/schemas/ClprSignatureScheme"
+          description: The signature scheme of the ownership signature
         status:
           $ref: "#/components/schemas/ClprChannelStatus"
+          description: The channel status
         timestamp:
           $ref: "#/components/schemas/TimestampRangeNullable"
+          description: The consensus timestamp range during which this channel state was valid
         trust_anchor:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: The trust anchor of the peer ledger
         trust_anchor_id:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: The identifier of the trust anchor
         verifier_contract_id:
           $ref: "#/components/schemas/EntityId"
+          description: The id of the verifier contract
         verifier_fingerprint:
           $ref: "#/components/schemas/ClprHexBytes"
+          description: The fingerprint of the verifier
       example:
         acked_message_id: 47
         chain_id: "eip155:1"
@@ -2580,6 +2601,7 @@ components:
     ClprHexBytes:
       description: Hex encoded bytes with a 0x prefix
       type: [string, "null"]
+      format: binary
       pattern: "^0x[0-9a-fA-F]*$"
       example: "0x1a2b3c"
     ClprPeerThrottles:
@@ -5336,32 +5358,32 @@ components:
           value: lte:2
     clprChannelIdQueryParam:
       name: channel.id
-      description: The 32 byte channel id as 0x prefixed hex. Only the `eq` operator is supported.
+      description: The 32 byte channel id as 0x prefixed hex.
       in: query
       schema:
         type: string
-        pattern: ^((eq):)?0x[0-9a-fA-F]{64}$
+        pattern: ^0x[0-9a-fA-F]{64}$
       examples:
         noValue:
           summary: --
           value: ""
-        eqOperator:
-          summary: Example of channel.id equals operator
-          value: eq:0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809
+        channelId:
+          summary: Example of a channel id
+          value: 0x1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809
     clprChannelStatusQueryParam:
       name: status
-      description: Filter by channel status. Only the `eq` operator is supported.
+      description: Filter by channel status.
       in: query
       schema:
         type: string
-        pattern: ^((eq):)?(PENDING|ACTIVE|PAUSED|CLOSING|DRAINED|CLOSED)$
+        pattern: ^(PENDING|ACTIVE|PAUSED|CLOSING|DRAINED|CLOSED)$
       examples:
         noValue:
           summary: --
           value: ""
         active:
-          summary: Example of status equals operator
-          value: eq:ACTIVE
+          summary: Example of a status
+          value: ACTIVE
     limitQueryParam:
       name: limit
       in: query
