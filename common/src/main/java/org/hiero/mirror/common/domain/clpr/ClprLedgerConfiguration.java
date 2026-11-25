@@ -28,6 +28,10 @@ public class ClprLedgerConfiguration implements Persistable<Long> {
 
     private String chainId;
 
+    // The timestamp embedded in the CN configuration, in nanos. Genesis and schema migrations can retain
+    // a timestamp different from the consensus timestamp of the transaction externalizing the state.
+    private Long configurationTimestamp;
+
     @Id
     private long consensusTimestamp;
 

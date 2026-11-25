@@ -91,6 +91,8 @@ create index if not exists clpr_connector_history__timestamp_range
 
 create table if not exists clpr_ledger_configuration
 (
+    -- Source configuration timestamp (not the consensus timestamp of the externalizing transaction).
+    configuration_timestamp     bigint,
     consensus_timestamp         bigint      not null,
     max_gas_per_message         bigint,
     max_local_endpoints         bigint,

@@ -389,7 +389,9 @@ public final class RecordItemBuilder {
     public Builder<ClprMaintenanceTransactionBody.Builder> clprMaintenanceLedgerConfiguration() {
         final var builder =
                 ClprMaintenanceTransactionBody.newBuilder().setReason(ClprMaintenanceReason.GENESIS_INITIALIZATION);
-        final var configuration = clprLedgerConfigurationValue();
+        final var configuration = clprLedgerConfigurationValue().toBuilder()
+                .setTimestamp(Timestamp.newBuilder().setSeconds(1L))
+                .build();
         return new Builder<>(TransactionType.CLPRMAINTENANCE, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
@@ -405,7 +407,9 @@ public final class RecordItemBuilder {
         final var builder =
                 ClprMaintenanceTransactionBody.newBuilder().setReason(ClprMaintenanceReason.GENESIS_INITIALIZATION);
         final var manifest = clprEndpointManifestValue();
-        final var configuration = clprLedgerConfigurationValue();
+        final var configuration = clprLedgerConfigurationValue().toBuilder()
+                .setTimestamp(Timestamp.newBuilder().setSeconds(1L))
+                .build();
         return new Builder<>(TransactionType.CLPRMAINTENANCE, builder)
                 .recordItem(r -> r.clprContextBuilder()
                         .clprEndpointManifestUpdate(SingletonUpdateChange.newBuilder()

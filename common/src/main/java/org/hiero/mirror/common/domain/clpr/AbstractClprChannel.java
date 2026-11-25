@@ -42,6 +42,9 @@ public abstract class AbstractClprChannel implements History {
     @Column(updatable = false)
     private String chainId;
 
+    // CN encodes the channel ID (32 bytes) followed by the peer service address. The CLPR verifier
+    // specification requires the cached manifest's service address to match this address, so we do
+    // not store endpoint_manifest.service_address separately.
     @Column(updatable = false)
     private byte[] channelContext;
 

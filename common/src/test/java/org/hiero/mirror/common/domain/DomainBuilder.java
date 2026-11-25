@@ -442,6 +442,7 @@ public class DomainBuilder {
             clprLedgerConfiguration() {
         var builder = ClprLedgerConfiguration.builder()
                 .chainId("hedera:mainnet")
+                .configurationTimestamp(timestamp())
                 .consensusTimestamp(timestamp())
                 .initialTrustAnchor(bytes(32))
                 .initialTrustAnchorId(bytes(32))

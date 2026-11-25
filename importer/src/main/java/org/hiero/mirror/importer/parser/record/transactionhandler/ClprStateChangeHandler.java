@@ -37,6 +37,7 @@ import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_LEDGER
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_LEDGER_CONFIGURATION_PROTOCOL_VERSION;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_LEDGER_CONFIGURATION_SERVICE_ADDRESS;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_LEDGER_CONFIGURATION_THROTTLES;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_LEDGER_CONFIGURATION_TIMESTAMP;
 
 import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
@@ -455,9 +456,14 @@ public final class ClprStateChangeHandler {
     private @Nullable ClprLedgerConfiguration toLedgerConfiguration(
             SingletonUpdateChange update, long consensusTimestamp) {
         final var value = update.getClprLedgerConfigurationValue();
+        // Keep the source timestamp distinct from the local transaction timestamp; do not synthesize one
+        // if CN omits or explicitly clears it.
+        final var configurationTimestamp =
+                value.hasTimestamp() ? DomainUtils.timestampInNanosMax(value.getTimestamp()) : null;
         if (!update.getPartial()) {
             return ClprLedgerConfiguration.builder()
                     .chainId(value.getChainId())
+                    .configurationTimestamp(configurationTimestamp)
                     .consensusTimestamp(consensusTimestamp)
                     .initialTrustAnchor(DomainUtils.toBytes(value.getInitialTrustAnchor()))
                     .initialTrustAnchorId(DomainUtils.toBytes(value.getInitialTrustAnchorId()))
@@ -480,6 +486,10 @@ public final class ClprStateChangeHandler {
                         CLPR_LEDGER_CONFIGURATION_CHAIN_ID.isPresent(update, value)
                                 ? value.getChainId()
                                 : baseline.getChainId())
+                .configurationTimestamp(
+                        CLPR_LEDGER_CONFIGURATION_TIMESTAMP.isPresent(update, value)
+                                ? configurationTimestamp
+                                : baseline.getConfigurationTimestamp())
                 .consensusTimestamp(consensusTimestamp)
                 .initialTrustAnchor(
                         CLPR_LEDGER_CONFIGURATION_INITIAL_TRUST_ANCHOR.isPresent(update, value)

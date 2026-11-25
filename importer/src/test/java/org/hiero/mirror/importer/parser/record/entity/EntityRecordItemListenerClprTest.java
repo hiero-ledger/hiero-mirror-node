@@ -675,6 +675,7 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
                 .isNotNull()
                 .returns(recordItem.getConsensusTimestamp(), ClprLedgerConfiguration::getConsensusTimestamp)
                 .returns(configValue.getChainId(), ClprLedgerConfiguration::getChainId)
+                .returns(1_000_000_000L, ClprLedgerConfiguration::getConfigurationTimestamp)
                 .returns(
                         Integer.toUnsignedLong(configValue.getProtocolVersion()),
                         ClprLedgerConfiguration::getProtocolVersion);

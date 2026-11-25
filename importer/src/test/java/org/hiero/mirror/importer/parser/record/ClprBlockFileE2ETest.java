@@ -28,6 +28,7 @@ import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
+import com.hedera.hapi.services.auxiliary.clpr.legacy.ClprMaintenanceReason;
 import com.hederahashgraph.api.proto.java.ClprConfigUpdate;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ClprControlMessage;
@@ -44,6 +45,7 @@ import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.nio.charset.StandardCharsets;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -475,17 +477,36 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .setMaxMessagesPerBundle(configuration.getThrottles().getMaxMessagesPerBundle() + 1)
                 .build();
 
+        // A normal configuration update advances the source timestamp to the transaction consensus time.
         // Diffing replaces the entire changed top-level throttles message, not just a nested field.
+        final var sourceTimestamp = recordItemBuilder.timestamp(ChronoUnit.NANOS);
+        final var partialConfiguration = com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.newBuilder()
+                .setThrottles(updatedThrottles)
+                .setTimestamp(sourceTimestamp);
         final var configUpdate = recordItemBuilder
                 .clprUpdateLedgerConfiguration()
                 .transactionBody(
                         b -> b.setConfiguration(configuration.toBuilder().setThrottles(updatedThrottles)))
+                .record(r -> r.setConsensusTimestamp(sourceTimestamp))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
+                                .setPartial(true)
+                                .setClprLedgerConfigurationValue(partialConfiguration)
+                                .build()))
+                .customize(this::finalizeRecordItem)
+                .build();
+
+        // CN migrates legacy chain IDs during upgrade initialization without advancing the configuration timestamp.
+        final var migratedChainId = "eip155:298";
+        final var migration = recordItemBuilder
+                .clprMaintenanceLedgerConfiguration()
+                .transactionBody(b -> b.setReason(ClprMaintenanceReason.UPGRADE_INITIALIZATION))
                 .recordItem(r -> r.clprContextBuilder()
                         .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
                                 .setPartial(true)
                                 .setClprLedgerConfigurationValue(
                                         com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.newBuilder()
-                                                .setThrottles(updatedThrottles))
+                                                .setChainId(migratedChainId))
                                 .build()))
                 .customize(this::finalizeRecordItem)
                 .build();
@@ -509,6 +530,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 List.of(blockTransactionBuilder
                         .clprUpdateLedgerConfiguration(configUpdate)
                         .build()),
+                List.of(blockTransactionBuilder.clprMaintenance(migration).build()),
                 List.of(blockTransactionBuilder.clprMaintenance(manifestUpdate).build())));
 
         // when -- exercise both an uncommitted cached baseline and a committed baseline loaded from the database.
@@ -530,6 +552,14 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                                 configUpdate.getConsensusTimestamp(),
                                 configuration.toBuilder()
                                         .setThrottles(updatedThrottles)
+                                        .setTimestamp(sourceTimestamp)
+                                        .build()),
+                        expectedLedgerConfiguration(
+                                migration.getConsensusTimestamp(),
+                                configuration.toBuilder()
+                                        .setChainId(migratedChainId)
+                                        .setThrottles(updatedThrottles)
+                                        .setTimestamp(sourceTimestamp)
                                         .build()));
         final var endpoint = manifest.getEndpoints(0);
         final var expectedEndpoint = ClprEndpoint.builder()
@@ -1572,6 +1602,10 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         final var throttles = configuration.getThrottles();
         return ClprLedgerConfiguration.builder()
                 .chainId(configuration.getChainId())
+                .configurationTimestamp(
+                        configuration.hasTimestamp()
+                                ? DomainUtils.timestampInNanosMax(configuration.getTimestamp())
+                                : null)
                 .consensusTimestamp(consensusTimestamp)
                 .initialTrustAnchor(DomainUtils.toBytes(configuration.getInitialTrustAnchor()))
                 .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()))

@@ -98,6 +98,8 @@ public class StateFields {
                     v -> !v.getServiceAddress().isEmpty());
     public static final StateField<ClprLedgerConfiguration> CLPR_LEDGER_CONFIGURATION_THROTTLES =
             new StateField<>(ClprLedgerConfiguration.THROTTLES_FIELD_NUMBER, ClprLedgerConfiguration::hasThrottles);
+    public static final StateField<ClprLedgerConfiguration> CLPR_LEDGER_CONFIGURATION_TIMESTAMP =
+            new StateField<>(ClprLedgerConfiguration.TIMESTAMP_FIELD_NUMBER, ClprLedgerConfiguration::hasTimestamp);
     public static final StateField<SlotValue> SLOT_VALUE_VALUE =
             new StateField<>(SlotValue.VALUE_FIELD_NUMBER, v -> !v.getValue().isEmpty());
     public static final StateField<Token> TOKEN_TOTAL_SUPPLY =

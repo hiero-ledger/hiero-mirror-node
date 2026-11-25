@@ -367,11 +367,37 @@ final class ClprStateChangeHandlerTest {
         assertThat(channelCaptor.getValue())
                 .returns(6L, ClprChannel::getNextMessageId)
                 .returns(3L, ClprChannel::getAckedMessageId)
+                .returns(null, ClprChannel::getEndpointManifest)
                 .returns(null, ClprChannel::getEndpointManifestProofTimestamp)
                 .returns(null, ClprChannel::getPeerManifestRecovered)
                 .returns(null, ClprChannel::getStatus)
                 .returns(null, ClprChannel::getTimestampRange);
         assertThat(output.getAll()).doesNotContain("ClprChannel state change unexpectedly clears nullable fields");
+    }
+
+    @Test
+    void processChannelPartialClearedEndpointManifest() {
+        // An explicit clear resets the endpoint list rather than preserving the previous list.
+        mockEmptyClprState();
+        final var channelId = domainBuilder.bytes(32);
+        final var consensusTimestamp = domainBuilder.timestamp();
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+        final var mapUpdate = MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .addClearedFields(com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_FIELD_NUMBER)
+                .setValue(MapChangeValue.newBuilder()
+                        .setClprChannelValue(com.hederahashgraph.api.proto.java.ClprChannel.getDefaultInstance()))
+                .build();
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), mapUpdate)));
+
+        clprStateChangeHandler.process(recordItem);
+
+        final var captor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener).onClprChannel(captor.capture());
+        assertThat(captor.getValue())
+                .returns(List.of(), ClprChannel::getEndpointManifest)
+                .returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
     }
 
     @Test
@@ -1315,6 +1341,7 @@ final class ClprStateChangeHandlerTest {
         mockEmptyClprState();
         final var serviceAddress = domainBuilder.bytes(20);
         final var value = ClprLedgerConfiguration.newBuilder()
+                .setTimestamp(Timestamp.newBuilder().setSeconds(1L))
                 .setChainId("hedera:mainnet")
                 .setProtocolVersion(1)
                 .setServiceAddress(DomainUtils.fromBytes(serviceAddress))
@@ -1332,25 +1359,30 @@ final class ClprStateChangeHandlerTest {
         verify(entityListener).onClprLedgerConfiguration(captor.capture());
         assertThat(captor.getValue())
                 .returns("hedera:mainnet", org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getChainId)
+                .returns(
+                        1_000_000_000L,
+                        org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getConfigurationTimestamp)
                 .returns(1L, org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getProtocolVersion)
                 .returns(serviceAddress, org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getServiceAddress)
                 .returns(null, org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getThrottle);
         verify(clprLedgerConfigurationService).notify(captor.getValue());
     }
 
-    @Test
-    void processLedgerConfigurationPartialMergesWithBaseline() {
-        // given -- only chainId is set on the partial update; everything else carries forward from baseline
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void processLedgerConfigurationPartialMergesWithBaseline(boolean clearTimestamp) {
+        // A chain ID migration preserves the timestamp unless the diff explicitly clears it.
         mockEmptyClprState();
         final var baseline = domainBuilder.clprLedgerConfiguration().get();
         when(clprLedgerConfigurationService.lookup()).thenReturn(baseline);
-        final var value =
-                ClprLedgerConfiguration.newBuilder().setChainId("eip155:1").build();
-        when(clprContext.getClprLedgerConfigurationUpdate())
-                .thenReturn(SingletonUpdateChange.newBuilder()
-                        .setPartial(true)
-                        .setClprLedgerConfigurationValue(value)
-                        .build());
+        final var update = SingletonUpdateChange.newBuilder()
+                .setPartial(true)
+                .setClprLedgerConfigurationValue(
+                        ClprLedgerConfiguration.newBuilder().setChainId("eip155:1"));
+        if (clearTimestamp) {
+            update.addClearedFields(ClprLedgerConfiguration.TIMESTAMP_FIELD_NUMBER);
+        }
+        when(clprContext.getClprLedgerConfigurationUpdate()).thenReturn(update.build());
 
         // when
         clprStateChangeHandler.process(recordItem);
@@ -1360,6 +1392,9 @@ final class ClprStateChangeHandlerTest {
         verify(entityListener).onClprLedgerConfiguration(captor.capture());
         assertThat(captor.getValue())
                 .returns("eip155:1", org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getChainId)
+                .returns(
+                        clearTimestamp ? null : baseline.getConfigurationTimestamp(),
+                        org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getConfigurationTimestamp)
                 .returns(
                         baseline.getProtocolVersion(),
                         org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration::getProtocolVersion)
