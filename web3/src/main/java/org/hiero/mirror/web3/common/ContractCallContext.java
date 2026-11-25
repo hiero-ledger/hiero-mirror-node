@@ -167,6 +167,16 @@ public class ContractCallContext {
         return ++overriddenAccountCount;
     }
 
+    /**
+     * Moves the writes of a finished transaction into the read cache, where the next transaction of the request reads
+     * them as its original state. The transaction executor reads original values, such as the balances its record must
+     * net to zero against, from the readable states, which read the read cache but not the write cache.
+     */
+    public void commit() {
+        writeCache.moveTo(readCache);
+    }
+
+    /** Discards the writes since the last {@link #commit()}. */
     public void reset() {
         writeCache.clear();
     }
@@ -277,6 +287,17 @@ public class ContractCallContext {
                 indexed[stateId] = cache;
             }
             return cache;
+        }
+
+        /** Adds every cache to the same state's cache of {@code target}, then clears this one. */
+        void moveTo(final StateCaches target) {
+            for (int stateId = 0; stateId < INDEXED_STATE_IDS; stateId++) {
+                if (indexed[stateId] != null) {
+                    target.get(stateId).putAll(indexed[stateId]);
+                }
+            }
+            others.forEach((stateId, cache) -> target.get(stateId).putAll(cache));
+            clear();
         }
 
         void remove(final int stateId) {

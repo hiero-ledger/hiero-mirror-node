@@ -2,12 +2,14 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_TRANSACTIONS;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
@@ -32,8 +34,8 @@ public class ActionTraceBundle {
     @JsonSetter(nulls = Nulls.SKIP)
     private List<StateOverride> stateOverrides = List.of();
 
-    @NotEmpty
     @NotNull
+    @Size(min = 1, max = MAX_TRACE_TRANSACTIONS)
     @Valid
     private List<@NotNull @Valid ContractCallRequest> transactions = new ArrayList<>();
 }

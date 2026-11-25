@@ -55,6 +55,40 @@ class ContractCallContextTest {
     }
 
     @Test
+    void commitMovesWritesIntoTheReadCache() {
+        final var context = ContractCallContext.get();
+        final int largeStateId = 10_001;
+        context.getReadCacheState(1).put("read", "database");
+        context.getWriteCacheState(1).put("updated", "value");
+        context.getWriteCacheState(2).put("deleted", null);
+        context.getWriteCacheState(largeStateId).put("updated", "large");
+
+        context.commit();
+
+        assertThat(context.getWriteCacheState(1)).isEmpty();
+        assertThat(context.getWriteCacheState(2)).isEmpty();
+        assertThat(context.getWriteCacheState(largeStateId)).isEmpty();
+        assertThat(context.getReadCacheState(1))
+                .containsEntry("read", "database")
+                .containsEntry("updated", "value");
+        assertThat(context.getReadCacheState(2)).containsEntry("deleted", null);
+        assertThat(context.getReadCacheState(largeStateId)).containsEntry("updated", "large");
+    }
+
+    @Test
+    void resetKeepsCommittedWrites() {
+        final var context = ContractCallContext.get();
+        context.getWriteCacheState(1).put("committed", "value");
+        context.commit();
+        context.getWriteCacheState(1).put("pending", "value");
+
+        context.reset();
+
+        assertThat(context.getWriteCacheState(1)).isEmpty();
+        assertThat(context.getReadCacheState(1)).containsOnlyKeys("committed");
+    }
+
+    @Test
     void cachesAreKeptPerStateId() {
         final var context = ContractCallContext.get();
         final int largeStateId = 10_001;

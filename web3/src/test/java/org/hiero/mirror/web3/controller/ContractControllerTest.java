@@ -130,7 +130,7 @@ final class ContractControllerTest {
     private Web3Properties web3Properties;
 
     @Resource
-    private ActionsProperties actionsProperties;
+    private EvmProperties evmProperties;
 
     @MockitoBean
     private ContractExecutionService service;
@@ -147,7 +147,7 @@ final class ContractControllerTest {
 
     @BeforeEach
     void setUp() {
-        actionsProperties.setTraceMultipleTransactions(true);
+        evmProperties.setTraceMultipleTransactions(true);
         web3Properties.setEnableBlockOverrides(true);
         web3Properties.setEnableStateOverrides(true);
         throttleManager.throttle(any(ContractCallRequest.class));
@@ -156,7 +156,7 @@ final class ContractControllerTest {
 
     @AfterEach
     void tearDown() {
-        actionsProperties.setTraceMultipleTransactions(false);
+        evmProperties.setTraceMultipleTransactions(false);
         setApiEnabled(ACTIONS, false);
         setApiEnabled(CALL, true);
     }
@@ -322,13 +322,13 @@ final class ContractControllerTest {
 
     @Test
     void traceMultipleTransactionsDisabledByDefault() {
-        assertThat(new ActionsProperties().isTraceMultipleTransactions()).isFalse();
+        assertThat(new EvmProperties().isTraceMultipleTransactions()).isFalse();
     }
 
     @Test
     void actionsCallManyNotImplementedForMultipleBundlesWhenDisabled() throws Exception {
         enableActionsApi();
-        actionsProperties.setTraceMultipleTransactions(false);
+        evmProperties.setTraceMultipleTransactions(false);
         clearInvocations(throttleManager);
         final var request = traceRequest();
         transaction(request).setValue(0);
@@ -345,7 +345,7 @@ final class ContractControllerTest {
     @Test
     void actionsCallManyNotImplementedForMultipleTransactionsWhenDisabled() throws Exception {
         enableActionsApi();
-        actionsProperties.setTraceMultipleTransactions(false);
+        evmProperties.setTraceMultipleTransactions(false);
         clearInvocations(throttleManager);
         final var request = traceRequest();
         transaction(request).setValue(0);
@@ -362,7 +362,7 @@ final class ContractControllerTest {
     @Test
     void actionsCallSingleTraceSucceedsWhenTraceCallManyDisabled() throws Exception {
         enableActionsApi();
-        actionsProperties.setTraceMultipleTransactions(false);
+        evmProperties.setTraceMultipleTransactions(false);
         final var request = traceRequest();
         transaction(request).setValue(0);
         given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
@@ -414,7 +414,11 @@ final class ContractControllerTest {
     @Test
     void actionsCallRejectsEmptyList() throws Exception {
         enableActionsApi();
-        contractActionsCall(new ActionTraceRequest()).andExpect(status().isBadRequest());
+        contractActionsCall(new ActionTraceRequest())
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("bundles field size must be between 1 and %d"
+                                .formatted(ContractCallRequest.MAX_TRACE_TRANSACTIONS))));
         verify(contractDebugService, never()).processTraceCall(any(), any());
     }
 
@@ -950,7 +954,7 @@ final class ContractControllerTest {
         contractActionsCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content()
-                        .string(new StringContains("transactions field size must be between 1 and %d"
+                        .string(new StringContains("bundles field size must be between 1 and %d"
                                 .formatted(ContractCallRequest.MAX_TRACE_TRANSACTIONS))));
         verify(contractDebugService, never()).processTraceCall(any(), any());
     }
@@ -968,7 +972,7 @@ final class ContractControllerTest {
         contractActionsCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content()
-                        .string(new StringContains("transactions field size must be between 1 and %d"
+                        .string(new StringContains("bundles[0].transactions field size must be between 1 and %d"
                                 .formatted(ContractCallRequest.MAX_TRACE_TRANSACTIONS))));
         verify(contractDebugService, never()).processTraceCall(any(), any());
     }
@@ -1386,7 +1390,7 @@ final class ContractControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"1", "1aa"})
+    @ValueSource(strings = {"1", "1aa", "0x1aa"})
     void callBadRequestWithInvalidHexData(String data) throws Exception {
         clearInvocations(throttleManager);
         final var request = request();
@@ -1395,7 +1399,7 @@ final class ContractControllerTest {
 
         contractCall(request)
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string(new StringContains("Odd number of characters")));
+                .andExpect(content().string(new StringContains("data field invalid hexadecimal string")));
 
         verify(throttleManager, never()).throttle(any());
         verify(throttleManager, never()).restore(anyLong());
@@ -1837,6 +1841,7 @@ final class ContractControllerTest {
                 "prev_randao      | -1",
                 "prev_randao      | 18446744073709551615",
                 "time             | -1",
+                "time             | 9223372036",
                 "time             | []",
                 "time             | 1.5",
                 "time             | 1e2",
@@ -1992,11 +1997,6 @@ final class ContractControllerTest {
         @Bean
         Web3Properties web3Properties() {
             return new Web3Properties();
-        }
-
-        @Bean
-        ActionsProperties actionsProperties() {
-            return new ActionsProperties();
         }
 
         @Bean

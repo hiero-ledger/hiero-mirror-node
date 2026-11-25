@@ -56,7 +56,6 @@ import org.hiero.mirror.web3.ApiProperties;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
-import org.hiero.mirror.web3.controller.ActionsProperties;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
@@ -80,6 +79,7 @@ import org.hiero.mirror.web3.web3j.generated.EthCall;
 import org.hiero.mirror.web3.web3j.generated.EvmCodes;
 import org.hiero.mirror.web3.web3j.generated.InternalCaller;
 import org.hyperledger.besu.datatypes.Address;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -116,12 +116,6 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     private MirrorNodeState mirrorNodeState;
 
     @Resource
-    private TransactionExecutorFactory transactionExecutorFactory;
-
-    @Resource
-    private ActionsProperties actionsProperties;
-
-    @Resource
     private MockMvc mockMvc;
 
     @Resource
@@ -133,19 +127,16 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
     @BeforeEach
     void setUp() {
-        // Executors are built asynchronously at startup. Wait for them here so the first trace in a fresh context does
-        // not spend its request timeout on that.
-        ContractCallContext.run(_ -> transactionExecutorFactory.get());
         actionsEnabled = actionsApi().isEnabled();
         blockOverridesEnabled = web3Properties.isEnableBlockOverrides();
-        traceMultipleTransactions = actionsProperties.isTraceMultipleTransactions();
+        traceMultipleTransactions = evmProperties.isTraceMultipleTransactions();
     }
 
     @AfterEach
     void tearDown() {
         actionsApi().setEnabled(actionsEnabled);
         web3Properties.setEnableBlockOverrides(blockOverridesEnabled);
-        actionsProperties.setTraceMultipleTransactions(traceMultipleTransactions);
+        evmProperties.setTraceMultipleTransactions(traceMultipleTransactions);
     }
 
     @Test
@@ -814,12 +805,14 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         final var firstInBundle = snapshots.get(0);
         assertThat(firstInBundle.stateOverrides()).containsExactly(stateOverride);
-        assertThat(firstInBundle.readLeaked()).isFalse();
+        assertThat(firstInBundle.readValue()).isNull();
 
+        // The first transaction's write is committed into the read cache, replacing the value it read, and every later
+        // transaction starts with an empty write cache.
         for (final var later : snapshots.subList(1, snapshots.size())) {
             assertThat(later.stateOverrides()).containsExactly(stateOverride);
-            assertThat(later.readLeaked()).isTrue();
-            assertThat(later.writeLeaked()).isTrue();
+            assertThat(later.readValue()).isEqualTo("write");
+            assertThat(later.writeLeaked()).isFalse();
         }
     }
 
@@ -1230,7 +1223,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     private ResultActions actionsCall(final String body) throws Exception {
         actionsApi().setEnabled(true);
         web3Properties.setEnableBlockOverrides(true);
-        actionsProperties.setTraceMultipleTransactions(true);
+        evmProperties.setTraceMultipleTransactions(true);
         return mockMvc.perform(post(ACTIONS_URI)
                 .accept(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
@@ -1282,7 +1275,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .build();
     }
 
-    private record OverrideSnapshot(List<StateOverride> stateOverrides, boolean readLeaked, boolean writeLeaked) {
+    private record OverrideSnapshot(
+            List<StateOverride> stateOverrides, @Nullable Object readValue, boolean writeLeaked) {
 
         private static final String LEAKED_KEY = "previous-trace";
 
@@ -1290,7 +1284,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
             final var overrides = ctx.getStateOverrides();
             return new OverrideSnapshot(
                     overrides == null ? List.of() : List.copyOf(overrides.values()),
-                    ctx.getReadCacheState(1).containsKey(LEAKED_KEY),
+                    ctx.getReadCacheState(1).get(LEAKED_KEY),
                     ctx.getWriteCacheState(1).containsKey(LEAKED_KEY));
         }
     }

@@ -24,7 +24,6 @@ import com.hedera.hapi.node.base.ResponseCodeEnum;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Set;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -61,7 +60,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -179,29 +177,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-        return validationErrorResponse(ex.getAllErrors(), headers, status, request, ex);
-    }
-
-    @Nullable
-    @Override
-    protected ResponseEntity<Object> handleHandlerMethodValidationException(
-            HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-        final var errors = ex.getBeanResults().stream()
-                .flatMap(result -> result.getAllErrors().stream())
-                .toList();
-        if (errors.isEmpty()) {
-            return handleExceptionInternal(ex, null, headers, status, request);
-        }
-        return validationErrorResponse(errors, headers, status, request, ex);
-    }
-
-    private ResponseEntity<Object> validationErrorResponse(
-            final List<? extends ObjectError> errors,
-            final HttpHeaders headers,
-            final HttpStatusCode status,
-            final WebRequest request,
-            final Exception ex) {
-        var messages = errors.stream().map(this::formatErrorMessage).toList();
+        var messages = ex.getAllErrors().stream().map(this::formatErrorMessage).toList();
         request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, ex, SCOPE_REQUEST);
         return new ResponseEntity<>(new GenericErrorResponse(messages), headers, status);
     }

@@ -19,6 +19,10 @@ contract ModificationPrecompileTestContract is HederaTokenService {
 
     uint256 salt = 1234;
 
+    // The token created by createAndStoreFungibleTokenExternal, which the *LastCreatedToken* functions use. Lets
+    // later transactions work with a token whose address is only known after an earlier transaction created it.
+    address public lastCreatedToken;
+
     function deployViaCreate2() public returns (address) {
         NestedContract newContract = new NestedContract{salt: bytes32(salt)}();
 
@@ -119,6 +123,45 @@ contract ModificationPrecompileTestContract is HederaTokenService {
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert();
         }
+    }
+
+    // Creates a fungible token with this contract as its treasury and stores its address in lastCreatedToken.
+    function createAndStoreFungibleTokenExternal(int64 initialTotalSupply) external payable
+    returns (address tokenAddress)
+    {
+        IHederaTokenService.Expiry memory expiry = IHederaTokenService.Expiry(0, address(this), 8000000);
+        IHederaTokenService.HederaToken memory token = IHederaTokenService.HederaToken(
+            "NAME", "SYMBOL", address(this), "memo", true, 1000, false, new IHederaTokenService.TokenKey[](0), expiry
+        );
+
+        int responseCode;
+        (responseCode, tokenAddress) = HederaTokenService.createFungibleToken(token, initialTotalSupply, 0);
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            revert();
+        }
+        lastCreatedToken = tokenAddress;
+    }
+
+    function associateLastCreatedTokenExternal(address account) external returns (int responseCode)
+    {
+        responseCode = HederaTokenService.associateToken(account, lastCreatedToken);
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            revert();
+        }
+    }
+
+    // Transfers from this contract, the treasury of lastCreatedToken.
+    function transferLastCreatedTokenExternal(address receiver, int64 amount) external returns (int responseCode)
+    {
+        responseCode = HederaTokenService.transferToken(lastCreatedToken, address(this), receiver, amount);
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            revert();
+        }
+    }
+
+    function lastCreatedTokenBalanceOf(address account) external view returns (uint256)
+    {
+        return IERC20(lastCreatedToken).balanceOf(account);
     }
 
     function createFungibleTokenWithInheritKeysExternal() external payable returns (address)

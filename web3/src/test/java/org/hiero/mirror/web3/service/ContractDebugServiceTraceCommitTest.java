@@ -17,13 +17,16 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.common.EntityIDPair;
+import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.Token;
 import com.hedera.hapi.node.state.token.TokenRelation;
 import com.hedera.node.app.service.token.TokenService;
+import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableKVState;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
@@ -31,6 +34,8 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.model.TraceCall;
+import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
+import org.hiero.mirror.web3.web3j.generated.EthCall;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.AccountAmount;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TokenTransferList;
@@ -40,10 +45,13 @@ import org.junit.jupiter.api.Test;
 import org.web3j.protocol.core.RemoteFunctionCall;
 
 /**
- * Runs {@code debug_traceCallMany} with six real token contract calls.
- * After each transaction settles, the token and token-relation entries are read back through the writable KV state.
+ * Runs {@code debug_traceCallMany} with real token contract calls. After the transactions settle, the token and
+ * token-relation entries are read back through the writable KV state, which holds what each one committed.
  */
 class ContractDebugServiceTraceCommitTest extends AbstractContractCallServiceOpcodeTracerTest {
+
+    /** Covers the token creation fee charged to the sender. */
+    private static final long CREATE_TOKEN_VALUE = 10_000L * 100_000_000_000L;
 
     private static final long TREASURY_BALANCE = 1_000L;
 
@@ -115,6 +123,107 @@ class ContractDebugServiceTraceCommitTest extends AbstractContractCallServiceOpc
                         snapshot(false, 840L, 160L));
     }
 
+    @Test
+    void traceCallManyRunsACallAfterAnHbarTransferToAnotherAccount() throws Exception {
+        final var contract = testWeb3jService.deploy(EthCall::deploy);
+        final var sender = accountEntityWithSufficientBalancePersist();
+        accountBalanceRecordsPersist(sender);
+        final var payer = Address.fromHexString(getAddressFromEntity(sender));
+        final var receiver = accountEntityPersist();
+        final var value = 1_000L;
+        // The second transaction does not touch the receiver of the first one's hbar. hedera-app checks that its hbar
+        // changes net to zero against the readable state, so the trace must commit the transfer before it runs.
+        final var traceCall = TraceCall.builder()
+                .block(org.hiero.mirror.web3.viewmodel.BlockType.of(
+                        domainBuilder.recordFile().persist().getIndex().toString()))
+                .transactions(List.of(
+                        getContractExecutionParameters(
+                                contract.send_transferHbarsToAddress(
+                                        getAddressFromEntity(receiver), BigInteger.valueOf(value)),
+                                contract,
+                                payer,
+                                value),
+                        getContractExecutionParameters(contract.call_multiplySimpleNumbers(), contract, payer, 0L)))
+                .build();
+
+        ContractCallContext.run(ctx -> {
+            final var actions = contractDebugService.processTraceCall(traceCall, ctx);
+
+            assertThat(actions)
+                    .hasSize(2)
+                    .allSatisfy(action -> assertThat(action.getError()).isNull());
+            assertThat(Bytes.fromHexString(actions.getLast().getOutput()).toUnsignedBigInteger())
+                    .isEqualTo(BigInteger.valueOf(4L));
+            final var receiverId = toAccountId(receiver.toEntityId());
+            final ReadableKVState<AccountID, Account> readable =
+                    state.getReadableStates(TokenService.NAME).get(AccountReadableKVState.STATE_ID);
+            final WritableKVState<AccountID, Account> writable =
+                    state.getWritableStates(TokenService.NAME).get(AccountReadableKVState.STATE_ID);
+            assertThat(readable.get(receiverId)).isNotNull().isEqualTo(writable.get(receiverId));
+            return actions;
+        });
+    }
+
+    @Test
+    void traceCallManyUsesTheTokenAnEarlierTransactionCreated() throws Exception {
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var sender = accountEntityWithSufficientBalancePersist();
+        accountBalanceRecordsPersist(sender);
+        final var payer = Address.fromHexString(getAddressFromEntity(sender));
+        final var receiver = accountEntityPersist();
+        final var receiverAddress = getAddressFromEntity(receiver);
+        final var amount = BigInteger.valueOf(100L);
+
+        // Each transaction after the first works with the token the first one created. Its address exists only in
+        // that transaction's committed state, as the contract storage slot the later transactions read it from.
+        final var transactions = List.of(
+                getContractExecutionParameters(
+                        contract.call_createAndStoreFungibleTokenExternal(BigInteger.valueOf(TREASURY_BALANCE)),
+                        contract,
+                        payer,
+                        CREATE_TOKEN_VALUE),
+                getContractExecutionParameters(
+                        contract.call_associateLastCreatedTokenExternal(receiverAddress), contract, payer, 0L),
+                getContractExecutionParameters(
+                        contract.call_transferLastCreatedTokenExternal(receiverAddress, amount), contract, payer, 0L),
+                getContractExecutionParameters(
+                        contract.call_lastCreatedTokenBalanceOf(receiverAddress), contract, payer, 0L));
+        final var traceCall = TraceCall.builder()
+                .block(org.hiero.mirror.web3.viewmodel.BlockType.of(
+                        domainBuilder.recordFile().persist().getIndex().toString()))
+                .transactions(transactions)
+                .build();
+
+        ContractCallContext.run(ctx -> {
+            final var actions = contractDebugService.processTraceCall(traceCall, ctx);
+
+            assertThat(actions)
+                    .hasSize(4)
+                    .allSatisfy(action -> assertThat(action.getError()).isNull());
+            final var createdToken = Address.wrap(
+                    Bytes.fromHexString(actions.getFirst().getOutput()).slice(12, Address.SIZE));
+            assertThat(createdToken).isNotEqualTo(Address.ZERO);
+            // The last transaction reads the receiver's balance of that token through its ERC-20 redirect.
+            assertThat(Bytes.fromHexString(actions.getLast().getOutput()).toUnsignedBigInteger())
+                    .isEqualTo(amount);
+
+            // The token and both relations exist only in the request's committed state.
+            final var createdTokenId =
+                    toTokenId(entityIdFromEvmAddress(createdToken).getId());
+            final var writable = state.getWritableStates(TokenService.NAME);
+            final WritableKVState<TokenID, Token> tokens = writable.get(TOKENS_STATE_ID);
+            final WritableKVState<EntityIDPair, TokenRelation> relations = writable.get(TOKEN_RELS_STATE_ID);
+            assertThat(tokens.get(createdTokenId)).isNotNull();
+            final var treasury =
+                    toAccountId(entityIdFromEvmAddress(Address.fromHexString(contract.getContractAddress())));
+            assertThat(relationBalance(relations, createdTokenId, treasury))
+                    .isEqualTo(TREASURY_BALANCE - amount.longValue());
+            assertThat(relationBalance(relations, createdTokenId, toAccountId(receiver.toEntityId())))
+                    .isEqualTo(amount.longValue());
+            return actions;
+        });
+    }
+
     private TraceState trace(final ModificationPrecompileTestContract contract, final List<RemoteFunctionCall<?>> calls)
             throws Exception {
         final var parameters = new ArrayList<ContractExecutionParameters>(calls.size());
@@ -146,8 +255,8 @@ class ContractDebugServiceTraceCommitTest extends AbstractContractCallServiceOpc
     }
 
     /**
-     * Reads the request state that later transactions see. Committed transactions write into the request write cache,
-     * which only the writable states read through.
+     * Reads the request state that later transactions see. A transaction writes into the request write cache, and the
+     * trace commits those writes into the read cache, which the readable and writable states both read through.
      */
     private KvSnapshot readState() {
         final var writable = state.getWritableStates(TokenService.NAME);
@@ -159,6 +268,15 @@ class ContractDebugServiceTraceCommitTest extends AbstractContractCallServiceOpc
 
         return new KvSnapshot(
                 token.paused(), balance(relations, treasuryRelation), balance(relations, receiverRelation));
+    }
+
+    private long relationBalance(
+            final WritableKVState<EntityIDPair, TokenRelation> relations,
+            final TokenID token,
+            final AccountID account) {
+        return balance(
+                relations,
+                EntityIDPair.newBuilder().tokenId(token).accountId(account).build());
     }
 
     private long balance(final WritableKVState<EntityIDPair, TokenRelation> relations, final EntityIDPair key) {

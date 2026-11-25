@@ -101,6 +101,13 @@ public class EvmProperties {
 
     private boolean sharedWritableState = false;
 
+    /**
+     * Whether {@code /contracts/call/actions} accepts {@code debug_traceCallMany} requests: more than one bundle, or more
+     * than one transaction in a bundle. When false, such requests are rejected with 501 and only a single bundle with a
+     * single transaction ({@code debug_traceCall}) is accepted.
+     */
+    private boolean traceMultipleTransactions = false;
+
     // Contains the default properties merged with the user defined properties to pass to the consensus node library
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)

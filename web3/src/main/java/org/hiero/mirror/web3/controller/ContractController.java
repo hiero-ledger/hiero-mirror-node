@@ -6,7 +6,6 @@ import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_TRANSACTIONS;
 
 import jakarta.validation.Valid;
@@ -48,7 +47,6 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 class ContractController {
 
-    private final ActionsProperties actionsProperties;
     private final ContractDebugService contractDebugService;
     private final ContractExecutionService contractExecutionService;
     private final EvmProperties evmProperties;
@@ -110,19 +108,12 @@ class ContractController {
             receiver = Address.fromHexString(request.getTo());
         }
 
-        String data;
-        try {
-            data = request.getData() != null ? request.getData() : HEX_PREFIX;
-        } catch (final Exception e) {
-            throw new InvalidParametersException(
-                    "data field '%s' contains invalid odd length characters".formatted(request.getData()));
-        }
-
+        // @Hex already rejects malformed and odd-length data, and a missing one is empty call data.
         final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
         return ContractExecutionParameters.builder()
                 .block(block)
                 .blockOverride(blockOverride)
-                .callData(hexToBytes(data))
+                .callData(hexToBytes(request.getData()))
                 .callType(callType)
                 .gas(request.getGas())
                 .gasPrice(request.getGasPrice())
@@ -214,7 +205,7 @@ class ContractController {
 
     /** More than one bundle, or more than one transaction in a bundle, is a {@code debug_traceCallMany} request. */
     private void validateTraceCallMany(final List<ActionTraceBundle> bundles) {
-        if (actionsProperties.isTraceMultipleTransactions()) {
+        if (evmProperties.isTraceMultipleTransactions()) {
             return;
         }
         if (bundles.size() > 1 || bundles.getFirst().getTransactions().size() > 1) {

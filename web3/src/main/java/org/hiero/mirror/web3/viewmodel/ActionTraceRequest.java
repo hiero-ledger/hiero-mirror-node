@@ -10,7 +10,6 @@ import com.fasterxml.jackson.annotation.Nulls;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
@@ -36,8 +35,8 @@ public class ActionTraceRequest {
     @NotNull
     private BlockType block = BlockType.LATEST;
 
-    @NotEmpty
     @NotNull
+    @Size(min = 1, max = MAX_TRACE_TRANSACTIONS)
     @Valid
     private List<@NotNull @Valid ActionTraceBundle> bundles = new ArrayList<>();
 

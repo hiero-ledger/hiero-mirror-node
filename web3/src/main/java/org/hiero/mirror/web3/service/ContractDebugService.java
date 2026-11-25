@@ -150,9 +150,9 @@ public class ContractDebugService extends ContractCallService {
 
     /**
      * Runs one transaction against the trace's record-file supplier, with the block override of its bundle. The
-     * transaction executor commits a successful transaction's state changes into the request caches of
-     * {@code context}, so later transactions see them. It rolls back the state changes of a failed or reverted
-     * transaction, but keeps its fee charge, as a consensus node does.
+     * transaction executor writes a successful transaction's state changes into the request write cache of
+     * {@code context}. It rolls back the state changes of a failed or reverted transaction, but keeps its fee charge,
+     * as a consensus node does. Committing those writes makes them the state the next transaction starts from.
      */
     private void executeTransaction(
             final ContractCallContext context,
@@ -162,6 +162,7 @@ public class ContractDebugService extends ContractCallService {
         context.setBlockOverride(transaction.getBlockOverride());
         context.setCallServiceParameters(transaction);
         doProcessCall(transaction, transaction.getGas(), false);
+        context.commit();
         if (actionContext.isTimedOut()) {
             throw new TraceTimeoutException(actionContext.getActions());
         }

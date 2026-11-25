@@ -2369,6 +2369,7 @@ components:
           description: Value returned by TIMESTAMP (block.timestamp) in Unix seconds.
           example: 1793619195
           format: int64
+          maximum: 9223372035
           minimum: 0
           type: [integer, "null"]
     AccountBalance:
@@ -3155,7 +3156,7 @@ components:
           example: "0x47f1aae7"
           format: binary
           maxLength: 262146
-          pattern: "^(0x)?[0-9a-fA-F]+$"
+          pattern: "^(0x)?([0-9a-fA-F]{2})+$"
           type: [string, "null"]
         estimate:
           description: Whether gas estimation is called. Defaults to false.
@@ -3222,7 +3223,7 @@ components:
           description: Hex-encoded runtime bytecode override.
           example: "0x6080604052"
           format: binary
-          pattern: "^(0x)?[0-9a-fA-F]*$"
+          pattern: "^(0x)?([0-9a-fA-F]{2})*$"
           type: [string, "null"]
         nonce:
           description: Ethereum nonce override.

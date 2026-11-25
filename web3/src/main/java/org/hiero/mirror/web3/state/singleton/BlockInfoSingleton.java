@@ -34,8 +34,9 @@ final class BlockInfoSingleton implements SingletonState<BlockInfo> {
         final var overrideTimeNanos = blockOverride.timeNanos();
         final var overrideBlockNumber = blockOverride.blockNumber();
         final long startNanos = overrideTimeNanos != null ? overrideTimeNanos : recordFile.getConsensusStart();
-        // An overridden block keeps the record file's duration
-        final long endNanos = startNanos + recordFile.getConsensusEnd() - recordFile.getConsensusStart();
+        // An overridden block keeps the record file's duration, but ends no later than the latest representable time
+        final long duration = recordFile.getConsensusEnd() - recordFile.getConsensusStart();
+        final long endNanos = startNanos > Long.MAX_VALUE - duration ? Long.MAX_VALUE : startNanos + duration;
         final long blockNumber = overrideBlockNumber != null ? overrideBlockNumber : recordFile.getIndex();
 
         return BlockInfo.newBuilder()
