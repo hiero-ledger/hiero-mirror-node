@@ -15,10 +15,10 @@ class ActionContextTest {
     void dropsActionsBeyondMaxAndRecordsTruncationMarker() {
         final var context = new ActionContext();
         for (int i = 0; i < ActionContext.MAX_ACTIONS; i++) {
-            context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x" + i), 0);
+            context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x" + i), 0, 0L);
         }
 
-        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xoverflow"), 0);
+        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xoverflow"), 0, 0L);
 
         assertThat(context.isTruncated()).isTrue();
         assertThat(context.getActions()).hasSize(ActionContext.MAX_ACTIONS);
@@ -30,9 +30,9 @@ class ActionContextTest {
     @Test
     void dropsActionsBeyondRetainedDepth() {
         final var context = new ActionContext();
-        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x0"), 0);
+        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x0"), 0, 0L);
 
-        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xdeep"), ActionContext.MAX_DEPTH);
+        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xdeep"), ActionContext.MAX_DEPTH, 0L);
 
         assertThat(context.isTruncated()).isTrue();
         assertThat(context.getActions()).hasSize(1);
@@ -44,10 +44,10 @@ class ActionContextTest {
     void acceptsDepthJustBelowMax() {
         final var context = new ActionContext();
         var parent = new ActionResponse().type(TypeEnum.CALL).from("0x0");
-        context.addAction(parent, 0);
+        context.addAction(parent, 0, 0L);
         for (int depth = 1; depth < ActionContext.MAX_DEPTH; depth++) {
             final var child = new ActionResponse().type(TypeEnum.CALL).from("0x" + depth);
-            context.addAction(child, depth);
+            context.addAction(child, depth, 0L);
             parent = child;
         }
 
@@ -60,7 +60,7 @@ class ActionContextTest {
     void serializesTruncatedTreeWithinProductionNestingLimit() throws Exception {
         final var context = new ActionContext();
         for (int depth = 0; depth <= ActionContext.MAX_DEPTH; depth++) {
-            context.addAction(new ActionResponse().type(TypeEnum.CALL), depth);
+            context.addAction(new ActionResponse().type(TypeEnum.CALL), depth, 0L);
         }
         final var factory = new com.fasterxml.jackson.databind.MappingJsonFactory();
         factory.setStreamWriteConstraints(com.fasterxml.jackson.core.StreamWriteConstraints.builder()
@@ -79,10 +79,10 @@ class ActionContextTest {
         final var child = new ActionResponse().from("0x1");
         final var sibling = new ActionResponse().from("0x2");
 
-        context.addAction(root, 0);
-        context.addAction(child, 1);
+        context.addAction(root, 0, 0L);
+        context.addAction(child, 1, 0L);
         context.finalizeAction(1, null, "0x1", "0x", null);
-        context.addAction(sibling, 1);
+        context.addAction(sibling, 1, 0L);
 
         assertThat(root.getCalls()).containsExactly(child, sibling);
         assertThat(context.getActions()).containsExactly(root);
@@ -94,7 +94,7 @@ class ActionContextTest {
     void finalizeActionWritesResultAndClosesFrame() {
         final var context = new ActionContext();
         final var root = new ActionResponse().from("0x0");
-        context.addAction(root, 0);
+        context.addAction(root, 0, 0L);
 
         assertThat(root.getCalls()).isEmpty();
 
@@ -113,12 +113,12 @@ class ActionContextTest {
         final var grandchild = new ActionResponse().from("0x2");
         final var sibling = new ActionResponse().from("0x3");
 
-        context.addAction(root, 0);
-        context.addAction(child, 1);
-        context.addAction(grandchild, 2);
+        context.addAction(root, 0, 0L);
+        context.addAction(child, 1, 0L);
+        context.addAction(grandchild, 2, 0L);
         context.finalizeAction(2, null, "0x1", "0x", null);
         context.finalizeAction(1, null, "0x2", "0x", null);
-        context.addAction(sibling, 1);
+        context.addAction(sibling, 1, 0L);
 
         assertThat(context.getActions()).containsExactly(root);
         assertThat(context.getCurrentAction(0)).isSameAs(root);
@@ -133,7 +133,7 @@ class ActionContextTest {
     void dropsNestedActionWithoutParent() {
         final var context = new ActionContext();
 
-        context.addAction(new ActionResponse().from("0xorphan"), 1);
+        context.addAction(new ActionResponse().from("0xorphan"), 1, 0L);
 
         assertThat(context.isTruncated()).isTrue();
         assertThat(context.getActions()).hasSize(1);
@@ -146,11 +146,11 @@ class ActionContextTest {
     void finalizeActionPreservesTruncationError() {
         final var context = new ActionContext();
         final var root = new ActionResponse().from("0x0").type(TypeEnum.CALL);
-        context.addAction(root, 0);
+        context.addAction(root, 0, 0L);
         for (int i = 1; i < ActionContext.MAX_ACTIONS; i++) {
-            context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x" + i), 0);
+            context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x" + i), 0, 0L);
         }
-        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xoverflow"), 0);
+        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xoverflow"), 0, 0L);
 
         context.finalizeAction(0, null, "0xa", "0xbb", null);
 
@@ -173,9 +173,9 @@ class ActionContextTest {
     void beginCallResetsTruncationAndRecordsTheNextRoot() {
         final var context = new ActionContext();
         for (int i = 0; i < ActionContext.MAX_ACTIONS; i++) {
-            context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x" + i), 0);
+            context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0x" + i), 0, 0L);
         }
-        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xoverflow"), 0);
+        context.addAction(new ActionResponse().type(TypeEnum.CALL).from("0xoverflow"), 0, 0L);
         assertThat(context.isTruncated()).isTrue();
         final var truncated = context.getActions().getLast();
         assertThat(truncated.getError()).isEqualTo(ActionContext.TRUNCATED_ERROR);
@@ -189,7 +189,7 @@ class ActionContextTest {
         assertThat(context.isTruncated()).isFalse();
         assertThat(context.shouldCheckDeadline()).isTrue();
         final var next = new ActionResponse().type(TypeEnum.CALL).from("0xnext");
-        context.addAction(next, 0);
+        context.addAction(next, 0, 0L);
         assertThat(context.isTruncated()).isTrue();
         assertThat(context.getActions()).hasSize(ActionContext.MAX_ACTIONS + 1);
         assertThat(context.getActions()).doesNotContain(next);
@@ -202,7 +202,7 @@ class ActionContextTest {
     void byteBudgetTruncatesLargeOutput() {
         final var context = new ActionContext();
         final var root = new ActionResponse().type(TypeEnum.CALL).from("0x0").input("0x");
-        context.addAction(root, 0);
+        context.addAction(root, 0, 0L);
 
         context.finalizeAction(0, null, "0x1", "ab".repeat(ActionContext.MAX_RETAINED_BYTES), null);
 
@@ -216,11 +216,11 @@ class ActionContextTest {
     void retainedBytesSurviveBeginCall() {
         final var context = new ActionContext();
         final var first = new ActionResponse().type(TypeEnum.CALL).input("a".repeat(ActionContext.MAX_RETAINED_BYTES));
-        context.addAction(first, 0);
+        context.addAction(first, 0, 0L);
         assertThat(context.isTruncated()).isFalse();
 
         context.beginCall();
-        context.addAction(new ActionResponse().type(TypeEnum.CALL).input("b"), 0);
+        context.addAction(new ActionResponse().type(TypeEnum.CALL).input("b"), 0, 0L);
 
         assertThat(context.isTruncated()).isTrue();
         assertThat(first.getError()).isNull();
@@ -235,7 +235,7 @@ class ActionContextTest {
     @Test
     void hexWithinBudgetOmitsPayloadThatDoesNotFit() {
         final var context = new ActionContext();
-        context.addAction(new ActionResponse().input("a".repeat(ActionContext.MAX_RETAINED_BYTES - 4)), 0);
+        context.addAction(new ActionResponse().input("a".repeat(ActionContext.MAX_RETAINED_BYTES - 4)), 0, 0L);
         final var previous = context.getActions().getFirst();
 
         context.beginCall();
@@ -254,8 +254,8 @@ class ActionContextTest {
         final var context = new ActionContext();
         final var first = new ActionResponse().from("0x0");
         final var firstChild = new ActionResponse().from("0x1");
-        context.addAction(first, 0);
-        context.addAction(firstChild, 1);
+        context.addAction(first, 0, 0L);
+        context.addAction(firstChild, 1, 0L);
 
         context.beginCall();
 
@@ -264,7 +264,7 @@ class ActionContextTest {
         assertThat(first.getCalls()).containsExactly(firstChild);
 
         final var second = new ActionResponse().from("0x2");
-        context.addAction(second, 0);
+        context.addAction(second, 0, 0L);
 
         assertThat(context.getActions()).containsExactly(first, second);
         assertThat(context.getCurrentAction(0)).isEqualTo(second);
@@ -274,7 +274,7 @@ class ActionContextTest {
     void finalizeActionIgnoresUnknownDepth() {
         final var context = new ActionContext();
         final var root = new ActionResponse().from("0x0");
-        context.addAction(root, 0);
+        context.addAction(root, 0, 0L);
 
         context.finalizeAction(1, "err", "0x1", "0x", null);
         context.finalizeAction(-1, "err", "0x1", "0x", null);

@@ -534,15 +534,19 @@ paths:
       description:
         "Simulates contract calls and returns one call-action tree per transaction, in bundle order. One bundle with
         one transaction maps to debug_traceCall. Multiple bundles, or a bundle with multiple transactions, map to
-        debug_traceCallMany, which returns 501 when it is disabled on the server. block, state_overrides, timeout, and transaction_index apply to the whole request.
+        debug_traceCallMany, which returns 501 when it is disabled on the server. block, state_overrides, and transaction_index apply to the whole request.
         only_top_call applies to every transaction. When true, each transaction returns only its root call and omits
         nested actions.
         Transactions share state for the whole request: later bundles keep earlier state changes. The request state
-        overrides stay in place. estimate is rejected. Requires Accept-Encoding gzip. An EVM revert is returned in the
+        overrides stay in place. A bundle block_override applies to the transactions of that bundle only. estimate,
+        and block_override or state_overrides on a transaction, are rejected.
+        Requires Accept-Encoding gzip. An EVM revert is returned in the
         200 trace, with error set to 'execution reverted', revert_reason set to the revert payload, and output empty.
         Later transactions still run. HTTP 400 is returned for
         validation and for pre-checks that never reach the EVM, such as a missing sender; that response discards the
-        body. A client timeout returns 408 with any actions collected so far."
+        body. When the trace exceeds the server-side actions response timeout, 408 is returned with any actions
+        collected so far. The request body is limited to 263168 bytes (about 257 KiB) and 7000 JSON tokens, the same
+        limits as /contracts/call, so calldata and state overrides of every transaction share that budget."
       operationId: contractActionsCall
       parameters:
         - name: Accept-Encoding
@@ -579,7 +583,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         408:
-          description: Trace execution exceeded the configured timeout
+          description: Trace execution exceeded the server-side actions response timeout
           content:
             application/json:
               schema:
@@ -2548,10 +2552,16 @@ components:
       description:
         One debug_traceCallMany bundle. Transactions execute sequentially.
         State changes persist into later bundles. The request block applies instead of the block on each transaction.
-        state_overrides is only allowed on the request.
+        state_overrides is only allowed on the request, and is rejected on a bundle or a transaction. block_override
+        applies to every transaction of the bundle, and is rejected on a transaction.
       required:
         - transactions
       properties:
+        block_override:
+          description:
+            Optional EVM block context override for every transaction of this bundle. Later bundles without one use the
+            request block. Requires block overrides to be enabled.
+          $ref: "#/components/schemas/BlockOverride"
         transactions:
           description: Contract calls to simulate in this bundle
           items:
@@ -2563,10 +2573,10 @@ components:
       type: object
       description:
         A debug_traceCallMany request. A single bundle containing a single transaction is treated like a debug_traceCall.
-        block, state_overrides, timeout, and transaction_index apply to every bundle. only_top_call applies to every
+        block, state_overrides, and transaction_index apply to every bundle. only_top_call applies to every
         transaction. When true, each transaction returns only its root call and omits nested actions. State changes
-        persist from one bundle to the next within this request only. The request body is limited to 5062144 bytes
-        (full calldata on 16 transactions plus 256 KiB) and 100000 JSON tokens.
+        persist from one bundle to the next within this request only. The request body is limited to 263168 bytes
+        (about 257 KiB) and 7000 JSON tokens, shared by every transaction.
       required:
         - bundles
       properties:
@@ -2608,13 +2618,6 @@ components:
             $ref: "#/components/schemas/StateOverride"
           maxItems: 10
           type: [array, "null"]
-        timeout:
-          description:
-            Optional maximum duration allowed for the whole trace before execution is terminated. When omitted, the
-            server-side actions request timeout is used. Uses ISO-8601 duration format or shorthand (e.g. "PT5S" or
-            "5s").
-          type: [string, "null"]
-          example: 5s
     ActionResponse:
       type: object
       properties:

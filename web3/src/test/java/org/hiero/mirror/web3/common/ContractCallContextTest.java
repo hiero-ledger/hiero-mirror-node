@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.common;
 
+import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID;
+import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.stateOverride;
 
@@ -174,32 +176,6 @@ class ContractCallContextTest {
     }
 
     @Test
-    void remainingMillisUsesDeadlineWhenSet() {
-        var context = ContractCallContext.get();
-        context.setDeadlineMillis(context.getStartTime() + 1_000);
-
-        assertThat(context.remainingMillis(4_000)).isBetween(0L, 1_000L);
-        assertThat(context.isDeadlineExceeded()).isFalse();
-    }
-
-    @Test
-    void remainingMillisFallsBackWhenDeadlineUnset() {
-        var context = ContractCallContext.get();
-
-        assertThat(context.remainingMillis(4_000)).isBetween(0L, 4_000L);
-        assertThat(context.isDeadlineExceeded()).isFalse();
-    }
-
-    @Test
-    void remainingMillisNegativeWhenDeadlinePassed() {
-        var context = ContractCallContext.get();
-        context.setDeadlineMillis(context.getStartTime() - 1);
-
-        assertThat(context.remainingMillis(4_000)).isNegative();
-        assertThat(context.isDeadlineExceeded()).isTrue();
-    }
-
-    @Test
     void applyStateOverridesReplacesPreviousAndClearsWhenEmpty() {
         final var context = ContractCallContext.get();
         final var first = stateOverride("00000000000000000000000000000000000004e4");
@@ -222,5 +198,39 @@ class ContractCallContextTest {
     @Test
     void blockOverrideDefaultsToEmpty() {
         assertThat(ContractCallContext.get().getBlockOverride()).isSameAs(BlockOverride.EMPTY);
+    }
+
+    @Test
+    void setBlockOverrideDropsCachedBlockStatesWhenItChanges() {
+        final var context = ContractCallContext.get();
+        final var override = BlockOverride.builder().blockNumber(80L).build();
+        cacheBlockStates(context);
+
+        context.setBlockOverride(BlockOverride.EMPTY);
+
+        assertThat(context.getReadCacheState(BLOCKS_STATE_ID)).isNotEmpty();
+        assertThat(context.getWriteCacheState(BLOCK_STREAM_INFO_STATE_ID)).isNotEmpty();
+
+        context.setBlockOverride(override);
+
+        assertThat(context.getBlockOverride()).isSameAs(override);
+        assertThat(context.getReadCacheState(BLOCKS_STATE_ID)).isEmpty();
+        assertThat(context.getWriteCacheState(BLOCKS_STATE_ID)).isEmpty();
+        assertThat(context.getReadCacheState(BLOCK_STREAM_INFO_STATE_ID)).isEmpty();
+        assertThat(context.getWriteCacheState(BLOCK_STREAM_INFO_STATE_ID)).isEmpty();
+        assertThat(context.getReadCacheState(1)).containsEntry("key", "other");
+
+        cacheBlockStates(context);
+        context.setBlockOverride(BlockOverride.builder().blockNumber(80L).build());
+
+        assertThat(context.getReadCacheState(BLOCKS_STATE_ID)).isNotEmpty();
+    }
+
+    private static void cacheBlockStates(final ContractCallContext context) {
+        context.getReadCacheState(1).put("key", "other");
+        context.getReadCacheState(BLOCKS_STATE_ID).put("key", "block");
+        context.getWriteCacheState(BLOCKS_STATE_ID).put("key", "block");
+        context.getReadCacheState(BLOCK_STREAM_INFO_STATE_ID).put("key", "stream");
+        context.getWriteCacheState(BLOCK_STREAM_INFO_STATE_ID).put("key", "stream");
     }
 }

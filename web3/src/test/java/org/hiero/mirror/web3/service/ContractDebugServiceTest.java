@@ -2,14 +2,20 @@
 
 package org.hiero.mirror.web3.service;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
+import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REVERT_REASON;
 import static com.hedera.services.stream.proto.ContractActionType.SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalToIgnoringCase;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCALL;
+import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_RECORD_FILE_LATEST;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_RECORD_FILE_LATEST;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
@@ -20,62 +26,79 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
+import com.hedera.hapi.node.state.blockrecords.BlockInfo;
+import com.hedera.node.app.records.BlockRecordService;
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
 import org.hiero.mirror.rest.model.Opcode;
+import org.hiero.mirror.web3.ApiProperties;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.controller.ActionsProperties;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.exception.TraceTimeoutException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
-import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
+import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
 import org.hiero.mirror.web3.web3j.generated.EvmCodes;
 import org.hiero.mirror.web3.web3j.generated.InternalCaller;
 import org.hyperledger.besu.datatypes.Address;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.cache.CacheManager;
+import org.springframework.dao.QueryTimeoutException;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
+@AutoConfigureMockMvc
 class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
-    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(4);
-    private static final Duration INTEGRATION_TIMEOUT = Duration.ofSeconds(10);
+    private static final String ACTIONS_URI = "/api/v1/contracts/call/actions";
     private static final int NUM_DEPTHS = 4;
     private static final int ACTIONS_PER_DEPTH = 2;
 
@@ -88,6 +111,203 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
     @Resource
     private RecordFileRepository recordFileRepository;
+
+    @Resource
+    private MirrorNodeState mirrorNodeState;
+
+    @Resource
+    private TransactionExecutorFactory transactionExecutorFactory;
+
+    @Resource
+    private ActionsProperties actionsProperties;
+
+    @Resource
+    private MockMvc mockMvc;
+
+    @Resource
+    private Web3Properties web3Properties;
+
+    private boolean actionsEnabled;
+    private boolean blockOverridesEnabled;
+    private boolean traceMultipleTransactions;
+
+    @BeforeEach
+    void setUp() {
+        // Executors are built asynchronously at startup. Wait for them here so the first trace in a fresh context does
+        // not spend its request timeout on that.
+        ContractCallContext.run(_ -> transactionExecutorFactory.get());
+        actionsEnabled = actionsApi().isEnabled();
+        blockOverridesEnabled = web3Properties.isEnableBlockOverrides();
+        traceMultipleTransactions = actionsProperties.isTraceMultipleTransactions();
+    }
+
+    @AfterEach
+    void tearDown() {
+        actionsApi().setEnabled(actionsEnabled);
+        web3Properties.setEnableBlockOverrides(blockOverridesEnabled);
+        actionsProperties.setTraceMultipleTransactions(traceMultipleTransactions);
+    }
+
+    @Test
+    void actionsEndpointTracesEveryBundle() throws Exception {
+        final var evmCodes = testWeb3jService.deploy(EvmCodes::deploy);
+        final var ethCall = testWeb3jService.deploy(EthCall::deploy);
+        final var recordFile = publishFixtureBlock();
+        final var body = """
+                {"bundles": [{"block_override": {"block_number": 80},
+                              "transactions": [{"data": "%1$s", "to": "%2$s"}]},
+                             {"transactions": [{"data": "%1$s", "to": "%2$s"}, {"data": "%3$s", "to": "%4$s"}]}]}
+                """.formatted(
+                        evmCodes.call_getBlockNumber().encodeFunctionCall(),
+                        evmCodes.getContractAddress(),
+                        ethCall.send_testRevert().encodeFunctionCall(),
+                        ethCall.getContractAddress());
+
+        actionsCall(body)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)))
+                .andExpect(jsonPath("$[0].to", equalToIgnoringCase(evmCodes.getContractAddress())))
+                .andExpect(jsonPath("$[0].output").value(uint256Hex(80L)))
+                .andExpect(jsonPath("$[1].output").value(uint256Hex(recordFile.getIndex())))
+                .andExpect(jsonPath("$[2].error").value("execution reverted"))
+                .andExpect(jsonPath("$[2].revert_reason").value("Custom revert message"));
+    }
+
+    @Test
+    void actionsEndpointReturnsTheActionsSoFarWhenTheTraceTimesOut() throws Exception {
+        stubQueryTimeoutAfterTheFirstTransaction(action("0x01", TypeEnum.CALL));
+        final var body = """
+                {"bundles": [{"transactions": [{"to": "%1$s"}]}, {"transactions": [{"to": "%1$s"}]}]}
+                """.formatted(Address.ZERO.toHexString());
+
+        actionsCall(body)
+                .andExpect(status().isRequestTimeout())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].from").value("0x01"));
+    }
+
+    @Test
+    void actionsEndpointRejectsASenderThatDoesNotExist() throws Exception {
+        final var contract = testWeb3jService.deploy(EvmCodes::deploy);
+        publishFixtureBlock();
+        final var body = """
+                {"bundles": [{"transactions": [{"data": "%s", "from": "%s", "to": "%s"}]}]}
+                """.formatted(
+                        contract.call_getBlockNumber().encodeFunctionCall(),
+                        toAddress(9_999_999L).toHexString(),
+                        contract.getContractAddress());
+
+        actionsCall(body)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString(PAYER_ACCOUNT_NOT_FOUND.name())))
+                .andExpect(content().string(containsString("Sender account not found.")));
+    }
+
+    @Test
+    void processTraceCallAppliesTheBlockOverrideOfEachTransaction() {
+        final var contract = testWeb3jService.deploy(EvmCodes::deploy);
+        final var recordFile = publishFixtureBlock();
+        final long firstTime = 1_793_619_195L;
+        final var first =
+                BlockOverride.builder().blockNumber(80L).time(firstTime).build();
+        final var second = BlockOverride.builder().blockNumber(90L).build();
+        final var number = getContractExecutionParameters(contract.call_getBlockNumber(), contract);
+        final var time = getContractExecutionParameters(contract.call_getBlockTimestamp(), contract);
+
+        final var result = trace(TraceCall.builder()
+                .transactions(List.of(
+                        withBlockOverride(number, first),
+                        withBlockOverride(time, first),
+                        withBlockOverride(number, second),
+                        number))
+                .build());
+
+        assertThat(result)
+                .hasSize(4)
+                .allSatisfy(action -> assertThat(action.getError()).isNull());
+        assertThat(result)
+                .extracting(action -> decodedUint256(action.getOutput()))
+                .containsExactly(
+                        BigInteger.valueOf(80L),
+                        BigInteger.valueOf(firstTime),
+                        BigInteger.valueOf(90L),
+                        BigInteger.valueOf(recordFile.getIndex()));
+    }
+
+    @Test
+    void processTraceCallKeepsTheBundleBlockOverrideAfterARevert() {
+        final var evmCodes = testWeb3jService.deploy(EvmCodes::deploy);
+        final var ethCall = testWeb3jService.deploy(EthCall::deploy);
+        final var recordFile = publishFixtureBlock();
+        final var override = BlockOverride.builder().blockNumber(80L).build();
+        final var number = getContractExecutionParameters(evmCodes.call_getBlockNumber(), evmCodes);
+        final var revert = getContractExecutionParameters(ethCall.send_testRevert(), ethCall);
+
+        // The reverted transaction is rolled back in the middle of the overridden bundle, and at its end.
+        final var result = trace(TraceCall.builder()
+                .transactions(List.of(
+                        withBlockOverride(number, override),
+                        withBlockOverride(revert, override),
+                        withBlockOverride(number, override),
+                        withBlockOverride(revert, override),
+                        number))
+                .build());
+
+        assertThat(result).hasSize(5);
+        for (final int reverted : new int[] {1, 3}) {
+            assertThat(result.get(reverted).getError()).isEqualTo("execution reverted");
+            assertThat(result.get(reverted).getRevertReason()).isEqualTo("Custom revert message");
+        }
+        assertThat(decodedUint256(result.get(0).getOutput())).isEqualTo(BigInteger.valueOf(80L));
+        assertThat(decodedUint256(result.get(2).getOutput())).isEqualTo(BigInteger.valueOf(80L));
+        assertThat(decodedUint256(result.get(4).getOutput())).isEqualTo(BigInteger.valueOf(recordFile.getIndex()));
+    }
+
+    @Test
+    void processTraceCallKeepsTheTransactionIndexStateUnderABundleBlockOverride() {
+        domainBuilder
+                .recordFile()
+                .customize(recordFile -> recordFile
+                        .index(15L)
+                        .consensusStart(1_000L)
+                        .consensusEnd(3_000L)
+                        .count(2L))
+                .persist();
+        persistTransaction(1_000L);
+        persistTransaction(2_000L);
+        final var block = BlockType.of("15");
+        final var override =
+                BlockOverride.builder().blockNumber(80L).time(1_793_619_195L).build();
+        final var timestamps = new ArrayList<Optional<Long>>();
+        final var lastBlockNumbers = new ArrayList<Long>();
+        doAnswer(invocation -> {
+                    timestamps.add(ContractCallContext.get().getTimestamp());
+                    final BlockInfo blockInfo = mirrorNodeState
+                            .getReadableStates(BlockRecordService.NAME)
+                            .<BlockInfo>getSingleton(BLOCKS_STATE_ID)
+                            .get();
+                    lastBlockNumbers.add(blockInfo.lastBlockNumber());
+                    return new EvmTransactionResult(
+                            SUCCESS,
+                            ContractFunctionResult.newBuilder()
+                                    .gasUsed(TRANSACTION_GAS_LIMIT)
+                                    .build());
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+
+        trace(TraceCall.builder()
+                .block(block)
+                .transactionIndex(1)
+                .transactions(
+                        List.of(executionParameters(block, override), executionParameters(block, BlockOverride.EMPTY)))
+                .build());
+
+        // The override changes only the EVM block header. Both bundles read the state after the first transaction of
+        // the block, and the bundle without an override sees the requested block again.
+        assertThat(timestamps).containsExactly(Optional.of(1_001L), Optional.of(1_001L));
+        assertThat(lastBlockNumbers).containsExactly(79L, 14L);
+    }
 
     @Test
     void processOpcodeCallMapsRevertedActionsToCorrectDepths() {
@@ -155,7 +375,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
+        final var result = trace(traceCall(params, false));
 
         // Then
         assertThat(result).containsExactly(topLevelAction);
@@ -170,7 +390,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         // When
         final var params = executionParameters();
-        final var result = contractDebugService.processTraceCall(traceCall(params, true, DEFAULT_TIMEOUT));
+        final var result = trace(traceCall(params, true));
 
         // Then
         assertThat(result).containsExactly(topLevelAction);
@@ -186,7 +406,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         publishFixtureBlock();
 
         // When
-        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
+        final var result = trace(traceCall(params, false));
 
         // Then
         assertThat(result).isNotEmpty();
@@ -202,8 +422,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         publishFixtureBlock();
 
         // When
-        final var allActions = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
-        final var topCallOnly = contractDebugService.processTraceCall(traceCall(params, true, INTEGRATION_TIMEOUT));
+        final var allActions = trace(traceCall(params, false));
+        final var topCallOnly = trace(traceCall(params, true));
 
         // Then
         assertThat(allActions).hasSize(1);
@@ -221,15 +441,10 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         final var params = getContractExecutionParameters(functionCall, contract);
         publishFixtureBlock();
 
-        final var allActions = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
-        final var topCallsOnly = contractDebugService.processTraceCall(TraceCall.builder()
-                .bundles(List.of(
-                        TraceBundle.builder()
-                                .transactions(List.of(params, params))
-                                .build(),
-                        TraceBundle.builder().transactions(List.of(params)).build()))
+        final var allActions = trace(traceCall(params, false));
+        final var topCallsOnly = trace(TraceCall.builder()
+                .transactions(List.of(params, params, params))
                 .onlyTopCall(true)
-                .timeout(INTEGRATION_TIMEOUT)
                 .build());
 
         assertThat(allActions).hasSize(1);
@@ -254,11 +469,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         codeOverride.setCode(BytecodeUtils.extractRuntimeBytecode(EthCall.BINARY));
         final var balanceOverride = balanceOverride(account, 100L);
 
-        final var result = contractDebugService.processTraceCall(TraceCall.builder()
-                .bundles(List.of(
-                        TraceBundle.builder().transactions(List.of(params)).build()))
+        final var result = trace(TraceCall.builder()
+                .transactions(List.of(params))
                 .stateOverrides(List.of(codeOverride, balanceOverride))
-                .timeout(INTEGRATION_TIMEOUT)
                 .build());
 
         assertThat(result).hasSize(1);
@@ -278,12 +491,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 getContractExecutionParameters(contract.call_getAccountBalance(secondAccount.toHexString()), contract);
         publishFixtureBlock();
 
-        final var result = contractDebugService.processTraceCall(TraceCall.builder()
-                .bundles(List.of(
-                        TraceBundle.builder().transactions(List.of(firstCall)).build(),
-                        TraceBundle.builder().transactions(List.of(secondCall)).build()))
+        final var result = trace(TraceCall.builder()
+                .transactions(List.of(firstCall, secondCall))
                 .stateOverrides(List.of(balanceOverride(firstAccount, 100L), balanceOverride(secondAccount, 200L)))
-                .timeout(INTEGRATION_TIMEOUT)
                 .build());
 
         assertThat(result).hasSize(2);
@@ -293,23 +503,13 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     @Test
-    void processTraceCallAppliesRequestedTimeout() {
-        final var deadlineWindow = new AtomicLong();
-        stubActionsAndCaptureDeadline(deadlineWindow, action("0x02", TypeEnum.CALL));
-
-        contractDebugService.processTraceCall(traceCall(executionParameters(), false, Duration.ofSeconds(2)));
-
-        assertThat(deadlineWindow).hasValue(Duration.ofSeconds(2).toMillis());
-    }
-
-    @Test
     void processTraceCallIncludesSha256Precompile() {
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
         final var functionCall = contract.call_calculateSHA256();
         final var params = getContractExecutionParameters(functionCall, contract);
         publishFixtureBlock();
 
-        final var result = contractDebugService.processTraceCall(traceCall(params, false, INTEGRATION_TIMEOUT));
+        final var result = trace(traceCall(params, false));
 
         assertThat(result).isNotEmpty();
         assertThat(result.getFirst().getCalls())
@@ -325,7 +525,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         doAnswer(invocation -> {
                     final var ctx = ContractCallContext.get();
                     assertThat(ctx.getActionContext()).isNotNull();
-                    ctx.getActionContext().addAction(remaining.removeFirst(), 0);
+                    ctx.getActionContext().addAction(remaining.removeFirst(), 0, 0L);
                     return new EvmTransactionResult(
                             SUCCESS,
                             ContractFunctionResult.newBuilder()
@@ -335,15 +535,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        final var result = contractDebugService.processTraceCall(TraceCall.builder()
-                .bundles(List.of(
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build()))
-                .timeout(DEFAULT_TIMEOUT)
+        final var result = trace(TraceCall.builder()
+                .transactions(List.of(executionParameters(), executionParameters()))
                 .build());
 
         assertThat(result).containsExactly(first, second);
@@ -382,7 +575,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         assertThat(executionTimestamp(block, -1)).contains(fifth);
         assertThat(executionTimestamp(block, 0)).contains(first - 1);
 
-        assertThatThrownBy(() -> contractDebugService.processTraceCall(traceCallAtIndex(block, 6)))
+        assertThatThrownBy(() -> trace(traceCallAtIndex(block, 6)))
                 .isInstanceOf(InvalidParametersException.class)
                 .hasMessage("transaction_index exceeds the number of transactions in the block");
     }
@@ -412,7 +605,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         assertThat(executionTimestamp(block, 2)).contains(lastTransaction + 1);
         assertThat(executionTimestamp(block, -1)).contains(consensusEnd);
 
-        assertThatThrownBy(() -> contractDebugService.processTraceCall(traceCallAtIndex(block, 3)))
+        assertThatThrownBy(() -> trace(traceCallAtIndex(block, 3)))
                 .isInstanceOf(InvalidParametersException.class)
                 .hasMessage("transaction_index exceeds the number of transactions in the block");
     }
@@ -440,16 +633,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        contractDebugService.processTraceCall(TraceCall.builder()
+        trace(TraceCall.builder()
                 .block(BlockType.of("21"))
-                .bundles(List.of(
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters(), executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build()))
-                .timeout(DEFAULT_TIMEOUT)
+                .transactions(List.of(executionParameters(), executionParameters(), executionParameters()))
                 .build());
 
         assertThat(timestamps)
@@ -492,7 +678,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
     @Test
     void processTraceCallRejectsTransactionIndexForUnknownBlock() {
-        assertThatThrownBy(() -> contractDebugService.processTraceCall(traceCallAtIndex(BlockType.of("999999"), 1)))
+        assertThatThrownBy(() -> trace(traceCallAtIndex(BlockType.of("999999"), 1)))
                 .isInstanceOf(BlockNumberNotFoundException.class);
     }
 
@@ -513,16 +699,9 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        contractDebugService.processTraceCall(TraceCall.builder()
+        trace(TraceCall.builder()
                 .block(BlockType.of(Long.toString(recordFile.getIndex())))
-                .bundles(List.of(
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters(), executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build()))
-                .timeout(DEFAULT_TIMEOUT)
+                .transactions(List.of(executionParameters(), executionParameters(), executionParameters()))
                 .transactionIndex(0)
                 .build());
 
@@ -559,25 +738,16 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        contractDebugService.processTraceCall(TraceCall.builder()
+        trace(TraceCall.builder()
                 .block(BlockType.of("16"))
-                .bundles(List.of(
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters(), executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters(), executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build()))
-                .timeout(DEFAULT_TIMEOUT)
+                .transactions(List.of(
+                        executionParameters(),
+                        executionParameters(),
+                        executionParameters(),
+                        executionParameters(),
+                        executionParameters(),
+                        executionParameters(),
+                        executionParameters()))
                 .transactionIndex(2)
                 .build());
 
@@ -602,15 +772,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        contractDebugService.processTraceCall(TraceCall.builder()
-                .bundles(List.of(
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters(), executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build()))
-                .timeout(DEFAULT_TIMEOUT)
+        trace(TraceCall.builder()
+                .transactions(List.of(executionParameters(), executionParameters(), executionParameters()))
                 .build());
 
         assertThat(timestamps).containsExactly(Optional.of(pinnedEnd), Optional.of(pinnedEnd), Optional.of(pinnedEnd));
@@ -629,7 +792,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                         ctx.getReadCacheState(1).put("previous-trace", "read");
                         ctx.getWriteCacheState(1).put("previous-trace", "write");
                     }
-                    ctx.getActionContext().addAction(action("0x0" + snapshots.size(), TypeEnum.CALL), 0);
+                    ctx.getActionContext().addAction(action("0x0" + snapshots.size(), TypeEnum.CALL), 0, 0L);
                     return new EvmTransactionResult(
                             SUCCESS,
                             ContractFunctionResult.newBuilder()
@@ -639,20 +802,11 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        final var result = contractDebugService.processTraceCall(TraceCall.builder()
+        final var result = trace(TraceCall.builder()
                 .block(BlockType.of(Long.toString(recordFile.getIndex())))
-                .bundles(List.of(
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters(), executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build()))
+                .transactions(List.of(
+                        executionParameters(), executionParameters(), executionParameters(), executionParameters()))
                 .stateOverrides(List.of(stateOverride))
-                .timeout(DEFAULT_TIMEOUT)
                 .build());
 
         assertThat(result).hasSize(4);
@@ -677,7 +831,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                     if (calls.incrementAndGet() > 1) {
                         throw new MirrorEvmTransactionException(PAYER_ACCOUNT_NOT_FOUND, "sender not found", "0x");
                     }
-                    ContractCallContext.get().getActionContext().addAction(first, 0);
+                    ContractCallContext.get().getActionContext().addAction(first, 0, 0L);
                     return new EvmTransactionResult(
                             SUCCESS,
                             ContractFunctionResult.newBuilder()
@@ -689,15 +843,8 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
 
         final var thrown = catchThrowableOfType(
                 MirrorEvmTransactionException.class,
-                () -> contractDebugService.processTraceCall(TraceCall.builder()
-                        .bundles(List.of(
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build(),
-                                TraceBundle.builder()
-                                        .transactions(List.of(executionParameters()))
-                                        .build()))
-                        .timeout(DEFAULT_TIMEOUT)
+                () -> trace(TraceCall.builder()
+                        .transactions(List.of(executionParameters(), executionParameters()))
                         .build()));
 
         assertThat(thrown.getResponseCode()).isEqualTo(PAYER_ACCOUNT_NOT_FOUND);
@@ -722,7 +869,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                                 "0x",
                                 new EvmTransactionResult(PAYER_ACCOUNT_NOT_FOUND, functionResult));
                     }
-                    ContractCallContext.get().getActionContext().addAction(first, 0);
+                    ContractCallContext.get().getActionContext().addAction(first, 0, 0L);
                     return new EvmTransactionResult(SUCCESS, functionResult);
                 })
                 .when(transactionExecutionService)
@@ -748,17 +895,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .build();
 
         final var traceCall = TraceCall.builder()
-                .bundles(List.of(
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(failedParams))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(skippedParams))
-                                .build()))
-                .timeout(DEFAULT_TIMEOUT)
+                .transactions(List.of(executionParameters(), failedParams, skippedParams))
                 .build();
 
         final long refundableGas = ContractCallContext.run(context -> {
@@ -789,14 +926,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
         final var traceCall = TraceCall.builder()
-                .bundles(List.of(
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters(), executionParameters()))
-                                .build(),
-                        TraceBundle.builder()
-                                .transactions(List.of(executionParameters()))
-                                .build()))
-                .timeout(DEFAULT_TIMEOUT)
+                .transactions(List.of(executionParameters(), executionParameters(), executionParameters()))
                 .build();
 
         final long refundableGas = ContractCallContext.run(context -> {
@@ -805,6 +935,85 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         });
 
         assertThat(refundableGas).isEqualTo(3 * TRANSACTION_GAS_LIMIT * 2 / 3);
+    }
+
+    @Test
+    void processTraceCallStopsAtTheDeadlineWithTheActionsSoFar() {
+        final var first = action("0x01", TypeEnum.CALL);
+        final var second = action("0x02", TypeEnum.CALL);
+        final var calls = new AtomicInteger();
+        // Each transaction uses a third of its gas. The tracer halts the second one at the deadline, and the executor
+        // returns its result.
+        doAnswer(invocation -> {
+                    final var actionContext = ContractCallContext.get().getActionContext();
+                    final long gasLimit = invocation.getArgument(1);
+                    if (calls.incrementAndGet() == 1) {
+                        actionContext.addAction(first, 0, gasLimit);
+                    } else {
+                        actionContext.addAction(second, 0, gasLimit);
+                        actionContext.setTimedOut(true);
+                    }
+                    return new EvmTransactionResult(
+                            SUCCESS,
+                            ContractFunctionResult.newBuilder()
+                                    .gasUsed(gasLimit / 3)
+                                    .build());
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+
+        final long refundableGas = refundableGasAfterTimeout(threeTransactions(), first, second);
+
+        assertThat(calls).hasValue(2);
+        // The unused gas of the two transactions that ran, plus the whole gas limit of the one that did not.
+        assertThat(refundableGas)
+                .isEqualTo(2 * (TRANSACTION_GAS_LIMIT - TRANSACTION_GAS_LIMIT / 3) + TRANSACTION_GAS_LIMIT);
+    }
+
+    @Test
+    void processTraceCallTurnsAFailureAfterTheDeadlineIntoATimeout() {
+        final var first = action("0x01", TypeEnum.CALL);
+        final var calls = new AtomicInteger();
+        // The tracer halts the first transaction at the deadline, and the executor reports the halted frame as a
+        // failure that used all of its gas.
+        doAnswer(invocation -> {
+                    calls.incrementAndGet();
+                    final var actionContext = ContractCallContext.get().getActionContext();
+                    final long gasLimit = invocation.getArgument(1);
+                    actionContext.addAction(first, 0, gasLimit);
+                    actionContext.setTimedOut(true);
+                    throw new MirrorEvmTransactionException(
+                            CONTRACT_EXECUTION_EXCEPTION.name(),
+                            "TIMEOUT",
+                            "0x",
+                            new EvmTransactionResult(
+                                    CONTRACT_EXECUTION_EXCEPTION,
+                                    ContractFunctionResult.newBuilder()
+                                            .gasUsed(gasLimit)
+                                            .build()));
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+
+        final long refundableGas = refundableGasAfterTimeout(threeTransactions(), first);
+
+        assertThat(calls).hasValue(1);
+        // A failure that used all of its gas refunds the configured percent of its gas limit, which is all of it here.
+        assertThat(refundableGas).isEqualTo(3 * TRANSACTION_GAS_LIMIT);
+    }
+
+    @Test
+    void processTraceCallTurnsAQueryTimeoutIntoATimeout() {
+        final var first = action("0x01", TypeEnum.CALL);
+        final var calls = stubQueryTimeoutAfterTheFirstTransaction(first);
+
+        final long refundableGas = refundableGasAfterTimeout(threeTransactions(), first);
+
+        assertThat(calls).hasValue(2);
+        // The interrupted transaction has no result, so its whole gas limit is refundable like the one that did not
+        // run.
+        assertThat(refundableGas)
+                .isEqualTo(TRANSACTION_GAS_LIMIT - TRANSACTION_GAS_LIMIT / 3 + 2 * TRANSACTION_GAS_LIMIT);
     }
 
     /**
@@ -903,29 +1112,12 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     }
 
     private void stubActions(final ActionResponse... actions) {
-        stubActionsAndCaptureContext(null, actions);
-    }
-
-    private void stubActionsAndCaptureDeadline(final AtomicLong deadlineWindow, final ActionResponse... actions) {
-        stubActionsAndCaptureContext(
-                ctx -> {
-                    final var deadlineMillis = ctx.getDeadlineMillis();
-                    deadlineWindow.set(deadlineMillis == 0 ? 0 : deadlineMillis - ctx.getStartTime());
-                },
-                actions);
-    }
-
-    private void stubActionsAndCaptureContext(
-            final Consumer<ContractCallContext> onExecute, final ActionResponse... actions) {
         doAnswer(invocation -> {
                     final var ctx = ContractCallContext.get();
-                    if (onExecute != null) {
-                        onExecute.accept(ctx);
-                    }
                     final var actionContext = ctx.getActionContext();
                     assertThat(actionContext).isNotNull();
                     for (final var action : actions) {
-                        actionContext.addAction(action, 0);
+                        actionContext.addAction(action, 0, 0L);
                     }
                     return new EvmTransactionResult(
                             SUCCESS,
@@ -937,9 +1129,57 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 .execute(any(), anyLong());
     }
 
+    /**
+     * Runs {@code traceCall}, which must time out with {@code expectedActions}, and returns the refundable gas it
+     * leaves in the context.
+     */
+    private long refundableGasAfterTimeout(final TraceCall traceCall, final ActionResponse... expectedActions) {
+        return ContractCallContext.run(context -> {
+            final var thrown = catchThrowableOfType(
+                    TraceTimeoutException.class, () -> contractDebugService.processTraceCall(traceCall, context));
+            assertThat(thrown).isNotNull();
+            assertThat(thrown.getActionResponses()).containsExactly(expectedActions);
+            return context.getRefundableGas();
+        });
+    }
+
+    /**
+     * The first transaction records {@code first} and uses a third of its gas. A database query of the next one passes
+     * the deadline. Returns the count of executions.
+     */
+    private AtomicInteger stubQueryTimeoutAfterTheFirstTransaction(final ActionResponse first) {
+        final var calls = new AtomicInteger();
+        doAnswer(invocation -> {
+                    final long gasLimit = invocation.getArgument(1);
+                    if (calls.incrementAndGet() > 1) {
+                        throw new QueryTimeoutException("Transaction timed out");
+                    }
+                    ContractCallContext.get().getActionContext().addAction(first, 0, gasLimit);
+                    return new EvmTransactionResult(
+                            SUCCESS,
+                            ContractFunctionResult.newBuilder()
+                                    .gasUsed(gasLimit / 3)
+                                    .build());
+                })
+                .when(transactionExecutionService)
+                .execute(any(), anyLong());
+        return calls;
+    }
+
+    private TraceCall threeTransactions() {
+        return TraceCall.builder()
+                .transactions(List.of(executionParameters(), executionParameters(), executionParameters()))
+                .build();
+    }
+
     private ContractExecutionParameters executionParameters() {
+        return executionParameters(BlockType.LATEST, BlockOverride.EMPTY);
+    }
+
+    private ContractExecutionParameters executionParameters(final BlockType block, final BlockOverride blockOverride) {
         return ContractExecutionParameters.builder()
-                .block(BlockType.LATEST)
+                .block(block)
+                .blockOverride(blockOverride)
                 .callData(new byte[0])
                 .callType(ETH_CALL)
                 .gas(TRANSACTION_GAS_LIMIT)
@@ -961,7 +1201,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
                 })
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
-        contractDebugService.processTraceCall(traceCallAtIndex(block, transactionIndex));
+        trace(traceCallAtIndex(block, transactionIndex));
         assertThat(timestamps).hasSize(1);
         return timestamps.getFirst();
     }
@@ -969,10 +1209,7 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
     private TraceCall traceCallAtIndex(final BlockType block, final int transactionIndex) {
         return TraceCall.builder()
                 .block(block)
-                .bundles(List.of(TraceBundle.builder()
-                        .transactions(List.of(executionParameters()))
-                        .build()))
-                .timeout(DEFAULT_TIMEOUT)
+                .transactions(List.of(executionParameters()))
                 .transactionIndex(transactionIndex)
                 .build();
     }
@@ -984,23 +1221,64 @@ class ContractDebugServiceTest extends AbstractContractCallServiceOpcodeTracerTe
         return override;
     }
 
-    private void publishFixtureBlock() {
+    private ApiProperties actionsApi() {
+        // getApi() falls back to a shared default when an endpoint is not configured, which must not be changed.
+        return web3Properties.getApi().computeIfAbsent(ACTIONS, _ -> new ApiProperties());
+    }
+
+    /** Posts a raw JSON body to the real actions endpoint with every trace feature enabled. */
+    private ResultActions actionsCall(final String body) throws Exception {
+        actionsApi().setEnabled(true);
+        web3Properties.setEnableBlockOverrides(true);
+        actionsProperties.setTraceMultipleTransactions(true);
+        return mockMvc.perform(post(ACTIONS_URI)
+                .accept(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body));
+    }
+
+    private static String uint256Hex(final long value) {
+        return Bytes32.leftPad(Bytes.ofUnsignedLong(value)).toHexString();
+    }
+
+    private RecordFile publishFixtureBlock() {
         // Fixture deployments happen after the genesis record file. Publish a block containing that state.
-        domainBuilder.recordFile().persist();
+        final var recordFile = domainBuilder.recordFile().persist();
         recordFileLatestCacheManager.getCache(CACHE_NAME_RECORD_FILE_LATEST).invalidate();
+        return recordFile;
+    }
+
+    private static ContractExecutionParameters withBlockOverride(
+            final ContractExecutionParameters params, final BlockOverride blockOverride) {
+        return ContractExecutionParameters.builder()
+                .block(params.getBlock())
+                .blockOverride(blockOverride)
+                .callData(params.getCallData())
+                .callType(params.getCallType())
+                .gas(params.getGas())
+                .gasPrice(params.getGasPrice())
+                .isEstimate(params.isEstimate())
+                .isStatic(params.isStatic())
+                .receiver(params.getReceiver())
+                .sender(params.getSender())
+                .stateOverrides(params.getStateOverrides())
+                .value(params.getValue())
+                .build();
     }
 
     private static BigInteger decodedUint256(final String output) {
         return Bytes.fromHexString(output).toBigInteger();
     }
 
-    private static TraceCall traceCall(
-            final ContractExecutionParameters params, final boolean onlyTopCall, final Duration timeout) {
+    private List<ActionResponse> trace(final TraceCall traceCall) {
+        return ContractCallContext.run(ctx -> contractDebugService.processTraceCall(traceCall, ctx));
+    }
+
+    private static TraceCall traceCall(final ContractExecutionParameters params, final boolean onlyTopCall) {
         return TraceCall.builder()
-                .bundles(List.of(
-                        TraceBundle.builder().transactions(List.of(params)).build()))
+                .transactions(List.of(params))
                 .onlyTopCall(onlyTopCall)
-                .timeout(timeout)
                 .build();
     }
 

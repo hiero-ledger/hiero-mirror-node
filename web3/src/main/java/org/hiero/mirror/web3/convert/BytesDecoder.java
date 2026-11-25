@@ -8,10 +8,13 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX_CAPITAL;
 import com.esaulpaugh.headlong.abi.ABIType;
 import com.esaulpaugh.headlong.abi.Tuple;
 import com.esaulpaugh.headlong.abi.TypeFactory;
+import java.nio.ByteBuffer;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
+import org.jspecify.annotations.Nullable;
 
 @UtilityClass
 public class BytesDecoder {
@@ -21,6 +24,32 @@ public class BytesDecoder {
     private static final byte[] ERROR_SELECTOR = {(byte) 0x08, (byte) 0xc3, (byte) 0x79, (byte) 0xa0};
     private static final ABIType<Tuple> STRING_DECODER = TypeFactory.create("(string)");
     private static final byte[] EMPTY_BYTES = new byte[0];
+
+    /**
+     * Decodes a Solidity {@code Error(string)} revert payload without converting it to hex first. Returns null when the
+     * payload does not start with the {@code Error(string)} selector, and an empty string when it cannot be decoded.
+     */
+    public static @Nullable String decodeErrorString(final Bytes revertReason) {
+        final int size = revertReason.size();
+        if (size <= ERROR_SELECTOR.length) {
+            return null;
+        }
+        for (int i = 0; i < ERROR_SELECTOR.length; i++) {
+            if (revertReason.get(i) != ERROR_SELECTOR[i]) {
+                return null;
+            }
+        }
+        try {
+            // A view of the payload after the selector, so ABI offsets start at zero. The bytes are not copied.
+            final var encoded = ByteBuffer.wrap(
+                            revertReason.toArrayUnsafe(), ERROR_SELECTOR.length, size - ERROR_SELECTOR.length)
+                    .slice();
+            final var tuple = STRING_DECODER.decode(encoded);
+            return tuple.isEmpty() ? StringUtils.EMPTY : tuple.get(0);
+        } catch (Exception e) {
+            return StringUtils.EMPTY;
+        }
+    }
 
     public static String maybeDecodeSolidityErrorStringToReadableMessage(final String revertReason) {
         final var isNullOrEmpty = revertReason == null || revertReason.isEmpty();

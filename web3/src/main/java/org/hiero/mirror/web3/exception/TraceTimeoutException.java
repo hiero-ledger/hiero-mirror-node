@@ -18,8 +18,9 @@ public class TraceTimeoutException extends Web3Exception {
 
     private final transient List<ActionResponse> actionResponses;
 
+    /** Keeps the collected actions as they are. Nothing adds to them once the trace has timed out. */
     public TraceTimeoutException(final List<ActionResponse> actionResponses) {
         super(MESSAGE);
-        this.actionResponses = List.copyOf(actionResponses);
+        this.actionResponses = actionResponses;
     }
 }

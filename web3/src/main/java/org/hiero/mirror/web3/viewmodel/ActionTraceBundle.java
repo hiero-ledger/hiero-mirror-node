@@ -14,12 +14,19 @@ import lombok.Data;
 import org.jspecify.annotations.NullMarked;
 
 /**
- * One {@code debug_traceCallMany} bundle. Transactions run sequentially and keep state changes for later bundles. The request state override stays in place for the whole trace.
+ * One {@code debug_traceCallMany} bundle. Transactions run sequentially and keep state changes for later bundles. The
+ * request state override stays in place for the whole trace, while the block override applies to this bundle only.
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 @NullMarked
 public class ActionTraceBundle {
+
+    /** EVM block context for every transaction of this bundle. {@link BlockOverride#EMPTY} keeps the request block. */
+    @JsonSetter(nulls = Nulls.SKIP)
+    @NotNull
+    @Valid
+    private BlockOverride blockOverride = BlockOverride.EMPTY;
 
     /** Accepted only so the controller can reject it. State overrides belong on {@link ActionTraceRequest}. */
     @JsonSetter(nulls = Nulls.SKIP)

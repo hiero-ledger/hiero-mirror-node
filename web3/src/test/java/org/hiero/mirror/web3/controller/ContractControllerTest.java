@@ -6,7 +6,6 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTE
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.ApiEndpointName.CALL;
-import static org.hiero.mirror.web3.utils.Constants.ACTIONS_CALL_URI;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,7 +33,6 @@ import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -61,7 +59,6 @@ import org.hiero.mirror.web3.exception.TraceTimeoutException;
 import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.TraceCall;
-import org.hiero.mirror.web3.throttle.EndpointThrottle;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.ActionTraceBundle;
@@ -112,6 +109,7 @@ import tools.jackson.databind.json.JsonMapper;
 @WebMvcTest(controllers = ContractController.class)
 final class ContractControllerTest {
 
+    private static final String ACTIONS_CALL_URI = "/api/v1/contracts/call/actions";
     private static final String CALL_URI = "/api/v1/contracts/call";
     private static final long THROTTLE_GAS_LIMIT = 10_000_000L;
     private static final String INIT_CODE = "0x6080604052348015600f57600080fd5b5060a38061001c6000396000f3";
@@ -139,9 +137,6 @@ final class ContractControllerTest {
 
     @MockitoBean
     private ContractDebugService contractDebugService;
-
-    @MockitoBean
-    private EndpointThrottle endpointThrottle;
 
     @MockitoBean
     private ThrottleManager throttleManager;
@@ -189,28 +184,43 @@ final class ContractControllerTest {
 
     @SneakyThrows
     private ResultActions contractActionsCall(ActionTraceRequest request) {
-        return contractActionsCall(request, null, null);
+        return contractActionsCall(request, null);
     }
 
     @SneakyThrows
     private ResultActions contractActionsCall(ActionTraceRequest request, final Boolean onlyTopCall) {
-        return contractActionsCall(request, onlyTopCall, null);
-    }
-
-    @SneakyThrows
-    private ResultActions contractActionsCall(
-            ActionTraceRequest request, final Boolean onlyTopCall, final String timeout) {
         if (onlyTopCall != null) {
             request.setOnlyTopCall(onlyTopCall);
         }
-        if (timeout != null) {
-            request.setTimeout(timeout);
-        }
+        return contractActionsCall(convert(request));
+    }
+
+    private void assertActionsCallUsesDefaults(final String body) throws Exception {
+        enableActionsApi();
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(body).andExpect(status().isOk());
+
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) -> BlockType.LATEST.equals(call.getBlock())
+                                && !call.isOnlyTopCall()
+                                && call.getStateOverrides().isEmpty()
+                                && call.getTransactionIndex() == -1
+                                && call.getTransactions()
+                                        .getFirst()
+                                        .getBlockOverride()
+                                        .isEmpty()),
+                        any());
+    }
+
+    /** Posts a raw JSON body, so the snake_case field names of the public API are checked as clients send them. */
+    private ResultActions contractActionsCall(final String body) throws Exception {
         return mockMvc.perform(post(ACTIONS_CALL_URI)
                 .accept(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(convert(request)));
+                .content(body));
     }
 
     @ParameterizedTest
@@ -283,10 +293,7 @@ final class ContractControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(convert(TRACE_RESPONSES)));
 
-        verify(contractDebugService)
-                .processTraceCall(
-                        argThat((TraceCall call) -> isSingleTrace(call, false, Duration.ofSeconds(4))), any());
-        verify(endpointThrottle).throttle(ACTIONS);
+        verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> isSingleTrace(call, false)), any());
         verify(throttleManager).throttle(any(ContractCallRequest.class));
     }
 
@@ -308,8 +315,8 @@ final class ContractControllerTest {
                 .andExpect(content().string(convert(List.of(TRACE_RESPONSE, secondResponse))));
 
         verify(contractDebugService)
-                .processTraceCall(argThat((TraceCall call) -> call.getBundles().size() == 2), any());
-        verify(endpointThrottle).throttle(ACTIONS);
+                .processTraceCall(
+                        argThat((TraceCall call) -> call.getTransactions().size() == 2), any());
         verify(throttleManager, times(2)).throttle(any(ContractCallRequest.class));
     }
 
@@ -364,25 +371,7 @@ final class ContractControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(convert(TRACE_RESPONSES)));
 
-        verify(contractDebugService)
-                .processTraceCall(
-                        argThat((TraceCall call) -> isSingleTrace(call, false, Duration.ofSeconds(4))), any());
-    }
-
-    @Test
-    void actionsCallExceedingEndpointRateLimit() throws Exception {
-        enableActionsApi();
-        clearInvocations(throttleManager);
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        doThrow(new ThrottleException("")).when(endpointThrottle).throttle(ACTIONS);
-
-        contractActionsCall(request).andExpect(status().isTooManyRequests());
-
-        verify(contractDebugService, never()).processTraceCall(any(), any());
-        verify(throttleManager, never()).throttle(any());
-        verify(throttleManager, never()).restoreRequest();
-        verify(throttleManager, never()).restore(anyLong());
+        verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> isSingleTrace(call, false)), any());
     }
 
     @Test
@@ -396,7 +385,6 @@ final class ContractControllerTest {
         contractActionsCall(request).andExpect(status().isTooManyRequests());
 
         verify(contractDebugService, never()).processTraceCall(any(), any());
-        verify(endpointThrottle).throttle(ACTIONS);
         verify(throttleManager).throttle(any(ContractCallRequest.class));
         verify(throttleManager, never()).restoreRequest();
         verify(throttleManager, never()).restore(anyLong());
@@ -419,7 +407,6 @@ final class ContractControllerTest {
         contractActionsCall(request).andExpect(status().isTooManyRequests());
 
         verify(contractDebugService, never()).processTraceCall(any(), any());
-        verify(endpointThrottle).throttle(ACTIONS);
         verify(throttleManager).restoreRequest();
         verify(throttleManager).restore(THROTTLE_GAS_LIMIT);
     }
@@ -441,66 +428,7 @@ final class ContractControllerTest {
 
         contractActionsCall(request, true).andExpect(status().isOk());
 
-        verify(contractDebugService)
-                .processTraceCall(argThat((TraceCall call) -> isSingleTrace(call, true, Duration.ofSeconds(4))), any());
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"", " "})
-    void actionsCallOmitsTimeoutWhenBlank(final String timeout) throws Exception {
-        enableActionsApi();
-        clearInvocations(throttleManager);
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
-
-        contractActionsCall(request, null, timeout).andExpect(status().isOk());
-
-        verify(contractDebugService)
-                .processTraceCall(
-                        argThat((TraceCall call) -> isSingleTrace(call, false, Duration.ofSeconds(4))), any());
-    }
-
-    @Test
-    void actionsCallWithTimeout() throws Exception {
-        enableActionsApi();
-        clearInvocations(throttleManager);
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
-
-        contractActionsCall(request, null, "1s").andExpect(status().isOk());
-
-        verify(contractDebugService)
-                .processTraceCall(
-                        argThat((TraceCall call) -> isSingleTrace(call, false, Duration.ofSeconds(1))), any());
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"30s", "PT30S"})
-    void actionsCallCapsTimeoutAtMax(final String timeout) throws Exception {
-        enableActionsApi();
-        clearInvocations(throttleManager);
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
-
-        contractActionsCall(request, null, timeout).andExpect(status().isOk());
-
-        verify(contractDebugService)
-                .processTraceCall(
-                        argThat((TraceCall call) -> isSingleTrace(call, false, Duration.ofSeconds(4))), any());
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"0s", "-1s", "not-a-duration"})
-    void actionsCallRejectsInvalidTimeout(final String timeout) throws Exception {
-        enableActionsApi();
-        final var request = traceRequest();
-        transaction(request).setValue(0);
-
-        contractActionsCall(request, null, timeout).andExpect(status().isBadRequest());
-        verify(contractDebugService, never()).processTraceCall(any(), any());
+        verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> isSingleTrace(call, true)), any());
     }
 
     @Test
@@ -517,7 +445,6 @@ final class ContractControllerTest {
 
         contractActionsCall(request).andExpect(status().isBadRequest());
         verify(contractDebugService).processTraceCall(any(), any());
-        verify(endpointThrottle).throttle(ACTIONS);
         verify(throttleManager).throttle(argThat((ContractCallRequest call) -> call.getGas() == THROTTLE_GAS_LIMIT));
         verify(throttleManager).restore(THROTTLE_GAS_LIMIT);
         verify(throttleManager, never()).restoreRequest();
@@ -633,6 +560,65 @@ final class ContractControllerTest {
     }
 
     @Test
+    void actionsCallReadsSnakeCaseFields() throws Exception {
+        enableActionsApi();
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+        final var override =
+                BlockOverride.builder().blockNumber(80L).time(1_793_619_195L).build();
+        final var body = """
+                {"block": "15", "only_top_call": true, "transaction_index": 3,
+                 "bundles": [{"block_override": {"block_number": 80, "time": 1793619195},
+                              "transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]},
+                             {"transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """;
+
+        contractActionsCall(body).andExpect(status().isOk());
+
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) -> {
+                            final var transactions = call.getTransactions();
+                            return BlockType.of("15").equals(call.getBlock())
+                                    && call.isOnlyTopCall()
+                                    && call.getTransactionIndex() == 3
+                                    && transactions.size() == 2
+                                    && override.equals(transactions.get(0).getBlockOverride())
+                                    && transactions.get(1).getBlockOverride().isEmpty();
+                        }),
+                        any());
+    }
+
+    @Test
+    void actionsCallDefaultsMissingFields() throws Exception {
+        assertActionsCallUsesDefaults("""
+                {"bundles": [{"transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """);
+    }
+
+    @Test
+    void actionsCallDefaultsNullFields() throws Exception {
+        assertActionsCallUsesDefaults("""
+                {"block": null, "only_top_call": null, "state_overrides": null, "transaction_index": null,
+                 "bundles": [{"block_override": null, "state_overrides": null,
+                              "transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """);
+    }
+
+    @Test
+    void actionsCallIgnoresRemovedTimeoutField() throws Exception {
+        enableActionsApi();
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+        final var body = """
+                {"timeout": "1ms",
+                 "bundles": [{"transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """;
+
+        contractActionsCall(body).andExpect(status().isOk());
+
+        verify(contractDebugService).processTraceCall(any(), any());
+    }
+
+    @Test
     void actionsCallForwardsSingleStateOverride() throws Exception {
         enableActionsApi();
         final var request = traceRequest();
@@ -646,8 +632,8 @@ final class ContractControllerTest {
         contractActionsCall(request).andExpect(status().isOk());
         verify(contractDebugService)
                 .processTraceCall(
-                        argThat((TraceCall call) -> isSingleTrace(call, false, Duration.ofSeconds(4))
-                                && List.of(override).equals(call.getStateOverrides())),
+                        argThat((TraceCall call) ->
+                                isSingleTrace(call, false) && List.of(override).equals(call.getStateOverrides())),
                         any());
     }
 
@@ -664,7 +650,7 @@ final class ContractControllerTest {
         contractActionsCall(request).andExpect(status().isOk());
         verify(contractDebugService)
                 .processTraceCall(
-                        argThat((TraceCall call) -> isSingleTrace(call, false, Duration.ofSeconds(4))
+                        argThat((TraceCall call) -> isSingleTrace(call, false)
                                 && List.of(first, second).equals(call.getStateOverrides())),
                         any());
     }
@@ -685,13 +671,7 @@ final class ContractControllerTest {
         contractActionsCall(request).andExpect(status().isOk());
         verify(contractDebugService)
                 .processTraceCall(
-                        argThat((TraceCall call) -> call.getBundles().size() == 2
-                                && call.getBundles()
-                                                .getFirst()
-                                                .getTransactions()
-                                                .size()
-                                        == 1
-                                && call.getBundles().get(1).getTransactions().size() == 1
+                        argThat((TraceCall call) -> call.getTransactions().size() == 2
                                 && List.of(first, second).equals(call.getStateOverrides())),
                         any());
     }
@@ -722,20 +702,11 @@ final class ContractControllerTest {
 
         contractActionsCall(manyTransactions).andExpect(status().isOk());
 
-        verify(contractDebugService)
+        // Both requests flatten to the same two transactions.
+        verify(contractDebugService, times(2))
                 .processTraceCall(
                         argThat((TraceCall call) ->
-                                call.isOnlyTopCall() && call.getBundles().size() == 2),
-                        any());
-        verify(contractDebugService)
-                .processTraceCall(
-                        argThat((TraceCall call) -> call.isOnlyTopCall()
-                                && call.getBundles().size() == 1
-                                && call.getBundles()
-                                                .getFirst()
-                                                .getTransactions()
-                                                .size()
-                                        == 2),
+                                call.isOnlyTopCall() && call.getTransactions().size() == 2),
                         any());
     }
 
@@ -755,9 +726,9 @@ final class ContractControllerTest {
 
         verify(contractDebugService)
                 .processTraceCall(
-                        argThat((TraceCall call) -> call.getBundles().size() == 2 && call.getTransactionIndex() == 5),
+                        argThat((TraceCall call) ->
+                                call.getTransactions().size() == 2 && call.getTransactionIndex() == 5),
                         any());
-        verify(endpointThrottle).throttle(ACTIONS);
         verify(throttleManager, times(2)).throttle(any(ContractCallRequest.class));
     }
 
@@ -773,7 +744,6 @@ final class ContractControllerTest {
 
         verify(contractDebugService)
                 .processTraceCall(argThat((TraceCall call) -> call.getTransactionIndex() == -1), any());
-        verify(endpointThrottle).throttle(ACTIONS);
         verify(throttleManager).throttle(any(ContractCallRequest.class));
     }
 
@@ -787,6 +757,66 @@ final class ContractControllerTest {
         contractActionsCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(new StringContains("Estimate is not supported for tracing.")));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallRejectsTransactionBlockOverride() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        transaction(request)
+                .setBlockOverride(BlockOverride.builder().gasLimit(1L).build());
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("block_override must be set on the bundle, not on a transaction.")));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallPassesBundleBlockOverrideToItsTransactions() throws Exception {
+        enableActionsApi();
+        final var override =
+                BlockOverride.builder().blockNumber(256L).time(1710874816L).build();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var sameBundle = transaction();
+        sameBundle.setValue(0);
+        bundle(request).getTransactions().add(sameBundle);
+        bundle(request).setBlockOverride(override);
+        final var nextBundle = transaction();
+        nextBundle.setValue(0);
+        request.getBundles().add(bundleOf(nextBundle));
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request).andExpect(status().isOk());
+
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) -> {
+                            final var transactions = call.getTransactions();
+                            return transactions.size() == 3
+                                    && override.equals(transactions.get(0).getBlockOverride())
+                                    && override.equals(transactions.get(1).getBlockOverride())
+                                    && transactions.get(2).getBlockOverride().isEmpty();
+                        }),
+                        any());
+    }
+
+    @Test
+    void actionsCallRejectsBundleBlockOverrideWhenDisabled() throws Exception {
+        enableActionsApi();
+        web3Properties.setEnableBlockOverrides(false);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        bundle(request)
+                .setBlockOverride(BlockOverride.builder().blockNumber(256L).build());
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("Block overrides are not supported.")));
         verify(contractDebugService, never()).processTraceCall(any(), any());
     }
 
@@ -808,15 +838,13 @@ final class ContractControllerTest {
                 .processTraceCall(
                         argThat((TraceCall call) -> {
                             if (!BlockType.of("32").equals(call.getBlock())
-                                    || call.getBundles().size() != 2
+                                    || call.getTransactions().size() != 2
                                     || call.getTransactionIndex() != -1) {
                                 return false;
                             }
-                            for (final var bundle : call.getBundles()) {
-                                for (final var transaction : bundle.getTransactions()) {
-                                    if (!BlockType.of("32").equals(transaction.getBlock())) {
-                                        return false;
-                                    }
+                            for (final var transaction : call.getTransactions()) {
+                                if (!BlockType.of("32").equals(transaction.getBlock())) {
+                                    return false;
                                 }
                             }
                             return true;
@@ -1893,12 +1921,10 @@ final class ContractControllerTest {
         return override;
     }
 
-    private static boolean isSingleTrace(final TraceCall call, final boolean onlyTopCall, final Duration timeout) {
+    private static boolean isSingleTrace(final TraceCall call, final boolean onlyTopCall) {
         return call.getBlock() == BlockType.LATEST
                 && call.isOnlyTopCall() == onlyTopCall
-                && timeout.equals(call.getTimeout())
-                && call.getBundles().size() == 1
-                && call.getBundles().getFirst().getTransactions().size() == 1;
+                && call.getTransactions().size() == 1;
     }
 
     private ContractCallRequest request() {

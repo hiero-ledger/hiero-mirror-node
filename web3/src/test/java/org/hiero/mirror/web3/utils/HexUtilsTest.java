@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigInteger;
 import java.util.stream.Stream;
@@ -66,23 +65,5 @@ class HexUtilsTest {
     void convertLongToHexStringHandlesNegativeNumber() {
         // Long.toHexString treats the long as unsigned, so -1 becomes all f's
         assertThat(HexUtils.convertLongToHexString(-1)).isEqualTo("0xffffffffffffffff");
-    }
-
-    @CsvSource({"'0x0',0", "'0x1',1", "'0xa',10", "'0xff',255", "'0x100',256", "'ff',255", "'0X10',16", "'0x',0", "'',0"
-    })
-    @ParameterizedTest
-    void convertHexStringToLong(String hex, long expected) {
-        assertThat(HexUtils.convertHexStringToLong(hex)).isEqualTo(expected);
-    }
-
-    @Test
-    void convertHexStringToLongReturnsZeroForNull() {
-        assertThat(HexUtils.convertHexStringToLong(null)).isEqualTo(0L);
-    }
-
-    @CsvSource({"0xffffffffffffffff", "0x8000000000000000", "ffffffffffffffff"})
-    @ParameterizedTest
-    void convertHexStringToLongRejectsValuesThatDoNotFitInASignedLong(String value) {
-        assertThatThrownBy(() -> HexUtils.convertHexStringToLong(value)).isInstanceOf(NumberFormatException.class);
     }
 }

@@ -277,15 +277,15 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
         persistTransaction(1_100L, otherPayerAccountId);
 
         assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, third, 0))
-                .contains(first);
+                .isEqualTo(first);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, third, 1))
-                .contains(1_100L);
+                .isEqualTo(1_100L);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, third, 2))
-                .contains(second);
+                .isEqualTo(second);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, third, 3))
-                .contains(third);
+                .isEqualTo(third);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(first, third, third, 4))
-                .isEmpty();
+                .isNull();
     }
 
     @Test
@@ -350,25 +350,25 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
 
         assertThat(transactionRepository.findConsensusTimestampAtPosition(
                         consensusStart, consensusEnd, consensusEnd, 0))
-                .contains(2_000L);
+                .isEqualTo(2_000L);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(
                         consensusStart, consensusEnd, consensusEnd, 1))
-                .contains(2_200L);
+                .isEqualTo(2_200L);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(
                         consensusStart, consensusEnd, consensusEnd, 2))
-                .contains(3_000L);
+                .isEqualTo(3_000L);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(
                         consensusStart, consensusEnd, consensusEnd, 3))
-                .contains(4_500L);
+                .isEqualTo(4_500L);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(
                         consensusStart, consensusEnd, consensusEnd, 4))
-                .contains(5_000L);
+                .isEqualTo(5_000L);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(
                         consensusStart, consensusEnd, consensusEnd, 5))
-                .contains(6_000L);
+                .isEqualTo(6_000L);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(
                         consensusStart, consensusEnd, consensusEnd, 6))
-                .isEmpty();
+                .isNull();
     }
 
     @Test
@@ -388,13 +388,13 @@ class TransactionRepositoryTest extends Web3IntegrationTest {
 
         assertThat(transactionRepository.findConsensusTimestampAtPosition(
                         consensusStart, consensusEnd, scheduledConsensusTimestampEnd, 0))
-                .contains(1_500L);
+                .isEqualTo(1_500L);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(
                         consensusStart, consensusEnd, scheduledConsensusTimestampEnd, 1))
-                .contains(4_000L);
+                .isEqualTo(4_000L);
         assertThat(transactionRepository.findConsensusTimestampAtPosition(
                         consensusStart, consensusEnd, scheduledConsensusTimestampEnd, 2))
-                .isEmpty();
+                .isNull();
     }
 
     @Test

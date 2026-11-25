@@ -22,15 +22,14 @@ import com.hedera.hapi.node.state.token.TokenRelation;
 import com.hedera.node.app.service.token.TokenService;
 import com.swirlds.state.spi.WritableKVState;
 import java.math.BigInteger;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
-import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.AccountAmount;
@@ -41,12 +40,11 @@ import org.junit.jupiter.api.Test;
 import org.web3j.protocol.core.RemoteFunctionCall;
 
 /**
- * Runs {@code debug_traceCallMany} as three bundles (1, then 3, then 2 transactions) of real token contract calls.
+ * Runs {@code debug_traceCallMany} with six real token contract calls.
  * After each transaction settles, the token and token-relation entries are read back through the writable KV state.
  */
 class ContractDebugServiceTraceCommitTest extends AbstractContractCallServiceOpcodeTracerTest {
 
-    private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final long TREASURY_BALANCE = 1_000L;
 
     private Entity receiverEntity;
@@ -138,15 +136,12 @@ class ContractDebugServiceTraceCommitTest extends AbstractContractCallServiceOpc
                 .when(transactionExecutionService)
                 .execute(any(), anyLong());
 
-        contractDebugService.processTraceCall(TraceCall.builder()
+        final var traceCall = TraceCall.builder()
                 .block(org.hiero.mirror.web3.viewmodel.BlockType.of(
                         domainBuilder.recordFile().persist().getIndex().toString()))
-                .bundles(List.of(
-                        bundle(parameters.subList(0, 1)),
-                        bundle(parameters.subList(1, 4)),
-                        bundle(parameters.subList(4, 6))))
-                .timeout(TIMEOUT)
-                .build());
+                .transactions(parameters)
+                .build();
+        ContractCallContext.run(ctx -> contractDebugService.processTraceCall(traceCall, ctx));
         return new TraceState(states, statuses);
     }
 
@@ -221,10 +216,6 @@ class ContractDebugServiceTraceCommitTest extends AbstractContractCallServiceOpc
                         new AccountAmount(treasury, BigInteger.valueOf(-amount), false),
                         new AccountAmount(receiver, BigInteger.valueOf(amount), false)),
                 new ArrayList<>()));
-    }
-
-    private static TraceBundle bundle(final List<ContractExecutionParameters> transactions) {
-        return TraceBundle.builder().transactions(List.copyOf(transactions)).build();
     }
 
     private static KvSnapshot snapshot(final boolean paused, final long treasuryBalance, final long receiverBalance) {

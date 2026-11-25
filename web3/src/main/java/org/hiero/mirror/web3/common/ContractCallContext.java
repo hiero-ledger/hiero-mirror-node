@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.web3.common;
 
+import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID;
+import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
+
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.Arrays;
@@ -33,6 +36,9 @@ public class ContractCallContext {
 
     public static final String CONTEXT_NAME = "ContractCallContext";
 
+    /** The singleton states built from {@link #blockOverride}. */
+    private static final int[] BLOCK_STATE_IDS = {BLOCKS_STATE_ID, BLOCK_STREAM_INFO_STATE_ID};
+
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
 
     /**
@@ -51,7 +57,7 @@ public class ContractCallContext {
     private final StateCaches writeCache = new StateCaches();
 
     @Setter
-    private ActionContext actionContext = null;
+    private ActionContext actionContext;
 
     /**
      * Optional API endpoint used to resolve a per-endpoint request timeout.
@@ -61,12 +67,6 @@ public class ContractCallContext {
 
     @Setter
     private OpcodeContext opcodeContext = null;
-
-    /**
-     * Absolute epoch-millis deadline for this request. {@code 0} means fall back to the per-endpoint request timeout.
-     */
-    @Setter
-    private long deadlineMillis;
 
     @Setter
     private CallServiceParameters callServiceParameters;
@@ -118,7 +118,6 @@ public class ContractCallContext {
      * The current {@code block_override}. {@link BlockOverride#EMPTY} keeps the bound record file's block header and the
      * message frame values.
      */
-    @Setter
     private BlockOverride blockOverride = BlockOverride.EMPTY;
 
     private ContractCallContext() {}
@@ -172,6 +171,21 @@ public class ContractCallContext {
         writeCache.clear();
     }
 
+    /**
+     * Sets the {@code block_override} of the next execution. The block singletons are built from it and cached once per
+     * request, so a different override drops them to be built again. A trace changes it between bundles.
+     */
+    public void setBlockOverride(final BlockOverride blockOverride) {
+        if (blockOverride.equals(this.blockOverride)) {
+            return;
+        }
+        this.blockOverride = blockOverride;
+        for (final int stateId : BLOCK_STATE_IDS) {
+            readCache.remove(stateId);
+            writeCache.remove(stateId);
+        }
+    }
+
     public boolean useHistorical() {
         return callServiceParameters != null && callServiceParameters.getBlock() != BlockType.LATEST;
     }
@@ -222,19 +236,6 @@ public class ContractCallContext {
         return blockSupplier.get();
     }
 
-    public boolean isDeadlineExceeded() {
-        return deadlineMillis > 0 && remainingMillis(0L) <= 0L;
-    }
-
-    /**
-     * Milliseconds remaining until this request should stop work. Uses {@link #deadlineMillis} when set; otherwise
-     * {@code startTime + fallbackTimeoutMillis}.
-     */
-    public long remainingMillis(final long fallbackTimeoutMillis) {
-        final long deadline = deadlineMillis > 0 ? deadlineMillis : startTime + fallbackTimeoutMillis;
-        return deadline - System.currentTimeMillis();
-    }
-
     public void applyStateOverrides(final List<StateOverride> overrides) {
         if (overrides == null || overrides.isEmpty()) {
             this.stateOverrides = null;
@@ -276,6 +277,14 @@ public class ContractCallContext {
                 indexed[stateId] = cache;
             }
             return cache;
+        }
+
+        void remove(final int stateId) {
+            if (stateId < 0 || stateId >= INDEXED_STATE_IDS) {
+                others.remove(stateId);
+                return;
+            }
+            indexed[stateId] = null;
         }
     }
 }

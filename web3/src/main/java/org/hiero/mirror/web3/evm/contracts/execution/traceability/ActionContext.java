@@ -50,6 +50,9 @@ public class ActionContext {
      */
     private final @Nullable ActionResponse[] currentByDepth = new ActionResponse[MAX_DEPTH];
 
+    /** The gas of the action at the same index of {@link #currentByDepth}, kept as a number for the gas used. */
+    private final long[] gasByDepth = new long[MAX_DEPTH];
+
     private int executedOpcodes;
 
     private @Nullable ActionResponse lastAction;
@@ -73,20 +76,17 @@ public class ActionContext {
     private boolean truncated;
 
     /**
-     * Records a new action at the given call depth. Depth {@code 0} actions are roots; deeper actions are appended to
-     * the parent action's {@code calls} list. Actions beyond {@link #MAX_ACTIONS} or at depth &gt;=
+     * Records a new action with {@code gas} at the given call depth. Depth {@code 0} actions are roots; deeper actions
+     * are appended to the parent action's {@code calls} list. Actions beyond {@link #MAX_ACTIONS} or at depth &gt;=
      * {@link #MAX_DEPTH} are dropped and a truncation marker is recorded.
      */
-    public void addAction(final ActionResponse actionResponse, final int depth) {
+    public void addAction(final ActionResponse actionResponse, final int depth, final long gas) {
         if (truncated || totalActionCount >= MAX_ACTIONS || depth < 0 || depth >= MAX_DEPTH) {
             markTruncated();
             return;
         }
         if (!charge(textLength(actionResponse.getInput()))) {
             return;
-        }
-        if (actionResponse.getCalls() == null) {
-            actionResponse.setCalls(new ArrayList<>());
         }
         if (depth > 0) {
             final var parent = currentByDepth[depth - 1];
@@ -103,6 +103,7 @@ public class ActionContext {
             actionResponses.add(actionResponse);
         }
         currentByDepth[depth] = actionResponse;
+        gasByDepth[depth] = gas;
     }
 
     /**
@@ -160,6 +161,14 @@ public class ActionContext {
         return currentByDepth[depth];
     }
 
+    /** Returns the gas of the current action at {@code depth}, or {@code 0} if none has been recorded. */
+    public long getCurrentGas(final int depth) {
+        if (depth < 0 || depth >= MAX_DEPTH) {
+            return 0L;
+        }
+        return gasByDepth[depth];
+    }
+
     public boolean hasActionAt(final int depth) {
         return getCurrentAction(depth) != null;
     }
@@ -209,10 +218,11 @@ public class ActionContext {
             return;
         }
         // This transaction has no action yet. Do not rewrite the previous transaction's last action.
-        final var marker = new ActionResponse().error(TRUNCATED_ERROR).calls(new ArrayList<>());
+        final var marker = new ActionResponse().error(TRUNCATED_ERROR);
         actionResponses.add(marker);
         lastAction = marker;
         currentByDepth[0] = marker;
+        gasByDepth[0] = 0L;
     }
 
     private static int textLength(final @Nullable String value) {

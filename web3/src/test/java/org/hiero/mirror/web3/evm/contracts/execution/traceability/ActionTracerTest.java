@@ -24,6 +24,7 @@ import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.utils.HexUtils;
 import org.hyperledger.besu.datatypes.Address;
@@ -108,7 +109,7 @@ class ActionTracerTest {
 
     @BeforeEach
     void setup() {
-        actionTracer = new ActionTracer();
+        actionTracer = new ActionTracer(new Web3Properties());
         actionContext = new ActionContext();
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
         lenient().when(contractCallContext.getActionContext()).thenReturn(actionContext);
@@ -116,7 +117,7 @@ class ActionTracerTest {
 
     @Test
     void traceContextEnterHaltsWhenDeadlineExceeded() {
-        lenient().when(contractCallContext.isDeadlineExceeded()).thenReturn(true);
+        lenient().when(contractCallContext.getStartTime()).thenReturn(0L);
 
         actionTracer.traceContextEnter(messageFrame);
 
@@ -412,7 +413,7 @@ class ActionTracerTest {
     @Test
     void haltsFrameWhenTimeoutExceeded() {
         // Given
-        lenient().when(contractCallContext.isDeadlineExceeded()).thenReturn(true);
+        lenient().when(contractCallContext.getStartTime()).thenReturn(0L);
         givenOriginFrameData();
         actionTracer.traceOriginAction(messageFrame);
 
@@ -434,7 +435,7 @@ class ActionTracerTest {
     @Test
     void doesNotHaltWhenTimeoutNotExceeded() {
         // Given
-        lenient().when(contractCallContext.isDeadlineExceeded()).thenReturn(false);
+        lenient().when(contractCallContext.getStartTime()).thenReturn(System.currentTimeMillis());
         given(messageFrame.getState()).willReturn(CODE_EXECUTING);
 
         // When
@@ -463,7 +464,7 @@ class ActionTracerTest {
     @Test
     void checksDeadlineEveryIntervalOpcodesWhileCodeExecuting() {
         given(messageFrame.getState()).willReturn(CODE_EXECUTING);
-        lenient().when(contractCallContext.isDeadlineExceeded()).thenReturn(true);
+        lenient().when(contractCallContext.getStartTime()).thenReturn(0L);
 
         for (int i = 1; i < ActionContext.DEADLINE_CHECK_INTERVAL; i++) {
             actionTracer.tracePostExecution(messageFrame, operationResult);
@@ -478,7 +479,7 @@ class ActionTracerTest {
 
     @Test
     void haltsOnContextEnterWhenDeadlineExceeded() {
-        lenient().when(contractCallContext.isDeadlineExceeded()).thenReturn(true);
+        lenient().when(contractCallContext.getStartTime()).thenReturn(0L);
 
         actionTracer.traceContextEnter(messageFrame);
 
@@ -511,7 +512,7 @@ class ActionTracerTest {
 
     @Test
     void omitsPayloadsThatExceedTheRetainedByteBudget() {
-        actionContext.addAction(new ActionResponse().input("a".repeat(ActionContext.MAX_RETAINED_BYTES - 4)), 0);
+        actionContext.addAction(new ActionResponse().input("a".repeat(ActionContext.MAX_RETAINED_BYTES - 4)), 0, 0L);
         final var previous = actionContext.getActions().getFirst();
         actionContext.beginCall();
 

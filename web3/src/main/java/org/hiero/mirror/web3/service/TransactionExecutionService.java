@@ -374,11 +374,11 @@ public class TransactionExecutionService {
         final var ctx = ContractCallContext.get();
         if (ctx.getOpcodeContext() != null) {
             return new ActionSidecarContentTracer[] {opcodeActionTracer};
-        } else if (ctx.getActionContext() != null) {
-            return new ActionSidecarContentTracer[] {actionTracer};
-        } else {
-            return new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
         }
+        if (ctx.getActionContext() != null) {
+            return new ActionSidecarContentTracer[] {actionTracer};
+        }
+        return new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
     }
 
     private SequencedCollection<String> populateChildTransactionErrors(

@@ -2,8 +2,8 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
-import static org.hiero.mirror.web3.utils.HexUtils.convertHexStringToLong;
+import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
+import static org.hiero.mirror.web3.convert.BytesDecoder.decodeErrorString;
 import static org.hiero.mirror.web3.utils.HexUtils.convertLongToHexString;
 import static org.hiero.mirror.web3.utils.HexUtils.convertValueToHexString;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.CODE_EXECUTING;
@@ -19,11 +19,12 @@ import com.hedera.hapi.streams.ContractActionType;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.utils.OpcodeUtils;
 import jakarta.inject.Named;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ActionResponse;
 import org.hiero.mirror.rest.model.ActionResponse.TypeEnum;
+import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
@@ -34,6 +35,7 @@ import org.jspecify.annotations.Nullable;
 
 @Named
 @NullMarked
+@RequiredArgsConstructor
 public class ActionTracer implements ActionSidecarContentTracer {
 
     static final ExceptionalHaltReason TIMEOUT_HALT_REASON = new ExceptionalHaltReason() {
@@ -54,6 +56,8 @@ public class ActionTracer implements ActionSidecarContentTracer {
     };
 
     private static final String EXECUTION_REVERTED = "execution reverted";
+
+    private final Web3Properties web3Properties;
 
     @Override
     public List<ContractAction> contractActions() {
@@ -87,7 +91,7 @@ public class ActionTracer implements ActionSidecarContentTracer {
             return;
         }
         haltIfDeadlineExceeded(frame);
-        actionContext.addAction(buildActionResponse(actionContext, frame, topLevelCallType(frame)), frame.getDepth());
+        addAction(actionContext, frame, topLevelCallType(frame));
     }
 
     @Override
@@ -131,7 +135,7 @@ public class ActionTracer implements ActionSidecarContentTracer {
             return;
         }
         if (!actionContext.hasActionAt(frame.getDepth())) {
-            actionContext.addAction(buildActionResponse(actionContext, frame, typeEnumFrom(type)), frame.getDepth());
+            addAction(actionContext, frame, typeEnumFrom(type));
         }
         finalizeCurrentAction(actionContext, frame);
     }
@@ -145,16 +149,17 @@ public class ActionTracer implements ActionSidecarContentTracer {
         return ContractCallContext.get().getActionContext();
     }
 
-    private ActionResponse buildActionResponse(
-            final ActionContext actionContext, final MessageFrame frame, final TypeEnum type) {
-        return new ActionResponse()
+    /** Records the action for {@code frame}. The generated {@link ActionResponse} already has an empty calls list. */
+    private void addAction(final ActionContext actionContext, final MessageFrame frame, final TypeEnum type) {
+        final long gas = frame.getRemainingGas();
+        final var action = new ActionResponse()
                 .from(frame.getSenderAddress().toHexString())
-                .gas(convertLongToHexString(frame.getRemainingGas()))
+                .gas(convertLongToHexString(gas))
                 .input(actionContext.hexWithinBudget(frame.getInputData()))
                 .to(frame.getRecipientAddress().toHexString())
                 .type(type)
-                .value(convertValueToHexString(frame.getValue()))
-                .calls(new ArrayList<>());
+                .value(convertValueToHexString(frame.getValue()));
+        actionContext.addAction(action, frame.getDepth(), gas);
     }
 
     /** A timeout halt is set together with {@link ActionContext#isTimedOut()}, so the flag covers it. */
@@ -175,30 +180,26 @@ public class ActionTracer implements ActionSidecarContentTracer {
     }
 
     private void finalizeCurrentAction(final ActionContext actionContext, final MessageFrame frame) {
-        final var action = actionContext.getCurrentAction(frame.getDepth());
-        if (action == null) {
+        if (!actionContext.hasActionAt(frame.getDepth())) {
             return;
         }
         final var reverted = frame.getState() == REVERT;
-        final var output = actionContext.hexWithinBudget(
-                reverted ? frame.getRevertReason().orElse(frame.getOutputData()) : frame.getOutputData());
+        final var outputData = reverted ? frame.getRevertReason().orElse(frame.getOutputData()) : frame.getOutputData();
+        final var output = actionContext.hexWithinBudget(outputData);
         actionContext.finalizeAction(
                 frame.getDepth(),
                 reverted ? EXECUTION_REVERTED : haltError(actionContext, frame),
-                gasUsedHex(actionContext, frame, action.getGas()),
+                gasUsedHex(actionContext, frame),
                 output,
-                reverted && output != null && output.startsWith("0x08c379a0")
-                        ? maybeDecodeSolidityErrorStringToReadableMessage(output)
-                        : null);
+                reverted && output != null ? decodeErrorString(outputData) : null);
     }
 
     /**
      * Gas burned by this frame, clamped to the gas recorded when the frame was entered. An exceptional halt consumes
      * the whole frame. A timeout reports only the gas used before the deadline. A revert keeps gas consumed so far.
      */
-    private String gasUsedHex(
-            final ActionContext actionContext, final MessageFrame frame, final @Nullable String gasHex) {
-        final long gas = convertHexStringToLong(gasHex);
+    private String gasUsedHex(final ActionContext actionContext, final MessageFrame frame) {
+        final long gas = actionContext.getCurrentGas(frame.getDepth());
         if (burnsFrameGas(actionContext, frame)) {
             return convertLongToHexString(gas);
         }
@@ -222,7 +223,7 @@ public class ActionTracer implements ActionSidecarContentTracer {
     private void haltIfDeadlineExceeded(final MessageFrame frame) {
         final var context = ContractCallContext.get();
         final var actionContext = context.getActionContext();
-        if (actionContext == null || !context.isDeadlineExceeded()) {
+        if (actionContext == null || !isDeadlineExceeded(context)) {
             return;
         }
         actionContext.setTimedOut(true);
@@ -232,10 +233,17 @@ public class ActionTracer implements ActionSidecarContentTracer {
         final var action = actionContext.getCurrentAction(frame.getDepth());
         if (action != null && !ActionContext.TRUNCATED_ERROR.equals(action.getError())) {
             action.error(TIMEOUT_HALT_REASON.toString());
-            if (action.getGasUsed() == null && action.getGas() != null) {
-                action.gasUsed(gasUsedHex(actionContext, frame, action.getGas()));
+            if (action.getGasUsed() == null) {
+                action.gasUsed(gasUsedHex(actionContext, frame));
             }
         }
+    }
+
+    /** The trace stops at the {@code actions} API response timeout, counted from the start of the request. */
+    private boolean isDeadlineExceeded(final ContractCallContext context) {
+        final long timeoutMillis =
+                web3Properties.getApi(ACTIONS).getResponse().getTimeout().toMillis();
+        return System.currentTimeMillis() - context.getStartTime() >= timeoutMillis;
     }
 
     private void recordNestedCall(final ActionContext actionContext, final MessageFrame frame) {
@@ -243,7 +251,7 @@ public class ActionTracer implements ActionSidecarContentTracer {
         if (child == null) {
             return;
         }
-        actionContext.addAction(buildActionResponse(actionContext, child, callTypeFromParent(frame)), child.getDepth());
+        addAction(actionContext, child, callTypeFromParent(frame));
     }
 
     private TypeEnum toTypeEnum(final CallOperationType callOperationType) {

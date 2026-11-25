@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.service;
 
 import static java.time.ZoneOffset.UTC;
 import static org.apache.logging.log4j.util.Strings.EMPTY;
-import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
@@ -43,11 +42,11 @@ public abstract class ContractCallService {
     static final String TAG_TYPE = "type";
 
     protected final EvmProperties evmProperties;
+    protected final RecordFileService recordFileService;
 
     private final MeterProvider<Counter> invocationCounter;
     private final MeterProvider<Counter> gasLimitCounter;
     private final MeterProvider<Counter> gasUsedCounter;
-    private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
     private final TransactionExecutionService transactionExecutionService;
 
@@ -98,13 +97,8 @@ public abstract class ContractCallService {
     protected final EvmTransactionResult callContract(CallServiceParameters params, ContractCallContext ctx)
             throws MirrorEvmTransactionException {
         ctx.setCallServiceParameters(params);
-        // An actions trace installs one record-file supplier for the whole request. Replacing it per transaction
-        // would let block moves between transactions in the same bundle.
-        if (ctx.getApi() != ACTIONS) {
-            ctx.setBlockSupplier(Suppliers.memoize(() -> recordFileService
-                    .findByBlockType(params.getBlock())
-                    .orElseThrow(BlockNumberNotFoundException::new)));
-        }
+        ctx.setBlockSupplier(Suppliers.memoize(() ->
+                recordFileService.findByBlockType(params.getBlock()).orElseThrow(BlockNumberNotFoundException::new)));
 
         return doProcessCall(params, params.getGas(), false);
     }
@@ -133,11 +127,11 @@ public abstract class ContractCallService {
         } finally {
             if (!estimate) {
                 ContractCallContext.get().setRefundableGas(refundableGas(params.getGas(), result));
-            }
 
-            // Only record metric if EVM is invoked and not inside estimate loop
-            if (!estimate && result != null) {
-                updateMetrics(params, result.gasUsed(), 1, status);
+                // Only record metric if EVM is invoked and not inside estimate loop
+                if (result != null) {
+                    updateMetrics(params, result.gasUsed(), 1, status);
+                }
             }
         }
         return result;

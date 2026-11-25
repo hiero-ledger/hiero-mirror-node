@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.service;
 import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.utils.Constants.MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
@@ -29,7 +28,6 @@ import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
-import org.hiero.mirror.web3.service.model.TraceBundle;
 import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.Suppliers;
@@ -43,7 +41,6 @@ import org.springframework.validation.annotation.Validated;
 public class ContractDebugService extends ContractCallService {
 
     private final ContractActionRepository contractActionRepository;
-    private final RecordFileService recordFileService;
     private final TransactionRepository transactionRepository;
 
     public ContractDebugService(
@@ -56,7 +53,6 @@ public class ContractDebugService extends ContractCallService {
             TransactionExecutionService transactionExecutionService) {
         super(meterRegistry, recordFileService, evmProperties, throttleProperties, transactionExecutionService);
         this.contractActionRepository = contractActionRepository;
-        this.recordFileService = recordFileService;
         this.transactionRepository = transactionRepository;
     }
 
@@ -74,42 +70,31 @@ public class ContractDebugService extends ContractCallService {
     }
 
     /**
-     * Runs every transaction of every bundle in order. Each transaction sees the state changes of the successful
-     * transactions before it, while a failed or reverted transaction's changes are rolled back, except for its fee
-     * charge. A timeout returns the actions collected so far.
-     *
-     * @param traceCall the trace to run
-     */
-    @VisibleForTesting
-    public List<ActionResponse> processTraceCall(final TraceCall traceCall) {
-        return ContractCallContext.run(context -> processTraceCall(traceCall, context));
-    }
-
-    /**
-     * Runs the trace in {@code context}, which must be the bound {@link ContractCallContext}. Afterwards
-     * {@code context} holds the {@link ContractCallContext#getRefundableGas() refundable gas} of the whole trace: the
-     * unused gas of each transaction that ran, plus the whole gas limit of each transaction that did not, because a
-     * failure or timeout stopped the trace first. The caller can then return the throttle gas the trace did not use.
+     * Runs every transaction in order in {@code context}, which must be the bound {@link ContractCallContext}. Each
+     * transaction sees the state changes of the successful transactions before it, while a failed or reverted
+     * transaction's changes are rolled back, except for its fee charge. A timeout returns the actions collected so far.
+     * Afterwards {@code context} holds the {@link ContractCallContext#getRefundableGas() refundable gas} of the whole
+     * trace: the unused gas of each transaction that ran, plus the whole gas limit of each transaction that did not.
      *
      * @param traceCall the trace to run
      * @param context   the bound contract call context
      */
     public List<ActionResponse> processTraceCall(final TraceCall traceCall, final ContractCallContext context) {
-        final var bundles = traceCall.getBundles();
+        final var transactions = traceCall.getTransactions();
         // The reserved gas of the transactions that have not run yet. None of it has been used, so all of it is
         // refundable. Each transaction takes its gas limit out of it before it runs.
-        long unstartedGas = reservedGas(bundles);
+        long unstartedGas = 0L;
+        for (final var transaction : transactions) {
+            unstartedGas += transaction.getGas();
+        }
         // The gas the transactions that ran did not use. Gas they consumed is never refunded.
         long unusedGas = 0L;
-        context.setRefundableGas(unstartedGas);
 
         // One record-file supplier for the whole trace, so every transaction runs in the same block.
         context.setApi(ACTIONS);
         context.setBlockSupplier(Suppliers.memoize(() -> recordFileService
                 .findByBlockType(traceCall.getBlock())
                 .orElseThrow(BlockNumberNotFoundException::new)));
-        context.setDeadlineMillis(
-                context.getStartTime() + traceCall.getTimeout().toMillis());
         context.applyStateOverrides(traceCall.getStateOverrides());
         final var actionContext = new ActionContext();
         actionContext.setOnlyTopCall(traceCall.isOnlyTopCall());
@@ -118,29 +103,27 @@ public class ContractDebugService extends ContractCallService {
         try {
             // A single transaction at latest reads current state like eth_call. Otherwise every transaction reads
             // one pinned state, so a record file imported mid-request cannot change it.
-            if (!BlockType.LATEST.equals(traceCall.getBlock()) || transactionCount(bundles) > 1) {
+            if (!BlockType.LATEST.equals(traceCall.getBlock()) || transactions.size() > 1) {
                 context.setTimestamp(Optional.of(resolveStateTimestamp(context.getRecordFile(), traceCall)));
             }
-            for (final var bundle : bundles) {
-                for (final var transaction : bundle.getTransactions()) {
-                    final long gasLimit = transaction.getGas();
-                    unstartedGas -= gasLimit;
-                    // The execution replaces this with the gas it did not use, so a transaction that fails before the
-                    // EVM runs keeps its whole gas limit refundable.
-                    context.setRefundableGas(gasLimit);
-                    try {
-                        executeTransaction(context, actionContext, transaction);
-                    } finally {
-                        unusedGas += context.getRefundableGas();
-                    }
+            for (final var transaction : transactions) {
+                final long gasLimit = transaction.getGas();
+                unstartedGas -= gasLimit;
+                // The execution replaces this with the gas it did not use, so a transaction that fails before the
+                // EVM runs keeps its whole gas limit refundable.
+                context.setRefundableGas(gasLimit);
+                try {
+                    executeTransaction(context, actionContext, transaction);
+                } finally {
+                    unusedGas += context.getRefundableGas();
                 }
             }
-            return actionResponse(context);
+            return actionContext.getActions();
         } catch (final QueryTimeoutException _) {
-            throw new TraceTimeoutException(actionResponse(context));
+            throw new TraceTimeoutException(actionContext.getActions());
         } catch (final MirrorEvmTransactionException exception) {
             if (actionContext.isTimedOut()) {
-                throw new TraceTimeoutException(actionResponse(context));
+                throw new TraceTimeoutException(actionContext.getActions());
             }
             throw exception;
         } finally {
@@ -165,23 +148,22 @@ public class ContractDebugService extends ContractCallService {
         }
     }
 
-    private List<ActionResponse> actionResponse(final ContractCallContext context) {
-        return context.getActionContext().getActions();
-    }
-
     /**
-     * Runs one transaction. The transaction executor commits a successful transaction's state changes into the request
-     * caches of {@code context}, so later transactions see them. It rolls back the state changes of a failed or
-     * reverted transaction, but keeps its fee charge, as a consensus node does.
+     * Runs one transaction against the trace's record-file supplier, with the block override of its bundle. The
+     * transaction executor commits a successful transaction's state changes into the request caches of
+     * {@code context}, so later transactions see them. It rolls back the state changes of a failed or reverted
+     * transaction, but keeps its fee charge, as a consensus node does.
      */
     private void executeTransaction(
             final ContractCallContext context,
             final ActionContext actionContext,
             final ContractExecutionParameters transaction) {
         actionContext.beginCall();
-        callContract(transaction, context);
+        context.setBlockOverride(transaction.getBlockOverride());
+        context.setCallServiceParameters(transaction);
+        doProcessCall(transaction, transaction.getGas(), false);
         if (actionContext.isTimedOut()) {
-            throw new TraceTimeoutException(actionResponse(context));
+            throw new TraceTimeoutException(actionContext.getActions());
         }
     }
 
@@ -202,32 +184,14 @@ public class ContractDebugService extends ContractCallService {
             return consensusStart - 1;
         }
         // transaction_index counts from 1, while the query position counts from 0.
-        final long transactionTimestamp = transactionRepository
-                .findConsensusTimestampAtPosition(
-                        consensusStart,
-                        recordFile.getConsensusEnd(),
-                        consensusStart + MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS,
-                        transactionIndex - 1)
-                .orElseThrow(() -> new InvalidParametersException(
-                        "transaction_index exceeds the number of transactions in the block"));
+        final var transactionTimestamp = transactionRepository.findConsensusTimestampAtPosition(
+                consensusStart,
+                recordFile.getConsensusEnd(),
+                consensusStart + MAX_SCHEDULED_TRANSACTION_CONSENSUS_TIMESTAMP_RANGE_NS,
+                transactionIndex - 1);
+        if (transactionTimestamp == null) {
+            throw new InvalidParametersException("transaction_index exceeds the number of transactions in the block");
+        }
         return transactionTimestamp + 1;
-    }
-
-    private static long reservedGas(final List<TraceBundle> bundles) {
-        long gas = 0L;
-        for (final var bundle : bundles) {
-            for (final var transaction : bundle.getTransactions()) {
-                gas += transaction.getGas();
-            }
-        }
-        return gas;
-    }
-
-    private static int transactionCount(final List<TraceBundle> bundles) {
-        int count = 0;
-        for (final var bundle : bundles) {
-            count += bundle.getTransactions().size();
-        }
-        return count;
     }
 }
