@@ -49,6 +49,7 @@ import org.hiero.mirror.web3.ApiProperties;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.config.JacksonConfiguration;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
@@ -884,8 +885,9 @@ final class ContractControllerTest {
         enableActionsApi();
         final var request = traceRequest();
         transaction(request).setValue(0);
+        // The tracer retains at most ActionContext.MAX_DEPTH frames, so that is the deepest response to serialize.
         var nested = new ActionResponse().from("0x1");
-        for (int i = 0; i < 120; i++) {
+        for (int i = 1; i < ActionContext.MAX_DEPTH; i++) {
             nested = new ActionResponse().from("0x1").calls(List.of(nested));
         }
         given(contractDebugService.processTraceCall(any(), any())).willReturn(List.of(nested));

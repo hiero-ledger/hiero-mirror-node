@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.state.core;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableKVStateBase;
 import java.util.Objects;
-import org.hiero.mirror.web3.common.ContractCallContext;
 import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("deprecation")
@@ -28,12 +27,7 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     protected V readFromDataSource(@NonNull K key) {
-        final var committed = ContractCallContext.get().getCommittedCacheState(getStateId());
-        if (committed.containsKey(key)) {
-            return (V) committed.get(key);
-        }
         return readableBackingStore.get(key);
     }
 

@@ -75,7 +75,6 @@ management:
 server:
   compression:
     enabled: true
-  forward-headers-strategy: framework # Enable spring ForwardedHeaderFilter
   http2:
     enabled: true
   max-http-request-header-size: 3KB

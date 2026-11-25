@@ -20,7 +20,6 @@ import com.hedera.hapi.node.state.common.EntityIDPair;
 import com.hedera.hapi.node.state.token.Token;
 import com.hedera.hapi.node.state.token.TokenRelation;
 import com.hedera.node.app.service.token.TokenService;
-import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableKVState;
 import java.math.BigInteger;
 import java.time.Duration;
@@ -43,8 +42,7 @@ import org.web3j.protocol.core.RemoteFunctionCall;
 
 /**
  * Runs {@code debug_traceCallMany} as three bundles (1, then 3, then 2 transactions) of real token contract calls.
- * After each transaction settles, the token and token-relation entries are read back through both the writable and
- * readable KV state.
+ * After each transaction settles, the token and token-relation entries are read back through the writable KV state.
  */
 class ContractDebugServiceTraceCommitTest extends AbstractContractCallServiceOpcodeTracerTest {
 
@@ -152,36 +150,26 @@ class ContractDebugServiceTraceCommitTest extends AbstractContractCallServiceOpc
         return new TraceState(states, statuses);
     }
 
+    /**
+     * Reads the request state that later transactions see. Committed transactions write into the request write cache,
+     * which only the writable states read through.
+     */
     private KvSnapshot readState() {
         final var writable = state.getWritableStates(TokenService.NAME);
-        final var readable = state.getReadableStates(TokenService.NAME);
-        final WritableKVState<TokenID, Token> tokenWritable = writable.get(TOKENS_STATE_ID);
-        final ReadableKVState<TokenID, Token> tokenReadable = readable.get(TOKENS_STATE_ID);
-        final WritableKVState<EntityIDPair, TokenRelation> relationWritable = writable.get(TOKEN_RELS_STATE_ID);
-        final ReadableKVState<EntityIDPair, TokenRelation> relationReadable = readable.get(TOKEN_RELS_STATE_ID);
+        final WritableKVState<TokenID, Token> tokens = writable.get(TOKENS_STATE_ID);
+        final WritableKVState<EntityIDPair, TokenRelation> relations = writable.get(TOKEN_RELS_STATE_ID);
 
-        final var writtenToken = tokenWritable.get(tokenId);
-        final var readToken = tokenReadable.get(tokenId);
-        assertThat(writtenToken).isNotNull();
-        assertThat(readToken).isNotNull();
-        assertThat(writtenToken.paused()).isEqualTo(readToken.paused());
+        final var token = tokens.get(tokenId);
+        assertThat(token).isNotNull();
 
         return new KvSnapshot(
-                writtenToken.paused(),
-                balance(relationWritable, relationReadable, treasuryRelation),
-                balance(relationWritable, relationReadable, receiverRelation));
+                token.paused(), balance(relations, treasuryRelation), balance(relations, receiverRelation));
     }
 
-    private long balance(
-            final WritableKVState<EntityIDPair, TokenRelation> writable,
-            final ReadableKVState<EntityIDPair, TokenRelation> readable,
-            final EntityIDPair key) {
-        final var written = writable.get(key);
-        final var read = readable.get(key);
-        assertThat(written).isNotNull();
-        assertThat(read).isNotNull();
-        assertThat(written.balance()).isEqualTo(read.balance());
-        return written.balance();
+    private long balance(final WritableKVState<EntityIDPair, TokenRelation> relations, final EntityIDPair key) {
+        final var relation = relations.get(key);
+        assertThat(relation).isNotNull();
+        return relation.balance();
     }
 
     private ModificationPrecompileTestContract deployTokenContract() {

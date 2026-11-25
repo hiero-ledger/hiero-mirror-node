@@ -75,8 +75,8 @@ public class ContractDebugService extends ContractCallService {
 
     /**
      * Runs every transaction of every bundle in order. Each transaction sees the state changes of the successful
-     * transactions before it, while a failed or reverted transaction's changes are rolled back. A timeout returns the
-     * actions collected so far.
+     * transactions before it, while a failed or reverted transaction's changes are rolled back, except for its fee
+     * charge. A timeout returns the actions collected so far.
      *
      * @param traceCall the trace to run
      */
@@ -115,11 +115,10 @@ public class ContractDebugService extends ContractCallService {
         actionContext.setOnlyTopCall(traceCall.isOnlyTopCall());
         context.setActionContext(actionContext);
 
-        int remaining = transactionCount(bundles);
         try {
             // A single transaction at latest reads current state like eth_call. Otherwise every transaction reads
             // one pinned state, so a record file imported mid-request cannot change it.
-            if (!BlockType.LATEST.equals(traceCall.getBlock()) || remaining > 1) {
+            if (!BlockType.LATEST.equals(traceCall.getBlock()) || transactionCount(bundles) > 1) {
                 context.setTimestamp(Optional.of(resolveStateTimestamp(context.getRecordFile(), traceCall)));
             }
             for (final var bundle : bundles) {
@@ -130,7 +129,7 @@ public class ContractDebugService extends ContractCallService {
                     // EVM runs keeps its whole gas limit refundable.
                     context.setRefundableGas(gasLimit);
                     try {
-                        executeTransaction(context, actionContext, transaction, --remaining > 0);
+                        executeTransaction(context, actionContext, transaction);
                     } finally {
                         unusedGas += context.getRefundableGas();
                     }
@@ -171,24 +170,16 @@ public class ContractDebugService extends ContractCallService {
     }
 
     /**
-     * Runs one transaction. A failed or reverted transaction's state changes are rolled back when a later transaction
-     * still reads that state, so the last transaction skips the snapshot.
+     * Runs one transaction. The transaction executor commits a successful transaction's state changes into the request
+     * caches of {@code context}, so later transactions see them. It rolls back the state changes of a failed or
+     * reverted transaction, but keeps its fee charge, as a consensus node does.
      */
     private void executeTransaction(
             final ContractCallContext context,
             final ActionContext actionContext,
-            final ContractExecutionParameters transaction,
-            final boolean hasNext) {
+            final ContractExecutionParameters transaction) {
         actionContext.beginCall();
-        final var snapshot = hasNext ? context.captureCaches() : null;
-        boolean successful = false;
-        try {
-            successful = callContract(transaction, context).isSuccessful();
-        } finally {
-            if (!successful && snapshot != null) {
-                context.restoreCaches(snapshot);
-            }
-        }
+        callContract(transaction, context);
         if (actionContext.isTimedOut()) {
             throw new TraceTimeoutException(actionResponse(context));
         }

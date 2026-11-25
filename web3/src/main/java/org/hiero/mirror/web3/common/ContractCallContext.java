@@ -50,10 +50,6 @@ public class ContractCallContext {
     @Getter(AccessLevel.NONE)
     private final StateCaches writeCache = new StateCaches();
 
-    /** Successful simulation writes, retained only for this request. Null values are deletion tombstones. */
-    @Getter(AccessLevel.NONE)
-    private final Map<Integer, Map<Object, Object>> committedCache = new HashMap<>();
-
     @Setter
     private ActionContext actionContext = null;
 
@@ -220,18 +216,6 @@ public class ContractCallContext {
 
     public Map<Object, Object> getWriteCacheState(final int stateId) {
         return writeCache.get(stateId);
-    }
-
-    public Map<Object, Object> getCommittedCacheState(final int stateId) {
-        return committedCache.computeIfAbsent(stateId, _ -> new HashMap<>());
-    }
-
-    /** Move pending writes into the committed overlay for later transactions in this request. */
-    public void commitWrites(final int stateId) {
-        final var pending = getWriteCacheState(stateId);
-        final var committed = getCommittedCacheState(stateId);
-        committed.putAll(pending);
-        pending.clear();
     }
 
     public RecordFile getRecordFile() {

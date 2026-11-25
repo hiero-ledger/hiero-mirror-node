@@ -7,7 +7,6 @@ import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_TRAN
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
@@ -20,6 +19,7 @@ import lombok.Data;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.annotation.JsonSerialize;
 
 /**
  * One {@code debug_traceCallMany} request. A single bundle with one transaction is {@code debug_traceCall}.
