@@ -11,6 +11,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_P
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS_VALUE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
 import static org.assertj.core.api.InstanceOfAssertFactories.collection;
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
@@ -34,10 +35,13 @@ import com.hedera.hapi.node.transaction.TransactionReceipt;
 import com.hedera.hapi.node.transaction.TransactionRecord;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
+import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.app.workflows.standalone.TransactionExecutor;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import com.swirlds.state.spi.ReadableKVState;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -66,6 +70,7 @@ import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
+import org.hiero.mirror.web3.state.core.MapWritableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
@@ -120,6 +125,8 @@ class TransactionExecutionServiceTest {
 
     private TransactionExecutionService transactionExecutionService;
 
+    private CommonProperties commonProperties;
+
     private EvmProperties evmProperties;
 
     private static Stream<Arguments> provideCallData() {
@@ -128,7 +135,7 @@ class TransactionExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
-        var commonProperties = new CommonProperties();
+        commonProperties = CommonProperties.getInstance();
         var systemEntity = new SystemEntity(commonProperties);
         evmProperties = new EvmProperties();
         transactionExecutionService = new TransactionExecutionService(
@@ -670,6 +677,111 @@ class TransactionExecutionServiceTest {
                 .sender(senderAddress)
                 .value(0)
                 .build();
+    }
+
+    @Nested
+    class InMemoryCommits {
+
+        private static final long BALANCE = 1_000_000L;
+        private static final long FEE = 1_000L;
+        private static final long NONCE = 5L;
+        private static final Address SENDER_ADDRESS =
+                Address.fromHexString("0x00000000000000000000000000000000000003e9");
+        private static final long SENDER_NUM = 1001L;
+
+        private MapWritableKVState<AccountID, Account> accounts;
+
+        @Mock
+        private ReadableKVState<AccountID, Account> backingAccounts;
+
+        private Account sender;
+
+        private AccountID senderId;
+
+        @BeforeEach
+        void setup() {
+            senderId = AccountID.newBuilder()
+                    .shardNum(commonProperties.getShard())
+                    .realmNum(commonProperties.getRealm())
+                    .accountNum(SENDER_NUM)
+                    .build();
+            sender = Account.newBuilder()
+                    .accountId(senderId)
+                    .key(DEFAULT_KEY)
+                    .tinybarBalance(BALANCE)
+                    .ethereumNonce(NONCE)
+                    .build();
+            accounts = new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, backingAccounts);
+            when(accountReadableKVState.get(senderId)).thenReturn(sender);
+        }
+
+        @ParameterizedTest
+        @CsvSource({"SUCCESS, 50000", "CONTRACT_REVERT_EXECUTED, 30000", "INSUFFICIENT_GAS, 0"})
+        void executeLeavesExecutorCommitsUnmanaged(final ResponseCodeEnum status, final long gasUsed) {
+            // Given
+            executorChargesFeeAndReturns(status, gasUsed);
+
+            // When
+            catchThrowable(() -> transactionExecutionService.execute(params(), DEFAULT_GAS));
+
+            // Then the fee the executor committed stays, and execute neither rolls it back nor increments the nonce.
+            assertThat(accounts.get(senderId).tinybarBalance()).isEqualTo(BALANCE - FEE);
+            assertThat(accounts.get(senderId).ethereumNonce()).isEqualTo(NONCE);
+        }
+
+        @Test
+        void laterTransactionReadsSenderAsEarlierTransactionLeftIt() {
+            // Given a sender that is hollow in the database, so each transaction completes it in the write cache
+            final var hollow = Account.newBuilder()
+                    .accountId(senderId)
+                    .tinybarBalance(BALANCE)
+                    .ethereumNonce(NONCE)
+                    .build();
+            when(accountReadableKVState.get(senderId)).thenReturn(hollow);
+            final var balances = new ArrayList<Long>();
+            executorReturns(SUCCESS, 50_000L, () -> {
+                balances.add(accounts.get(senderId).tinybarBalance());
+                chargeFee();
+            });
+
+            // When
+            catchThrowable(() -> transactionExecutionService.execute(params(), DEFAULT_GAS));
+            catchThrowable(() -> transactionExecutionService.execute(params(), DEFAULT_GAS));
+
+            // Then the second transaction starts from the balance the first one left, not from the database
+            assertThat(balances).isEqualTo(List.of(BALANCE, BALANCE - FEE));
+        }
+
+        /** Mimics Hedera charging the payer and committing the root state, then returns a record with the result. */
+        private void executorChargesFeeAndReturns(final ResponseCodeEnum status, final long gasUsed) {
+            executorReturns(status, gasUsed, this::chargeFee);
+        }
+
+        private void executorReturns(final ResponseCodeEnum status, final long gasUsed, final Runnable sideEffect) {
+            final var transactionRecord = TransactionRecord.newBuilder()
+                    .receipt(TransactionReceipt.newBuilder().status(status).build())
+                    .contractCallResult(
+                            ContractFunctionResult.newBuilder().gasUsed(gasUsed).build())
+                    .build();
+            final var singleTransactionRecord = mock(SingleTransactionRecord.class);
+            when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+            when(transactionExecutor.execute(
+                            any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
+                    .thenAnswer(_ -> {
+                        sideEffect.run();
+                        return List.of(singleTransactionRecord);
+                    });
+        }
+
+        private void chargeFee() {
+            accounts.put(
+                    senderId, sender.copyBuilder().tinybarBalance(BALANCE - FEE).build());
+            accounts.commit();
+        }
+
+        private CallServiceParameters params() {
+            return buildServiceParams(false, HEX_PREFIX, SENDER_ADDRESS);
+        }
     }
 
     @Nested

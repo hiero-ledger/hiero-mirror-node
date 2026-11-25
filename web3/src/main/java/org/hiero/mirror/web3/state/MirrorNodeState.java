@@ -8,6 +8,7 @@ import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSche
 import static com.hedera.node.app.service.entityid.impl.schemas.V0590EntityIdSchema.ENTITY_COUNTS_STATE_ID;
 import static com.hedera.node.app.service.entityid.impl.schemas.V0730EntityIdSchema.HIGHEST_NODE_ID_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_COUNTS_STATE_ID;
+import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_ORDERS_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_USAGES_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.STAKING_NETWORK_REWARDS_STATE_ID;
@@ -126,11 +127,13 @@ public class MirrorNodeState implements State {
                 return new EmptyWritableStates();
             }
             final Map<Integer, Object> data = new ConcurrentHashMap<>();
+            boolean hasQueueState = false;
             for (final var entry : serviceStates.entrySet()) {
                 final var stateId = entry.getKey();
                 final var state = entry.getValue();
                 if (state instanceof Queue<?> queue) {
                     data.put(stateId, new ListWritableQueueState<>(serviceName, stateId, queue));
+                    hasQueueState = true;
                 } else if (state instanceof ReadableKVState<?, ?>) {
                     final var readable = getReadableStates(serviceName).get(stateId);
                     data.put(stateId, buildWritableKVState(serviceName, stateId, readable));
@@ -138,7 +141,10 @@ public class MirrorNodeState implements State {
                     data.put(stateId, new FunctionWritableSingletonState<>(serviceName, stateId, ref));
                 }
             }
-            return new MapWritableStates(data, () -> readableStates.remove(serviceName));
+            // Only a readable queue state keeps what it read in the instance, so only the readable states of a service
+            // with a queue are rebuilt after a commit. The others read through the caches of the request.
+            final Runnable onCommit = hasQueueState ? () -> readableStates.remove(serviceName) : null;
+            return new MapWritableStates(data, onCommit);
         });
     }
 
@@ -212,6 +218,7 @@ public class MirrorNodeState implements State {
                 EVM_HOOK_STATES_STATE_ID, ContractService.NAME,
                 SCHEDULE_ID_BY_EQUALITY_STATE_ID, ScheduleService.NAME,
                 SCHEDULED_COUNTS_STATE_ID, ScheduleService.NAME,
+                SCHEDULED_ORDERS_STATE_ID, ScheduleService.NAME,
                 SCHEDULED_USAGES_STATE_ID, ScheduleService.NAME);
         defaultKvImplementations.forEach(
                 (stateId, serviceName) -> states.computeIfAbsent(serviceName, k -> new HashMap<>())
