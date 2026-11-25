@@ -63,6 +63,8 @@ public abstract class AbstractClprChannel implements History {
     @Column(updatable = false)
     private byte[] endpointManifestProofBytes;
 
+    private Long endpointManifestProofTimestamp;
+
     private Long endpointManifestVersion;
 
     private Long lastConfigTimestamp;
@@ -70,6 +72,8 @@ public abstract class AbstractClprChannel implements History {
     private Long nextMessageId;
 
     private Long peerConfigTimestamp;
+
+    private Boolean peerManifestRecovered;
 
     @AttributeOverrides({
         @AttributeOverride(name = "maxGasPerMessage", column = @Column(name = "peer_max_gas_per_message")),

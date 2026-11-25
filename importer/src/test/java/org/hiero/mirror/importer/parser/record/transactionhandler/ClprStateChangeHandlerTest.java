@@ -50,7 +50,6 @@ import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprThrottle;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
@@ -153,6 +152,8 @@ final class ClprStateChangeHandlerTest {
                 .returns(channelId, ClprChannel::getChannelId)
                 .returns(4L, ClprChannel::getNextMessageId)
                 .returns(2L, ClprChannel::getAckedMessageId)
+                .returns(null, ClprChannel::getEndpointManifestProofTimestamp)
+                .returns(false, ClprChannel::getPeerManifestRecovered)
                 .returns(Range.atLeast(0L), ClprChannel::getTimestampRange);
         assertThat(output.getAll()).doesNotContain("ClprChannel state change unexpectedly clears nullable fields");
     }
@@ -366,6 +367,8 @@ final class ClprStateChangeHandlerTest {
         assertThat(channelCaptor.getValue())
                 .returns(6L, ClprChannel::getNextMessageId)
                 .returns(3L, ClprChannel::getAckedMessageId)
+                .returns(null, ClprChannel::getEndpointManifestProofTimestamp)
+                .returns(null, ClprChannel::getPeerManifestRecovered)
                 .returns(null, ClprChannel::getStatus)
                 .returns(null, ClprChannel::getTimestampRange);
         assertThat(output.getAll()).doesNotContain("ClprChannel state change unexpectedly clears nullable fields");
@@ -428,6 +431,69 @@ final class ClprStateChangeHandlerTest {
                 .returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void processChannelPartialManifestRecoveryMetadataHistorizes(boolean proofTimestampOnly) {
+        // given
+        mockEmptyClprState();
+        final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final var consensusTimestamp = domainBuilder.timestamp();
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+        final var proofTimestamp =
+                Timestamp.newBuilder().setSeconds(200L).setNanos(123).build();
+        final var value = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder();
+        if (proofTimestampOnly) {
+            value.setEndpointManifestProofTimestamp(proofTimestamp);
+        } else {
+            value.setPeerManifestRecovered(true);
+        }
+        final var update = MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(value))
+                .build();
+        when(clprContext.getClprChannels()).thenReturn(List.of(new ClprChannelEntry(channelId, update)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var captor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener).onClprChannel(captor.capture());
+        assertThat(captor.getValue())
+                .returns(
+                        proofTimestampOnly ? DomainUtils.timestampInNanosMax(proofTimestamp) : null,
+                        ClprChannel::getEndpointManifestProofTimestamp)
+                .returns(proofTimestampOnly ? null : true, ClprChannel::getPeerManifestRecovered)
+                .returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
+    }
+
+    @Test
+    void processChannelPartialClearedPeerManifestRecovered() {
+        // given -- false is an explicit scalar default rather than an omitted update.
+        mockEmptyClprState();
+        final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
+        final var consensusTimestamp = domainBuilder.timestamp();
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+        final var update = MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .addClearedFields(com.hederahashgraph.api.proto.java.ClprChannel.PEER_MANIFEST_RECOVERED_FIELD_NUMBER)
+                .setValue(MapChangeValue.newBuilder()
+                        .setClprChannelValue(com.hederahashgraph.api.proto.java.ClprChannel.getDefaultInstance()))
+                .build();
+        when(clprContext.getClprChannels()).thenReturn(List.of(new ClprChannelEntry(channelId, update)));
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then
+        final var captor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener).onClprChannel(captor.capture());
+        assertThat(captor.getValue())
+                .returns(false, ClprChannel::getPeerManifestRecovered)
+                .returns(null, ClprChannel::getEndpointManifestProofTimestamp)
+                .returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
+    }
+
     @Test
     void processChannelPartialClearedFieldHistorizesWithDefaultValue(CapturedOutput output) {
         // given -- trust_anchor explicitly cleared (not just omitted) in an otherwise counter-only partial update
@@ -463,6 +529,7 @@ final class ClprStateChangeHandlerTest {
     @ParameterizedTest
     @ValueSource(
             ints = {
+                com.hederahashgraph.api.proto.java.ClprChannel.ENDPOINT_MANIFEST_PROOF_TIMESTAMP_FIELD_NUMBER,
                 com.hederahashgraph.api.proto.java.ClprChannel.LAST_CONFIG_TIMESTAMP_FIELD_NUMBER,
                 com.hederahashgraph.api.proto.java.ClprChannel.PEER_CONFIG_TIMESTAMP_FIELD_NUMBER,
                 com.hederahashgraph.api.proto.java.ClprChannel.PEER_THROTTLES_FIELD_NUMBER
@@ -493,6 +560,7 @@ final class ClprStateChangeHandlerTest {
         assertThat(channelCaptor.getValue())
                 .returns(channelId, ClprChannel::getChannelId)
                 .returns(7L, ClprChannel::getNextMessageId)
+                .returns(null, ClprChannel::getEndpointManifestProofTimestamp)
                 .returns(null, ClprChannel::getLastConfigTimestamp)
                 .returns(null, ClprChannel::getPeerConfigTimestamp)
                 .returns(null, ClprChannel::getPeerThrottle)

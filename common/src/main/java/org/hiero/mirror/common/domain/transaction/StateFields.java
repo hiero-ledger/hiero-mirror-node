@@ -33,6 +33,8 @@ public class StateFields {
             v -> !v.getChannelContext().isEmpty());
     public static final StateField<ClprChannel> CLPR_CHANNEL_ENDPOINT_MANIFEST =
             new StateField<>(ClprChannel.ENDPOINT_MANIFEST_FIELD_NUMBER, ClprChannel::hasEndpointManifest);
+    public static final StateField<ClprChannel> CLPR_CHANNEL_ENDPOINT_MANIFEST_PROOF_TIMESTAMP = new StateField<>(
+            ClprChannel.ENDPOINT_MANIFEST_PROOF_TIMESTAMP_FIELD_NUMBER, ClprChannel::hasEndpointManifestProofTimestamp);
     public static final StateField<ClprChannel> CLPR_CHANNEL_ENDPOINT_MANIFEST_VERSION = new StateField<>(
             ClprChannel.ENDPOINT_MANIFEST_VERSION_FIELD_NUMBER, v -> v.getEndpointManifestVersion() != 0);
     public static final StateField<ClprChannel> CLPR_CHANNEL_LAST_CONFIG_TIMESTAMP =
@@ -41,6 +43,8 @@ public class StateFields {
             new StateField<>(ClprChannel.NEXT_MESSAGE_ID_FIELD_NUMBER, v -> v.getNextMessageId() != 0);
     public static final StateField<ClprChannel> CLPR_CHANNEL_PEER_CONFIG_TIMESTAMP =
             new StateField<>(ClprChannel.PEER_CONFIG_TIMESTAMP_FIELD_NUMBER, ClprChannel::hasPeerConfigTimestamp);
+    public static final StateField<ClprChannel> CLPR_CHANNEL_PEER_MANIFEST_RECOVERED =
+            new StateField<>(ClprChannel.PEER_MANIFEST_RECOVERED_FIELD_NUMBER, ClprChannel::getPeerManifestRecovered);
     public static final StateField<ClprChannel> CLPR_CHANNEL_PEER_THROTTLES =
             new StateField<>(ClprChannel.PEER_THROTTLES_FIELD_NUMBER, ClprChannel::hasPeerThrottles);
     public static final StateField<ClprChannel> CLPR_CHANNEL_RECEIVED_MESSAGE_ID =

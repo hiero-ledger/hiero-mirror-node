@@ -519,9 +519,14 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             patchIfPresent(previous, current.getReceivedRunningHash(), ClprChannel::setReceivedRunningHash);
             patchIfPresent(previous, current.getTrustAnchor(), ClprChannel::setTrustAnchor);
             patchIfPresent(previous, current.getTrustAnchorId(), ClprChannel::setTrustAnchorId);
+            patchIfPresent(
+                    previous,
+                    current.getEndpointManifestProofTimestamp(),
+                    ClprChannel::setEndpointManifestProofTimestamp);
             patchIfPresent(previous, current.getEndpointManifestVersion(), ClprChannel::setEndpointManifestVersion);
             patchIfPresent(previous, current.getLastConfigTimestamp(), ClprChannel::setLastConfigTimestamp);
             patchIfPresent(previous, current.getPeerConfigTimestamp(), ClprChannel::setPeerConfigTimestamp);
+            patchIfPresent(previous, current.getPeerManifestRecovered(), ClprChannel::setPeerManifestRecovered);
             patchIfPresent(previous, current.getPeerThrottle(), ClprChannel::setPeerThrottle);
             patchIfPresent(previous, current.getEndpointManifest(), ClprChannel::setEndpointManifest);
 
@@ -554,8 +559,14 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         fillIfAbsent(previous, current, ClprChannel::getReceivedRunningHash, ClprChannel::setReceivedRunningHash);
         fillIfAbsent(previous, current, ClprChannel::getLastConfigTimestamp, ClprChannel::setLastConfigTimestamp);
         fillIfAbsent(previous, current, ClprChannel::getPeerConfigTimestamp, ClprChannel::setPeerConfigTimestamp);
+        fillIfAbsent(previous, current, ClprChannel::getPeerManifestRecovered, ClprChannel::setPeerManifestRecovered);
         fillIfAbsent(previous, current, ClprChannel::getPeerThrottle, ClprChannel::setPeerThrottle);
         fillIfAbsent(previous, current, ClprChannel::getEndpointManifest, ClprChannel::setEndpointManifest);
+        fillIfAbsent(
+                previous,
+                current,
+                ClprChannel::getEndpointManifestProofTimestamp,
+                ClprChannel::setEndpointManifestProofTimestamp);
         fillIfAbsent(
                 previous, current, ClprChannel::getEndpointManifestVersion, ClprChannel::setEndpointManifestVersion);
         fillIfAbsent(previous, current, ClprChannel::getTrustAnchor, ClprChannel::setTrustAnchor);

@@ -18,6 +18,7 @@ import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_CLPR_LED
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.UInt64Value;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapDeleteChange;
@@ -477,7 +478,8 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         // Diffing replaces the entire changed top-level throttles message, not just a nested field.
         final var configUpdate = recordItemBuilder
                 .clprUpdateLedgerConfiguration()
-                .transactionBody(b -> b.setConfiguration(configuration.toBuilder().setThrottles(updatedThrottles)))
+                .transactionBody(
+                        b -> b.setConfiguration(configuration.toBuilder().setThrottles(updatedThrottles)))
                 .recordItem(r -> r.clprContextBuilder()
                         .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
                                 .setPartial(true)
@@ -504,7 +506,9 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .build();
         final var recordFiles = transformFiles(List.of(
                 List.of(blockTransactionBuilder.clprMaintenance(genesis).build()),
-                List.of(blockTransactionBuilder.clprUpdateLedgerConfiguration(configUpdate).build()),
+                List.of(blockTransactionBuilder
+                        .clprUpdateLedgerConfiguration(configUpdate)
+                        .build()),
                 List.of(blockTransactionBuilder.clprMaintenance(manifestUpdate).build())));
 
         // when -- exercise both an uncommitted cached baseline and a committed baseline loaded from the database.
@@ -524,12 +528,15 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                         expectedLedgerConfiguration(genesis.getConsensusTimestamp(), configuration),
                         expectedLedgerConfiguration(
                                 configUpdate.getConsensusTimestamp(),
-                                configuration.toBuilder().setThrottles(updatedThrottles).build()));
+                                configuration.toBuilder()
+                                        .setThrottles(updatedThrottles)
+                                        .build()));
         final var endpoint = manifest.getEndpoints(0);
         final var expectedEndpoint = ClprEndpoint.builder()
                 .accountId(DomainUtils.toBytes(endpoint.getAccountId()))
                 .serviceEndpoint(new ClprServiceEndpoint(
-                        endpoint.getServiceEndpoint().getIpAddress(), endpoint.getServiceEndpoint().getPort()))
+                        endpoint.getServiceEndpoint().getIpAddress(),
+                        endpoint.getServiceEndpoint().getPort()))
                 .tlsCertificate(DomainUtils.toBytes(endpoint.getTlsCertificate()))
                 .build();
         final var serviceAddress = DomainUtils.toBytes(manifest.getServiceAddress());
@@ -917,9 +924,11 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                     .build();
             files.add(List.of(blockTransactionBuilder
                     .clprSubmitBundle(bundle)
-                    .stateChanges(changes -> changes.set(0, changes.getFirst().toBuilder()
-                            .addStateChanges(queueRemoval)
-                            .build()))
+                    .stateChanges(changes -> changes.set(
+                            0,
+                            changes.getFirst().toBuilder()
+                                    .addStateChanges(queueRemoval)
+                                    .build()))
                     .build()));
             drainTimestamp = bundle.getConsensusTimestamp();
         } else {
@@ -929,7 +938,8 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         if (automaticClosure) {
             closeTimestamp = drainTimestamp;
         } else {
-            final var close = deleteChannel(afterDrain.toBuilder().setStatus(CLOSED).build(), stateDiffingEnabled);
+            final var close =
+                    deleteChannel(afterDrain.toBuilder().setStatus(CLOSED).build(), stateDiffingEnabled);
             files.add(List.of(blockTransactionBuilder.clprDeleteChannel(close).build()));
             closeTimestamp = close.getConsensusTimestamp();
         }
@@ -954,8 +964,8 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .returns(Range.atLeast(closeTimestamp), ClprChannel::getTimestampRange);
         final var history = new ArrayList<>(findHistory(ClprChannel.class));
         final var historizeSend = outstandingMessages && !stateDiffingEnabled;
-        final var expectedHistoryCount = 2 + (outstandingMessages ? 1 : 0) + (historizeSend ? 1 : 0)
-                - (automaticClosure ? 1 : 0);
+        final var expectedHistoryCount =
+                2 + (outstandingMessages ? 1 : 0) + (historizeSend ? 1 : 0) - (automaticClosure ? 1 : 0);
         assertThat(history).hasSize(expectedHistoryCount);
         assertThat(history.getFirst())
                 .returns(ACTIVE.getNumber(), ClprChannel::getStatus)
@@ -980,7 +990,9 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                     .returns(0L, ClprChannel::getAckedMessageId)
                     .returns(2L, ClprChannel::getNextMessageId)
                     .returns(0L, ClprChannel::getReceivedMessageId)
-                    .returns(DomainUtils.toBytes(firstValue.getReceivedRunningHash()), ClprChannel::getReceivedRunningHash)
+                    .returns(
+                            DomainUtils.toBytes(firstValue.getReceivedRunningHash()),
+                            ClprChannel::getReceivedRunningHash)
                     .returns(
                             Range.closedOpen(firstDelete.getConsensusTimestamp(), drainTimestamp),
                             ClprChannel::getTimestampRange);
@@ -1127,6 +1139,183 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .returns(
                         Range.closedOpen(firstCreate.getConsensusTimestamp(), removalTimestamp),
                         ClprConnector::getTimestampRange);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false,0", "false,2", "false,4", "true,0", "true,2", "true,4"})
+    void clprChannelManifestRecovery(boolean stateDiffingEnabled, int commitIndex) {
+        // given -- a channel created without a proof timestamp, a normal manifest update, then recovery.
+        final var channelId = recordItemBuilder.bytes(32);
+        final var channel = activeChannelValue(channelId, "hiero:testing");
+        final var endpoint = com.hederahashgraph.api.proto.java.ClprEndpoint.newBuilder()
+                .setAccountId(recordItemBuilder.bytes(20))
+                .setServiceEndpoint(com.hederahashgraph.api.proto.java.ClprServiceEndpoint.newBuilder()
+                        .setIpAddress("10.0.0.1")
+                        .setPort(50211))
+                .setTlsCertificate(recordItemBuilder.bytes(64))
+                .build();
+        final var originalManifest = com.hederahashgraph.api.proto.java.ClprEndpointManifest.newBuilder()
+                .setServiceAddress(channel.getChannelContext().substring(32))
+                .setVersion(1L)
+                .addEndpoints(endpoint)
+                .build();
+        final var original = channel.toBuilder()
+                .setEndpointManifest(originalManifest)
+                .setEndpointManifestVersion(originalManifest.getVersion())
+                .build();
+        final var create = createChannel(original);
+
+        final var proofTimestamp =
+                Timestamp.newBuilder().setSeconds(100L).setNanos(123).build();
+        final var updatedManifest = originalManifest.toBuilder().setVersion(5L).build();
+        final var updated = original.toBuilder()
+                .setEndpointManifest(updatedManifest)
+                .setEndpointManifestVersion(updatedManifest.getVersion())
+                .setEndpointManifestProofTimestamp(proofTimestamp)
+                .build();
+        final var update = stateDiffingEnabled
+                ? com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                        .setEndpointManifest(updatedManifest)
+                        .setEndpointManifestVersion(updatedManifest.getVersion())
+                        .setEndpointManifestProofTimestamp(proofTimestamp)
+                        .build()
+                : updated;
+        final var refresh = submitChannelUpdate(channelId, update, stateDiffingEnabled, null);
+
+        final var recoveredEndpoint = endpoint.toBuilder()
+                .setServiceEndpoint(endpoint.getServiceEndpoint().toBuilder().setIpAddress("10.0.0.5"))
+                .build();
+        final var recoveredManifest = updatedManifest.toBuilder()
+                .setVersion(3L)
+                .setEndpoints(0, recoveredEndpoint)
+                .build();
+        final var recoveredProofTimestamp =
+                Timestamp.newBuilder().setSeconds(200L).setNanos(456).build();
+        final var recovered = updated.toBuilder()
+                .setEndpointManifest(recoveredManifest)
+                .setEndpointManifestVersion(recoveredManifest.getVersion())
+                .setEndpointManifestProofTimestamp(recoveredProofTimestamp)
+                .setPeerManifestRecovered(true)
+                .build();
+        final var recoveryUpdate = stateDiffingEnabled
+                ? com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                        .setEndpointManifest(recoveredManifest)
+                        .setEndpointManifestVersion(recoveredManifest.getVersion())
+                        .setEndpointManifestProofTimestamp(recoveredProofTimestamp)
+                        .setPeerManifestRecovered(true)
+                        .build()
+                : recovered;
+        final var recover =
+                submitChannelUpdate(channelId, recoveryUpdate, stateDiffingEnabled, updatedManifest.getVersion());
+
+        // An unrelated update must preserve the recovered manifest and proof metadata.
+        final var trustAnchor = recordItemBuilder.bytes(32);
+        final var trustAnchorId = recordItemBuilder.bytes(32);
+        final var unrelatedUpdate = (stateDiffingEnabled
+                        ? com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                        : recovered.toBuilder())
+                .setTrustAnchor(trustAnchor)
+                .setTrustAnchorId(trustAnchorId)
+                .build();
+        final var unrelated = submitChannelUpdate(channelId, unrelatedUpdate, stateDiffingEnabled, null);
+
+        // when
+        parseFiles(
+                transformFiles(List.of(
+                        List.of(blockTransactionBuilder
+                                .clprCreateChannel(create)
+                                .build()),
+                        List.of(blockTransactionBuilder
+                                .clprSubmitBundle(refresh)
+                                .build()),
+                        List.of(blockTransactionBuilder
+                                .clprSubmitBundle(recover)
+                                .build()),
+                        List.of(blockTransactionBuilder
+                                .clprSubmitBundle(unrelated)
+                                .build()))),
+                commitIndex);
+
+        // then -- the peer proof timestamps are stored as supplied, not replaced by local consensus timestamps.
+        final var expectedEndpoint = ClprEndpoint.builder()
+                .accountId(DomainUtils.toBytes(endpoint.getAccountId()))
+                .serviceEndpoint(new ClprServiceEndpoint("10.0.0.1", 50211))
+                .tlsCertificate(DomainUtils.toBytes(endpoint.getTlsCertificate()))
+                .build();
+        final var expectedRecoveredEndpoint = ClprEndpoint.builder()
+                .accountId(DomainUtils.toBytes(recoveredEndpoint.getAccountId()))
+                .serviceEndpoint(new ClprServiceEndpoint("10.0.0.5", 50211))
+                .tlsCertificate(DomainUtils.toBytes(recoveredEndpoint.getTlsCertificate()))
+                .build();
+        final var proofNanos = DomainUtils.timestampInNanosMax(proofTimestamp);
+        final var recoveredProofNanos = DomainUtils.timestampInNanosMax(recoveredProofTimestamp);
+        assertThat(clprChannelRepository.findById(DomainUtils.toBytes(channelId)))
+                .get()
+                .returns(3L, ClprChannel::getEndpointManifestVersion)
+                .returns(List.of(expectedRecoveredEndpoint), ClprChannel::getEndpointManifest)
+                .returns(recoveredProofNanos, ClprChannel::getEndpointManifestProofTimestamp)
+                .returns(true, ClprChannel::getPeerManifestRecovered)
+                .returns(DomainUtils.toBytes(trustAnchor), ClprChannel::getTrustAnchor)
+                .returns(DomainUtils.toBytes(trustAnchorId), ClprChannel::getTrustAnchorId)
+                .returns(ACTIVE.getNumber(), ClprChannel::getStatus)
+                .returns(1L, ClprChannel::getNextMessageId)
+                .returns(0L, ClprChannel::getAckedMessageId)
+                .returns(0L, ClprChannel::getReceivedMessageId)
+                .returns(DomainUtils.toBytes(original.getSentRunningHash()), ClprChannel::getSentRunningHash)
+                .returns(DomainUtils.toBytes(original.getReceivedRunningHash()), ClprChannel::getReceivedRunningHash)
+                .returns(create.getConsensusTimestamp(), ClprChannel::getCreatedTimestamp)
+                .returns(Range.atLeast(unrelated.getConsensusTimestamp()), ClprChannel::getTimestampRange);
+        final var history = new ArrayList<>(findHistory(ClprChannel.class));
+        assertThat(history).hasSize(3);
+        assertThat(history.getFirst())
+                .returns(1L, ClprChannel::getEndpointManifestVersion)
+                .returns(List.of(expectedEndpoint), ClprChannel::getEndpointManifest)
+                .returns(null, ClprChannel::getEndpointManifestProofTimestamp)
+                .returns(false, ClprChannel::getPeerManifestRecovered)
+                .returns(
+                        Range.closedOpen(create.getConsensusTimestamp(), refresh.getConsensusTimestamp()),
+                        ClprChannel::getTimestampRange);
+        assertThat(history.get(1))
+                .returns(5L, ClprChannel::getEndpointManifestVersion)
+                .returns(List.of(expectedEndpoint), ClprChannel::getEndpointManifest)
+                .returns(proofNanos, ClprChannel::getEndpointManifestProofTimestamp)
+                .returns(false, ClprChannel::getPeerManifestRecovered)
+                .returns(
+                        Range.closedOpen(refresh.getConsensusTimestamp(), recover.getConsensusTimestamp()),
+                        ClprChannel::getTimestampRange);
+        assertThat(history.get(2))
+                .returns(3L, ClprChannel::getEndpointManifestVersion)
+                .returns(List.of(expectedRecoveredEndpoint), ClprChannel::getEndpointManifest)
+                .returns(recoveredProofNanos, ClprChannel::getEndpointManifestProofTimestamp)
+                .returns(true, ClprChannel::getPeerManifestRecovered)
+                .returns(
+                        Range.closedOpen(recover.getConsensusTimestamp(), unrelated.getConsensusTimestamp()),
+                        ClprChannel::getTimestampRange);
+        assertThat(allMessages()).isEmpty();
+    }
+
+    private RecordItem submitChannelUpdate(
+            ByteString channelId,
+            com.hederahashgraph.api.proto.java.ClprChannel update,
+            boolean partial,
+            Long expectedManifestVersion) {
+        return recordItemBuilder
+                .clprSubmitBundle()
+                .transactionBody(b -> {
+                    b.setChannelId(channelId);
+                    if (expectedManifestVersion != null) {
+                        b.setExpectedCachedManifestVersion(UInt64Value.of(expectedManifestVersion));
+                    }
+                })
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(
+                                List.of(new ClprChannelEntry(channelId, channelMapUpdate(channelId, update, partial)))))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprMessages(List.of())
+                        .clprConnectors(List.of())
+                        .clprConnectorsRemoved(List.of()))
+                .customize(this::finalizeRecordItem)
+                .build();
     }
 
     private RecordItem deleteChannel(

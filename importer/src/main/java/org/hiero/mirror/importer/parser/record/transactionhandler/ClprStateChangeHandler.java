@@ -9,10 +9,12 @@ import static com.hederahashgraph.api.proto.java.ClprMessagePayload.MESSAGE_REPL
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_ACKED_MESSAGE_ID;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_CHANNEL_CONTEXT;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_ENDPOINT_MANIFEST;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_ENDPOINT_MANIFEST_PROOF_TIMESTAMP;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_ENDPOINT_MANIFEST_VERSION;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_LAST_CONFIG_TIMESTAMP;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_NEXT_MESSAGE_ID;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_PEER_CONFIG_TIMESTAMP;
+import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_PEER_MANIFEST_RECOVERED;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_PEER_THROTTLES;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_RECEIVED_MESSAGE_ID;
 import static org.hiero.mirror.common.domain.transaction.StateFields.CLPR_CHANNEL_RECEIVED_RUNNING_HASH;
@@ -162,9 +164,8 @@ public final class ClprStateChangeHandler {
         final var value = entry.value();
 
         if (CLPR_CONNECTOR_CONNECTOR_CONTRACT.isPresent(mapUpdate, value) && value.hasConnectorContract()) {
-            final var contractId = entityIdService
-                    .lookup(value.getConnectorContract(), false)
-                    .orElse(EntityId.EMPTY);
+            final var contractId =
+                    entityIdService.lookup(value.getConnectorContract(), false).orElse(EntityId.EMPTY);
             if (EntityId.isEmpty(contractId)) {
                 Utility.handleRecoverableError(
                         "Unable to resolve connector contract {} for CLPR state change", value.getConnectorContract());
@@ -212,7 +213,8 @@ public final class ClprStateChangeHandler {
         // null as an omitted update, so report an unexpected clear rather than silently preserving the old value.
         if (mapUpdate.getPartial()) {
             final var clearedFields = mapUpdate.getClearedFieldsList();
-            if (clearedFields.contains(CLPR_CHANNEL_LAST_CONFIG_TIMESTAMP.fieldNumber())
+            if (clearedFields.contains(CLPR_CHANNEL_ENDPOINT_MANIFEST_PROOF_TIMESTAMP.fieldNumber())
+                    || clearedFields.contains(CLPR_CHANNEL_LAST_CONFIG_TIMESTAMP.fieldNumber())
                     || clearedFields.contains(CLPR_CHANNEL_PEER_CONFIG_TIMESTAMP.fieldNumber())
                     || clearedFields.contains(CLPR_CHANNEL_PEER_THROTTLES.fieldNumber())) {
                 Utility.handleRecoverableError(
@@ -252,6 +254,12 @@ public final class ClprStateChangeHandler {
         if (CLPR_CHANNEL_CHANNEL_CONTEXT.isPresent(mapUpdate, value)) {
             builder.channelContext(DomainUtils.toBytes(value.getChannelContext()));
         }
+        if (CLPR_CHANNEL_ENDPOINT_MANIFEST_PROOF_TIMESTAMP.isPresent(mapUpdate, value)) {
+            final var proofTimestamp = value.hasEndpointManifestProofTimestamp()
+                    ? DomainUtils.timestampInNanosMax(value.getEndpointManifestProofTimestamp())
+                    : null;
+            builder.endpointManifestProofTimestamp(proofTimestamp);
+        }
         if (CLPR_CHANNEL_ENDPOINT_MANIFEST_VERSION.isPresent(mapUpdate, value)) {
             builder.endpointManifestVersion(value.getEndpointManifestVersion());
         }
@@ -266,6 +274,9 @@ public final class ClprStateChangeHandler {
                     value.hasPeerConfigTimestamp()
                             ? DomainUtils.timestampInNanosMax(value.getPeerConfigTimestamp())
                             : null);
+        }
+        if (CLPR_CHANNEL_PEER_MANIFEST_RECOVERED.isPresent(mapUpdate, value)) {
+            builder.peerManifestRecovered(value.getPeerManifestRecovered());
         }
         if (CLPR_CHANNEL_PEER_THROTTLES.isPresent(mapUpdate, value)) {
             builder.peerThrottle(
@@ -310,9 +321,11 @@ public final class ClprStateChangeHandler {
                 || CLPR_CHANNEL_TRUST_ANCHOR.isPresent(mapUpdate, value)
                 || CLPR_CHANNEL_TRUST_ANCHOR_ID.isPresent(mapUpdate, value)
                 || CLPR_CHANNEL_CHANNEL_CONTEXT.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_ENDPOINT_MANIFEST_PROOF_TIMESTAMP.isPresent(mapUpdate, value)
                 || CLPR_CHANNEL_ENDPOINT_MANIFEST_VERSION.isPresent(mapUpdate, value)
                 || CLPR_CHANNEL_LAST_CONFIG_TIMESTAMP.isPresent(mapUpdate, value)
                 || CLPR_CHANNEL_PEER_CONFIG_TIMESTAMP.isPresent(mapUpdate, value)
+                || CLPR_CHANNEL_PEER_MANIFEST_RECOVERED.isPresent(mapUpdate, value)
                 || CLPR_CHANNEL_PEER_THROTTLES.isPresent(mapUpdate, value)
                 || CLPR_CHANNEL_ENDPOINT_MANIFEST.isPresent(mapUpdate, value);
     }
