@@ -177,6 +177,7 @@ public class EvmProperties {
         props.put("blockStream.writerMode", "FILE");
         props.put("contracts.chainId", network.getChainId().toBigInteger().toString());
         props.put("contracts.evm.version", "v" + evmVersion.major() + "." + evmVersion.minor());
+        props.put("contracts.maxExternalizedRevertReasonBytes", String.valueOf(2097152));
         props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage));
         props.put("contracts.sidecars", "");
         props.put("contracts.throttle.throttleByOpsDuration", "false");
