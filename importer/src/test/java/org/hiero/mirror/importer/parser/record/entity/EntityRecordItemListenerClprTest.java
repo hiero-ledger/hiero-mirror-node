@@ -267,11 +267,13 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
                 .returns(body.getLockedStake(), ClprConnector::getLockedStake)
                 .returns(ClprConnectorStatus.ACTIVE, ClprConnector::getStatus)
                 .returns(Range.atLeast(recordItem.getConsensusTimestamp()), ClprConnector::getTimestampRange);
-        softly.assertThat(getDbTransaction(recordItem.getTransactionRecord().getConsensusTimestamp()).getEntityId())
+        softly.assertThat(getDbTransaction(recordItem.getTransactionRecord().getConsensusTimestamp())
+                        .getEntityId())
                 .isEqualTo(contract.toEntityId());
 
         // A subsequent full state change still carries the original ContractID representation.
-        final var updatedConnector = connectorValue.toBuilder().setInFlightMessageCount(1).build();
+        final var updatedConnector =
+                connectorValue.toBuilder().setInFlightMessageCount(1).build();
         final var update = recordItemBuilder
                 .clprSubmitBundle()
                 .transactionBody(b -> b.setChannelId(body.getChannelId()))
@@ -805,12 +807,14 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
         final var numericId = entity.toEntityId().toContractID();
         return switch (type) {
             case NUMERIC -> numericId;
-            case LONG_ZERO -> numericId.toBuilder()
-                    .setEvmAddress(DomainUtils.fromBytes(DomainUtils.toEvmAddress(numericId)))
-                    .build();
-            case EVM_ALIAS -> numericId.toBuilder()
-                    .setEvmAddress(DomainUtils.fromBytes(entity.getEvmAddress()))
-                    .build();
+            case LONG_ZERO ->
+                numericId.toBuilder()
+                        .setEvmAddress(DomainUtils.fromBytes(DomainUtils.toEvmAddress(numericId)))
+                        .build();
+            case EVM_ALIAS ->
+                numericId.toBuilder()
+                        .setEvmAddress(DomainUtils.fromBytes(entity.getEvmAddress()))
+                        .build();
         };
     }
 

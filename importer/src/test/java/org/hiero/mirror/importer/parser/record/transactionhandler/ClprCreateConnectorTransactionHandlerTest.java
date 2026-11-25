@@ -91,7 +91,8 @@ final class ClprCreateConnectorTransactionHandlerTest extends AbstractTransactio
                 .build();
         final var body = getDefaultTransactionBody();
         body.getClprCreateConnectorBuilder().setConnectorContract(evmContractId);
-        final var recordItem = getRecordItem(body.build(), getDefaultTransactionRecord().build());
+        final var recordItem =
+                getRecordItem(body.build(), getDefaultTransactionRecord().build());
         when(entityIdService.lookup(evmContractId, false)).thenReturn(Optional.empty());
         final var transaction = domainBuilder
                 .transaction()

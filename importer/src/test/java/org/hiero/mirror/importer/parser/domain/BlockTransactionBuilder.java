@@ -321,8 +321,7 @@ public class BlockTransactionBuilder {
                 .addStateChanges(StateChange.newBuilder()
                         .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTOR_REGISTRATION_HISTORY_VALUE)
                         .setMapUpdate(MapUpdateChange.newBuilder()
-                                .setKey(MapChangeKey.newBuilder()
-                                        .setProtoBytesKey(BytesValue.of(registrationKey)))
+                                .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(registrationKey)))
                                 .setValue(MapChangeValue.newBuilder()
                                         .setProtoBytesValue(BytesValue.getDefaultInstance()))))
                 .build();

@@ -25,7 +25,8 @@ final class ClprCreateConnectorTransactionHandler extends AbstractTransactionHan
 
     @Override
     public EntityId getEntity(RecordItem recordItem) {
-        final var contractId = recordItem.getTransactionBody().getClprCreateConnector().getConnectorContract();
+        final var contractId =
+                recordItem.getTransactionBody().getClprCreateConnector().getConnectorContract();
         return entityIdService.lookup(contractId, false).orElse(EntityId.EMPTY);
     }
 
