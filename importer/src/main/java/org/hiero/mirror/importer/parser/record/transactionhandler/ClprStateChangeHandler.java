@@ -177,9 +177,7 @@ public final class ClprStateChangeHandler {
     }
 
     /**
-     * Logs and reports a missing state change for a successful transaction that depends on one. {@code value} is
-     * typed {@code Object} since callers pass whichever state-change shape (a protobuf message, a commitment byte
-     * string, etc.) their transaction depends on -- only nullness is checked here.
+     * Reports a recoverable error when a successful transaction is missing a required state change.
      */
     static boolean isMissingStateChange(
             @Nullable Object value, String description, String transactionName, long consensusTimestamp) {
@@ -200,6 +198,18 @@ public final class ClprStateChangeHandler {
     static ClprChannel.ClprChannelBuilder<?, ?> populateFromStateChange(ClprChannelEntry entry) {
         final var mapUpdate = entry.mapUpdate();
         final var value = entry.value();
+        // These nullable fields are not expected to be cleared by consensus. The merge/upsert layer treats
+        // null as an omitted update, so report an unexpected clear rather than silently preserving the old value.
+        if (mapUpdate.getPartial()) {
+            final var clearedFields = mapUpdate.getClearedFieldsList();
+            if (clearedFields.contains(CLPR_CHANNEL_LAST_CONFIG_TIMESTAMP.fieldNumber())
+                    || clearedFields.contains(CLPR_CHANNEL_PEER_CONFIG_TIMESTAMP.fieldNumber())
+                    || clearedFields.contains(CLPR_CHANNEL_PEER_THROTTLES.fieldNumber())) {
+                Utility.handleRecoverableError(
+                        "ClprChannel state change unexpectedly clears nullable fields: {}", clearedFields);
+            }
+        }
+
         final var builder = ClprChannel.builder().channelId(DomainUtils.toBytes(entry.channelId()));
 
         if (CLPR_CHANNEL_STATUS.isPresent(mapUpdate, value)) {
@@ -314,8 +324,8 @@ public final class ClprStateChangeHandler {
 
     private static int toChannelStatus(int status) {
         if (status == PENDING_VALUE) {
-            // ClprCreatehannel creates a Channel directly in ACTIVE status; an existing ClprChannel state-change
-            // value should never revert to PENDING, but record it rather than drop it if consensus ever does.
+            // ClprCreateChannel creates a channel directly in ACTIVE status; PENDING is unexpected in local
+            // channel state but remains a valid protobuf enum value.
             Utility.handleRecoverableError("ClprChannel state change unexpectedly reverted to PENDING status");
         }
 

@@ -4,14 +4,12 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
-@CustomLog
 @Named
 @RequiredArgsConstructor
 final class ClprDeleteChannelTransactionHandler extends AbstractTransactionHandler {
@@ -32,11 +30,8 @@ final class ClprDeleteChannelTransactionHandler extends AbstractTransactionHandl
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         final var clprContext = recordItem.getClprContext();
         final var entry = clprContext == null ? null : clprContext.getClprChannel();
-        if (entry == null) {
-            // TODO:// handle this
-            // No Channel record exists: an admin sweep of a legacy pending ownership commitment from a
-            // network that predates ClprCreatehannel. No such commitment can exist in this mirror node's data.
-            log.info("Ignoring legacy ClprChannelPendingCommitment sweep at {}", consensusTimestamp);
+        if (ClprStateChangeHandler.isMissingStateChange(
+                entry, "clpr_channel_value", "ClprDeleteChannel", consensusTimestamp)) {
             return;
         }
 

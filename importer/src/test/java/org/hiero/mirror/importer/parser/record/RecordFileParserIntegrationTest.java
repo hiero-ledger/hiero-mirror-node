@@ -461,24 +461,24 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
 
     @Test
     void clprConnectorLifecycle() {
-        // given -- register creates the ACTIVE connector row directly, then deregister closes it, correlated by
+        // given -- creation establishes the ACTIVE connector row, then deletion marks it DELETED, correlated by
         // channel_id/connector_id; exercises the in-batch upsert-merge logic
         final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
         final var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
 
-        final var register = recordItemBuilder
+        final var create = recordItemBuilder
                 .clprCreateConnector()
                 .transactionBody(b -> b.setChannelId(channelId).setConnectorId(connectorId))
                 .build();
 
         final var stakeRecipient = domainBuilder.entityNum(5000L).toAccountID();
-        final var deregister = recordItemBuilder
+        final var delete = recordItemBuilder
                 .clprDeleteConnector()
                 .transactionBody(b ->
                         b.setChannelId(channelId).setConnectorId(connectorId).setStakeRecipient(stakeRecipient))
                 .build();
 
-        final var recordFile = recordFileWithItems(List.of(register, deregister), null);
+        final var recordFile = recordFileWithItems(List.of(create, delete), null);
 
         // when
         recordFileParser.parse(recordFile);
@@ -492,21 +492,21 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .orElseThrow();
         assertThat(connector.getStatus()).isEqualTo(ClprConnectorStatus.DELETED);
         assertThat(connector.getConnectorId()).isEqualTo(DomainUtils.toBytes(connectorId));
-        // connectorContractId was only set at registration time; merging the later deregister update must carry it
+        // connectorContractId was only set at creation time; merging the later deletion update must carry it
         // forward rather than null it out
         assertThat(connector.getConnectorContractId()).isNotNull();
     }
 
     @Test
     void clprConnectorSendMessageThenSubmitBundlePatch() {
-        // given -- register establishes the connector directly, a ContractCall invoking the CLPR sendMessage system
+        // given -- creation establishes the connector directly, a ContractCall invoking the CLPR sendMessage system
         // contract bumps in_flight_message_count, then a SubmitBundle reply slashes and decrements it; exercises the
         // cross-handler (ContractCall + ClprSubmitBundle) same-batch merge onto one connector row
         final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
         final var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
         final var connectorContract = domainBuilder.entityNum(4100L).toContractID();
 
-        final var register = recordItemBuilder
+        final var create = recordItemBuilder
                 .clprCreateConnector()
                 .transactionBody(b -> b.setChannelId(channelId)
                         .setConnectorId(connectorId)
@@ -518,17 +518,17 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .setChannelId(channelId)
                 .setConnectorId(connectorId)
                 .build();
-        final var clprConnectorRegistered = ClprConnector.newBuilder()
+        final var clprConnectorCreated = ClprConnector.newBuilder()
                 .setConnectorId(connectorId)
                 .setChannelId(channelId)
                 .setConnectorContract(connectorContract)
                 .setLockedStake(100_000_000L)
                 .build();
 
-        // Each ClprConnector state change is the connector's full current state, not a delta, so later snapshots
+        // This test uses full ClprConnector state changes rather than partial updates, so later snapshots
         // are derived from the prior one rather than built from scratch.
         final var clprConnectorAfterSend =
-                clprConnectorRegistered.toBuilder().setInFlightMessageCount(1).build();
+                clprConnectorCreated.toBuilder().setInFlightMessageCount(1).build();
         final var sendMessage = recordItemBuilder
                 .contractCall()
                 .recordItem(r -> r.clprContextBuilder()
@@ -548,7 +548,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                                 connectorKey, clprConnectorMapUpdate(clprConnectorAfterBundle)))))
                 .build();
 
-        final var recordFile = recordFileWithItems(List.of(register, sendMessage, submitBundle), null);
+        final var recordFile = recordFileWithItems(List.of(create, sendMessage, submitBundle), null);
 
         // when
         recordFileParser.parse(recordFile);
@@ -563,21 +563,21 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertThat(connector.getInFlightMessageCount()).isZero();
         assertThat(connector.getSlashCount()).isOne();
         assertThat(connector.getLockedStake()).isEqualTo(90_000_000L);
-        // connectorContractId was only set at registration time; merging the sendMessage/submitBundle patches must
+        // connectorContractId was only set at creation time; merging the sendMessage/submitBundle patches must
         // carry it forward rather than null it out
         assertThat(connector.getConnectorContractId()).isNotNull();
     }
 
     @Test
     void clprConnectorBanRemoval() {
-        // given -- register establishes the connector, then a SubmitBundle's own state change carries a map-delete
+        // given -- creation establishes the connector, then a SubmitBundle's own state change carries a map-delete
         // (full ban) for the connector's key rather than a status patch; exercises the generic connectorsRemoved
-        // path backfilling fields from the prior registration rather than nulling them out
+        // path backfilling fields from creation rather than nulling them out
         final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
         final var connectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
         final var connectorContract = domainBuilder.entityNum(4200L).toContractID();
 
-        final var register = recordItemBuilder
+        final var create = recordItemBuilder
                 .clprCreateConnector()
                 .transactionBody(b -> b.setChannelId(channelId)
                         .setConnectorId(connectorId)
@@ -595,7 +595,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                 .recordItem(r -> r.clprContextBuilder().clprConnectorsRemoved(List.of(removedConnectorKey)))
                 .build();
 
-        final var recordFile = recordFileWithItems(List.of(register, ban), null);
+        final var recordFile = recordFileWithItems(List.of(create, ban), null);
 
         // when
         recordFileParser.parse(recordFile);
@@ -608,7 +608,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                         new AbstractClprConnector.Id(DomainUtils.toBytes(channelId), DomainUtils.toBytes(connectorId)))
                 .orElseThrow();
         assertThat(connector.getStatus()).isEqualTo(ClprConnectorStatus.DELETED);
-        // connectorContractId/lockedStake were only set at registration time; the ban's map-delete carries no patch
+        // connectorContractId/lockedStake were only set at creation time; the ban's map-delete carries no patch
         // of its own, so mergeClprConnector's fillIfAbsent must backfill them rather than leave them null
         assertThat(connector.getConnectorContractId()).isNotNull();
         assertThat(connector.getLockedStake()).isEqualTo(100_000_000L);

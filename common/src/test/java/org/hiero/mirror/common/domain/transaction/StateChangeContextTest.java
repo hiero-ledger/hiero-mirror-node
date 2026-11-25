@@ -202,6 +202,35 @@ final class StateChangeContextTest {
     }
 
     @Test
+    void clprConnectorIdReusedAcrossChannels() {
+        // given
+        final var connectorId = bytes(32);
+        final var firstKey = ClprConnectorKey.newBuilder()
+                .setChannelId(bytes(32))
+                .setConnectorId(connectorId)
+                .build();
+        final var secondKey = firstKey.toBuilder().setChannelId(bytes(32)).build();
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(clprConnectorMapUpdateChange(firstKey))
+                .addStateChanges(clprConnectorMapUpdateChange(secondKey))
+                .build();
+
+        // when
+        final var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getClprConnectors())
+                .extracting(entry -> entry.key())
+                .containsExactlyInAnyOrder(firstKey, secondKey);
+        assertThat(context.getClprConnector(firstKey))
+                .returns(firstKey.getChannelId(), ClprConnector::getChannelId)
+                .returns(connectorId, ClprConnector::getConnectorId);
+        assertThat(context.getClprConnector(secondKey))
+                .returns(secondKey.getChannelId(), ClprConnector::getChannelId)
+                .returns(connectorId, ClprConnector::getConnectorId);
+    }
+
+    @Test
     void clprConnectorRemoved() {
         // given -- a slash-threshold ban removes the Connector from state entirely (map-delete, not an update)
         final var key = ClprConnectorKey.newBuilder()

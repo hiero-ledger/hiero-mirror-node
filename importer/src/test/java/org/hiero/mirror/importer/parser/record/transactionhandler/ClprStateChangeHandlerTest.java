@@ -35,6 +35,7 @@ import com.hederahashgraph.api.proto.java.ClprMessageReplyStatus;
 import com.hederahashgraph.api.proto.java.ClprMessageValue;
 import com.hederahashgraph.api.proto.java.ClprThrottles;
 import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.List;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -58,6 +59,9 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -92,13 +96,18 @@ final class ClprStateChangeHandlerTest {
     @Test
     void processUnsuccessfulIsNoOp() {
         // given
-        when(recordItem.isSuccessful()).thenReturn(false);
+        final var failed = recordItemBuilder
+                .clprSubmitBundle()
+                .status(ResponseCodeEnum.INVALID_TRANSACTION)
+                .build();
+        assertThat(failed.isSuccessful()).isFalse();
+        assertThat(failed.getClprContext().getClprChannels()).isNotEmpty();
 
         // when
-        clprStateChangeHandler.process(recordItem);
+        clprStateChangeHandler.process(failed);
 
         // then
-        verifyNoInteractions(entityListener);
+        verifyNoInteractions(entityListener, clprEndpointManifestService, clprLedgerConfigurationService);
     }
 
     @Test
@@ -114,7 +123,7 @@ final class ClprStateChangeHandlerTest {
     }
 
     @Test
-    void processChannel() {
+    void processChannel(CapturedOutput output) {
         // given
         mockEmptyClprState();
         final var channelId = domainBuilder.bytes(32);
@@ -139,6 +148,7 @@ final class ClprStateChangeHandlerTest {
                 .returns(4L, ClprChannel::getNextMessageId)
                 .returns(2L, ClprChannel::getAckedMessageId)
                 .returns(Range.atLeast(0L), ClprChannel::getTimestampRange);
+        assertThat(output.getAll()).doesNotContain("ClprChannel state change unexpectedly clears nullable fields");
     }
 
     @Test
@@ -167,8 +177,7 @@ final class ClprStateChangeHandlerTest {
 
     @Test
     void processChannelPendingStatus(CapturedOutput output) {
-        // given -- PENDING is pre-creation only (tracked via ClprChannelPendingCommitment); an existing ClprChannel
-        // state-change value should never revert to it, but it's still recorded rather than dropped
+        // given -- PENDING is not expected in the current channel lifecycle, but is still a valid protobuf enum value
         mockEmptyClprState();
         final var channelId = domainBuilder.bytes(32);
         final var clprChannelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
@@ -325,7 +334,7 @@ final class ClprStateChangeHandlerTest {
     }
 
     @Test
-    void processChannelPartialCounterOnlyDoesNotHistorizeAndLeavesOtherFieldsAbsent() {
+    void processChannelPartialCounterOnlyDoesNotHistorizeAndLeavesOtherFieldsAbsent(CapturedOutput output) {
         // given -- a partial update touching only counter-type fields (next_message_id, acked_message_id) must not
         // historize, and every field absent from the partial must be left unset so the merge/upsert layer carries
         // the existing value forward instead of overwriting it with a default
@@ -353,6 +362,7 @@ final class ClprStateChangeHandlerTest {
                 .returns(3L, ClprChannel::getAckedMessageId)
                 .returns(null, ClprChannel::getStatus)
                 .returns(null, ClprChannel::getTimestampRange);
+        assertThat(output.getAll()).doesNotContain("ClprChannel state change unexpectedly clears nullable fields");
     }
 
     @Test
@@ -413,7 +423,7 @@ final class ClprStateChangeHandlerTest {
     }
 
     @Test
-    void processChannelPartialClearedFieldHistorizesWithDefaultValue() {
+    void processChannelPartialClearedFieldHistorizesWithDefaultValue(CapturedOutput output) {
         // given -- trust_anchor explicitly cleared (not just omitted) in an otherwise counter-only partial update
         // must historize, and the cleared field must be set to its proto default rather than left absent
         mockEmptyClprState();
@@ -441,19 +451,78 @@ final class ClprStateChangeHandlerTest {
                 .returns(7L, ClprChannel::getNextMessageId)
                 .returns(new byte[0], ClprChannel::getTrustAnchor)
                 .returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
+        assertThat(output.getAll()).doesNotContain("ClprChannel state change unexpectedly clears nullable fields");
     }
 
-    @Test
-    void processSkipsSelfProcessedType() {
-        // given -- ClprCreateChannel writes onClprChannel itself; process() must not also patch it generically
+    @ParameterizedTest
+    @ValueSource(
+            ints = {
+                com.hederahashgraph.api.proto.java.ClprChannel.LAST_CONFIG_TIMESTAMP_FIELD_NUMBER,
+                com.hederahashgraph.api.proto.java.ClprChannel.PEER_CONFIG_TIMESTAMP_FIELD_NUMBER,
+                com.hederahashgraph.api.proto.java.ClprChannel.PEER_THROTTLES_FIELD_NUMBER
+            })
+    void processChannelPartialClearedNullableField(int fieldNumber, CapturedOutput output) {
+        // given
         mockEmptyClprState();
-        when(recordItem.getTransactionType()).thenReturn(TransactionType.CLPRCREATECHANNEL.getProtoId());
+        final var channelId = domainBuilder.bytes(32);
+        final long consensusTimestamp = domainBuilder.timestamp();
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+        final var partialValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setNextMessageId(7)
+                .build();
+        final var mapUpdate = MapUpdateChange.newBuilder()
+                .setPartial(true)
+                .addClearedFields(fieldNumber)
+                .setValue(MapChangeValue.newBuilder().setClprChannelValue(partialValue))
+                .build();
+        when(clprContext.getClprChannels())
+                .thenReturn(List.of(new ClprChannelEntry(DomainUtils.fromBytes(channelId), mapUpdate)));
 
         // when
         clprStateChangeHandler.process(recordItem);
 
         // then
-        verifyNoInteractions(entityListener);
+        final var channelCaptor = ArgumentCaptor.forClass(ClprChannel.class);
+        verify(entityListener).onClprChannel(channelCaptor.capture());
+        assertThat(channelCaptor.getValue())
+                .returns(channelId, ClprChannel::getChannelId)
+                .returns(7L, ClprChannel::getNextMessageId)
+                .returns(null, ClprChannel::getLastConfigTimestamp)
+                .returns(null, ClprChannel::getPeerConfigTimestamp)
+                .returns(null, ClprChannel::getPeerThrottle)
+                .returns(Range.atLeast(consensusTimestamp), ClprChannel::getTimestampRange);
+        assertThat(output.getAll())
+                .contains("Recoverable error. ClprChannel state change unexpectedly clears nullable fields: ["
+                        + fieldNumber + "]");
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = TransactionType.class,
+            names = {"CLPRCREATECHANNEL", "CLPRDELETECHANNEL", "CLPRCREATECONNECTOR", "CLPRDELETECONNECTOR"})
+    void processSkipsSelfProcessedType(TransactionType transactionType) {
+        // given
+        final var realRecordItem = switch (transactionType) {
+            case CLPRCREATECHANNEL -> recordItemBuilder.clprCreateChannel().build();
+            case CLPRDELETECHANNEL -> recordItemBuilder.clprDeleteChannel().build();
+            case CLPRCREATECONNECTOR -> recordItemBuilder.clprCreateConnector().build();
+            case CLPRDELETECONNECTOR -> recordItemBuilder.clprDeleteConnector().build();
+            default -> throw new IllegalArgumentException("Unexpected transaction type: " + transactionType);
+        };
+        final var realClprContext = realRecordItem.getClprContext();
+        assertThat(realRecordItem.isSuccessful()).isTrue();
+        assertThat(realRecordItem.getTransactionType()).isEqualTo(transactionType.getProtoId());
+        assertThat(realClprContext).isNotNull();
+        assertThat(realClprContext.getClprChannels().size()
+                        + realClprContext.getClprConnectors().size()
+                        + realClprContext.getClprConnectorsRemoved().size())
+                .isPositive();
+
+        // when
+        clprStateChangeHandler.process(realRecordItem);
+
+        // then
+        verifyNoInteractions(entityListener, clprEndpointManifestService, clprLedgerConfigurationService);
     }
 
     @Test

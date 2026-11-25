@@ -140,7 +140,7 @@ final class ClprTransformerTest extends AbstractTransformerTest {
 
     @Test
     void clprMaintenanceUnsuccessful() {
-        // given -- see clprCompleteChannelUnsuccessful for why clprContext stays null, not empty
+        // given -- see clprCreateChannelUnsuccessful for why clprContext stays null, not empty
         final var recordItem = recordItemBuilder
                 .clprMaintenance()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
@@ -221,8 +221,8 @@ final class ClprTransformerTest extends AbstractTransformerTest {
     void clprDeleteConnector() {
         // given -- no dedicated transformer, falls back to DefaultTransformer; see
         // RecordItemBuilder.clprDeleteConnector() for why clprContext still ends up with the connector-removal
-        // state change via the shared sendMessage side-effect hook, even though
-        // ClprDeleterConnectorTransactionHandler itself never reads it back
+        // state change via generic CLPR state-change extraction, even though
+        // ClprDeleteConnectorTransactionHandler itself never reads it back
         final var expectedRecordItem = recordItemBuilder
                 .clprDeleteConnector()
                 .customize(this::finalize)
@@ -259,7 +259,7 @@ final class ClprTransformerTest extends AbstractTransformerTest {
 
     @Test
     void clprUpdateLedgerConfigurationUnsuccessful() {
-        // given -- see clprCompleteChannelUnsuccessful for why clprContext stays null, not empty
+        // given -- see clprCreateChannelUnsuccessful for why clprContext stays null, not empty
         final var recordItem = recordItemBuilder
                 .clprUpdateLedgerConfiguration()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
@@ -297,7 +297,7 @@ final class ClprTransformerTest extends AbstractTransformerTest {
 
     @Test
     void clprSubmitBundleUnsuccessful() {
-        // given -- see clprCompleteChannelUnsuccessful for why clprContext stays null, not empty
+        // given -- see clprCreateChannelUnsuccessful for why clprContext stays null, not empty
         final var recordItem = recordItemBuilder
                 .clprSubmitBundle()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
@@ -335,7 +335,7 @@ final class ClprTransformerTest extends AbstractTransformerTest {
 
     @Test
     void clprDeleteChannelUnsuccessful() {
-        // given -- see clprCompleteChannelUnsuccessful for why clprContext stays null, not empty
+        // given -- see clprCreateChannelUnsuccessful for why clprContext stays null, not empty
         final var recordItem = recordItemBuilder
                 .clprDeleteChannel()
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
@@ -353,28 +353,6 @@ final class ClprTransformerTest extends AbstractTransformerTest {
                 .singleElement()
                 .extracting(RecordItem::getClprContext)
                 .isNull();
-    }
-
-    @Test
-    void clprDeleteChannelAdminSweep() {
-        // given -- no Channel existed yet for the supplied channel_id (consensus never revealed one), so this is an
-        // admin sweep of an abandoned, never-completed registration rather than a real Channel closure; there's no
-        // clpr_channel_value state change to read back, and the transformer should leave
-        // RecordItem.clprContext.clprChannel unset
-        final var expectedRecordItem = recordItemBuilder
-                .clprDeleteChannel()
-                .recordItem(r -> r.clprContextBuilder().clprChannels(List.of()))
-                .customize(this::finalize)
-                .build();
-        final var blockTransaction =
-                blockTransactionBuilder.clprDeleteChannel(expectedRecordItem).build();
-        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
-
-        // when
-        final var recordFile = blockFileTransformer.transform(blockFile);
-
-        // then
-        assertRecordFile(recordFile, blockFile, items -> assertRecordItems(items, List.of(expectedRecordItem)));
     }
 
     @Test

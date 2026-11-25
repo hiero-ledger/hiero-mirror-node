@@ -53,7 +53,6 @@ import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
-import com.hederahashgraph.api.proto.java.ClprChannel;
 import com.hederahashgraph.api.proto.java.ClprConnectorKey;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -218,18 +217,13 @@ public class BlockTransactionBuilder {
         final var clprChannelEntry = Optional.ofNullable(clprContext)
                 .map(ClprContext::getClprChannel)
                 .orElse(null);
-        // TODO:// Should be able to delete this
         if (clprChannelEntry == null) {
-            // No Channel exists yet for this channel_id -- consensus never revealed one (the commit-reveal scheme
-            // keeps channel_id secret until ClprCreateChannel), so this is an admin sweep of an abandoned,
-            // never-completed registration. ClprDeleteChannelTransactionHandler reads ownership_commitment straight
-            // off the transaction body for that case, not off a state change, so there's nothing to attach here.
             return defaultBlockItem(recordItem);
         }
 
         final var channelId =
                 recordItem.getTransactionBody().getClprDeleteChannel().getChannelId();
-        final var stateChange = clprChannelStateChange(channelId, clprChannelEntry.value());
+        final var stateChange = clprChannelStateChange(channelId, clprChannelEntry.mapUpdate());
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
@@ -249,7 +243,7 @@ public class BlockTransactionBuilder {
 
         final var channelId =
                 recordItem.getTransactionBody().getClprCreateChannel().getChannelId();
-        final var stateChange = clprChannelStateChange(channelId, clprChannelEntry.value());
+        final var stateChange = clprChannelStateChange(channelId, clprChannelEntry.mapUpdate());
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
@@ -320,9 +314,8 @@ public class BlockTransactionBuilder {
                 .build();
         final var stateChange = StateChange.newBuilder()
                 .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
-                .setMapUpdate(MapUpdateChange.newBuilder()
-                        .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))
-                        .setValue(MapChangeValue.newBuilder().setClprConnectorValue(clprConnectorEntry.value())))
+                .setMapUpdate(clprConnectorEntry.mapUpdate().toBuilder()
+                        .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key)))
                 .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
@@ -337,7 +330,7 @@ public class BlockTransactionBuilder {
                 recordItem.getTransactionBody().getClprSubmitBundle().getChannelId();
         final var stateChangesBuilder = StateChanges.newBuilder()
                 .addStateChanges(clprChannelStateChange(
-                        channelId, recordItem.getClprContext().getClprChannel().value()));
+                        channelId, recordItem.getClprContext().getClprChannel().mapUpdate()));
         for (final var entry : recordItem.getClprContext().getClprMessages()) {
             stateChangesBuilder.addStateChanges(StateChange.newBuilder()
                     .setStateId(StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE)
@@ -348,9 +341,8 @@ public class BlockTransactionBuilder {
         for (final var entry : recordItem.getClprContext().getClprConnectors()) {
             stateChangesBuilder.addStateChanges(StateChange.newBuilder()
                     .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
-                    .setMapUpdate(MapUpdateChange.newBuilder()
-                            .setKey(MapChangeKey.newBuilder().setClprConnectorKey(entry.key()))
-                            .setValue(MapChangeValue.newBuilder().setClprConnectorValue(entry.value()))));
+                    .setMapUpdate(entry.mapUpdate().toBuilder()
+                            .setKey(MapChangeKey.newBuilder().setClprConnectorKey(entry.key()))));
         }
         for (final var key : recordItem.getClprContext().getClprConnectorsRemoved()) {
             stateChangesBuilder.addStateChanges(StateChange.newBuilder()
@@ -386,12 +378,11 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
-    private StateChange clprChannelStateChange(ByteString channelId, ClprChannel clprChannelValue) {
+    private StateChange clprChannelStateChange(ByteString channelId, MapUpdateChange mapUpdate) {
         return StateChange.newBuilder()
                 .setStateId(StateIdentifier.STATE_ID_CLPR_CHANNELS_VALUE)
-                .setMapUpdate(MapUpdateChange.newBuilder()
-                        .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(channelId)))
-                        .setValue(MapChangeValue.newBuilder().setClprChannelValue(clprChannelValue)))
+                .setMapUpdate(mapUpdate.toBuilder()
+                        .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(channelId))))
                 .build();
     }
 

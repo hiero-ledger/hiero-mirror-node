@@ -260,119 +260,116 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     @ParameterizedTest
     @ValueSource(ints = {1, 2, 3})
     void onClprChannelHistory(int commitIndex) {
-        // given -- the handler always sets timestampRange for now (placeholder until the stream exposes real
-        // per-field diffs), so Complete, SubmitBundle, and Close each cut their own version even though
-        // SubmitBundle's status here matches Complete's
-        final var complete = domainBuilder.clprChannel().get();
+        // given -- each update supplies a timestamp range, creating a new historical version
+        final var create = domainBuilder.clprChannel().get();
 
         final var submitBundle = ClprChannel.builder()
-                .channelId(complete.getChannelId())
+                .channelId(create.getChannelId())
                 .status(ACTIVE_VALUE)
-                .nextMessageId(complete.getNextMessageId() + 5)
-                .ackedMessageId(complete.getAckedMessageId() + 3)
+                .nextMessageId(create.getNextMessageId() + 5)
+                .ackedMessageId(create.getAckedMessageId() + 3)
                 .sentRunningHash(domainBuilder.bytes(32))
-                .receivedMessageId(complete.getReceivedMessageId() + 2)
+                .receivedMessageId(create.getReceivedMessageId() + 2)
                 .receivedRunningHash(domainBuilder.bytes(32))
-                .salt(complete.getSalt())
-                .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
+                .salt(create.getSalt())
+                .timestampRange(Range.atLeast(create.getCreatedTimestamp() + 1))
                 .build();
-        final var mergedSubmitBundle = TestUtils.merge(complete, submitBundle);
+        final var mergedSubmitBundle = TestUtils.merge(create, submitBundle);
 
-        final var close = ClprChannel.builder()
-                .channelId(complete.getChannelId())
+        final var delete = ClprChannel.builder()
+                .channelId(create.getChannelId())
                 .status(CLOSED_VALUE)
                 .nextMessageId(submitBundle.getNextMessageId())
                 .ackedMessageId(submitBundle.getAckedMessageId())
                 .sentRunningHash(submitBundle.getSentRunningHash())
                 .receivedMessageId(submitBundle.getReceivedMessageId())
                 .receivedRunningHash(submitBundle.getReceivedRunningHash())
-                .salt(complete.getSalt())
-                .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
+                .salt(create.getSalt())
+                .timestampRange(Range.atLeast(create.getCreatedTimestamp() + 2))
                 .build();
-        final var mergedClose = TestUtils.merge(mergedSubmitBundle, close);
+        final var mergedDelete = TestUtils.merge(mergedSubmitBundle, delete);
 
         // when
-        sqlEntityListener.onClprChannel(complete);
+        sqlEntityListener.onClprChannel(create);
         if (commitIndex > 1) {
             completeFileAndCommit();
-            assertThat(clprChannelRepository.findAll()).containsExactly(complete);
+            assertThat(clprChannelRepository.findAll()).containsExactly(create);
             assertThat(findHistory(ClprChannel.class)).isEmpty();
         }
 
         sqlEntityListener.onClprChannel(submitBundle);
-        complete.setTimestampUpper(submitBundle.getTimestampLower());
+        create.setTimestampUpper(submitBundle.getTimestampLower());
         if (commitIndex > 2) {
             completeFileAndCommit();
             assertThat(clprChannelRepository.findAll()).containsExactly(mergedSubmitBundle);
-            assertThat(findHistory(ClprChannel.class)).containsExactly(complete);
+            assertThat(findHistory(ClprChannel.class)).containsExactly(create);
         }
 
-        sqlEntityListener.onClprChannel(close);
-        mergedSubmitBundle.setTimestampUpper(close.getTimestampLower());
+        sqlEntityListener.onClprChannel(delete);
+        mergedSubmitBundle.setTimestampUpper(delete.getTimestampLower());
         completeFileAndCommit();
 
         // then
-        assertThat(clprChannelRepository.findAll()).containsExactly(mergedClose);
-        assertThat(findHistory(ClprChannel.class)).containsExactlyInAnyOrder(complete, mergedSubmitBundle);
+        assertThat(clprChannelRepository.findAll()).containsExactly(mergedDelete);
+        assertThat(findHistory(ClprChannel.class)).containsExactlyInAnyOrder(create, mergedSubmitBundle);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2})
     void onClprChannelSubmitBundleSameStatusStillHistorizes(int commitIndex) {
-        // given -- the handler always sets timestampRange for now (placeholder until the stream exposes real
-        // per-field diffs), so even a same-status SubmitBundle write historizes
-        final var complete = domainBuilder.clprChannel().get();
+        // given -- an update with a timestamp range historizes even when the status is unchanged
+        final var create = domainBuilder.clprChannel().get();
         final var submitBundle1 = ClprChannel.builder()
-                .channelId(complete.getChannelId())
+                .channelId(create.getChannelId())
                 .status(ACTIVE_VALUE)
-                .nextMessageId(complete.getNextMessageId() + 1)
-                .salt(complete.getSalt())
-                .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
+                .nextMessageId(create.getNextMessageId() + 1)
+                .salt(create.getSalt())
+                .timestampRange(Range.atLeast(create.getCreatedTimestamp() + 1))
                 .build();
         final var submitBundle2 = ClprChannel.builder()
-                .channelId(complete.getChannelId())
+                .channelId(create.getChannelId())
                 .status(ACTIVE_VALUE)
-                .nextMessageId(complete.getNextMessageId() + 2)
-                .salt(complete.getSalt())
-                .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
+                .nextMessageId(create.getNextMessageId() + 2)
+                .salt(create.getSalt())
+                .timestampRange(Range.atLeast(create.getCreatedTimestamp() + 2))
                 .build();
-        final var mergedSubmitBundle1 = TestUtils.merge(complete, submitBundle1);
+        final var mergedSubmitBundle1 = TestUtils.merge(create, submitBundle1);
         final var mergedSubmitBundle2 = TestUtils.merge(mergedSubmitBundle1, submitBundle2);
 
         // when
-        sqlEntityListener.onClprChannel(complete);
+        sqlEntityListener.onClprChannel(create);
         if (commitIndex > 1) {
             completeFileAndCommit();
         }
 
         sqlEntityListener.onClprChannel(submitBundle1);
-        complete.setTimestampUpper(submitBundle1.getTimestampLower());
+        create.setTimestampUpper(submitBundle1.getTimestampLower());
         sqlEntityListener.onClprChannel(submitBundle2);
         mergedSubmitBundle1.setTimestampUpper(submitBundle2.getTimestampLower());
         completeFileAndCommit();
 
         // then
         assertThat(clprChannelRepository.findAll()).containsExactly(mergedSubmitBundle2);
-        assertThat(findHistory(ClprChannel.class)).containsExactlyInAnyOrder(complete, mergedSubmitBundle1);
+        assertThat(findHistory(ClprChannel.class)).containsExactlyInAnyOrder(create, mergedSubmitBundle1);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2})
     void onClprChannelSubmitBundleHistorizesOnStatusChange(int commitIndex) {
         // given -- a SubmitBundle-driven cascade (e.g. a peer-closed channel) can change status without any
-        // ClprDeleteChannel transaction at all; it historizes just like every other SubmitBundle write does today
-        final var complete = domainBuilder.clprChannel().get();
+        // ClprDeleteChannel transaction; the supplied timestamp range causes the update to historize
+        final var create = domainBuilder.clprChannel().get();
         final var submitBundle = ClprChannel.builder()
-                .channelId(complete.getChannelId())
+                .channelId(create.getChannelId())
                 .status(CLOSING_VALUE)
-                .nextMessageId(complete.getNextMessageId() + 1)
-                .salt(complete.getSalt())
-                .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
+                .nextMessageId(create.getNextMessageId() + 1)
+                .salt(create.getSalt())
+                .timestampRange(Range.atLeast(create.getCreatedTimestamp() + 1))
                 .build();
-        final var expected = TestUtils.merge(complete, submitBundle);
+        final var expected = TestUtils.merge(create, submitBundle);
 
         // when
-        sqlEntityListener.onClprChannel(complete);
+        sqlEntityListener.onClprChannel(create);
         if (commitIndex > 1) {
             completeFileAndCommit();
         }
@@ -381,9 +378,9 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         completeFileAndCommit();
 
         // then
-        complete.setTimestampUpper(submitBundle.getTimestampLower());
+        create.setTimestampUpper(submitBundle.getTimestampLower());
         assertThat(clprChannelRepository.findAll()).containsExactly(expected);
-        assertThat(findHistory(ClprChannel.class)).containsExactly(complete);
+        assertThat(findHistory(ClprChannel.class)).containsExactly(create);
     }
 
     @Test
@@ -411,16 +408,16 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     void onClprChannelUpdatableFieldsFrozen() {
         // given -- chainId is @Column(updatable = false); the SQL-level protection must hold even if something
         // resent it
-        final var complete = domainBuilder.clprChannel().get();
+        final var create = domainBuilder.clprChannel().get();
         final var maliciousUpdate = ClprChannel.builder()
-                .channelId(complete.getChannelId())
+                .channelId(create.getChannelId())
                 .chainId("not-the-original-chain-id")
-                .salt(complete.getSalt())
-                .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 1))
+                .salt(create.getSalt())
+                .timestampRange(Range.atLeast(create.getCreatedTimestamp() + 1))
                 .build();
 
         // when
-        sqlEntityListener.onClprChannel(complete);
+        sqlEntityListener.onClprChannel(create);
         completeFileAndCommit();
 
         sqlEntityListener.onClprChannel(maliciousUpdate);
@@ -430,7 +427,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         assertThat(clprChannelRepository.findAll())
                 .hasSize(1)
                 .first()
-                .returns(complete.getChainId(), ClprChannel::getChainId);
+                .returns(create.getChainId(), ClprChannel::getChainId);
     }
 
     @Test
@@ -449,25 +446,25 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2})
-    void onClprConnectorSubmitBundleNeverHistorized(int commitIndex) {
-        // given -- SubmitBundle sends no timestampRange, so it only ever patches the current row
-        final var complete = domainBuilder.clprConnector().get();
+    void onClprConnectorUpdateWithoutTimestampRange(int commitIndex) {
+        // given -- updates without a timestamp range patch the current row without creating history
+        final var create = domainBuilder.clprConnector().get();
         final var submitBundle1 = ClprConnector.builder()
-                .channelId(complete.getChannelId())
-                .connectorId(complete.getConnectorId())
-                .inFlightMessageCount(complete.getInFlightMessageCount() + 1)
+                .channelId(create.getChannelId())
+                .connectorId(create.getConnectorId())
+                .inFlightMessageCount(create.getInFlightMessageCount() + 1)
                 .build();
         final var submitBundle2 = ClprConnector.builder()
-                .channelId(complete.getChannelId())
-                .connectorId(complete.getConnectorId())
-                .inFlightMessageCount(complete.getInFlightMessageCount())
-                .lockedStake(complete.getLockedStake() - 1_000_000L)
-                .slashCount(complete.getSlashCount() + 1)
+                .channelId(create.getChannelId())
+                .connectorId(create.getConnectorId())
+                .inFlightMessageCount(create.getInFlightMessageCount())
+                .lockedStake(create.getLockedStake() - 1_000_000L)
+                .slashCount(create.getSlashCount() + 1)
                 .build();
-        final var expected = TestUtils.merge(TestUtils.merge(complete, submitBundle1), submitBundle2);
+        final var expected = TestUtils.merge(TestUtils.merge(create, submitBundle1), submitBundle2);
 
         // when
-        sqlEntityListener.onClprConnector(complete);
+        sqlEntityListener.onClprConnector(create);
         if (commitIndex > 1) {
             completeFileAndCommit();
         }
@@ -503,33 +500,32 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     @ParameterizedTest
     @ValueSource(ints = {1, 2, 3})
     void onClprConnectorHistory(int commitIndex) {
-        // given -- only Complete and Deregister are real transitions; SubmitBundle never historizes (see
-        // onClprConnectorSubmitBundleNeverHistorized), so its patch folds into the row Deregister closes
-        final var complete = domainBuilder.clprConnector().get();
+        // given -- an update without a timestamp range is merged into the current row before deletion historizes it
+        final var create = domainBuilder.clprConnector().get();
 
         final var submitBundle = ClprConnector.builder()
-                .channelId(complete.getChannelId())
-                .connectorId(complete.getConnectorId())
-                .inFlightMessageCount(complete.getInFlightMessageCount() + 1)
-                .slashCount(complete.getSlashCount() + 1)
-                .lockedStake(complete.getLockedStake() - 1_000_000L)
+                .channelId(create.getChannelId())
+                .connectorId(create.getConnectorId())
+                .inFlightMessageCount(create.getInFlightMessageCount() + 1)
+                .lockedStake(create.getLockedStake() - 1_000_000L)
+                .slashCount(create.getSlashCount() + 1)
                 .build();
-        final var patchedBySubmitBundle = TestUtils.merge(complete, submitBundle);
+        final var patchedBySubmitBundle = TestUtils.merge(create, submitBundle);
 
-        final var deregister = ClprConnector.builder()
-                .channelId(complete.getChannelId())
-                .connectorId(complete.getConnectorId())
+        final var delete = ClprConnector.builder()
+                .channelId(create.getChannelId())
+                .connectorId(create.getConnectorId())
                 .status(ClprConnectorStatus.DELETED)
                 .stakeRecipientId(domainBuilder.entityId())
-                .timestampRange(Range.atLeast(complete.getCreatedTimestamp() + 2))
+                .timestampRange(Range.atLeast(create.getCreatedTimestamp() + 2))
                 .build();
-        final var mergedDeregister = TestUtils.merge(patchedBySubmitBundle, deregister);
+        final var mergedDelete = TestUtils.merge(patchedBySubmitBundle, delete);
 
         // when
-        sqlEntityListener.onClprConnector(complete);
+        sqlEntityListener.onClprConnector(create);
         if (commitIndex > 1) {
             completeFileAndCommit();
-            assertThat(clprConnectorRepository.findAll()).containsExactly(complete);
+            assertThat(clprConnectorRepository.findAll()).containsExactly(create);
             assertThat(findHistory(ClprConnector.class)).isEmpty();
         }
 
@@ -540,12 +536,12 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
             assertThat(findHistory(ClprConnector.class)).isEmpty();
         }
 
-        sqlEntityListener.onClprConnector(deregister);
+        sqlEntityListener.onClprConnector(delete);
         completeFileAndCommit();
 
         // then
-        patchedBySubmitBundle.setTimestampUpper(deregister.getTimestampLower());
-        assertThat(clprConnectorRepository.findAll()).containsExactly(mergedDeregister);
+        patchedBySubmitBundle.setTimestampUpper(delete.getTimestampLower());
+        assertThat(clprConnectorRepository.findAll()).containsExactly(mergedDelete);
         assertThat(findHistory(ClprConnector.class)).containsExactly(patchedBySubmitBundle);
     }
 

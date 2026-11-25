@@ -26,8 +26,7 @@ public final class SignatureUtils {
     }
 
     /**
-     * Computes the keccak256 hash of the concatenation of the given byte arrays, e.g. for CLPR's commit-reveal
-     * commitment hashes ({@code keccak256(channel_id || public_key)}).
+     * Computes the keccak256 hash of the concatenation of the given byte arrays.
      *
      * @param parts the byte arrays to concatenate before hashing
      * @return the 32-byte keccak256 digest

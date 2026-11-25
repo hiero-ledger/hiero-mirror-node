@@ -46,7 +46,7 @@ public class ClprContext {
     private final List<StateChangeContext.ClprMessageEntry> clprMessages = List.of();
 
     /**
-     * The first entry of {@link #clprChannels}, for single-entity handlers (e.g. {@code ClprCompleteChannel}) that
+     * The first entry of {@link #clprChannels}, for single-entity handlers (e.g. {@code ClprCreateChannel}) that
      * only expect one.
      */
     public @Nullable ClprChannelEntry getClprChannel() {
@@ -54,7 +54,7 @@ public class ClprContext {
     }
 
     /**
-     * The first entry of {@link #clprConnectors}, for single-entity handlers (e.g. {@code ClprCompleteConnector})
+     * The first entry of {@link #clprConnectors}, for single-entity handlers (e.g. {@code ClprCreateConnector})
      * that only expect one.
      */
     public @Nullable ClprConnectorEntry getClprConnector() {

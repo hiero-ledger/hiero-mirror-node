@@ -22,7 +22,10 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.data.util.Version;
 
 final class ClprDeleteChannelTransactionHandlerTest extends AbstractTransactionHandlerTest {
@@ -36,8 +39,7 @@ final class ClprDeleteChannelTransactionHandlerTest extends AbstractTransactionH
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
                 .setClprDeleteChannel(ClprDeleteChannelTransactionBody.newBuilder()
-                        .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
-                        .setOwnershipCommitment(DomainUtils.fromBytes(domainBuilder.bytes(32))));
+                        .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32))));
     }
 
     @Override
@@ -79,9 +81,9 @@ final class ClprDeleteChannelTransactionHandlerTest extends AbstractTransactionH
     }
 
     @Test
-    void updateTransactionAbandonedCommitment() {
-        // given -- no Channel record exists: a legacy pending-commitment sweep from a network that predates
-        // ClprCreateChannel. No such commitment can exist in this mirror node's data, so nothing is written.
+    @ExtendWith(OutputCaptureExtension.class)
+    void updateTransactionMissingStateChange(CapturedOutput output) {
+        // given -- a successful deletion unexpectedly has no channel state change
         final var recordItem = buildRecordItem(
                 getDefaultTransactionBody().build(),
                 getDefaultTransactionRecord().build(),
@@ -93,6 +95,8 @@ final class ClprDeleteChannelTransactionHandlerTest extends AbstractTransactionH
 
         // then
         verifyNoMoreInteractions(entityListener);
+        assertThat(output.getAll())
+                .contains("No clpr_channel_value state change found for successful ClprDeleteChannel");
     }
 
     private RecordItem buildRecordItem(
