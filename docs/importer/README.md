@@ -1,7 +1,8 @@
 # Importer
 
 The importer component is responsible for downloading stream files uploaded by consensus nodes, verifying them, and
-ingesting the normalized data into the database.
+ingesting the normalized data into the database. For a discussion on the architecture of the importer see
+[Architecture](./architecture.md).
 
 ## HAPI Compatibility
 
@@ -9,7 +10,7 @@ The mirror node strives to be both backwards and forwards compatible with consen
 versions of the mirror node should work against the latest version of consensus nodes. However, while it won't fail if
 new fields or transactions are added to [HAPI](https://github.com/hashgraph/hedera-protobufs/tree/main/services), the
 mirror node may fail to capture that extra information until it is updated. The exception to this rule is when the
-stream format itself changes like when Record File v6 was introduced or the balance file was deprecated. The below
+stream format itself changes, like when Record File v6 was introduced or the balance file was deprecated. The below
 table provides a compatibility matrix of the most recent changes:
 
 | HAPI Version | Mirror Node Version | Breaking Change | HIP                                                                                                                                                          |
