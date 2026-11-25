@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.migration;
 import static org.hiero.mirror.common.util.DomainUtils.parseProtobuf;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.CryptoGetInfoResponse.AccountInfo;
 import jakarta.inject.Named;
@@ -16,12 +17,9 @@ import java.sql.Types;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.HexFormat;
 import java.util.Objects;
 import java.util.zip.GZIPInputStream;
 import org.flywaydb.core.api.MigrationVersion;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -64,6 +62,22 @@ final class AccountInfoKeyMigration extends RepeatableMigration {
             where id = :id
               and lower(timestamp_range) >= :lowerTimestamp
               and key is not distinct from cast(:previousKey as bytea)
+            """;
+
+    private static final String COPY_ENTITY_TO_HISTORY = """
+            insert into entity_history (
+                alias, auto_renew_account_id, auto_renew_period, balance, balance_timestamp, created_timestamp,
+                decline_reward, delegation_address, deleted, ethereum_nonce, evm_address, expiration_timestamp, id,
+                key, max_automatic_token_associations, memo, num, obtainer_id, permanent_removal, proxy_account_id,
+                public_key, realm, receiver_sig_required, shard, stake_period_start, staked_account_id,
+                staked_node_id, timestamp_range, type)
+            select alias, auto_renew_account_id, auto_renew_period, balance, balance_timestamp, created_timestamp,
+                   decline_reward, delegation_address, deleted, ethereum_nonce, evm_address, expiration_timestamp, id,
+                   key, max_automatic_token_associations, memo, num, obtainer_id, permanent_removal, proxy_account_id,
+                   public_key, realm, receiver_sig_required, shard, stake_period_start, staked_account_id,
+                   staked_node_id, int8range(lower(timestamp_range), :snapshot), type
+            from entity
+            where id = :id
             """;
 
     private final BlockStreamResolver blockStreamResolver;
@@ -131,20 +145,6 @@ final class AccountInfoKeyMigration extends RepeatableMigration {
         }
     }
 
-    @Override
-    protected boolean skipMigration(final Configuration configuration) {
-        if (super.skipMigration(configuration)) {
-            return true;
-        }
-
-        if (blockStreamResolver.isInitialStateFromGenesisWrb()) {
-            log.info("Skip migration since initial state is loaded from the genesis wrapped record block");
-            return true;
-        }
-
-        return false;
-    }
-
     /**
      * Writes the corrected key onto the account version that was current at {@link #KEY_SNAPSHOT}, then onto every
      * later {@code entity_history} row and the current {@code entity} row that still have that version's previous key.
@@ -188,11 +188,6 @@ final class AccountInfoKeyMigration extends RepeatableMigration {
                 .addValue("publicKey", DomainUtils.getPublicKey(correctedKey), Types.VARCHAR);
         jdbcOperations.update(UPDATE_MATCHING_HISTORICAL_KEYS, params);
         jdbcOperations.update(UPDATE_MATCHING_ENTITY_KEY, params);
-
-        log.info(
-                "Replaced historical key for entity {} at the key snapshot. Previous key {}",
-                id,
-                snapshot.previousKey() == null ? null : HexFormat.of().formatHex(snapshot.previousKey()));
         return true;
     }
 
@@ -210,35 +205,43 @@ final class AccountInfoKeyMigration extends RepeatableMigration {
     }
 
     private boolean updateCurrentKey(final Entity current, final byte[] correctedKey) {
-        final String previousPublicKey = current.getPublicKey();
         final byte[] previousKey =
                 current.getKey() == null ? null : current.getKey().clone();
-        if (!mergeKey(current, correctedKey)) {
+        if (Arrays.equals(previousKey, correctedKey)) {
             return false;
         }
+
+        final String previousPublicKey = current.getPublicKey();
+        final var range = current.getTimestampRange();
+        final long lower = range.lowerEndpoint();
+        if (lower < KEY_SNAPSHOT_TIMESTAMP) {
+            // Copy while the managed entity is still clean, so Hibernate does not flush the new key first.
+            final var jdbcOperations = jdbcOperationsProvider.getObject();
+            final var params = new MapSqlParameterSource()
+                    .addValue("id", current.getId())
+                    .addValue("snapshot", KEY_SNAPSHOT_TIMESTAMP);
+            jdbcOperations.update(COPY_ENTITY_TO_HISTORY, params);
+            current.setTimestampRange(
+                    range.hasUpperBound()
+                            ? Range.range(
+                                    KEY_SNAPSHOT_TIMESTAMP,
+                                    BoundType.CLOSED,
+                                    range.upperEndpoint(),
+                                    range.upperBoundType())
+                            : Range.atLeast(KEY_SNAPSHOT_TIMESTAMP));
+        }
+
+        current.setKey(correctedKey);
         // A key list or threshold key has no single public key. Keep the previous value instead of clearing it.
         if (current.getPublicKey().isEmpty()) {
             current.setPublicKey(previousPublicKey);
         }
-
-        log.info(
-                "Replaced key for entity {} current at the key snapshot. Previous key {}",
-                current.getId(),
-                previousKey == null ? null : HexFormat.of().formatHex(previousKey));
         entityRepositoryProvider.getObject().save(current);
         return true;
     }
 
     private boolean activeAtSnapshot(final Range<Long> timestampRange) {
         return timestampRange != null && timestampRange.contains(KEY_SNAPSHOT_TIMESTAMP);
-    }
-
-    private boolean mergeKey(final AbstractEntity entity, final byte[] correctedKey) {
-        if (Arrays.equals(entity.getKey(), correctedKey)) {
-            return false;
-        }
-        entity.setKey(correctedKey);
-        return true;
     }
 
     private record SnapshotKey(byte[] previousKey, long lowerTimestamp) {}

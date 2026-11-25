@@ -3,8 +3,6 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
-import static org.mockito.Mockito.mock;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
@@ -14,7 +12,6 @@ import com.hederahashgraph.api.proto.java.Key;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.flywaydb.core.api.configuration.Configuration;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -25,8 +22,6 @@ import org.hiero.mirror.importer.repository.EntityRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 
 @RequiredArgsConstructor
 final class AccountInfoKeyMigrationTest extends ImporterIntegrationTest {
@@ -57,36 +52,6 @@ final class AccountInfoKeyMigrationTest extends ImporterIntegrationTest {
     @Test
     void checksum() {
         assertThat(accountInfoKeyMigration.getChecksum()).isEqualTo(1);
-    }
-
-    @ParameterizedTest
-    @CsvSource(textBlock = """
-            0, true
-            1, false
-            """)
-    void skipWhenFirstBlockIsWrb(final long blockNumber, final boolean shouldSkip) {
-        domainBuilder
-                .recordFile()
-                .customize(
-                        r -> r.index(blockNumber).wrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE)))
-                .persist();
-
-        assertThat(accountInfoKeyMigration.skipMigration(mock(Configuration.class)))
-                .isEqualTo(shouldSkip);
-    }
-
-    @ParameterizedTest
-    @CsvSource(textBlock = """
-            true, , true
-            true, 0, true
-            true, 2, false
-            false, , false
-            """)
-    void skipWithBlockStreamConfig(final boolean blockEnabled, final Long startBlockNumber, final boolean shouldSkip) {
-        blockProperties.setEnabled(blockEnabled);
-        importerProperties.setStartBlockNumber(startBlockNumber);
-        assertThat(accountInfoKeyMigration.skipMigration(mock(Configuration.class)))
-                .isEqualTo(shouldSkip);
     }
 
     @Test
@@ -121,6 +86,11 @@ final class AccountInfoKeyMigrationTest extends ImporterIntegrationTest {
                 .containsExactly(accountInfo.getKey().toByteArray());
         assertThat(entityRepository.findById(entity.getId()).orElseThrow().getMemo())
                 .isEqualTo("Bar");
+        assertThat(timestampRange("entity", entity.getId()))
+                .isEqualTo("[" + AccountInfoKeyMigration.KEY_SNAPSHOT_TIMESTAMP + ",)");
+        assertThat(historicalKey(entity.getId())).containsExactly(ed25519("123"));
+        assertThat(timestampRange("entity_history", entity.getId()))
+                .isEqualTo("[0," + AccountInfoKeyMigration.KEY_SNAPSHOT_TIMESTAMP + ")");
     }
 
     @Test
@@ -325,6 +295,11 @@ final class AccountInfoKeyMigrationTest extends ImporterIntegrationTest {
                 .entityHistory(EntityId.of(id))
                 .customize(history -> history.key(key.clone()).timestampRange(Range.closedOpen(lower, upper)))
                 .persist();
+    }
+
+    private String timestampRange(final String table, final long id) {
+        return jdbcOperations.queryForObject(
+                "select timestamp_range::text from " + table + " where id = ?", String.class, id);
     }
 
     private byte[] entityKey(final long id) {
