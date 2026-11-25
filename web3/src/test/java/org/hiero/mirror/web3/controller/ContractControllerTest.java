@@ -545,7 +545,8 @@ final class ContractControllerTest {
         clearInvocations(throttleManager);
         final var request = traceRequest();
         transaction(request).setValue(0);
-        given(contractDebugService.processTraceCall(any(), any())).willThrow(new TraceTimeoutException(TRACE_RESPONSE));
+        given(contractDebugService.processTraceCall(any(), any()))
+                .willThrow(new TraceTimeoutException(List.of(TRACE_RESPONSE)));
 
         contractActionsCall(request)
                 .andExpect(status().isRequestTimeout())

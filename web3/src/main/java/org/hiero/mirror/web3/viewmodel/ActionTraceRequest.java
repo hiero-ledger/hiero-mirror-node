@@ -32,15 +32,6 @@ import tools.jackson.databind.annotation.JsonSerialize;
 @NullMarked
 public class ActionTraceRequest {
 
-    /**
-     * Request body limit enforced by Jackson. It allows full calldata on every transaction plus 256 KiB for the rest of
-     * the JSON, so calldata and state overrides together cannot exceed it.
-     */
-    public static final long MAX_DOCUMENT_LENGTH =
-            MAX_TRACE_TRANSACTIONS * ContractCallRequest.DATA_MAX_LENGTH + 256 * 1024;
-
-    public static final long MAX_JSON_TOKENS = 100_000;
-
     @JsonSerialize(using = BlockTypeSerializer.class)
     @JsonSetter(nulls = Nulls.SKIP)
     @NotNull
