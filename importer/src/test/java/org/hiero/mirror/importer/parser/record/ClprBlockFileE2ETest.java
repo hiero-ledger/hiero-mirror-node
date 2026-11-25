@@ -13,11 +13,14 @@ import static com.hederahashgraph.api.proto.java.ClprMessageReplyStatus.CONNECTO
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprChannelMapUpdate;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.clprConnectorMapUpdate;
+import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_CLPR_ENDPOINT_MANIFEST;
+import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_CLPR_LEDGER_CONFIGURATION;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
+import com.hedera.hapi.block.stream.output.protoc.MapDeleteChange;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.SingletonUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
@@ -48,8 +51,12 @@ import org.hiero.mirror.common.domain.clpr.AbstractClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
+import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
+import org.hiero.mirror.common.domain.clpr.ClprServiceEndpoint;
+import org.hiero.mirror.common.domain.clpr.ClprThrottle;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -63,12 +70,15 @@ import org.hiero.mirror.importer.parser.domain.BlockFileBuilder;
 import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.hiero.mirror.importer.repository.ClprChannelRepository;
 import org.hiero.mirror.importer.repository.ClprConnectorRepository;
+import org.hiero.mirror.importer.repository.ClprEndpointManifestRepository;
 import org.hiero.mirror.importer.repository.ClprLedgerConfigurationRepository;
 import org.hiero.mirror.importer.repository.ClprMessageRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.util.Version;
 
 /**
@@ -85,6 +95,9 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
     private final BlockTransactionBuilder blockTransactionBuilder;
     private final ClprChannelRepository clprChannelRepository;
     private final ClprConnectorRepository clprConnectorRepository;
+    private final @Qualifier(CACHE_CLPR_ENDPOINT_MANIFEST) CacheManager clprEndpointManifestCacheManager;
+    private final ClprEndpointManifestRepository clprEndpointManifestRepository;
+    private final @Qualifier(CACHE_CLPR_LEDGER_CONFIGURATION) CacheManager clprLedgerConfigurationCacheManager;
     private final ClprLedgerConfigurationRepository clprLedgerConfigurationRepository;
     private final ClprMessageRepository clprMessageRepository;
     private final RecordFileParser recordFileParser;
@@ -119,34 +132,12 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .build();
 
         // Block 1: the channel is opened directly, active immediately.
-        final var activeChannel = activeChannelValue(channelId, "hiero:testing", 1);
-        final var createChannel = recordItemBuilder
-                .clprCreateChannel()
-                .transactionBody(b -> b.setChannelId(channelId))
-                .recordItem(r -> r.clprContextBuilder()
-                        .clprChannels(List.of(
-                                new ClprChannelEntry(channelId, clprChannelMapUpdate(channelId, activeChannel)))))
-                .customize(this::finalizeRecordItem)
-                .build();
+        final var activeChannel = activeChannelValue(channelId, "hiero:testing");
+        final var createChannel = createChannel(activeChannel);
 
-        // Block 2: the connector is registered directly, active immediately.
-        final var activeConnector = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
-                .setChannelId(channelId)
-                .setConnectorId(connectorId)
-                .setConnectorContract(recordItemBuilder.contractId())
-                .setLockedStake(100_000_000L)
-                .build();
-        final var createConnector = recordItemBuilder
-                .clprCreateConnector()
-                .transactionBody(b -> b.setChannelId(channelId)
-                        .setConnectorId(connectorId)
-                        .setConnectorContract(activeConnector.getConnectorContract())
-                        .setLockedStake(100_000_000L))
-                .recordItem(r -> r.clprContextBuilder()
-                        .clprConnectors(
-                                List.of(new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(activeConnector)))))
-                .customize(this::finalizeRecordItem)
-                .build();
+        // Block 2: the connector is created directly, active immediately.
+        final var activeConnector = connectorValue(channelId, connectorId, 100_000_000L);
+        final var createConnector = createConnector(activeConnector);
 
         // Block 3: the CLPR system-contract side effects belong to an ordinary ContractCall.
         final var sentRunningHash = recordItemBuilder.bytes(32);
@@ -241,6 +232,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .returns(ClprConnectorStatus.ACTIVE, ClprConnector::getStatus)
                 .returns(createConnector.getConsensusTimestamp(), ClprConnector::getCreatedTimestamp)
                 .returns(100_000_000L, ClprConnector::getLockedStake)
+                .returns(activeConnector.getAdminKey().toByteArray(), ClprConnector::getAdminKey)
                 .returns(1L, ClprConnector::getInFlightMessageCount)
                 .returns(
                         Range.atLeast(
@@ -294,7 +286,9 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .returns(CLOSING.getNumber(), ClprChannel::getStatus)
                 .returns(3L, ClprChannel::getNextMessageId)
                 .returns(1L, ClprChannel::getReceivedMessageId)
-                .returns("hiero:testing", ClprChannel::getChainId);
+                .returns("hiero:testing", ClprChannel::getChainId)
+                .returns(DomainUtils.toBytes(activeChannel.getSalt()), ClprChannel::getSalt)
+                .returns(DomainUtils.toBytes(activeChannel.getChannelContext()), ClprChannel::getChannelContext);
         assertThat(channel.getReceivedRunningHash()).containsExactly(DomainUtils.toBytes(receivedRunningHash));
         assertThat(channel.getSentRunningHash()).containsExactly(DomainUtils.toBytes(replyRunningHash));
         if (stateDiffingEnabled) {
@@ -336,7 +330,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
     @ParameterizedTest
     @ValueSource(ints = {0, 1, 2})
     void clprControlMessageConfigPropagation(int commitIndex) {
-        final var channel = createClprMessageChannel("eip155:298", 7);
+        final var channel = createClprMessageChannel("eip155:298");
         final var connectorId = recordItemBuilder.bytes(32);
         final var serviceAddress = recordItemBuilder.bytes(20);
         final var anchor = recordItemBuilder.bytes(64);
@@ -379,8 +373,8 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .setRunningHashAfterProcessing(controlRunningHash)
                 .build();
         final var messageEntries = new ArrayList<ClprMessageEntry>();
-        messageEntries.add(new ClprMessageEntry(messageKey(channel.channelId(), 7L), controlValue));
-        for (var id = 8L; id <= 13L; id++) {
+        messageEntries.add(new ClprMessageEntry(messageKey(channel.channelId(), 1L), controlValue));
+        for (var id = 2L; id <= 7L; id++) {
             final var data = ByteString.copyFromUtf8("msg-" + (id - 2));
             final var value = ClprMessageValue.newBuilder()
                     .setPayload(ClprMessagePayload.newBuilder()
@@ -393,7 +387,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                     .build();
             messageEntries.add(new ClprMessageEntry(messageKey(channel.channelId(), id), value));
         }
-        final var afterBundle = channel.value().toBuilder().setNextMessageId(14).build();
+        final var afterBundle = channel.value().toBuilder().setNextMessageId(8).build();
         final var bundle = recordItemBuilder
                 .clprSubmitBundle()
                 .transactionBody(b -> b.setChannelId(channel.channelId()))
@@ -431,7 +425,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         final var messages = allMessages();
         assertThat(messages).hasSize(7);
         final var control = messages.stream()
-                .filter(m -> m.getMessageId() == 7L)
+                .filter(m -> m.getMessageId() == 1L)
                 .findFirst()
                 .orElseThrow();
         assertThat(control)
@@ -452,7 +446,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         assertThat(propagated.getInitialTrustAnchor()).containsExactly(DomainUtils.toBytes(anchor));
         assertThat(propagated.getInitialTrustAnchorId()).containsExactly(DomainUtils.toBytes(anchor));
 
-        for (var id = 8L; id <= 13L; id++) {
+        for (var id = 2L; id <= 7L; id++) {
             final var messageId = id;
             final var dataMessage = messages.stream()
                     .filter(m -> m.getMessageId() == messageId)
@@ -463,6 +457,96 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
             assertThat(dataMessage.getMessageData())
                     .containsExactly(ByteString.copyFromUtf8("msg-" + (id - 2)).toByteArray());
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void clprPartialSingletonUpdates(boolean commitBetweenUpdates) {
+        // given -- initialize both singletons with full values, as in a genesis maintenance transaction.
+        final var genesis = recordItemBuilder
+                .clprMaintenanceEndpointManifestAndLedgerConfiguration()
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var context = genesis.getClprContext();
+        final var configuration = context.getClprLedgerConfigurationUpdate().getClprLedgerConfigurationValue();
+        final var manifest = context.getClprEndpointManifestUpdate().getClprEndpointManifestValue();
+        final var updatedThrottles = configuration.getThrottles().toBuilder()
+                .setMaxMessagesPerBundle(configuration.getThrottles().getMaxMessagesPerBundle() + 1)
+                .build();
+
+        // Diffing replaces the entire changed top-level throttles message, not just a nested field.
+        final var configUpdate = recordItemBuilder
+                .clprUpdateLedgerConfiguration()
+                .transactionBody(b -> b.setConfiguration(configuration.toBuilder().setThrottles(updatedThrottles)))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprLedgerConfigurationUpdate(SingletonUpdateChange.newBuilder()
+                                .setPartial(true)
+                                .setClprLedgerConfigurationValue(
+                                        com.hederahashgraph.api.proto.java.ClprLedgerConfiguration.newBuilder()
+                                                .setThrottles(updatedThrottles))
+                                .build()))
+                .customize(this::finalizeRecordItem)
+                .build();
+
+        // Exercise the diff format's explicit clearing of a repeated field, even before CN emits partial updates.
+        final var manifestUpdate = recordItemBuilder
+                .clprMaintenance()
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprEndpointManifestUpdate(SingletonUpdateChange.newBuilder()
+                                .setPartial(true)
+                                .addClearedFields(
+                                        com.hederahashgraph.api.proto.java.ClprEndpointManifest.ENDPOINTS_FIELD_NUMBER)
+                                .setClprEndpointManifestValue(
+                                        com.hederahashgraph.api.proto.java.ClprEndpointManifest.newBuilder()
+                                                .setVersion(manifest.getVersion() + 1))
+                                .build()))
+                .customize(this::finalizeRecordItem)
+                .build();
+        final var recordFiles = transformFiles(List.of(
+                List.of(blockTransactionBuilder.clprMaintenance(genesis).build()),
+                List.of(blockTransactionBuilder.clprUpdateLedgerConfiguration(configUpdate).build()),
+                List.of(blockTransactionBuilder.clprMaintenance(manifestUpdate).build())));
+
+        // when -- exercise both an uncommitted cached baseline and a committed baseline loaded from the database.
+        if (commitBetweenUpdates) {
+            for (final var recordFile : recordFiles) {
+                recordFileParser.parse(recordFile);
+                resetCacheManager(clprEndpointManifestCacheManager);
+                resetCacheManager(clprLedgerConfigurationCacheManager);
+            }
+        } else {
+            recordFileParser.parse(recordFiles);
+        }
+
+        // then -- each append-only row must contain the full merged value, including all omitted fields.
+        assertThat(clprLedgerConfigurationRepository.findAll())
+                .containsExactlyInAnyOrder(
+                        expectedLedgerConfiguration(genesis.getConsensusTimestamp(), configuration),
+                        expectedLedgerConfiguration(
+                                configUpdate.getConsensusTimestamp(),
+                                configuration.toBuilder().setThrottles(updatedThrottles).build()));
+        final var endpoint = manifest.getEndpoints(0);
+        final var expectedEndpoint = ClprEndpoint.builder()
+                .accountId(DomainUtils.toBytes(endpoint.getAccountId()))
+                .serviceEndpoint(new ClprServiceEndpoint(
+                        endpoint.getServiceEndpoint().getIpAddress(), endpoint.getServiceEndpoint().getPort()))
+                .tlsCertificate(DomainUtils.toBytes(endpoint.getTlsCertificate()))
+                .build();
+        final var serviceAddress = DomainUtils.toBytes(manifest.getServiceAddress());
+        assertThat(clprEndpointManifestRepository.findAll())
+                .containsExactlyInAnyOrder(
+                        ClprEndpointManifest.builder()
+                                .consensusTimestamp(genesis.getConsensusTimestamp())
+                                .endpoints(List.of(expectedEndpoint))
+                                .serviceAddress(serviceAddress)
+                                .version(manifest.getVersion())
+                                .build(),
+                        ClprEndpointManifest.builder()
+                                .consensusTimestamp(manifestUpdate.getConsensusTimestamp())
+                                .endpoints(List.of())
+                                .serviceAddress(serviceAddress)
+                                .version(manifest.getVersion() + 1)
+                                .build());
     }
 
     @ParameterizedTest
@@ -740,12 +824,24 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
             true, true, 5
             """)
     void clprChannelDeletionLifecycle(boolean outstandingMessages, boolean stateDiffingEnabled, int commitIndex) {
+        assertChannelDeletionLifecycle(outstandingMessages, stateDiffingEnabled, false, commitIndex);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void clprChannelAutomaticallyCloses(boolean stateDiffingEnabled) {
+        assertChannelDeletionLifecycle(true, stateDiffingEnabled, true, 0);
+    }
+
+    private void assertChannelDeletionLifecycle(
+            boolean outstandingMessages, boolean stateDiffingEnabled, boolean automaticClosure, int commitIndex) {
         final var channel = outstandingMessages
                 ? createClprMessageChannelWithConnector()
-                : createClprMessageChannel("hiero:testing", 1);
+                : createClprMessageChannel("hiero:testing");
         final var files = new ArrayList<>(channel.setupFiles());
         final var activeValue = channel.value().toBuilder();
         final long sendTimestamp;
+        final ClprMessageValue message;
         if (outstandingMessages) {
             final var runningHash = recordItemBuilder.bytes(32);
             final var afterSend = activeValue
@@ -756,7 +852,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                     .contractCall()
                     .customize(this::finalizeRecordItem)
                     .build();
-            final var message = messageValue(channel.connector().getConnectorId(), "outstanding", runningHash);
+            message = messageValue(channel.connector().getConnectorId(), "outstanding", runningHash);
             files.add(List.of(blockTransactionBuilder
                     .contractCall(call, false)
                     .stateChanges(changes -> changes.add(
@@ -764,6 +860,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                     .build()));
             sendTimestamp = call.getConsensusTimestamp();
         } else {
+            message = null;
             sendTimestamp = channel.createdTimestamp();
         }
         final var firstStatus = outstandingMessages ? CLOSING : DRAINED;
@@ -771,18 +868,26 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         final var firstDelete = deleteChannel(firstValue, stateDiffingEnabled);
         files.add(List.of(blockTransactionBuilder.clprDeleteChannel(firstDelete).build()));
 
-        final var drainedValue = firstValue.toBuilder()
-                .setStatus(DRAINED)
+        // Simulate a terminal reply to the outstanding DATA message. If the peer is already drained,
+        // consensus can close the channel in the same bundle without committing a DRAINED value.
+        final var receivedRunningHash =
+                outstandingMessages ? recordItemBuilder.bytes(32) : firstValue.getReceivedRunningHash();
+        final var afterDrain = firstValue.toBuilder()
+                .setStatus(automaticClosure ? CLOSED : DRAINED)
                 .setAckedMessageId(firstValue.getNextMessageId() - 1)
+                .setReceivedMessageId(outstandingMessages ? 1L : 0L)
+                .setReceivedRunningHash(receivedRunningHash)
                 .build();
-        final long drainedTimestamp;
+        final long drainTimestamp;
         if (outstandingMessages) {
             final var channelUpdate = stateDiffingEnabled
                     ? com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
-                            .setStatus(DRAINED)
-                            .setAckedMessageId(drainedValue.getAckedMessageId())
+                            .setStatus(afterDrain.getStatus())
+                            .setAckedMessageId(afterDrain.getAckedMessageId())
+                            .setReceivedMessageId(afterDrain.getReceivedMessageId())
+                            .setReceivedRunningHash(receivedRunningHash)
                             .build()
-                    : drainedValue;
+                    : afterDrain;
             final var key = connectorKey(channel.connector());
             final var connectorUpdate = stateDiffingEnabled
                     ? clprConnectorMapUpdate(key, com.hederahashgraph.api.proto.java.ClprConnector.getDefaultInstance())
@@ -805,14 +910,29 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                             .clprConnectorsRemoved(List.of()))
                     .customize(this::finalizeRecordItem)
                     .build();
-            files.add(List.of(blockTransactionBuilder.clprSubmitBundle(bundle).build()));
-            drainedTimestamp = bundle.getConsensusTimestamp();
+            final var queueRemoval = StateChange.newBuilder()
+                    .setStateId(StateIdentifier.STATE_ID_CLPR_MESSAGE_QUEUE_VALUE)
+                    .setMapDelete(MapDeleteChange.newBuilder()
+                            .setKey(MapChangeKey.newBuilder().setClprMessageKey(messageKey(channel.channelId(), 1L))))
+                    .build();
+            files.add(List.of(blockTransactionBuilder
+                    .clprSubmitBundle(bundle)
+                    .stateChanges(changes -> changes.set(0, changes.getFirst().toBuilder()
+                            .addStateChanges(queueRemoval)
+                            .build()))
+                    .build()));
+            drainTimestamp = bundle.getConsensusTimestamp();
         } else {
-            drainedTimestamp = firstDelete.getConsensusTimestamp();
+            drainTimestamp = firstDelete.getConsensusTimestamp();
         }
-        final var close =
-                deleteChannel(drainedValue.toBuilder().setStatus(CLOSED).build(), stateDiffingEnabled);
-        files.add(List.of(blockTransactionBuilder.clprDeleteChannel(close).build()));
+        final long closeTimestamp;
+        if (automaticClosure) {
+            closeTimestamp = drainTimestamp;
+        } else {
+            final var close = deleteChannel(afterDrain.toBuilder().setStatus(CLOSED).build(), stateDiffingEnabled);
+            files.add(List.of(blockTransactionBuilder.clprDeleteChannel(close).build()));
+            closeTimestamp = close.getConsensusTimestamp();
+        }
 
         parseFiles(transformFiles(files), commitIndex);
 
@@ -825,12 +945,17 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .returns(
                         DomainUtils.toBytes(channel.value().getVerifierFingerprint()),
                         ClprChannel::getVerifierFingerprint)
-                .returns(drainedValue.getAckedMessageId(), ClprChannel::getAckedMessageId)
-                .returns(drainedValue.getNextMessageId(), ClprChannel::getNextMessageId)
-                .returns(Range.atLeast(close.getConsensusTimestamp()), ClprChannel::getTimestampRange);
+                .returns(afterDrain.getAckedMessageId(), ClprChannel::getAckedMessageId)
+                .returns(afterDrain.getNextMessageId(), ClprChannel::getNextMessageId)
+                .returns(afterDrain.getReceivedMessageId(), ClprChannel::getReceivedMessageId)
+                .returns(DomainUtils.toBytes(receivedRunningHash), ClprChannel::getReceivedRunningHash)
+                .returns(DomainUtils.toBytes(channel.value().getSalt()), ClprChannel::getSalt)
+                .returns(DomainUtils.toBytes(channel.value().getChannelContext()), ClprChannel::getChannelContext)
+                .returns(Range.atLeast(closeTimestamp), ClprChannel::getTimestampRange);
         final var history = new ArrayList<>(findHistory(ClprChannel.class));
         final var historizeSend = outstandingMessages && !stateDiffingEnabled;
-        final var expectedHistoryCount = 2 + (outstandingMessages ? 1 : 0) + (historizeSend ? 1 : 0);
+        final var expectedHistoryCount = 2 + (outstandingMessages ? 1 : 0) + (historizeSend ? 1 : 0)
+                - (automaticClosure ? 1 : 0);
         assertThat(history).hasSize(expectedHistoryCount);
         assertThat(history.getFirst())
                 .returns(ACTIVE.getNumber(), ClprChannel::getStatus)
@@ -854,8 +979,10 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                     .returns(CLOSING.getNumber(), ClprChannel::getStatus)
                     .returns(0L, ClprChannel::getAckedMessageId)
                     .returns(2L, ClprChannel::getNextMessageId)
+                    .returns(0L, ClprChannel::getReceivedMessageId)
+                    .returns(DomainUtils.toBytes(firstValue.getReceivedRunningHash()), ClprChannel::getReceivedRunningHash)
                     .returns(
-                            Range.closedOpen(firstDelete.getConsensusTimestamp(), drainedTimestamp),
+                            Range.closedOpen(firstDelete.getConsensusTimestamp(), drainTimestamp),
                             ClprChannel::getTimestampRange);
             assertThat(clprConnectorRepository
                             .findById(connectorId(channel.connector()))
@@ -864,7 +991,7 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                     .returns(channel.connector().getLockedStake(), ClprConnector::getLockedStake)
                     .returns(0L, ClprConnector::getInFlightMessageCount)
                     .returns(
-                            Range.atLeast(stateDiffingEnabled ? channel.consensusTimestamp() : drainedTimestamp),
+                            Range.atLeast(stateDiffingEnabled ? channel.consensusTimestamp() : drainTimestamp),
                             ClprConnector::getTimestampRange);
             final var connectorHistory = findHistory(ClprConnector.class);
             if (stateDiffingEnabled) {
@@ -880,16 +1007,37 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                                 value -> assertThat(value)
                                         .returns(1L, ClprConnector::getInFlightMessageCount)
                                         .returns(
-                                                Range.closedOpen(sendTimestamp, drainedTimestamp),
+                                                Range.closedOpen(sendTimestamp, drainTimestamp),
                                                 ClprConnector::getTimestampRange));
             }
         }
-        assertThat(history.getLast())
-                .returns(DRAINED.getNumber(), ClprChannel::getStatus)
-                .returns(drainedValue.getAckedMessageId(), ClprChannel::getAckedMessageId)
-                .returns(
-                        Range.closedOpen(drainedTimestamp, close.getConsensusTimestamp()),
-                        ClprChannel::getTimestampRange);
+        if (automaticClosure) {
+            assertThat(history).extracting(ClprChannel::getStatus).doesNotContain(DRAINED.getNumber());
+        } else {
+            assertThat(history.getLast())
+                    .returns(DRAINED.getNumber(), ClprChannel::getStatus)
+                    .returns(afterDrain.getAckedMessageId(), ClprChannel::getAckedMessageId)
+                    .returns(afterDrain.getReceivedMessageId(), ClprChannel::getReceivedMessageId)
+                    .returns(DomainUtils.toBytes(receivedRunningHash), ClprChannel::getReceivedRunningHash)
+                    .returns(Range.closedOpen(drainTimestamp, closeTimestamp), ClprChannel::getTimestampRange);
+        }
+        if (message != null) {
+            // Removing the acknowledged message from consensus's operational queue must not delete MN history.
+            final var payload = message.getPayload().getMessage();
+            assertThat(allMessages())
+                    .singleElement()
+                    .returns(sendTimestamp, ClprMessage::getConsensusTimestamp)
+                    .returns(DomainUtils.toBytes(channel.channelId()), ClprMessage::getChannelId)
+                    .returns(1L, ClprMessage::getMessageId)
+                    .returns(MESSAGE_FIELD_NUMBER, ClprMessage::getMessageType)
+                    .returns(DomainUtils.toBytes(payload.getConnectorId()), ClprMessage::getConnectorId)
+                    .returns(DomainUtils.toBytes(payload.getSender()), ClprMessage::getSender)
+                    .returns(DomainUtils.toBytes(payload.getTargetApplication()), ClprMessage::getTargetApplication)
+                    .returns(DomainUtils.toBytes(payload.getMessageData()), ClprMessage::getMessageData)
+                    .returns(DomainUtils.toBytes(message.getRunningHashAfterProcessing()), ClprMessage::getRunningHash);
+        } else {
+            assertThat(allMessages()).isEmpty();
+        }
         assertThat(history)
                 .allSatisfy(value -> assertThat(value)
                         .returns(channel.createdTimestamp(), ClprChannel::getCreatedTimestamp)
@@ -905,8 +1053,8 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
         "true,4", "true,5"
     })
     void clprConnectorIdReuseAcrossChannels(boolean ban, int commitIndex) {
-        final var firstChannel = createClprMessageChannel("hiero:first", 1);
-        final var secondChannel = createClprMessageChannel("hiero:second", 1);
+        final var firstChannel = createClprMessageChannel("hiero:first");
+        final var secondChannel = createClprMessageChannel("hiero:second");
         // Synthetic connector ID, shared identity key and salt; the importer does not derive or validate the ID.
         final var sharedId = recordItemBuilder.bytes(32);
         final var firstConnector = connectorValue(firstChannel.channelId(), sharedId, 100_000_000L);
@@ -999,13 +1147,14 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .build();
     }
 
-    private com.hederahashgraph.api.proto.java.ClprChannel activeChannelValue(
-            ByteString channelId, String chainId, long nextMessageId) {
+    private com.hederahashgraph.api.proto.java.ClprChannel activeChannelValue(ByteString channelId, String chainId) {
         return com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setChannelId(channelId)
                 .setChainId(chainId)
+                .setChannelContext(channelId.concat(recordItemBuilder.bytes(20)))
+                .setSalt(recordItemBuilder.bytes(32))
                 .setStatus(ACTIVE)
-                .setNextMessageId(nextMessageId)
+                .setNextMessageId(1L)
                 .setReceivedRunningHash(ByteString.copyFrom(new byte[32]))
                 .setSentRunningHash(ByteString.copyFrom(new byte[32]))
                 .setVerifierContract(recordItemBuilder.contractId())
@@ -1140,16 +1289,10 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 .build();
     }
 
-    private ClprMessageChannel createClprMessageChannel(String chainId, long nextMessageId) {
+    private ClprMessageChannel createClprMessageChannel(String chainId) {
         final var channelId = recordItemBuilder.bytes(32);
-        final var value = activeChannelValue(channelId, chainId, nextMessageId);
-        final var createChannel = recordItemBuilder
-                .clprCreateChannel()
-                .transactionBody(body -> body.setChannelId(channelId))
-                .recordItem(item -> item.clprContextBuilder()
-                        .clprChannels(List.of(new ClprChannelEntry(channelId, clprChannelMapUpdate(channelId, value)))))
-                .customize(this::finalizeRecordItem)
-                .build();
+        final var value = activeChannelValue(channelId, chainId);
+        final var createChannel = createChannel(value);
         final var setupFiles = List.of(
                 List.of(blockTransactionBuilder.clprCreateChannel(createChannel).build()));
         return new ClprMessageChannel(
@@ -1161,8 +1304,21 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
                 createChannel.getConsensusTimestamp());
     }
 
+    private RecordItem createChannel(com.hederahashgraph.api.proto.java.ClprChannel value) {
+        final var channelId = value.getChannelId();
+        return recordItemBuilder
+                .clprCreateChannel()
+                .transactionBody(body -> body.setChannelId(channelId)
+                        .setSalt(value.getSalt())
+                        .setVerifierContract(value.getVerifierContract()))
+                .recordItem(item -> item.clprContextBuilder()
+                        .clprChannels(List.of(new ClprChannelEntry(channelId, clprChannelMapUpdate(channelId, value)))))
+                .customize(this::finalizeRecordItem)
+                .build();
+    }
+
     private ClprMessageChannel createClprMessageChannelWithConnector() {
-        final var channel = createClprMessageChannel("hiero:testing", 1);
+        final var channel = createClprMessageChannel("hiero:testing");
         final var connector = connectorValue(channel.channelId(), recordItemBuilder.bytes(32), 100_000_000L);
         final var createConnector = createConnector(connector);
         final var setupTransactions = new ArrayList<>(channel.setupFiles().getFirst());
@@ -1220,6 +1376,28 @@ final class ClprBlockFileE2ETest extends ImporterIntegrationTest {
     private AbstractClprConnector.Id connectorId(com.hederahashgraph.api.proto.java.ClprConnector connector) {
         return new AbstractClprConnector.Id(
                 DomainUtils.toBytes(connector.getChannelId()), DomainUtils.toBytes(connector.getConnectorId()));
+    }
+
+    private ClprLedgerConfiguration expectedLedgerConfiguration(
+            long consensusTimestamp, com.hederahashgraph.api.proto.java.ClprLedgerConfiguration configuration) {
+        final var throttles = configuration.getThrottles();
+        return ClprLedgerConfiguration.builder()
+                .chainId(configuration.getChainId())
+                .consensusTimestamp(consensusTimestamp)
+                .initialTrustAnchor(DomainUtils.toBytes(configuration.getInitialTrustAnchor()))
+                .initialTrustAnchorId(DomainUtils.toBytes(configuration.getInitialTrustAnchorId()))
+                .protocolVersion(Integer.toUnsignedLong(configuration.getProtocolVersion()))
+                .serviceAddress(DomainUtils.toBytes(configuration.getServiceAddress()))
+                .throttle(ClprThrottle.builder()
+                        .maxGasPerMessage(throttles.getMaxGasPerMessage())
+                        .maxLocalEndpoints(Integer.toUnsignedLong(throttles.getMaxLocalEndpoints()))
+                        .maxMessagePayloadBytes(Integer.toUnsignedLong(throttles.getMaxMessagePayloadBytes()))
+                        .maxMessagesPerBundle(Integer.toUnsignedLong(throttles.getMaxMessagesPerBundle()))
+                        .maxPeerEndpoints(Integer.toUnsignedLong(throttles.getMaxPeerEndpoints()))
+                        .maxQueueDepth(Integer.toUnsignedLong(throttles.getMaxQueueDepth()))
+                        .maxSyncBytes(throttles.getMaxSyncBytes())
+                        .build())
+                .build();
     }
 
     private void finalizeRecordItem(RecordItemBuilder.Builder<?> builder) {

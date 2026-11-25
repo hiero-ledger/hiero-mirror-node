@@ -326,21 +326,24 @@ public final class RecordItemBuilder {
     public Builder<ClprCreateChannelTransactionBody.Builder> clprCreateChannel() {
         final var channelId = bytes(32);
         final var verifierContract = contractId();
+        final var salt = bytes(32);
         final var builder = ClprCreateChannelTransactionBody.newBuilder()
                 .setChannelId(channelId)
                 .setConfigProofBytes(bytes(16))
                 .setEndpointManifestProofBytes(bytes(16))
                 .setPeerVerifier(bytes(20))
-                .setSalt(bytes(32))
+                .setSalt(salt)
                 .setVerifierContract(verifierContract);
         final var clprChannelValue = ClprChannel.newBuilder()
                 .setAckedMessageId(0)
                 .setChainId("hedera:mainnet")
                 .setChannelId(channelId)
+                .setChannelContext(channelId.concat(bytes(20)))
                 .setNextMessageId(1)
                 .setReceivedMessageId(0)
-                .setReceivedRunningHash(bytes(32))
-                .setSentRunningHash(bytes(32))
+                .setReceivedRunningHash(ByteString.copyFrom(new byte[32]))
+                .setSalt(salt)
+                .setSentRunningHash(ByteString.copyFrom(new byte[32]))
                 .setStatus(ClprChannelStatus.ACTIVE)
                 .setVerifierContract(verifierContract)
                 .setVerifierFingerprint(bytes(32))
@@ -460,8 +463,7 @@ public final class RecordItemBuilder {
         final var channelId = bytes(32);
         final var builder = ClprSubmitBundleTransactionBody.newBuilder()
                 .setBundlePayload(bytes(64))
-                .setChannelId(channelId)
-                .setEndpointNodeId(3); // TODO this field is deprecated
+                .setChannelId(channelId);
         final var clprChannelValue = ClprChannel.newBuilder()
                 .setAckedMessageId(0)
                 .setChannelId(channelId)

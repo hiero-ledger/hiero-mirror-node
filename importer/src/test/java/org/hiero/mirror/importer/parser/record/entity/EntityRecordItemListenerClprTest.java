@@ -19,6 +19,7 @@ import com.hederahashgraph.api.proto.java.ClprMessageKey;
 import com.hederahashgraph.api.proto.java.ClprMessagePayload;
 import com.hederahashgraph.api.proto.java.ClprMessageValue;
 import com.hederahashgraph.api.proto.java.ClprThrottles;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.List;
@@ -31,7 +32,9 @@ import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprLedgerConfiguration;
 import org.hiero.mirror.common.domain.clpr.ClprMaintenance;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.repository.ClprChannelRepository;
@@ -43,6 +46,8 @@ import org.hiero.mirror.importer.repository.ClprMessageRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 @RequiredArgsConstructor
 final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemListenerTest {
@@ -60,18 +65,25 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
         entityProperties.getPersist().setClpr(true);
     }
 
-    @Test
-    void clprCreateChannel() {
+    @ParameterizedTest
+    @EnumSource(ContractIdType.class)
+    void clprCreateChannel(ContractIdType contractIdType) {
+        final var verifier = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT).alias(null))
+                .persist();
+        final var verifierContract = contractId(contractIdType, verifier);
         final var channelId = recordItemBuilder.bytes(32);
         final var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
                 .setChainId("hedera:mainnet")
                 .setChannelId(channelId)
                 .setStatus(ClprChannelStatus.ACTIVE)
-                .setVerifierContract(recordItemBuilder.contractId())
+                .setVerifierContract(verifierContract)
                 .setVerifierFingerprint(recordItemBuilder.bytes(32))
                 .build();
         final var recordItem = recordItemBuilder
                 .clprCreateChannel()
+                .transactionBody(b -> b.setChannelId(channelId).setVerifierContract(verifierContract))
                 .recordItem(r -> r.clprContextBuilder()
                         .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
                                 channelId, clprChannelMapUpdate(channelId, channelValue)))))
@@ -87,7 +99,7 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
                 .get()
                 .returns(recordItem.getConsensusTimestamp(), ClprChannel::getCreatedTimestamp)
                 .returns(channelValue.getChainId(), ClprChannel::getChainId)
-                .returns(EntityId.of(channelValue.getVerifierContract()), ClprChannel::getVerifierContractId)
+                .returns(verifier.toEntityId(), ClprChannel::getVerifierContractId)
                 .returns(
                         DomainUtils.toBytes(channelValue.getVerifierFingerprint()), ClprChannel::getVerifierFingerprint)
                 .returns(DomainUtils.toBytes(body.getPeerVerifier()), ClprChannel::getPeerVerifier)
@@ -98,6 +110,31 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
                         ClprChannel::getEndpointManifestProofBytes)
                 .returns(channelValue.getStatusValue(), ClprChannel::getStatus)
                 .returns(Range.atLeast(recordItem.getConsensusTimestamp()), ClprChannel::getTimestampRange);
+    }
+
+    @Test
+    void clprCreateChannelUnresolvedVerifier() {
+        final var verifierContract = ContractID.newBuilder()
+                .setEvmAddress(recordItemBuilder.bytes(20))
+                .build();
+        final var channelId = recordItemBuilder.bytes(32);
+        final var channelValue = com.hederahashgraph.api.proto.java.ClprChannel.newBuilder()
+                .setChannelId(channelId)
+                .setStatus(ClprChannelStatus.ACTIVE)
+                .setVerifierContract(verifierContract)
+                .build();
+        final var recordItem = recordItemBuilder
+                .clprCreateChannel()
+                .transactionBody(b -> b.setChannelId(channelId).setVerifierContract(verifierContract))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of(new StateChangeContext.ClprChannelEntry(
+                                channelId, clprChannelMapUpdate(channelId, channelValue)))))
+                .build();
+
+        parseRecordItemAndCommit(recordItem);
+
+        assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
+        softly.assertThat(clprChannelRepository.count()).isZero();
     }
 
     @Test
@@ -182,9 +219,38 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
         softly.assertThat(findHistory(ClprChannel.class)).isEmpty();
     }
 
-    @Test
-    void clprCreateConnector() {
-        final var recordItem = recordItemBuilder.clprCreateConnector().build();
+    @ParameterizedTest
+    @EnumSource(ContractIdType.class)
+    void clprCreateConnector(ContractIdType contractIdType) {
+        final var contract = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT).alias(null))
+                .persist();
+        final var connectorContract = contractId(contractIdType, contract);
+        final var channelId = recordItemBuilder.bytes(32);
+        final var connectorId = recordItemBuilder.bytes(32);
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .build();
+        final var connectorValue = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
+                .setChannelId(channelId)
+                .setConnectorId(connectorId)
+                .setConnectorContract(connectorContract)
+                .setAdminKey(recordItemBuilder.key())
+                .setLockedStake(100_000_000L)
+                .build();
+        final var recordItem = recordItemBuilder
+                .clprCreateConnector()
+                .transactionBody(b -> b.setChannelId(channelId)
+                        .setConnectorId(connectorId)
+                        .setConnectorContract(connectorContract)
+                        .setAdminKey(connectorValue.getAdminKey())
+                        .setLockedStake(connectorValue.getLockedStake()))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprConnectors(List.of(new StateChangeContext.ClprConnectorEntry(
+                                connectorKey, clprConnectorMapUpdate(connectorKey, connectorValue)))))
+                .build();
         final var body = recordItem.getTransactionBody().getClprCreateConnector();
 
         parseRecordItemAndCommit(recordItem);
@@ -195,12 +261,34 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
                 .first()
                 .returns(DomainUtils.toBytes(body.getAdminKey().toByteString()), ClprConnector::getAdminKey)
                 .returns(DomainUtils.toBytes(body.getChannelId()), ClprConnector::getChannelId)
-                .returns(EntityId.of(body.getConnectorContract()), ClprConnector::getConnectorContractId)
+                .returns(contract.toEntityId(), ClprConnector::getConnectorContractId)
                 .returns(DomainUtils.toBytes(body.getConnectorId()), ClprConnector::getConnectorId)
                 .returns(recordItem.getConsensusTimestamp(), ClprConnector::getCreatedTimestamp)
                 .returns(body.getLockedStake(), ClprConnector::getLockedStake)
                 .returns(ClprConnectorStatus.ACTIVE, ClprConnector::getStatus)
                 .returns(Range.atLeast(recordItem.getConsensusTimestamp()), ClprConnector::getTimestampRange);
+        softly.assertThat(getDbTransaction(recordItem.getTransactionRecord().getConsensusTimestamp()).getEntityId())
+                .isEqualTo(contract.toEntityId());
+
+        // A subsequent full state change still carries the original ContractID representation.
+        final var updatedConnector = connectorValue.toBuilder().setInFlightMessageCount(1).build();
+        final var update = recordItemBuilder
+                .clprSubmitBundle()
+                .transactionBody(b -> b.setChannelId(body.getChannelId()))
+                .recordItem(r -> r.clprContextBuilder()
+                        .clprChannels(List.of())
+                        .clprConnectors(List.of(new StateChangeContext.ClprConnectorEntry(
+                                connectorKey, clprConnectorMapUpdate(connectorKey, updatedConnector))))
+                        .clprConnectorsRemoved(List.of())
+                        .clprMessages(List.of()))
+                .build();
+        parseRecordItemAndCommit(update);
+
+        softly.assertThat(clprConnectorRepository.findAll())
+                .hasSize(1)
+                .first()
+                .returns(contract.toEntityId(), ClprConnector::getConnectorContractId)
+                .returns(1L, ClprConnector::getInFlightMessageCount);
     }
 
     @Test
@@ -711,5 +799,24 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
                 .setKey(MapChangeKey.newBuilder().setProtoBytesKey(BytesValue.of(channelId)))
                 .setValue(MapChangeValue.newBuilder().setClprChannelValue(value))
                 .build();
+    }
+
+    private static ContractID contractId(ContractIdType type, Entity entity) {
+        final var numericId = entity.toEntityId().toContractID();
+        return switch (type) {
+            case NUMERIC -> numericId;
+            case LONG_ZERO -> numericId.toBuilder()
+                    .setEvmAddress(DomainUtils.fromBytes(DomainUtils.toEvmAddress(numericId)))
+                    .build();
+            case EVM_ALIAS -> numericId.toBuilder()
+                    .setEvmAddress(DomainUtils.fromBytes(entity.getEvmAddress()))
+                    .build();
+        };
+    }
+
+    private enum ContractIdType {
+        NUMERIC,
+        LONG_ZERO,
+        EVM_ALIAS
     }
 }

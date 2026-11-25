@@ -4,23 +4,33 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.ClprCreateConnectorTransactionBody;
+import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import java.util.Optional;
 import org.hiero.mirror.common.domain.clpr.ClprConnector;
 import org.hiero.mirror.common.domain.clpr.ClprConnectorStatus;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
+@ExtendWith(OutputCaptureExtension.class)
 final class ClprCreateConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ClprCreateConnectorTransactionHandler(entityListener);
+        when(entityIdService.lookup(contractId, false)).thenReturn(Optional.of(defaultEntityId));
+        return new ClprCreateConnectorTransactionHandler(entityIdService, entityListener);
     }
 
     @Override
@@ -49,7 +59,10 @@ final class ClprCreateConnectorTransactionHandlerTest extends AbstractTransactio
                 getDefaultTransactionBody().build(),
                 getDefaultTransactionRecord().build());
         final var body = recordItem.getTransactionBody().getClprCreateConnector();
-        final var transaction = domainBuilder.transaction().get();
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.entityId(transactionHandler.getEntity(recordItem)))
+                .get();
         final var captor = ArgumentCaptor.forClass(ClprConnector.class);
 
         // when
@@ -67,5 +80,61 @@ final class ClprCreateConnectorTransactionHandlerTest extends AbstractTransactio
                 .returns(body.getLockedStake(), ClprConnector::getLockedStake)
                 .returns(ClprConnectorStatus.ACTIVE, ClprConnector::getStatus)
                 .returns(Range.atLeast(consensusTimestamp), ClprConnector::getTimestampRange);
+        verify(entityIdService).lookup(body.getConnectorContract(), false);
+    }
+
+    @Test
+    void updateTransactionUnresolvedContract(CapturedOutput output) {
+        // given
+        final var evmContractId = ContractID.newBuilder()
+                .setEvmAddress(DomainUtils.fromBytes(domainBuilder.evmAddress()))
+                .build();
+        final var body = getDefaultTransactionBody();
+        body.getClprCreateConnectorBuilder().setConnectorContract(evmContractId);
+        final var recordItem = getRecordItem(body.build(), getDefaultTransactionRecord().build());
+        when(entityIdService.lookup(evmContractId, false)).thenReturn(Optional.empty());
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.entityId(transactionHandler.getEntity(recordItem)))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        assertThat(transaction.getEntityId()).isEqualTo(EntityId.EMPTY);
+        verifyNoInteractions(entityListener);
+        verify(entityIdService).lookup(evmContractId, false);
+        assertThat(output.getAll()).contains("Recoverable error. Unable to resolve connector contract");
+    }
+
+    @Test
+    void updateTransactionUnsuccessfulUnresolvedContract(CapturedOutput output) {
+        // given
+        final var evmContractId = ContractID.newBuilder()
+                .setEvmAddress(DomainUtils.fromBytes(domainBuilder.evmAddress()))
+                .build();
+        final var body = getDefaultTransactionBody();
+        body.getClprCreateConnectorBuilder().setConnectorContract(evmContractId);
+        final var recordItem = getRecordItem(
+                body.build(),
+                getDefaultTransactionRecord()
+                        .setReceipt(getTransactionReceipt(ResponseCodeEnum.INVALID_CONTRACT_ID))
+                        .build());
+        when(entityIdService.lookup(evmContractId, false)).thenReturn(Optional.empty());
+
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.entityId(transactionHandler.getEntity(recordItem)))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        assertThat(transaction.getEntityId()).isEqualTo(EntityId.EMPTY);
+        verify(entityIdService).lookup(evmContractId, false);
+        verifyNoInteractions(entityListener);
+        assertThat(output.getAll()).doesNotContain("Recoverable error.");
     }
 }

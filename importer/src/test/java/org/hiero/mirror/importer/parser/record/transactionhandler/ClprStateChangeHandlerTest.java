@@ -34,10 +34,12 @@ import com.hederahashgraph.api.proto.java.ClprMessageReply;
 import com.hederahashgraph.api.proto.java.ClprMessageReplyStatus;
 import com.hederahashgraph.api.proto.java.ClprMessageValue;
 import com.hederahashgraph.api.proto.java.ClprThrottles;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.List;
+import java.util.Optional;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.clpr.ClprChannel;
@@ -56,6 +58,7 @@ import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnect
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprMessageEntry;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -83,6 +86,9 @@ final class ClprStateChangeHandlerTest {
 
     @Mock
     private ClprLedgerConfigurationService clprLedgerConfigurationService;
+
+    @Mock
+    private EntityIdService entityIdService;
 
     @Mock
     private EntityListener entityListener;
@@ -854,8 +860,9 @@ final class ClprStateChangeHandlerTest {
         assertThat(output.getAll()).contains("Encountered out-of-range CLPR message type 40000");
     }
 
-    @Test
-    void processConnectors() {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void processConnectors(boolean evmAddress) {
         // given -- an update for one connector and a removal for a different connector in the same transaction.
         // A single connector key can never appear in both getClprConnectors() and getClprConnectorsRemoved() for
         // the same transaction -- consensus-node collapses same-key put/remove pairs into a single net state
@@ -866,7 +873,13 @@ final class ClprStateChangeHandlerTest {
 
         final var channelId = DomainUtils.fromBytes(domainBuilder.bytes(32));
         final var patchedConnectorId = DomainUtils.fromBytes(domainBuilder.bytes(32));
-        final var connectorContract = domainBuilder.entityNum(2500L).toContractID();
+        final var connectorContractId = domainBuilder.entityNum(2500L);
+        final var connectorContract = evmAddress
+                ? ContractID.newBuilder()
+                        .setEvmAddress(DomainUtils.fromBytes(domainBuilder.evmAddress()))
+                        .build()
+                : connectorContractId.toContractID();
+        when(entityIdService.lookup(connectorContract, false)).thenReturn(Optional.of(connectorContractId));
         final var adminKey = Key.newBuilder()
                 .setEd25519(DomainUtils.fromBytes(domainBuilder.key()))
                 .build();
@@ -906,7 +919,7 @@ final class ClprStateChangeHandlerTest {
                 .anySatisfy(connector -> assertThat(connector)
                         .returns(DomainUtils.toBytes(channelId), ClprConnector::getChannelId)
                         .returns(DomainUtils.toBytes(patchedConnectorId), ClprConnector::getConnectorId)
-                        .returns(EntityId.of(connectorContract), ClprConnector::getConnectorContractId)
+                        .returns(connectorContractId, ClprConnector::getConnectorContractId)
                         .returns(adminKey.toByteArray(), ClprConnector::getAdminKey)
                         .returns(90_000_000L, ClprConnector::getLockedStake)
                         .returns(1L, ClprConnector::getSlashCount)
@@ -920,6 +933,37 @@ final class ClprStateChangeHandlerTest {
                         .returns(null, ClprConnector::getSlashCount)
                         .returns(ClprConnectorStatus.DELETED, ClprConnector::getStatus)
                         .returns(Range.atLeast(consensusTimestamp), ClprConnector::getTimestampRange));
+    }
+
+    @Test
+    void processConnectorUnresolvedContract(CapturedOutput output) {
+        // given
+        mockEmptyClprState();
+        final var connectorKey = ClprConnectorKey.newBuilder()
+                .setChannelId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .setConnectorId(DomainUtils.fromBytes(domainBuilder.bytes(32)))
+                .build();
+        final var contractId = ContractID.newBuilder()
+                .setEvmAddress(DomainUtils.fromBytes(domainBuilder.evmAddress()))
+                .build();
+        final var value = com.hederahashgraph.api.proto.java.ClprConnector.newBuilder()
+                .setConnectorContract(contractId)
+                .setInFlightMessageCount(2)
+                .build();
+        when(clprContext.getClprConnectors())
+                .thenReturn(List.of(new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(value))));
+        when(entityIdService.lookup(contractId, false)).thenReturn(Optional.empty());
+
+        // when
+        clprStateChangeHandler.process(recordItem);
+
+        // then -- keep the existing contract association, but apply other changes
+        final var captor = ArgumentCaptor.forClass(ClprConnector.class);
+        verify(entityListener).onClprConnector(captor.capture());
+        assertThat(captor.getValue())
+                .returns(null, ClprConnector::getConnectorContractId)
+                .returns(2L, ClprConnector::getInFlightMessageCount);
+        assertThat(output.getAll()).contains("Recoverable error. Unable to resolve connector contract");
     }
 
     @Test

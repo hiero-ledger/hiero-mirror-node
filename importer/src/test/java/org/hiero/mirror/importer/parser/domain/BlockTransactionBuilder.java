@@ -312,16 +312,25 @@ public class BlockTransactionBuilder {
                 .setChannelId(body.getChannelId())
                 .setConnectorId(body.getConnectorId())
                 .build();
-        final var stateChange = StateChange.newBuilder()
-                .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
-                .setMapUpdate(clprConnectorEntry.mapUpdate().toBuilder()
-                        .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key)))
+        final var registrationKey = key.getChannelId().concat(key.getConnectorId());
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTORS_VALUE)
+                        .setMapUpdate(clprConnectorEntry.mapUpdate().toBuilder()
+                                .setKey(MapChangeKey.newBuilder().setClprConnectorKey(key))))
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(StateIdentifier.STATE_ID_CLPR_CONNECTOR_REGISTRATION_HISTORY_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder()
+                                        .setProtoBytesKey(BytesValue.of(registrationKey)))
+                                .setValue(MapChangeValue.newBuilder()
+                                        .setProtoBytesValue(BytesValue.getDefaultInstance()))))
                 .build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(),
-                List.of(StateChanges.newBuilder().addStateChanges(stateChange).build()),
+                List.of(stateChanges),
                 Collections.emptyList());
     }
 

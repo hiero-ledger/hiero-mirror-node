@@ -64,6 +64,7 @@ import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprConnect
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprMessageEntry;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.NullMarked;
@@ -95,6 +96,7 @@ public final class ClprStateChangeHandler {
 
     private final ClprEndpointManifestService clprEndpointManifestService;
     private final ClprLedgerConfigurationService clprLedgerConfigurationService;
+    private final EntityIdService entityIdService;
     private final EntityListener entityListener;
 
     public void process(RecordItem recordItem) {
@@ -155,12 +157,20 @@ public final class ClprStateChangeHandler {
         }
     }
 
-    static void applyConnectorFields(ClprConnector.ClprConnectorBuilder<?, ?> builder, ClprConnectorEntry entry) {
+    private void applyConnectorFields(ClprConnector.ClprConnectorBuilder<?, ?> builder, ClprConnectorEntry entry) {
         final var mapUpdate = entry.mapUpdate();
         final var value = entry.value();
 
-        if (CLPR_CONNECTOR_CONNECTOR_CONTRACT.isPresent(mapUpdate, value)) {
-            builder.connectorContractId(EntityId.of(value.getConnectorContract()));
+        if (CLPR_CONNECTOR_CONNECTOR_CONTRACT.isPresent(mapUpdate, value) && value.hasConnectorContract()) {
+            final var contractId = entityIdService
+                    .lookup(value.getConnectorContract(), false)
+                    .orElse(EntityId.EMPTY);
+            if (EntityId.isEmpty(contractId)) {
+                Utility.handleRecoverableError(
+                        "Unable to resolve connector contract {} for CLPR state change", value.getConnectorContract());
+            } else {
+                builder.connectorContractId(contractId);
+            }
         }
         if (CLPR_CONNECTOR_ADMIN_KEY.isPresent(mapUpdate, value)) {
             builder.adminKey(value.getAdminKey().toByteArray());

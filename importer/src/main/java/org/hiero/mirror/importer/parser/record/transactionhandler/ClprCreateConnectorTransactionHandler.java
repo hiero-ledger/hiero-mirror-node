@@ -12,18 +12,21 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
 final class ClprCreateConnectorTransactionHandler extends AbstractTransactionHandler {
 
+    private final EntityIdService entityIdService;
     private final EntityListener entityListener;
 
     @Override
     public EntityId getEntity(RecordItem recordItem) {
-        return EntityId.of(
-                recordItem.getTransactionBody().getClprCreateConnector().getConnectorContract());
+        final var contractId = recordItem.getTransactionBody().getClprCreateConnector().getConnectorContract();
+        return entityIdService.lookup(contractId, false).orElse(EntityId.EMPTY);
     }
 
     @Override
@@ -42,7 +45,14 @@ final class ClprCreateConnectorTransactionHandler extends AbstractTransactionHan
         // no state-change lookup is needed here.
         final var transactionBody = recordItem.getTransactionBody().getClprCreateConnector();
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
-        final var connectorContractId = EntityId.of(transactionBody.getConnectorContract());
+        final var connectorContractId = transaction.getEntityId();
+        if (EntityId.isEmpty(connectorContractId)) {
+            Utility.handleRecoverableError(
+                    "Unable to resolve connector contract {} for ClprCreateConnector at {}",
+                    transactionBody.getConnectorContract(),
+                    consensusTimestamp);
+            return;
+        }
         final var connector = ClprConnector.builder()
                 .adminKey(DomainUtils.toBytes(transactionBody.getAdminKey().toByteString()))
                 .channelId(DomainUtils.toBytes(transactionBody.getChannelId()))
@@ -54,6 +64,5 @@ final class ClprCreateConnectorTransactionHandler extends AbstractTransactionHan
                 .timestampRange(Range.atLeast(consensusTimestamp))
                 .build();
         entityListener.onClprConnector(connector);
-        recordItem.addEntityId(connectorContractId);
     }
 }

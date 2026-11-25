@@ -10,12 +10,15 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
 final class ClprCreateChannelTransactionHandler extends AbstractTransactionHandler {
 
+    private final EntityIdService entityIdService;
     private final EntityListener entityListener;
 
     @Override
@@ -39,7 +42,16 @@ final class ClprCreateChannelTransactionHandler extends AbstractTransactionHandl
 
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         final var clprChannelValue = entry.value();
-        final var verifierContractId = EntityId.of(clprChannelValue.getVerifierContract());
+        final var verifierContractId = entityIdService
+                .lookup(clprChannelValue.getVerifierContract(), false)
+                .orElse(EntityId.EMPTY);
+        if (EntityId.isEmpty(verifierContractId)) {
+            Utility.handleRecoverableError(
+                    "Unable to resolve verifier contract {} for ClprCreateChannel at {}",
+                    clprChannelValue.getVerifierContract(),
+                    consensusTimestamp);
+            return;
+        }
 
         final var builder = ClprStateChangeHandler.populateFromStateChange(entry);
         final var clprChannel = builder.createdTimestamp(consensusTimestamp)
