@@ -4,7 +4,9 @@ package org.hiero.mirror.restjava.service;
 
 import java.util.List;
 import org.hiero.mirror.rest.model.ClprChannel;
+import org.hiero.mirror.rest.model.ClprConnector;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
+import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 
 public interface ClprService {
 
@@ -17,4 +19,13 @@ public interface ClprService {
      * channels are merged with the open pending channel commitments.
      */
     List<ClprChannel> getChannels(ClprChannelsRequest request);
+
+    /**
+     * Returns the channel's connectors as the API model. With {@code status=PENDING}, the connectors registered but not
+     * yet completed, which have no {@code connectorId}, so a request also carrying one is rejected. Otherwise, with a
+     * {@code connectorId} and no timestamp, that connector's current state; with a {@code connectorId} and a timestamp,
+     * its state as of that timestamp; without a {@code connectorId}, the connectors, pending ones included, whose
+     * creation timestamp is within the timestamp bounds, ordered by creation timestamp.
+     */
+    List<ClprConnector> getConnectors(ClprConnectorsRequest request);
 }

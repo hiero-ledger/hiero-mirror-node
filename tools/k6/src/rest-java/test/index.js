@@ -8,6 +8,7 @@ import * as accountsNftAllowanceSpender from './accountsNftAllowanceSpender.js';
 import * as accountsPendingAirdrop from './accountsPendingAirdrop.js';
 import * as accountsOutstandingAirdrop from './accountsOutstandingAirdrop.js';
 import * as clprChannels from './clprChannels.js';
+import * as clprConnectors from './clprConnectors.js';
 import * as networkExchangeRate from './networkExchangeRate.js';
 import * as networkFees from './networkFees.js';
 import * as networkFeesEstimate from './networkFeesEstimate.js';
@@ -26,6 +27,7 @@ const tests = {
   accountsPendingAirdrop,
   accountsOutstandingAirdrop,
   clprChannels,
+  clprConnectors,
   networkExchangeRate,
   networkFees,
   networkFeesEstimate,

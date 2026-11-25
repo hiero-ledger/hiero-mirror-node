@@ -9,11 +9,16 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.ClprChannel;
 import org.hiero.mirror.rest.model.ClprChannelStatus;
+import org.hiero.mirror.rest.model.ClprConnector;
+import org.hiero.mirror.rest.model.ClprConnectorStatus;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.ClprChannelDto;
 import org.hiero.mirror.restjava.dto.ClprChannelsRequest;
+import org.hiero.mirror.restjava.dto.ClprConnectorsRequest;
 import org.hiero.mirror.restjava.mapper.ClprChannelMapper;
+import org.hiero.mirror.restjava.mapper.ClprConnectorMapper;
 import org.hiero.mirror.restjava.repository.ClprChannelRepository;
+import org.hiero.mirror.restjava.repository.ClprConnectorRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
@@ -21,10 +26,14 @@ import org.springframework.data.domain.Sort;
 @RequiredArgsConstructor
 final class ClprServiceImpl implements ClprService {
 
+    // The connector queries return the entity, so they sort by the column rather than a projection alias
+    private static final String CONNECTOR_CREATED_TIMESTAMP = "created_timestamp";
     private static final String CREATED_TIMESTAMP = "createdTimestamp";
 
     private final ClprChannelMapper channelMapper;
     private final ClprChannelRepository channelRepository;
+    private final ClprConnectorMapper connectorMapper;
+    private final ClprConnectorRepository connectorRepository;
 
     @Override
     public List<ClprChannel> getChannels(ClprChannelsRequest request) {
@@ -36,6 +45,11 @@ final class ClprServiceImpl implements ClprService {
         final var data =
                 status != null || request.getChannelId() != null ? findChannels(request) : findAllChannels(request);
         return channelMapper.map(data);
+    }
+
+    @Override
+    public List<ClprConnector> getConnectors(ClprConnectorsRequest request) {
+        return connectorMapper.map(findConnectors(request));
     }
 
     /**
@@ -83,6 +97,40 @@ final class ClprServiceImpl implements ClprService {
         return channelRepository.findByCreatedTimestampBetween(bounds.lower(), bounds.upper(), getPage(request));
     }
 
+    private List<org.hiero.mirror.common.domain.clpr.ClprConnector> findConnectors(ClprConnectorsRequest request) {
+        final var channelId = request.getChannelId();
+        final var connectorId = request.getConnectorId();
+        final var status = request.getStatus();
+        final var timestamp = request.getTimestamp();
+
+        if (status == ClprConnectorStatus.PENDING && connectorId != null) {
+            throw new IllegalArgumentException("connector.id can't be combined with status PENDING");
+        }
+
+        if (connectorId != null && timestamp.isEmpty()) {
+            final var connector = connectorRepository.findByChannelIdAndConnectorId(channelId, connectorId);
+            if (connector == null || status != null && !status.name().equals(String.valueOf(connector.getStatus()))) {
+                return List.of();
+            }
+
+            return List.of(connector);
+        }
+
+        final var statusName = status != null ? status.name() : null;
+
+        if (connectorId != null) {
+            final var bounds = getBounds(timestamp);
+            return connectorRepository.findByChannelIdAndConnectorIdAndTimestampBetween(
+                    channelId, connectorId, bounds.lower(), bounds.upper(), statusName);
+        }
+
+        final var bounds = getBounds(timestamp);
+        final var pageRequest =
+                PageRequest.of(0, request.getLimit(), Sort.by(request.getOrder(), CONNECTOR_CREATED_TIMESTAMP));
+        return connectorRepository.findByChannelIdAndCreatedTimestampBetween(
+                channelId, bounds.lower(), bounds.upper(), statusName, pageRequest);
+    }
+
     private List<ClprChannelDto> findPendingChannels(ClprChannelsRequest request) {
         if (request.getChannelId() != null) {
             throw new IllegalArgumentException("channel.id can't be combined with status PENDING");
@@ -90,10 +138,6 @@ final class ClprServiceImpl implements ClprService {
 
         final var bounds = getBounds(request.getTimestamp());
         return channelRepository.findPendingByCreatedTimestampBetween(bounds.lower(), bounds.upper(), getPage(request));
-    }
-
-    private static PageRequest getPage(ClprChannelsRequest request) {
-        return PageRequest.of(0, request.getLimit(), Sort.by(request.getOrder(), CREATED_TIMESTAMP));
     }
 
     /** Validates the timestamp and returns its inclusive bounds. */
@@ -108,6 +152,10 @@ final class ClprServiceImpl implements ClprService {
         }
 
         return new TimestampBounds(lowerBound, upperBound);
+    }
+
+    private PageRequest getPage(ClprChannelsRequest request) {
+        return PageRequest.of(0, request.getLimit(), Sort.by(request.getOrder(), CREATED_TIMESTAMP));
     }
 
     private record TimestampBounds(long lower, long upper) {}
