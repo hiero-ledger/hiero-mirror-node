@@ -2,11 +2,15 @@
 
 package org.hiero.mirror.web3.common;
 
+import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID;
+import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
+
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -18,8 +22,10 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ApiEndpointName;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
@@ -29,6 +35,10 @@ import org.hiero.mirror.web3.viewmodel.StateOverride;
 public class ContractCallContext {
 
     public static final String CONTEXT_NAME = "ContractCallContext";
+
+    /** The singleton states built from {@link #blockOverride}. */
+    private static final int[] BLOCK_STATE_IDS = {BLOCKS_STATE_ID, BLOCK_STREAM_INFO_STATE_ID};
+
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
 
     /**
@@ -46,6 +56,9 @@ public class ContractCallContext {
     @Getter(AccessLevel.NONE)
     private final StateCaches writeCache = new StateCaches();
 
+    @Setter
+    private ActionContext actionContext;
+
     /**
      * Optional API endpoint used to resolve a per-endpoint request timeout.
      */
@@ -58,6 +71,10 @@ public class ContractCallContext {
     @Setter
     private CallServiceParameters callServiceParameters;
 
+    /**
+     * Throttle gas the controller returns once the request ends. A trace adds up the refunds of the transactions that
+     * ran and the whole gas limit of those that did not.
+     */
     @Setter
     private long refundableGas;
 
@@ -101,7 +118,6 @@ public class ContractCallContext {
      * The current {@code block_override}. {@link BlockOverride#EMPTY} keeps the bound record file's block header and the
      * message frame values.
      */
-    @Setter
     private BlockOverride blockOverride = BlockOverride.EMPTY;
 
     private ContractCallContext() {}
@@ -151,8 +167,33 @@ public class ContractCallContext {
         return ++overriddenAccountCount;
     }
 
+    /**
+     * Moves the writes of a finished transaction into the read cache, where the next transaction of the request reads
+     * them as its original state. The transaction executor reads original values, such as the balances its record must
+     * net to zero against, from the readable states, which read the read cache but not the write cache.
+     */
+    public void commit() {
+        writeCache.moveTo(readCache);
+    }
+
+    /** Discards the writes since the last {@link #commit()}. */
     public void reset() {
         writeCache.clear();
+    }
+
+    /**
+     * Sets the {@code block_override} of the next execution. The block singletons are built from it and cached once per
+     * request, so a different override drops them to be built again. A trace changes it between bundles.
+     */
+    public void setBlockOverride(final BlockOverride blockOverride) {
+        if (blockOverride.equals(this.blockOverride)) {
+            return;
+        }
+        this.blockOverride = blockOverride;
+        for (final int stateId : BLOCK_STATE_IDS) {
+            readCache.remove(stateId);
+            writeCache.remove(stateId);
+        }
     }
 
     public boolean useHistorical() {
@@ -162,10 +203,16 @@ public class ContractCallContext {
     /**
      * Returns the set timestamp or the consensus end timestamp from the set record file only if we are in a historical
      * context. For opcode replay, returns the pre-transaction {@link #timestamp} so entity state is read as-of before
-     * the replayed transaction.
+     * the replayed transaction. An action trace returns {@link #timestamp} when one is set. {@code transaction_index}
+     * {@code 0} starts at the beginning of the block. {@code transaction_index} {@code -1} starts after every
+     * transaction in the block. The same timestamp applies to every bundle. A historical action trace with no
+     * timestamp reads the record file's consensus end.
      */
     public Optional<Long> getTimestamp() {
         if (opcodeContext != null) {
+            return timestamp;
+        }
+        if (ApiEndpointName.ACTIONS.equals(getApi()) && timestamp.isPresent()) {
             return timestamp;
         }
         if (useHistorical()) {
@@ -199,6 +246,18 @@ public class ContractCallContext {
         return blockSupplier.get();
     }
 
+    public void applyStateOverrides(final List<StateOverride> overrides) {
+        if (overrides == null || overrides.isEmpty()) {
+            this.stateOverrides = null;
+            return;
+        }
+        final var addressToAccounts = new HashMap<Bytes, StateOverride>(overrides.size());
+        for (final var stateOverride : overrides) {
+            addressToAccounts.put(Bytes.wrap(Utils.parseHex(stateOverride.getAddress())), stateOverride);
+        }
+        this.stateOverrides = addressToAccounts;
+    }
+
     /**
      * The cache of each state for one request. A state is looked up on every read and write of the state, and nearly
      * all state IDs are small, so those are found by index and only the few large ones in a map.
@@ -228,6 +287,25 @@ public class ContractCallContext {
                 indexed[stateId] = cache;
             }
             return cache;
+        }
+
+        /** Adds every cache to the same state's cache of {@code target}, then clears this one. */
+        void moveTo(final StateCaches target) {
+            for (int stateId = 0; stateId < INDEXED_STATE_IDS; stateId++) {
+                if (indexed[stateId] != null) {
+                    target.get(stateId).putAll(indexed[stateId]);
+                }
+            }
+            others.forEach((stateId, cache) -> target.get(stateId).putAll(cache));
+            clear();
+        }
+
+        void remove(final int stateId) {
+            if (stateId < 0 || stateId >= INDEXED_STATE_IDS) {
+                others.remove(stateId);
+                return;
+            }
+            indexed[stateId] = null;
         }
     }
 }

@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.ApiEndpointName.DEFAULT;
 import static org.hiero.mirror.web3.ApiEndpointName.OPCODES;
@@ -20,6 +21,7 @@ class Web3PropertiesTest {
     void getApiReturnsDefaultWhenNotConfigured() {
         var properties = new Web3Properties();
 
+        assertThat(properties.getApi(ACTIONS).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));
         assertThat(properties.getApi(CALL).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));
         assertThat(properties.getApi(OPCODES).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));
         assertThat(properties.getApi(PRESTATE).getResponse().getTimeout()).isEqualTo(Duration.ofSeconds(4L));

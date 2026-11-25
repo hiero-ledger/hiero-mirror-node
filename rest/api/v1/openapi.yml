@@ -528,6 +528,84 @@ paths:
                 $ref: "#/components/schemas/Error"
       tags:
         - contracts
+  /api/v1/contracts/call/actions:
+    post:
+      summary: Trace simulated contract calls
+      description:
+        "Simulates contract calls and returns one call-action tree per transaction, in bundle order. One bundle with
+        one transaction maps to debug_traceCall. Multiple bundles, or a bundle with multiple transactions, map to
+        debug_traceCallMany, which returns 501 when it is disabled on the server. block, state_overrides, and transaction_index apply to the whole request.
+        only_top_call applies to every transaction. When true, each transaction returns only its root call and omits
+        nested actions.
+        Transactions share state for the whole request: later bundles keep earlier state changes. The request state
+        overrides stay in place. A bundle block_override applies to the transactions of that bundle only. estimate,
+        and block_override or state_overrides on a transaction, are rejected.
+        Requires Accept-Encoding gzip. An EVM revert is returned in the
+        200 trace, with error set to 'execution reverted', revert_reason set to the revert payload, and output empty.
+        Later transactions still run. HTTP 400 is returned for
+        validation and for pre-checks that never reach the EVM, such as a missing sender; that response discards the
+        body. When the trace exceeds the server-side actions response timeout, 408 is returned with any actions
+        collected so far. The request body is limited to 263168 bytes (about 257 KiB) and 7000 JSON tokens, the same
+        limits as /contracts/call, so calldata and state overrides of every transaction share that budget."
+      operationId: contractActionsCall
+      parameters:
+        - name: Accept-Encoding
+          in: header
+          required: true
+          schema:
+            type: string
+            example: gzip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionTraceRequest"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActionResponse"
+        400:
+          description: Validation error or failed transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        406:
+          description: "Accept-Encoding gzip header is required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        408:
+          description: Trace execution exceeded the server-side actions response timeout
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActionResponse"
+        429:
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        501:
+          description:
+            Actions endpoint is not implemented, or the request is a debug_traceCallMany (more than one bundle, or more
+            than one transaction in a bundle) and tracing of multiple transactions is disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - contracts
   /api/v1/contracts:
     get:
       summary: List contract entities on network
@@ -2291,6 +2369,7 @@ components:
           description: Value returned by TIMESTAMP (block.timestamp) in Unix seconds.
           example: 1793619195
           format: int64
+          maximum: 9223372035
           minimum: 0
           type: [integer, "null"]
     AccountBalance:
@@ -2360,6 +2439,15 @@ components:
         tokens:
           - token_id: 0.0.200001
             balance: 8
+    BlockType:
+      default: latest
+      description:
+        Block tag ("earliest", "finalized", "latest", "pending", "safe"), decimal block number, 0x-prefixed hexadecimal
+        block number, or 0x-prefixed 32 or 48 byte block hash. "finalized", "pending", and "safe" resolve to "latest".
+        Defaults to "latest".
+      example: "latest"
+      pattern: '^(earliest|finalized|latest|pending|safe|\d{1,20}|0[xX]([0-9a-fA-F]{1,16}|[0-9a-fA-F]{64}|[0-9a-fA-F]{96}))$'
+      type: [string, "null"]
     Bloom:
       example: "0x549358c4c2e573e02410ef7b5a5ffa5f36dd7398"
       format: binary
@@ -2460,6 +2548,119 @@ components:
       items:
         type: string
       type: array
+    ActionTraceBundle:
+      type: object
+      description:
+        One debug_traceCallMany bundle. Transactions execute sequentially.
+        State changes persist into later bundles. The request block applies instead of the block on each transaction.
+        state_overrides is only allowed on the request, and is rejected on a bundle or a transaction. block_override
+        applies to every transaction of the bundle, and is rejected on a transaction.
+      required:
+        - transactions
+      properties:
+        block_override:
+          description:
+            Optional EVM block context override for every transaction of this bundle. Later bundles without one use the
+            request block. Requires block overrides to be enabled.
+          $ref: "#/components/schemas/BlockOverride"
+        transactions:
+          description: Contract calls to simulate in this bundle
+          items:
+            $ref: "#/components/schemas/ContractCallRequest"
+          maxItems: 16
+          minItems: 1
+          type: array
+    ActionTraceRequest:
+      type: object
+      description:
+        A debug_traceCallMany request. A single bundle containing a single transaction is treated like a debug_traceCall.
+        block, state_overrides, and transaction_index apply to every bundle. only_top_call applies to every
+        transaction. When true, each transaction returns only its root call and omits nested actions. State changes
+        persist from one bundle to the next within this request only. The request body is limited to 263168 bytes
+        (about 257 KiB) and 7000 JSON tokens, shared by every transaction.
+      required:
+        - bundles
+      properties:
+        block:
+          description: Block to simulate against. Applies to every bundle in the request.
+          $ref: "#/components/schemas/BlockType"
+        bundles:
+          description: Call bundles executed in order
+          items:
+            $ref: "#/components/schemas/ActionTraceBundle"
+          maxItems: 16
+          minItems: 1
+          type: array
+        only_top_call:
+          description:
+            If true, each transaction returns only its root call and omits nested actions. Applies to every transaction
+            in every bundle.
+          type: boolean
+          default: false
+        transaction_index:
+          description:
+            Selects the state the simulation starts from inside block. The EVM transactions of the block are the
+            top-level ContractCall, ContractCreate, and EthereumTransaction transactions, ordered by consensus timestamp
+            ascending. A scheduled execution of those types is included, including one whose consensus timestamp is
+            after the block's consensus end but still inside the scheduled consensus window. Child rows, duplicate
+            transactions, and every other transaction type are skipped. A positive value of N reads state one nanosecond
+            after the consensus timestamp of the Nth EVM transaction, so its changes are included. 0 starts the
+            simulation at the beginning of the block, before its first EVM transaction. -1, or omitting the field,
+            starts the simulation after every transaction in the block. The field has no effect when block is latest.
+            Every bundle and transaction in the request reads that same state. A value less than -1, or greater than
+            the number of EVM transactions in the block, is rejected.
+          example: 5
+          format: int32
+          minimum: -1
+          type: [integer, "null"]
+        state_overrides:
+          description: Per-account state overrides applied to every bundle. Requires state overrides to be enabled.
+          items:
+            $ref: "#/components/schemas/StateOverride"
+          maxItems: 10
+          type: [array, "null"]
+    ActionResponse:
+      type: object
+      properties:
+        calls:
+          description: The list of all nested contract actions related to the top-level execution
+          items:
+            $ref: "#/components/schemas/ActionResponse"
+          type: array
+          default: []
+        error:
+          description: The error message for the call action
+          type: [string, "null"]
+        from:
+          description: The sender address for the call action
+          type: string
+        gas:
+          description: Hexadecimal value of the gas sent for the execution
+          type: string
+        gas_used:
+          description: Hexadecimal value of the actually used gas
+          type: string
+        input:
+          description: The input for the call action
+          type: [string, "null"]
+        output:
+          description: The output for the given call action
+          type: [string, "null"]
+        revert_reason:
+          description: The decoded Solidity Error(string) reason, if available. Raw revert bytes are retained in output.
+          type: [string, "null"]
+        to:
+          description: The recipient address for the call action
+          type: string
+        type:
+          description: The type of the call operation
+          enum:
+            [CALL, CALLCODE, CREATE, CREATE2, DELEGATECALL, STATICCALL, UNKNOWN]
+          example: CALL
+          type: string
+        value:
+          description: The hexadecimal value passed for the contract action in tinybars
+          type: string
     ContractAction:
       type: object
       properties:
@@ -2945,19 +3146,17 @@ components:
       type: object
       properties:
         block:
-          description: Hexadecimal block number or the string "latest", "pending", "earliest". Defaults to "latest".
-          example: "latest"
-          pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
-          type: [string, "null"]
+          description: Block to simulate against.
+          $ref: "#/components/schemas/BlockType"
         block_override:
           description: Optional EVM block context override for this call. Requires block overrides to be enabled.
           $ref: "#/components/schemas/BlockOverride"
         data:
-          description: Hexadecimal method signature and encoded parameters. Up to 131072 bytes as at most 262146 hexadecimal digits including optional leading 0x.
+          description: Hexadecimal method signature and encoded parameters.
           example: "0x47f1aae7"
           format: binary
           maxLength: 262146
-          pattern: "^(0x)?[0-9a-fA-F]+$"
+          pattern: "^(0x)?([0-9a-fA-F]{2})+$"
           type: [string, "null"]
         estimate:
           description: Whether gas estimation is called. Defaults to false.
@@ -2984,7 +3183,9 @@ components:
           minimum: 0
           type: [integer, "null"]
         state_overrides:
-          description: Per-address state overrides applied only for this call. Requires state overrides to be enabled.
+          description:
+            Per-address state overrides applied only for this call. Requires state overrides to be enabled. Not allowed
+            on a transaction inside a /contracts/call/actions bundle; set state_overrides on the trace request instead.
           items:
             $ref: "#/components/schemas/StateOverride"
           maxItems: 10
@@ -3022,7 +3223,7 @@ components:
           description: Hex-encoded runtime bytecode override.
           example: "0x6080604052"
           format: binary
-          pattern: "^(0x)?[0-9a-fA-F]*$"
+          pattern: "^(0x)?([0-9a-fA-F]{2})*$"
           type: [string, "null"]
         nonce:
           description: Ethereum nonce override.

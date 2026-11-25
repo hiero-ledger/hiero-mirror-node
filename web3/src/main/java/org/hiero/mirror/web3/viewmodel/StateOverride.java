@@ -50,7 +50,7 @@ public class StateOverride {
      */
     @NotNull
     @Size(max = STORAGE_MAX_SIZE)
-    private List<@Valid StorageEntry> state = List.of();
+    private List<@NotNull @Valid StorageEntry> state = List.of();
 
     /**
      * Storage patch: list of slot key-value pairs.
@@ -59,7 +59,7 @@ public class StateOverride {
      */
     @NotNull
     @Size(max = STORAGE_MAX_SIZE)
-    private List<@Valid StorageEntry> stateDiff = List.of();
+    private List<@NotNull @Valid StorageEntry> stateDiff = List.of();
 
     @AssertTrue(message = "state and state_diff are mutually exclusive")
     private boolean hasValidStorage() {

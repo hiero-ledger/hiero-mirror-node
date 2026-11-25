@@ -2,13 +2,18 @@
 
 package org.hiero.mirror.web3.common;
 
+import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID;
+import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.stateOverride;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
@@ -50,6 +55,40 @@ class ContractCallContextTest {
     }
 
     @Test
+    void commitMovesWritesIntoTheReadCache() {
+        final var context = ContractCallContext.get();
+        final int largeStateId = 10_001;
+        context.getReadCacheState(1).put("read", "database");
+        context.getWriteCacheState(1).put("updated", "value");
+        context.getWriteCacheState(2).put("deleted", null);
+        context.getWriteCacheState(largeStateId).put("updated", "large");
+
+        context.commit();
+
+        assertThat(context.getWriteCacheState(1)).isEmpty();
+        assertThat(context.getWriteCacheState(2)).isEmpty();
+        assertThat(context.getWriteCacheState(largeStateId)).isEmpty();
+        assertThat(context.getReadCacheState(1))
+                .containsEntry("read", "database")
+                .containsEntry("updated", "value");
+        assertThat(context.getReadCacheState(2)).containsEntry("deleted", null);
+        assertThat(context.getReadCacheState(largeStateId)).containsEntry("updated", "large");
+    }
+
+    @Test
+    void resetKeepsCommittedWrites() {
+        final var context = ContractCallContext.get();
+        context.getWriteCacheState(1).put("committed", "value");
+        context.commit();
+        context.getWriteCacheState(1).put("pending", "value");
+
+        context.reset();
+
+        assertThat(context.getWriteCacheState(1)).isEmpty();
+        assertThat(context.getReadCacheState(1)).containsOnlyKeys("committed");
+    }
+
+    @Test
     void cachesAreKeptPerStateId() {
         final var context = ContractCallContext.get();
         final int largeStateId = 10_001;
@@ -80,6 +119,22 @@ class ContractCallContextTest {
 
         assertThat(context.getTimestamp()).isEmpty();
         assertThat(context.getTimestampForSystemFiles()).isEmpty();
+    }
+
+    @Test
+    void testGetTimestampForActionsReturnsSetTimestamp() {
+        var context = ContractCallContext.get();
+        var timestamp = 123L;
+        context.setApi(ApiEndpointName.ACTIONS);
+        context.setTimestamp(Optional.of(timestamp));
+        context.setCallServiceParameters(ContractExecutionParameters.builder()
+                .block(BlockType.LATEST)
+                .callData(new byte[0])
+                .gasPrice(0L)
+                .build());
+
+        assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));
+        assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(timestamp + 1));
     }
 
     @Test
@@ -123,6 +178,23 @@ class ContractCallContextTest {
     }
 
     @Test
+    void testGetTimestampForHistoricalActionsFallsBackToRecordFile() {
+        var context = ContractCallContext.get();
+        var consensusEnd = 1_786_518_658_483_854_104L;
+        context.setApi(ApiEndpointName.ACTIONS);
+        context.setCallServiceParameters(ContractExecutionParameters.builder()
+                .block(BlockType.of("39156482"))
+                .callData(new byte[0])
+                .gasPrice(0L)
+                .build());
+        context.setBlockSupplier(() ->
+                RecordFile.builder().consensusEnd(consensusEnd).index(39156482L).build());
+
+        assertThat(context.getTimestamp()).isEqualTo(Optional.of(consensusEnd));
+        assertThat(context.getTimestampForSystemFiles()).isEqualTo(Optional.of(consensusEnd + 1));
+    }
+
+    @Test
     void testGetTimestampForSystemFilesFallsBackToRecordFileWhenNotOpcodeReplay() {
         var context = ContractCallContext.get();
         var consensusEnd = 1_786_518_658_483_854_104L;
@@ -138,7 +210,61 @@ class ContractCallContextTest {
     }
 
     @Test
+    void applyStateOverridesReplacesPreviousAndClearsWhenEmpty() {
+        final var context = ContractCallContext.get();
+        final var first = stateOverride("00000000000000000000000000000000000004e4");
+        final var second = stateOverride("00000000000000000000000000000000000004e5");
+
+        context.applyStateOverrides(List.of(first));
+        assertThat(context.getStateOverrides()).containsValue(first);
+
+        context.applyStateOverrides(List.of());
+        assertThat(context.getStateOverrides()).isNull();
+
+        context.applyStateOverrides(null);
+        assertThat(context.getStateOverrides()).isNull();
+
+        context.applyStateOverrides(List.of(first));
+        context.applyStateOverrides(List.of(second));
+        assertThat(context.getStateOverrides()).containsValue(second).doesNotContainValue(first);
+    }
+
+    @Test
     void blockOverrideDefaultsToEmpty() {
         assertThat(ContractCallContext.get().getBlockOverride()).isSameAs(BlockOverride.EMPTY);
+    }
+
+    @Test
+    void setBlockOverrideDropsCachedBlockStatesWhenItChanges() {
+        final var context = ContractCallContext.get();
+        final var override = BlockOverride.builder().blockNumber(80L).build();
+        cacheBlockStates(context);
+
+        context.setBlockOverride(BlockOverride.EMPTY);
+
+        assertThat(context.getReadCacheState(BLOCKS_STATE_ID)).isNotEmpty();
+        assertThat(context.getWriteCacheState(BLOCK_STREAM_INFO_STATE_ID)).isNotEmpty();
+
+        context.setBlockOverride(override);
+
+        assertThat(context.getBlockOverride()).isSameAs(override);
+        assertThat(context.getReadCacheState(BLOCKS_STATE_ID)).isEmpty();
+        assertThat(context.getWriteCacheState(BLOCKS_STATE_ID)).isEmpty();
+        assertThat(context.getReadCacheState(BLOCK_STREAM_INFO_STATE_ID)).isEmpty();
+        assertThat(context.getWriteCacheState(BLOCK_STREAM_INFO_STATE_ID)).isEmpty();
+        assertThat(context.getReadCacheState(1)).containsEntry("key", "other");
+
+        cacheBlockStates(context);
+        context.setBlockOverride(BlockOverride.builder().blockNumber(80L).build());
+
+        assertThat(context.getReadCacheState(BLOCKS_STATE_ID)).isNotEmpty();
+    }
+
+    private static void cacheBlockStates(final ContractCallContext context) {
+        context.getReadCacheState(1).put("key", "other");
+        context.getReadCacheState(BLOCKS_STATE_ID).put("key", "block");
+        context.getWriteCacheState(BLOCKS_STATE_ID).put("key", "block");
+        context.getReadCacheState(BLOCK_STREAM_INFO_STATE_ID).put("key", "stream");
+        context.getWriteCacheState(BLOCK_STREAM_INFO_STATE_ID).put("key", "stream");
     }
 }

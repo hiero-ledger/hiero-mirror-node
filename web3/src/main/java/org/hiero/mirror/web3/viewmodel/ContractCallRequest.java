@@ -28,6 +28,9 @@ public class ContractCallRequest {
     public static final long DATA_MAX_LENGTH = 300_000L;
     public static final int STATE_OVERRIDES_MAX_SIZE = 10;
 
+    /** Maximum transactions across every bundle in one {@code debug_traceCallMany} request. */
+    public static final int MAX_TRACE_TRANSACTIONS = 16;
+
     @JsonSerialize(using = BlockTypeSerializer.class)
     @JsonSetter(nulls = Nulls.SKIP)
     @NotNull

@@ -33,14 +33,25 @@ final class ThrottleManagerImpl implements ThrottleManager {
     public void throttle(ContractCallRequest request) {
         if (!rateLimitBucket.tryConsume(1)) {
             throw new ThrottleException(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
-        } else if (!gasLimitBucket.tryConsume(throttleProperties.scaleGas(request.getGas()))) {
+        }
+        final long gasTokens = throttleProperties.scaleGas(request.getGas());
+        if (!gasLimitBucket.tryConsume(gasTokens)) {
+            rateLimitBucket.addTokens(1);
             throw new ThrottleException(GAS_PER_SECOND_LIMIT_EXCEEDED);
         }
 
-        for (var requestFilter : throttleProperties.getRequest()) {
-            if (requestFilter.test(request)) {
-                action(requestFilter, request);
+        try {
+            for (final var requestFilter : throttleProperties.getRequest()) {
+                if (requestFilter.test(request)) {
+                    action(requestFilter, request);
+                }
             }
+        } catch (final ThrottleException exception) {
+            rateLimitBucket.addTokens(1);
+            if (gasTokens > 0) {
+                gasLimitBucket.addTokens(gasTokens);
+            }
+            throw exception;
         }
     }
 
@@ -50,6 +61,11 @@ final class ThrottleManagerImpl implements ThrottleManager {
         if (tokens > 0) {
             gasLimitBucket.addTokens(tokens);
         }
+    }
+
+    @Override
+    public void restoreRequest() {
+        rateLimitBucket.addTokens(1);
     }
 
     private void action(RequestProperties filter, ContractCallRequest request) {

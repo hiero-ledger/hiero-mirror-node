@@ -42,11 +42,11 @@ public abstract class ContractCallService {
     static final String TAG_TYPE = "type";
 
     protected final EvmProperties evmProperties;
+    protected final RecordFileService recordFileService;
 
     private final MeterProvider<Counter> invocationCounter;
     private final MeterProvider<Counter> gasLimitCounter;
     private final MeterProvider<Counter> gasUsedCounter;
-    private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
     private final TransactionExecutionService transactionExecutionService;
 

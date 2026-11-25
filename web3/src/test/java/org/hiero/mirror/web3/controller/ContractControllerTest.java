@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.controller;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.ApiEndpointName.ACTIONS;
 import static org.hiero.mirror.web3.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
@@ -14,8 +15,10 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.NOT_ACCEPTABLE;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
 import static org.springframework.http.HttpStatus.UNSUPPORTED_MEDIA_TYPE;
@@ -25,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -37,9 +41,13 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.rest.model.ActionResponse;
+import org.hiero.mirror.web3.ApiEndpointName;
+import org.hiero.mirror.web3.ApiProperties;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.config.JacksonConfiguration;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionContext;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
@@ -47,9 +55,14 @@ import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
+import org.hiero.mirror.web3.exception.TraceTimeoutException;
+import org.hiero.mirror.web3.service.ContractDebugService;
 import org.hiero.mirror.web3.service.ContractExecutionService;
+import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.hiero.mirror.web3.viewmodel.ActionTraceBundle;
+import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
@@ -65,6 +78,7 @@ import org.hiero.mirror.web3.web3j.generated.ExchangeRatePrecompileHistorical;
 import org.hiero.mirror.web3.web3j.generated.NestedCallsHistorical;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContractHistorical;
 import org.hiero.mirror.web3.web3j.generated.TestAddressThis;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -83,6 +97,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.QueryTimeoutException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -94,9 +109,13 @@ import tools.jackson.databind.json.JsonMapper;
 @WebMvcTest(controllers = ContractController.class)
 final class ContractControllerTest {
 
+    private static final String ACTIONS_CALL_URI = "/api/v1/contracts/call/actions";
     private static final String CALL_URI = "/api/v1/contracts/call";
     private static final long THROTTLE_GAS_LIMIT = 10_000_000L;
     private static final String INIT_CODE = "0x6080604052348015600f57600080fd5b5060a38061001c6000396000f3";
+    private static final ActionResponse TRACE_RESPONSE =
+            new ActionResponse().from("0x01").to("0x02");
+    private static final List<ActionResponse> TRACE_RESPONSES = List.of(TRACE_RESPONSE);
 
     @Resource
     private MockMvc mockMvc;
@@ -104,11 +123,20 @@ final class ContractControllerTest {
     @Resource
     private JsonMapper jsonMapper;
 
+    // Matches the snake_case naming used by the Jackson 3 HTTP message converter
+    private ObjectMapper requestMapper;
+
     @Resource
     private Web3Properties web3Properties;
 
+    @Resource
+    private EvmProperties evmProperties;
+
     @MockitoBean
     private ContractExecutionService service;
+
+    @MockitoBean
+    private ContractDebugService contractDebugService;
 
     @MockitoBean
     private ThrottleManager throttleManager;
@@ -119,10 +147,26 @@ final class ContractControllerTest {
 
     @BeforeEach
     void setUp() {
+        evmProperties.setTraceMultipleTransactions(true);
         web3Properties.setEnableBlockOverrides(true);
         web3Properties.setEnableStateOverrides(true);
         throttleManager.throttle(any(ContractCallRequest.class));
         web3Properties.getApi(CALL).setEnabled(true);
+    }
+
+    @AfterEach
+    void tearDown() {
+        evmProperties.setTraceMultipleTransactions(false);
+        setApiEnabled(ACTIONS, false);
+        setApiEnabled(CALL, true);
+    }
+
+    private void enableActionsApi() {
+        setApiEnabled(ACTIONS, true);
+    }
+
+    private void setApiEnabled(final ApiEndpointName name, final boolean enabled) {
+        web3Properties.getApi().computeIfAbsent(name, _ -> new ApiProperties()).setEnabled(enabled);
     }
 
     @SneakyThrows
@@ -136,6 +180,47 @@ final class ContractControllerTest {
                 .accept(MediaType.APPLICATION_JSON)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(convert(request)));
+    }
+
+    @SneakyThrows
+    private ResultActions contractActionsCall(ActionTraceRequest request) {
+        return contractActionsCall(request, null);
+    }
+
+    @SneakyThrows
+    private ResultActions contractActionsCall(ActionTraceRequest request, final Boolean onlyTopCall) {
+        if (onlyTopCall != null) {
+            request.setOnlyTopCall(onlyTopCall);
+        }
+        return contractActionsCall(convert(request));
+    }
+
+    private void assertActionsCallUsesDefaults(final String body) throws Exception {
+        enableActionsApi();
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(body).andExpect(status().isOk());
+
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) -> BlockType.LATEST.equals(call.getBlock())
+                                && !call.isOnlyTopCall()
+                                && call.getStateOverrides().isEmpty()
+                                && call.getTransactionIndex() == -1
+                                && call.getTransactions()
+                                        .getFirst()
+                                        .getBlockOverride()
+                                        .isEmpty()),
+                        any());
+    }
+
+    /** Posts a raw JSON body, so the snake_case field names of the public API are checked as clients send them. */
+    private ResultActions contractActionsCall(final String body) throws Exception {
+        return mockMvc.perform(post(ACTIONS_CALL_URI)
+                .accept(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body));
     }
 
     @ParameterizedTest
@@ -192,8 +277,787 @@ final class ContractControllerTest {
     @Test
     void exceedingRateLimit() throws Exception {
         var request = request();
-        doThrow(new ThrottleException("")).when(throttleManager).throttle(request);
+        doThrow(new ThrottleException("")).when(throttleManager).throttle(any(ContractCallRequest.class));
         contractCall(request).andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void actionsCallSuccess() throws Exception {
+        enableActionsApi();
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request)
+                .andExpect(status().isOk())
+                .andExpect(content().string(convert(TRACE_RESPONSES)));
+
+        verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> isSingleTrace(call, false)), any());
+        verify(throttleManager).throttle(any(ContractCallRequest.class));
+    }
+
+    @Test
+    void actionsCallManySuccess() throws Exception {
+        enableActionsApi();
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var second = transaction();
+        second.setValue(0);
+        second.setData("0x1079023b");
+        request.getBundles().add(bundleOf(second));
+        final var secondResponse = new ActionResponse().from("0x03").to("0x04");
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(List.of(TRACE_RESPONSE, secondResponse));
+
+        contractActionsCall(request)
+                .andExpect(status().isOk())
+                .andExpect(content().string(convert(List.of(TRACE_RESPONSE, secondResponse))));
+
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) -> call.getTransactions().size() == 2), any());
+        verify(throttleManager, times(2)).throttle(any(ContractCallRequest.class));
+    }
+
+    @Test
+    void traceMultipleTransactionsDisabledByDefault() {
+        assertThat(new EvmProperties().isTraceMultipleTransactions()).isFalse();
+    }
+
+    @Test
+    void actionsCallManyNotImplementedForMultipleBundlesWhenDisabled() throws Exception {
+        enableActionsApi();
+        evmProperties.setTraceMultipleTransactions(false);
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var second = transaction();
+        second.setValue(0);
+        request.getBundles().add(bundleOf(second));
+
+        contractActionsCall(request).andExpect(status().isNotImplemented());
+
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
+    }
+
+    @Test
+    void actionsCallManyNotImplementedForMultipleTransactionsWhenDisabled() throws Exception {
+        enableActionsApi();
+        evmProperties.setTraceMultipleTransactions(false);
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var second = transaction();
+        second.setValue(0);
+        request.getBundles().getFirst().getTransactions().add(second);
+
+        contractActionsCall(request).andExpect(status().isNotImplemented());
+
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
+    }
+
+    @Test
+    void actionsCallSingleTraceSucceedsWhenTraceCallManyDisabled() throws Exception {
+        enableActionsApi();
+        evmProperties.setTraceMultipleTransactions(false);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request)
+                .andExpect(status().isOk())
+                .andExpect(content().string(convert(TRACE_RESPONSES)));
+
+        verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> isSingleTrace(call, false)), any());
+    }
+
+    @Test
+    void actionsCallExceedingRateLimit() throws Exception {
+        enableActionsApi();
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        doThrow(new ThrottleException("")).when(throttleManager).throttle(any(ContractCallRequest.class));
+
+        contractActionsCall(request).andExpect(status().isTooManyRequests());
+
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+        verify(throttleManager).throttle(any(ContractCallRequest.class));
+        verify(throttleManager, never()).restoreRequest();
+        verify(throttleManager, never()).restore(anyLong());
+    }
+
+    @Test
+    void actionsCallReleasesEarlierReservationWhenALaterTransactionIsThrottled() throws Exception {
+        enableActionsApi();
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var second = transaction();
+        second.setValue(0);
+        second.setData("0x1079023b");
+        request.getBundles().getFirst().getTransactions().add(second);
+        doThrow(new ThrottleException(""))
+                .when(throttleManager)
+                .throttle(argThat((ContractCallRequest call) -> "0x1079023b".equals(call.getData())));
+
+        contractActionsCall(request).andExpect(status().isTooManyRequests());
+
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+        verify(throttleManager).restoreRequest();
+        verify(throttleManager).restore(THROTTLE_GAS_LIMIT);
+    }
+
+    @Test
+    void actionsCallRejectsEmptyList() throws Exception {
+        enableActionsApi();
+        contractActionsCall(new ActionTraceRequest())
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("bundles field size must be between 1 and %d"
+                                .formatted(ContractCallRequest.MAX_TRACE_TRANSACTIONS))));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallWithOnlyTopCall() throws Exception {
+        enableActionsApi();
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request, true).andExpect(status().isOk());
+
+        verify(contractDebugService).processTraceCall(argThat((TraceCall call) -> isSingleTrace(call, true)), any());
+    }
+
+    @Test
+    void actionsCallRestoresThrottleOnInvalidParameters() throws Exception {
+        enableActionsApi();
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        // The service failed before any transaction started, so all the reserved gas is refundable.
+        given(contractDebugService.processTraceCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(THROTTLE_GAS_LIMIT);
+            throw new InvalidParametersException("invalid");
+        });
+
+        contractActionsCall(request).andExpect(status().isBadRequest());
+        verify(contractDebugService).processTraceCall(any(), any());
+        verify(throttleManager).throttle(argThat((ContractCallRequest call) -> call.getGas() == THROTTLE_GAS_LIMIT));
+        verify(throttleManager).restore(THROTTLE_GAS_LIMIT);
+        verify(throttleManager, never()).restoreRequest();
+    }
+
+    @Test
+    void actionsCallRequiresGzip() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+
+        mockMvc.perform(post(ACTIONS_CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(convert(request)))
+                .andExpect(status().isNotAcceptable())
+                .andExpect(content().string(new StringContains(NOT_ACCEPTABLE.getReasonPhrase())))
+                .andExpect(content().string(new StringContains(GzipEncoding.MISSING_GZIP_HEADER_MESSAGE)));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallTimeoutReturns408() throws Exception {
+        enableActionsApi();
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        given(contractDebugService.processTraceCall(any(), any()))
+                .willThrow(new TraceTimeoutException(List.of(TRACE_RESPONSE)));
+
+        contractActionsCall(request)
+                .andExpect(status().isRequestTimeout())
+                .andExpect(content().string(convert(TRACE_RESPONSES)));
+    }
+
+    @Test
+    void actionsCallTimeoutManyReturnsPartialList() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        request.getBundles().add(bundleOf(transaction()));
+        transaction(request).setValue(0);
+        given(contractDebugService.processTraceCall(any(), any()))
+                .willThrow(new TraceTimeoutException(List.of(TRACE_RESPONSE, TRACE_RESPONSE)));
+
+        contractActionsCall(request)
+                .andExpect(status().isRequestTimeout())
+                .andExpect(content().string(convert(List.of(TRACE_RESPONSE, TRACE_RESPONSE))));
+    }
+
+    @Test
+    void actionsCallRejectsStateOverridesWhenDisabled() throws Exception {
+        enableActionsApi();
+        web3Properties.setEnableStateOverrides(false);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var override = new StateOverride();
+        override.setAddress("00000000000000000000000000000000000004e4");
+        request.setStateOverrides(List.of(override));
+
+        contractActionsCall(request).andExpect(status().isBadRequest());
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallRejectsTransactionStateOverrides() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        transaction(request)
+                .setStateOverrides(List.of(balanceOverride("00000000000000000000000000000000000004e4", 1L)));
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains(
+                                "state_overrides must be set on the request, not on a transaction.")));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallRejectsBundleStateOverrides() throws Exception {
+        enableActionsApi();
+        final var body = """
+                {"bundles": [{"state_overrides": [{"address": "0x00000000000000000000000000000000000004e4", "balance": 1}],
+                              "transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """;
+
+        mockMvc.perform(post(ACTIONS_CALL_URI)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("state_overrides must be set on the request, not on a bundle.")));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallAcceptsEmptyNestedStateOverrides() throws Exception {
+        enableActionsApi();
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+        final var body = """
+                {"bundles": [{"state_overrides": [],
+                              "transactions": [{"state_overrides": [], "to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """;
+
+        mockMvc.perform(post(ACTIONS_CALL_URI)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
+                        .content(body))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void actionsCallReadsSnakeCaseFields() throws Exception {
+        enableActionsApi();
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+        final var override =
+                BlockOverride.builder().blockNumber(80L).time(1_793_619_195L).build();
+        final var body = """
+                {"block": "15", "only_top_call": true, "transaction_index": 3,
+                 "bundles": [{"block_override": {"block_number": 80, "time": 1793619195},
+                              "transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]},
+                             {"transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """;
+
+        contractActionsCall(body).andExpect(status().isOk());
+
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) -> {
+                            final var transactions = call.getTransactions();
+                            return BlockType.of("15").equals(call.getBlock())
+                                    && call.isOnlyTopCall()
+                                    && call.getTransactionIndex() == 3
+                                    && transactions.size() == 2
+                                    && override.equals(transactions.get(0).getBlockOverride())
+                                    && transactions.get(1).getBlockOverride().isEmpty();
+                        }),
+                        any());
+    }
+
+    @Test
+    void actionsCallDefaultsMissingFields() throws Exception {
+        assertActionsCallUsesDefaults("""
+                {"bundles": [{"transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """);
+    }
+
+    @Test
+    void actionsCallDefaultsNullFields() throws Exception {
+        assertActionsCallUsesDefaults("""
+                {"block": null, "only_top_call": null, "state_overrides": null, "transaction_index": null,
+                 "bundles": [{"block_override": null, "state_overrides": null,
+                              "transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "\"blockOverride\":{\"time\":1}",
+                "\"block_override\":{\"blockNumber\":1}",
+                "\"stateOverrides\":[]",
+                "\"unknown\":1",
+            })
+    void actionsCallRejectsUnknownBundleField(final String field) throws Exception {
+        enableActionsApi();
+        final var body = """
+                {"bundles": [{%s, "transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """.formatted(field);
+
+        contractActionsCall(body).andExpect(status().isBadRequest());
+
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "\"onlyTopCall\":true",
+                "\"stateOverrides\":[]",
+                "\"state_overrides\":[{\"address\":\"0x00000000000000000000000000000000000004e2\",\"stateDiff\":[]}]",
+                "\"timeout\":\"1ms\"",
+                "\"transactionIndex\":1",
+                "\"unknown\":1",
+            })
+    void actionsCallRejectsUnknownRequestField(final String field) throws Exception {
+        enableActionsApi();
+        final var body = """
+                {%s, "bundles": [{"transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """.formatted(field);
+
+        contractActionsCall(body).andExpect(status().isBadRequest());
+
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallForwardsSingleStateOverride() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var override = new StateOverride();
+        override.setAddress("00000000000000000000000000000000000004e4");
+        override.setBalance(1L);
+        request.setStateOverrides(List.of(override));
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request).andExpect(status().isOk());
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) ->
+                                isSingleTrace(call, false) && List.of(override).equals(call.getStateOverrides())),
+                        any());
+    }
+
+    @Test
+    void actionsCallForwardsMultipleStateOverrides() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var first = balanceOverride("00000000000000000000000000000000000004e4", 100L);
+        final var second = balanceOverride("00000000000000000000000000000000000004e5", 200L);
+        request.setStateOverrides(List.of(first, second));
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request).andExpect(status().isOk());
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) -> isSingleTrace(call, false)
+                                && List.of(first, second).equals(call.getStateOverrides())),
+                        any());
+    }
+
+    @Test
+    void actionsCallManyForwardsMultipleStateOverrides() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var secondTransaction = transaction();
+        secondTransaction.setValue(0);
+        request.getBundles().add(bundleOf(secondTransaction));
+        final var first = balanceOverride("00000000000000000000000000000000000004e4", 100L);
+        final var second = balanceOverride("00000000000000000000000000000000000004e5", 200L);
+        request.setStateOverrides(List.of(first, second));
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request).andExpect(status().isOk());
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) -> call.getTransactions().size() == 2
+                                && List.of(first, second).equals(call.getStateOverrides())),
+                        any());
+    }
+
+    @Test
+    void actionsCallNotImplementedWhenDisabled() throws Exception {
+        final var request = traceRequest();
+
+        contractActionsCall(request).andExpect(status().isNotImplemented());
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallForwardsOnlyTopCallForTraceCallMany() throws Exception {
+        enableActionsApi();
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+        final var manyBundles = traceRequest();
+        transaction(manyBundles).setValue(0);
+        manyBundles.getBundles().add(bundleOf(transaction()));
+        manyBundles.setOnlyTopCall(true);
+
+        contractActionsCall(manyBundles).andExpect(status().isOk());
+
+        final var manyTransactions = traceRequest();
+        transaction(manyTransactions).setValue(0);
+        manyTransactions.getBundles().getFirst().getTransactions().add(transaction());
+        manyTransactions.setOnlyTopCall(true);
+
+        contractActionsCall(manyTransactions).andExpect(status().isOk());
+
+        // Both requests flatten to the same two transactions.
+        verify(contractDebugService, times(2))
+                .processTraceCall(
+                        argThat((TraceCall call) ->
+                                call.isOnlyTopCall() && call.getTransactions().size() == 2),
+                        any());
+    }
+
+    @Test
+    void actionsCallPassesTransactionIndexForTraceCallMany() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var second = transaction();
+        second.setValue(0);
+        request.getBundles().add(bundleOf(second));
+        request.setBlock(BlockType.of("15"));
+        request.setTransactionIndex(5);
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request).andExpect(status().isOk());
+
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) ->
+                                call.getTransactions().size() == 2 && call.getTransactionIndex() == 5),
+                        any());
+        verify(throttleManager, times(2)).throttle(any(ContractCallRequest.class));
+    }
+
+    @Test
+    void actionsCallPassesMinusOneTransactionIndex() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        request.setTransactionIndex(-1);
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request).andExpect(status().isOk());
+
+        verify(contractDebugService)
+                .processTraceCall(argThat((TraceCall call) -> call.getTransactionIndex() == -1), any());
+        verify(throttleManager).throttle(any(ContractCallRequest.class));
+    }
+
+    @Test
+    void actionsCallRejectsEstimate() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        transaction(request).setEstimate(true);
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("Estimate is not supported for tracing.")));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallRejectsTransactionBlockOverride() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        transaction(request)
+                .setBlockOverride(BlockOverride.builder().gasLimit(1L).build());
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("block_override must be set on the bundle, not on a transaction.")));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallPassesBundleBlockOverrideToItsTransactions() throws Exception {
+        enableActionsApi();
+        final var override =
+                BlockOverride.builder().blockNumber(256L).time(1710874816L).build();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var sameBundle = transaction();
+        sameBundle.setValue(0);
+        bundle(request).getTransactions().add(sameBundle);
+        bundle(request).setBlockOverride(override);
+        final var nextBundle = transaction();
+        nextBundle.setValue(0);
+        request.getBundles().add(bundleOf(nextBundle));
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request).andExpect(status().isOk());
+
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) -> {
+                            final var transactions = call.getTransactions();
+                            return transactions.size() == 3
+                                    && override.equals(transactions.get(0).getBlockOverride())
+                                    && override.equals(transactions.get(1).getBlockOverride())
+                                    && transactions.get(2).getBlockOverride().isEmpty();
+                        }),
+                        any());
+    }
+
+    @Test
+    void actionsCallRejectsBundleBlockOverrideWhenDisabled() throws Exception {
+        enableActionsApi();
+        web3Properties.setEnableBlockOverrides(false);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        bundle(request)
+                .setBlockOverride(BlockOverride.builder().blockNumber(256L).build());
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("Block overrides are not supported.")));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallUsesRequestBlockForEveryTransaction() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        transaction(request).setBlock(BlockType.of("16"));
+        request.setBlock(BlockType.of("32"));
+        final var second = transaction();
+        second.setValue(0);
+        second.setBlock(BlockType.EARLIEST);
+        request.getBundles().add(bundleOf(second));
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
+
+        contractActionsCall(request).andExpect(status().isOk());
+        verify(contractDebugService)
+                .processTraceCall(
+                        argThat((TraceCall call) -> {
+                            if (!BlockType.of("32").equals(call.getBlock())
+                                    || call.getTransactions().size() != 2
+                                    || call.getTransactionIndex() != -1) {
+                                return false;
+                            }
+                            for (final var transaction : call.getTransactions()) {
+                                if (!BlockType.of("32").equals(transaction.getBlock())) {
+                                    return false;
+                                }
+                            }
+                            return true;
+                        }),
+                        any());
+    }
+
+    @Test
+    void actionsCallEvmRevertReturnsOkWithRevertPayload() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        final var reverted =
+                new ActionResponse().from("0x01").to("0x02").error("REVERT").revertReason("0x08c379a0");
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(List.of(reverted));
+
+        contractActionsCall(request)
+                .andExpect(status().isOk())
+                .andExpect(content().string(convert(List.of(reverted))));
+    }
+
+    @Test
+    void actionsCallTransactionFailureReturnsBadRequest() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        given(contractDebugService.processTraceCall(any(), any()))
+                .willThrow(new MirrorEvmTransactionException(
+                        ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND, "sender not found", "0x"));
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(convert(new GenericErrorResponse(
+                                ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND.name(), "sender not found", "0x"))));
+    }
+
+    @Test
+    void actionsCallRestoresRefundableGasWhenTraceStopsEarly() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        transaction(request).setGas(30_000L);
+        final var second = transaction();
+        second.setValue(0);
+        second.setGas(40_000L);
+        final var third = transaction();
+        third.setValue(0);
+        third.setGas(50_000L);
+        request.getBundles().add(bundleOf(second));
+        request.getBundles().add(bundleOf(third));
+        // The first two transactions run, then the second one fails. The service leaves their unused gas plus the
+        // whole gas limit of the third one as refundable.
+        final long refundableGas = 10_000L + 20_000L + 50_000L;
+        given(contractDebugService.processTraceCall(any(), any())).willAnswer(invocation -> {
+            invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
+            throw new MirrorEvmTransactionException(ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND, "sender not found", "0x");
+        });
+
+        contractActionsCall(request).andExpect(status().isBadRequest());
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
+    }
+
+    @Test
+    void actionsCallSerializesDeeplyNestedCalls() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        // The tracer retains at most ActionContext.MAX_DEPTH frames, so that is the deepest response to serialize.
+        var nested = new ActionResponse().from("0x1");
+        for (int i = 1; i < ActionContext.MAX_DEPTH; i++) {
+            nested = new ActionResponse().from("0x1").calls(List.of(nested));
+        }
+        given(contractDebugService.processTraceCall(any(), any())).willReturn(List.of(nested));
+
+        contractActionsCall(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void callAcceptsGasPriceSnakeCaseAlias() throws Exception {
+        given(service.processCall(any(), any())).willReturn("0x0");
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4","gas_price":100}
+                                """))
+                .andExpect(status().isOk());
+        verify(service).processCall(argThat(params -> params.getGasPrice() == 100L), any());
+    }
+
+    @Test
+    void actionsCallRejectsTooManyBundles() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        final var bundles = new ArrayList<ActionTraceBundle>();
+        for (int i = 0; i < ContractCallRequest.MAX_TRACE_TRANSACTIONS + 1; i++) {
+            bundles.add(bundleOf(transaction()));
+        }
+        request.setBundles(bundles);
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("bundles field size must be between 1 and %d"
+                                .formatted(ContractCallRequest.MAX_TRACE_TRANSACTIONS))));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallRejectsTooManyTransactions() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        final var transactions = new ArrayList<ContractCallRequest>();
+        for (int i = 0; i < ContractCallRequest.MAX_TRACE_TRANSACTIONS + 1; i++) {
+            transactions.add(transaction());
+        }
+        bundle(request).setTransactions(transactions);
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("bundles[0].transactions field size must be between 1 and %d"
+                                .formatted(ContractCallRequest.MAX_TRACE_TRANSACTIONS))));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallRejectsTransactionIndexBelowMinusOne() throws Exception {
+        enableActionsApi();
+        clearInvocations(throttleManager);
+        final var request = traceRequest();
+        transaction(request).setValue(0);
+        request.setTransactionIndex(-2);
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("transactionIndex")));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "{\"bundles\":[null]}",
+                "{\"bundles\":[{\"transactions\":[null]}]}",
+                "{\"bundles\":[{\"transactions\":[{}]}],\"state_overrides\":[null]}",
+                "{\"bundles\":[{\"transactions\":[{}]}],\"state_overrides\":[{\"address\":\"0x0000000000000000000000000000000000000001\",\"state\":[null]}]}"
+            })
+    void actionsCallRejectsNullElements(final String body) throws Exception {
+        enableActionsApi();
+        mockMvc.perform(post(ACTIONS_CALL_URI)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
+                        .content(body))
+                .andExpect(status().isBadRequest());
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @Test
+    void actionsCallRejectsTooManyTransactionsAcrossBundles() throws Exception {
+        enableActionsApi();
+        final var request = traceRequest();
+        final var bundles = new ArrayList<ActionTraceBundle>();
+        for (int i = 0; i < 8; i++) {
+            final var transactions = new ArrayList<ContractCallRequest>();
+            for (int j = 0; j < 3; j++) {
+                transactions.add(transaction());
+            }
+            final var bundle = new ActionTraceBundle();
+            bundle.setTransactions(transactions);
+            bundles.add(bundle);
+        }
+        request.setBundles(bundles);
+
+        contractActionsCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content()
+                        .string(new StringContains("transactions field size must be between 1 and %d"
+                                .formatted(ContractCallRequest.MAX_TRACE_TRANSACTIONS))));
+        verify(contractDebugService, never()).processTraceCall(any(), any());
     }
 
     @ValueSource(
@@ -552,7 +1416,7 @@ final class ContractControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"1", "1aa"})
+    @ValueSource(strings = {"1", "1aa", "0x1aa"})
     void callBadRequestWithInvalidHexData(String data) throws Exception {
         clearInvocations(throttleManager);
         final var request = request();
@@ -561,7 +1425,7 @@ final class ContractControllerTest {
 
         contractCall(request)
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string(new StringContains("Odd number of characters")));
+                .andExpect(content().string(new StringContains("data field invalid hexadecimal string")));
 
         verify(throttleManager, never()).throttle(any());
         verify(throttleManager, never()).restore(anyLong());
@@ -830,12 +1694,21 @@ final class ContractControllerTest {
     @CsvSource({
         "balance, \"0x1\"",
         "balance, \"abc\"",
+        "balance, \"100\"",
+        "balance, \"\"",
+        "balance, 1.5",
+        "balance, 1.0",
+        "balance, 1e2",
         "balance, 9223372036854775808",
         "balance, 18446744073709551615",
         "balance, true",
         "balance, []",
         "nonce, \"0x2a\"",
         "nonce, \"abc\"",
+        "nonce, \"5\"",
+        "nonce, \" 7 \"",
+        "nonce, 1.5",
+        "nonce, 1.0",
         "nonce, 9223372036854775808",
         "nonce, 18446744073709551615",
         "nonce, true",
@@ -994,6 +1867,7 @@ final class ContractControllerTest {
                 "prev_randao      | -1",
                 "prev_randao      | 18446744073709551615",
                 "time             | -1",
+                "time             | 9223372036",
                 "time             | []",
                 "time             | 1.5",
                 "time             | 1e2",
@@ -1071,6 +1945,19 @@ final class ContractControllerTest {
         verify(service, never()).processCall(any(), any());
     }
 
+    private static StateOverride balanceOverride(final String address, final long balance) {
+        final var override = new StateOverride();
+        override.setAddress(address);
+        override.setBalance(balance);
+        return override;
+    }
+
+    private static boolean isSingleTrace(final TraceCall call, final boolean onlyTopCall) {
+        return call.getBlock() == BlockType.LATEST
+                && call.isOnlyTopCall() == onlyTopCall
+                && call.getTransactions().size() == 1;
+    }
+
     private ContractCallRequest request() {
         final var request = new ContractCallRequest();
         request.setBlock(BlockType.LATEST);
@@ -1088,6 +1975,31 @@ final class ContractControllerTest {
                 {"to": "0x00000000000000000000000000000000000004e4",
                  "state_overrides": [{"address": "0x00000000000000000000000000000000000004e2", "%s": %s}]}
                 """.formatted(field, value);
+    }
+
+    private ActionTraceRequest traceRequest() {
+        final var request = new ActionTraceRequest();
+        request.setBlock(BlockType.LATEST);
+        request.setBundles(new ArrayList<>(List.of(bundleOf(transaction()))));
+        return request;
+    }
+
+    private ContractCallRequest transaction() {
+        return request();
+    }
+
+    private static ContractCallRequest transaction(final ActionTraceRequest request) {
+        return request.getBundles().getFirst().getTransactions().getFirst();
+    }
+
+    private static ActionTraceBundle bundle(final ActionTraceRequest request) {
+        return request.getBundles().getFirst();
+    }
+
+    private static ActionTraceBundle bundleOf(final ContractCallRequest transaction) {
+        final var bundle = new ActionTraceBundle();
+        bundle.setTransactions(new ArrayList<>(List.of(transaction)));
+        return bundle;
     }
 
     private String numberErrorString(String field, String direction, long num) {

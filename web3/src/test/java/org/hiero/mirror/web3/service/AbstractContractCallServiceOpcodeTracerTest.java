@@ -62,6 +62,9 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     @Resource
     protected CommonEntityAccessor commonEntityAccessor;
 
+    @Resource
+    private TransactionExecutorFactory transactionExecutorFactory;
+
     @Captor
     private ArgumentCaptor<ContractDebugParameters> paramsCaptor;
 
@@ -77,6 +80,9 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
     @BeforeEach
     void setUpArgumentCaptors() {
+        // Executors are built asynchronously at startup. Wait for them here so the first call in a fresh context does
+        // not spend its request timeout on that.
+        ContractCallContext.run(_ -> transactionExecutorFactory.get());
         doAnswer(invocation -> {
                     final var transactionProcessingResult = (EvmTransactionResult) invocation.callRealMethod();
                     resultCaptor = transactionProcessingResult;

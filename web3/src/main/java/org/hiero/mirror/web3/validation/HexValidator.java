@@ -28,12 +28,14 @@ public class HexValidator implements ConstraintValidator<Hex, String> {
         pattern = Pattern.compile("^(0[xX])?[0-9a-fA-F]{%d,%d}$".formatted(minLength, hex.maxLength()));
     }
 
+    /** A valid value encodes whole bytes, so it has an even number of hex digits after the optional prefix. */
     @Override
     public boolean isValid(String value, ConstraintValidatorContext context) {
         if (value == null || ((minLength == 0 || allowEmpty) && value.isEmpty())) {
             return true;
         }
 
-        return pattern.matcher(value).matches();
+        // The prefix has two characters, so the digit count has the same parity as the whole value.
+        return (value.length() & 1) == 0 && pattern.matcher(value).matches();
     }
 }

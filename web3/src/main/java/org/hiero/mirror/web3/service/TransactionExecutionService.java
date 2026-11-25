@@ -47,6 +47,7 @@ import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.ActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
@@ -74,13 +75,14 @@ public class TransactionExecutionService {
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
 
     private final AccountReadableKVState accountReadableKVState;
+    private final ActionTracer actionTracer;
     private final AliasesReadableKVState aliasesReadableKVState;
     private final CommonProperties commonProperties;
     private final ContractResultRepository contractResultRepository;
     private final ContractTransactionHashRepository contractTransactionHashRepository;
     private final EvmProperties evmProperties;
-    private final OpcodeActionTracer opcodeActionTracer;
     private final MirrorOperationActionTracer mirrorOperationActionTracer;
+    private final OpcodeActionTracer opcodeActionTracer;
     private final SystemEntity systemEntity;
     private final TransactionExecutorFactory transactionExecutorFactory;
 
@@ -191,20 +193,17 @@ public class TransactionExecutionService {
             // case.
             throw new MirrorEvmTransactionException(status, StringUtils.EMPTY, StringUtils.EMPTY);
         } else {
-            if (ContractCallContext.get().getOpcodeContext() == null) {
-                final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
-                var processingResult = new EvmTransactionResult(status, result);
-
-                final var errorMessageHex = processingResult.getErrorMessage().orElse(HEX_PREFIX);
-                final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessageHex);
-                throw new MirrorEvmTransactionException(
-                        status, detail, errorMessageHex, processingResult, childTransactionErrors);
-            } else {
-                // If we are in an opcode trace scenario, we need to return a failed result in order to get the
-                // opcode list from the ContractCallContext. If we throw an exception instead of returning a result,
-                // as in the regular case, we won't be able to get the opcode list.
+            if (shouldCollectTrace(ContractCallContext.get())) {
+                // Opcode and action traces need the failed result so collected data can be serialized.
                 return new EvmTransactionResult(status, result);
             }
+            var processingResult = new EvmTransactionResult(status, result);
+            final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
+
+            final var errorMessageHex = processingResult.getErrorMessage().orElse(HEX_PREFIX);
+            final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessageHex);
+            throw new MirrorEvmTransactionException(
+                    status, detail, errorMessageHex, processingResult, childTransactionErrors);
         }
     }
 
@@ -367,10 +366,19 @@ public class TransactionExecutionService {
         throw new MirrorEvmTransactionException(PAYER_ACCOUNT_NOT_FOUND, message, StringUtils.EMPTY);
     }
 
+    private boolean shouldCollectTrace(final ContractCallContext ctx) {
+        return ctx.getOpcodeContext() != null || ctx.getActionContext() != null;
+    }
+
     private ActionSidecarContentTracer[] getOperationTracers() {
-        return ContractCallContext.get().getOpcodeContext() != null
-                ? new ActionSidecarContentTracer[] {opcodeActionTracer}
-                : new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
+        final var ctx = ContractCallContext.get();
+        if (ctx.getOpcodeContext() != null) {
+            return new ActionSidecarContentTracer[] {opcodeActionTracer};
+        }
+        if (ctx.getActionContext() != null) {
+            return new ActionSidecarContentTracer[] {actionTracer};
+        }
+        return new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
     }
 
     private SequencedCollection<String> populateChildTransactionErrors(

@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.convert;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
+import org.apache.tuweni.bytes.Bytes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -47,5 +48,26 @@ class BytesDecoderTest {
     @Test
     void getAbiEncodedRevertReasonWithNullString() {
         assertThat(BytesDecoder.getAbiEncodedRevertReason(null)).isEqualTo(HEX_PREFIX);
+    }
+
+    @Test
+    void decodeErrorString() {
+        final var revertReason = Bytes.fromHexString(BytesDecoder.getAbiEncodedRevertReason("Custom revert message"));
+
+        assertThat(BytesDecoder.decodeErrorString(revertReason)).isEqualTo("Custom revert message");
+    }
+
+    @Test
+    void decodeErrorStringWithoutErrorSelector() {
+        assertThat(BytesDecoder.decodeErrorString(Bytes.fromHexString("0x1234567890")))
+                .isNull();
+        assertThat(BytesDecoder.decodeErrorString(Bytes.fromHexString("0x08c379a0")))
+                .isNull();
+    }
+
+    @Test
+    void decodeErrorStringWithInvalidPayload() {
+        assertThat(BytesDecoder.decodeErrorString(Bytes.fromHexString("0x08c379a0ff")))
+                .isEmpty();
     }
 }

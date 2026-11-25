@@ -71,6 +71,29 @@ class BlockInfoSingletonTest {
     }
 
     @Test
+    void getEndsAnOverriddenBlockAtTheLatestRepresentableTime() {
+        final var context = ContractCallContext.get();
+        final var longBlock = RecordFile.builder()
+                .consensusEnd(10_000_000_000L)
+                .consensusStart(0L)
+                .index(5L)
+                .build();
+        context.setBlockSupplier(() -> longBlock);
+        context.setBlockOverride(
+                BlockOverride.builder().time(BlockOverride.MAX_TIME).build());
+        final var timeNanos = BlockOverride.MAX_TIME * 1_000_000_000L;
+
+        assertThat(blockInfoSingleton.get())
+                .isEqualTo(BlockInfo.newBuilder()
+                        .blockHashes(Bytes.EMPTY)
+                        .consTimeOfLastHandledTxn(convertToTimestamp(Long.MAX_VALUE))
+                        .firstConsTimeOfCurrentBlock(convertToTimestamp(timeNanos))
+                        .lastBlockNumber(4L)
+                        .migrationRecordsStreamed(true)
+                        .build());
+    }
+
+    @Test
     void key() {
         assertThat(blockInfoSingleton.getStateId()).isEqualTo(BLOCKS_STATE_ID);
     }

@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.viewmodel;
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ADDRESS_LENGTH;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Builder;
@@ -45,9 +46,12 @@ public record BlockOverride(
 
         @Nullable @Positive Long gasLimit,
         @Nullable @PositiveOrZero Long prevRandao,
-        @Nullable @PositiveOrZero Long time) {
+        @Nullable @PositiveOrZero @Max(MAX_TIME) Long time) {
 
     public static final BlockOverride EMPTY = BlockOverride.builder().build();
+
+    /** Largest {@code time}, in Unix seconds. Its nanoseconds fit in a {@code long}, so it is never clamped. */
+    public static final long MAX_TIME = Long.MAX_VALUE / DomainUtils.NANOS_PER_SECOND - 1;
 
     /** Value returned by {@code COINBASE}, or null to keep the frame value. */
     public @Nullable Address feeRecipientAddress() {
