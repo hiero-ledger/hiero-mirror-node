@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.common.util;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Arrays;
 import lombok.experimental.UtilityClass;
 import org.bouncycastle.crypto.digests.KeccakDigest;
@@ -21,6 +23,25 @@ public final class SignatureUtils {
         final var curveParams = CustomNamedCurves.getByName("secp256k1");
         EC_DOMAIN_PARAMETERS = new ECDomainParameters(
                 curveParams.getCurve(), curveParams.getG(), curveParams.getN(), curveParams.getH());
+    }
+
+    /**
+     * Computes the keccak256 hash of the concatenation of the given byte arrays, e.g. for CLPR's commit-reveal
+     * commitment hashes ({@code keccak256(channel_id || public_key)}).
+     *
+     * @param parts the byte arrays to concatenate before hashing
+     * @return the 32-byte keccak256 digest
+     */
+    public static byte[] keccak256(byte[]... parts) {
+        final var digest = new KeccakDigest(256);
+        for (final var part : parts) {
+            requireNonNull(part, "part must not be null");
+            digest.update(part, 0, part.length);
+        }
+
+        final var hash = new byte[digest.getDigestSize()];
+        digest.doFinal(hash, 0);
+        return hash;
     }
 
     /**

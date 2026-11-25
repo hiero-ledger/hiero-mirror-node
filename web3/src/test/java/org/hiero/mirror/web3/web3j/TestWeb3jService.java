@@ -25,6 +25,7 @@ import lombok.SneakyThrows;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -180,7 +181,7 @@ public class TestWeb3jService implements Web3jService {
         if (useContractCallDeploy) {
             var serviceParameters =
                     serviceParametersForTopLevelContractCreate(rawTransaction.getData(), ETH_CALL, sender);
-            runtimeCode = contractExecutionService.processCall(serviceParameters);
+            runtimeCode = ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
         } else {
             runtimeCode = BytecodeUtils.extractRuntimeBytecode(rawTransaction.getData());
         }
@@ -211,7 +212,8 @@ public class TestWeb3jService implements Web3jService {
                 TRANSACTION_GAS_LIMIT,
                 sender);
 
-        final var mirrorNodeResult = contractExecutionService.processCall(serviceParameters);
+        final var mirrorNodeResult =
+                ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParameters, ctx));
         res.setResult(transactionHash);
         res.setRawResponse(mirrorNodeResult);
         res.setId(request.getId());
@@ -227,7 +229,8 @@ public class TestWeb3jService implements Web3jService {
 
         // First get the transaction result
         final var serviceParametersForCall = serviceParametersForExecutionSingle(transaction, ETH_CALL, blockType);
-        final var result = contractExecutionService.processCall(serviceParametersForCall);
+        final var result =
+                ContractCallContext.run(ctx -> contractExecutionService.processCall(serviceParametersForCall, ctx));
         transactionResult = result;
 
         // estimate gas is not supported for historical blocks so we ignore the estimate gas logic in historical context
@@ -235,7 +238,8 @@ public class TestWeb3jService implements Web3jService {
             // Then get the estimated gas
             final var serviceParametersForEstimate =
                     serviceParametersForExecutionSingle(transaction, ETH_ESTIMATE_GAS, blockType);
-            estimatedGas = () -> contractExecutionService.processCall(serviceParametersForEstimate);
+            estimatedGas = () -> ContractCallContext.run(
+                    ctx -> contractExecutionService.processCall(serviceParametersForEstimate, ctx));
         }
 
         final var ethCall = new EthCall();

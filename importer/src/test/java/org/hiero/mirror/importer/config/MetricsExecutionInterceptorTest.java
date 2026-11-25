@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.config.MetricsExecutionInterceptor.ACTION_LIST;
 import static org.hiero.mirror.importer.config.MetricsExecutionInterceptor.METRIC_DOWNLOAD_REQUEST;
-import static org.hiero.mirror.importer.config.MetricsExecutionInterceptor.QUERY_START_AFTER;
 import static org.hiero.mirror.importer.config.MetricsExecutionInterceptor.TAG_ACTION;
 import static org.hiero.mirror.importer.config.MetricsExecutionInterceptor.TAG_METHOD;
 import static org.hiero.mirror.importer.config.MetricsExecutionInterceptor.TAG_NODE;
@@ -42,12 +41,12 @@ import software.amazon.awssdk.http.SdkHttpResponse;
  * the S3 activity being intercepted. No other verification of MetricsExecutionInterceptor is performed at this time.
  */
 @ExtendWith(MockitoExtension.class)
-class MetricsExecutionInterceptorTest {
+final class MetricsExecutionInterceptorTest {
 
     private static final int HTTP_STATUS_SUCCESS = 200;
     private static final String S3_REGION = "us-west-1";
     private static final String S3_BUCKET = "hedera-bucket";
-    private static final String S3_HOST = "https://%s.s3.%s.amazonaws.com/".formatted(S3_BUCKET, S3_REGION);
+    private static final String S3_HOST = "%s.s3.%s.amazonaws.com".formatted(S3_BUCKET, S3_REGION);
     private static final String SEPARATOR = "/";
     private static final String SHARD = "0";
     private static final String REALM = "0";
@@ -89,6 +88,27 @@ class MetricsExecutionInterceptorTest {
 
         metricsExecutionInterceptor.afterExecution(afterExecutionContext, executionAttributes);
         verifyTimerTags(ACTION_LIST, NODE_ID, StreamType.RECORD);
+    }
+
+    @Test
+    void s3ListExecutionBlockBucketRoot() {
+        final var sdkHttpRequest = SdkHttpRequest.builder()
+                .protocol("https")
+                .host(S3_HOST)
+                .method(SdkHttpMethod.GET)
+                .encodedPath("/")
+                .appendRawQueryParameter("list-type", "2")
+                .appendRawQueryParameter("delimiter", SEPARATOR)
+                .appendRawQueryParameter("max-keys", BATCH_SIZE)
+                .build();
+
+        when(afterExecutionContext.httpResponse()).thenReturn(sdkHttpResponse);
+        when(sdkHttpResponse.statusCode()).thenReturn(HTTP_STATUS_SUCCESS);
+        when(afterExecutionContext.httpRequest()).thenReturn(sdkHttpRequest);
+
+        metricsExecutionInterceptor.beforeTransmission(beforeTransmissionContext, executionAttributes);
+        metricsExecutionInterceptor.afterExecution(afterExecutionContext, executionAttributes);
+        verifyTimerTags(ACTION_LIST, "cloud", StreamType.BLOCK);
     }
 
     @ParameterizedTest
@@ -183,7 +203,7 @@ class MetricsExecutionInterceptorTest {
                 .appendRawQueryParameter("delimiter", SEPARATOR)
                 .appendRawQueryParameter("max-keys", BATCH_SIZE)
                 .appendRawQueryParameter("prefix", prefix)
-                .appendRawQueryParameter(QUERY_START_AFTER, prefix + startAfter)
+                .appendRawQueryParameter("start-after", prefix + startAfter)
                 .build();
     }
 

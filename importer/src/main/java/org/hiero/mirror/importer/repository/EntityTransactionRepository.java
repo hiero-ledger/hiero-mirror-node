@@ -12,6 +12,8 @@ public interface EntityTransactionRepository
 
     @Modifying
     @Override
-    @Query("delete from EntityTransaction where consensusTimestamp <= :consensusTimestamp")
+    @Query(
+            value = "delete from entity_transaction where consensus_timestamp <= :consensusTimestamp",
+            nativeQuery = true)
     int prune(long consensusTimestamp);
 }

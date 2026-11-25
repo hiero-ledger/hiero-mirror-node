@@ -23,7 +23,9 @@ public class BinaryGasEstimator {
         int iterationsMade = 0;
         long totalGasUsed = 0;
 
-        // Limit search precision separately from the safety margin applied to the successful upper bound below.
+        // Stop once a successful probe is close to the previous one. Any slack left between hi and the true minimum
+        // adds
+        // to the 5% safety margin below, so the threshold must stay small.
         final long estimateIterationThreshold = (long) (lo * properties.getEstimateGasIterationThresholdPercent());
 
         final var contractCallContext = ContractCallContext.get();

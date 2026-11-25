@@ -86,6 +86,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         final byte[] rootHash = context.getBlockRootHashDigest().digest(blockHeader.getBlockTimestamp(), blockFooter);
         final var blockFile = blockFileBuilder
+                .digestAlgorithm(DigestAlgorithm.SHA_256)
                 .hash(Hex.encodeHexString(rootHash))
                 .rawHash(rootHash)
                 .build();
@@ -120,18 +121,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             recordFile.setWrappedRecordBlockHash(rootHash);
 
             readInitialState(context, recordFile);
-        }
-
-        if (rootHash.length == DigestAlgorithm.SHA_256.getSize()) {
-            blockFile.setDigestAlgorithm(DigestAlgorithm.SHA_256);
-        } else if (rootHash.length == DigestAlgorithm.SHA_384.getSize()) {
-            blockFile.setDigestAlgorithm(DigestAlgorithm.SHA_384);
-        } else {
-            log.warn(
-                    "Unsupported root hash size {} in block {}, default to SHA-256",
-                    rootHash.length,
-                    blockFile.getName());
-            blockFile.setDigestAlgorithm(DigestAlgorithm.SHA_256);
         }
 
         return blockFile;

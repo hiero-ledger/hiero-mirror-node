@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 
 import com.google.common.collect.Range;
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +17,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FileUtils;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
@@ -133,7 +133,7 @@ class MissingEvmAddressMigrationTest extends ImporterIntegrationTest {
                 contract.getRealm(),
                 contract.getShard(),
                 contract.getType().toString(),
-                PostgreSQLGuavaRangeType.INSTANCE.asString(contract.getTimestampRange()));
+                RangeUtils.rangeToString(contract.getTimestampRange()));
     }
 
     private MigrationContract persistCurrentContract(MigrationContract contract, boolean clearEvmAddress) {

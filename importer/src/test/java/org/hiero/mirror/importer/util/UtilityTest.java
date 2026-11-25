@@ -133,6 +133,26 @@ public class UtilityTest {
                 () -> assertEquals(instant.getNano(), test.getNanos()));
     }
 
+    @ParameterizedTest
+    @CsvSource({
+        "0,0",
+        "32767,32767",
+        "-32768,-32768",
+        "32768,32767",
+        "-32769,-32768",
+        "2147483647,32767",
+        "-2147483648,-32768"
+    })
+    void toSmallint(int value, int expected) {
+        assertThat(Utility.toSmallint("test field", value)).isEqualTo(expected);
+    }
+
+    @Test
+    void toSmallintLogsRecoverableErrorWhenOutOfRange(CapturedOutput capturedOutput) {
+        assertThat(Utility.toSmallint("test field", Integer.MAX_VALUE)).isEqualTo(Short.MAX_VALUE);
+        assertThat(capturedOutput.getAll()).contains("test field").contains(String.valueOf(Integer.MAX_VALUE));
+    }
+
     @ParameterizedTest(name = "Convert {0} to snake case")
     @CsvSource({",", "\"\",\"\"", "Foo,foo", "FooBar,foo_bar", "foo_bar,foo_bar"})
     void toSnakeCase(String input, String output) {

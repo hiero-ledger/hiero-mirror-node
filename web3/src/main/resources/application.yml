@@ -72,12 +72,15 @@ management:
 server:
   compression:
     enabled: true
-  forward-headers-strategy: framework # Enable spring ForwardedHeaderFilter
   http2:
     enabled: true
   max-http-request-header-size: 3KB
   port: 8545
   shutdown: graceful
+  request:
+    header:
+      forwarded:
+        strategy: framework #Enable spring ForwardedHeaderFilter
   tomcat:
     connection-timeout: 3s
     keep-alive-timeout: 620s
@@ -104,6 +107,12 @@ spring:
       minimum-idle: 4
       validation-timeout: 3000
   jackson:
+    deserialization:
+      accept-float-as-int: false
+      fail-on-unknown-properties: true
+    mapper:
+      allow-coercion-of-scalars: false
+    property-naming-strategy: SNAKE_CASE
     use-jackson2-defaults: true
   jpa:
     database: PostgreSQL

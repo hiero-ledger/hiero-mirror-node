@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -37,6 +39,7 @@ import org.hiero.mirror.importer.reader.record.sidecar.SidecarFileReaderImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.springframework.boot.test.system.CapturedOutput;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 
@@ -120,6 +123,19 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
                             .allMatch(sidecar -> sidecarProperties.isPersistBytes() ^ (sidecar.getBytes() == null)));
         };
         super.verifyStreamFiles(files, recordAssert.andThen(extraAssert));
+    }
+
+    @Test
+    void lastRecordFileIsBlock(final CapturedOutput output) {
+        fileCopier.copy();
+        final var blockFile = new RecordFile();
+        blockFile.setName("0000000000000000100.blk");
+        doReturn(Optional.of(blockFile)).when(cutoverService).getLastRecordFile();
+
+        downloader.download();
+
+        verifyUnsuccessful();
+        assertThat(output).contains("Last stream file 0000000000000000100.blk is of type BLOCK, expected RECORD");
     }
 
     @Test

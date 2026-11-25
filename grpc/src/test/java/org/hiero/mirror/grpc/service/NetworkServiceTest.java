@@ -22,12 +22,12 @@ import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.exception.SubscriptionLimitException;
 import org.hiero.mirror.grpc.exception.SubscriptionTimeoutException;
 import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
-import org.hiero.mirror.grpc.repository.NodeStakeRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.jdbc.core.JdbcOperations;
 import reactor.test.StepVerifier;
 
 @RequiredArgsConstructor
@@ -39,8 +39,8 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     private final AddressBookEntryRepository addressBookEntryRepository;
     private final AddressBookProperties addressBookProperties;
     private final DomainBuilder domainBuilder;
+    private final JdbcOperations jdbcOperations;
     private final NetworkService networkService;
-    private final NodeStakeRepository nodeStakeRepository;
 
     private int maxConcurrent;
     private Duration pageDelay;
@@ -251,7 +251,8 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
 
-        addressBookEntryRepository.deleteAll();
+        // Delete with SQL, since Spring Data JPA skips deleting entities that are always new
+        jdbcOperations.update("delete from address_book_entry");
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
     }
@@ -313,7 +314,8 @@ class NetworkServiceTest extends GrpcIntegrationTest {
                 .build();
         assertThat(getNodes(filter)).containsExactly(addressBookEntry);
 
-        nodeStakeRepository.deleteAll();
+        // Keep the latest node stake timestamp, so only the cached stake can still be returned
+        jdbcOperations.update("update node_stake set stake = 0");
 
         assertThat(getNodes(filter)).containsExactly(addressBookEntry);
     }

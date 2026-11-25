@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.util;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
@@ -31,5 +32,11 @@ public final class SpelHelper {
 
     public Bytes getCacheKey(byte[] value) {
         return value == null ? Bytes.EMPTY : Bytes.wrap(value);
+    }
+
+    // A List's equals/hashCode compares its elements positionally, so this can't collide the way concatenating the
+    // two arrays into a single Bytes could if their lengths varied.
+    public List<Bytes> getCacheKey(byte[] first, byte[] second) {
+        return List.of(getCacheKey(first), getCacheKey(second));
     }
 }

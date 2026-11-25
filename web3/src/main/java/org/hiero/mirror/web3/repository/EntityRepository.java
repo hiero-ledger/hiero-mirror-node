@@ -3,9 +3,11 @@
 package org.hiero.mirror.web3.repository;
 
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_ENTITY;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_HISTORICAL;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_ACCOUNT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_ALIAS;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_ENTITY;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_EVM_ADDRESS;
 
 import java.util.Collection;
@@ -63,6 +65,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
+    @Cacheable(cacheNames = CACHE_NAME_EVM_ADDRESS, cacheManager = CACHE_MANAGER_HISTORICAL, sync = true)
     @Query(value = """
             with entity_cte as (
                 select id
@@ -105,6 +108,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
+    @Cacheable(cacheNames = CACHE_NAME_ALIAS, cacheManager = CACHE_MANAGER_HISTORICAL, sync = true)
     @Query(value = """
             with entity_cte as (
                 select id
@@ -188,6 +192,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
+    @Cacheable(cacheNames = CACHE_NAME_ENTITY, cacheManager = CACHE_MANAGER_HISTORICAL, sync = true)
     @Query(value = """
                     (
                         select *

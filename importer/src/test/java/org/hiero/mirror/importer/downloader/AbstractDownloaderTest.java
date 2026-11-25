@@ -5,9 +5,11 @@ package org.hiero.mirror.importer.downloader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.domain.StreamFileSignature.SignatureStatus.CONSENSUS_REACHED;
 import static org.hiero.mirror.importer.domain.StreamFileSignature.SignatureStatus.NOT_FOUND;
+import static org.hiero.mirror.importer.domain.StreamFileSignature.SignatureStatus.VERIFIED;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.SIGNATURE;
 import static org.hiero.mirror.importer.downloader.Downloader.SIGNATURE_VERIFICATION_METRIC_NAME;
+import static org.hiero.mirror.importer.downloader.Downloader.STREAM_VERIFICATION_METRIC_NAME;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mock.Strictness.LENIENT;
@@ -21,6 +23,7 @@ import com.google.common.collect.Iterables;
 import com.hederahashgraph.api.proto.java.NodeAddressBook;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -84,6 +87,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.ResourceUtils;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
@@ -91,7 +96,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 @CustomLog
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
 
     private static final Pattern STREAM_FILENAME_INSTANT_PATTERN =
@@ -280,6 +285,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
                         key(1, CONSENSUS_REACHED), 2.0,
                         key(2, CONSENSUS_REACHED), 2.0,
                         key(3, CONSENSUS_REACHED), 2.0));
+        assertThat(streamVerificationCounts()).containsExactlyInAnyOrderEntriesOf(Map.of(true, 2L));
     }
 
     @Test
@@ -374,7 +380,12 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
         verifyUnsuccessful();
-        assertThat(signatureStatusCounts()).isEmpty();
+        assertThat(signatureStatusCounts())
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        key(0, VERIFIED), 2.0,
+                        key(1, NOT_FOUND), 2.0,
+                        key(2, NOT_FOUND), 2.0));
+        assertThat(streamVerificationCounts()).containsExactlyInAnyOrderEntriesOf(Map.of(false, 2L));
     }
 
     @Test
@@ -384,6 +395,8 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
         verifyUnsuccessful();
+        assertThat(signatureStatusCounts()).isEmpty();
+        assertThat(streamVerificationCounts()).isEmpty();
     }
 
     @Test
@@ -393,7 +406,28 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
         verifyUnsuccessful();
-        assertThat(signatureStatusCounts()).isEmpty();
+        assertThat(signatureStatusCounts())
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        key(0, CONSENSUS_REACHED), 2.0,
+                        key(1, CONSENSUS_REACHED), 2.0,
+                        key(2, CONSENSUS_REACHED), 2.0,
+                        key(3, CONSENSUS_REACHED), 2.0));
+        assertThat(streamVerificationCounts()).containsExactlyInAnyOrderEntriesOf(Map.of(false, 2L));
+    }
+
+    @Test
+    @DisplayName("Last stream file is of a different stream type")
+    void lastStreamFileTypeMismatch(final CapturedOutput output) {
+        fileCopier.copy();
+        final var streamFile = streamType.newStreamFile();
+        streamFile.setName("0000000000000000100.blk");
+        doReturn(Optional.of(streamFile)).when(dateRangeProcessor).getLastStreamFile(streamType);
+
+        downloader.download();
+
+        verifyUnsuccessful();
+        assertThat(output)
+                .contains("Last stream file 0000000000000000100.blk is of type BLOCK, expected " + streamType);
     }
 
     @Test
@@ -403,7 +437,13 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
         verifyUnsuccessful();
-        assertThat(signatureStatusCounts()).isEmpty();
+        assertThat(signatureStatusCounts())
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        key(0, VERIFIED), 2.0,
+                        key(1, NOT_FOUND), 2.0,
+                        key(2, NOT_FOUND), 2.0,
+                        key(3, NOT_FOUND), 2.0));
+        assertThat(streamVerificationCounts()).containsExactlyInAnyOrderEntriesOf(Map.of(false, 2L));
     }
 
     @Test
@@ -452,7 +492,8 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
                 .hasSizeGreaterThan(0)
                 .allMatch(this::isStreamFile)
                 .allMatch(s -> {
-                    var relativePath = s.toString().replace(streamPath.toString(), "");
+                    var relativePath =
+                            s.toString().replace(streamPath.toString(), "").replace('\\', '/');
                     return archivedFilePathPredicate.test(relativePath);
                 });
     }
@@ -864,5 +905,10 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
                                 Long.parseLong(c.getId().getTag("node")),
                                 SignatureStatus.valueOf(c.getId().getTag("status"))),
                         Counter::count));
+    }
+
+    private Map<Boolean, Long> streamVerificationCounts() {
+        return meterRegistry.find(STREAM_VERIFICATION_METRIC_NAME).tag("type", streamType.toString()).timers().stream()
+                .collect(Collectors.toMap(t -> Boolean.parseBoolean(t.getId().getTag("success")), Timer::count));
     }
 }

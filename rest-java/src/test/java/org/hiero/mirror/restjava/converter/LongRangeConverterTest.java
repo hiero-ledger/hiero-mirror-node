@@ -4,7 +4,7 @@ package org.hiero.mirror.restjava.converter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
+import org.hiero.mirror.common.util.RangeUtils;
 import org.jooq.postgres.extensions.types.LongRange;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -21,7 +21,7 @@ class LongRangeConverterTest {
     @ParameterizedTest
     void convert(Long lower, boolean lowerInclusive, Long upper, boolean upperInclusive, String expected) {
         var longRange = LongRange.longRange(lower, lowerInclusive, upper, upperInclusive);
-        var expectedRange = PostgreSQLGuavaRangeType.longRange(expected);
+        var expectedRange = RangeUtils.rangeLong(expected);
         assertThat(LongRangeConverter.INSTANCE.convert(longRange)).isEqualTo(expectedRange);
     }
 }

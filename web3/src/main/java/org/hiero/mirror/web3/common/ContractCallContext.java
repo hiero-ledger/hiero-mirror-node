@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -19,6 +20,7 @@ import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 
@@ -36,13 +38,13 @@ public class ContractCallContext {
     private final Set<Long> missingBlockIndexes = new HashSet<>();
 
     @Getter(AccessLevel.NONE)
-    private final Map<Integer, Map<Object, Object>> readCache = new HashMap<>();
+    private final StateCaches readCache = new StateCaches();
 
     @Getter
     private final long startTime = System.currentTimeMillis();
 
     @Getter(AccessLevel.NONE)
-    private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
+    private final StateCaches writeCache = new StateCaches();
 
     /**
      * Optional API endpoint used to resolve a per-endpoint request timeout.
@@ -55,6 +57,9 @@ public class ContractCallContext {
 
     @Setter
     private CallServiceParameters callServiceParameters;
+
+    @Setter
+    private long refundableGas;
 
     @Setter
     private EntityNumber entityNumber;
@@ -91,6 +96,13 @@ public class ContractCallContext {
      */
     @Setter
     private long traceDataBytes;
+
+    /**
+     * The current {@code block_override}. {@link BlockOverride#EMPTY} keeps the bound record file's block header and the
+     * message frame values.
+     */
+    @Setter
+    private BlockOverride blockOverride = BlockOverride.EMPTY;
 
     private ContractCallContext() {}
 
@@ -176,14 +188,46 @@ public class ContractCallContext {
     }
 
     public Map<Object, Object> getReadCacheState(final int stateId) {
-        return readCache.computeIfAbsent(stateId, _ -> new HashMap<>());
+        return readCache.get(stateId);
     }
 
     public Map<Object, Object> getWriteCacheState(final int stateId) {
-        return writeCache.computeIfAbsent(stateId, _ -> new HashMap<>());
+        return writeCache.get(stateId);
     }
 
     public RecordFile getRecordFile() {
         return blockSupplier.get();
+    }
+
+    /**
+     * The cache of each state for one request. A state is looked up on every read and write of the state, and nearly
+     * all state IDs are small, so those are found by index and only the few large ones in a map.
+     */
+    private static final class StateCaches {
+
+        private static final int INDEXED_STATE_IDS = 128;
+
+        @SuppressWarnings("unchecked")
+        private final Map<Object, Object>[] indexed = new Map[INDEXED_STATE_IDS];
+
+        private final Map<Integer, Map<Object, Object>> others = new HashMap<>();
+
+        void clear() {
+            Arrays.fill(indexed, null);
+            others.clear();
+        }
+
+        Map<Object, Object> get(final int stateId) {
+            if (stateId < 0 || stateId >= INDEXED_STATE_IDS) {
+                return others.computeIfAbsent(stateId, _ -> new HashMap<>());
+            }
+
+            var cache = indexed[stateId];
+            if (cache == null) {
+                cache = new HashMap<>();
+                indexed[stateId] = cache;
+            }
+            return cache;
+        }
     }
 }

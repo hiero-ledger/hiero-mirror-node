@@ -11,8 +11,6 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERRO
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.longValueOf;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
@@ -30,16 +28,18 @@ import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallServiceTest {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final V0490FileSchema FILE_SCHEMA = new V0490FileSchema();
+    private static final JsonMapper JSON_MAPPER = JsonMapper.shared();
     private static final JsonNode DYNAMIC_TRANSFER_TO_STAKING_REWARDS_ACCOUNT =
             loadFixture("transfer-to-staking-reward-account-previewnet-state.json");
     private static final byte[] PREVIEWNET_SIMPLE_FEE_SCHEDULE =
@@ -56,14 +56,16 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
         final var request = DYNAMIC_TRANSFER_TO_STAKING_REWARDS_ACCOUNT.get("request");
         final long gasUsed =
                 DYNAMIC_TRANSFER_TO_STAKING_REWARDS_ACCOUNT.get("gas_used").asLong();
-        final var block = BlockType.of(request.get("block").asText());
-        final long estimated = longValueOf.applyAsLong(contractExecutionService.processCall(estimateParameters(
+        final var block = BlockType.of(request.get("block").asString());
+        final var params = estimateParameters(
                 block,
-                request.get("data").asText(),
-                Address.fromHexString(request.get("from").asText()),
-                Address.fromHexString(request.get("to").asText()),
+                request.get("data").asString(),
+                Address.fromHexString(request.get("from").asString()),
+                Address.fromHexString(request.get("to").asString()),
                 request.path("value").asLong(0L),
-                request.get("gas").asLong())));
+                request.get("gas").asLong());
+        final long estimated = longValueOf.applyAsLong(
+                ContractCallContext.run(ctx -> contractExecutionService.processCall(params, ctx)));
 
         assertThat(isWithinExpectedGasRange(estimated, gasUsed))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimated, gasUsed)
@@ -75,14 +77,16 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
         persistCreateState(CONTRACT_CREATE_WITH_INITIAL_VALUE);
         final var request = CONTRACT_CREATE_WITH_INITIAL_VALUE.get("request");
         final long gasUsed = CONTRACT_CREATE_WITH_INITIAL_VALUE.get("gas_used").asLong();
-        final var block = BlockType.of(request.get("block").asText());
-        final long estimated = longValueOf.applyAsLong(contractExecutionService.processCall(estimateParameters(
+        final var block = BlockType.of(request.get("block").asString());
+        final var params = estimateParameters(
                 block,
-                request.get("data").asText(),
-                Address.fromHexString(request.get("from").asText()),
+                request.get("data").asString(),
+                Address.fromHexString(request.get("from").asString()),
                 Address.ZERO,
                 request.path("value").asLong(0L),
-                request.get("gas").asLong())));
+                request.get("gas").asLong());
+        final long estimated = longValueOf.applyAsLong(
+                ContractCallContext.run(ctx -> contractExecutionService.processCall(params, ctx)));
 
         assertThat(isWithinExpectedGasRange(estimated, gasUsed))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimated, gasUsed)
@@ -113,7 +117,7 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
     private void persistPreviewnetState(final JsonNode fixture) {
         persistNetworkState(fixture, PREVIEWNET_SIMPLE_FEE_SCHEDULE);
         final var block = fixture.get("block");
-        final long stateTimestamp = timestampToNanos(block.get("timestamp_from").asText()) - 1L;
+        final long stateTimestamp = timestampToNanos(block.get("timestamp_from").asString()) - 1L;
         for (final var contract : fixture.get("contracts")) {
             persistContract(contract, stateTimestamp);
         }
@@ -125,17 +129,12 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
 
     private void persistNetworkState(final JsonNode fixture, final byte[] simpleFeeSchedule) {
         final var block = fixture.get("block");
-        final long consensusStart = timestampToNanos(block.get("timestamp_from").asText());
-        final long consensusEnd = timestampToNanos(block.get("timestamp_to").asText());
+        final long consensusStart = timestampToNanos(block.get("timestamp_from").asString());
+        final long consensusEnd = timestampToNanos(block.get("timestamp_to").asString());
         final long stateTimestamp = consensusStart - 1L;
 
         persistSystemFile(systemEntity.exchangeRateFile(), exchangeRateBytes(fixture.get("exchange_rate")), 1L);
-        persistSystemFile(
-                systemEntity.feeScheduleFile(),
-                FILE_SCHEMA
-                        .genesisFeeSchedules(evmProperties.getVersionedConfiguration())
-                        .toByteArray(),
-                2L);
+        persistSystemFile(systemEntity.feeScheduleFile(), Bytes.EMPTY.toByteArray(), 2L);
         persistSystemFile(systemEntity.simpleFeeScheduleFile(), simpleFeeSchedule, 3L);
         persistSystemFile(systemEntity.throttleDefinitionFile(), throttleDefinitionBytes(), 4L);
 
@@ -150,8 +149,8 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
                 .customize(f -> f.index(block.get("number").asLong())
                         .consensusStart(consensusStart)
                         .consensusEnd(consensusEnd)
-                        .hash(block.get("hash").asText())
-                        .previousHash(block.get("previous_hash").asText()))
+                        .hash(block.get("hash").asString())
+                        .previousHash(block.get("previous_hash").asString()))
                 .persist();
 
         for (final var account : fixture.get("accounts")) {
@@ -161,8 +160,8 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
     }
 
     private void persistContract(final JsonNode contract, final long stateTimestamp) {
-        final var contractId = configuredEntityId(contract.get("account").asText());
-        final var evmAddress = hexToBytes(contract.get("evm_address").asText());
+        final var contractId = configuredEntityId(contract.get("account").asString());
+        final var evmAddress = hexToBytes(contract.get("evm_address").asString());
         final long balance = contract.path("balance").asLong(0L);
         domainBuilder
                 .entity(contractId)
@@ -182,7 +181,7 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
                 .contract()
                 .customize(c -> c.id(contractId.getId())
                         .runtimeBytecode(loadHexResource(
-                                contract.get("runtime_bytecode_file").asText())))
+                                contract.get("runtime_bytecode_file").asString())))
                 .persist();
         persistAccountBalance(contractId, balance, stateTimestamp);
         persistHistoricalContractSlots(contractId, contract.path("slots"), stateTimestamp);
@@ -194,16 +193,14 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
             return;
         }
         final var rows = new ArrayList<Object[]>(slots.size());
-        final var fields = slots.fields();
-        while (fields.hasNext()) {
-            final var slot = fields.next();
+        for (final var slot : slots.properties()) {
             final var key =
                     Bytes32.wrap(hexToBytes(slot.getKey())).trimLeadingZeros().toArrayUnsafe();
             rows.add(new Object[] {
                 stateTimestamp,
                 contractId.getId(),
                 key,
-                hexToBytes(slot.getValue().asText()),
+                hexToBytes(slot.getValue().asString()),
                 contractId.getId()
             });
         }
@@ -215,11 +212,11 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
     }
 
     private EntityId persistAccount(final JsonNode account, final long createdTimestamp) {
-        final var entityId = configuredEntityId(account.get("account").asText());
+        final var entityId = configuredEntityId(account.get("account").asString());
         final var evmAddress = account.has("evm_address")
-                ? hexToBytes(account.get("evm_address").asText())
+                ? hexToBytes(account.get("evm_address").asString())
                 : null;
-        final var rawKey = hexToBytes(account.path("key").asText(""));
+        final var rawKey = hexToBytes(account.path("key").asString(""));
         final byte[] key = rawKey.length == 33
                 ? Key.newBuilder()
                         .setECDSASecp256K1(ByteString.copyFrom(rawKey))
@@ -312,7 +309,7 @@ class GasAccuracyEstimateWithProductionStateTest extends AbstractContractCallSer
 
     private static JsonNode loadFixture(final String filename) {
         try (final var in = resourceStream(filename)) {
-            return OBJECT_MAPPER.readTree(in);
+            return JSON_MAPPER.readTree(in);
         } catch (final Exception e) {
             throw new ExceptionInInitializerError(e);
         }

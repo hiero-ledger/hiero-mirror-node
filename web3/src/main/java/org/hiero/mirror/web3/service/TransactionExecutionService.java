@@ -22,6 +22,7 @@ import com.hedera.hapi.node.contract.ContractCreateTransactionBody;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.contract.EthereumTransactionBody;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
+import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
@@ -61,6 +62,7 @@ import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hyperledger.besu.datatypes.Address;
+import org.jspecify.annotations.Nullable;
 
 @Named
 @CustomLog
@@ -252,6 +254,7 @@ public class TransactionExecutionService {
     }
 
     private Instant getConsensusTimeFromContext() {
+        // block_override.time changes only the EVM block header. Entity expiry and state reads follow this instant.
         return ContractCallContext.get()
                 .getTimestamp()
                 .map(Utils::convertToInstant)
@@ -282,7 +285,7 @@ public class TransactionExecutionService {
         }
         final long nonce = populateEthTxData(params.getEthereumData()).nonce();
         final var senderId = getSenderAccountIDAsNum(params.getSender());
-        final var account = accountReadableKVState.get(senderId);
+        final var account = getAccount(senderId);
         if (account != null && account.ethereumNonce() != nonce) {
             final var writableCache = ContractCallContext.get().getWriteCacheState(AccountReadableKVState.STATE_ID);
             writableCache.put(
@@ -297,6 +300,19 @@ public class TransactionExecutionService {
                 .build();
     }
 
+    /**
+     * Returns the account as this request has written it so far, which includes what its earlier transactions
+     * committed, and otherwise as the readable state provides it. The sender is copied into the write cache from this
+     * value, so the copy does not undo those writes.
+     */
+    private @Nullable Account getAccount(final AccountID accountId) {
+        final var writeCache = ContractCallContext.get().getWriteCacheState(AccountReadableKVState.STATE_ID);
+        if (writeCache.containsKey(accountId)) {
+            return (Account) writeCache.get(accountId);
+        }
+        return accountReadableKVState.get(accountId);
+    }
+
     private AccountID getSenderAccountID(final CallServiceParameters params) {
         // Set a default account to keep the sender parameter optional.
         if (params.getSender().getBytes().isZero() && params.getValue() == 0L) {
@@ -305,7 +321,7 @@ public class TransactionExecutionService {
         final var senderAddress = params.getSender();
         final var accountIDNum = getSenderAccountIDAsNum(senderAddress);
 
-        final var account = accountReadableKVState.get(accountIDNum);
+        final var account = getAccount(accountIDNum);
         if (account == null) {
             throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
         } else if (account.smartContract()) {
