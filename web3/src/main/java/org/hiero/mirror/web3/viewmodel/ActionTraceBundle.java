@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.viewmodel;
 
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_TRANSACTIONS;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import jakarta.validation.Valid;
@@ -20,7 +19,6 @@ import org.jspecify.annotations.NullMarked;
  * request state override stays in place for the whole trace, while the block override applies to this bundle only.
  */
 @Data
-@JsonIgnoreProperties(ignoreUnknown = true)
 @NullMarked
 public class ActionTraceBundle {
 

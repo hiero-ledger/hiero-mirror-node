@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.viewmodel;
 
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.MAX_TRACE_TRANSACTIONS;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import jakarta.validation.Valid;
@@ -26,7 +25,6 @@ import tools.jackson.databind.annotation.JsonSerialize;
  * its root call and omits nested actions. State changes from earlier bundles stay visible to later bundles.
  */
 @Data
-@JsonIgnoreProperties(ignoreUnknown = true)
 @NullMarked
 public class ActionTraceRequest {
 

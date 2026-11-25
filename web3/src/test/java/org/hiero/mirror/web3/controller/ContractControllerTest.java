@@ -608,18 +608,44 @@ final class ContractControllerTest {
                 """);
     }
 
-    @Test
-    void actionsCallIgnoresRemovedTimeoutField() throws Exception {
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "\"blockOverride\":{\"time\":1}",
+                "\"block_override\":{\"blockNumber\":1}",
+                "\"stateOverrides\":[]",
+                "\"unknown\":1",
+            })
+    void actionsCallRejectsUnknownBundleField(final String field) throws Exception {
         enableActionsApi();
-        given(contractDebugService.processTraceCall(any(), any())).willReturn(TRACE_RESPONSES);
         final var body = """
-                {"timeout": "1ms",
-                 "bundles": [{"transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
-                """;
+                {"bundles": [{%s, "transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """.formatted(field);
 
-        contractActionsCall(body).andExpect(status().isOk());
+        contractActionsCall(body).andExpect(status().isBadRequest());
 
-        verify(contractDebugService).processTraceCall(any(), any());
+        verify(contractDebugService, never()).processTraceCall(any(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "\"onlyTopCall\":true",
+                "\"stateOverrides\":[]",
+                "\"state_overrides\":[{\"address\":\"0x00000000000000000000000000000000000004e2\",\"stateDiff\":[]}]",
+                "\"timeout\":\"1ms\"",
+                "\"transactionIndex\":1",
+                "\"unknown\":1",
+            })
+    void actionsCallRejectsUnknownRequestField(final String field) throws Exception {
+        enableActionsApi();
+        final var body = """
+                {%s, "bundles": [{"transactions": [{"to": "0x00000000000000000000000000000000000004e4"}]}]}
+                """.formatted(field);
+
+        contractActionsCall(body).andExpect(status().isBadRequest());
+
+        verify(contractDebugService, never()).processTraceCall(any(), any());
     }
 
     @Test
