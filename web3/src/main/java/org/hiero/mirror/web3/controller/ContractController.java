@@ -20,6 +20,7 @@ import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.ContractSimulateService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
@@ -47,6 +48,7 @@ class ContractController {
     @PostMapping(value = "/call")
     ContractCallResponse call(@RequestBody @Valid ContractCallRequest request) {
         validateContractMaxGasLimit(request);
+        validateBlockOverrides(request.getBlockOverride());
         final var params = constructServiceParameters(request);
 
         if (!params.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
@@ -92,6 +94,7 @@ class ContractController {
 
         return ContractExecutionParameters.builder()
                 .block(block)
+                .blockOverride(request.getBlockOverride())
                 .callData(hexToBytes(data))
                 .callType(callType)
                 .gas(request.getGas())
@@ -103,6 +106,12 @@ class ContractController {
                 .stateOverrides(request.getStateOverrides())
                 .value(request.getValue())
                 .build();
+    }
+
+    private void validateBlockOverrides(final BlockOverride blockOverride) {
+        if (!blockOverride.isEmpty() && !web3Properties.isEnableBlockOverrides()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Block overrides are not supported.");
+        }
     }
 
     private void validateContractMaxGasLimit(ContractCallRequest request) {

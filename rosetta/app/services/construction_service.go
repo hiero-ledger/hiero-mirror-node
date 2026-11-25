@@ -5,11 +5,9 @@ package services
 import (
 	"context"
 	"crypto/ed25519"
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"maps"
-	"math/big"
 	"strings"
 	"time"
 
@@ -46,6 +44,7 @@ const (
 type constructionAPIService struct {
 	BaseService
 	accountRepo                  interfaces.AccountRepository
+	nodeHealthMonitor            NodeHealthMonitor
 	sdkClient                    *hiero.Client
 	systemShard                  int64
 	systemRealm                  int64
@@ -173,8 +172,7 @@ func (c *constructionAPIService) ConstructionMetadata(
 		metadata[metadataKeyAccountMap] = resolved
 	}
 
-	// node account id
-	nodeAccountId, rErr := c.getRandomNodeAccountId()
+	nodeAccountId, rErr := c.nodeHealthMonitor.GetHealthyNode(ctx)
 	if rErr != nil {
 		return nil, rErr
 	}
@@ -364,11 +362,12 @@ func (c *constructionAPIService) ConstructionSubmit(
 
 	hash := tools.SafeAddHexPrefix(hex.EncodeToString(hashBytes))
 	transactionId, _ := hiero.TransactionGetTransactionID(transaction)
-	log.Infof("Submitting transaction %s (hash %s) to node %s", transactionId,
-		hash, transaction.GetNodeAccountIDs()[0])
+	nodeAccountId := transaction.GetNodeAccountIDs()[0]
+	log.Infof("Submitting transaction %s (hash %s) to node %s", transactionId, hash, nodeAccountId)
 
 	_, err = hiero.TransactionExecute(transaction, c.sdkClient)
 	if err != nil {
+		c.nodeHealthMonitor.RecordSubmitError(nodeAccountId, err)
 		log.Errorf("Failed to execute transaction %s (hash %s): %s", transactionId, hash, err)
 		return nil, errors.AddErrorDetails(
 			errors.ErrTransactionSubmissionFailed,
@@ -527,30 +526,6 @@ func (c *constructionAPIService) getSdkPayerAccountId(payerAccountId types.Accou
 	return payer, nil
 }
 
-func (c *constructionAPIService) getRandomNodeAccountId() (hiero.AccountID, *rTypes.Error) {
-	// Create a transfer transaction and freeze it with the client to get the list of healthy nodes from SDK
-	transaction, err := hiero.NewTransferTransaction().
-		SetTransactionID(hiero.TransactionIDGenerate(hiero.AccountID{Account: 2})).
-		FreezeWith(c.sdkClient)
-	if err != nil {
-		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
-	}
-
-	nodeAccountIds := transaction.GetNodeAccountIDs()
-	if len(nodeAccountIds) == 0 {
-		return hiero.AccountID{}, errors.ErrNodeAccountIdsEmpty
-	}
-
-	maxValue := big.NewInt(int64(len(nodeAccountIds)))
-	index, err := rand.Int(rand.Reader, maxValue)
-	if err != nil {
-		log.Errorf("Failed to get a random number, use 0 instead: %s", err)
-		return nodeAccountIds[0], nil
-	}
-
-	return nodeAccountIds[index.Int64()], nil
-}
-
 func (c *constructionAPIService) getIntMetadataValue(metadata map[string]any, metadataKey string) (int64, *rTypes.Error) {
 	var metadataValue int64
 	if metadata != nil && metadata[metadataKey] != nil {
@@ -630,6 +605,7 @@ func NewConstructionAPIService(
 	baseService BaseService,
 	config *config.Mirror,
 	transactionConstructor construction.TransactionConstructor,
+	serverContext context.Context,
 ) (server.ConstructionAPIServicer, error) {
 	var err error
 	var sdkClient *hiero.Client
@@ -666,9 +642,15 @@ func NewConstructionAPIService(
 	// disable SDK auto retry
 	sdkClient.SetMaxAttempts(1)
 
+	nodeHealthMonitor, err := NewNodeHealthMonitor(serverContext, sdkClient, config, baseService.IsOnline())
+	if err != nil {
+		return nil, err
+	}
+
 	return &constructionAPIService{
 		accountRepo:                  accountRepo,
 		BaseService:                  baseService,
+		nodeHealthMonitor:            nodeHealthMonitor,
 		sdkClient:                    sdkClient,
 		systemShard:                  config.Common.Shard,
 		systemRealm:                  config.Common.Realm,

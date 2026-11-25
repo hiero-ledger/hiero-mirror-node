@@ -8,7 +8,12 @@
     "5: secp256k1_ecdsa_recoverable_signature_parse_compact",
     "6: secp256k1_ecdsa_verify, secp256k1_ecdsa_recover, secp256k1_ecdsa_recoverable_signature_serialize_compact",
     "7: secp256k1_ec_pubkey_serialize",
-    "8: secp256k1_ecdsa_sign_recoverable"
+    "8: secp256k1_ecdsa_sign_recoverable",
+    "libXKCP FFM downcalls (com.hedera.cryptography.libxkcp.Libxkcp), all Linker.Option.critical(true)",
+    "9: Hiero_sizeof_Keccak_HashInstance",
+    "10: Keccak_HashInitialize",
+    "11: Keccak_HashUpdate",
+    "Keccak_HashFinal reuses downcall 2"
   ],
   "foreign": {
     "downcalls": [
@@ -56,6 +61,21 @@
           "void*",
           "void*"
         ],
+        "options": { "critical": { "allowHeapAccess": true } }
+      },
+      {
+        "returnType": "size_t",
+        "parameterTypes": [],
+        "options": { "critical": { "allowHeapAccess": true } }
+      },
+      {
+        "returnType": "int",
+        "parameterTypes": ["void*", "int", "int", "int", "jbyte"],
+        "options": { "critical": { "allowHeapAccess": true } }
+      },
+      {
+        "returnType": "int",
+        "parameterTypes": ["void*", "void*", "size_t"],
         "options": { "critical": { "allowHeapAccess": true } }
       }
     ]

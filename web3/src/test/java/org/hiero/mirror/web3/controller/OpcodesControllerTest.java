@@ -21,8 +21,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Range;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
@@ -89,6 +87,7 @@ import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
+import tools.jackson.databind.json.JsonMapper;
 
 @AutoConfigureMockMvc
 @ExtendWith(MockitoExtension.class)
@@ -103,7 +102,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
     private MockMvc mockMvc;
 
     @Resource
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @Resource
     private CommonEntityAccessor commonEntityAccessor;
@@ -232,8 +231,8 @@ class OpcodesControllerTest extends Web3IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON);
     }
 
-    private ResultMatcher responseBody(final Object expectedBody) throws JsonProcessingException {
-        return content().string(objectMapper.writeValueAsString(expectedBody));
+    private ResultMatcher responseBody(final Object expectedBody) {
+        return content().string(jsonMapper.writeValueAsString(expectedBody));
     }
 
     @BeforeEach

@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if and .Values.traefik.enabled .Values.psc.enabled -}}
+{{- if empty .Values.psc.natSubnets -}}
+{{- fail "psc.natSubnets is required when psc.enabled" -}}
+{{- end -}}
+{{- $name := printf "%s-traefik-psc" (include "hedera-mirror-common.fullname" .) -}}
+{{- $namespace := default .Release.Namespace .Values.traefik.namespaceOverride -}}
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    networking.gke.io/internal-load-balancer-allow-global-access: "true"
+    networking.gke.io/load-balancer-type: "Internal"
+  labels: {{ include "hedera-mirror-common.labels" . | nindent 4 }}
+  name: {{ $name }}
+  namespace: {{ $namespace }}
+spec:
+  ports:
+    - name: web
+      port: 80
+      protocol: TCP
+      targetPort: web
+  selector:
+    app.kubernetes.io/instance: {{ default (printf "%s-%s" .Release.Name $namespace) .Values.traefik.instanceLabelOverride }}
+    app.kubernetes.io/name: traefik
+  type: LoadBalancer
+---
+apiVersion: networking.gke.io/v1
+kind: ServiceAttachment
+metadata:
+  labels: {{ include "hedera-mirror-common.labels" . | nindent 4 }}
+  name: {{ $name }}
+  namespace: {{ $namespace }}
+spec:
+  connectionPreference: {{ .Values.psc.connectionPreference }}
+  consumerAllowList: {{ toYaml .Values.psc.consumerAllowList | nindent 4 }}
+  natSubnets: {{ toYaml .Values.psc.natSubnets | nindent 4 }}
+  proxyProtocol: {{ .Values.psc.proxyProtocol }}
+  resourceRef:
+    kind: Service
+    name: {{ $name }}
+{{- end -}}

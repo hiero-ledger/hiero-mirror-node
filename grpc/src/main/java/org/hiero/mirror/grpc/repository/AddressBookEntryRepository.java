@@ -28,10 +28,10 @@ public interface AddressBookEntryRepository extends CrudRepository<AddressBookEn
                coalesce(n.account_id, abe.node_account_id) as node_account_id
         from address_book_entry abe
         left join node n on n.node_id = abe.node_id
-        where abe.consensus_timestamp = ?
-          and abe.node_id >= ?
+        where abe.consensus_timestamp = :consensusTimestamp
+          and abe.node_id >= :nodeId
         order by abe.node_id asc
-        limit ?
+        limit :limit
         """, nativeQuery = true)
     List<AddressBookEntry> findByConsensusTimestampAndNodeId(long consensusTimestamp, long nodeId, int limit);
 }

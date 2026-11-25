@@ -5,9 +5,8 @@ package org.hiero.mirror.importer.reader.block;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.transaction.RecordFile.GENESIS_BLOCK_NUMBER;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAMS;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
-import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.SHA_384_BLOCK_STREAMS;
-import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.getSha256BlockStreams;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.toUnparsed;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.EXPECTED_RECORD_FILES;
 import static org.hiero.mirror.importer.reader.block.record.WrappedRecordBlockTestUtils.readWrappedRecordBlocks;
@@ -77,24 +76,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @NullUnmarked
 public final class BlockStreamReaderTest {
 
-    public static final List<BlockFile> TEST_SHA_384_BLOCK_FILES = List.of(
+    public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
             BlockFile.builder()
                     .consensusStart(1786397166192063895L)
                     .consensusEnd(1786397175204714106L)
                     .count(759L)
-                    .digestAlgorithm(DigestAlgorithm.SHA_384)
-                    .hash(
-                            "3c421aac698b04fccdd46acad435125ea53af91fe404e787c8ccf4c23a11aa69190468ea1dd797af11d75335f4840749")
+                    .digestAlgorithm(DigestAlgorithm.SHA_256)
+                    .hash("4dca43eaf66cac31014e1f2a165d6809832338314f7bc837ad80093accdd97a3")
                     .index(0L)
                     .name(BlockFile.getFilename(0, true))
-                    .previousHash(
-                            "bec021b4f368e3069134e012c2b4307083d3a9bdd206e24e5f0d86e13d6636655933ec2b413465966817a9c208a11717")
-                    .rawHash(
-                            Hex.decode(
-                                    "3c421aac698b04fccdd46acad435125ea53af91fe404e787c8ccf4c23a11aa69190468ea1dd797af11d75335f4840749"))
-                    .rawPreviousHash(
-                            Hex.decode(
-                                    "bec021b4f368e3069134e012c2b4307083d3a9bdd206e24e5f0d86e13d6636655933ec2b413465966817a9c208a11717"))
+                    .previousHash("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d")
+                    .rawHash(Hex.decode("4dca43eaf66cac31014e1f2a165d6809832338314f7bc837ad80093accdd97a3"))
+                    .rawPreviousHash(Hex.decode("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"))
                     .roundStart(2L)
                     .roundEnd(140L)
                     .version(BlockStreamReader.VERSION)
@@ -103,19 +96,13 @@ public final class BlockStreamReaderTest {
                     .consensusStart(1786397175389467104L)
                     .consensusEnd(1786397177290324104L)
                     .count(75L)
-                    .digestAlgorithm(DigestAlgorithm.SHA_384)
-                    .hash(
-                            "832ec52cfbb467c8d1373afefe682b27132c31ebaf4846fbb6e437c582ce09ea2a59c1d7aadc26827e969efc79a45c89")
+                    .digestAlgorithm(DigestAlgorithm.SHA_256)
+                    .hash("ff5f00a34ad9f9eddcb425633c380c3cda21a6dcb3666ac5714c99f19b2d8c1d")
                     .index(1L)
                     .name(BlockFile.getFilename(1, true))
-                    .previousHash(
-                            "3c421aac698b04fccdd46acad435125ea53af91fe404e787c8ccf4c23a11aa69190468ea1dd797af11d75335f4840749")
-                    .rawHash(
-                            Hex.decode(
-                                    "832ec52cfbb467c8d1373afefe682b27132c31ebaf4846fbb6e437c582ce09ea2a59c1d7aadc26827e969efc79a45c89"))
-                    .rawPreviousHash(
-                            Hex.decode(
-                                    "3c421aac698b04fccdd46acad435125ea53af91fe404e787c8ccf4c23a11aa69190468ea1dd797af11d75335f4840749"))
+                    .previousHash("4dca43eaf66cac31014e1f2a165d6809832338314f7bc837ad80093accdd97a3")
+                    .rawHash(Hex.decode("ff5f00a34ad9f9eddcb425633c380c3cda21a6dcb3666ac5714c99f19b2d8c1d"))
+                    .rawPreviousHash(Hex.decode("4dca43eaf66cac31014e1f2a165d6809832338314f7bc837ad80093accdd97a3"))
                     .roundStart(141L)
                     .roundEnd(172L)
                     .version(BlockStreamReader.VERSION)
@@ -124,39 +111,17 @@ public final class BlockStreamReaderTest {
                     .consensusStart(1786398539530723104L)
                     .consensusEnd(1786398541005567104L)
                     .count(25L)
-                    .digestAlgorithm(DigestAlgorithm.SHA_384)
-                    .hash(
-                            "1c417b370965dd85e274b568694d0a5b3325b39f619a840df0161339864a30e389ba3aec4c7763236d2f4c505d031921")
+                    .digestAlgorithm(DigestAlgorithm.SHA_256)
+                    .hash("c7a1928bf574d5bf480154c92f90fa9591d48adcd50b45e96824958553af05e1")
                     .index(5L)
                     .name(BlockFile.getFilename(5, true))
-                    .previousHash(
-                            "e313796875ef100613684c0ee4ef1a80a13b73aa9c97f5f9592f9b9a25c798b33e36e397fa0e1456b17cee2155b8d7ac")
-                    .rawHash(
-                            Hex.decode(
-                                    "1c417b370965dd85e274b568694d0a5b3325b39f619a840df0161339864a30e389ba3aec4c7763236d2f4c505d031921"))
-                    .rawPreviousHash(
-                            Hex.decode(
-                                    "e313796875ef100613684c0ee4ef1a80a13b73aa9c97f5f9592f9b9a25c798b33e36e397fa0e1456b17cee2155b8d7ac"))
+                    .previousHash("2f899a89a188b0ce821f2fc42475dff240c385ac90a3fd8ce8b4f375824ccdc8")
+                    .rawHash(Hex.decode("c7a1928bf574d5bf480154c92f90fa9591d48adcd50b45e96824958553af05e1"))
+                    .rawPreviousHash(Hex.decode("2f899a89a188b0ce821f2fc42475dff240c385ac90a3fd8ce8b4f375824ccdc8"))
                     .roundStart(282L)
                     .roundEnd(315L)
                     .version(BlockStreamReader.VERSION)
                     .build());
-
-    // The blocks in TEST_SHA_384_BLOCK_FILES converted to SHA-256 by BlockStreamTestUtils.getSha256BlockStreams().
-    // Declared after TEST_SHA_384_BLOCK_FILES since it's derived from it.
-    public static final List<BlockFile> TEST_SHA_256_BLOCK_FILES = List.of(
-            withSha256Hashes(
-                    TEST_SHA_384_BLOCK_FILES.getFirst(),
-                    "4dca43eaf66cac31014e1f2a165d6809832338314f7bc837ad80093accdd97a3",
-                    "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"),
-            withSha256Hashes(
-                    TEST_SHA_384_BLOCK_FILES.get(1),
-                    "ff5f00a34ad9f9eddcb425633c380c3cda21a6dcb3666ac5714c99f19b2d8c1d",
-                    "4dca43eaf66cac31014e1f2a165d6809832338314f7bc837ad80093accdd97a3"),
-            withSha256Hashes(
-                    TEST_SHA_384_BLOCK_FILES.get(2),
-                    "c7a1928bf574d5bf480154c92f90fa9591d48adcd50b45e96824958553af05e1",
-                    "2f899a89a188b0ce821f2fc42475dff240c385ac90a3fd8ce8b4f375824ccdc8"));
 
     private static final RecursiveComparisonConfiguration RECORD_FILE_COMPARISON_CONFIG =
             RecursiveComparisonConfiguration.builder()
@@ -580,11 +545,10 @@ public final class BlockStreamReaderTest {
         verifyNoInteractions(initialStateReader);
     }
 
-    @ParameterizedTest(name = "digest size {0}")
-    @ValueSource(ints = {32, 48})
-    void readBlockRootHashSize(final int digestSize) {
-        // given - the digest algorithm is detected from the size of the hashes in the block footer
-        final var blockFooter = blockFooter(digestSize);
+    @Test
+    void readBlockRootHash() {
+        // given
+        final var blockFooter = blockFooter();
         final var block = Block.newBuilder()
                 .addItems(blockHeader())
                 .addItems(roundHeader())
@@ -605,8 +569,9 @@ public final class BlockStreamReaderTest {
         final var actual = reader.read(blockStream);
 
         // then
-        assertThat(actual.getRawHash()).hasSize(digestSize);
+        assertThat(actual.getRawHash()).hasSize(BLOCK_STREAM_HASH_SIZE);
         assertThat(actual)
+                .returns(DigestAlgorithm.SHA_256, BlockFile::getDigestAlgorithm)
                 .returns(Hex.toHexString(actual.getRawHash()), BlockFile::getHash)
                 .returns(previousHash, BlockFile::getRawPreviousHash)
                 .returns(Hex.toHexString(previousHash), BlockFile::getPreviousHash);
@@ -908,15 +873,11 @@ public final class BlockStreamReaderTest {
     }
 
     private BlockItem blockFooter() {
-        return blockFooter(BLOCK_STREAM_HASH_SIZE);
-    }
-
-    private BlockItem blockFooter(final int digestSize) {
         return BlockItem.newBuilder()
                 .setBlockFooter(BlockFooter.newBuilder()
-                        .setPreviousBlockRootHash(recordItemBuilder.bytes(digestSize))
-                        .setRootHashOfAllBlockHashesTree(recordItemBuilder.bytes(digestSize))
-                        .setStartOfBlockStateRootHash(recordItemBuilder.bytes(digestSize)))
+                        .setPreviousBlockRootHash(recordItemBuilder.bytes(BLOCK_STREAM_HASH_SIZE))
+                        .setRootHashOfAllBlockHashesTree(recordItemBuilder.bytes(BLOCK_STREAM_HASH_SIZE))
+                        .setStartOfBlockStateRootHash(recordItemBuilder.bytes(BLOCK_STREAM_HASH_SIZE)))
                 .build();
     }
 
@@ -1004,9 +965,7 @@ public final class BlockStreamReaderTest {
     }
 
     private static Stream<Arguments> readTestArgumentsProvider() {
-        return Stream.concat(
-                readTestArguments(TestUtils.getResource(SHA_384_BLOCK_STREAMS).toPath(), TEST_SHA_384_BLOCK_FILES),
-                readTestArguments(getSha256BlockStreams(), TEST_SHA_256_BLOCK_FILES));
+        return readTestArguments(TestUtils.getResource(BLOCK_STREAMS).toPath(), TEST_BLOCK_FILES);
     }
 
     private static Stream<Arguments> readWrappedRecordBlocksArgumentsProvider() {
@@ -1014,15 +973,5 @@ public final class BlockStreamReaderTest {
             final long blockNumber = block.getItems(0).getBlockHeader().getNumber();
             return Arguments.of(block, blockNumber, EXPECTED_RECORD_FILES.get(blockNumber));
         });
-    }
-
-    private static BlockFile withSha256Hashes(final BlockFile blockFile, final String hash, final String previousHash) {
-        return blockFile.toBuilder()
-                .digestAlgorithm(DigestAlgorithm.SHA_256)
-                .hash(hash)
-                .previousHash(previousHash)
-                .rawHash(Hex.decode(hash))
-                .rawPreviousHash(Hex.decode(previousHash))
-                .build();
     }
 }

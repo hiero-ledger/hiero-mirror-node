@@ -9,17 +9,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.hamcrest.Matchers;
 import org.hiero.mirror.restjava.RestJavaProperties;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Verifies that {@link GenericControllerAdvice} never exposes exception details, such as messages or stack traces, in
- * 5xx responses. Real endpoints are expected to map bad input to 4xx, so a dummy controller that always throws is used
- * to reach the 5xx handling path.
+ * Verifies that {@link GenericControllerAdvice} preserves public error details in 404 responses and never exposes
+ * internal exception details in 5xx responses.
  */
 final class GenericControllerAdviceTest {
 
@@ -45,12 +49,30 @@ final class GenericControllerAdviceTest {
                 .andExpect(content().string(Matchers.not(Matchers.containsString("Exception"))));
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void entityNotFoundPreservesErrorContract(boolean withCause) throws Exception {
+        mockMvc.perform(get("/not-found").param("withCause", Boolean.toString(withCause)))
+                .andExpect(status().isNotFound())
+                .andExpect(content().json("""
+                                {"_status":{"messages":[{"message":"Not Found","detail":"Topic not found"}]}}
+                                """, JsonCompareMode.STRICT));
+    }
+
     @RestController
     private static final class ThrowingController {
 
         @GetMapping("/throw")
         String throwException() {
             throw new IllegalStateException(INTERNAL_DETAIL);
+        }
+
+        @GetMapping("/not-found")
+        String entityNotFound(@RequestParam boolean withCause) {
+            if (withCause) {
+                throw new EntityNotFoundException("Topic not found", new IllegalStateException(INTERNAL_DETAIL));
+            }
+            throw new EntityNotFoundException("Topic not found");
         }
     }
 }

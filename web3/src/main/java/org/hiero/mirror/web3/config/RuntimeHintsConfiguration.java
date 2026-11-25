@@ -13,8 +13,6 @@ import com.hedera.node.app.hapi.utils.sysfiles.domain.throttling.ThrottleGroup;
 import com.swirlds.config.api.ConfigData;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
-import org.hiero.mirror.web3.viewmodel.AccessListEntry;
-import org.hiero.mirror.web3.viewmodel.AuthorizationListEntry;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
@@ -66,8 +64,6 @@ final class RuntimeHintsConfiguration {
 
             registerReflectionTypes(
                     hints,
-                    AccessListEntry.class.getName(),
-                    AuthorizationListEntry.class.getName(),
                     BlockOverride.class.getName(),
                     ContractCallContext.class.getName(),
                     ContractCallRequest.class.getName(),
@@ -88,6 +84,7 @@ final class RuntimeHintsConfiguration {
                     hints,
                     "com/hedera/nativelib/hints/**",
                     "com/hedera/nativelib/libsecp256k1/**",
+                    "com/hedera/nativelib/libxkcp/**",
                     "com/hedera/nativelib/wraps/**",
                     "darwin-aarch64/**", // besu
                     "darwin-x86-64/**", // besu

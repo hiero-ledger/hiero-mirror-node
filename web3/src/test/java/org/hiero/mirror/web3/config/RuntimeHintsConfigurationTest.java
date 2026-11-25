@@ -7,8 +7,6 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 
 import com.hedera.node.app.service.contract.impl.hevm.HederaOperationsRegistry;
 import java.util.List;
-import org.hiero.mirror.web3.viewmodel.AccessListEntry;
-import org.hiero.mirror.web3.viewmodel.AuthorizationListEntry;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
@@ -39,6 +37,8 @@ final class RuntimeHintsConfigurationTest {
         assertThat(RuntimeHintsPredicates.reflection().onType(TypeReference.of("com.esaulpaugh.headlong.abi.Single[]")))
                 .accepts(hints);
         assertThat(RuntimeHintsPredicates.reflection().onType(ContractCallResponse.class))
+                .accepts(hints);
+        assertThat(RuntimeHintsPredicates.reflection().onType(BlockOverride.class))
                 .accepts(hints);
         assertThat(RuntimeHintsPredicates.reflection().onType(StateOverride.class))
                 .accepts(hints);

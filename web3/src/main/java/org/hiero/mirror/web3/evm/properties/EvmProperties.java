@@ -53,13 +53,14 @@ public class EvmProperties {
     @Positive
     private long blockHashWindow = 256L;
 
-    // Must cover the maximum number of state overrides per request (ContractCallRequest @Size(max = 10)), since
-    // synthetic accounts for overridden missing addresses take numbers counting down from the buffer's top.
+    // Must cover the maximum number of state overrides per request (ContractCallRequest.STATE_OVERRIDES_MAX_SIZE),
+    // since synthetic accounts for overridden missing addresses take numbers counting down from the buffer's top.
     @Min(10)
     private long entityNumBuffer = 1000L;
 
+    // Stop the gas estimate search once a successful probe is within this fraction of the initial gas used.
     @Positive
-    private double estimateGasIterationThresholdPercent = 0.10d;
+    private double estimateGasIterationThresholdPercent = 0.02d;
 
     @NotNull
     private SemanticVersion evmVersion = EVM_VERSION;
