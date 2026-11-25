@@ -97,10 +97,7 @@ jobs:
             "com/hedera/hapi/node/state/token/TokenRelation.java"
             "com/hedera/hapi/node/state/file/File.java"
             "com/hedera/hapi/node/state/schedule/Schedule.java"
-            "com/swirlds/state/spi/ReadableKVStateBase.java"
-            "com/swirlds/state/spi/ReadableSingletonStateBase.java"
-            "com/swirlds/state/spi/WritableKVStateBase.java"
-            "com/swirlds/state/spi/WritableSingletonStateBase.java"
+            "com/swirlds/state/spi/WrappedWritableKVState.java"
           )
 
           # Compare the schemas - in case there is a new version we might need to register a new state.

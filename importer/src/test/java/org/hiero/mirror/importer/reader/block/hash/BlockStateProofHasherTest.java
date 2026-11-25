@@ -4,9 +4,8 @@ package org.hiero.mirror.importer.reader.block.hash;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.util.DomainUtils.createSha256Digest;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
-import static org.hiero.mirror.importer.reader.block.hash.ShaMessageDigestFactory.SHA_256_SIZE;
-import static org.hiero.mirror.importer.reader.block.hash.ShaMessageDigestFactory.SHA_384_SIZE;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -26,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.junit.jupiter.api.Test;
@@ -36,6 +36,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 final class BlockStateProofHasherTest {
 
+    private static final int HASH_SIZE = DigestAlgorithm.SHA_256.getSize();
     private static final List<StateProofTestArtifact> TEST_ARTIFACTS = loadTestArtifacts();
 
     private final BlockStateProofHasher hasher = new BlockStateProofHasherImpl();
@@ -47,11 +48,10 @@ final class BlockStateProofHasherTest {
         assertThat(actual).isEqualTo(testArtifact.expectedRootHash());
     }
 
-    @ParameterizedTest(name = "digest size {0}")
-    @ValueSource(ints = {SHA_256_SIZE, SHA_384_SIZE})
-    void getHashWhenHashPathPrecedesTimestampLeaf(final int digestSize) {
+    @Test
+    void getHashWhenHashPathPrecedesTimestampLeaf() {
         // given
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(digestSize);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var timestampLeaf = timestampLeaf();
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
@@ -64,21 +64,20 @@ final class BlockStateProofHasherTest {
                         .build(),
                 rootPath());
 
-        final var digest = ShaMessageDigestFactory.createMessageDigest(digestSize);
+        final var digest = createSha256Digest();
         final byte[] timestampHash = HashUtils.hashLeaf(digest, timestampLeaf.toByteArray());
         final byte[] expected = HashUtils.hashInternalNode(digest, currentRootHash, timestampHash);
 
         // when, then
         assertThat(hasher.getRootHash(0, currentRootHash, merklePaths))
-                .hasSize(digestSize)
+                .hasSize(HASH_SIZE)
                 .isEqualTo(expected);
     }
 
-    @ParameterizedTest(name = "digest size {0}")
-    @ValueSource(ints = {SHA_256_SIZE, SHA_384_SIZE})
-    void getHashWithIntermediateJoinPoint(final int digestSize) {
+    @Test
+    void getHashWithIntermediateJoinPoint() {
         // given - the join point at index 2 joins the two paths below it, then contributes to the root path
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(digestSize);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var blockItemLeaf = fromBytes(TestUtils.generateRandomByteArray(8));
         final var timestampLeaf = timestampLeaf();
         final var merklePaths = List.of(
@@ -97,7 +96,7 @@ final class BlockStateProofHasherTest {
                         .build(),
                 rootPath());
 
-        final var digest = ShaMessageDigestFactory.createMessageDigest(digestSize);
+        final var digest = createSha256Digest();
         final byte[] timestampHash = HashUtils.hashLeaf(digest, timestampLeaf.toByteArray());
         final byte[] blockItemHash = HashUtils.hashLeaf(digest, blockItemLeaf.toByteArray());
         final byte[] joinHash = HashUtils.hashInternalNode(digest, timestampHash, currentRootHash);
@@ -105,19 +104,18 @@ final class BlockStateProofHasherTest {
 
         // when, then
         assertThat(hasher.getRootHash(0, currentRootHash, merklePaths))
-                .hasSize(digestSize)
+                .hasSize(HASH_SIZE)
                 .isEqualTo(expected);
     }
 
-    @ParameterizedTest(name = "digest size {0}")
-    @ValueSource(ints = {SHA_256_SIZE, SHA_384_SIZE})
-    void getHashWhenRootPathHasSiblings(final int digestSize) {
+    @Test
+    void getHashWhenRootPathHasSiblings() {
         // given - the root path starts from the last join point, so it carries the siblings of the nodes between
         // that join point and the actual root
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(digestSize);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var timestampLeaf = timestampLeaf();
-        final var leftSibling = TestUtils.generateRandomByteArray(digestSize);
-        final var rightSibling = TestUtils.generateRandomByteArray(digestSize);
+        final var leftSibling = TestUtils.generateRandomByteArray(HASH_SIZE);
+        final var rightSibling = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
                         .setTimestampLeaf(timestampLeaf)
@@ -138,7 +136,7 @@ final class BlockStateProofHasherTest {
                         .setNextPathIndex(-1)
                         .build());
 
-        final var digest = ShaMessageDigestFactory.createMessageDigest(digestSize);
+        final var digest = createSha256Digest();
         final byte[] timestampHash = HashUtils.hashLeaf(digest, timestampLeaf.toByteArray());
         final byte[] joinHash = HashUtils.hashInternalNode(digest, timestampHash, currentRootHash);
         final byte[] withRight = HashUtils.hashInternalNode(digest, joinHash, rightSibling);
@@ -146,15 +144,14 @@ final class BlockStateProofHasherTest {
 
         // when, then
         assertThat(hasher.getRootHash(0, currentRootHash, merklePaths))
-                .hasSize(digestSize)
+                .hasSize(HASH_SIZE)
                 .isEqualTo(expected);
     }
 
-    @ParameterizedTest(name = "digest size {0}")
-    @ValueSource(ints = {SHA_256_SIZE, SHA_384_SIZE})
-    void getHashWhenRootPathIsFirst(final int digestSize) {
+    @Test
+    void getHashWhenRootPathIsFirst() {
         // given
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(digestSize);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var timestampLeaf = timestampLeaf();
         final var merklePaths = List.of(
                 rootPath(),
@@ -167,22 +164,21 @@ final class BlockStateProofHasherTest {
                         .setNextPathIndex(0)
                         .build());
 
-        final var digest = ShaMessageDigestFactory.createMessageDigest(digestSize);
+        final var digest = createSha256Digest();
         final byte[] timestampHash = HashUtils.hashLeaf(digest, timestampLeaf.toByteArray());
         final byte[] expected = HashUtils.hashInternalNode(digest, timestampHash, currentRootHash);
 
         // when, then
         assertThat(hasher.getRootHash(0, currentRootHash, merklePaths))
-                .hasSize(digestSize)
+                .hasSize(HASH_SIZE)
                 .isEqualTo(expected);
     }
 
-    @ParameterizedTest(name = "digest size {0}")
-    @ValueSource(ints = {SHA_256_SIZE, SHA_384_SIZE})
-    void getHashIsIndependentOfPathOrder(final int digestSize) {
+    @Test
+    void getHashIsIndependentOfPathOrder() {
         // given - the same tree laid out in depth first order and in a scrambled order. The branch holding the
         // lowest indexed content path is the left operand, so both must produce the same root hash.
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(digestSize);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var blockItemLeaf = fromBytes(TestUtils.generateRandomByteArray(8));
         final var timestampLeaf = timestampLeaf();
         final var depthFirst = List.of(
@@ -220,14 +216,14 @@ final class BlockStateProofHasherTest {
         final byte[] actual = hasher.getRootHash(0, currentRootHash, scrambled);
 
         // then
-        assertThat(actual).hasSize(digestSize).isEqualTo(hasher.getRootHash(0, currentRootHash, depthFirst));
+        assertThat(actual).hasSize(HASH_SIZE).isEqualTo(hasher.getRootHash(0, currentRootHash, depthFirst));
     }
 
     @Test
     void getHashThrowWhenContentPathIsTheRootPath() {
         // given - a content path claiming the root leaves the join point at index 2 short of a second branch, so
         // the root hash can never come from anything but a join point
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(SHA_256_SIZE);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
                         .setHash(fromBytes(currentRootHash))
@@ -248,7 +244,7 @@ final class BlockStateProofHasherTest {
     @Test
     void getHashThrowWhenMoreThanOneRootPath() {
         // given - both content paths climb straight to the root
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(SHA_256_SIZE);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
                         .setTimestampLeaf(timestampLeaf())
@@ -269,7 +265,7 @@ final class BlockStateProofHasherTest {
     @Test
     void getHashThrowWhenJoinPointPointsToItself() {
         // given - the join point at index 2 is its own parent
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(SHA_256_SIZE);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
                         .setTimestampLeaf(timestampLeaf())
@@ -287,11 +283,10 @@ final class BlockStateProofHasherTest {
                 .hasMessage("Block 0's StateProof joins merkle path 2 more than once");
     }
 
-    @ParameterizedTest(name = "digest size {0}")
-    @ValueSource(ints = {SHA_256_SIZE, SHA_384_SIZE})
-    void getHashWithStateItemLeaf(final int digestSize) {
+    @Test
+    void getHashWithStateItemLeaf() {
         // given
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(digestSize);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var stateItemLeaf = fromBytes(TestUtils.generateRandomByteArray(16));
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
@@ -304,23 +299,22 @@ final class BlockStateProofHasherTest {
                         .build(),
                 rootPath());
 
-        final var digest = ShaMessageDigestFactory.createMessageDigest(digestSize);
+        final var digest = createSha256Digest();
         final byte[] stateItemHash = HashUtils.hashLeaf(digest, stateItemLeaf.toByteArray());
         final byte[] expected = HashUtils.hashInternalNode(digest, stateItemHash, currentRootHash);
 
         // when, then
         assertThat(hasher.getRootHash(0, currentRootHash, merklePaths))
-                .hasSize(digestSize)
+                .hasSize(HASH_SIZE)
                 .isEqualTo(expected);
     }
 
-    @ParameterizedTest(name = "digest size {0}")
-    @ValueSource(ints = {SHA_256_SIZE, SHA_384_SIZE})
-    void getHashWhenParkedBranchIsTheRightOperand(final int digestSize) {
+    @Test
+    void getHashWhenParkedBranchIsTheRightOperand() {
         // given - the branch parked at the root join point holds a higher content index than the branch arriving
         // later, so the arriving one becomes the left operand. The operands follow the lowest content index below
         // each branch, not the order in which the branches reach the join point.
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(digestSize);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var blockItemLeaf = fromBytes(TestUtils.generateRandomByteArray(8));
         final var timestampLeaf = timestampLeaf();
         final var merklePaths = List.of(
@@ -339,7 +333,7 @@ final class BlockStateProofHasherTest {
                 MerklePath.newBuilder().setNextPathIndex(4).build(),
                 rootPath());
 
-        final var digest = ShaMessageDigestFactory.createMessageDigest(digestSize);
+        final var digest = createSha256Digest();
         final byte[] timestampHash = HashUtils.hashLeaf(digest, timestampLeaf.toByteArray());
         final byte[] blockItemHash = HashUtils.hashLeaf(digest, blockItemLeaf.toByteArray());
         final byte[] joinHash = HashUtils.hashInternalNode(digest, timestampHash, currentRootHash);
@@ -347,14 +341,14 @@ final class BlockStateProofHasherTest {
 
         // when, then
         assertThat(hasher.getRootHash(0, currentRootHash, merklePaths))
-                .hasSize(digestSize)
+                .hasSize(HASH_SIZE)
                 .isEqualTo(expected);
     }
 
     @Test
     void getHashThrowWhenLessThanMinPaths() {
         assertThatThrownBy(() ->
-                        hasher.getRootHash(0, TestUtils.generateRandomByteArray(SHA_256_SIZE), Collections.emptyList()))
+                        hasher.getRootHash(0, TestUtils.generateRandomByteArray(HASH_SIZE), Collections.emptyList()))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessage("Number of merkle paths in block 0's StateProof is less than 3");
     }
@@ -362,7 +356,7 @@ final class BlockStateProofHasherTest {
     @Test
     void getHashThrowWhenPathPointsToContentPath() {
         // given - the timestamp leaf path points at the hash path, which already has its own content
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(SHA_256_SIZE);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
                         .setTimestampLeaf(timestampLeaf())
@@ -383,7 +377,7 @@ final class BlockStateProofHasherTest {
     @Test
     void getHashThrowWhenNoBranchReachesRoot() {
         // given - both branches park at a join point, so nothing ever climbs to the root
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(SHA_256_SIZE);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
                         .setTimestampLeaf(timestampLeaf())
@@ -405,7 +399,7 @@ final class BlockStateProofHasherTest {
     @Test
     void getHashThrowWhenJoinPointHasNoChildren() {
         // given - the join point at index 1 is never pointed at by an earlier path
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(SHA_256_SIZE);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
                         .setTimestampLeaf(timestampLeaf())
@@ -428,7 +422,7 @@ final class BlockStateProofHasherTest {
     @ValueSource(ints = {-2, 3, 99})
     void getHashThrowWhenNextPathIndexOutOfRange(final int nextPathIndex) {
         // given - a path may only contribute to a later path within the list
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(SHA_256_SIZE);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
                         .setTimestampLeaf(timestampLeaf())
@@ -450,7 +444,7 @@ final class BlockStateProofHasherTest {
     @Test
     void getHashThrowWhenJoinedMoreThanOnce() {
         // given - three paths all contribute to the root path, which can only join two children
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(SHA_256_SIZE);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
         final var merklePaths = List.of(
                 MerklePath.newBuilder()
                         .setTimestampLeaf(timestampLeaf())
@@ -475,36 +469,13 @@ final class BlockStateProofHasherTest {
     @Test
     void getHashThrowWhenNoPathMatchesRootHash() {
         // given
-        // the test artifacts are real SHA-384 state proofs
         final var testArtifact = TEST_ARTIFACTS.getFirst();
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(SHA_384_SIZE);
+        final byte[] currentRootHash = TestUtils.generateRandomByteArray(HASH_SIZE);
 
         // when, then
         assertThatThrownBy(() -> hasher.getRootHash(0, currentRootHash, testArtifact.merklePaths()))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessage("Block 0's StateProof has no merkle path matching the block's root hash");
-    }
-
-    @ParameterizedTest(name = "root hash of {0} bytes")
-    @ValueSource(ints = {31, 47, 64})
-    void getHashThrowWhenUnsupportedRootHashSize(final int size) {
-        // given - the digest size is detected from the current root hash
-        final byte[] currentRootHash = TestUtils.generateRandomByteArray(size);
-        final var merklePaths = List.of(
-                MerklePath.newBuilder()
-                        .setTimestampLeaf(timestampLeaf())
-                        .setNextPathIndex(2)
-                        .build(),
-                MerklePath.newBuilder()
-                        .setHash(fromBytes(currentRootHash))
-                        .setNextPathIndex(2)
-                        .build(),
-                rootPath());
-
-        // when, then
-        assertThatThrownBy(() -> hasher.getRootHash(0, currentRootHash, merklePaths))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Unsupported digest size " + size);
     }
 
     @SneakyThrows

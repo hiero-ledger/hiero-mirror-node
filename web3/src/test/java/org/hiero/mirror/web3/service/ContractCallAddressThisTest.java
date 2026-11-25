@@ -14,7 +14,6 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import lombok.SneakyThrows;
@@ -34,6 +33,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import tools.jackson.databind.json.JsonMapper;
 
 @AutoConfigureMockMvc
 class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
@@ -47,7 +47,7 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
     private MockMvc mockMvc;
 
     @Resource
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @SneakyThrows
     private ResultActions contractCall(ContractCallRequest request) {
@@ -218,6 +218,6 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
 
     @SneakyThrows
     private String convert(Object object) {
-        return objectMapper.writeValueAsString(object);
+        return jsonMapper.writeValueAsString(object);
     }
 }

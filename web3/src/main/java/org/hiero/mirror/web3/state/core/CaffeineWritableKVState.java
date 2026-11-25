@@ -22,7 +22,7 @@ public final class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, 
             final int stateId,
             @NonNull final ReadableKVState<K, V> readableBackingStore,
             @NonNull final Cache<K, Object> sharedStore) {
-        super(serviceName, stateId);
+        super(stateId, serviceName, RequestCache.write(stateId), RequestCache.read(stateId));
         this.readableBackingStore = readableBackingStore;
         this.sharedStore = sharedStore;
     }
@@ -66,11 +66,6 @@ public final class CaffeineWritableKVState<K, V> extends WritableKVStateBase<K, 
             }
         });
         writeCache.clear();
-    }
-
-    @Override
-    protected boolean useRequestWriteCache() {
-        return true;
     }
 
     @Override

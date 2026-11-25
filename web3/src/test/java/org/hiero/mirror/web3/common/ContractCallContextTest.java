@@ -7,6 +7,7 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.stateOverride;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -16,6 +17,7 @@ import org.hiero.mirror.web3.controller.OpcodesProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.model.OpcodeRequest;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +36,39 @@ class ContractCallContextTest {
         var context = ContractCallContext.get();
         context.setBlockSupplier(() -> RecordFile.builder().consensusEnd(123L).build());
         context.reset();
+    }
+
+    @Test
+    void resetDiscardsWritesAndKeepsReads() {
+        final var context = ContractCallContext.get();
+        context.getReadCacheState(1).put("read", "database");
+        context.getWriteCacheState(1).put("updated", "value");
+        context.getWriteCacheState(2).put("deleted", null);
+
+        context.reset();
+
+        assertThat(context.getWriteCacheState(1)).isEmpty();
+        assertThat(context.getWriteCacheState(2)).isEmpty();
+        assertThat(context.getReadCacheState(1)).containsEntry("read", "database");
+    }
+
+    @Test
+    void cachesAreKeptPerStateId() {
+        final var context = ContractCallContext.get();
+        final int largeStateId = 10_001;
+        context.getReadCacheState(1).put("key", "small");
+        context.getReadCacheState(largeStateId).put("key", "large");
+        context.getWriteCacheState(largeStateId).put("key", "written");
+
+        assertThat(context.getReadCacheState(1)).containsOnly(Map.entry("key", "small"));
+        assertThat(context.getReadCacheState(largeStateId)).containsOnly(Map.entry("key", "large"));
+        assertThat(context.getWriteCacheState(1)).isEmpty();
+        assertThat(context.getWriteCacheState(largeStateId)).containsOnly(Map.entry("key", "written"));
+
+        context.reset();
+
+        assertThat(context.getWriteCacheState(largeStateId)).isEmpty();
+        assertThat(context.getReadCacheState(largeStateId)).containsOnly(Map.entry("key", "large"));
     }
 
     @Test
@@ -182,5 +217,10 @@ class ContractCallContextTest {
         context.applyStateOverrides(List.of(first));
         context.applyStateOverrides(List.of(second));
         assertThat(context.getStateOverrides()).containsValue(second).doesNotContainValue(first);
+    }
+
+    @Test
+    void blockOverrideDefaultsToEmpty() {
+        assertThat(ContractCallContext.get().getBlockOverride()).isSameAs(BlockOverride.EMPTY);
     }
 }

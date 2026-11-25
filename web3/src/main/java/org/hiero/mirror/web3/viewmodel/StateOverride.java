@@ -4,8 +4,6 @@ package org.hiero.mirror.web3.viewmodel;
 
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ADDRESS_LENGTH;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
@@ -23,11 +21,12 @@ import tools.jackson.databind.annotation.JsonDeserialize;
  * {@code state} and {@code state_diff} are mutually exclusive.
  */
 @Data
-@JsonIgnoreProperties(ignoreUnknown = true)
 @Validated
 public class StateOverride {
 
     public static final int CODE_MAX_LENGTH = 24576 * 2;
+
+    public static final int STORAGE_MAX_SIZE = 100;
 
     /** EVM address (40 hex characters, optional {@code 0x} prefix) of the account to override. */
     @NotNull
@@ -54,18 +53,17 @@ public class StateOverride {
      * Mutually exclusive with {@link #stateDiff}.
      */
     @NotNull
-    @Size(max = 100)
-    private List<@NotNull @Valid StorageEntry> state = List.of();
+    @Size(max = STORAGE_MAX_SIZE)
+    private List<@Valid StorageEntry> state = List.of();
 
     /**
      * Storage patch: list of slot key-value pairs.
      * Only the listed slots are overridden; all other slots fall through to the underlying state.
      * Mutually exclusive with {@link #state}.
      */
-    @JsonProperty("state_diff")
     @NotNull
-    @Size(max = 100)
-    private List<@NotNull @Valid StorageEntry> stateDiff = List.of();
+    @Size(max = STORAGE_MAX_SIZE)
+    private List<@Valid StorageEntry> stateDiff = List.of();
 
     @AssertTrue(message = "state and state_diff are mutually exclusive")
     private boolean hasValidStorage() {

@@ -104,6 +104,18 @@ final class CaffeineWritableKVStateTest {
     }
 
     @Test
+    void inMemoryCommitsKeepStagingInRequestWriteCache() {
+        final var context = ContractCallContext.get();
+
+        subject.put(accountID, account);
+        assertThat(context.getWriteCacheState(AccountReadableKVState.STATE_ID)).containsEntry(accountID, account);
+
+        subject.commit();
+        assertThat(sharedStore.getIfPresent(accountID)).isEqualTo(account);
+        assertThat(context.getWriteCacheState(AccountReadableKVState.STATE_ID)).isEmpty();
+    }
+
+    @Test
     void resetDiscardsPendingWrites() {
         subject.put(accountID, account);
 

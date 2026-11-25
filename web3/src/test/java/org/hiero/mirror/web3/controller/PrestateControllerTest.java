@@ -23,8 +23,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Range;
 import jakarta.annotation.Resource;
 import java.time.Instant;
@@ -65,6 +63,7 @@ import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
+import tools.jackson.databind.json.JsonMapper;
 
 @AutoConfigureMockMvc
 final class PrestateControllerTest extends Web3IntegrationTest {
@@ -75,7 +74,7 @@ final class PrestateControllerTest extends Web3IntegrationTest {
     private MockMvc mockMvc;
 
     @Resource
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @Resource
     private Web3Properties web3Properties;
@@ -408,8 +407,8 @@ final class PrestateControllerTest extends Web3IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON);
     }
 
-    private ResultMatcher responseBody(final Object expectedBody) throws JsonProcessingException {
-        return content().string(objectMapper.writeValueAsString(expectedBody));
+    private ResultMatcher responseBody(final Object expectedBody) {
+        return content().string(jsonMapper.writeValueAsString(expectedBody));
     }
 
     private static String transactionIdString(final EntityId payerAccountId, final Instant validStart) {

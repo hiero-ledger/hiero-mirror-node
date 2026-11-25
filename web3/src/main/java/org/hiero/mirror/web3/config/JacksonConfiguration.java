@@ -4,82 +4,39 @@ package org.hiero.mirror.web3.config;
 
 import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.DATA_MAX_LENGTH;
 
-import com.fasterxml.jackson.core.StreamReadConstraints;
-import com.fasterxml.jackson.core.StreamWriteConstraints;
-import com.fasterxml.jackson.databind.MappingJsonFactory;
 import com.hedera.node.config.data.JumboTransactionsConfig;
-import java.util.List;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
-import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
-import org.springframework.boot.http.converter.autoconfigure.ServerHttpMessageConvertersCustomizer;
-import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer;
-import org.springframework.boot.jackson2.autoconfigure.Jackson2ObjectMapperBuilderCustomizer;
+import org.springframework.boot.jackson.autoconfigure.JsonFactoryBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
-import tools.jackson.core.json.JsonFactory;
-import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.core.StreamReadConstraints;
+import tools.jackson.core.StreamWriteConstraints;
 
 @Configuration(proxyBeanMethods = false)
-class JacksonConfiguration {
+public class JacksonConfiguration {
 
-    /**
-     * Parsing limits for {@code /contracts/call/actions}. {@link ActionTraceRequest#MAX_DOCUMENT_LENGTH} caps the
-     * request body, which bounds calldata and state overrides across every bundle. Other request types keep the shared
-     * mapper. The trace mapper applies the same Spring Boot customizers, so property naming and defaults match.
-     */
+    // Configure JSON parsing limits to reject malicious input. Runs after Spring Boot's standard customizer (order 0),
+    // so these limits replace the spring.jackson.factory.constraints defaults.
     @Bean
-    ServerHttpMessageConvertersCustomizer actionTraceJsonLimits(
-            final JsonFactory jsonFactory, final List<JsonMapperBuilderCustomizer> customizers) {
-        final var factory = jsonFactory
-                .rebuild()
-                .streamReadConstraints(tools.jackson.core.StreamReadConstraints.builder()
-                        .maxDocumentLength(ActionTraceRequest.MAX_DOCUMENT_LENGTH)
-                        .maxNameLength(100)
-                        .maxNestingDepth(10)
-                        .maxNumberLength(19)
-                        .maxStringLength((int) DATA_MAX_LENGTH)
-                        .maxTokenCount(ActionTraceRequest.MAX_JSON_TOKENS)
-                        .build())
-                .build();
-        final var builder = JsonMapper.builder(factory);
-        for (final var customizer : customizers) {
-            customizer.customize(builder);
-        }
-        final var traceMapper = builder.build();
-        return converters -> converters.configureMessageConverters(converter -> {
-            if (converter instanceof JacksonJsonHttpMessageConverter jackson) {
-                jackson.registerMappersForType(
-                        ActionTraceRequest.class, mappers -> mappers.put(MediaType.APPLICATION_JSON, traceMapper));
-            }
-        });
-    }
-
-    // Configure JSON parsing limits to reject malicious input
-    @Bean
-    @SuppressWarnings("removal")
-    Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer(EvmProperties properties) {
+    JsonFactoryBuilderCustomizer jsonFactoryCustomizer(EvmProperties properties) {
         final var jumboConfig = properties.getVersionedConfiguration().getConfigData(JumboTransactionsConfig.class);
         final int maxSize = jumboConfig.ethereumMaxCallDataSize() * 2 + 1024;
         if (maxSize > DATA_MAX_LENGTH) {
             throw new IllegalArgumentException("Data size must be less than or equal to " + DATA_MAX_LENGTH);
         }
-        return builder -> {
-            var streamReadConstraints = StreamReadConstraints.builder()
-                    .maxDocumentLength(maxSize)
-                    .maxNameLength(100)
-                    .maxNestingDepth(10)
-                    .maxNumberLength(19)
-                    .maxStringLength(maxSize)
-                    .maxTokenCount(100)
-                    .build();
-            var streamWriteConstraints =
-                    StreamWriteConstraints.builder().maxNestingDepth(100).build();
-            var factory = new MappingJsonFactory();
-            factory.setStreamReadConstraints(streamReadConstraints);
-            factory.setStreamWriteConstraints(streamWriteConstraints);
-            builder.factory(factory);
-        };
+
+        final var streamReadConstraints = StreamReadConstraints.builder()
+                .maxDocumentLength(maxSize)
+                .maxNameLength(100)
+                .maxNestingDepth(10)
+                .maxNumberLength(19)
+                .maxStringLength(maxSize)
+                // Largest valid request is ~6,200 tokens: 10 state overrides with 100 storage entries each
+                .maxTokenCount(7_000)
+                .build();
+        final var streamWriteConstraints =
+                StreamWriteConstraints.builder().maxNestingDepth(100).build();
+        return builder ->
+                builder.streamReadConstraints(streamReadConstraints).streamWriteConstraints(streamWriteConstraints);
     }
 }

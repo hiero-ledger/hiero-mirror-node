@@ -55,7 +55,7 @@ class LoggingFilterTest {
         request.addHeader(X_FORWARDED_FOR, clientIp);
         response.setStatus(HttpStatus.OK.value());
 
-        new ForwardedHeaderFilter()
+        new ForwardedHeaderFilter(false)
                 .doFilter(
                         request, response, (request1, response1) -> loggingFilter.doFilter(request1, response1, chain));
 

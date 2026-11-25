@@ -28,6 +28,7 @@ import org.hiero.mirror.web3.service.model.TraceCall;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.viewmodel.ActionTraceBundle;
 import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
@@ -91,6 +92,7 @@ class ContractController {
     @PostMapping(value = "/call")
     ContractCallResponse call(@RequestBody @Valid ContractCallRequest request) {
         validateContractMaxGasLimit(request);
+        validateBlockOverrides(request.getBlockOverride());
         final var params = constructServiceParameters(request);
         validateStateOverrides(params.getStateOverrides());
 
@@ -135,6 +137,7 @@ class ContractController {
         final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
         return ContractExecutionParameters.builder()
                 .block(block)
+                .blockOverride(request.getBlockOverride())
                 .callData(hexToBytes(data))
                 .callType(callType)
                 .gas(request.getGas())
@@ -231,6 +234,12 @@ class ContractController {
         if (gas > evmProperties.getMaxGasLimit()) {
             throw new InvalidParametersException(
                     "gas field must be less than or equal to %d".formatted(evmProperties.getMaxGasLimit()));
+        }
+    }
+
+    private void validateBlockOverrides(final BlockOverride blockOverride) {
+        if (!blockOverride.isEmpty() && !web3Properties.isEnableBlockOverrides()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Block overrides are not supported.");
         }
     }
 

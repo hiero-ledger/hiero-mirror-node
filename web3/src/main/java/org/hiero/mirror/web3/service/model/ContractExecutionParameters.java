@@ -6,6 +6,7 @@ import java.util.List;
 import lombok.Builder;
 import lombok.Value;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hyperledger.besu.datatypes.Address;
@@ -14,6 +15,10 @@ import org.hyperledger.besu.datatypes.Address;
 @Builder
 public class ContractExecutionParameters implements CallServiceParameters {
     private final BlockType block;
+
+    @Builder.Default
+    private final BlockOverride blockOverride = BlockOverride.EMPTY;
+
     private final byte[] callData;
     private final CallType callType;
     private final long gas;

@@ -77,4 +77,72 @@ final class WritableSingletonStateBaseTest {
         assertThat(state.isModified()).isTrue();
         assertThat(state.get()).isEqualTo("backend");
     }
+
+    @Test
+    void nestedWrapperCommitReachesDelegateOnlyWhenOuterCommits() {
+        final var root = new FunctionWritableSingletonState<>(SERVICE, STATE_ID, () -> "backend");
+        final var outer = new WrappedWritableSingletonState<>(root);
+        final var inner = new WrappedWritableSingletonState<>(outer);
+
+        inner.put("from-inner");
+        assertThat(inner.isModified()).isTrue();
+        assertThat(inner.get()).isEqualTo("from-inner");
+        assertThat(outer.isModified()).isFalse();
+        assertThat(outer.get()).isEqualTo("backend");
+        assertThat(root.get()).isEqualTo("backend");
+
+        inner.commit();
+        assertThat(inner.isModified()).isFalse();
+        assertThat(outer.get()).isEqualTo("from-inner");
+        assertThat(root.isModified()).isFalse();
+        assertThat(root.get()).isEqualTo("backend");
+
+        outer.commit();
+        assertThat(root.get()).isEqualTo("from-inner");
+        assertThat(ContractCallContext.get().getWriteCacheState(STATE_ID)).containsValue("from-inner");
+    }
+
+    @Test
+    void abandonedWrapperLeavesParentUnchanged() {
+        final var root = new FunctionWritableSingletonState<>(SERVICE, STATE_ID, () -> "backend");
+        final var outer = new WrappedWritableSingletonState<>(root);
+        outer.put("from-outer");
+
+        final var inner = new WrappedWritableSingletonState<>(outer);
+        inner.put("from-inner");
+
+        outer.commit();
+        assertThat(root.get()).isEqualTo("from-outer");
+    }
+
+    @Test
+    void nestedWrapperResetKeepsParentFrame() {
+        final var root = new FunctionWritableSingletonState<>(SERVICE, STATE_ID, () -> "backend");
+        final var outer = new WrappedWritableSingletonState<>(root);
+        outer.put("from-outer");
+
+        final var inner = new WrappedWritableSingletonState<>(outer);
+        inner.put("from-inner");
+        inner.reset();
+
+        assertThat(inner.isModified()).isFalse();
+        assertThat(inner.get()).isEqualTo("from-outer");
+        assertThat(outer.get()).isEqualTo("from-outer");
+    }
+
+    @Test
+    void wrapperReadsEarlierCommitUntilContextReset() {
+        final var context = ContractCallContext.get();
+        final var root = new FunctionWritableSingletonState<>(SERVICE, STATE_ID, () -> "backend");
+        assertThat(root.get()).isEqualTo("backend");
+        final var earlier = new WrappedWritableSingletonState<>(root);
+        earlier.put("from-earlier-transaction");
+        earlier.commit();
+
+        assertThat(new WrappedWritableSingletonState<>(root).get()).isEqualTo("from-earlier-transaction");
+
+        context.reset();
+        assertThat(root.isModified()).isFalse();
+        assertThat(new WrappedWritableSingletonState<>(root).get()).isEqualTo("backend");
+    }
 }

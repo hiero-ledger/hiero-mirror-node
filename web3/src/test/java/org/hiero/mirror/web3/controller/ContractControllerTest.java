@@ -30,13 +30,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -48,6 +48,7 @@ import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.ApiProperties;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.config.JacksonConfiguration;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
@@ -64,6 +65,7 @@ import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.ActionTraceBundle;
 import org.hiero.mirror.web3.viewmodel.ActionTraceRequest;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -95,6 +97,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -102,6 +105,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import tools.jackson.databind.json.JsonMapper;
 
 @ExtendWith({MockitoExtension.class, SpringExtension.class, OutputCaptureExtension.class})
 @WebMvcTest(controllers = ContractController.class)
@@ -118,7 +122,7 @@ final class ContractControllerTest {
     private MockMvc mockMvc;
 
     @Resource
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     // Matches the snake_case naming used by the Jackson 3 HTTP message converter
     private ObjectMapper requestMapper;
@@ -147,8 +151,8 @@ final class ContractControllerTest {
 
     @BeforeEach
     void setUp() {
-        requestMapper = objectMapper.copy().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
         actionsProperties.setTraceMultipleTransactions(true);
+        web3Properties.setEnableBlockOverrides(true);
         web3Properties.setEnableStateOverrides(true);
         throttleManager.throttle(any(ContractCallRequest.class));
         web3Properties.getApi(CALL).setEnabled(true);
@@ -171,7 +175,7 @@ final class ContractControllerTest {
 
     @SneakyThrows
     private String convert(Object object) {
-        return requestMapper.writeValueAsString(object);
+        return jsonMapper.writeValueAsString(object);
     }
 
     @SneakyThrows
@@ -1677,6 +1681,208 @@ final class ContractControllerTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void callRejectsBlockOverrideWhenDisabled() throws Exception {
+        web3Properties.setEnableBlockOverrides(false);
+        final var request = request();
+        final var override = BlockOverride.builder().blockNumber(256L).build();
+        request.setBlockOverride(override);
+
+        contractCall(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("Block overrides are not supported.")));
+        verify(service, never()).processCall(any(), any());
+    }
+
+    @Test
+    void callWithoutBlockOverrideSucceedsWhenBlockOverridesDisabled() throws Exception {
+        web3Properties.setEnableBlockOverrides(false);
+        given(service.processCall(any(), any())).willReturn("0x0");
+
+        contractCall(request()).andExpect(status().isOk());
+        verify(service).processCall(argThat(params -> params.getBlockOverride().isEmpty()), any());
+    }
+
+    @Test
+    void callAcceptsBlockOverrideNumber() throws Exception {
+        given(service.processCall(any(), any())).willReturn("0x0");
+        final var request = request();
+        final var override = BlockOverride.builder().blockNumber(256L).build();
+        request.setBlockOverride(override);
+
+        contractCall(request).andExpect(status().isOk());
+        verify(service)
+                .processCall(
+                        argThat(params -> {
+                            final var blockOverride = params.getBlockOverride();
+                            return Long.valueOf(256L).equals(blockOverride.blockNumber())
+                                    && blockOverride.time() == null;
+                        }),
+                        any());
+    }
+
+    @Test
+    void callAcceptsBlockOverrideTime() throws Exception {
+        given(service.processCall(any(), any())).willReturn("0x0");
+        final var request = request();
+        final var override = BlockOverride.builder().time(1710874816L).build();
+        request.setBlockOverride(override);
+
+        contractCall(request).andExpect(status().isOk());
+        verify(service)
+                .processCall(
+                        argThat(params -> {
+                            final var blockOverride = params.getBlockOverride();
+                            return Long.valueOf(1710874816L).equals(blockOverride.time())
+                                    && blockOverride.blockNumber() == null;
+                        }),
+                        any());
+    }
+
+    @Test
+    void callAcceptsBlockOverrideNumberAndTime() throws Exception {
+        given(service.processCall(any(), any())).willReturn("0x0");
+        final var request = request();
+        final var override =
+                BlockOverride.builder().blockNumber(256L).time(1710874816L).build();
+        request.setBlockOverride(override);
+
+        contractCall(request).andExpect(status().isOk());
+        verify(service)
+                .processCall(
+                        argThat(params -> {
+                            final var blockOverride = params.getBlockOverride();
+                            return Long.valueOf(256L).equals(blockOverride.blockNumber())
+                                    && Long.valueOf(1710874816L).equals(blockOverride.time());
+                        }),
+                        any());
+    }
+
+    @Test
+    void callAcceptsEveryBlockOverrideField() throws Exception {
+        given(service.processCall(any(), any())).willReturn("0x0");
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4",
+                                 "block_override":{"base_fee_per_gas":0,"blob_base_fee":1,"block_number":80,
+                                 "fee_recipient":"0x0000000000000000000000000000000000000062","gas_limit":15000000,
+                                 "prev_randao":123456789,"time":1793619195}}
+                                """))
+                .andExpect(status().isOk());
+        verify(service)
+                .processCall(
+                        argThat(params -> {
+                            final var blockOverride = params.getBlockOverride();
+                            return Long.valueOf(0L).equals(blockOverride.baseFeePerGas())
+                                    && Long.valueOf(1L).equals(blockOverride.blobBaseFee())
+                                    && Long.valueOf(80L).equals(blockOverride.blockNumber())
+                                    && "0x0000000000000000000000000000000000000062".equals(blockOverride.feeRecipient())
+                                    && Long.valueOf(15_000_000L).equals(blockOverride.gasLimit())
+                                    && Long.valueOf(123_456_789L).equals(blockOverride.prevRandao())
+                                    && Long.valueOf(1_793_619_195L).equals(blockOverride.time());
+                        }),
+                        any());
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            delimiter = '|',
+            value = {
+                "base_fee_per_gas | -1",
+                "base_fee_per_gas | \"abc\"",
+                "base_fee_per_gas | 9223372036854775808",
+                "blob_base_fee    | 0",
+                "blob_base_fee    | -1",
+                "block_number     | -1",
+                "block_number     | true",
+                "block_number     | \"80\"",
+                "block_number     | 80.0",
+                "fee_recipient    | \"0x62\"",
+                "fee_recipient    | \"0x00000000000000000000000000000000000000zz\"",
+                "gas_limit        | 0",
+                "gas_limit        | -1",
+                "prev_randao      | -1",
+                "prev_randao      | 18446744073709551615",
+                "time             | -1",
+                "time             | []",
+                "time             | 1.5",
+                "time             | 1e2",
+            })
+    void callRejectsInvalidBlockOverrideField(final String field, final String value) throws Exception {
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4","block_override":{"%s":%s}}
+                                """.formatted(field, value)))
+                .andExpect(status().isBadRequest());
+        verify(service, never()).processCall(any(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "\"blockOverride\":{\"time\":1}",
+                "\"block_override\":{\"blockNumber\":1}",
+                "\"block_override\":{\"unknown\":1}",
+                "\"stateOverrides\":[]",
+                "\"state_overrides\":[{\"address\":\"0x00000000000000000000000000000000000004e2\",\"unknown\":1}]",
+                "\"unknown\":1",
+            })
+    void callRejectsUnknownField(final String field) throws Exception {
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4",%s}
+                                """.formatted(field)))
+                .andExpect(status().isBadRequest());
+        verify(service, never()).processCall(any(), any());
+    }
+
+    @Test
+    void callRejectsRequestExceedingJsonConstraints() throws Exception {
+        final var overrides = String.join(",", Collections.nCopies(1_800, "{\"address\":\"a\"}"));
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4","state_overrides":[%s]}
+                                """.formatted(overrides)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(new StringContains("Token count")));
+        verify(service, never()).processCall(any(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"gasPrice", "gas_price"})
+    void callAcceptsGasPriceCamelCaseAndSnakeCase(final String field) throws Exception {
+        given(service.processCall(any(), any())).willReturn("0x0");
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4","%s":100}
+                                """.formatted(field)))
+                .andExpect(status().isOk());
+        verify(service).processCall(argThat(params -> params.getGasPrice() == 100L), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"gasPrice", "gas_price"})
+    void callRejectsNegativeGasPriceForEitherName(final String field) throws Exception {
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"to":"0x00000000000000000000000000000000000004e4","%s":-1}
+                                """.formatted(field)))
+                .andExpect(status().isBadRequest());
+        verify(service, never()).processCall(any(), any());
+    }
+
     private static StateOverride balanceOverride(final String address, final long balance) {
         final var override = new StateOverride();
         override.setAddress(address);
@@ -1741,6 +1947,7 @@ final class ContractControllerTest {
     }
 
     @TestConfiguration
+    @Import(JacksonConfiguration.class)
     public static class TestConfig {
 
         @Bean

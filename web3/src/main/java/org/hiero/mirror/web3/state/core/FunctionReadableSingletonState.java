@@ -26,6 +26,21 @@ public class FunctionReadableSingletonState<S> extends ReadableSingletonStateBas
     }
 
     @Override
+    public S get() {
+        return SingletonRequestCache.read(stateId, backingStoreAccessor);
+    }
+
+    @Override
+    public boolean isRead() {
+        return SingletonRequestCache.isRead(stateId);
+    }
+
+    @Override
+    public void reset() {
+        SingletonRequestCache.resetRead(stateId);
+    }
+
+    @Override
     protected S readFromDataSource() {
         return backingStoreAccessor.get();
     }

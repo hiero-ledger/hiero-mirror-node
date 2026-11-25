@@ -1,10 +1,10 @@
-FROM eclipse-temurin:25.0.5_8-jre-resolute@sha256:480ef64e4540d45b0301e8afb7873bd3fa61ce93c5f66273eb569420718f38e2 AS builder
+FROM eclipse-temurin:25.0.5.1_2-jre-resolute@sha256:a0862ac8790c648f6b5db8a113b9990d24fbe8e65f3c4ba8d68b0302d270c1e6 AS builder
 WORKDIR /app
 COPY build/libs/*.jar ./
 RUN java -Djarmode=tools -jar *.jar extract --layers --launcher --destination extracted
 
-FROM eclipse-temurin:25.0.5_8-jre-resolute@sha256:480ef64e4540d45b0301e8afb7873bd3fa61ce93c5f66273eb569420718f38e2
-ENV JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=80 -XX:-UseBASE64Intrinsics --enable-preview -Djava.io.tmpdir=/tmp/web3"
+FROM eclipse-temurin:25.0.5.1_2-jre-resolute@sha256:a0862ac8790c648f6b5db8a113b9990d24fbe8e65f3c4ba8d68b0302d270c1e6
+ENV JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=80 --enable-preview -Djava.io.tmpdir=/tmp/web3"
 EXPOSE 8545
 HEALTHCHECK --interval=10s --retries=3 --start-period=50s --timeout=5s CMD ["java", "-cp", "/app/healthcheck.jar", "org.hiero.mirror.common.healthcheck.HealthCheckClient", "http://localhost:8545/actuator/health/liveness"]
 WORKDIR /app

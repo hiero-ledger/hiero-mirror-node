@@ -53,8 +53,8 @@ public class EvmProperties {
     @Positive
     private long blockHashWindow = 256L;
 
-    // Must cover the maximum number of state overrides per request (ContractCallRequest @Size(max = 10)), since
-    // synthetic accounts for overridden missing addresses take numbers counting down from the buffer's top.
+    // Must cover the maximum number of state overrides per request (ContractCallRequest.STATE_OVERRIDES_MAX_SIZE),
+    // since synthetic accounts for overridden missing addresses take numbers counting down from the buffer's top.
     @Min(10)
     private long entityNumBuffer = 1000L;
 

@@ -14,12 +14,18 @@ import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.ReactiveDomainBuilder;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.transaction.support.TransactionOperations;
 
 @RequiredArgsConstructor
 class TopicMessageRepositoryTest extends GrpcIntegrationTest {
 
-    private final TopicMessageRepository topicMessageRepository;
+    private static final String RANDOM_PAGE_COST_QUERY = "show random_page_cost";
+
     private final ReactiveDomainBuilder domainBuilder;
+    private final JdbcOperations jdbcOperations;
+    private final TopicMessageRepository topicMessageRepository;
+    private final TransactionOperations transactionOperations;
 
     @Test
     void findByFilterEmpty() {
@@ -110,6 +116,40 @@ class TopicMessageRepositoryTest extends GrpcIntegrationTest {
                 .build();
 
         assertThat(topicMessageRepository.findByFilter(filter)).containsExactly(topicMessage1);
+    }
+
+    @Test
+    void findByFilterAppliesIndexHint() {
+        final var filter = TopicMessageFilter.builder()
+                .limit(100)
+                .startTime(0)
+                .topicId(EntityId.of(100L))
+                .build();
+
+        final var randomPageCost = transactionOperations.execute(t -> {
+            topicMessageRepository.findByFilter(filter);
+            return jdbcOperations.queryForObject(RANDOM_PAGE_COST_QUERY, String.class);
+        });
+
+        assertThat(randomPageCost).isEqualTo("0");
+        assertThat(jdbcOperations.queryForObject(RANDOM_PAGE_COST_QUERY, String.class))
+                .isNotEqualTo("0");
+    }
+
+    @Test
+    void findByFilterWithLimitOneSkipsIndexHint() {
+        final var filter = TopicMessageFilter.builder()
+                .limit(1)
+                .startTime(0)
+                .topicId(EntityId.of(100L))
+                .build();
+
+        final var randomPageCost = transactionOperations.execute(t -> {
+            topicMessageRepository.findByFilter(filter);
+            return jdbcOperations.queryForObject(RANDOM_PAGE_COST_QUERY, String.class);
+        });
+
+        assertThat(randomPageCost).isNotEqualTo("0");
     }
 
     @Test
