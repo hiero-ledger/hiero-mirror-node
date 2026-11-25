@@ -11,11 +11,11 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.SimulateResponse;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
-import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.ContractSimulateService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
@@ -24,7 +24,6 @@ import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
-import org.hiero.mirror.web3.viewmodel.SimulateResponse;
 import org.hyperledger.besu.datatypes.Address;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -63,6 +62,30 @@ class ContractController {
                 return new ContractCallResponse(contractExecutionService.processCall(params, ctx));
             } finally {
                 throttleManager.restore(ctx.getRefundableGas());
+            }
+        });
+    }
+
+    @PostMapping(value = "/simulate")
+    SimulateResponse simulate(@RequestBody @Valid SimulateRequest request) {
+        if (!web3Properties.getApi(SIMULATE).isEnabled()) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
+        }
+        validateSimulateRequest(request);
+
+        // Each call is throttled like an eth_call.
+        for (final var blockStateCall : request.getBlockStateCalls()) {
+            for (final var call : blockStateCall.getCalls()) {
+                throttleManager.throttle(call);
+            }
+        }
+        return ContractCallContext.run(context -> {
+            // Until the EVM runs, none of the reserved gas has been used, so all of it is refundable.
+            context.setRefundableGas(request.totalGas());
+            try {
+                return contractSimulateService.simulate(request, context);
+            } finally {
+                throttleManager.restore(context.getRefundableGas());
             }
         });
     }
@@ -121,44 +144,15 @@ class ContractController {
         }
     }
 
-    @PostMapping(value = "/simulate")
-    SimulateResponse simulate(@RequestBody @Valid SimulateRequest request) {
-        if (!web3Properties.getApi(SIMULATE).isEnabled()) {
-            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
-        }
-        if (hasStateOverrides(request) && !web3Properties.isEnableStateOverrides()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
-        }
+    private void validateSimulateRequest(SimulateRequest request) {
         for (final var blockCall : request.getBlockStateCalls()) {
-            blockCall.getCalls().forEach(this::validateContractMaxGasLimit);
-        }
-
-        throttleSimulateRequest(request);
-        return contractSimulateService.simulate(request);
-    }
-
-    private boolean hasStateOverrides(SimulateRequest request) {
-        for (final var blockCall : request.getBlockStateCalls()) {
-            if (!blockCall.getStateOverrides().isEmpty()) {
-                return true;
+            validateBlockOverrides(blockCall.getBlockOverride());
+            if (!blockCall.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "State overrides are not supported.");
             }
-        }
-        return false;
-    }
-
-    // Each call is throttled like an eth_call. A rejected call restores the gas taken by the calls before it.
-    private void throttleSimulateRequest(SimulateRequest request) {
-        long throttledGas = 0L;
-        try {
-            for (final var blockCall : request.getBlockStateCalls()) {
-                for (final var call : blockCall.getCalls()) {
-                    throttleManager.throttle(call);
-                    throttledGas += call.getGas();
-                }
+            for (final var call : blockCall.getCalls()) {
+                validateContractMaxGasLimit(call);
             }
-        } catch (final ThrottleException e) {
-            throttleManager.restore(throttledGas);
-            throw e;
         }
     }
 }

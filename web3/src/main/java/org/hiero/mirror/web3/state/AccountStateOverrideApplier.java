@@ -68,10 +68,36 @@ public class AccountStateOverrideApplier {
             return account;
         }
 
-        final var baseAccount = account != null
-                ? account
-                : Account.newBuilder().accountId(key).alias(accountAddress).build();
-        final var result = withStateOverride(baseAccount, stateOverride);
+        final var hasBalance = stateOverride.getBalance() != null;
+        final var hasNonce = stateOverride.getNonce() != null;
+        // Only a bytecode override should mark the account as a smart contract. Storage-only
+        // overrides must not flip a delegated EOA to a contract, or the EIP-7702 / HIP-1340
+        // delegation proxy is skipped and the call executes no delegated code.
+        final var hasCodeOverride = stateOverride.getCode() != null;
+        final var hasStorageOverride = isNonEmpty(stateOverride.getState()) || isNonEmpty(stateOverride.getStateDiff());
+        final var isDelegatedAccount = account != null
+                && account.delegationAddress().length() > 0
+                && !Arrays.equals(account.delegationAddress().toByteArray(), ZERO_ADDRESS);
+        final var isSmartContract = hasCodeOverride || (hasStorageOverride && !isDelegatedAccount);
+
+        Account.Builder builder;
+        if (account == null) {
+            builder = Account.newBuilder().accountId(key).alias(accountAddress);
+        } else {
+            builder = account.copyBuilder();
+        }
+
+        if (hasBalance) {
+            builder.tinybarBalance(stateOverride.getBalance());
+        }
+        if (hasNonce) {
+            builder.ethereumNonce(stateOverride.getNonce());
+        }
+        if (isSmartContract) {
+            builder.smartContract(true);
+        }
+
+        final var result = builder.build();
 
         // Overrides establish the initial state; simulated updates and deletions take precedence.
         final var writeCache = context.getWriteCacheState(ACCOUNTS_STATE_ID);
@@ -79,34 +105,6 @@ public class AccountStateOverrideApplier {
             writeCache.put(key, result);
         }
         return result;
-    }
-
-    /**
-     * Returns the account with the {@code balance}, {@code nonce}, and {@code code} parts of the override applied.
-     */
-    public static Account withStateOverride(final Account account, final StateOverride stateOverride) {
-        final var balance = stateOverride.getBalance();
-        final var nonce = stateOverride.getNonce();
-        // Only a bytecode override should mark the account as a smart contract. Storage-only
-        // overrides must not flip a delegated EOA to a contract, or the EIP-7702 / HIP-1340
-        // delegation proxy is skipped and the call executes no delegated code.
-        final var hasCodeOverride = stateOverride.getCode() != null;
-        final var hasStorageOverride = isNonEmpty(stateOverride.getState()) || isNonEmpty(stateOverride.getStateDiff());
-        final var isDelegatedAccount = account.delegationAddress().length() > 0
-                && !Arrays.equals(account.delegationAddress().toByteArray(), ZERO_ADDRESS);
-        final var isSmartContract = hasCodeOverride || (hasStorageOverride && !isDelegatedAccount);
-
-        final var builder = account.copyBuilder();
-        if (balance != null) {
-            builder.tinybarBalance(balance);
-        }
-        if (nonce != null) {
-            builder.ethereumNonce(nonce);
-        }
-        if (isSmartContract) {
-            builder.smartContract(true);
-        }
-        return builder.build();
     }
 
     private static boolean isNonEmpty(final List<?> list) {

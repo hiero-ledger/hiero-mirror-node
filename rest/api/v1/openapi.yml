@@ -535,7 +535,7 @@ paths:
         Backs `eth_simulateV1`. Each `block_state_calls` entry executes as its own virtual block against the
         anchor block selected by `block` - state accumulates across all calls and entries, each entry building on
         the previous one. `state_overrides` persist and accumulate across entries (later entries win per address). Results are returned as a
-        single flat list; entry `i` is reported as block `anchor + i`, and `transaction_index` and `log_index`
+        single flat list; entry `i` is reported as block `anchor + i`, and `transaction_index` and `index`
         restart from 0 at the beginning of every entry. A reverted call does not abort the rest of
         the batch. `state_overrides` reuses the same schema as `POST /api/v1/contracts/call` and is subject to
         the same feature flag.
@@ -2998,14 +2998,18 @@ components:
                     description: Error message
                     example: Generic error message
                     type: string
+    BlockType:
+      description:
+        Block number in decimal or 0x-prefixed hexadecimal, a 0x-prefixed 32 or 48 byte block hash, or one of
+        "earliest", "finalized", "latest", "pending", "safe". Defaults to "latest".
+      example: "latest"
+      pattern: "^((earliest|finalized|latest|pending|safe)|[0-9]{1,20}|0[xX]([0-9a-fA-F]{64}|[0-9a-fA-F]{96})|0[xX][0-9a-fA-F]{1,16})$"
+      type: [string, "null"]
     ContractCallRequest:
       type: object
       properties:
         block:
-          description: Hexadecimal block number or the string "latest", "pending", "earliest". Defaults to "latest".
-          example: "latest"
-          pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
-          type: [string, "null"]
+          $ref: "#/components/schemas/BlockType"
         block_override:
           description: Optional EVM block context override for this call. Requires block overrides to be enabled.
           $ref: "#/components/schemas/BlockOverride"
@@ -3130,70 +3134,20 @@ components:
           format: binary
           pattern: "^0x[0-9a-fA-F]+$"
           type: string
-    SimulateCall:
-      type: object
-      properties:
-        access_list:
-          description: Optional EIP-2930 access list. Omitted or null if not provided.
-          type: [array, "null"]
-          maxItems: 1000
-          items:
-            $ref: "#/components/schemas/AccessList"
-        authorization_list:
-          description: Optional EIP-7702 authorization list. Omitted or null if not provided.
-          type: [array, "null"]
-          maxItems: 1000
-          items:
-            $ref: "#/components/schemas/AuthorizationList"
-        data:
-          description: Hexadecimal method signature and encoded parameters. Up to 131072 bytes as at most 262146 hexadecimal digits including optional leading 0x.
-          example: "0x47f1aae7"
-          format: binary
-          maxLength: 262146
-          pattern: "^(0x)?[0-9a-fA-F]+$"
-          type: [string, "null"]
-        from:
-          description: The 20-byte hexadecimal EVM address the call is sent from.
-          example: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
-          format: binary
-          maxLength: 42
-          minLength: 40
-          pattern: "^(0x)?[A-Fa-f0-9]{40}$"
-          type: [string, "null"]
-        gas:
-          description: Gas provided for the call execution, as a number or a hexadecimal/decimal string. Defaults to 15000000.
-          example: 15000000
-          minimum: 21000
-          type: [integer, string, "null"]
-        gasPrice:
-          description: Gas price used for each paid gas, as a number or a hexadecimal/decimal string. Also accepted as `gas_price`.
-          example: 0
-          minimum: 0
-          type: [integer, string, "null"]
-        to:
-          description: The 20-byte hexadecimal EVM address the call is directed to.
-          example: "0x014d023e954bAae7F21E56ed8a5d81b12902684D"
-          format: binary
-          maxLength: 42
-          minLength: 40
-          pattern: "^(0x)?[A-Fa-f0-9]{40}$"
-          type: [string, "null"]
-        value:
-          description: Value sent with this call, as a number or a hexadecimal/decimal string (e.g. "0x1"). Defaults to 0.
-          example: 1
-          minimum: 0
-          type: [integer, string, "null"]
     SimulateBlockStateCall:
       type: object
       properties:
         block_override:
           $ref: "#/components/schemas/BlockOverride"
         calls:
+          description: Calls executed in order in this entry. `block` and `estimate` are ignored, and `block_override` and `state_overrides` must be set on the entry instead.
           items:
-            $ref: "#/components/schemas/SimulateCall"
+            $ref: "#/components/schemas/ContractCallRequest"
+          maxItems: 2
+          minItems: 1
           type: array
         state_overrides:
-          description: State overrides taking effect when this entry begins, persisting for the rest of the request (later entries win per address).
+          description: State overrides applied before the calls of this entry.
           items:
             $ref: "#/components/schemas/StateOverride"
           maxItems: 10
@@ -3202,15 +3156,13 @@ components:
       type: object
       properties:
         block:
-          description: Hexadecimal block number or the string "latest", "pending", "earliest". Defaults to "latest". Anchors the whole request - all block_state_calls entries execute against this one block.
-          example: "latest"
-          pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
-          type: [string, "null"]
+          $ref: "#/components/schemas/BlockType"
         block_state_calls:
-          description: Each entry executes as its own virtual block on top of the previous entry, with state accumulating across entries. Limited to 16 entries and 16 total calls.
+          description: Each entry executes as its own virtual block on top of the previous entry, with state accumulating across entries. Limited to 1 entry.
           items:
             $ref: "#/components/schemas/SimulateBlockStateCall"
-          maxItems: 16
+          maxItems: 1
+          minItems: 1
           type: array
         trace_transfers:
           description: If true, synthesizes ERC20-style Transfer log entries for value transfers captured during execution. Defaults to false.
@@ -3230,6 +3182,7 @@ components:
         block_number:
           description: The anchor block number plus the index of the block_state_calls entry this log belongs to.
           example: 20784967
+          format: int64
           type: integer
         data:
           format: binary
@@ -3237,6 +3190,7 @@ components:
         index:
           description: Position of this log within its block_state_calls entry, restarting at 0 for every entry.
           example: 0
+          format: int64
           type: integer
         topics:
           items:
@@ -3250,9 +3204,10 @@ components:
         transaction_index:
           description: Position of the call within its block_state_calls entry, restarting at 0 for every entry.
           example: 0
+          format: int64
           type: integer
     SimulateCallError:
-      description: Why a call failed. Empty for a successful call.
+      description: Why a call failed. Null for a successful call.
       type: object
       properties:
         code:

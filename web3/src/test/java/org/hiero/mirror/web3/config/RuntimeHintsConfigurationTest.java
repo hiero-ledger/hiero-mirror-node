@@ -10,9 +10,6 @@ import java.util.List;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
-import org.hiero.mirror.web3.viewmodel.SimulateCallError;
-import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
-import org.hiero.mirror.web3.viewmodel.SimulateLog;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.hyperledger.besu.evm.EvmSpecVersion;
@@ -45,20 +42,12 @@ final class RuntimeHintsConfigurationTest {
     }
 
     @Test
-    void registersNestedSimulateTypes() {
+    void registersNestedSimulateRequestTypes() {
         final var hints = new RuntimeHints();
         new RuntimeHintsConfiguration.CustomRuntimeHints()
                 .registerHints(hints, getClass().getClassLoader());
 
-        for (final var type : List.of(
-                AccessListEntry.class,
-                AuthorizationListEntry.class,
-                BlockOverride.class,
-                SimulateBlockStateCall.class,
-                SimulateCallError.class,
-                SimulateCallResult.class,
-                SimulateLog.class,
-                StorageEntry.class)) {
+        for (final var type : List.of(BlockOverride.class, SimulateBlockStateCall.class, StorageEntry.class)) {
             assertThat(RuntimeHintsPredicates.reflection().onType(type)).accepts(hints);
         }
     }

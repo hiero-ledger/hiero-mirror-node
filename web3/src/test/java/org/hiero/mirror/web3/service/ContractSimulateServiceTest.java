@@ -9,26 +9,23 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
 
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.rest.model.SimulateCallResult;
+import org.hiero.mirror.rest.model.SimulateLog;
+import org.hiero.mirror.rest.model.SimulateResponse;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
-import org.hiero.mirror.web3.throttle.ThrottleManager;
-import org.hiero.mirror.web3.viewmodel.AccessListEntry;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
-import org.hiero.mirror.web3.viewmodel.SimulateCallError;
-import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
-import org.hiero.mirror.web3.viewmodel.SimulateLog;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hiero.mirror.web3.viewmodel.StorageEntry;
@@ -56,9 +53,7 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
     private static final String FORWARDER = "0x00000000000000000000000000000000000b0002";
     private static final String FORWARDER_TO_REVERTER = "0x00000000000000000000000000000000000b0003";
     private static final String REVERTER = "0x00000000000000000000000000000000000b0004";
-    private static final String SELF_BALANCE_CONTRACT = "0x00000000000000000000000000000000000b0005";
-    // SELFBALANCE PUSH1 0 MSTORE PUSH1 32 PUSH1 0 RETURN: returns the contract's own balance.
-    private static final String SELF_BALANCE_RUNTIME_CODE = "0x4760005260206000f3";
+    private static final String SELF_DESTRUCTOR = "0x00000000000000000000000000000000000b0006";
     // PUSH1 0 PUSH1 0 REVERT
     private static final String REVERT_RUNTIME_CODE = "0x60006000fd";
     private static final String STORAGE_SLOT_0_KEY =
@@ -66,9 +61,6 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
     @Resource
     private ContractSimulateService contractSimulateService;
-
-    @MockitoSpyBean
-    private ThrottleManager throttleManager;
 
     @MockitoSpyBean
     private TransactionExecutionService transactionExecutionService;
@@ -81,13 +73,13 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(StorageContract::deploy);
         final var request = requestWithSingleEntry(setSlot0Call(contract, 42), getSlot0Call(contract));
 
-        final var response = contractSimulateService.simulate(request);
+        final var response = simulate(request);
 
-        final var results = response.result();
+        final var results = response.getResult();
         assertThat(results).hasSize(2);
-        assertThat(results.get(0).success()).isTrue();
-        assertThat(results.get(1).success()).isTrue();
-        assertThat(decodeUint256(results.get(1).returnData())).isEqualTo(BigInteger.valueOf(42));
+        assertThat(results.get(0).getSuccess()).isTrue();
+        assertThat(results.get(1).getSuccess()).isTrue();
+        assertThat(decodeUint256(results.get(1).getReturnData())).isEqualTo(BigInteger.valueOf(42));
         assertThat(meterRegistry
                         .find(ContractCallService.EVM_INVOCATION_METRIC)
                         .tag(ContractCallService.TAG_TYPE, "ETH_SIMULATE")
@@ -105,79 +97,30 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
     }
 
     @Test
-    void laterEntryBuildsOnEarlierEntrysState() {
+    void stateOverrideAppliesToEveryCallOfTheEntry() {
         final var contract = testWeb3jService.deploy(StorageContract::deploy);
-        final var request = requestWithEntries(List.of(setSlot0Call(contract, 42)), List.of(getSlot0Call(contract)));
+        final var request = requestWithSingleEntry(getSlot0Call(contract), getSlot0Call(contract));
+        request.getBlockStateCalls().getFirst().setStateOverrides(List.of(storageOverride(contract, 999)));
 
-        final var response = contractSimulateService.simulate(request);
+        final var response = simulate(request);
 
-        assertThat(response.result()).hasSize(2);
-        assertThat(response.result().get(0).success()).isTrue();
-        assertThat(decodeUint256(response.result().get(1).returnData())).isEqualTo(BigInteger.valueOf(42));
+        assertThat(response.getResult()).hasSize(2);
+        assertThat(decodeUint256(response.getResult().get(0).getReturnData())).isEqualTo(BigInteger.valueOf(999));
+        assertThat(decodeUint256(response.getResult().get(1).getReturnData())).isEqualTo(BigInteger.valueOf(999));
     }
 
     @Test
-    void stateOverridePersistsIntoLaterEntries() {
-        final var contract = testWeb3jService.deploy(StorageContract::deploy);
-
-        final var overriddenEntry = new SimulateBlockStateCall();
-        overriddenEntry.setCalls(List.of(getSlot0Call(contract)));
-        overriddenEntry.setStateOverrides(List.of(storageOverride(contract, 999)));
-
-        final var plainEntry = new SimulateBlockStateCall();
-        plainEntry.setCalls(List.of(getSlot0Call(contract)));
-
-        final var request = new SimulateRequest();
-        request.setBlockStateCalls(List.of(overriddenEntry, plainEntry));
-
-        final var response = contractSimulateService.simulate(request);
-
-        assertThat(response.result()).hasSize(2);
-        assertThat(decodeUint256(response.result().get(0).returnData())).isEqualTo(BigInteger.valueOf(999));
-        assertThat(decodeUint256(response.result().get(1).returnData())).isEqualTo(BigInteger.valueOf(999));
-    }
-
-    @Test
-    void laterEntryStorageOverrideReplacesEarlierEntrysWrite() {
-        final var contract = testWeb3jService.deploy(StorageContract::deploy);
-        final var stateDiffOverride = new StateOverride();
-        stateDiffOverride.setAddress(contract.getContractAddress());
-        stateDiffOverride.setStateDiff(List.of(storageEntry(7)));
-
-        final var writingEntry = new SimulateBlockStateCall();
-        writingEntry.setCalls(List.of(setSlot0Call(contract, 42)));
-        final var overridingEntry = new SimulateBlockStateCall();
-        overridingEntry.setStateOverrides(List.of(stateDiffOverride));
-        overridingEntry.setCalls(List.of(getSlot0Call(contract)));
-        final var request = new SimulateRequest();
-        request.setBlockStateCalls(List.of(writingEntry, overridingEntry));
-
-        final var response = contractSimulateService.simulate(request);
-
-        assertThat(decodeUint256(response.result().get(1).returnData())).isEqualTo(BigInteger.valueOf(7));
-    }
-
-    @Test
-    void laterEntryBalanceOverrideReplacesEarlierEntrysTransfer() {
+    void feePayingCallThenAnotherCallSucceeds() {
         final var sender = accountEntityPersistCustomizable(e -> e.balance(DEFAULT_ACCOUNT_BALANCE));
-        final var receivingEntry = new SimulateBlockStateCall();
-        receivingEntry.setStateOverrides(List.of(codeOverride(SELF_BALANCE_CONTRACT, SELF_BALANCE_RUNTIME_CODE)));
-        receivingEntry.setCalls(
-                List.of(valueCall(getAliasAddressFromEntity(sender).toHexString(), SELF_BALANCE_CONTRACT)));
-        final var balanceOverride = codeOverride(SELF_BALANCE_CONTRACT, SELF_BALANCE_RUNTIME_CODE);
-        balanceOverride.setBalance(1000L);
-        final var overridingEntry = new SimulateBlockStateCall();
-        overridingEntry.setStateOverrides(List.of(balanceOverride));
-        final var balanceCall = new ContractCallRequest();
-        balanceCall.setTo(SELF_BALANCE_CONTRACT);
-        overridingEntry.setCalls(List.of(balanceCall));
-        final var request = new SimulateRequest();
-        request.setBlockStateCalls(List.of(receivingEntry, overridingEntry));
+        final var contract = testWeb3jService.deploy(StorageContract::deploy);
+        final var write = setSlot0Call(contract, 5);
+        write.setFrom(getAliasAddressFromEntity(sender).toHexString());
 
-        final var response = contractSimulateService.simulate(request);
+        final var response = simulate(requestWithSingleEntry(write, getSlot0Call(contract)));
 
-        assertThat(response.result().get(1).success()).isTrue();
-        assertThat(decodeUint256(response.result().get(1).returnData())).isEqualTo(BigInteger.valueOf(1000));
+        final var results = response.getResult();
+        assertThat(results).extracting(SimulateCallResult::getSuccess).containsExactly(true, true);
+        assertThat(decodeUint256(results.get(1).getReturnData())).isEqualTo(BigInteger.valueOf(5));
     }
 
     @Test
@@ -193,31 +136,31 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
         final var request = requestWithSingleEntry(setSlot0, revertingCall, getSlot0);
 
-        final var response = contractSimulateService.simulate(request);
+        final var response = simulate(request);
 
-        final var results = response.result();
+        final var results = response.getResult();
         assertThat(results).hasSize(3);
-        assertThat(results.get(0).success()).isTrue();
-        assertThat(results.get(0).error()).isEqualTo(SimulateCallError.NONE);
-        assertThat(results.get(1).success()).isFalse();
-        assertThat(results.get(1).logs()).isEmpty();
-        assertThat(results.get(1).error().code()).isEqualTo(3);
-        assertThat(results.get(1).error().message()).startsWith("execution reverted: ");
-        assertThat(results.get(1).error().data()).isEqualTo(results.get(1).returnData());
-        assertThat(results.get(2).success()).isTrue();
-        assertThat(decodeUint256(results.get(2).returnData())).isEqualTo(BigInteger.valueOf(7));
+        assertThat(results.get(0).getSuccess()).isTrue();
+        assertThat(results.get(0).getError()).isNull();
+        assertThat(results.get(1).getSuccess()).isFalse();
+        assertThat(results.get(1).getLogs()).isEmpty();
+        assertThat(results.get(1).getError().getCode()).isEqualTo(3);
+        assertThat(results.get(1).getError().getMessage()).startsWith("execution reverted: ");
+        assertThat(results.get(1).getError().getData()).isEqualTo(results.get(1).getReturnData());
+        assertThat(results.get(2).getSuccess()).isTrue();
+        assertThat(decodeUint256(results.get(2).getReturnData())).isEqualTo(BigInteger.valueOf(7));
     }
 
     @Test
     void twoContractCreatesInOneEntryGetDistinctAddresses() {
         final var request = requestWithSingleEntry(loggingCreateCall(), loggingCreateCall());
 
-        final var response = contractSimulateService.simulate(request);
+        final var response = simulate(request);
 
-        final var results = response.result();
+        final var results = response.getResult();
         assertThat(results).hasSize(2);
-        assertThat(results.get(0).success()).isTrue();
-        assertThat(results.get(1).success()).isTrue();
+        assertThat(results.get(0).getSuccess()).isTrue();
+        assertThat(results.get(1).getSuccess()).isTrue();
         assertThat(createdAddress(results.get(0))).isNotEqualTo(createdAddress(results.get(1)));
     }
 
@@ -230,90 +173,48 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
         final var request = requestWithSingleEntry(nestedCreate, followUpCreate);
 
-        final var response = contractSimulateService.simulate(request);
+        final var response = simulate(request);
 
-        final var results = response.result();
+        final var results = response.getResult();
         assertThat(results).hasSize(2);
-        assertThat(results.get(0).success()).isTrue();
-        assertThat(results.get(1).success()).isTrue();
+        assertThat(results.get(0).getSuccess()).isTrue();
+        assertThat(results.get(1).getSuccess()).isTrue();
     }
 
     @Test
-    void createsInSeparateEntriesGetDistinctAddresses() {
-        final var request = requestWithEntries(List.of(loggingCreateCall()), List.of(loggingCreateCall()));
+    void entryIsReportedAsTheAnchorBlock() {
+        final var request = requestWithSingleEntry(blockNumberCall(), loggingCreateCall());
+        request.getBlockStateCalls()
+                .getFirst()
+                .setStateOverrides(List.of(codeOverride(BLOCK_NUMBER_CONTRACT, BLOCK_NUMBER_RUNTIME_CODE)));
 
-        final var response = contractSimulateService.simulate(request);
+        final var response = simulate(request);
 
-        final var results = response.result();
-        assertThat(results).hasSize(2);
-        assertThat(results.get(0).success()).isTrue();
-        assertThat(results.get(1).success()).isTrue();
-        assertThat(createdAddress(results.get(0))).isNotEqualTo(createdAddress(results.get(1)));
-    }
-
-    @Test
-    void eachEntryRunsAndIsReportedAsItsOwnBlockAfterTheAnchor() {
-        final var firstEntry = new SimulateBlockStateCall();
-        firstEntry.setStateOverrides(List.of(codeOverride(BLOCK_NUMBER_CONTRACT, BLOCK_NUMBER_RUNTIME_CODE)));
-        firstEntry.setCalls(List.of(blockNumberCall(), loggingCreateCall()));
-        final var secondEntry = new SimulateBlockStateCall();
-        secondEntry.setCalls(List.of(blockNumberCall(), loggingCreateCall()));
-        final var request = new SimulateRequest();
-        request.setBlockStateCalls(List.of(firstEntry, secondEntry));
-
-        final var response = contractSimulateService.simulate(request);
-
-        final var results = response.result();
-        assertThat(results).hasSize(4);
+        final var results = response.getResult();
         final long anchorNumber = genesisRecordFile.getIndex();
-        assertThat(decodeUint256(results.get(0).returnData())).isEqualTo(BigInteger.valueOf(anchorNumber));
-        assertThat(decodeUint256(results.get(2).returnData())).isEqualTo(BigInteger.valueOf(anchorNumber + 1));
-        final var firstEntryLog = createdLog(results.get(1));
-        final var secondEntryLog = createdLog(results.get(3));
-        assertThat(firstEntryLog.blockNumber()).isEqualTo(anchorNumber);
-        assertThat(firstEntryLog.blockHash())
+        assertThat(decodeUint256(results.get(0).getReturnData())).isEqualTo(BigInteger.valueOf(anchorNumber));
+        final var log = createdLog(results.get(1));
+        assertThat(log.getBlockNumber()).isEqualTo(anchorNumber);
+        assertThat(log.getBlockHash())
                 .isEqualTo("0x" + genesisRecordFile.getHash().substring(0, 64));
-        assertThat(secondEntryLog.blockNumber()).isEqualTo(anchorNumber + 1);
-        assertThat(secondEntryLog.blockHash()).hasSize(66).isNotEqualTo(firstEntryLog.blockHash());
     }
 
     @Test
-    void accessListIsChargedAndWarmsItsStorage() {
-        final var contract = testWeb3jService.deploy(StorageContract::deploy);
-        final var accessListEntry = new AccessListEntry();
-        accessListEntry.setAddress(contract.getContractAddress());
-        accessListEntry.setStorageKeys(List.of(STORAGE_SLOT_0_KEY));
-        final var listedCall = getSlot0Call(contract);
-        listedCall.setAccessList(List.of(accessListEntry));
-
-        final var results = contractSimulateService
-                .simulate(requestWithSingleEntry(getSlot0Call(contract), listedCall))
-                .result();
-
-        // 2400 per address and 1900 per storage key are charged, while reading the warm slot costs 2000 less.
-        assertThat(results.get(1).gasUsed() - results.get(0).gasUsed()).isEqualTo(2_300L);
-    }
-
-    @Test
-    void blockOverrideSetsTheEntrysBlockNumberAndLaterEntriesContinueFromIt() {
-        final var blockOverride = new BlockOverride();
-        blockOverride.setNumber("0x100");
-        final var entry = new SimulateBlockStateCall();
-        entry.setBlockOverride(blockOverride);
+    void blockOverrideSetsTheEntrysBlockNumber() {
+        final var request = requestWithSingleEntry(blockNumberCall(), loggingCreateCall());
+        final var entry = request.getBlockStateCalls().getFirst();
+        entry.setBlockOverride(BlockOverride.builder().blockNumber(256L).build());
         entry.setStateOverrides(List.of(codeOverride(BLOCK_NUMBER_CONTRACT, BLOCK_NUMBER_RUNTIME_CODE)));
-        entry.setCalls(List.of(blockNumberCall(), loggingCreateCall()));
-        final var request = new SimulateRequest();
-        final var nextEntry = new SimulateBlockStateCall();
-        nextEntry.setCalls(List.of(blockNumberCall()));
-        request.setBlockStateCalls(List.of(entry, nextEntry));
 
-        final var response = contractSimulateService.simulate(request);
+        final var response = simulate(request);
 
-        final var results = response.result();
-        assertThat(decodeUint256(results.get(0).returnData())).isEqualTo(BigInteger.valueOf(256));
-        assertThat(createdLog(results.get(1)).blockNumber()).isEqualTo(256L);
-        // The following entry continues from the overridden block.
-        assertThat(decodeUint256(results.get(2).returnData())).isEqualTo(BigInteger.valueOf(257));
+        final var results = response.getResult();
+        assertThat(decodeUint256(results.get(0).getReturnData())).isEqualTo(BigInteger.valueOf(256));
+        final var log = createdLog(results.get(1));
+        assertThat(log.getBlockNumber()).isEqualTo(256L);
+        assertThat(log.getBlockHash())
+                .hasSize(66)
+                .isNotEqualTo("0x" + genesisRecordFile.getHash().substring(0, 64));
     }
 
     @Test
@@ -333,49 +234,86 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         request.setBlockStateCalls(List.of(entry));
         request.setTraceTransfers(true);
 
-        final var response = contractSimulateService.simulate(request);
+        final var response = simulate(request);
 
-        final var results = response.result();
-        assertThat(results).extracting(SimulateCallResult::success).containsExactly(true, true);
+        final var results = response.getResult();
+        assertThat(results).extracting(SimulateCallResult::getSuccess).containsExactly(true, true);
         // Parent transfer first, then the sub-call's transfer to an account without code.
-        assertThat(results.get(0).logs())
+        assertThat(results.get(0).getLogs())
                 .extracting(ContractSimulateServiceTest::describeTransfer)
                 .containsExactly(transfer(senderAddress, FORWARDER, 2), transfer(FORWARDER, receiverAddress, 1));
         // Transfer amounts are 32-byte words.
-        assertThat(results.get(0).logs()).allMatch(log -> log.data().length() == 66);
+        assertThat(results.get(0).getLogs()).allMatch(log -> log.getData().length() == 66);
         // The reverted sub-call's transfer never happened, so only the parent's remains.
-        assertThat(results.get(1).logs())
+        assertThat(results.get(1).getLogs())
                 .extracting(ContractSimulateServiceTest::describeTransfer)
                 .containsExactly(transfer(senderAddress, FORWARDER_TO_REVERTER, 2));
     }
 
     @Test
-    void transactionAndLogIndicesRestartPerEntry() {
+    void transactionAndLogIndicesCountAcrossTheEntry() {
         final var sender = accountEntityPersistCustomizable(e -> e.balance(DEFAULT_ACCOUNT_BALANCE));
         final var receiver = accountEntityWithEvmAddressPersist();
 
-        final var request = requestWithEntries(
-                List.of(transferCall(sender, receiver), transferCall(sender, receiver)),
-                List.of(transferCall(sender, receiver)));
+        final var request = requestWithSingleEntry(transferCall(sender, receiver), transferCall(sender, receiver));
         request.setTraceTransfers(true);
 
-        final var response = contractSimulateService.simulate(request);
+        final var response = simulate(request);
 
-        final var results = response.result();
-        assertThat(results).hasSize(3);
+        final var results = response.getResult();
+        assertThat(results).hasSize(2);
+        final var firstLog = results.get(0).getLogs().getFirst();
+        final var secondLog = results.get(1).getLogs().getFirst();
+        assertThat(firstLog.getTransactionIndex()).isZero();
+        assertThat(firstLog.getIndex()).isZero();
+        assertThat(secondLog.getTransactionIndex()).isEqualTo(1L);
+        assertThat(secondLog.getIndex()).isEqualTo(1L);
+        assertThat(secondLog.getBlockNumber()).isEqualTo(firstLog.getBlockNumber());
+        assertThat(secondLog.getTransactionHash()).isNotEqualTo(firstLog.getTransactionHash());
+    }
 
-        final var firstEntryFirstLog = results.get(0).logs().getFirst();
-        final var firstEntrySecondLog = results.get(1).logs().getFirst();
-        final var secondEntryLog = results.get(2).logs().getFirst();
+    @Test
+    void traceTransfersCapturesSelfDestructBeneficiaryTransfer() {
+        final var sender = accountEntityPersistCustomizable(e -> e.balance(DEFAULT_ACCOUNT_BALANCE));
+        final var beneficiaryAddress =
+                getAliasAddressFromEntity(accountEntityWithEvmAddressPersist()).toHexString();
+        final var entry = new SimulateBlockStateCall();
+        entry.setStateOverrides(
+                List.of(codeOverride(SELF_DESTRUCTOR, "0x73" + beneficiaryAddress.substring(2) + "ff")));
+        final var call = new ContractCallRequest();
+        call.setFrom(getAliasAddressFromEntity(sender).toHexString());
+        call.setTo(SELF_DESTRUCTOR);
+        entry.setCalls(List.of(call));
+        final var request = new SimulateRequest();
+        request.setBlockStateCalls(List.of(entry));
+        request.setTraceTransfers(true);
 
-        assertThat(firstEntryFirstLog.transactionIndex()).isZero();
-        assertThat(firstEntryFirstLog.index()).isZero();
-        assertThat(firstEntrySecondLog.transactionIndex()).isEqualTo(1L);
-        assertThat(firstEntrySecondLog.index()).isEqualTo(1L);
-        assertThat(secondEntryLog.transactionIndex()).isZero();
-        assertThat(secondEntryLog.index()).isZero();
-        assertThat(secondEntryLog.blockNumber()).isEqualTo(firstEntryFirstLog.blockNumber() + 1);
-        assertThat(secondEntryLog.transactionHash()).isNotEqualTo(firstEntryFirstLog.transactionHash());
+        final var result = simulate(request).getResult().getFirst();
+
+        assertThat(result.getSuccess()).isTrue();
+        assertThat(result.getLogs())
+                .extracting(ContractSimulateServiceTest::describeTransfer)
+                .containsExactly(transfer(SELF_DESTRUCTOR, beneficiaryAddress, 100_000_000));
+    }
+
+    @Test
+    void traceTransfersKeepsSelfDestructWithEmptyStackAnOrdinaryHalt() {
+        final var sender = accountEntityPersistCustomizable(e -> e.balance(DEFAULT_ACCOUNT_BALANCE));
+        final var entry = new SimulateBlockStateCall();
+        entry.setStateOverrides(List.of(codeOverride(SELF_DESTRUCTOR, "0xff")));
+        final var call = new ContractCallRequest();
+        call.setFrom(getAliasAddressFromEntity(sender).toHexString());
+        call.setTo(SELF_DESTRUCTOR);
+        entry.setCalls(List.of(call));
+        final var request = new SimulateRequest();
+        request.setBlockStateCalls(List.of(entry));
+        request.setTraceTransfers(true);
+
+        final var result = simulate(request).getResult().getFirst();
+
+        assertThat(result.getSuccess()).isFalse();
+        assertThat(result.getError().getMessage()).isEqualTo("CONTRACT_EXECUTION_EXCEPTION");
+        assertThat(result.getLogs()).isEmpty();
     }
 
     @Test
@@ -385,15 +323,35 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
         final var request = requestWithSingleEntry(transferCall(sender, receiver));
 
-        final var response = contractSimulateService.simulate(request);
+        final var response = simulate(request);
 
-        final var results = response.result();
+        final var results = response.getResult();
         assertThat(results).hasSize(1);
-        assertThat(results.getFirst().logs()).isEmpty();
+        assertThat(results.getFirst().getLogs()).isEmpty();
     }
 
     @Test
-    void unknownBlockFailsRequestAndRestoresAllGas() {
+    void successfulCallsKeepTheirUnusedGasRefundable() {
+        final var contract = testWeb3jService.deploy(StorageContract::deploy);
+        final var firstCall = getSlot0Call(contract);
+        firstCall.setGas(1_000_000L);
+        final var secondCall = getSlot0Call(contract);
+        secondCall.setGas(2_000_000L);
+        final var request = requestWithSingleEntry(firstCall, secondCall);
+
+        ContractCallContext.run(context -> {
+            context.setRefundableGas(request.totalGas());
+            final var results =
+                    contractSimulateService.simulate(request, context).getResult();
+            final var gasUsed =
+                    results.getFirst().getGasUsed() + results.getLast().getGasUsed();
+            assertThat(context.getRefundableGas()).isEqualTo(3_000_000L - gasUsed);
+            return null;
+        });
+    }
+
+    @Test
+    void unknownBlockFailsRequestAndKeepsAllGasRefundable() {
         final var contract = testWeb3jService.deploy(StorageContract::deploy);
         final var firstCall = getSlot0Call(contract);
         firstCall.setGas(2_000_000L);
@@ -402,14 +360,12 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         final var request = requestWithSingleEntry(firstCall, secondCall);
         request.setBlock(BlockType.of("0x7ffffff0"));
 
-        assertThatThrownBy(() -> contractSimulateService.simulate(request))
-                .isInstanceOf(BlockNumberNotFoundException.class);
-
-        verify(throttleManager).restore(5_000_000L);
+        assertThat(refundableGasAfterFailure(request, BlockNumberNotFoundException.class))
+                .isEqualTo(5_000_000L);
     }
 
     @Test
-    void exceededRequestTimeoutFailsRequestAndRestoresUnattemptedGas() {
+    void exceededRequestTimeoutFailsRequestAndKeepsUnattemptedGasRefundable() {
         final var contract = testWeb3jService.deploy(StorageContract::deploy);
         final var call = getSlot0Call(contract);
         call.setGas(2_000_000L);
@@ -419,17 +375,15 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         responseProperties.setTimeout(Duration.ZERO);
 
         try {
-            assertThatThrownBy(() -> contractSimulateService.simulate(request))
-                    .isInstanceOf(QueryTimeoutException.class);
+            assertThat(refundableGasAfterFailure(request, QueryTimeoutException.class))
+                    .isEqualTo(2_000_000L);
         } finally {
             responseProperties.setTimeout(timeout);
         }
-
-        verify(throttleManager).restore(2_000_000L);
     }
 
     @Test
-    void unexpectedExecutorFailureFailsRequestAndRestoresUnattemptedGas() {
+    void unexpectedExecutorFailureFailsRequestAndKeepsUnusedGasRefundable() {
         final var contract = testWeb3jService.deploy(StorageContract::deploy);
         final var firstCall = setSlot0Call(contract, 42);
         firstCall.setGas(2_000_000L);
@@ -441,15 +395,12 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
                 .when(transactionExecutionService)
                 .execute(any(CallServiceParameters.class), anyLong());
 
-        assertThatThrownBy(() -> contractSimulateService.simulate(request))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("unexpected");
-
-        verify(throttleManager).restore(3_000_123L);
+        // The failed call used none of its gas.
+        assertThat(refundableGasAfterFailure(request, RuntimeException.class)).isEqualTo(5_000_123L);
     }
 
     @Test
-    void invalidInputOnSecondCallFailsRequestAndRestoresUnattemptedGas() {
+    void invalidInputOnSecondCallFailsRequestAndKeepsUnusedGasRefundable() {
         final var contract = testWeb3jService.deploy(StorageContract::deploy);
         final var firstCall = setSlot0Call(contract, 42);
         firstCall.setGas(1_000_000L);
@@ -464,10 +415,10 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
                 .when(transactionExecutionService)
                 .execute(any(CallServiceParameters.class), anyLong());
 
-        assertThatThrownBy(() -> contractSimulateService.simulate(request))
-                .isInstanceOf(BlockNumberNotFoundException.class);
-
-        verify(throttleManager).restore(3_000_123L);
+        // The first call's unused gas, all of the failed call's gas and the gas of the call that did not run.
+        assertThat(refundableGasAfterFailure(request, BlockNumberNotFoundException.class))
+                .isGreaterThan(5_000_123L)
+                .isLessThan(6_000_123L);
     }
 
     // CALL(gas, target, value = 1, no input, no output) then STOP.
@@ -499,9 +450,9 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
 
     private static String describeTransfer(final SimulateLog log) {
         return transfer(
-                log.topics().get(1),
-                log.topics().get(2),
-                new BigInteger(log.data().substring(2), 16).longValue());
+                log.getTopics().get(1),
+                log.getTopics().get(2),
+                new BigInteger(log.getData().substring(2), 16).longValue());
     }
 
     private static String transfer(final String from, final String to, final long value) {
@@ -519,12 +470,12 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
     }
 
     private static String createdAddress(final SimulateCallResult result) {
-        return createdLog(result).address();
+        return createdLog(result).getAddress();
     }
 
     private static SimulateLog createdLog(final SimulateCallResult result) {
-        assertThat(result.logs()).hasSize(1);
-        return result.logs().getFirst();
+        assertThat(result.getLogs()).hasSize(1);
+        return result.getLogs().getFirst();
     }
 
     private ContractCallRequest transferCall(final Entity sender, final Entity receiver) {
@@ -568,20 +519,27 @@ class ContractSimulateServiceTest extends AbstractContractCallServiceTest {
         return hex.startsWith("0x") ? hex : "0x" + hex;
     }
 
-    private SimulateRequest requestWithSingleEntry(final ContractCallRequest... calls) {
-        return requestWithEntries(List.of(calls));
+    private long refundableGasAfterFailure(final SimulateRequest request, final Class<? extends Throwable> failure) {
+        return ContractCallContext.run(context -> {
+            context.setRefundableGas(request.totalGas());
+            assertThatThrownBy(() -> contractSimulateService.simulate(request, context))
+                    .isInstanceOf(failure);
+            return context.getRefundableGas();
+        });
     }
 
-    @SafeVarargs
-    private SimulateRequest requestWithEntries(final List<ContractCallRequest>... entryCalls) {
-        final var entries = new ArrayList<SimulateBlockStateCall>(entryCalls.length);
-        for (final var calls : entryCalls) {
-            final var entry = new SimulateBlockStateCall();
-            entry.setCalls(calls);
-            entries.add(entry);
-        }
+    private SimulateResponse simulate(final SimulateRequest request) {
+        return ContractCallContext.run(context -> {
+            context.setRefundableGas(request.totalGas());
+            return contractSimulateService.simulate(request, context);
+        });
+    }
+
+    private SimulateRequest requestWithSingleEntry(final ContractCallRequest... calls) {
+        final var entry = new SimulateBlockStateCall();
+        entry.setCalls(List.of(calls));
         final var request = new SimulateRequest();
-        request.setBlockStateCalls(entries);
+        request.setBlockStateCalls(List.of(entry));
         return request;
     }
 

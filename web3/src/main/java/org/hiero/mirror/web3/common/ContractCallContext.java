@@ -20,21 +20,15 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.rest.model.SimulateLog;
 import org.hiero.mirror.web3.ApiEndpointName;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.CapturedTransfer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
-import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.state.Utils;
-import org.hiero.mirror.web3.utils.HexUtils;
-import org.hiero.mirror.web3.viewmodel.AccessListEntry;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
-import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings("deprecation")
 @Getter
@@ -42,13 +36,6 @@ public class ContractCallContext {
 
     public static final String CONTEXT_NAME = "ContractCallContext";
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
-
-    // Sentinel stored in the committed cache to indicate a key was explicitly deleted
-    public static final Object TOMBSTONE = new Object();
-
-    /** Writes committed by earlier blocks of a simulate request. */
-    @Getter(AccessLevel.NONE)
-    private final Map<Integer, Map<Object, Object>> committedCache = new HashMap<>();
 
     /**
      * Record file indexes found to be absent during this call. Absent indexes are not cached across requests, so this
@@ -95,19 +82,15 @@ public class ContractCallContext {
     @Setter
     private long gasRequirement;
 
-    /** Access list of the current simulated call, warmed in its top-level frame. */
-    @Setter
-    private List<AccessListEntry> accessList = List.of();
-
     @Setter
     private boolean traceTransfers;
 
-    private final List<CapturedTransfer> capturedTransfers = new ArrayList<>();
+    private final List<SimulateLog> transferLogs = new ArrayList<>();
 
     /**
-     * Index into {@link #capturedTransfers} where each currently open frame's transfers begin, innermost on top.
+     * Index into {@link #transferLogs} where each currently open frame's transfer logs begin, innermost on top.
      */
-    private final Deque<Integer> transferFrameStarts = new ArrayDeque<>();
+    private final Deque<Integer> transferLogSnapshots = new ArrayDeque<>();
 
     @Setter
     private Supplier<RecordFile> blockSupplier = () -> null;
@@ -117,20 +100,6 @@ public class ContractCallContext {
      */
     @Setter
     private Map<Bytes, StateOverride> stateOverrides;
-
-    /**
-     * Optional EVM {@code block.number} override from {@code block_override.number}. {@code null} means use the bound
-     * record file.
-     */
-    @Setter
-    private @Nullable Long blockOverrideNumber;
-
-    /**
-     * Optional EVM {@code block.timestamp} override from {@code block_override.time}, in nanoseconds since epoch.
-     * {@code null} means use the bound record file.
-     */
-    @Setter
-    private @Nullable Long blockOverrideTimeNanos;
 
     /**
      * Number of synthetic accounts created for state overrides on addresses with no entity in the DB.
@@ -202,13 +171,12 @@ public class ContractCallContext {
         writeCache.clear();
     }
 
-    /** Commits the pending writes, which the next block then reads as its original state. */
-    public void commitWriteCache() {
-        writeCache.forEach((stateId, cache) -> {
-            final var committed = committedCache.computeIfAbsent(stateId, _ -> new HashMap<>());
-            cache.forEach((key, value) -> committed.put(key, value == null ? TOMBSTONE : value));
-        });
-        writeCache.clear();
+    /**
+     * Moves the writes of a finished call into the read cache. The next call of the request then reads them as its
+     * original state, as the transaction executor reads original values from the readable states.
+     */
+    public void commit() {
+        writeCache.moveTo(readCache);
     }
 
     public boolean useHistorical() {
@@ -247,36 +215,12 @@ public class ContractCallContext {
         return readCache.get(stateId);
     }
 
-    public Map<Object, Object> getCommittedCacheState(final int stateId) {
-        return committedCache.computeIfAbsent(stateId, _ -> new HashMap<>());
-    }
-
     public Map<Object, Object> getWriteCacheState(final int stateId) {
         return writeCache.get(stateId);
     }
 
     public RecordFile getRecordFile() {
         return blockSupplier.get();
-    }
-
-    /**
-     * Applies HIP-1485 {@code block_override}. A set {@code number} becomes EVM {@code block.number} and a set
-     * {@code time} becomes EVM {@code block.timestamp}. Both may be set.
-     */
-    public void applyBlockOverride(final @Nullable BlockOverride override) {
-        if (override == null) {
-            return;
-        }
-        try {
-            if (StringUtils.isNotBlank(override.getNumber())) {
-                blockOverrideNumber = HexUtils.parseValue(override.getNumber());
-            }
-            if (StringUtils.isNotBlank(override.getTime())) {
-                blockOverrideTimeNanos = DomainUtils.convertToNanosMax(HexUtils.parseValue(override.getTime()), 0);
-            }
-        } catch (NumberFormatException e) {
-            throw new InvalidParametersException("Invalid block_override: " + e.getMessage());
-        }
     }
 
     public void applyStateOverrides(final List<StateOverride> overrides) {
@@ -289,14 +233,6 @@ public class ContractCallContext {
             addressToAccounts.put(Bytes.wrap(Utils.parseHex(stateOverride.getAddress())), stateOverride);
         }
         this.stateOverrides = addressToAccounts;
-    }
-
-    public long evmBlockNumber(final long fallback) {
-        return blockOverrideNumber != null ? blockOverrideNumber : fallback;
-    }
-
-    public long evmBlockTimeNanos(final long fallback) {
-        return blockOverrideTimeNanos != null ? blockOverrideTimeNanos : fallback;
     }
 
     /**
@@ -315,6 +251,16 @@ public class ContractCallContext {
         void clear() {
             Arrays.fill(indexed, null);
             others.clear();
+        }
+
+        void moveTo(final StateCaches target) {
+            for (int stateId = 0; stateId < INDEXED_STATE_IDS; stateId++) {
+                if (indexed[stateId] != null) {
+                    target.get(stateId).putAll(indexed[stateId]);
+                }
+            }
+            others.forEach((stateId, cache) -> target.get(stateId).putAll(cache));
+            clear();
         }
 
         Map<Object, Object> get(final int stateId) {

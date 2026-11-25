@@ -374,7 +374,7 @@ public class TransactionExecutionService {
         if (context.getOpcodeContext() != null) {
             return new ActionSidecarContentTracer[] {opcodeActionTracer};
         }
-        if (context.isTraceTransfers() || !context.getAccessList().isEmpty()) {
+        if (context.isTraceTransfers()) {
             return new ActionSidecarContentTracer[] {mirrorOperationActionTracer, simulateActionTracer};
         }
         return new ActionSidecarContentTracer[] {mirrorOperationActionTracer};

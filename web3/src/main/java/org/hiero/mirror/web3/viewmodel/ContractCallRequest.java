@@ -18,32 +18,17 @@ import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
-import org.hiero.mirror.web3.utils.HexUtils;
 import org.hiero.mirror.web3.validation.Hex;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.annotation.JsonSerialize;
 
 @Data
+@NullMarked
 public class ContractCallRequest {
 
     public static final int ADDRESS_LENGTH = 40;
     public static final long DATA_MAX_LENGTH = 300_000L;
-    public static final int ACCESS_LIST_MAX_SIZE = 1_000;
-    public static final int AUTHORIZATION_LIST_MAX_SIZE = 1_000;
-
-    @JsonProperty("access_list")
-    @Nullable
-    @Size(max = ACCESS_LIST_MAX_SIZE)
-    @Valid
-    private List<@NotNull AccessListEntry> accessList;
-
-    // Validated, but not yet applied to execution.
-    @JsonProperty("authorization_list")
-    @Nullable
-    @Size(max = AUTHORIZATION_LIST_MAX_SIZE)
-    @Valid
-    private List<@NotNull AuthorizationListEntry> authorizationList;
-
     public static final int STATE_OVERRIDES_MAX_SIZE = 10;
 
     @JsonSerialize(using = BlockTypeSerializer.class)
@@ -57,12 +42,12 @@ public class ContractCallRequest {
     private BlockOverride blockOverride = BlockOverride.EMPTY;
 
     @Hex(maxLength = DATA_MAX_LENGTH)
-    private String data;
+    private @Nullable String data;
 
     private boolean estimate;
 
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH)
-    private String from;
+    private @Nullable String from;
 
     @Min(21_000)
     private long gas = 15_000_000L;
@@ -74,7 +59,7 @@ public class ContractCallRequest {
     private long gasPrice;
 
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH, allowEmpty = true)
-    private String to;
+    private @Nullable String to;
 
     @NotNull
     @Size(max = STATE_OVERRIDES_MAX_SIZE)
@@ -82,25 +67,6 @@ public class ContractCallRequest {
 
     @PositiveOrZero
     private long value;
-
-    // Plain setters, as the Jackson 3 HTTP binding ignores Jackson 2's @JsonDeserialize.
-    public void setGas(final Object gas) {
-        if (gas != null) {
-            this.gas = HexUtils.parseValue(gas);
-        }
-    }
-
-    public void setGasPrice(final Object gasPrice) {
-        if (gasPrice != null) {
-            this.gasPrice = HexUtils.parseValue(gasPrice);
-        }
-    }
-
-    public void setValue(final Object value) {
-        if (value != null) {
-            this.value = HexUtils.parseValue(value);
-        }
-    }
 
     @AssertTrue(message = "must not be empty")
     private boolean hasFrom() {

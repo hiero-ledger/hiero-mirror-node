@@ -138,18 +138,22 @@ class ContractCallContextTest {
     }
 
     @Test
-    void commitWriteCacheMovesPendingWritesToCommittedState() {
+    void commitMovesWritesIntoTheReadCache() {
         final var context = ContractCallContext.get();
+        context.getReadCacheState(1).put("read", "value");
         context.getWriteCacheState(1).put("written", "value");
         context.getWriteCacheState(1).put("removed", null);
+        context.getWriteCacheState(200).put("large", "value");
 
-        context.commitWriteCache();
+        context.commit();
 
         assertThat(context.getWriteCacheState(1)).isEmpty();
-        assertThat(context.getCommittedCacheState(1))
+        assertThat(context.getWriteCacheState(200)).isEmpty();
+        assertThat(context.getReadCacheState(1))
+                .containsEntry("read", "value")
                 .containsEntry("written", "value")
-                .containsEntry("removed", ContractCallContext.TOMBSTONE);
-        assertThat(context.getCommittedCacheState(2)).isEmpty();
+                .containsEntry("removed", null);
+        assertThat(context.getReadCacheState(200)).containsEntry("large", "value");
     }
 
     @Test

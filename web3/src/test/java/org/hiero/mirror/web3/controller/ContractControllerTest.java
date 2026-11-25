@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.controller;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hiero.mirror.web3.ApiEndpointName.CALL;
 import static org.hiero.mirror.web3.ApiEndpointName.SIMULATE;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
@@ -12,10 +13,12 @@ import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -41,6 +44,10 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.rest.model.SimulateCallError;
+import org.hiero.mirror.rest.model.SimulateCallResult;
+import org.hiero.mirror.rest.model.SimulateLog;
+import org.hiero.mirror.rest.model.SimulateResponse;
 import org.hiero.mirror.web3.ApiProperties;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -61,11 +68,7 @@ import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
-import org.hiero.mirror.web3.viewmodel.SimulateCallError;
-import org.hiero.mirror.web3.viewmodel.SimulateCallResult;
-import org.hiero.mirror.web3.viewmodel.SimulateLog;
 import org.hiero.mirror.web3.viewmodel.SimulateRequest;
-import org.hiero.mirror.web3.viewmodel.SimulateResponse;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
 import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls;
@@ -1155,13 +1158,41 @@ final class ContractControllerTest {
     void simulateSuccess() throws Exception {
         enableSimulate(true);
         final var request = simulateRequest(1);
-        final var response = new SimulateResponse(List.of());
-        given(contractSimulateService.simulate(request)).willReturn(response);
+        final var response = new SimulateResponse().result(List.of());
+        given(contractSimulateService.simulate(eq(request), any())).willReturn(response);
 
         simulate(request).andExpect(status().isOk()).andExpect(content().string(convert(response)));
+    }
 
-        verify(throttleManager)
-                .throttle(request.getBlockStateCalls().getFirst().getCalls().getFirst());
+    @Test
+    void simulateThrottlesEachCallAndRestoresRefundableGas() throws Exception {
+        enableSimulate(true);
+        final var request = simulateRequest(2);
+        final long refundableGas = 21_000L;
+        given(contractSimulateService.simulate(any(SimulateRequest.class), any()))
+                .willAnswer(invocation -> {
+                    invocation.<ContractCallContext>getArgument(1).setRefundableGas(refundableGas);
+                    return new SimulateResponse().result(List.of());
+                });
+
+        simulate(request).andExpect(status().isOk());
+
+        verify(throttleManager, times(2)).throttle(any(ContractCallRequest.class));
+        verify(throttleManager).restore(refundableGas);
+        verify(throttleManager).restore(anyLong());
+    }
+
+    @Test
+    void simulateFailureRestoresAllGasOfCallsThatDidNotRun() throws Exception {
+        enableSimulate(true);
+        final var request = simulateRequest(2);
+        given(contractSimulateService.simulate(any(SimulateRequest.class), any()))
+                .willThrow(new BlockNumberNotFoundException());
+
+        simulate(request).andExpect(status().isBadRequest());
+
+        verify(throttleManager).restore(request.totalGas());
+        verify(throttleManager).restore(anyLong());
     }
 
     @Test
@@ -1211,39 +1242,67 @@ final class ContractControllerTest {
         simulate(request).andExpect(status().isBadRequest());
 
         verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
-        verify(contractSimulateService, never()).simulate(any(SimulateRequest.class));
+        verify(contractSimulateService, never()).simulate(any(SimulateRequest.class), any());
     }
 
     @Test
-    void simulateRejectedCallRestoresTheGasOfEarlierCalls() throws Exception {
+    void simulateAcceptsEntryBlockOverride() throws Exception {
         enableSimulate(true);
-        final var request = simulateRequest(2);
-        final var rejectedCall =
-                request.getBlockStateCalls().getFirst().getCalls().getLast();
-        rejectedCall.setGas(2_000_000L);
-        doThrow(new ThrottleException("")).when(throttleManager).throttle(rejectedCall);
-
-        simulate(request).andExpect(status().isTooManyRequests());
-
-        verify(throttleManager).restore(15_000_000L);
-        verify(contractSimulateService, never()).simulate(any(SimulateRequest.class));
-    }
-
-    @Test
-    void simulateAcceptsBlockOverrideWithNumberAndTime() throws Exception {
-        enableSimulate(true);
-        given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(new SimulateResponse(List.of()));
+        given(contractSimulateService.simulate(any(SimulateRequest.class), any()))
+                .willReturn(new SimulateResponse().result(List.of()));
 
         simulate("""
                 {
                     "block_state_calls": [
                         {
-                            "block_override": {"number": "0x1", "time": "0x2"},
+                            "block_override": {"block_number": 1, "time": 2},
                             "calls": [{"to": "0x00000000000000000000000000000000000004e4"}]
                         }
                     ]
                 }
                 """).andExpect(status().isOk());
+
+        verify(contractSimulateService)
+                .simulate(
+                        argThat(request -> {
+                            final var blockOverride =
+                                    request.getBlockStateCalls().getFirst().getBlockOverride();
+                            return blockOverride.blockNumber() == 1L && blockOverride.time() == 2L;
+                        }),
+                        any());
+    }
+
+    @Test
+    void simulateWithBlockOverridesDisabledIsBadRequestWithoutConsumingThrottle() throws Exception {
+        enableSimulate(true);
+        web3Properties.setEnableBlockOverrides(false);
+        final var request = simulateRequest(1);
+        request.getBlockStateCalls()
+                .getFirst()
+                .setBlockOverride(BlockOverride.builder().blockNumber(1L).build());
+
+        simulate(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("Block overrides are not supported.")));
+
+        verify(throttleManager, never()).throttle(any(ContractCallRequest.class));
+    }
+
+    @Test
+    void simulateWithCallBlockOverrideIsBadRequest() throws Exception {
+        enableSimulate(true);
+        final var request = simulateRequest(1);
+        request.getBlockStateCalls()
+                .getFirst()
+                .getCalls()
+                .getFirst()
+                .setBlockOverride(BlockOverride.builder().blockNumber(1L).build());
+
+        simulate(request)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("block_override is only supported on the entry")));
+
+        verify(contractSimulateService, never()).simulate(any(SimulateRequest.class), any());
     }
 
     @Test
@@ -1259,9 +1318,10 @@ final class ContractControllerTest {
     }
 
     @Test
-    void simulateBindsHexValuesSnakeCaseGasPriceAndIntegerBalance() throws Exception {
+    void simulateBindsSnakeCaseGasPriceAndIntegerBalance() throws Exception {
         enableSimulate(true);
-        given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(new SimulateResponse(List.of()));
+        given(contractSimulateService.simulate(any(SimulateRequest.class), any()))
+                .willReturn(new SimulateResponse().result(List.of()));
 
         simulate("""
                 {
@@ -1270,10 +1330,9 @@ final class ContractControllerTest {
                             "calls": [
                                 {
                                     "from": "0x00000000000000000000000000000000000004e2",
-                                    "gas": null,
-                                    "gas_price": "0x10",
+                                    "gas_price": 16,
                                     "to": "0x00000000000000000000000000000000000004e4",
-                                    "value": "0x1"
+                                    "value": 1
                                 }
                             ],
                             "state_overrides": [
@@ -1287,84 +1346,49 @@ final class ContractControllerTest {
                 }
                 """).andExpect(status().isOk());
 
-        verify(contractSimulateService).simulate(argThat(request -> {
-            final var entry = request.getBlockStateCalls().getFirst();
-            final var call = entry.getCalls().getFirst();
-            return call.getGas() == 15_000_000L
-                    && call.getGasPrice() == 16L
-                    && call.getValue() == 1L
-                    && entry.getStateOverrides().getFirst().getBalance() == 1_208_925_819L;
-        }));
-    }
-
-    @Test
-    void simulateAcceptsAccessAndAuthorizationLists() throws Exception {
-        enableSimulate(true);
-        given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(new SimulateResponse(List.of()));
-
-        simulate("""
-                {
-                    "block_state_calls": [
-                        {
-                            "calls": [
-                                {
-                                    "access_list": [
-                                        {
-                                            "address": "0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae",
-                                            "storage_keys": [
-                                                "0x0000000000000000000000000000000000000000000000000000000000000003"
-                                            ]
-                                        }
-                                    ],
-                                    "authorization_list": [
-                                        {
-                                            "address": "0x1111111111111111111111111111111111111111",
-                                            "chain_id": "0x127",
-                                            "nonce": 5,
-                                            "r": "0x2222222222222222222222222222222222222222222222222222222222222222",
-                                            "s": "0x3333333333333333333333333333333333333333333333333333333333333333",
-                                            "y_parity": 1
-                                        }
-                                    ],
-                                    "from": "0x00000000000000000000000000000000000004e2",
-                                    "to": "0x00000000000000000000000000000000000004e4"
-                                }
-                            ]
-                        }
-                    ]
-                }
-                """).andExpect(status().isOk());
-
-        verify(contractSimulateService).simulate(argThat(request -> {
-            final var call = request.getBlockStateCalls().getFirst().getCalls().getFirst();
-            return call.getAccessList().size() == 1
-                    && call.getAccessList().getFirst().getStorageKeys().size() == 1
-                    && call.getAuthorizationList().size() == 1
-                    && call.getAuthorizationList().getFirst().getNonce() == 5L;
-        }));
+        verify(contractSimulateService)
+                .simulate(
+                        argThat(request -> {
+                            final var entry = request.getBlockStateCalls().getFirst();
+                            final var call = entry.getCalls().getFirst();
+                            return call.getGas() == 15_000_000L
+                                    && call.getGasPrice() == 16L
+                                    && call.getValue() == 1L
+                                    && entry.getStateOverrides().getFirst().getBalance() == 1_208_925_819L;
+                        }),
+                        any());
     }
 
     @Test
     void simulateResponseMatchesTheHipShape() throws Exception {
         enableSimulate(true);
-        final var log = new SimulateLog(
-                "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-                "0x5e28f54a56dc9df973a058cd54b3eeef8c67a1a613cb5db1df8a0a434c931d56",
-                20784968L,
-                "0x01",
-                1L,
-                List.of(),
-                "0xe7217784e0c3f7b35d39303b1165046e9b7e8af9b9cf80d5d5f96c3163de8f51",
-                0L);
-        final var response = new SimulateResponse(List.of(
-                new SimulateCallResult(
-                        new SimulateCallError(3, "0x08c379a0", "execution reverted"),
-                        21_000L,
-                        List.of(),
-                        "0x08c379a0",
-                        false),
-                new SimulateCallResult(SimulateCallError.NONE, 25_352L, List.of(log), "0x", true)));
-        given(contractSimulateService.simulate(any(SimulateRequest.class))).willReturn(response);
+        final var log = new SimulateLog()
+                .address("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
+                .blockHash("0x5e28f54a56dc9df973a058cd54b3eeef8c67a1a613cb5db1df8a0a434c931d56")
+                .blockNumber(20784968L)
+                .data("0x01")
+                .index(1L)
+                .topics(List.of())
+                .transactionHash("0xe7217784e0c3f7b35d39303b1165046e9b7e8af9b9cf80d5d5f96c3163de8f51")
+                .transactionIndex(0L);
+        final var response = new SimulateResponse()
+                .result(List.of(
+                        new SimulateCallResult()
+                                .error(new SimulateCallError()
+                                        .code(3)
+                                        .data("0x08c379a0")
+                                        .message("execution reverted"))
+                                .gasUsed(21_000L)
+                                .logs(List.of())
+                                .returnData("0x08c379a0")
+                                .success(false),
+                        new SimulateCallResult()
+                                .gasUsed(25_352L)
+                                .logs(List.of(log))
+                                .returnData("0x")
+                                .success(true)));
+        given(contractSimulateService.simulate(any(SimulateRequest.class), any()))
+                .willReturn(response);
 
         simulate(simulateRequest(1))
                 .andExpect(status().isOk())
@@ -1375,7 +1399,7 @@ final class ContractControllerTest {
                 .andExpect(jsonPath("$.result[0].error.message").value("execution reverted"))
                 .andExpect(jsonPath("$.result[0].error.data").value("0x08c379a0"))
                 .andExpect(jsonPath("$.result[1].success").value(true))
-                .andExpect(jsonPath("$.result[1].error").isEmpty())
+                .andExpect(jsonPath("$.result[1].error").value(nullValue()))
                 .andExpect(jsonPath("$.result[1].logs[0].block_number").value(20784968L))
                 .andExpect(jsonPath("$.result[1].logs[0].index").value(1))
                 .andExpect(jsonPath("$.result[1].logs[0].removed").doesNotExist())
@@ -1394,9 +1418,9 @@ final class ContractControllerTest {
 
     private static Stream<String> invalidSimulateBodies() {
         final var call = "{\"to\": \"0x00000000000000000000000000000000000004e4\"}";
-        final var tooManyCalls = String.join(",", Collections.nCopies(SimulateRequest.MAX_CALLS + 1, call));
-        final var tooManyEntries = "{\"calls\": [" + call + "]},"
-                + String.join(",", Collections.nCopies(SimulateRequest.MAX_CALLS, "{\"calls\": []}"));
+        final var tooManyCalls = String.join(",", Collections.nCopies(SimulateBlockStateCall.MAX_CALLS + 1, call));
+        final var tooManyEntries = String.join(
+                ",", Collections.nCopies(SimulateRequest.MAX_BLOCK_STATE_CALLS + 1, "{\"calls\": [" + call + "]}"));
         final var override = "{\"address\": \"0x00000000000000000000000000000000000004e4\"}";
         final var tooManyOverrides = String.join(",", Collections.nCopies(11, override));
         return Stream.of(
@@ -1410,7 +1434,6 @@ final class ContractControllerTest {
                         + "]}]}",
                 "{\"block_state_calls\": [{\"calls\": [" + call
                         + "], \"state_overrides\": [{\"address\": \"0x00000000000000000000000000000000000004e4\", \"balance\": -1}]}]}",
-                "{\"block_state_calls\": [{\"calls\": [{\"access_list\": [{\"storage_keys\": []}], \"to\": \"0x00000000000000000000000000000000000004e4\"}]}]}",
                 "{\"block_state_calls\": [{\"calls\": [{\"state_overrides\": [" + override
                         + "], \"to\": \"0x00000000000000000000000000000000000004e4\"}]}]}");
     }
@@ -1418,8 +1441,9 @@ final class ContractControllerTest {
     @Test
     void simulateAtMaxCallsIsAccepted() throws Exception {
         enableSimulate(true);
-        final var request = simulateRequest(SimulateRequest.MAX_CALLS);
-        given(contractSimulateService.simulate(request)).willReturn(new SimulateResponse(List.of()));
+        final var request = simulateRequest(SimulateBlockStateCall.MAX_CALLS);
+        given(contractSimulateService.simulate(eq(request), any()))
+                .willReturn(new SimulateResponse().result(List.of()));
 
         simulate(request).andExpect(status().isOk());
     }

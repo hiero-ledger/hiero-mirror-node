@@ -7,19 +7,31 @@ import com.hedera.hapi.streams.ContractAction;
 import com.hedera.hapi.streams.ContractActionType;
 import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import jakarta.inject.Named;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
+import org.hiero.mirror.rest.model.SimulateLog;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.viewmodel.AccessListEntry;
+import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
+import org.hyperledger.besu.evm.internal.Words;
 import org.hyperledger.besu.evm.operation.Operation;
 import org.jspecify.annotations.NonNull;
 
-// SELFDESTRUCT beneficiary transfers are not captured.
+// Emits ERC20 Transfer logs for value transfers, as Besu's EthTransferLogOperationTracer does for eth_simulateV1.
 @Named
 public class SimulateActionTracer implements ActionSidecarContentTracer {
+
+    private static final int SELFDESTRUCT_OPCODE = 0xFF;
+    private static final String TRANSFER_EVENT_EMITTER = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    private static final String TRANSFER_EVENT_TOPIC0 = Hash.keccak256(
+                    Bytes.wrap("Transfer(address,address,uint256)".getBytes(StandardCharsets.UTF_8)))
+            .toHexString();
+
     @Override
     public List<ContractAction> contractActions() {
         return List.of();
@@ -33,32 +45,23 @@ public class SimulateActionTracer implements ActionSidecarContentTracer {
     @Override
     public void traceContextEnter(@NonNull final MessageFrame frame) {
         final var context = ContractCallContext.get();
-        if (frame.getDepth() == 0) {
-            warmUpAccessList(frame, context.getAccessList());
-        }
-        if (context.isTraceTransfers()) {
-            context.getTransferFrameStarts().push(context.getCapturedTransfers().size());
-        }
+        context.getTransferLogSnapshots().push(context.getTransferLogs().size());
+        addTransferLog(context, frame.getSenderAddress(), frame.getRecipientAddress(), frame.getValue());
     }
 
-    // A frame's final state is only known on exit; frames without code never reach tracePostExecution.
+    // A frame's final state is only known on exit.
     @Override
     public void traceContextExit(@NonNull final MessageFrame frame) {
         final var context = ContractCallContext.get();
-        if (!context.isTraceTransfers() || context.getTransferFrameStarts().isEmpty()) {
+        if (context.getTransferLogSnapshots().isEmpty()) {
             return;
         }
 
-        final int frameStart = context.getTransferFrameStarts().pop();
-        final var transfers = context.getCapturedTransfers();
+        final int snapshot = context.getTransferLogSnapshots().pop();
         if (frame.getState() != MessageFrame.State.COMPLETED_SUCCESS) {
-            // A failed frame reverts its sub-calls' transfers too.
-            transfers.subList(frameStart, transfers.size()).clear();
-        } else if (!frame.getValue().isZero()) {
-            // Sub-calls exit first, so the parent's transfer goes ahead of theirs.
-            transfers.add(
-                    frameStart,
-                    new CapturedTransfer(frame.getSenderAddress(), frame.getRecipientAddress(), frame.getValue()));
+            // A failed frame reverts its own and its sub-calls' transfers.
+            final var transferLogs = context.getTransferLogs();
+            transferLogs.subList(snapshot, transferLogs.size()).clear();
         }
     }
 
@@ -83,9 +86,21 @@ public class SimulateActionTracer implements ActionSidecarContentTracer {
         // NO-OP
     }
 
+    // SELFDESTRUCT sends the originator's whole balance to the beneficiary.
     @Override
     public void tracePreExecution(final @NonNull MessageFrame frame) {
-        // NO-OP
+        final var operation = frame.getCurrentOperation();
+        // With an empty stack the operation itself halts, so there is no beneficiary to read.
+        if (operation == null || operation.getOpcode() != SELFDESTRUCT_OPCODE || frame.stackSize() == 0) {
+            return;
+        }
+        final var originator = frame.getRecipientAddress();
+        final var account = frame.getWorldUpdater().get(originator);
+        if (account == null) {
+            return;
+        }
+        final var beneficiary = Words.toAddress(frame.getStackItem(0));
+        addTransferLog(ContractCallContext.get(), originator, beneficiary, account.getBalance());
     }
 
     @Override
@@ -98,13 +113,19 @@ public class SimulateActionTracer implements ActionSidecarContentTracer {
         // NO-OP
     }
 
-    private static void warmUpAccessList(final MessageFrame frame, final List<AccessListEntry> accessList) {
-        for (final var entry : accessList) {
-            final var address = Address.fromHexString(entry.getAddress());
-            frame.warmUpAddress(address);
-            for (final var storageKey : entry.getStorageKeys()) {
-                frame.warmUpStorage(address, Bytes32.fromHexStringLenient(storageKey));
-            }
+    private static void addTransferLog(
+            final ContractCallContext context, final Address sender, final Address recipient, final Wei value) {
+        if (value.compareTo(Wei.ZERO) <= 0 || recipient.equals(sender)) {
+            return;
         }
+        context.getTransferLogs()
+                .add(new SimulateLog()
+                        .address(TRANSFER_EVENT_EMITTER)
+                        .data(value.toHexString())
+                        .topics(List.of(TRANSFER_EVENT_TOPIC0, addressTopic(sender), addressTopic(recipient))));
+    }
+
+    private static String addressTopic(final Address address) {
+        return Bytes32.leftPad(address.getBytes()).toHexString();
     }
 }
