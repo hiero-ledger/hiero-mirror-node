@@ -307,6 +307,33 @@ final class BackfillNftApprovalContractLogMigrationTest
     }
 
     @Test
+    void rebuildsSnapshotWhenInterruptedBeforeCheckpoint() {
+        long start = domainBuilder.timestamp();
+        block(start);
+        transaction(start + 100);
+        nft(start + 100, 1, EntityId.of(1001), 1002);
+        assertThat(migration.performSynchronousSteps()).isTrue();
+        long cutoff = migration.getInitial();
+        // An earlier run interrupted after building its snapshot but before saving its checkpoint
+        jdbcOperations.update("delete from nft_approval_contract_log_progress_temp");
+
+        long next = start + 5000;
+        block(next);
+        transaction(next + 100);
+        nft(next + 100, 2, EntityId.of(1001), 1002);
+        assertThat(migration.performSynchronousSteps()).isTrue();
+        assertThat(migration.getInitial()).isGreaterThan(cutoff);
+
+        runMigration();
+        waitForCompletion();
+
+        assertThat(logs())
+                .extracting(ContractLog::getConsensusTimestamp)
+                .containsExactlyInAnyOrder(start + 100, next + 100);
+        assertThat(tableExists("nft_approval_snapshot_temp")).isFalse();
+    }
+
+    @Test
     void repairsNullIndexesOnExistingLogsInTheSameTransaction() {
         long start = domainBuilder.timestamp();
         block(start);

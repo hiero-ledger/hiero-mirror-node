@@ -187,7 +187,7 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
     // holding a serial approval needs no fix, so this avoids visiting each of them. contract_log is colocated with nft
     // and nft_history by token in v2, so the lookup runs on the shards.
     private static final String SNAPSHOT_APPROVALS = """
-            create table if not exists nft_approval_snapshot_temp as
+            create table nft_approval_snapshot_temp as
             select account_id, spender, token_id, serial_number, lower(timestamp_range) as consensus_timestamp
             from nft n
             where spender is not null and account_id is not null and lower(timestamp_range) <= :upperBound
@@ -324,19 +324,20 @@ final class BackfillNftApprovalContractLogMigration extends AsyncJavaMigration<L
         final var saved = jdbcOperations.queryForObject(
                 "select (select upper_bound from " + PROGRESS_TABLE + " limit 1)", Long.class);
         initialUpperBound = saved == null ? end : saved;
-        if (saved == null) {
-            // Freeze the cutoff before building the snapshot, including when interrupted before the first batch.
-            jdbcOperations.update("insert into " + PROGRESS_TABLE + " values (?)", initialUpperBound);
+        if (saved != null) {
+            // The snapshot was built once, before the checkpoint was saved, and is kept across restarts
+            return true;
         }
 
-        // Snapshot both sources once instead of scanning NFT revisions for every batch. A single statement sees a
-        // consistent view even as concurrent updates move revisions into nft_history; UNION deduplicates revisions.
-        // Keep this indexed snapshot across restarts, alongside the progress checkpoint.
+        jdbcOperations.execute("drop table if exists " + APPROVALS_TABLE);
         final var params =
                 new MapSqlParameterSource("upperBound", initialUpperBound).addValue("approvalForAll", APPROVAL_FOR_ALL);
         getNamedParameterJdbcOperations().update(SNAPSHOT_APPROVALS, params);
-        jdbcOperations.execute("create index if not exists nft_approval_snapshot_temp_timestamp on " + APPROVALS_TABLE
-                + " (consensus_timestamp)");
+        jdbcOperations.execute(
+                "create index nft_approval_snapshot_temp_timestamp on " + APPROVALS_TABLE + " (consensus_timestamp)");
+
+        // Save the cutoff last, so a checkpoint implies a complete, indexed snapshot
+        jdbcOperations.update("insert into " + PROGRESS_TABLE + " values (?)", initialUpperBound);
         return true;
     }
 
