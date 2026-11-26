@@ -44,6 +44,7 @@ const (
 type constructionAPIService struct {
 	BaseService
 	accountRepo                  interfaces.AccountRepository
+	maxTransactionSize           int
 	nodeHealthMonitor            NodeHealthMonitor
 	sdkClient                    *hiero.Client
 	systemShard                  int64
@@ -355,6 +356,16 @@ func (c *constructionAPIService) ConstructionSubmit(
 		return nil, rErr
 	}
 
+	nodeAccountIds := transaction.GetNodeAccountIDs()
+	if len(nodeAccountIds) == 0 {
+		return nil, errors.AddErrorDetails(errors.ErrInvalidTransaction, "reason", "missing node account ID")
+	}
+
+	// Must run before TransactionExecute so an oversize transaction never reaches a node
+	if rErr = c.rejectOversizeTransaction(transaction); rErr != nil {
+		return nil, rErr
+	}
+
 	hashBytes, err := hiero.TransactionGetTransactionHash(transaction)
 	if err != nil {
 		return nil, errors.ErrTransactionHashFailed
@@ -362,7 +373,7 @@ func (c *constructionAPIService) ConstructionSubmit(
 
 	hash := tools.SafeAddHexPrefix(hex.EncodeToString(hashBytes))
 	transactionId, _ := hiero.TransactionGetTransactionID(transaction)
-	nodeAccountId := transaction.GetNodeAccountIDs()[0]
+	nodeAccountId := nodeAccountIds[0]
 	log.Infof("Submitting transaction %s (hash %s) to node %s", transactionId, hash, nodeAccountId)
 
 	_, err = hiero.TransactionExecute(transaction, c.sdkClient)
@@ -650,6 +661,7 @@ func NewConstructionAPIService(
 	return &constructionAPIService{
 		accountRepo:                  accountRepo,
 		BaseService:                  baseService,
+		maxTransactionSize:           config.Rosetta.MaxTransactionSize,
 		nodeHealthMonitor:            nodeHealthMonitor,
 		sdkClient:                    sdkClient,
 		systemShard:                  config.Common.Shard,
@@ -657,6 +669,29 @@ func NewConstructionAPIService(
 		transactionHandler:           transactionConstructor,
 		validateCryptoTransferFields: config.Rosetta.Feature.ValidateCryptoTransferFields,
 	}, nil
+}
+
+// rejectOversizeTransaction rejects a transaction whose serialized Transaction sent to the node exceeds the max size.
+func (c *constructionAPIService) rejectOversizeTransaction(transaction hiero.TransactionInterface) *rTypes.Error {
+	sizedTransaction, ok := transaction.(interface{ GetTransactionSize() (int, error) })
+	if !ok {
+		return errors.ErrTransactionInvalidType
+	}
+
+	size, err := sizedTransaction.GetTransactionSize()
+	if err != nil {
+		return errors.ErrTransactionMarshallingFailed
+	}
+
+	if size > c.maxTransactionSize {
+		return errors.AddErrorDetails(
+			errors.ErrTransactionOversize,
+			"reason",
+			fmt.Sprintf("transaction size %d bytes exceeds the max %d bytes", size, c.maxTransactionSize),
+		)
+	}
+
+	return nil
 }
 
 func (c *constructionAPIService) rejectUnsupportedCryptoTransferFields(

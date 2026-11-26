@@ -43,6 +43,8 @@ hiero:
         host: 192.168.120.51
         port: 12000
       network: TESTNET`
+	maxRequestBodySizeEnvKey        = "HIERO_MIRROR_ROSETTA_HTTP_MAXREQUESTBODYSIZE"
+	maxTransactionSizeEnvKey        = "HIERO_MIRROR_ROSETTA_MAXTRANSACTIONSIZE"
 	nodeHealthFrequencyEnvKey       = "HIERO_MIRROR_ROSETTA_NODEHEALTH_FREQUENCY"
 	nodeHealthMaxConcurrencyEnvKey  = "HIERO_MIRROR_ROSETTA_NODEHEALTH_MAXCONCURRENCY"
 	nodeHealthRecheckCooldownEnvKey = "HIERO_MIRROR_ROSETTA_NODEHEALTH_RECHECKCOOLDOWN"
@@ -59,6 +61,8 @@ func TestLoadDefaultConfig(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, getDefaultConfig(), config)
+	assert.Equal(t, int64(524288), config.Rosetta.Http.MaxRequestBodySize)
+	assert.Equal(t, 6144, config.Rosetta.MaxTransactionSize)
 	assert.True(t, config.Rosetta.NodeHealth.Enabled)
 	assert.Equal(t, 30*time.Second, config.Rosetta.NodeHealth.Frequency)
 	assert.Equal(t, 20, config.Rosetta.NodeHealth.MaxConcurrency)
@@ -191,12 +195,22 @@ func TestLoadCustomConfigInvalidYaml(t *testing.T) {
 	}
 }
 
-func TestLoadConfigInvalidNodeHealth(t *testing.T) {
+func TestLoadConfigInvalid(t *testing.T) {
 	tests := []struct {
 		name     string
 		env      map[string]string
 		expected string
 	}{
+		{
+			name:     "max request body size",
+			env:      map[string]string{maxRequestBodySizeEnvKey: "1023"},
+			expected: "Invalid configuration: Mirror.Rosetta.Http.MaxRequestBodySize is 1023, want min=1024",
+		},
+		{
+			name:     "max transaction size",
+			env:      map[string]string{maxTransactionSizeEnvKey: "1023"},
+			expected: "Invalid configuration: Mirror.Rosetta.MaxTransactionSize is 1023, want min=1024",
+		},
 		{
 			name:     "frequency",
 			env:      map[string]string{nodeHealthFrequencyEnvKey: "29s"},
