@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.service.fee;
+package org.hiero.mirror.restjava.service.fee;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.base.TokenType;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
-import org.hiero.mirror.restjava.service.fee.FeeTokenStore;
+import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.config;
+package org.hiero.mirror.restjava.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -9,7 +9,7 @@ import com.zaxxer.hikari.HikariPoolMXBean;
 import java.sql.SQLException;
 import javax.sql.DataSource;
 import lombok.SneakyThrows;
-import org.hiero.mirror.RestJavaIntegrationTest;
+import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;

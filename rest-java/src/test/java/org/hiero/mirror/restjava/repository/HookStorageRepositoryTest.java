@@ -10,7 +10,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.util.CommonUtils;
-import org.hiero.mirror.RestJavaIntegrationTest;
+import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.data.domain.Sort.Direction;

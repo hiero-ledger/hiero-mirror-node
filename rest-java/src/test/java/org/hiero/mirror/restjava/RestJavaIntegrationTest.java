@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror;
+package org.hiero.mirror.restjava;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,11 +10,8 @@ import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.config.CommonIntegrationTest;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
-import org.hiero.mirror.restjava.RestJavaApplication;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest(classes = RestJavaApplication.class)
 public abstract class RestJavaIntegrationTest extends CommonIntegrationTest {
 
     protected EntityIdRangeParameter[] paramToArray(EntityIdRangeParameter... param) {

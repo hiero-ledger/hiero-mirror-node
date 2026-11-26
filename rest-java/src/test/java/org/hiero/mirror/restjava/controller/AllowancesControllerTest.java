@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.controller;
+package org.hiero.mirror.restjava.controller;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 

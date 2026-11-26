@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.service.fee;
+package org.hiero.mirror.restjava.service.fee;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.BATCH_SIZE_LIMIT_EXCEEDED;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PENDING_AIRDROP_ID_LIST_TOO_LONG;
@@ -34,16 +34,12 @@ import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.hapi.support.fees.VariableRateDefinition;
-import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
+import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
-import org.hiero.mirror.restjava.service.fee.FeeEstimationService;
-import org.hiero.mirror.restjava.service.fee.FeeEstimationState;
-import org.hiero.mirror.restjava.service.fee.FeeTokenStore;
-import org.hiero.mirror.restjava.service.fee.FeeTopicStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

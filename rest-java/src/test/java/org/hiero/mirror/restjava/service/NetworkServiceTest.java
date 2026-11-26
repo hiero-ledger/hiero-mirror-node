@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.service;
+package org.hiero.mirror.restjava.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -12,17 +12,15 @@ import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.Assertions;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
-import org.hiero.mirror.RestJavaIntegrationTest;
+import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.RangeOperator;
-import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.RegisteredNodesRequest;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.hiero.mirror.restjava.repository.RegisteredNodeRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.hiero.mirror.restjava.service.Bound;
-import org.hiero.mirror.restjava.service.NetworkService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.data.domain.Sort;

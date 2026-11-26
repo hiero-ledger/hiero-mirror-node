@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorage;
-import org.hiero.mirror.RestJavaIntegrationTest;
+import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.dto.HookStorageRequest;
 import org.hiero.mirror.restjava.dto.HooksRequest;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;

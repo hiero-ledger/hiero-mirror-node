@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.service;
+package org.hiero.mirror.restjava.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.RestJavaIntegrationTest;
+import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
-import org.hiero.mirror.restjava.service.Bound;
-import org.hiero.mirror.restjava.service.FileService;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -47,7 +45,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
         final var bound = bound(RangeOperator.GTE, domainBuilder.fileData().get());
 
         // when / then
-        assertThatThrownBy(() -> service.getExchangeRate(bound)).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> service.getExchangeRate(bound)).isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test

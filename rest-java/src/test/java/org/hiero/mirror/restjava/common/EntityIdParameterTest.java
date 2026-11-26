@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common;
+package org.hiero.mirror.restjava.common;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -8,6 +8,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import com.google.common.io.BaseEncoding;
 import java.util.stream.Stream;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.restjava.parameter.EntityIdAliasParameter;

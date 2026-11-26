@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.controller;
+package org.hiero.mirror.restjava.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -8,12 +8,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.api.ThrowableAssert;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
-import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
-import org.hiero.mirror.restjava.RestJavaApplication;
+import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.RestJavaProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 
 @RequiredArgsConstructor
 @EnableConfigurationProperties(value = RestJavaProperties.class)
-@SpringBootTest(classes = RestJavaApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 abstract class ControllerTest extends RestJavaIntegrationTest {
 
     protected static final String ALIAS = "HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA";
@@ -61,7 +61,9 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
 
     @SuppressWarnings({"unchecked", "java:S6103"})
     protected final void validateError(
-            ThrowingCallable callable, Class<? extends HttpClientErrorException> clazz, String... expectedMessages) {
+            ThrowableAssert.ThrowingCallable callable,
+            Class<? extends HttpClientErrorException> clazz,
+            String... expectedMessages) {
         AtomicReference<HttpClientErrorException> e = new AtomicReference<>();
         AtomicReference<java.util.List<ErrorStatusMessagesInner>> messagesRef = new AtomicReference<>();
 

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.service;
+package org.hiero.mirror.restjava.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.restjava.jooq.domain.Tables.NFT_ALLOWANCE;
 
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
+import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.NftAllowanceRequest;
@@ -17,8 +17,6 @@ import org.hiero.mirror.restjava.parameter.EntityIdAliasParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdEvmAddressParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdNumParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
-import org.hiero.mirror.restjava.service.Bound;
-import org.hiero.mirror.restjava.service.NftAllowanceService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -53,7 +51,7 @@ class NftAllowanceServiceTest extends RestJavaIntegrationTest {
     @Test
     void getNftAllowancesWithAlias() {
         var entity = domainBuilder.entity().persist();
-        var accountId = EntityId.of(entity.getId());
+        var accountId = entity.toEntityId();
 
         var nftAllowance1 = saveNftAllowance(accountId, true);
         var nftAllowance2 = saveNftAllowance(accountId, true);
@@ -81,7 +79,7 @@ class NftAllowanceServiceTest extends RestJavaIntegrationTest {
     @Test
     void getNftAllowancesWithEvmAddress() {
         var entity = domainBuilder.entity().persist();
-        var accountId = EntityId.of(entity.getId());
+        var accountId = entity.toEntityId();
 
         var nftAllowance1 = saveNftAllowance(accountId, true);
         var nftAllowance2 = saveNftAllowance(accountId, true);

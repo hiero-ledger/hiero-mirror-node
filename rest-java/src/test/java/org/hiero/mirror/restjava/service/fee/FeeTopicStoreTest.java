@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.service.fee;
+package org.hiero.mirror.restjava.service.fee;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -10,7 +10,6 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.restjava.repository.CustomFeeRepository;
 import org.hiero.mirror.restjava.repository.TopicRepository;
-import org.hiero.mirror.restjava.service.fee.FeeTopicStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

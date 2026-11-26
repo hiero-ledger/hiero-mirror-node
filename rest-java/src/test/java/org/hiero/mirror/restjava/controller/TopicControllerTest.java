@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.controller;
+package org.hiero.mirror.restjava.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -9,7 +9,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.rest.model.Topic;
 import org.hiero.mirror.restjava.mapper.TopicMapper;
@@ -56,7 +55,7 @@ class TopicControllerTest extends ControllerTest {
                             .id(entity.getId())
                             .timestampRange(entity.getTimestampRange()))
                     .persist();
-            return uriSpec.uri("", EntityId.of(entity.getId()).toString());
+            return uriSpec.uri("", entity.toEntityId().toString());
         }
 
         @TestFactory
@@ -98,6 +97,28 @@ class TopicControllerTest extends ControllerTest {
             return DynamicTest.stream(inputs.iterator(), Function.identity(), executor);
         }
 
+        @Test
+        void customFeeNotFound() {
+            // Given
+            var entity = domainBuilder.topicEntity().persist();
+            domainBuilder
+                    .topic()
+                    .customize(t -> t.createdTimestamp(entity.getCreatedTimestamp())
+                            .id(entity.getId())
+                            .timestampRange(entity.getTimestampRange()))
+                    .persist();
+
+            // When
+            ThrowingCallable callable = () -> restClient
+                    .get()
+                    .uri("", entity.toEntityId().toString())
+                    .retrieve()
+                    .body(Topic.class);
+
+            // Then
+            validateError(callable, HttpClientErrorException.NotFound.class, "Custom fee for entity not found");
+        }
+
         @ValueSource(
                 strings = {
                     "AABBCC22",
@@ -131,34 +152,12 @@ class TopicControllerTest extends ControllerTest {
             // When
             ThrowingCallable callable = () -> restClient
                     .get()
-                    .uri("", EntityId.of(entity.getId()).toString())
+                    .uri("", entity.toEntityId().toString())
                     .retrieve()
                     .body(Topic.class);
 
             // Then
             validateError(callable, HttpClientErrorException.NotFound.class, "Topic not found");
-        }
-
-        @Test
-        void customFeeNotFound() {
-            // Given
-            final var entity = domainBuilder.topicEntity().persist();
-            domainBuilder
-                    .topic()
-                    .customize(t -> t.createdTimestamp(entity.getCreatedTimestamp())
-                            .id(entity.getId())
-                            .timestampRange(entity.getTimestampRange()))
-                    .persist();
-
-            // When
-            final ThrowingCallable callable = () -> restClient
-                    .get()
-                    .uri("", EntityId.of(entity.getId()).toString())
-                    .retrieve()
-                    .body(Topic.class);
-
-            // Then
-            validateError(callable, HttpClientErrorException.NotFound.class, "Custom fee for entity not found");
         }
 
         @TestFactory

@@ -342,8 +342,8 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         // When
         final var functionCall = contract.call_getCustomFeesForToken(tokenAddress);
 
-        final var expectedFee =
-                new FixedFee(DEFAULT_FEE_AMOUNT, tokenAddress, false, false, getAddressFromEntity(collectorAccount));
+        final var expectedFee = new PrecompileTestContractHistorical.FixedFee(
+                DEFAULT_FEE_AMOUNT, tokenAddress, false, false, getAddressFromEntity(collectorAccount));
 
         // Then
         assertThat(functionCall.send().component1().getFirst()).isEqualTo(expectedFee);
@@ -630,7 +630,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
 
         final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury, autoRenewAccount);
 
-        final var fixedFees = new ArrayList<FixedFee>();
+        final var fixedFees = new ArrayList<PrecompileTestContractHistorical.FixedFee>();
         fixedFees.add(getFixedFee(customFees.getFixedFees().getFirst(), feeCollector));
 
         final var fractionalFees = new ArrayList<PrecompileTestContractHistorical.FractionalFee>();
@@ -682,7 +682,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
 
         final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury, autoRenewAccount);
 
-        final var fixedFees = new ArrayList<FixedFee>();
+        final var fixedFees = new ArrayList<PrecompileTestContractHistorical.FixedFee>();
         fixedFees.add(getFixedFee(customFees.getFixedFees().getFirst(), feeCollector));
 
         final var fractionalFees = new ArrayList<PrecompileTestContractHistorical.FractionalFee>();
@@ -729,7 +729,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
 
         final var expectedHederaToken = createExpectedHederaToken(tokenEntity, token, treasury, autoRenewAccount);
 
-        final var fixedFees = new ArrayList<FixedFee>();
+        final var fixedFees = new ArrayList<PrecompileTestContractHistorical.FixedFee>();
         fixedFees.add(getFixedFee(customFees.getFixedFees().getFirst(), feeCollector));
 
         final var royaltyFees = new ArrayList<PrecompileTestContractHistorical.RoyaltyFee>();
@@ -848,7 +848,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     void getTokenKey(
             final TokenTypeEnum tokenType,
             final KeyValueType keyValueType,
-            final KeyType keyType,
+            final AbstractContractCallServiceTest.KeyType keyType,
             final long blockNumber)
             throws Exception {
         // Given
@@ -880,7 +880,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     private Entity getTokenWithKey(
             final TokenTypeEnum tokenType,
             final KeyValueType keyValueType,
-            final KeyType keyType,
+            final AbstractContractCallServiceTest.KeyType keyType,
             final Contract contract,
             final Range<Long> historicalRange) {
         final Key key = switch (keyValueType) {
@@ -969,9 +969,9 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         return expectedTokenKeys;
     }
 
-    private FixedFee getFixedFee(
+    private PrecompileTestContractHistorical.FixedFee getFixedFee(
             final org.hiero.mirror.common.domain.token.FixedFee fixedFee, final Entity feeCollector) {
-        return new FixedFee(
+        return new PrecompileTestContractHistorical.FixedFee(
                 BigInteger.valueOf(fixedFee.getAmount()),
                 getAddressFromEntityId(fixedFee.getDenominatingTokenId()),
                 false,
@@ -1001,10 +1001,10 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 getAddressFromEntity(feeCollector));
     }
 
-    private KeyValue getKeyValue(final byte[] serializedKey) {
+    private PrecompileTestContractHistorical.KeyValue getKeyValue(final byte[] serializedKey) {
         try {
             final var key = Key.parseFrom(serializedKey);
-            return new KeyValue(
+            return new PrecompileTestContractHistorical.KeyValue(
                     false,
                     key.getContractID().hasContractNum()
                             ? EntityIdUtils.asTypedEvmAddress(key.getContractID())
@@ -1079,7 +1079,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
             PrecompileTestContractHistorical.HederaToken expectedHederaToken,
             Token token,
             Entity tokenEntity,
-            List<FixedFee> fixedFees,
+            List<PrecompileTestContractHistorical.FixedFee> fixedFees,
             List<PrecompileTestContractHistorical.FractionalFee> fractionalFees,
             List<PrecompileTestContractHistorical.RoyaltyFee> royaltyFees) {
         return new PrecompileTestContractHistorical.TokenInfo(

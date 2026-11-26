@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common;
+package org.hiero.mirror.restjava.common;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 import java.util.Locale;
-import org.hiero.mirror.restjava.common.RangeOperator;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;

@@ -175,7 +175,7 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
     }
 
     private static Builder defaultTransactionBodyBuilder() {
-        Builder body = TransactionBody.newBuilder();
+        TransactionBody.Builder body = TransactionBody.newBuilder();
         body.setTransactionFee(100L);
         body.setMemo(TRANSACTION_MEMO);
         body.setNodeAccountID(NODE);
@@ -283,7 +283,7 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
 
     protected com.hederahashgraph.api.proto.java.Transaction buildTransaction(
             Consumer<Builder> customBuilder, SignatureMap sigMap) {
-        Builder bodyBuilder = defaultTransactionBodyBuilder();
+        TransactionBody.Builder bodyBuilder = defaultTransactionBodyBuilder();
         customBuilder.accept(bodyBuilder);
 
         return com.hederahashgraph.api.proto.java.Transaction.newBuilder()

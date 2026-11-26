@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 
 @Named
 @RequiredArgsConstructor
-public final class FeeTokenStore implements ReadableTokenStore {
+final class FeeTokenStore implements ReadableTokenStore {
 
     private final TokenRepository tokenRepository;
     private final CustomFeeRepository customFeeRepository;

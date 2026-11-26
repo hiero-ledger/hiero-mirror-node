@@ -98,7 +98,7 @@ final class EVMHookHandlerTest {
                 .setHookId(hookId)
                 .setEvmHook(evmHook)
                 .setAdminKey(com.hederahashgraph.api.proto.java.Key.newBuilder()
-                        .setEd25519(ByteString.copyFrom(adminKey))
+                        .setEd25519(com.google.protobuf.ByteString.copyFrom(adminKey))
                         .build())
                 .build();
 
@@ -157,7 +157,7 @@ final class EVMHookHandlerTest {
                 .setHookId(hookId)
                 .setEvmHook(evmHook)
                 .setAdminKey(com.hederahashgraph.api.proto.java.Key.newBuilder()
-                        .setEd25519(ByteString.copyFrom(adminKey))
+                        .setEd25519(com.google.protobuf.ByteString.copyFrom(adminKey))
                         .build())
                 .build();
 
@@ -639,7 +639,7 @@ final class EVMHookHandlerTest {
                 .setHookId(hookId)
                 .setEvmHook(evmHook)
                 .setAdminKey(com.hederahashgraph.api.proto.java.Key.newBuilder()
-                        .setEd25519(ByteString.copyFrom(adminKey))
+                        .setEd25519(com.google.protobuf.ByteString.copyFrom(adminKey))
                         .build())
                 .build();
     }

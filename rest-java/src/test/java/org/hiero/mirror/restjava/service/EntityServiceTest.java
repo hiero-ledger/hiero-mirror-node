@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.service;
+package org.hiero.mirror.restjava.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.restjava.RestJavaIntegrationTest;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.hiero.mirror.restjava.parameter.EntityIdAliasParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdEvmAddressParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdNumParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;
-import org.hiero.mirror.restjava.service.EntityService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -25,23 +25,21 @@ final class EntityServiceTest extends RestJavaIntegrationTest {
     @Test
     void findById() {
         var entity = domainBuilder.entity().persist();
-        assertThat(service.findById(EntityId.of(entity.getId()))).isEqualTo(entity);
+        assertThat(service.findById(entity.toEntityId())).isEqualTo(entity);
     }
 
     @Test
     void findByIdNotFound() {
         var id = EntityId.of(3L);
-        assertThatThrownBy(() -> service.findById(id))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Entity not found");
+        assertThatThrownBy(() -> service.findById(id)).isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
     void lookup() {
         var entity = domainBuilder.entity().persist();
-        var id = EntityId.of(entity.getId());
+        var id = entity.toEntityId();
 
-        assertThat(service.lookup(new EntityIdNumParameter(EntityId.of(entity.getId()))))
+        assertThat(service.lookup(new EntityIdNumParameter(entity.toEntityId())))
                 .isEqualTo(id);
         assertThat(service.lookup(new EntityIdEvmAddressParameter(0, 0, entity.getEvmAddress())))
                 .isEqualTo(id);
@@ -61,8 +59,6 @@ final class EntityServiceTest extends RestJavaIntegrationTest {
             })
     void lookupNotFound(String id) {
         var entityIdParameter = EntityIdParameter.valueOf(id);
-        assertThatThrownBy(() -> service.lookup(entityIdParameter))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("No account found for the given ID");
+        assertThatThrownBy(() -> service.lookup(entityIdParameter)).isInstanceOf(EntityNotFoundException.class);
     }
 }

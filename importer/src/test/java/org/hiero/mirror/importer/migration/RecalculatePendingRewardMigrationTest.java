@@ -351,8 +351,8 @@ class RecalculatePendingRewardMigrationTest extends AbstractStakingMigrationTest
             domainBuilder
                     .nodeStake()
                     .customize(ns -> ns.consensusTimestamp(consensusTimestamp)
-                            .nodeId(0L)
                             .epochDay(rewardRateEpochDay)
+                            .nodeId(0L)
                             .rewardRate(rewardRate))
                     .persist();
         }

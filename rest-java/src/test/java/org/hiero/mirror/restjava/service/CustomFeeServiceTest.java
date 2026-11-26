@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.service;
+package org.hiero.mirror.restjava.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.RestJavaIntegrationTest;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.restjava.service.CustomFeeService;
+import org.hiero.mirror.restjava.RestJavaIntegrationTest;
+import org.hiero.mirror.restjava.exception.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
@@ -25,8 +25,6 @@ class CustomFeeServiceTest extends RestJavaIntegrationTest {
     @Test
     void findByIdNotFound() {
         var entityId = EntityId.of(10L);
-        assertThatThrownBy(() -> service.findById(entityId))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Custom fee for entity not found");
+        assertThatThrownBy(() -> service.findById(entityId)).isInstanceOf(EntityNotFoundException.class);
     }
 }

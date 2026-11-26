@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.controller;
+package org.hiero.mirror.restjava.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -2070,21 +2070,9 @@ final class NetworkControllerTest extends ControllerTest {
                     .persist();
 
             // Add corresponding node stake data
-            domainBuilder
-                    .nodeStake()
-                    .customize(ns ->
-                            ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(1L))
-                    .persist();
-            domainBuilder
-                    .nodeStake()
-                    .customize(ns ->
-                            ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(2L))
-                    .persist();
-            domainBuilder
-                    .nodeStake()
-                    .customize(ns ->
-                            ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(3L))
-                    .persist();
+            domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
+            domainBuilder.nodeStake().customize(ns -> ns.nodeId(2L)).persist();
+            domainBuilder.nodeStake().customize(ns -> ns.nodeId(3L)).persist();
 
             // Add corresponding node data
             domainBuilder

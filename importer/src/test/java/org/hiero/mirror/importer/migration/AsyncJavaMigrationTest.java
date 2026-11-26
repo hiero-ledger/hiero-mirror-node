@@ -73,19 +73,19 @@ class AsyncJavaMigrationTest extends AsyncJavaMigrationBaseTest {
         migrateSync(migration);
         assertThat(getAllMigrationHistory())
                 .hasSize(1)
-                .extracting(MigrationHistory::executionTime)
+                .extracting(AsyncJavaMigrationBaseTest.MigrationHistory::executionTime)
                 .isNotEqualTo(ELAPSED);
     }
 
     @Test
     void migrateError() throws Exception {
-        addMigrationHistory(new MigrationHistory(-1, ELAPSED, 1000, SCRIPT));
-        addMigrationHistory(new MigrationHistory(-2, ELAPSED, 1001, SCRIPT));
+        addMigrationHistory(new AsyncJavaMigrationBaseTest.MigrationHistory(-1, ELAPSED, 1000, SCRIPT));
+        addMigrationHistory(new AsyncJavaMigrationBaseTest.MigrationHistory(-2, ELAPSED, 1001, SCRIPT));
         var migration = new TestAsyncJavaMigration(true, new MigrationProperties(), 0);
         migrateSync(migration);
         assertThat(getAllMigrationHistory())
                 .hasSize(2)
-                .extracting(MigrationHistory::checksum)
+                .extracting(AsyncJavaMigrationBaseTest.MigrationHistory::checksum)
                 .containsExactly(-1, -2);
     }
 

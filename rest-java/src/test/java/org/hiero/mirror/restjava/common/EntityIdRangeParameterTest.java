@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common;
+package org.hiero.mirror.restjava.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.restjava.common.RangeOperator.EQ;
@@ -12,7 +12,6 @@ import java.util.stream.Stream;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
-import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;

@@ -471,7 +471,10 @@ final class CompositeRecordFileItemReaderTest {
                                 .hasSize(2)
                                 .satisfies(recordItemAssertion),
                         r -> assertThat(r)
-                                .extracting(RecordFile::getSidecars, InstanceOfAssertFactories.list(SidecarFile.class))
+                                .extracting(
+                                        RecordFile::getSidecars,
+                                        InstanceOfAssertFactories.list(
+                                                org.hiero.mirror.common.domain.transaction.SidecarFile.class))
                                 .usingRecursiveFieldByFieldElementComparatorIgnoringFields("bytes")
                                 .containsExactlyInAnyOrderElementsOf(expectedSidecarFiles)
                                 .satisfies(sidecarFileAssertion));
