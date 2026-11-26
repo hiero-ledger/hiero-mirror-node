@@ -292,8 +292,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     @DisplayName("Non-unanimous consensus reached")
     void partialConsensus() throws IOException {
         fileCopier.copy();
-        var nodePath =
-                fileCopier.getTo().resolve(downloaderProperties.getStreamType().getNodePrefix() + "0.0.6");
+        var nodePath = getNodePath(6);
         FileUtils.deleteDirectory(nodePath.toFile());
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
@@ -313,8 +312,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         fileCopier.copy();
         final var matcher = STREAM_FILENAME_INSTANT_PATTERN.matcher(file2);
         assertThat(matcher.find()).isTrue();
-        final var nodePath =
-                fileCopier.getTo().resolve(downloaderProperties.getStreamType().getNodePrefix() + "0.0.6");
+        final var nodePath = getNodePath(6);
         try (final var paths = Files.list(nodePath)) {
             final var file2Signatures = paths.filter(this::isSigFile)
                     .filter(p -> p.getFileName().toString().startsWith(matcher.group()))
@@ -770,6 +768,15 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
                         optionalSidecarRegex);
 
         return Pattern.compile(regex).asPredicate();
+    }
+
+    private Path getNodePath(long nodeAccountNum) {
+        final var commonProperties = CommonProperties.getInstance();
+        final var shard = fileCopier.isIgnoreNonZeroRealmShard() ? 0 : commonProperties.getShard();
+        final var realm = fileCopier.isIgnoreNonZeroRealmShard() ? 0 : commonProperties.getRealm();
+        return fileCopier
+                .getTo()
+                .resolve("%s%d.%d.%d".formatted(streamType.getNodePrefix(), shard, realm, nodeAccountNum));
     }
 
     private String getSigFilename(String dataFilename) {
