@@ -18,7 +18,7 @@ public sealed interface TransactionIdOrHashParameter permits TransactionHashPara
         } else if ((parameter = TransactionIdParameter.valueOf(transactionIdOrHash)) != null) {
             return parameter;
         } else {
-            throw new InvalidParametersException("Unsupported ID format: '%s'".formatted(transactionIdOrHash));
+            throw new InvalidParametersException("Unsupported transaction ID or hash format");
         }
     }
 }
