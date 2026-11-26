@@ -476,9 +476,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
         mockMvc.perform(opcodesRequest("null-%d-%d".formatted(validStart.getEpochSecond(), validStart.getNano())))
                 .andExpect(status().isBadRequest())
                 .andExpect(responseBody(new GenericErrorResponse(
-                        BAD_REQUEST.getReasonPhrase(),
-                        "Unsupported ID format: 'null-%d-%d'"
-                                .formatted(validStart.getEpochSecond(), validStart.getNano()))));
+                        BAD_REQUEST.getReasonPhrase(), "Unsupported transaction ID or hash format")));
     }
 
     @ParameterizedTest
@@ -514,7 +512,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
             })
     void callInvalidTransactionIdOrHash(final String transactionIdOrHash) throws Exception {
         final var expectedMessage = StringUtils.hasText(transactionIdOrHash)
-                ? "Unsupported ID format: '%s'".formatted(transactionIdOrHash)
+                ? "Unsupported transaction ID or hash format"
                 : "Missing transaction ID or hash";
 
         mockMvc.perform(opcodesRequest(transactionIdOrHash))
