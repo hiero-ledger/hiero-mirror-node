@@ -14,6 +14,8 @@ import org.hibernate.validator.constraints.time.DurationMin;
 @Data
 public class StreamSourceProperties {
 
+    private Boolean allowAnonymousAccess;
+
     @DurationMin(seconds = 5)
     @NotNull
     private Duration backoff = Duration.ofSeconds(60L);
