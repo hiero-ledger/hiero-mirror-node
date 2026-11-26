@@ -166,13 +166,8 @@ public final class ClprStateChangeHandler {
 
         if (CLPR_CONNECTOR_CONNECTOR_CONTRACT.isPresent(mapUpdate, value) && value.hasConnectorContract()) {
             final var contractId =
-                    entityIdService.lookup(value.getConnectorContract(), false).orElse(EntityId.EMPTY);
-            if (EntityId.isEmpty(contractId)) {
-                Utility.handleRecoverableError(
-                        "Unable to resolve connector contract {} for CLPR state change", value.getConnectorContract());
-            } else {
-                builder.connectorContractId(contractId);
-            }
+                    entityIdService.lookup(value.getConnectorContract()).orElse(EntityId.EMPTY);
+            builder.connectorContractId(EntityId.isEmpty(contractId) ? EntityId.ZERO : contractId);
         }
         if (CLPR_CONNECTOR_ADMIN_KEY.isPresent(mapUpdate, value)) {
             builder.adminKey(value.getAdminKey().toByteArray());
@@ -217,6 +212,7 @@ public final class ClprStateChangeHandler {
             if (clearedFields.contains(CLPR_CHANNEL_ENDPOINT_MANIFEST_PROOF_TIMESTAMP.fieldNumber())
                     || clearedFields.contains(CLPR_CHANNEL_LAST_CONFIG_TIMESTAMP.fieldNumber())
                     || clearedFields.contains(CLPR_CHANNEL_PEER_CONFIG_TIMESTAMP.fieldNumber())
+                    || clearedFields.contains(CLPR_CHANNEL_PEER_MANIFEST_RECOVERED.fieldNumber())
                     || clearedFields.contains(CLPR_CHANNEL_PEER_THROTTLES.fieldNumber())) {
                 Utility.handleRecoverableError(
                         "ClprChannel state change unexpectedly clears nullable fields: {}", clearedFields);

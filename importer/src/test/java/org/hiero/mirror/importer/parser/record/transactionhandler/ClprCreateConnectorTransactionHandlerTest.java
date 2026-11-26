@@ -19,17 +19,13 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.springframework.boot.test.system.CapturedOutput;
-import org.springframework.boot.test.system.OutputCaptureExtension;
 
-@ExtendWith(OutputCaptureExtension.class)
 final class ClprCreateConnectorTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        when(entityIdService.lookup(contractId, false)).thenReturn(Optional.of(defaultEntityId));
+        when(entityIdService.lookup(contractId)).thenReturn(Optional.of(defaultEntityId));
         return new ClprCreateConnectorTransactionHandler(entityIdService, entityListener);
     }
 
@@ -80,11 +76,11 @@ final class ClprCreateConnectorTransactionHandlerTest extends AbstractTransactio
                 .returns(body.getLockedStake(), ClprConnector::getLockedStake)
                 .returns(ClprConnectorStatus.ACTIVE, ClprConnector::getStatus)
                 .returns(Range.atLeast(consensusTimestamp), ClprConnector::getTimestampRange);
-        verify(entityIdService).lookup(body.getConnectorContract(), false);
+        verify(entityIdService).lookup(body.getConnectorContract());
     }
 
     @Test
-    void updateTransactionUnresolvedContract(CapturedOutput output) {
+    void updateTransactionUnresolvedContract() {
         // given
         final var evmContractId = ContractID.newBuilder()
                 .setEvmAddress(DomainUtils.fromBytes(domainBuilder.evmAddress()))
@@ -93,24 +89,25 @@ final class ClprCreateConnectorTransactionHandlerTest extends AbstractTransactio
         body.getClprCreateConnectorBuilder().setConnectorContract(evmContractId);
         final var recordItem =
                 getRecordItem(body.build(), getDefaultTransactionRecord().build());
-        when(entityIdService.lookup(evmContractId, false)).thenReturn(Optional.empty());
+        when(entityIdService.lookup(evmContractId)).thenReturn(Optional.empty());
         final var transaction = domainBuilder
                 .transaction()
                 .customize(t -> t.entityId(transactionHandler.getEntity(recordItem)))
                 .get();
+        final var captor = ArgumentCaptor.forClass(ClprConnector.class);
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
 
-        // then
+        // then -- persist EntityId.EMPTY rather than leaving the not-null column unset
         assertThat(transaction.getEntityId()).isEqualTo(EntityId.EMPTY);
-        verifyNoInteractions(entityListener);
-        verify(entityIdService).lookup(evmContractId, false);
-        assertThat(output.getAll()).contains("Recoverable error. Unable to resolve connector contract");
+        verify(entityListener).onClprConnector(captor.capture());
+        assertThat(captor.getValue()).returns(EntityId.EMPTY, ClprConnector::getConnectorContractId);
+        verify(entityIdService).lookup(evmContractId);
     }
 
     @Test
-    void updateTransactionUnsuccessfulUnresolvedContract(CapturedOutput output) {
+    void updateTransactionUnsuccessfulUnresolvedContract() {
         // given
         final var evmContractId = ContractID.newBuilder()
                 .setEvmAddress(DomainUtils.fromBytes(domainBuilder.evmAddress()))
@@ -122,7 +119,7 @@ final class ClprCreateConnectorTransactionHandlerTest extends AbstractTransactio
                 getDefaultTransactionRecord()
                         .setReceipt(getTransactionReceipt(ResponseCodeEnum.INVALID_CONTRACT_ID))
                         .build());
-        when(entityIdService.lookup(evmContractId, false)).thenReturn(Optional.empty());
+        when(entityIdService.lookup(evmContractId)).thenReturn(Optional.empty());
 
         final var transaction = domainBuilder
                 .transaction()
@@ -134,8 +131,7 @@ final class ClprCreateConnectorTransactionHandlerTest extends AbstractTransactio
 
         // then
         assertThat(transaction.getEntityId()).isEqualTo(EntityId.EMPTY);
-        verify(entityIdService).lookup(evmContractId, false);
+        verify(entityIdService).lookup(evmContractId);
         verifyNoInteractions(entityListener);
-        assertThat(output.getAll()).doesNotContain("Recoverable error.");
     }
 }

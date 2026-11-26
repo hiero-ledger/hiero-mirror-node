@@ -12,12 +12,14 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
 @RequiredArgsConstructor
 final class ClprDeleteConnectorTransactionHandler extends AbstractTransactionHandler {
 
+    private final EntityIdService entityIdService;
     private final EntityListener entityListener;
 
     @Override
@@ -32,8 +34,12 @@ final class ClprDeleteConnectorTransactionHandler extends AbstractTransactionHan
         }
 
         final var transactionBody = recordItem.getTransactionBody().getClprDeleteConnector();
-        final var stakeRecipientId = EntityId.of(transactionBody.getStakeRecipient());
-        recordItem.addEntityId(stakeRecipientId);
+        final var stakeRecipientId =
+                entityIdService.lookup(transactionBody.getStakeRecipient()).orElse(EntityId.EMPTY);
+
+        if (!EntityId.isEmpty(stakeRecipientId)) {
+            recordItem.addEntityId(stakeRecipientId);
+        }
 
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         final var connector = ClprConnector.builder()

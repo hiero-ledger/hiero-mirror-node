@@ -133,8 +133,11 @@ final class EntityRecordItemListenerClprTest extends AbstractEntityRecordItemLis
 
         parseRecordItemAndCommit(recordItem);
 
+        // then -- persisted with the not-null verifier_contract_id sentineled to EntityId.ZERO/EMPTY (0.0.0)
         assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord());
-        softly.assertThat(clprChannelRepository.count()).isZero();
+        softly.assertThat(clprChannelRepository.findById(DomainUtils.toBytes(channelId)))
+                .get()
+                .returns(EntityId.EMPTY, ClprChannel::getVerifierContractId);
     }
 
     @Test

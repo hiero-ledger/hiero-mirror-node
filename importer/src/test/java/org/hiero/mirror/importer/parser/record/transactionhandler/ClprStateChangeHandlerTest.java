@@ -50,6 +50,7 @@ import org.hiero.mirror.common.domain.clpr.ClprEndpoint;
 import org.hiero.mirror.common.domain.clpr.ClprEndpointManifest;
 import org.hiero.mirror.common.domain.clpr.ClprMessage;
 import org.hiero.mirror.common.domain.clpr.ClprThrottle;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.ClprContext;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.ClprChannelEntry;
@@ -973,7 +974,7 @@ final class ClprStateChangeHandlerTest {
                         .setEvmAddress(DomainUtils.fromBytes(domainBuilder.evmAddress()))
                         .build()
                 : connectorContractId.toContractID();
-        when(entityIdService.lookup(connectorContract, false)).thenReturn(Optional.of(connectorContractId));
+        when(entityIdService.lookup(connectorContract)).thenReturn(Optional.of(connectorContractId));
         final var adminKey = Key.newBuilder()
                 .setEd25519(DomainUtils.fromBytes(domainBuilder.key()))
                 .build();
@@ -1030,7 +1031,7 @@ final class ClprStateChangeHandlerTest {
     }
 
     @Test
-    void processConnectorUnresolvedContract(CapturedOutput output) {
+    void processConnectorUnresolvedContract() {
         // given
         mockEmptyClprState();
         final var connectorKey = ClprConnectorKey.newBuilder()
@@ -1046,18 +1047,17 @@ final class ClprStateChangeHandlerTest {
                 .build();
         when(clprContext.getClprConnectors())
                 .thenReturn(List.of(new ClprConnectorEntry(connectorKey, clprConnectorMapUpdate(value))));
-        when(entityIdService.lookup(contractId, false)).thenReturn(Optional.empty());
+        when(entityIdService.lookup(contractId)).thenReturn(Optional.empty());
 
         // when
         clprStateChangeHandler.process(recordItem);
 
-        // then -- keep the existing contract association, but apply other changes
+        // then -- persist EntityId.EMPTY rather than leaving the not-null column unset
         final var captor = ArgumentCaptor.forClass(ClprConnector.class);
         verify(entityListener).onClprConnector(captor.capture());
         assertThat(captor.getValue())
-                .returns(null, ClprConnector::getConnectorContractId)
+                .returns(EntityId.EMPTY, ClprConnector::getConnectorContractId)
                 .returns(2L, ClprConnector::getInFlightMessageCount);
-        assertThat(output.getAll()).contains("Recoverable error. Unable to resolve connector contract");
     }
 
     @Test

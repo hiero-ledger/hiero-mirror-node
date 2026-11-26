@@ -14,7 +14,6 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
-import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
@@ -27,7 +26,7 @@ final class ClprCreateConnectorTransactionHandler extends AbstractTransactionHan
     public EntityId getEntity(RecordItem recordItem) {
         final var contractId =
                 recordItem.getTransactionBody().getClprCreateConnector().getConnectorContract();
-        return entityIdService.lookup(contractId, false).orElse(EntityId.EMPTY);
+        return entityIdService.lookup(contractId).orElse(EntityId.EMPTY);
     }
 
     @Override
@@ -47,17 +46,10 @@ final class ClprCreateConnectorTransactionHandler extends AbstractTransactionHan
         final var transactionBody = recordItem.getTransactionBody().getClprCreateConnector();
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
         final var connectorContractId = transaction.getEntityId();
-        if (EntityId.isEmpty(connectorContractId)) {
-            Utility.handleRecoverableError(
-                    "Unable to resolve connector contract {} for ClprCreateConnector at {}",
-                    transactionBody.getConnectorContract(),
-                    consensusTimestamp);
-            return;
-        }
         final var connector = ClprConnector.builder()
                 .adminKey(DomainUtils.toBytes(transactionBody.getAdminKey().toByteString()))
                 .channelId(DomainUtils.toBytes(transactionBody.getChannelId()))
-                .connectorContractId(connectorContractId)
+                .connectorContractId(EntityId.isEmpty(connectorContractId) ? EntityId.ZERO : connectorContractId)
                 .connectorId(DomainUtils.toBytes(transactionBody.getConnectorId()))
                 .createdTimestamp(consensusTimestamp)
                 .lockedStake(transactionBody.getLockedStake())
