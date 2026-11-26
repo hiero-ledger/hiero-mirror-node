@@ -28,12 +28,14 @@ class ContractStateChangeRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findModifiedByConsensusTimestampIncludesNullValueWrittenWhenValueReadIsPresent() {
+    void findModifiedByConsensusTimestampExcludesReadOnlySlots() {
         final var timestamp = domainBuilder.timestamp();
-        final var modified = persistStateChange(timestamp, 1L, new byte[] {1}, domainBuilder.bytes(64), null);
+        persistStateChange(timestamp, 1L, new byte[] {1}, domainBuilder.bytes(64), null);
+        persistStateChange(timestamp, 1L, new byte[] {2}, new byte[0], null);
+        final var cleared = persistStateChange(timestamp, 1L, new byte[] {3}, domainBuilder.bytes(64), new byte[0]);
 
         assertThat(contractStateChangeRepository.findModifiedByConsensusTimestamp(timestamp, -1L, new byte[0], 10))
-                .containsExactly(modified);
+                .containsExactly(cleared);
     }
 
     @Test
