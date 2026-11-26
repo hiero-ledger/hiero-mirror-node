@@ -203,8 +203,8 @@ func TestLoadConfigInvalid(t *testing.T) {
 	}{
 		{
 			name:     "max request body size",
-			env:      map[string]string{maxRequestBodySizeEnvKey: "1023"},
-			expected: "Invalid configuration: Mirror.Rosetta.Http.MaxRequestBodySize is 1023, want min=1024",
+			env:      map[string]string{maxRequestBodySizeEnvKey: "2047"},
+			expected: "Invalid configuration: Mirror.Rosetta.Http.MaxRequestBodySize is 2047, want min=2048",
 		},
 		{
 			name:     "max transaction size",

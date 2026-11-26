@@ -75,7 +75,7 @@ type Feature struct {
 
 type Http struct {
 	IdleTimeout        time.Duration `yaml:"idleTimeout"`
-	MaxRequestBodySize int64         `yaml:"maxRequestBodySize" validate:"min=1024"`
+	MaxRequestBodySize int64         `yaml:"maxRequestBodySize" validate:"min=2048"`
 	ReadTimeout        time.Duration `yaml:"readTimeout"`
 	ReadHeaderTimeout  time.Duration `yaml:"readHeaderTimeout"`
 	WriteTimeout       time.Duration `yaml:"writeTimeout"`
