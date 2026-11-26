@@ -21,15 +21,16 @@ public interface ContractStateChangeRepository extends CrudRepository<ContractSt
             long consensusTimestamp, long contractId, byte[] slot, int limit);
 
     /**
-     * Finds state changes where the value was actually modified (value_written differs from value_read).
-     * Uses PostgreSQL's IS DISTINCT FROM to correctly handle NULL comparisons. Pages by the
-     * (contract_id, slot) primary-key order: pass a key strictly before the first row to start, then the last row of
-     * the previous page.
+     * Finds state changes where the value was actually modified (value_written differs from value_read). A null
+     * value_written means the slot was only read, so such rows are excluded; a zero write is stored as an empty value.
+     * Uses PostgreSQL's IS DISTINCT FROM to correctly handle a null value_read. Pages by the (contract_id, slot)
+     * primary-key order: pass a key strictly before the first row to start, then the last row of the previous page.
      */
     @Query(value = """
             select *
             from contract_state_change
             where consensus_timestamp = :consensusTimestamp
+              and value_written is not null
               and value_written is distinct from value_read
               and (contract_id > :contractId or (contract_id = :contractId and slot > :slot))
             order by contract_id, slot

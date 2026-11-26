@@ -7,6 +7,8 @@ import static com.hedera.services.stream.proto.CallOperationType.OP_CREATE;
 import static com.hedera.services.stream.proto.CallOperationType.OP_CREATE2;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.OUTPUT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
+import static org.hiero.mirror.web3.utils.ByteUtils.ZERO_WORD;
 import static org.hiero.mirror.web3.utils.ByteUtils.wrapToWordSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -346,25 +348,30 @@ final class TouchedAccountCollectorTest {
     }
 
     @Test
-    void collectOmitsEmptyAndZeroStorageValues() {
+    void collectIncludesZeroStorageValuesAndSkipsNullValues() {
         stubNoActions();
         stubNoNonceSources();
-        when(contractStateChangeRepository.findModifiedByConsensusTimestamp(
-                        CONSENSUS_TIMESTAMP, -1L, new byte[0], 5000))
+        final var zeroReadSlot = new byte[] {0x02};
+        final var readOnlySlot = new byte[] {0x03};
+        final var zeroWrittenSlot = new byte[] {0x04};
+        when(contractStateChangeRepository.findByConsensusTimestamp(CONSENSUS_TIMESTAMP, -1L, new byte[0], 5000))
                 .thenReturn(List.of(
-                        stateChange(new byte[0], VALUE_WRITTEN),
-                        stateChange(VALUE_READ, null),
-                        stateChange(new byte[] {0, 0}, new byte[] {0})));
+                        stateChange(zeroReadSlot, new byte[0], VALUE_WRITTEN),
+                        stateChange(readOnlySlot, VALUE_READ, null),
+                        stateChange(zeroWrittenSlot, VALUE_READ, new byte[] {0, 0})));
 
-        final var context = context(true, true);
+        final var context = context(false, true);
         collector.collect(context);
 
         assertThat(context.getPreStorageByContract().get(RECIPIENT_CONTRACT.getId()))
-                .containsOnlyKeys(wrapToWordSize(STORAGE_SLOT));
+                .containsExactly(
+                        entry(wrapToWordSize(zeroReadSlot), ZERO_WORD),
+                        entry(wrapToWordSize(readOnlySlot), wrapToWordSize(VALUE_READ)),
+                        entry(wrapToWordSize(zeroWrittenSlot), wrapToWordSize(VALUE_READ)));
         assertThat(context.getPostStorageByContract().get(RECIPIENT_CONTRACT.getId()))
-                .containsOnlyKeys(wrapToWordSize(STORAGE_SLOT));
-        assertThat(context.getPreStorageByContract().get(RECIPIENT_CONTRACT.getId()))
-                .doesNotContainValue(wrapToWordSize(new byte[0]));
+                .containsExactly(
+                        entry(wrapToWordSize(zeroReadSlot), wrapToWordSize(VALUE_WRITTEN)),
+                        entry(wrapToWordSize(zeroWrittenSlot), ZERO_WORD));
     }
 
     @Test
@@ -637,9 +644,14 @@ final class TouchedAccountCollectorTest {
     }
 
     private static ContractStateChange stateChange(final byte[] valueRead, final byte[] valueWritten) {
+        return stateChange(STORAGE_SLOT, valueRead, valueWritten);
+    }
+
+    private static ContractStateChange stateChange(
+            final byte[] slot, final byte[] valueRead, final byte[] valueWritten) {
         return ContractStateChange.builder()
                 .contractId(RECIPIENT_CONTRACT.getId())
-                .slot(STORAGE_SLOT)
+                .slot(slot)
                 .valueRead(valueRead)
                 .valueWritten(valueWritten)
                 .build();

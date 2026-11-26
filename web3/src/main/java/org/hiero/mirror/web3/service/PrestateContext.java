@@ -104,28 +104,18 @@ final class PrestateContext {
         addStorageSlot(postStorageByContract, contractId, slot, value);
     }
 
+    // Zero values are kept so that a touched slot that held (or now holds) zero is distinguishable from an untouched
+    // one. A null value means there is nothing to report (e.g. value_written of a slot that was only read).
     private static void addStorageSlot(
             final Map<Long, Map<String, String>> storageByContract,
             final long contractId,
             final byte[] slot,
             final byte @Nullable [] value) {
-        if (isEmptyStorageValue(value)) {
+        if (value == null) {
             return;
         }
         storageByContract
                 .computeIfAbsent(contractId, id -> new TreeMap<>())
                 .put(wrapToWordSize(slot), wrapToWordSize(value));
-    }
-
-    private static boolean isEmptyStorageValue(final byte @Nullable [] value) {
-        if (value == null || value.length == 0) {
-            return true;
-        }
-        for (final byte element : value) {
-            if (element != 0) {
-                return false;
-            }
-        }
-        return true;
     }
 }
