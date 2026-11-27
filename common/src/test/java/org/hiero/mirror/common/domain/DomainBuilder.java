@@ -115,6 +115,7 @@ import org.hiero.mirror.common.domain.job.ReconciliationStatus;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.NodeHistory;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredNodeHistory;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
@@ -1089,6 +1090,29 @@ public class DomainBuilder {
                         .requiresTls(true)
                         .build()))
                 .timestampRange(Range.atLeast(timestamp))
+                .type(List.of(BLOCK_NODE.getId()));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<RegisteredNodeHistory, RegisteredNodeHistory.RegisteredNodeHistoryBuilder<?, ?>>
+            registeredNodeHistory() {
+        final long timestamp = timestamp();
+        final long nodeId = number();
+        final var builder = RegisteredNodeHistory.builder()
+                .adminKey(key())
+                .createdTimestamp(timestamp)
+                .deleted(false)
+                .description("node-" + nodeId)
+                .registeredNodeId(nodeId)
+                .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApis(List.of(RegisteredServiceEndpoint.BlockNodeApi.STATUS))
+                                .build())
+                        .ipAddress("127.0.0.1")
+                        .port(443)
+                        .requiresTls(true)
+                        .build()))
+                .timestampRange(Range.closedOpen(timestamp, timestamp + 10))
                 .type(List.of(BLOCK_NODE.getId()));
         return new DomainWrapperImpl<>(builder, builder::build);
     }

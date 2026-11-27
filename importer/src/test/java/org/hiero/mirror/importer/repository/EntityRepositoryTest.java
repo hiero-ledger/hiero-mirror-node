@@ -117,11 +117,17 @@ class EntityRepositoryTest extends ImporterIntegrationTest {
     void updateContractType() {
         Entity entity = domainBuilder.entity().persist();
         Entity entity2 = domainBuilder.entity().persist();
-        entityRepository.updateContractType(List.of(entity.getId(), entity2.getId()));
-        assertThat(entityRepository.findAll())
-                .hasSize(2)
-                .extracting(Entity::getType)
-                .allMatch(e -> e == CONTRACT);
+        // An entity that is already a contract and one outside the id list must stay unchanged
+        Entity contract =
+                domainBuilder.entity().customize(e -> e.type(CONTRACT)).persist();
+        Entity unlisted = domainBuilder.entity().persist();
+
+        assertThat(entityRepository.updateContractType(List.of(entity.getId(), entity2.getId(), contract.getId())))
+                .isEqualTo(2);
+
+        entity.setType(CONTRACT);
+        entity2.setType(CONTRACT);
+        assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(entity, entity2, contract, unlisted);
     }
 
     @Test

@@ -45,15 +45,14 @@ class ContractRepositoryTest extends Web3IntegrationTest {
                 .entity()
                 .customize(e -> e.type(EntityType.CONTRACT))
                 .persist();
-        final var contract =
-                domainBuilder.contract().customize(c -> c.id(entity.getId())).persist();
+        final var contract = domainBuilder
+                .contract()
+                .customize(c -> c.id(entity.getId()).initcode(domainBuilder.bytes(32)))
+                .persist();
         final var timestamp = entity.getTimestampLower();
 
         assertThat(contractRepository.findByIdsAndConsensusTimestamp(List.of(contract.getId()), timestamp))
-                .hasSize(1)
-                .first()
-                .returns(contract.getId(), Contract::getId)
-                .returns(contract.getRuntimeBytecode(), Contract::getRuntimeBytecode);
+                .containsExactly(contract);
 
         assertThat(contractRepository.findByIdsAndConsensusTimestamp(List.of(contract.getId()), timestamp - 1))
                 .isEmpty();
