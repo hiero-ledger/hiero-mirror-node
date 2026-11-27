@@ -3,9 +3,12 @@
 package org.hiero.mirror.grpc.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Named;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -46,8 +49,7 @@ public class NetworkServiceImpl implements NetworkService {
     static final String INVALID_FILE_ID = "Not a valid address book file";
     static final String TOO_MANY_SUBSCRIPTIONS = "Too many concurrent address book subscriptions";
     private static final long NODE_STAKE_EMPTY_TABLE_TIMESTAMP = 0L;
-    private static final TypeReference<java.util.List<ServiceEndpointRow>> SERVICE_ENDPOINTS_TYPE =
-            new TypeReference<>() {};
+    private static final TypeReference<List<ServiceEndpointRow>> SERVICE_ENDPOINTS_TYPE = new TypeReference<>() {};
     private static final String STREAM_TIMEOUT = "Address book subscription timed out";
 
     private final AtomicInteger activeSubscriptions = new AtomicInteger();
@@ -174,30 +176,26 @@ public class NetworkServiceImpl implements NetworkService {
         }));
     }
 
+    // The query always returns a JSON array, so a parse failure is a bug that must not silently drop the endpoints
     private Set<AddressBookServiceEndpoint> parseServiceEndpoints(String json, long consensusTimestamp, long nodeId) {
-        if (json == null || json.isBlank() || "null".equalsIgnoreCase(json)) {
-            return java.util.Set.of();
-        }
+        final List<ServiceEndpointRow> rows;
         try {
-            var rows = objectMapper.readValue(json, SERVICE_ENDPOINTS_TYPE);
-            if (rows == null || rows.isEmpty()) {
-                return java.util.Set.of();
-            }
-            var set = new java.util.LinkedHashSet<AddressBookServiceEndpoint>(rows.size());
-            for (var row : rows) {
-                set.add(AddressBookServiceEndpoint.builder()
-                        .consensusTimestamp(consensusTimestamp)
-                        .ipAddressV4(row.ipAddressV4())
-                        .nodeId(nodeId)
-                        .port(row.port())
-                        .domainName(row.domainName())
-                        .build());
-            }
-            return set;
-        } catch (Exception e) {
-            log.warn("Unable to parse serviceEndpoints JSON: {}", json, e);
-            return java.util.Set.of();
+            rows = objectMapper.readValue(json, SERVICE_ENDPOINTS_TYPE);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Unable to parse the service endpoints of node " + nodeId, e);
         }
+
+        final var serviceEndpoints = new LinkedHashSet<AddressBookServiceEndpoint>(rows.size());
+        for (final var row : rows) {
+            serviceEndpoints.add(AddressBookServiceEndpoint.builder()
+                    .consensusTimestamp(consensusTimestamp)
+                    .domainName(row.domainName())
+                    .ipAddressV4(row.ipAddressV4())
+                    .nodeId(nodeId)
+                    .port(row.port())
+                    .build());
+        }
+        return serviceEndpoints;
     }
 
     private void release() {

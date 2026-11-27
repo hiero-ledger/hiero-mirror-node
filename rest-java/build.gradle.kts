@@ -26,9 +26,6 @@ dependencies {
     implementation("com.hedera.hashgraph:app-service-entity-id-impl") {
         exclude(group = "io.netty")
     }
-    api("org.springframework.data:spring-data-relational")
-    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-    implementation("org.postgresql:postgresql")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("jakarta.inject:jakarta.inject-api")
@@ -39,7 +36,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
+    // jOOQ's Settings class carries JAXB annotations that javac reads; Hibernate used to provide
+    // this transitively
     compileOnly("jakarta.xml.bind:jakarta.xml.bind-api")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation(project(path = ":common", configuration = "testClasses"))

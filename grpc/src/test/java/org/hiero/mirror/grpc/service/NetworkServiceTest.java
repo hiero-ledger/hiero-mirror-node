@@ -21,13 +21,12 @@ import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.exception.SubscriptionLimitException;
 import org.hiero.mirror.grpc.exception.SubscriptionTimeoutException;
-import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
-import org.hiero.mirror.grpc.repository.NodeStakeRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.jdbc.core.JdbcOperations;
 import reactor.test.StepVerifier;
 
 @RequiredArgsConstructor
@@ -36,11 +35,10 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     private static final long CONSENSUS_TIMESTAMP = 1L;
     private static final long NODE_STAKE_CONSENSUS_TIMESTAMP = 10L; // A daily thing
 
-    private final AddressBookEntryRepository addressBookEntryRepository;
     private final AddressBookProperties addressBookProperties;
     private final DomainBuilder domainBuilder;
+    private final JdbcOperations jdbcOperations;
     private final NetworkService networkService;
-    private final NodeStakeRepository nodeStakeRepository;
 
     private int maxConcurrent;
     private Duration pageDelay;
@@ -238,6 +236,26 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     }
 
     @Test
+    void cached() {
+        addressBookProperties.setPageSize(2);
+        AddressBook addressBook = addressBook();
+        AddressBookEntry addressBookEntry1 = addressBookEntry();
+        AddressBookEntry addressBookEntry2 = addressBookEntry();
+        AddressBookEntry addressBookEntry3 = addressBookEntry();
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
+
+        assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
+
+        // Delete with SQL, since Spring Data JPA skips deleting entities that are always new
+        jdbcOperations.update("delete from address_book_entry");
+
+        assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
+    }
+
+    @Test
     void overrideStakeToZeroWhenEmptyNodeStakeTable() {
         var addressBook = addressBook();
         var addressBookEntry = addressBookEntry(10L); // Persist stake
@@ -273,9 +291,30 @@ class NetworkServiceTest extends GrpcIntegrationTest {
                 .limit(addressBookProperties.getMaxLimit())
                 .build();
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
-        assertThat(addressBookEntryRepository.findByConsensusTimestampAndNodeId(CONSENSUS_TIMESTAMP, 0L, 1000))
-                .extracting(AddressBookEntryRepository.AddressBookEntryView::stake)
+        assertThat(jdbcOperations.queryForList("select stake from address_book_entry", Long.class))
                 .doesNotContain(nodeStakeTableStake);
+    }
+
+    @Test
+    void cachedNodeStake() {
+        var nodeStakeTableStake = 100L;
+
+        var addressBook = addressBook();
+        var addressBookEntry = addressBookEntry(10L);
+
+        nodeStake(addressBookEntry.getNodeId(), nodeStakeTableStake);
+        addressBookEntry.setStake(nodeStakeTableStake);
+
+        var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
+        assertThat(getNodes(filter)).containsExactly(addressBookEntry);
+
+        // Keep the latest node stake timestamp, so only the cached stake can still be returned
+        jdbcOperations.update("update node_stake set stake = 0");
+
+        assertThat(getNodes(filter)).containsExactly(addressBookEntry);
     }
 
     private List<AddressBookEntry> getNodes(AddressBookFilter filter) {

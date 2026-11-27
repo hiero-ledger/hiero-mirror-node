@@ -13,7 +13,6 @@ import org.hiero.mirror.rest.model.ServiceEndpoint;
 import org.hiero.mirror.rest.model.TimestampRange;
 import org.hiero.mirror.rest.model.TimestampRangeNullable;
 import org.hiero.mirror.restjava.dto.NetworkNodeDto;
-import org.hiero.mirror.restjava.exception.InvalidMappingException;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -60,7 +59,7 @@ public interface NetworkNodeMapper extends CollectionMapper<NetworkNodeDto, Netw
         try {
             return ObjectToStringSerializer.OBJECT_MAPPER.readValue(json, ServiceEndpoint.class);
         } catch (JsonProcessingException e) {
-            throw new InvalidMappingException("Failed to parse service endpoint", e);
+            throw new RuntimeException("Failed to parse service endpoint", e);
         }
     }
 
@@ -71,7 +70,7 @@ public interface NetworkNodeMapper extends CollectionMapper<NetworkNodeDto, Netw
         try {
             return ObjectToStringSerializer.OBJECT_MAPPER.readValue(json, new TypeReference<>() {});
         } catch (JsonProcessingException e) {
-            throw new InvalidMappingException("Failed to parse service endpoints", e);
+            throw new RuntimeException("Failed to parse service endpoints", e);
         }
     }
 }
