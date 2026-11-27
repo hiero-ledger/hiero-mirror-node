@@ -9,6 +9,7 @@ import static org.hiero.mirror.grpc.service.NetworkServiceImpl.INVALID_FILE_ID;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
@@ -258,6 +259,28 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     }
 
     @Test
+    void serviceEndpoints() {
+        // given two nodes, each with its own IP address and domain name endpoints
+        final var addressBook = addressBook();
+        final var addressBookEntry1 = addressBookEntryWithEndpoints(0L);
+        final var addressBookEntry2 = addressBookEntryWithEndpoints(1L);
+        final var filter = AddressBookFilter.builder()
+                .fileId(addressBook.getFileId())
+                .limit(addressBookProperties.getMaxLimit())
+                .build();
+
+        // when
+        final var nodes = getNodes(filter);
+
+        // then each node has exactly its own endpoints
+        assertThat(nodes).containsExactly(addressBookEntry1, addressBookEntry2);
+        assertThat(nodes.get(0).getServiceEndpoints())
+                .containsExactlyInAnyOrderElementsOf(addressBookEntry1.getServiceEndpoints());
+        assertThat(nodes.get(1).getServiceEndpoints())
+                .containsExactlyInAnyOrderElementsOf(addressBookEntry2.getServiceEndpoints());
+    }
+
+    @Test
     void overrideStakeToZeroWhenEmptyNodeStakeTable() {
         var addressBook = addressBook();
         var addressBookEntry = addressBookEntry(10L); // Persist stake
@@ -336,6 +359,27 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         return domainBuilder
                 .addressBookEntry()
                 .customize(a -> a.consensusTimestamp(CONSENSUS_TIMESTAMP))
+                .persist();
+    }
+
+    private AddressBookEntry addressBookEntryWithEndpoints(long nodeId) {
+        final var ipAddressEndpoint = domainBuilder
+                .addressBookServiceEndpoint()
+                .customize(e -> e.consensusTimestamp(CONSENSUS_TIMESTAMP).nodeId(nodeId))
+                .get();
+        final var domainNameEndpoint = domainBuilder
+                .addressBookServiceEndpoint()
+                .customize(e -> e.consensusTimestamp(CONSENSUS_TIMESTAMP)
+                        .domainName("node" + nodeId + ".example.com")
+                        .ipAddressV4("")
+                        .nodeId(nodeId))
+                .get();
+
+        return domainBuilder
+                .addressBookEntry()
+                .customize(a -> a.consensusTimestamp(CONSENSUS_TIMESTAMP)
+                        .nodeId(nodeId)
+                        .serviceEndpoints(new HashSet<>(List.of(ipAddressEndpoint, domainNameEndpoint))))
                 .persist();
     }
 

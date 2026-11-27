@@ -8,6 +8,7 @@ import static org.assertj.core.groups.Tuple.tuple;
 import com.google.common.collect.Range;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.token.AbstractTokenAccount;
 import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
@@ -46,15 +47,14 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                 .persist();
         final var tokenAccount = domainBuilder
                 .tokenAccount()
-                .customize(
-                        a -> a.freezeStatus(freezeStatus).kycStatus(kycStatus).tokenId(token.getTokenId()))
+                .customize(a -> customize(
+                        a.freezeStatus(freezeStatus).kycStatus(kycStatus).tokenId(token.getTokenId())))
                 .persist();
+        // The query resolves the account's statuses against the token's
+        tokenAccount.setFreezeStatus(expectedFreezeStatus);
+        tokenAccount.setKycStatus(expectedKycStatus);
 
-        assertThat(repository.findById(tokenAccount.getId()))
-                .hasValueSatisfying(account -> assertThat(account)
-                        .returns(expectedFreezeStatus, TokenAccount::getFreezeStatus)
-                        .returns(expectedKycStatus, TokenAccount::getKycStatus)
-                        .returns(tokenAccount.getBalance(), TokenAccount::getBalance));
+        assertThat(repository.findById(tokenAccount.getId())).contains(tokenAccount);
     }
 
     @CsvSource(textBlock = """
@@ -65,14 +65,10 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
     void findByIdMissingToken(TokenFreezeStatusEnum freezeStatus, TokenKycStatusEnum kycStatus) {
         final var tokenAccount = domainBuilder
                 .tokenAccount()
-                .customize(a -> a.freezeStatus(freezeStatus).kycStatus(kycStatus))
+                .customize(a -> customize(a.freezeStatus(freezeStatus).kycStatus(kycStatus)))
                 .persist();
 
-        assertThat(repository.findById(tokenAccount.getId()))
-                .hasValueSatisfying(account -> assertThat(account)
-                        .returns(freezeStatus, TokenAccount::getFreezeStatus)
-                        .returns(kycStatus, TokenAccount::getKycStatus)
-                        .returns(tokenAccount.getBalance(), TokenAccount::getBalance));
+        assertThat(repository.findById(tokenAccount.getId())).contains(tokenAccount);
     }
 
     @Test
@@ -114,6 +110,38 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                 .containsExactlyInAnyOrderElementsOf(expected);
         assertThat(repository.countByAccountIdAndAssociatedGroupedByBalanceIsPositive(nextAccountId))
                 .isEmpty();
+    }
+
+    @CsvSource(textBlock = """
+            UNFROZEN, REVOKED, FROZEN, GRANTED, FROZEN, GRANTED
+            UNFROZEN, REVOKED, , , UNFROZEN, REVOKED
+            NOT_APPLICABLE, REVOKED, UNFROZEN, GRANTED, NOT_APPLICABLE, GRANTED
+            FROZEN, NOT_APPLICABLE, UNFROZEN, GRANTED, UNFROZEN, NOT_APPLICABLE
+            """)
+    @ParameterizedTest
+    void findByIdAndTimestampWithToken(
+            TokenFreezeStatusEnum tokenFreezeStatus,
+            TokenKycStatusEnum tokenKycStatus,
+            TokenFreezeStatusEnum freezeStatus,
+            TokenKycStatusEnum kycStatus,
+            TokenFreezeStatusEnum expectedFreezeStatus,
+            TokenKycStatusEnum expectedKycStatus) {
+        final var token = domainBuilder
+                .token()
+                .customize(t -> t.freezeStatus(tokenFreezeStatus).kycStatus(tokenKycStatus))
+                .persist();
+        final var tokenAccount = domainBuilder
+                .tokenAccount()
+                .customize(a -> customize(
+                        a.freezeStatus(freezeStatus).kycStatus(kycStatus).tokenId(token.getTokenId())))
+                .persist();
+        // The query resolves the account's statuses against the token's
+        tokenAccount.setFreezeStatus(expectedFreezeStatus);
+        tokenAccount.setKycStatus(expectedKycStatus);
+
+        assertThat(repository.findByIdAndTimestamp(
+                        tokenAccount.getAccountId(), tokenAccount.getTokenId(), tokenAccount.getTimestampLower()))
+                .contains(tokenAccount);
     }
 
     @Test
@@ -223,23 +251,22 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
 
         final var tokenAccountHistory2 = domainBuilder
                 .tokenAccountHistory()
-                .customize(t -> t.tokenId(token.getTokenId())
+                .customize(t -> customize(t.tokenId(token.getTokenId())
                         .accountId(accId)
                         .freezeStatus(freezeStatus)
-                        .kycStatus(kycStatus))
+                        .kycStatus(kycStatus)))
                 .persist();
-
-        final var latestTimestamp =
-                Math.max(tokenAccountHistory1.getTimestampLower(), tokenAccountHistory2.getTimestampLower());
+        // The query resolves the account's statuses against the token's
+        tokenAccountHistory2.setFreezeStatus(expectedFreezeStatus);
+        tokenAccountHistory2.setKycStatus(expectedKycStatus);
 
         assertThat(repository.findByIdAndTimestamp(
                         tokenAccountHistory1.getId().getAccountId(),
                         tokenAccountHistory1.getId().getTokenId(),
-                        latestTimestamp + 1))
+                        tokenAccountHistory2.getTimestampLower() + 1))
                 .get()
-                .returns(latestTimestamp, TokenAccount::getTimestampLower)
-                .returns(expectedFreezeStatus, TokenAccount::getFreezeStatus)
-                .returns(expectedKycStatus, TokenAccount::getKycStatus);
+                .usingRecursiveComparison()
+                .isEqualTo(tokenAccountHistory2);
     }
 
     @CsvSource(textBlock = """
@@ -273,18 +300,20 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                 .persist();
         final var tokenAccount = domainBuilder
                 .tokenAccountHistory()
-                .customize(t -> t.tokenId(tokenId)
+                .customize(t -> customize(t.tokenId(tokenId)
                         .accountId(accountId)
                         .freezeStatus(freezeStatus)
                         .kycStatus(kycStatus)
-                        .timestampRange(Range.closedOpen(100L, 200L)))
+                        .timestampRange(Range.closedOpen(100L, 200L))))
                 .persist();
+        // The query resolves the account's statuses against the token's
+        tokenAccount.setFreezeStatus(expectedFreezeStatus);
+        tokenAccount.setKycStatus(expectedKycStatus);
 
         assertThat(repository.findByIdAndTimestamp(accountId, tokenId, 150L))
-                .hasValueSatisfying(relationship -> assertThat(relationship)
-                        .returns(expectedFreezeStatus, TokenAccount::getFreezeStatus)
-                        .returns(expectedKycStatus, TokenAccount::getKycStatus)
-                        .returns(tokenAccount.getBalance(), TokenAccount::getBalance));
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(tokenAccount);
     }
 
     @CsvSource(textBlock = """
@@ -500,5 +529,10 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                         TokenAccountAssociationsCount::getIsPositiveBalance,
                         TokenAccountAssociationsCount::getTokenCount)
                 .containsExactlyInAnyOrder(tuple(true, 2), tuple(false, 1));
+    }
+
+    // DomainBuilder leaves automaticAssociation false and the balance timestamp equal to the created timestamp
+    private void customize(AbstractTokenAccount.AbstractTokenAccountBuilder<?, ?> builder) {
+        builder.automaticAssociation(true).balanceTimestamp(domainBuilder.timestamp());
     }
 }
