@@ -3,7 +3,8 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.importer.downloader.block.CompositeBlockSource.FAILOVER_METRIC_NAME;
+import static org.hiero.mirror.importer.downloader.block.BlockSource.FAILOVER_METRIC_NAME;
+import static org.hiero.mirror.importer.downloader.block.BlockSource.FAILOVER_TYPE_TAG;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
@@ -280,7 +281,11 @@ final class CompositeBlockSourceTest {
     }
 
     private double failovers() {
-        return meterRegistry.get(FAILOVER_METRIC_NAME).counter().count();
+        return meterRegistry
+                .get(FAILOVER_METRIC_NAME)
+                .tag(FAILOVER_TYPE_TAG, BlockSource.FailoverType.CLOUD_STORAGE.name())
+                .counter()
+                .count();
     }
 
     private CompositeBlockSource newCompositeBlockSource() {

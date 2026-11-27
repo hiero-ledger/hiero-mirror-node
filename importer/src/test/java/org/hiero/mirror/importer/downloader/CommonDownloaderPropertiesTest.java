@@ -56,6 +56,23 @@ class CommonDownloaderPropertiesTest {
         assertThat(properties.isAnonymousCredentials()).isTrue();
     }
 
+    @CsvSource({
+        ", false, false",
+        ", true, true",
+        "false, true, false",
+        "true, false, true",
+    })
+    @ParameterizedTest
+    void isAnonymousCredentialsForSource(
+            final Boolean sourceAllowAnonymousAccess, final boolean allowAnonymousAccess, final boolean expected) {
+        final var properties = new CommonDownloaderProperties(new ImporterProperties());
+        properties.setAllowAnonymousAccess(allowAnonymousAccess);
+        final var sourceProperties = new StreamSourceProperties();
+        sourceProperties.setAllowAnonymousAccess(sourceAllowAnonymousAccess);
+
+        assertThat(properties.isAnonymousCredentials(sourceProperties)).isEqualTo(expected);
+    }
+
     @Test
     void initNoSources() {
         var properties = new CommonDownloaderProperties(new ImporterProperties());

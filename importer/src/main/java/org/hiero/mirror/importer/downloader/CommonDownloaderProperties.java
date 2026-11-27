@@ -141,6 +141,15 @@ public class CommonDownloaderProperties {
                 : HederaNetwork.isAllowAnonymousAccess(importerProperties.getNetwork());
     }
 
+    /**
+     * Whether the source allows anonymous access, falling back to the downloader wide setting when the source doesn't
+     * set it.
+     */
+    public boolean isAnonymousCredentials(final StreamSourceProperties source) {
+        final var sourceAllowAnonymousAccess = source.getAllowAnonymousAccess();
+        return sourceAllowAnonymousAccess != null ? sourceAllowAnonymousAccess : isAnonymousCredentials();
+    }
+
     @Getter
     @RequiredArgsConstructor
     public enum SourceType {

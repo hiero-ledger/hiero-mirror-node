@@ -74,7 +74,7 @@ class CloudStorageConfiguration {
     private AwsCredentialsProvider awsCredentialsProvider(StreamSourceProperties sourceProperties) {
         var type = sourceProperties.getType();
 
-        if (commonDownloaderProperties.isAnonymousCredentials()) {
+        if (commonDownloaderProperties.isAnonymousCredentials(sourceProperties)) {
             log.info("Setting up {} client using anonymous credentials", type);
             return AnonymousCredentialsProvider.create();
         } else if (sourceProperties.isStaticCredentials()) {
