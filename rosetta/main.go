@@ -228,9 +228,9 @@ func main() {
 		log.Info("Serving Rosetta API in OFFLINE mode")
 	}
 
-	bodyLimitMiddleware := middleware.BodyLimitMiddleware(router, rosettaConfig.Http.MaxRequestBodySize)
-	metricsMiddleware := middleware.MetricsMiddleware(bodyLimitMiddleware)
-	tracingMiddleware := middleware.TracingMiddleware(metricsMiddleware)
+	metricsMiddleware := middleware.MetricsMiddleware(router)
+	bodyLimitMiddleware := middleware.BodyLimitMiddleware(metricsMiddleware, rosettaConfig.Http.MaxRequestBodySize)
+	tracingMiddleware := middleware.TracingMiddleware(bodyLimitMiddleware)
 	corsMiddleware := server.CorsMiddleware(tracingMiddleware)
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf(":%d", rosettaConfig.Port),
