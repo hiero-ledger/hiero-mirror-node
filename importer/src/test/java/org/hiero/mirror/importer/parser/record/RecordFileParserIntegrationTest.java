@@ -9,9 +9,15 @@ import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
@@ -37,6 +43,9 @@ import org.hiero.mirror.importer.test.performance.PerformanceProperties.SubType;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.ReactiveSubscription.Message;
 import org.springframework.data.redis.core.ReactiveRedisOperations;
 import org.springframework.data.util.Version;
@@ -408,9 +417,80 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
 
         assertThat(recordFileRepository.findAll()).hasSize(2);
         assertThat(contractLogRepository.findAll()).isNotEmpty();
+        // The synthetic log's bloom belongs to the first file. The last file, passed to onEnd, has no contract
+        // activity.
+        final var topLevelContractResult = contractResultRepository
+                .findById(firstFileItems.getFirst().getConsensusTimestamp())
+                .orElseThrow();
+        final var firstPersisted =
+                recordFileRepository.findById(firstFile.getConsensusEnd()).orElseThrow();
         final var lastPersisted =
                 recordFileRepository.findById(lastFile.getConsensusEnd()).orElseThrow();
-        assertThat(lastPersisted.getLogsBloom()).hasSize(LogsBloomFilter.BYTE_SIZE);
+        assertThat(firstPersisted.getLogsBloom())
+                .hasSize(LogsBloomFilter.BYTE_SIZE)
+                .isEqualTo(topLevelContractResult.getBloom());
+        assertThat(lastPersisted.getLogsBloom()).isEmpty();
+    }
+
+    @ParameterizedTest(name = "batch sizes {0}")
+    @ValueSource(strings = {"3", "1,2", "2,1"})
+    void syntheticLogBloomIsIndependentOfBatchPartitioning(final String batchSizes) throws IOException {
+        // A: top-level contract call whose HTS precompile child emits a marker synthetic log
+        // B: hook-driven transfer whose marker synthetic log links to a non-top-level contract result
+        // C: no contract activity
+        final var fileA = recordFileWithItems(htsPrecompileChildUnderTopLevelContractCall(), null);
+        final var fileB = recordFileWithItems(hookDrivenTransferItems(), fileA);
+        final var fileC =
+                recordFileWithItems(List.of(recordItemBuilder.cryptoTransfer().build()), fileB);
+        final var files = List.of(fileA, fileB, fileC);
+        final var oneByOneFiles = copyFiles(files);
+        final var batchedFiles = copyFiles(files);
+
+        oneByOneFiles.forEach(recordFileParser::parse);
+        final var expectedBlooms = persistedLogsBlooms();
+        final var markerLogs = new ArrayList<ContractLog>();
+        contractLogRepository.findAll().forEach(contractLog -> {
+            if (contractLog.isSynthetic() && contractLog.getBloom().length == LogsBloomFilter.BYTE_SIZE) {
+                markerLogs.add(contractLog);
+            }
+        });
+
+        resetDatabase();
+        int from = 0;
+        for (final var batchSize : batchSizes.split(",")) {
+            final int to = from + Integer.parseInt(batchSize);
+            recordFileParser.parse(batchedFiles.subList(from, to));
+            from = to;
+        }
+
+        // Same logs_bloom per block regardless of batch partitioning
+        assertThat(persistedLogsBlooms()).hasSize(files.size()).isEqualTo(expectedBlooms);
+
+        // Each block with a marker synthetic log tests positive for that log's address and topics. Block C, which has
+        // no contract activity, must not.
+        final var persistedFiles = recordFileRepository.findAll();
+        assertThat(markerLogs).hasSizeGreaterThanOrEqualTo(2);
+        for (final var markerLog : markerLogs) {
+            final var logBloom = new LogsBloomFilter();
+            logBloom.insertAddress(DomainUtils.toEvmAddress(markerLog.getContractId()));
+            logBloom.insertTopic(markerLog.getTopic0());
+            logBloom.insertTopic(markerLog.getTopic1());
+            logBloom.insertTopic(markerLog.getTopic2());
+            logBloom.insertTopic(markerLog.getTopic3());
+
+            final long timestamp = markerLog.getConsensusTimestamp();
+            for (final var recordFile : persistedFiles) {
+                final var fileBloom = new LogsBloomFilter();
+                fileBloom.or(recordFile.getLogsBloom());
+                final boolean containsLog =
+                        recordFile.getConsensusStart() <= timestamp && timestamp <= recordFile.getConsensusEnd();
+                if (containsLog || recordFile.getConsensusEnd().equals(fileC.getConsensusEnd())) {
+                    assertThat(fileBloom.couldContain(logBloom.toArrayUnsafe()))
+                            .as("block %d contains marker log %d", recordFile.getIndex(), timestamp)
+                            .isEqualTo(containsLog);
+                }
+            }
+        }
     }
 
     @Test
@@ -475,6 +555,50 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
                         .addTokenTransferLists(tokenTransfers))
                 .recordItem(r -> r.previous(previous).hapiVersion(HAPI_0_70))
                 .build();
+    }
+
+    /**
+     * Copies files so the same blocks can be parsed more than once. Parsing clears a file's items and mutates its
+     * record items (log and EVM transaction index counters), so each copy gets freshly built record items from the
+     * same protobufs.
+     */
+    private static List<RecordFile> copyFiles(final List<RecordFile> recordFiles) {
+        final var copies = new ArrayList<RecordFile>(recordFiles.size());
+        for (final var recordFile : recordFiles) {
+            final var copy = (RecordFile) recordFile.copy();
+            final var items = new ArrayList<RecordItem>(recordFile.getItems().size());
+            RecordItem previous = null;
+            for (final var item : recordFile.getItems()) {
+                previous = RecordItem.builder()
+                        .contractTransactionPredicate(item.getContractTransactionPredicate())
+                        .entityTransactionPredicate(item.getEntityTransactionPredicate())
+                        .hapiVersion(item.getHapiVersion())
+                        .previous(previous)
+                        .sidecarRecords(item.getSidecarRecords())
+                        .transaction(item.getTransaction())
+                        .transactionIndex(item.getTransactionIndex())
+                        .transactionRecord(item.getTransactionRecord())
+                        .build();
+                items.add(previous);
+            }
+            copy.setItems(items);
+            copies.add(copy);
+        }
+        return copies;
+    }
+
+    private Map<Long, String> persistedLogsBlooms() {
+        final var blooms = new HashMap<Long, String>();
+        recordFileRepository
+                .findAll()
+                .forEach(rf -> blooms.put(rf.getIndex(), HexFormat.of().formatHex(rf.getLogsBloom())));
+        return blooms;
+    }
+
+    private void resetDatabase() throws IOException {
+        jdbcOperations.execute(new ClassPathResource("cleanup.sql").getContentAsString(StandardCharsets.UTF_8));
+        recordFileParser.clear();
+        reset();
     }
 
     private RecordFile recordFileWithItems(final List<RecordItem> items, final RecordFile previous) {

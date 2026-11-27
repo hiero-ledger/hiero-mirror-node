@@ -87,35 +87,55 @@ final class SyntheticLogListener implements EntityListener, RecordStreamFileList
             }
         }
 
-        updateRecordFileBloom(recordFile, updatedContractResults.values());
+        updateRecordFileBlooms(recordFile, updatedContractResults.values());
     }
 
-    private void updateRecordFileBloom(final RecordFile recordFile, final Collection<ContractResult> contractResults) {
+    /**
+     * ORs each updated contract result's bloom into the logs bloom of the record file that contains it. In batched
+     * parsing, onEnd receives only the batch's last file, so each contract result's file is looked up among the
+     * batch's files in the parser context, by consensus timestamp.
+     */
+    private void updateRecordFileBlooms(
+            final RecordFile lastRecordFile, final Collection<ContractResult> contractResults) {
         if (contractResults.isEmpty()) {
             return;
         }
 
-        final var aggregatedBloom = aggregateRecordFileBloom(recordFile, contractResults);
-        if (aggregatedBloom != null) {
-            recordFile.setLogsBloom(aggregatedBloom);
-        }
-    }
-
-    private byte[] aggregateRecordFileBloom(
-            final RecordFile recordFile, final Collection<ContractResult> contractResults) {
-        var aggregatedBloom = initializeFileBloom(recordFile.getLogsBloom());
-        boolean merged = false;
-
+        final var recordFiles = parserContext.get(RecordFile.class);
         for (final var contractResult : contractResults) {
             final var source = contractResult.getBloom();
             if (source == null || source.length != LogsBloomFilter.BYTE_SIZE) {
                 continue;
             }
-            aggregatedBloom = LogsBloomFilter.or(source, aggregatedBloom);
-            merged = true;
+
+            final var recordFile = findRecordFile(recordFiles, contractResult.getConsensusTimestamp(), lastRecordFile);
+            recordFile.setLogsBloom(LogsBloomFilter.or(source, initializeFileBloom(recordFile.getLogsBloom())));
+        }
+    }
+
+    /**
+     * Binary searches the parsed record files, which are in consensus order, for the one whose consensus range contains
+     * the timestamp. Returns the fallback when no file in the parser context contains it.
+     */
+    private RecordFile findRecordFile(
+            final List<RecordFile> recordFiles, final long consensusTimestamp, final RecordFile fallback) {
+        int low = 0;
+        int high = recordFiles.size() - 1;
+
+        while (low <= high) {
+            final int mid = (low + high) >>> 1;
+            final var recordFile = recordFiles.get(mid);
+
+            if (consensusTimestamp < recordFile.getConsensusStart()) {
+                high = mid - 1;
+            } else if (consensusTimestamp > recordFile.getConsensusEnd()) {
+                low = mid + 1;
+            } else {
+                return recordFile;
+            }
         }
 
-        return merged ? aggregatedBloom : null;
+        return fallback;
     }
 
     /**

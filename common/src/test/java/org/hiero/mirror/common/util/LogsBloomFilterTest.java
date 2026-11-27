@@ -20,8 +20,10 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.web3j.utils.Bloom;
 
 final class LogsBloomFilterTest {
 
@@ -118,6 +120,40 @@ final class LogsBloomFilterTest {
         filter.insertAddress(hex(addressHex));
 
         assertThat(logsBloomFilter.couldContain(filter.toArrayUnsafe())).isTrue();
+    }
+
+    // Each address is given in canonical and trimmed form; both must produce the bloom an Ethereum client builds for
+    // the canonical 20-byte address. The expected bloom comes from web3j's Yellow Paper implementation, so it doesn't
+    // depend on LogsBloomFilter.
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            00a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3, 00a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3
+            a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3,   00a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3
+            00000000000000000000000000000000000003e8, 00000000000000000000000000000000000003e8
+            03e8,                                     00000000000000000000000000000000000003e8
+            00000000000000000000000000000000000D98C7, 00000000000000000000000000000000000D98C7
+            0D98C7,                                   00000000000000000000000000000000000D98C7
+            """)
+    void insertAddressMatchesEthereumBloomForCanonicalAddress(String addressHex, String canonicalAddressHex) {
+        final var expected = new Bloom();
+        expected.add(hex(canonicalAddressHex));
+
+        logsBloomFilter.insertAddress(hex(addressHex));
+
+        assertThat(logsBloomFilter.toArrayUnsafe()).isEqualTo(expected.getBytes());
+    }
+
+    @Test
+    void insertAddressTrimmedEqualsCanonical() {
+        final var canonical = hex("00a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3");
+        final var canonicalFilter = new LogsBloomFilter();
+        canonicalFilter.insertAddress(canonical);
+
+        logsBloomFilter.insertAddress(DomainUtils.trim(canonical));
+
+        assertThat(logsBloomFilter.toArrayUnsafe()).isEqualTo(canonicalFilter.toArrayUnsafe());
+        assertThat(logsBloomFilter.couldContain(canonicalFilter.toArrayUnsafe()))
+                .isTrue();
     }
 
     @Test

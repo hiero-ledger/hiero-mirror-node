@@ -86,6 +86,7 @@ dependencies {
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.12")
         api("org.web3j:core:6.1.0")
+        api("org.web3j:utils:6.1.0")
         api("org.xerial.snappy:snappy-java:1.1.10.12") // Temporary until next Besu
         api("software.amazon.awssdk:bom:2.59.7")
         api("tech.pegasys:jc-kzg-4844:1.0.0")

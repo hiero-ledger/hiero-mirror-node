@@ -71,8 +71,17 @@ public final class LogsBloomFilter {
         return destination;
     }
 
+    /**
+     * Inserts a log emitter address. Per the Ethereum spec, the bloom hashes the canonical 20-byte address, so a
+     * trimmed address (leading zero bytes stripped, as stored for synthetic logs) is left-padded back to 20 bytes
+     * before hashing. Hashing the trimmed form would set different bits than any Ethereum client queries for.
+     */
     public void insertAddress(final byte[] input) {
-        insert(input);
+        if (ArrayUtils.isEmpty(input)) {
+            return;
+        }
+
+        insert(DomainUtils.leftPadBytes(input, DomainUtils.EVM_ADDRESS_LENGTH));
     }
 
     public void insertTopic(final ByteString input) {
