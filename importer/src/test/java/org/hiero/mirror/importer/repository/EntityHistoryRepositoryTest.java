@@ -39,10 +39,18 @@ class EntityHistoryRepositoryTest extends ImporterIntegrationTest {
     void updateContractType() {
         var entityHistory = domainBuilder.entityHistory().persist();
         var entityHistory2 = domainBuilder.entityHistory().persist();
-        entityHistoryRepository.updateContractType(List.of(entityHistory.getId(), entityHistory2.getId()));
+        // A row that is already a contract and one outside the id list must stay unchanged
+        var contractHistory =
+                domainBuilder.entityHistory().customize(e -> e.type(CONTRACT)).persist();
+        var unlistedHistory = domainBuilder.entityHistory().persist();
+
+        assertThat(entityHistoryRepository.updateContractType(
+                        List.of(entityHistory.getId(), entityHistory2.getId(), contractHistory.getId())))
+                .isEqualTo(2);
+
+        entityHistory.setType(CONTRACT);
+        entityHistory2.setType(CONTRACT);
         assertThat(entityHistoryRepository.findAll())
-                .hasSize(2)
-                .extracting(EntityHistory::getType)
-                .allMatch(e -> e == CONTRACT);
+                .containsExactlyInAnyOrder(entityHistory, entityHistory2, contractHistory, unlistedHistory);
     }
 }

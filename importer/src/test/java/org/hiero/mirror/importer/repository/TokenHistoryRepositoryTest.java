@@ -25,6 +25,17 @@ class TokenHistoryRepositoryTest extends ImporterIntegrationTest {
                 .isEqualTo(tokenHistory);
     }
 
+    @Test
+    void prune() {
+        domainBuilder.tokenHistory().persist();
+        var tokenHistory2 = domainBuilder.tokenHistory().persist();
+        var tokenHistory3 = domainBuilder.tokenHistory().persist();
+
+        tokenHistoryRepository.prune(tokenHistory2.getTimestampUpper());
+
+        assertThat(tokenHistoryRepository.findAll()).containsExactly(tokenHistory3);
+    }
+
     /**
      * This test verifies that the domain object and table definition are in sync with the history table.
      */

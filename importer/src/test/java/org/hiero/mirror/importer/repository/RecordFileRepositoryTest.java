@@ -27,6 +27,7 @@ final class RecordFileRepositoryTest extends ImporterIntegrationTest {
         var first = domainBuilder
                 .recordFile()
                 .customize(rf -> {
+                    rf.wrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE));
                     if (hasPreviousWrappedRecordBlockHash) {
                         rf.previousWrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE));
                     }
@@ -45,7 +46,12 @@ final class RecordFileRepositoryTest extends ImporterIntegrationTest {
 
         domainBuilder.recordFile().persist();
         domainBuilder.recordFile().persist();
-        var recordFile3 = domainBuilder.recordFile().persist();
+        // DomainBuilder leaves the wrapped record block hashes null
+        var recordFile3 = domainBuilder
+                .recordFile()
+                .customize(rf -> rf.previousWrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE))
+                        .wrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE)))
+                .persist();
 
         assertThat(recordFileRepository.findLatest()).get().isEqualTo(recordFile3);
     }
