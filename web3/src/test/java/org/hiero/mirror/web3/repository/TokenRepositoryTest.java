@@ -10,7 +10,11 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
-import org.hiero.mirror.common.domain.token.Token;
+import org.hiero.mirror.common.domain.token.AbstractToken;
+import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
+import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
 import org.hiero.mirror.common.domain.token.TokenTransfer;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
@@ -25,65 +29,38 @@ class TokenRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findById() {
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.type(NON_FUNGIBLE_UNIQUE).freezeDefault(true))
-                .persist();
+        final var token =
+                domainBuilder.token().customize(TokenRepositoryTest::customize).persist();
 
-        assertThat(tokenRepository.findById(token.getTokenId()).get())
-                .returns(token.getName(), Token::getName)
-                .returns(token.getSymbol(), Token::getSymbol)
-                .returns(token.getTotalSupply(), Token::getTotalSupply)
-                .returns(token.getDecimals(), Token::getDecimals)
-                .returns(token.getType(), Token::getType)
-                .returns(token.getFreezeDefault(), Token::getFreezeDefault)
-                .returns(token.getKycKey(), Token::getKycKey);
+        assertThat(tokenRepository.findById(token.getTokenId()).get()).isEqualTo(token);
     }
 
     @Test
     void findByIdAndTimestampRangeLessThanBlockTimestamp() {
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.type(NON_FUNGIBLE_UNIQUE).freezeDefault(true))
-                .persist();
+        final var token =
+                domainBuilder.token().customize(TokenRepositoryTest::customize).persist();
 
         assertThat(tokenRepository
                         .findByTokenIdAndTimestamp(token.getTokenId(), token.getTimestampLower() + 1)
                         .get())
-                .returns(token.getName(), Token::getName)
-                .returns(token.getSymbol(), Token::getSymbol)
-                .returns(token.getTotalSupply(), Token::getTotalSupply)
-                .returns(token.getDecimals(), Token::getDecimals)
-                .returns(token.getType(), Token::getType)
-                .returns(token.getFreezeDefault(), Token::getFreezeDefault)
-                .returns(token.getKycKey(), Token::getKycKey);
+                .isEqualTo(token);
     }
 
     @Test
     void findByIdAndTimestampRangeEqualToBlockTimestamp() {
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.type(NON_FUNGIBLE_UNIQUE).freezeDefault(true))
-                .persist();
+        final var token =
+                domainBuilder.token().customize(TokenRepositoryTest::customize).persist();
 
         assertThat(tokenRepository
                         .findByTokenIdAndTimestamp(token.getTokenId(), token.getTimestampLower())
                         .get())
-                .returns(token.getName(), Token::getName)
-                .returns(token.getSymbol(), Token::getSymbol)
-                .returns(token.getTotalSupply(), Token::getTotalSupply)
-                .returns(token.getDecimals(), Token::getDecimals)
-                .returns(token.getType(), Token::getType)
-                .returns(token.getFreezeDefault(), Token::getFreezeDefault)
-                .returns(token.getKycKey(), Token::getKycKey);
+                .isEqualTo(token);
     }
 
     @Test
     void findByIdAndTimestampRangeGreaterThanBlockTimestamp() {
-        final var token = domainBuilder
-                .token()
-                .customize(t -> t.type(NON_FUNGIBLE_UNIQUE).freezeDefault(true))
-                .persist();
+        final var token =
+                domainBuilder.token().customize(TokenRepositoryTest::customize).persist();
 
         assertThat(tokenRepository.findByTokenIdAndTimestamp(token.getTokenId(), token.getTimestampLower() - 1))
                 .isEmpty();
@@ -93,31 +70,35 @@ class TokenRepositoryTest extends Web3IntegrationTest {
     void findHistoricalByIdAndTimestampRangeLessThanBlockTimestamp() {
         final var tokenHistory = domainBuilder
                 .tokenHistory()
-                .customize(t -> t.type(NON_FUNGIBLE_UNIQUE).freezeDefault(true))
+                .customize(TokenRepositoryTest::customize)
                 .persist();
 
         assertThat(tokenRepository.findByTokenIdAndTimestamp(
                         tokenHistory.getTokenId(), tokenHistory.getTimestampLower() + 1))
-                .isPresent();
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(tokenHistory);
     }
 
     @Test
     void findHistoricalByIdAndTimestampRangeEqualToBlockTimestamp() {
         final var tokenHistory = domainBuilder
                 .tokenHistory()
-                .customize(t -> t.type(NON_FUNGIBLE_UNIQUE).freezeDefault(true))
+                .customize(TokenRepositoryTest::customize)
                 .persist();
 
         assertThat(tokenRepository.findByTokenIdAndTimestamp(
                         tokenHistory.getTokenId(), tokenHistory.getTimestampLower()))
-                .isPresent();
+                .get()
+                .usingRecursiveComparison()
+                .isEqualTo(tokenHistory);
     }
 
     @Test
     void findHistoricalByIdAndTimestampRangeGreaterThanBlockTimestamp() {
         final var tokenHistory = domainBuilder
                 .tokenHistory()
-                .customize(t -> t.type(NON_FUNGIBLE_UNIQUE).freezeDefault(true))
+                .customize(TokenRepositoryTest::customize)
                 .persist();
 
         assertThat(tokenRepository.findByTokenIdAndTimestamp(
@@ -284,5 +265,16 @@ class TokenRepositoryTest extends Web3IntegrationTest {
                 .persist();
 
         assertThat(tokenRepository.findTypeByTokenId(token.getTokenId()).get()).isEqualTo(NON_FUNGIBLE_UNIQUE);
+    }
+
+    // Set every column to a non-default value, so a column that silently doesn't map fails the comparison
+    private static void customize(AbstractToken.AbstractTokenBuilder<?, ?> builder) {
+        builder.freezeDefault(true)
+                .freezeStatus(TokenFreezeStatusEnum.FROZEN)
+                .kycStatus(TokenKycStatusEnum.GRANTED)
+                .maxSupply(5_000_000_000L)
+                .pauseStatus(TokenPauseStatusEnum.PAUSED)
+                .supplyType(TokenSupplyTypeEnum.FINITE)
+                .type(NON_FUNGIBLE_UNIQUE);
     }
 }

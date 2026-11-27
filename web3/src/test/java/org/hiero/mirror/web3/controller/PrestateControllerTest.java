@@ -207,7 +207,7 @@ final class PrestateControllerTest extends Web3IntegrationTest {
             })
     void callInvalidTransactionIdOrHash(final String transactionIdOrHash) throws Exception {
         final var expectedMessage = StringUtils.hasText(transactionIdOrHash)
-                ? "Unsupported ID format: '%s'".formatted(transactionIdOrHash)
+                ? "Unsupported transaction ID or hash format"
                 : "Missing transaction ID or hash";
 
         mockMvc.perform(prestateRequest(transactionIdOrHash))

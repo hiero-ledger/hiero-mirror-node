@@ -4,9 +4,13 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
+import static org.hiero.mirror.importer.reader.record.RecordFileReader.MAX_TRANSACTION_LENGTH;
 import static org.mockito.Mockito.mock;
 
+import com.hederahashgraph.api.proto.java.TransactionRecord;
+import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -14,8 +18,11 @@ import org.assertj.core.api.IterableAssert;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.hiero.mirror.common.domain.balance.AccountBalanceFile;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.token.TokenTransfer;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.ErrataType;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -23,6 +30,7 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.reader.ValidatedDataInputStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.ContractResultRepository;
@@ -38,6 +46,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 @SuppressWarnings("java:S5786")
 @RequiredArgsConstructor
@@ -241,6 +250,12 @@ public final class ErrataMigrationTest extends ImporterIntegrationTest {
         errataMigration.doMigrate();
         assertThat(tokenTransferRepository.count()).isEqualTo(24L);
 
+        // the token transfers of the already processed transaction are inserted with every column written
+        final var expectedTokenTransfers = expectedMissedTokenTransfers(existingTimestamp);
+        assertThat(expectedTokenTransfers).isNotEmpty();
+        assertThat(tokenTransferRepository.findByConsensusTimestamp(existingTimestamp))
+                .containsExactlyInAnyOrderElementsOf(expectedTokenTransfers);
+
         assertThat(entityProperties.getPersist().isEntityHistory()).isTrue();
         assertThat(entityProperties.getPersist().isTrackBalance()).isTrue();
     }
@@ -275,6 +290,44 @@ public final class ErrataMigrationTest extends ImporterIntegrationTest {
         accountBalanceFile.setConsensusTimestamp(BAD_TIMESTAMP1);
         errataMigration.onEnd(accountBalanceFile);
         assertThat(accountBalanceFile.getTimeOffset()).isZero();
+    }
+
+    // Mirrors how the migration builds the token transfers it missed for an already processed errata transaction
+    private List<TokenTransfer> expectedMissedTokenTransfers(long consensusTimestamp) throws IOException {
+        final var expected = new ArrayList<TokenTransfer>();
+        final var resources = new PathMatchingResourcePatternResolver()
+                .getResources("classpath*:errata/mainnet/missingtransactions/*.bin");
+
+        for (final var resource : resources) {
+            try (final var in = new ValidatedDataInputStream(resource.getInputStream(), resource.getFilename())) {
+                final var transactionRecord =
+                        TransactionRecord.parseFrom(in.readLengthAndBytes(1, MAX_TRANSACTION_LENGTH, false, "record"));
+                final var transaction = com.hederahashgraph.api.proto.java.Transaction.parseFrom(
+                        in.readLengthAndBytes(1, MAX_TRANSACTION_LENGTH, false, "transaction"));
+                final var recordItem = RecordItem.builder()
+                        .transactionRecord(transactionRecord)
+                        .transaction(transaction)
+                        .build();
+                if (recordItem.getConsensusTimestamp() != consensusTimestamp) {
+                    continue;
+                }
+
+                for (final var tokenTransferList : transactionRecord.getTokenTransferListsList()) {
+                    final var tokenId = EntityId.of(tokenTransferList.getToken());
+                    for (final var accountAmount : tokenTransferList.getTransfersList()) {
+                        final var tokenTransfer = new TokenTransfer();
+                        tokenTransfer.setAmount(accountAmount.getAmount());
+                        tokenTransfer.setId(new TokenTransfer.Id(
+                                consensusTimestamp, tokenId, EntityId.of(accountAmount.getAccountID())));
+                        tokenTransfer.setIsApproval(false);
+                        tokenTransfer.setPayerAccountId(recordItem.getPayerAccountId());
+                        expected.add(tokenTransfer);
+                    }
+                }
+            }
+        }
+
+        return expected;
     }
 
     private void assertBalanceOffsets(List<AccountBalanceFile> expected) {

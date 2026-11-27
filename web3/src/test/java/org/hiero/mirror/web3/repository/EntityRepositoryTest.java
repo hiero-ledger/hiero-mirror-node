@@ -16,8 +16,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityHistory;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -48,6 +50,16 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     void findByIdAndDeletedIsFalseSuccessfulCall() {
         final var entity = domainBuilder.entity(-2, domainBuilder.timestamp()).persist();
         assertThat(entityRepository.findByIdAndDeletedIsFalse(-2L)).contains(entity);
+    }
+
+    @Test
+    void findAllByIdReturnsDeleted() {
+        final var entity = domainBuilder
+                .entity(nonZeroShardRealmId(), domainBuilder.timestamp())
+                .customize(e -> customize(e.deleted(true)))
+                .persist();
+
+        assertThat(entityRepository.findAllById(List.of(entity.getId()))).containsExactly(entity);
     }
 
     @Test
@@ -1032,15 +1044,24 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     private Entity persistEntity() {
-        return domainBuilder.entity().persist();
+        return domainBuilder
+                .entity(nonZeroShardRealmId(), domainBuilder.timestamp())
+                .customize(this::customize)
+                .persist();
     }
 
     private Entity persistEntityWithId(long entityHistoryId) {
-        return domainBuilder.entity().customize(e -> e.id(entityHistoryId)).persist();
+        return domainBuilder
+                .entity(EntityId.of(entityHistoryId), domainBuilder.timestamp())
+                .customize(this::customize)
+                .persist();
     }
 
     private EntityHistory persistEntityHistory() {
-        return domainBuilder.entityHistory().persist();
+        return domainBuilder
+                .entityHistory(nonZeroShardRealmId(), domainBuilder.timestamp())
+                .customize(this::customize)
+                .persist();
     }
 
     private EntityHistory persistEntityHistoryWithDeleted() {
@@ -1048,6 +1069,19 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     private EntityHistory persistEntityHistoryWithId(long entityId) {
-        return domainBuilder.entityHistory().customize(e -> e.id(entityId)).persist();
+        return domainBuilder
+                .entityHistory(EntityId.of(entityId), domainBuilder.timestamp())
+                .customize(this::customize)
+                .persist();
+    }
+
+    // Set the columns DomainBuilder leaves null or false, so a column that silently doesn't map fails the comparison
+    private void customize(AbstractEntity.AbstractEntityBuilder<?, ?> builder) {
+        builder.declineReward(true).permanentRemoval(true).stakedAccountId(domainBuilder.id());
+    }
+
+    // A non-zero shard and realm, so those columns aren't left at 0
+    private EntityId nonZeroShardRealmId() {
+        return EntityId.of(1L, 2L, domainBuilder.number());
     }
 }

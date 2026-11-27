@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.retention;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
 import java.time.Instant;
@@ -63,6 +64,13 @@ public class RetentionJob {
         }
     }
 
+    @VisibleForTesting
+    static String getTableName(RetentionRepository repository) {
+        Class<?> targetClass = repository.getClass().getInterfaces()[0];
+        String className = ClassUtils.getSimpleName(targetClass);
+        return Utility.toSnakeCase(Strings.CS.removeEnd(className, "Repository"));
+    }
+
     private void prune(RecordFileIterator iterator) {
         var counters = iterator.getCounters();
         long countBefore = counters.values().stream().reduce(0L, Long::sum);
@@ -84,12 +92,6 @@ public class RetentionJob {
         long elapsed = stopwatch.elapsed(TimeUnit.SECONDS);
         long rate = elapsed > 0 ? countAfter / elapsed : 0L;
         log.info("Pruned {} entries on or before {} in {} at {}/s", count, toInstant(endTimestamp), stopwatch, rate);
-    }
-
-    private String getTableName(RetentionRepository repository) {
-        Class<?> targetClass = repository.getClass().getInterfaces()[0];
-        String className = ClassUtils.getSimpleName(targetClass);
-        return Utility.toSnakeCase(Strings.CS.removeEnd(className, "Repository"));
     }
 
     private Instant toInstant(long nanos) {

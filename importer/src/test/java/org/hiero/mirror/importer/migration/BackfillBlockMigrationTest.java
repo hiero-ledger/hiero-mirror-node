@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.reader.block.BlockStreamTestUtils.BLOCK_STREAM_HASH_SIZE;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -213,7 +214,10 @@ class BackfillBlockMigrationTest extends ImporterIntegrationTest {
                         .consensusStart(consensusStart)
                         .consensusEnd(consensusEnd)
                         .gasUsed(gasUsed)
-                        .logsBloom(logsBloom))
+                        .logsBloom(logsBloom)
+                        // Set so the migration's save is shown to keep them
+                        .previousWrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE))
+                        .wrappedRecordBlockHash(domainBuilder.bytes(BLOCK_STREAM_HASH_SIZE)))
                 .persist();
     }
 
