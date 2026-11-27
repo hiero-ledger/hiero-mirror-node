@@ -4,13 +4,18 @@ package org.hiero.mirror.web3.state.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.node.app.service.token.TokenService;
 import com.swirlds.state.spi.ReadableKVState;
+import com.swirlds.state.spi.WrappedWritableKVState;
+import java.util.concurrent.CompletableFuture;
 import org.hiero.mirror.web3.ContextExtension;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,7 +76,104 @@ class MapWritableKVStateTest {
     void testCommit() {
         mapWritableKVState.putIntoDataSource(accountID, account);
         assertThat(mapWritableKVState.contains(accountID)).isTrue();
-        mapWritableKVState.commit(); // Does nothing, just for test coverage.
+        mapWritableKVState.commit(); // In-memory commits are disabled: writes remain pending.
+    }
+
+    @Test
+    void inMemoryCommitKeepsWritesAndDeletionsInTheWriteCacheOnly() {
+        final var context = ContractCallContext.get();
+        when(readableKVState.get(accountID)).thenReturn(account);
+        assertThat(mapWritableKVState.get(accountID)).isSameAs(account);
+        final var updated = mock(Account.class);
+
+        mapWritableKVState.put(accountID, updated);
+        mapWritableKVState.commit();
+
+        assertThat(context.getWriteCacheState(AccountReadableKVState.STATE_ID)).containsEntry(accountID, updated);
+        assertThat(context.getReadCacheState(AccountReadableKVState.STATE_ID)).containsEntry(accountID, account);
+        assertThat(mapWritableKVState.get(accountID)).isSameAs(updated);
+        assertThat(mapWritableKVState.getOriginalValue(accountID)).isSameAs(account);
+
+        mapWritableKVState.remove(accountID);
+        mapWritableKVState.commit();
+        assertThat(mapWritableKVState.get(accountID)).isNull();
+        assertThat(context.getWriteCacheState(AccountReadableKVState.STATE_ID)).containsEntry(accountID, null);
+        assertThat(context.getReadCacheState(AccountReadableKVState.STATE_ID)).containsEntry(accountID, account);
+    }
+
+    @Test
+    void resetDiscardsInMemoryCommitsAndReusesDatabaseReads() {
+        final var context = ContractCallContext.get();
+        when(readableKVState.get(accountID)).thenReturn(account);
+        assertThat(mapWritableKVState.get(accountID)).isSameAs(account);
+
+        mapWritableKVState.put(accountID, mock(Account.class));
+        mapWritableKVState.commit();
+        final var layer = new WrappedWritableKVState<>(mapWritableKVState);
+        layer.remove(accountID);
+        layer.commit();
+        mapWritableKVState.commit();
+        assertThat(mapWritableKVState.get(accountID)).isNull();
+
+        context.reset();
+
+        assertThat(context.getWriteCacheState(AccountReadableKVState.STATE_ID)).isEmpty();
+        assertThat(mapWritableKVState.modifiedKeys()).isEmpty();
+        assertThat(mapWritableKVState.get(accountID)).isSameAs(account);
+        assertThat(new WrappedWritableKVState<>(mapWritableKVState).get(accountID))
+                .isSameAs(account);
+        verify(readableKVState, times(1)).get(accountID);
+    }
+
+    @Test
+    void droppedWrapperDiscardsItsChangesAndPreservesEarlierCommit() {
+        mapWritableKVState.put(accountID, account);
+        mapWritableKVState.commit();
+
+        final var dropped = new WrappedWritableKVState<>(mapWritableKVState);
+        dropped.remove(accountID);
+        assertThat(dropped.get(accountID)).isNull();
+        assertThat(mapWritableKVState.get(accountID)).isSameAs(account);
+
+        final var kept = new WrappedWritableKVState<>(mapWritableKVState);
+        assertThat(kept.get(accountID)).isSameAs(account);
+        kept.remove(accountID);
+        kept.commit();
+        assertThat(mapWritableKVState.get(accountID)).isNull();
+    }
+
+    @Test
+    void commitWithoutInMemoryCommitsKeepsWritesPending() {
+        final var context = ContractCallContext.get();
+        final var updated = mock(Account.class);
+        when(readableKVState.get(accountID)).thenReturn(account);
+
+        mapWritableKVState.put(accountID, updated);
+        mapWritableKVState.commit();
+
+        assertThat(mapWritableKVState.get(accountID)).isSameAs(updated);
+        assertThat(context.getReadCacheState(AccountReadableKVState.STATE_ID)).doesNotContainKey(accountID);
+        context.reset();
+        assertThat(mapWritableKVState.get(accountID)).isSameAs(account);
+    }
+
+    @Test
+    void concurrentRequestsShareTheStateObjectButNotTheirCommittedValues() {
+        final var other = mock(Account.class);
+        final var first = CompletableFuture.supplyAsync(() -> ContractCallContext.run(ctx -> {
+            mapWritableKVState.put(accountID, account);
+            mapWritableKVState.commit();
+            return mapWritableKVState.get(accountID);
+        }));
+        final var second = CompletableFuture.supplyAsync(() -> ContractCallContext.run(ctx -> {
+            mapWritableKVState.put(accountID, other);
+            mapWritableKVState.commit();
+            return mapWritableKVState.get(accountID);
+        }));
+
+        assertThat(first.join()).isSameAs(account);
+        assertThat(second.join()).isSameAs(other);
+        assertThat(mapWritableKVState.get(accountID)).isNull();
     }
 
     @Test

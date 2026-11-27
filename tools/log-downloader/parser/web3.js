@@ -5,6 +5,11 @@ import {unzipSync} from 'zlib';
 import {MAX_BODY_LENGTH} from '../constants.js';
 
 class Web3Parser {
+  static #BASE64_REGEX = /^[A-Za-z0-9+/]+={0,2}$/;
+  // Sanity cap only: base64 of MAX_BODY_LENGTH bytes plus 1 KiB for gzip framing.
+  static #MAX_ENCODED_LENGTH = Math.ceil(MAX_BODY_LENGTH / 3) * 4 + 1024;
+  // Smallest possible zlib stream: 2 byte header, 2 byte empty deflate block, 4 byte Adler-32 checksum
+  static #MIN_ENCODED_LENGTH = 12;
   // Only the short "head" of the line is run through the regex; the body is located with indexOf. This bounds
   // regex backtracking regardless of line length. Real heads (timestamp, pod/ip, url, duration, status) are far smaller.
   static #MAX_HEAD_LENGTH = 1024;
@@ -32,15 +37,11 @@ class Web3Parser {
       return null;
     }
 
-    try {
-      if (body[0] !== '{') {
-        body = unzipSync(Buffer.from(body, 'base64'), {maxOutputLength: MAX_BODY_LENGTH}).toString();
-      }
+    if (body[0] !== '{') {
+      body = Web3Parser.#decompress(body);
+    }
 
-      if (body[body.length - 1] !== '}') {
-        return null;
-      }
-    } catch {
+    if (!body || body[body.length - 1] !== '}') {
       return null;
     }
 
@@ -51,6 +52,25 @@ class Web3Parser {
       url: match[2],
       verb: 'POST',
     };
+  }
+
+  // Returns the decompressed body, or null if the input is implausible, malformed, or would inflate past MAX_BODY_LENGTH.
+  static #decompress(encoded) {
+    if (
+      encoded.length < Web3Parser.#MIN_ENCODED_LENGTH ||
+      encoded.length > Web3Parser.#MAX_ENCODED_LENGTH ||
+      encoded.length % 4 !== 0 ||
+      !Web3Parser.#BASE64_REGEX.test(encoded)
+    ) {
+      return null;
+    }
+
+    try {
+      return unzipSync(Buffer.from(encoded, 'base64'), {maxOutputLength: MAX_BODY_LENGTH}).toString();
+    } catch {
+      // Includes ERR_BUFFER_TOO_LARGE / RangeError when the output would exceed maxOutputLength
+      return null;
+    }
   }
 }
 

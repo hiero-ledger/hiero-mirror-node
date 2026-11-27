@@ -3,7 +3,6 @@
 package org.hiero.mirror.restjava.service;
 
 import jakarta.inject.Named;
-
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;

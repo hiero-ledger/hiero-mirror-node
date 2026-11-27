@@ -26,6 +26,7 @@ import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
@@ -51,12 +52,16 @@ import org.junit.jupiter.params.provider.CsvSource;
 @RequiredArgsConstructor
 final class PrestateServiceTest extends Web3IntegrationTest {
 
+    private static final byte[] NON_ZERO_SLOT = new byte[] {0x00};
+    private static final byte[] NON_ZERO_VALUE = new byte[] {0x01};
     private static final SECP256K1 SECP256K1 = new SECP256K1();
     private static final byte[] RUNTIME_BYTECODE = new byte[] {0x60, 0x40};
     private static final byte[] STORAGE_SLOT =
             new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
     private static final byte[] VALUE_READ = new byte[] {0x14};
     private static final byte[] VALUE_WRITTEN = new byte[] {0x28};
+    private static final byte[] ZERO_READ_SLOT = new byte[] {0x05};
+    private static final byte[] ZERO_WRITTEN_SLOT = new byte[] {0x07};
     private static final int DEFAULT_MAX_TOUCHED_ACCOUNTS = 1000;
     private static final int DEFAULT_MAX_BYTECODE_BYTES = 10_000_000;
 
@@ -189,19 +194,12 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
-    void callWithDiffAndStorageDetectsClearedSlotWhenValueWrittenIsNull() {
+    void callWithDiffAndStorageDetectsClearedSlotWhenValueWrittenIsEmpty() {
         final var fixture = persistContractFixture(null);
         persistTreasuryBalance(fixture.createdTimestamp());
         persistAccountBalance(fixture.contractId(), fixture.createdTimestamp(), 50L);
-        // Slot was cleared during the transaction (value_read is set, value_written is null)
-        domainBuilder
-                .contractStateChange()
-                .customize(c -> c.consensusTimestamp(fixture.consensusTimestamp())
-                        .contractId(fixture.contractId().getId())
-                        .slot(STORAGE_SLOT)
-                        .valueRead(VALUE_READ)
-                        .valueWritten(null))
-                .persist();
+        // Slot was cleared during the transaction (a zero write is stored as an empty value_written)
+        persistStateChange(fixture, STORAGE_SLOT, VALUE_READ, new byte[0]);
 
         final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), true, false, true));
 
@@ -214,7 +212,7 @@ final class PrestateServiceTest extends Web3IntegrationTest {
     }
 
     @Test
-    void callWithDiffAndStorageOmitsEmptyPreSlotForNewValue() {
+    void callWithDiffAndStorageIncludesZeroPreSlotForNewValue() {
         final var fixture = persistContractFixture(null);
         persistTreasuryBalance(fixture.createdTimestamp());
         persistAccountBalance(fixture.contractId(), fixture.createdTimestamp(), 50L);
@@ -231,9 +229,47 @@ final class PrestateServiceTest extends Web3IntegrationTest {
 
         assertThat(response.getPre()).hasSize(1);
         assertThat(response.getPost()).hasSize(1);
-        assertThat(response.getPre().getFirst().getStorage()).isNullOrEmpty();
+        assertThat(response.getPre().getFirst().getStorage())
+                .containsExactly(entry(wrapToWordSize(STORAGE_SLOT), ZERO_WORD));
         assertThat(response.getPost().getFirst().getStorage())
-                .containsEntry(wrapToWordSize(STORAGE_SLOT), wrapToWordSize(VALUE_WRITTEN));
+                .containsExactly(entry(wrapToWordSize(STORAGE_SLOT), wrapToWordSize(VALUE_WRITTEN)));
+    }
+
+    @Test
+    void callWithStorageIncludesTouchedSlotsWithZeroPreValue() {
+        final var fixture = persistContractFixture(null);
+        persistStateChange(fixture, NON_ZERO_SLOT, NON_ZERO_VALUE, null);
+        persistStateChange(fixture, ZERO_READ_SLOT, new byte[0], null);
+        persistStateChange(fixture, ZERO_WRITTEN_SLOT, new byte[0], VALUE_WRITTEN);
+
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), false, false, true));
+
+        assertThat(response.getPost()).isNullOrEmpty();
+        assertThat(response.getPre()).hasSize(1);
+        assertThat(response.getPre().getFirst().getStorage())
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        wrapToWordSize(NON_ZERO_SLOT), wrapToWordSize(NON_ZERO_VALUE),
+                        wrapToWordSize(ZERO_READ_SLOT), ZERO_WORD,
+                        wrapToWordSize(ZERO_WRITTEN_SLOT), ZERO_WORD));
+    }
+
+    @Test
+    void callWithDiffAndStorageOmitsReadOnlySlotsAndIncludesChangedZeroPreSlot() {
+        final var fixture = persistContractFixture(null);
+        persistTreasuryBalance(fixture.createdTimestamp());
+        persistAccountBalance(fixture.contractId(), fixture.createdTimestamp(), 50L);
+        persistStateChange(fixture, NON_ZERO_SLOT, NON_ZERO_VALUE, null);
+        persistStateChange(fixture, ZERO_READ_SLOT, new byte[0], null);
+        persistStateChange(fixture, ZERO_WRITTEN_SLOT, new byte[0], VALUE_WRITTEN);
+
+        final var response = prestateService.processPrestateCall(createRequest(fixture.hash(), true, false, true));
+
+        assertThat(response.getPre()).hasSize(1);
+        assertThat(response.getPost()).hasSize(1);
+        assertThat(response.getPre().getFirst().getStorage())
+                .containsExactly(entry(wrapToWordSize(ZERO_WRITTEN_SLOT), ZERO_WORD));
+        assertThat(response.getPost().getFirst().getStorage())
+                .containsExactly(entry(wrapToWordSize(ZERO_WRITTEN_SLOT), wrapToWordSize(VALUE_WRITTEN)));
     }
 
     @Test
@@ -1394,6 +1430,18 @@ final class PrestateServiceTest extends Web3IntegrationTest {
                         .alias(alias)
                         .deleted(false)
                         .timestampRange(Range.atLeast(createdTimestamp)))
+                .persist();
+    }
+
+    private void persistStateChange(
+            final Fixture fixture, final byte[] slot, final byte[] valueRead, final byte[] valueWritten) {
+        domainBuilder
+                .contractStateChange()
+                .customize(c -> c.consensusTimestamp(fixture.consensusTimestamp())
+                        .contractId(fixture.contractId().getId())
+                        .slot(slot)
+                        .valueRead(valueRead)
+                        .valueWritten(valueWritten))
                 .persist();
     }
 

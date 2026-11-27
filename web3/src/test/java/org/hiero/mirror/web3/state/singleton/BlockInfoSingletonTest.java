@@ -12,6 +12,7 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -30,7 +31,40 @@ class BlockInfoSingletonTest {
                         .blockHashes(Bytes.EMPTY)
                         .consTimeOfLastHandledTxn(convertToTimestamp(recordFile.getConsensusEnd()))
                         .firstConsTimeOfCurrentBlock(convertToTimestamp(recordFile.getConsensusStart()))
-                        .firstConsTimeOfLastBlock(convertToTimestamp(recordFile.getConsensusStart()))
+                        .lastBlockNumber(recordFile.getIndex() - 1)
+                        .migrationRecordsStreamed(true)
+                        .build());
+    }
+
+    @Test
+    void getUsesBlockOverrideNumber() {
+        final var context = ContractCallContext.get();
+        context.setBlockSupplier(() -> recordFile);
+        context.setBlockOverride(BlockOverride.builder().blockNumber(42L).build());
+
+        assertThat(blockInfoSingleton.get())
+                .isEqualTo(BlockInfo.newBuilder()
+                        .blockHashes(Bytes.EMPTY)
+                        .consTimeOfLastHandledTxn(convertToTimestamp(recordFile.getConsensusEnd()))
+                        .firstConsTimeOfCurrentBlock(convertToTimestamp(recordFile.getConsensusStart()))
+                        .lastBlockNumber(41L)
+                        .migrationRecordsStreamed(true)
+                        .build());
+    }
+
+    @Test
+    void getUsesBlockOverrideTime() {
+        final var context = ContractCallContext.get();
+        context.setBlockSupplier(() -> recordFile);
+        final var timeNanos = 1_710_858_432_000_000_000L;
+        context.setBlockOverride(BlockOverride.builder().time(1_710_858_432L).build());
+        final long blockPeriodNanos = recordFile.getConsensusEnd() - recordFile.getConsensusStart();
+
+        assertThat(blockInfoSingleton.get())
+                .isEqualTo(BlockInfo.newBuilder()
+                        .blockHashes(Bytes.EMPTY)
+                        .consTimeOfLastHandledTxn(convertToTimestamp(timeNanos + blockPeriodNanos))
+                        .firstConsTimeOfCurrentBlock(convertToTimestamp(timeNanos))
                         .lastBlockNumber(recordFile.getIndex() - 1)
                         .migrationRecordsStreamed(true)
                         .build());

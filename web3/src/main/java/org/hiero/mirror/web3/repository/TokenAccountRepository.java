@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.repository;
 
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_HISTORICAL;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_TOKEN;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN_ACCOUNT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN_ACCOUNT_COUNT;
@@ -98,6 +99,7 @@ public interface TokenAccountRepository extends CrudRepository<TokenAccount, Abs
      * @return an Optional containing the token account's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
+    @Cacheable(cacheNames = CACHE_NAME_TOKEN_ACCOUNT, cacheManager = CACHE_MANAGER_HISTORICAL, sync = true)
     @Query(value = """
                     select
                       ta.account_id,

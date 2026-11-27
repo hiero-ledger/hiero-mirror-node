@@ -56,26 +56,26 @@ val platform = imagePlatform.ifBlank { null }
 tasks.bootBuildImage {
     // Use digests for deterministic builds.
     val builderImageDigest =
-        "sha256:8da9782949bb9f39f4b9d8079216531fe2791286fe33bbf450e533949cfbcc91" // 0.0.212
+        "sha256:1a3c25ee49a18a499bd7657222c81bcda84f450622a54d24a7b25b80a9ce6593" // 0.1.70
     val nativeImageDigest =
-        "sha256:875d66a08be97fdecea68b59796b5a36d1e6859d18b5c38883d3ab1f899b7333" // 14.14.4
+        "sha256:60486e497d2554626f621fef1ab8866acd23328541d0f5bc34d2689a5630af0c" // 14.15.1
     val runImageDigest =
-        "sha256:7af66d69f095b46ea8f470751beacbf4eed7a801eb54cee4f18f4f04b94d7e07" // 0.0.157
+        "sha256:d3626bf14fd4234ae2f096ef2129ea52f1cc7e4d30331a9124e6dcd6d1297649" // 0.0.53
     val syftDigest =
-        "sha256:9551b51ec3c07f1de4b72070663bab17b6455273362c5da36dbd64cb5d5660c5" // 2.43.6
+        "sha256:7652f36f22d3da51a41dadc77994a6a8172f374c6005f0c95318007c15d5ec9d" // 2.44.1
 
     val env = System.getenv()
     val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
     val image = "ghcr.io/${repo}/${project.name}"
 
-    builder = "paketobuildpacks/builder-noble-java-tiny@${builderImageDigest}"
+    builder = "paketobuildpacks/ubuntu-resolute-builder@${builderImageDigest}"
     // Listed first so detection keeps 2.43.2 and skips the broken copy inside the composite.
     buildpacks =
         listOf(
             "paketobuildpacks/syft@${syftDigest}",
             "paketobuildpacks/java-native-image@${nativeImageDigest}",
         )
-    runImage = "paketobuildpacks/ubuntu-noble-run-tiny@${runImageDigest}"
+    runImage = "paketobuildpacks/ubuntu-resolute-run-tiny@${runImageDigest}"
 
     docker {
         imageName = image

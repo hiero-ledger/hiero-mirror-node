@@ -18,41 +18,40 @@ class NftRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findById() {
-        final var nft = domainBuilder.nft().persist();
+        final var nft = domainBuilder
+                .nft()
+                .customize(n -> n.delegatingSpender(domainBuilder.id()).spender(domainBuilder.id()))
+                .persist();
         domainBuilder.entity().customize(e -> e.id(nft.getTokenId())).persist();
 
-        assertThat(nftRepository.findById(nft.getId()))
-                .hasValueSatisfying(actual -> assertThat(actual)
-                        .returns(nft.getSpender(), Nft::getSpender)
-                        .returns(nft.getAccountId(), Nft::getAccountId)
-                        .returns(nft.getMetadata(), Nft::getMetadata));
+        assertThat(nftRepository.findById(nft.getId())).contains(nft);
     }
 
     @Test
     void findByIdReturnsDeleted() {
-        final var nft = domainBuilder.nft().persist();
+        final var nft = domainBuilder
+                .nft()
+                .customize(n ->
+                        n.delegatingSpender(domainBuilder.id()).deleted(true).spender(domainBuilder.id()))
+                .persist();
         domainBuilder
                 .entity()
                 .customize(e -> e.id(nft.getTokenId()).deleted(true))
                 .persist();
 
-        assertThat(nftRepository.findById(nft.getId()))
-                .hasValueSatisfying(actual -> assertThat(actual)
-                        .returns(nft.getSpender(), Nft::getSpender)
-                        .returns(nft.getAccountId(), Nft::getAccountId)
-                        .returns(nft.getMetadata(), Nft::getMetadata));
+        assertThat(nftRepository.findById(nft.getId())).contains(nft);
     }
 
     @Test
     void findActiveById() {
-        final var nft = domainBuilder.nft().persist();
+        final var nft = domainBuilder
+                .nft()
+                .customize(n -> n.delegatingSpender(domainBuilder.id()).spender(domainBuilder.id()))
+                .persist();
         domainBuilder.entity().customize(e -> e.id(nft.getTokenId())).persist();
 
         assertThat(nftRepository.findActiveById(nft.getTokenId(), nft.getId().getSerialNumber()))
-                .hasValueSatisfying(actual -> assertThat(actual)
-                        .returns(nft.getSpender(), Nft::getSpender)
-                        .returns(nft.getAccountId(), Nft::getAccountId)
-                        .returns(nft.getMetadata(), Nft::getMetadata));
+                .contains(nft);
     }
 
     @Test
@@ -125,7 +124,10 @@ class NftRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findActiveByIdAndTimestampLessThanBlock() {
-        final var nft = domainBuilder.nft().persist();
+        final var nft = domainBuilder
+                .nft()
+                .customize(n -> n.delegatingSpender(domainBuilder.id()).spender(domainBuilder.id()))
+                .persist();
         domainBuilder.entity().customize(e -> e.id(nft.getTokenId())).persist();
 
         assertThat(nftRepository.findActiveByIdAndTimestamp(
@@ -136,7 +138,10 @@ class NftRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findActiveByIdAndTimestampEqualToBlock() {
-        final var nft = domainBuilder.nft().persist();
+        final var nft = domainBuilder
+                .nft()
+                .customize(n -> n.delegatingSpender(domainBuilder.id()).spender(domainBuilder.id()))
+                .persist();
         domainBuilder.entity().customize(e -> e.id(nft.getTokenId())).persist();
 
         assertThat(nftRepository.findActiveByIdAndTimestamp(
@@ -228,7 +233,10 @@ class NftRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findActiveByIdAndTimestampHistoricalLessThanBlock() {
-        final var nftHistory = domainBuilder.nftHistory().persist();
+        final var nftHistory = domainBuilder
+                .nftHistory()
+                .customize(n -> n.delegatingSpender(domainBuilder.id()).spender(domainBuilder.id()))
+                .persist();
         domainBuilder.entity().customize(e -> e.id(nftHistory.getTokenId())).persist();
 
         assertThat(nftRepository.findActiveByIdAndTimestamp(
@@ -242,7 +250,10 @@ class NftRepositoryTest extends Web3IntegrationTest {
 
     @Test
     void findActiveByIdAndTimestampHistoricalEqualToBlock() {
-        final var nftHistory = domainBuilder.nftHistory().persist();
+        final var nftHistory = domainBuilder
+                .nftHistory()
+                .customize(n -> n.delegatingSpender(domainBuilder.id()).spender(domainBuilder.id()))
+                .persist();
         domainBuilder.entity().customize(e -> e.id(nftHistory.getTokenId())).persist();
 
         assertThat(nftRepository.findActiveByIdAndTimestamp(

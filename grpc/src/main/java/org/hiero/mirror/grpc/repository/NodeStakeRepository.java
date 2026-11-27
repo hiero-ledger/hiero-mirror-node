@@ -25,6 +25,6 @@ public interface NodeStakeRepository extends CrudRepository<NodeStake, NodeStake
     @Cacheable(cacheManager = NODE_STAKE_CACHE, cacheNames = CACHE_NAME)
     default Map<Long, Long> findAllStakeByConsensusTimestamp(long consensusTimestamp) {
         return findAllByConsensusTimestamp(consensusTimestamp).stream()
-                .collect(Collectors.toUnmodifiableMap(n -> n.getId().getNodeId(), NodeStake::getStake));
+                .collect(Collectors.toUnmodifiableMap(NodeStake::getNodeId, NodeStake::getStake));
     }
 }

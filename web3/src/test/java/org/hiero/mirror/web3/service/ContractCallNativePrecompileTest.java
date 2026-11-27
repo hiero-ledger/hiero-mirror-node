@@ -15,6 +15,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
@@ -47,7 +48,8 @@ final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
         final var serviceParameters = serviceParametersForExecution(data, Address.ECREC);
 
-        assertThat(contractCallService.processCall(serviceParameters)).isEqualTo(correctResult);
+        final var result = ContractCallContext.run(ctx -> contractCallService.processCall(serviceParameters, ctx));
+        assertThat(result).isEqualTo(correctResult);
 
         assertGasUsedIsPositive(gasUsedBeforeExecution);
     }
@@ -61,7 +63,8 @@ final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
         final var serviceParameters = serviceParametersForExecution(data, Address.SHA256);
 
-        assertThat(contractCallService.processCall(serviceParameters)).isEqualTo(correctResult);
+        final var result = ContractCallContext.run(ctx -> contractCallService.processCall(serviceParameters, ctx));
+        assertThat(result).isEqualTo(correctResult);
 
         assertGasUsedIsPositive(gasUsedBeforeExecution);
     }
@@ -75,7 +78,8 @@ final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
         final var serviceParameters = serviceParametersForExecution(data, Address.RIPEMD160);
 
-        assertThat(contractCallService.processCall(serviceParameters)).isEqualTo(correctResult);
+        final var result = ContractCallContext.run(ctx -> contractCallService.processCall(serviceParameters, ctx));
+        assertThat(result).isEqualTo(correctResult);
 
         assertGasUsedIsPositive(gasUsedBeforeExecution);
     }
@@ -89,7 +93,8 @@ final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
         final var serviceParameters = serviceParametersForExecution(data, Address.ID);
 
-        assertThat(contractCallService.processCall(serviceParameters)).isEqualTo(correctResult);
+        final var result = ContractCallContext.run(ctx -> contractCallService.processCall(serviceParameters, ctx));
+        assertThat(result).isEqualTo(correctResult);
 
         assertGasUsedIsPositive(gasUsedBeforeExecution);
     }
@@ -107,7 +112,8 @@ final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
         final var serviceParameters = serviceParametersForExecution(HEX_PREFIX + data, Address.MODEXP);
 
-        assertThat(contractCallService.processCall(serviceParameters)).isEqualTo(correctResult);
+        final var result = ContractCallContext.run(ctx -> contractCallService.processCall(serviceParameters, ctx));
+        assertThat(result).isEqualTo(correctResult);
 
         assertGasUsedIsPositive(gasUsedBeforeExecution);
     }
@@ -126,7 +132,8 @@ final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
         final var serviceParameters = serviceParametersForExecution(data, Address.ALTBN128_ADD);
 
-        assertThat(contractCallService.processCall(serviceParameters)).isEqualTo(correctResult);
+        final var result = ContractCallContext.run(ctx -> contractCallService.processCall(serviceParameters, ctx));
+        assertThat(result).isEqualTo(correctResult);
 
         assertGasUsedIsPositive(gasUsedBeforeExecution);
     }
@@ -145,7 +152,8 @@ final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
         final var serviceParameters = serviceParametersForExecution(data, Address.ALTBN128_MUL);
 
-        assertThat(contractCallService.processCall(serviceParameters)).isEqualTo(correctResult);
+        final var result = ContractCallContext.run(ctx -> contractCallService.processCall(serviceParameters, ctx));
+        assertThat(result).isEqualTo(correctResult);
 
         assertGasUsedIsPositive(gasUsedBeforeExecution);
     }
@@ -182,7 +190,8 @@ final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
         System.out.println(data);
         final var serviceParameters = serviceParametersForExecution(data, Address.ALTBN128_PAIRING);
 
-        assertThat(contractCallService.processCall(serviceParameters)).isEqualTo(correctResult);
+        final var result = ContractCallContext.run(ctx -> contractCallService.processCall(serviceParameters, ctx));
+        assertThat(result).isEqualTo(correctResult);
 
         assertGasUsedIsPositive(gasUsedBeforeExecution);
     }
@@ -205,7 +214,8 @@ final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
         final var serviceParameters = serviceParametersForExecution(data, Address.BLAKE2B_F_COMPRESSION);
 
-        assertThat(contractCallService.processCall(serviceParameters)).isEqualTo(correctResult);
+        final var result = ContractCallContext.run(ctx -> contractCallService.processCall(serviceParameters, ctx));
+        assertThat(result).isEqualTo(correctResult);
 
         assertGasUsedIsPositive(gasUsedBeforeExecution);
     }

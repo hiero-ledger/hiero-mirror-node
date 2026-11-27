@@ -2,8 +2,12 @@
 
 package org.hiero.mirror.web3.repository;
 
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_HISTORICAL;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_TOKEN_BALANCE;
+
 import java.util.Optional;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
@@ -46,6 +50,7 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
      *         If there are no token transfers between the consensus_timestamp of token_balance and the block timestamp,
      *         the method will return the balance present at consensus_timestamp.
      */
+    @Cacheable(cacheNames = CACHE_NAME_TOKEN_BALANCE, cacheManager = CACHE_MANAGER_HISTORICAL, sync = true)
     @Query(value = """
                     with balance_timestamp as (
                     select consensus_timestamp

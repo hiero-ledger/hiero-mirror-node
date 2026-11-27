@@ -4,11 +4,13 @@ package org.hiero.mirror.importer.parser.record.historicalbalance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.FILE;
 import static org.hiero.mirror.common.domain.entity.EntityType.UNKNOWN;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -254,6 +256,19 @@ final class HistoricalBalanceServiceIntegrationTest extends ImporterIntegrationT
                 .toList();
 
         verifyGeneratedBalances(balanceTimestamp, updatedEntities, tokenAccounts);
+
+        // the synthetic treasury account is created with exactly these columns
+        final var treasuryAccountId = systemEntity.treasuryAccount();
+        final var expectedTreasuryAccount = treasuryAccountId.toEntity().toBuilder()
+                .balance(0L)
+                .createdTimestamp(0L)
+                .declineReward(true)
+                .deleted(false)
+                .memo("Mirror node created synthetic treasury account")
+                .type(ACCOUNT)
+                .timestampRange(Range.atLeast(0L))
+                .build();
+        assertThat(entityRepository.findById(treasuryAccountId.getId())).contains(expectedTreasuryAccount);
 
         // when
         // balance changes

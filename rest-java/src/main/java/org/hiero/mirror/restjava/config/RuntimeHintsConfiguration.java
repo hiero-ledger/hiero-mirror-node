@@ -77,6 +77,8 @@ final class RuntimeHintsConfiguration {
             registerResourcePatterns(
                     hints,
                     "com/hedera/nativelib/hints/**",
+                    "com/hedera/nativelib/libsecp256k1/**",
+                    "com/hedera/nativelib/libxkcp/**",
                     "com/hedera/nativelib/wraps/**",
                     "**/*.properties",
                     "genesis/**");

@@ -4,9 +4,17 @@ package org.hiero.mirror.restjava.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.nio.charset.StandardCharsets;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
+import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
+import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -198,11 +206,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
                 .addressBookEntry(2)
                 .customize(e -> e.consensusTimestamp(timestamp).nodeId(1L))
                 .persist();
-        domainBuilder
-                .nodeStake()
-                .customize(
-                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(1L))
-                .persist();
+        domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
 
         // when
         var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
@@ -265,46 +269,77 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void findNetworkNodesAllFieldsPopulated() {
+    void findNetworkNodesAllFieldsPopulated() throws Exception {
         // given
-        var timestamp = domainBuilder.timestamp();
-        domainBuilder
+        final long nodeId = 1L;
+        final long timestamp = domainBuilder.timestamp();
+        final var addressBook = domainBuilder
                 .addressBook()
                 .customize(ab -> ab.startConsensusTimestamp(timestamp))
                 .persist();
-        domainBuilder
-                .addressBookEntry(2)
-                .customize(e -> e.consensusTimestamp(timestamp).nodeId(1L))
+        // Same port and IP prefix, so the endpoint order doesn't depend on the database collation
+        final var endpoint1 = serviceEndpoint(timestamp, nodeId, "10.0.0.1", "");
+        final var endpoint2 = serviceEndpoint(timestamp, nodeId, "10.0.0.2", "node.example.com");
+        final var entry = domainBuilder
+                .addressBookEntry()
+                .customize(e -> e.consensusTimestamp(timestamp)
+                        .nodeCertHash("01ab".getBytes(StandardCharsets.UTF_8))
+                        .nodeId(nodeId)
+                        .publicKey("302a300506032b6570")
+                        .serviceEndpoints(Set.of(endpoint1, endpoint2)))
                 .persist();
-        domainBuilder
-                .nodeStake()
-                .customize(
-                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(1L))
+        final var nodeStake =
+                domainBuilder.nodeStake().customize(ns -> ns.nodeId(nodeId)).persist();
+        // A null IP address checks that the query returns it as an empty string
+        final var node = domainBuilder
+                .node()
+                .customize(n -> n.grpcProxyEndpoint(new ServiceEndpoint("grpc.example.com", null, 8443))
+                        .nodeId(nodeId))
                 .persist();
-        domainBuilder.node().customize(n -> n.nodeId(1L)).persist();
+
+        final var expected = new NetworkNodeDto(
+                node.getAdminKey(),
+                node.getAssociatedRegisteredNodes().toArray(Long[]::new),
+                node.getDeclineReward(),
+                entry.getDescription(),
+                addressBook.getEndConsensusTimestamp(),
+                addressBook.getFileId().getId(),
+                null,
+                nodeStake.getMaxStake(),
+                entry.getMemo(),
+                nodeStake.getMinStake(),
+                node.getAccountId().getId(),
+                "0x01ab",
+                nodeId,
+                "0x302a300506032b6570",
+                nodeStake.getRewardRate(),
+                null,
+                nodeStake.getStake(),
+                nodeStake.getStakeNotRewarded(),
+                nodeStake.getStakeRewarded(),
+                nodeStake.getStakingPeriod(),
+                timestamp);
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
+        final var results =
+                networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then
-        assertThat(results).isNotNull().hasSize(1);
-        var result = results.get(0);
-        assertThat(result.nodeId()).isNotNull();
-        assertThat(result.nodeAccountId()).isNotNull();
-        assertThat(result.description()).isNotNull();
-        assertThat(result.memo()).isNotNull();
-        assertThat(result.publicKey()).isNotNull();
-        assertThat(result.fileId()).isNotNull();
-        assertThat(result.startConsensusTimestamp()).isNotNull();
-        assertThat(result.endConsensusTimestamp()).isNotNull();
-        assertThat(result.adminKey()).isNotNull();
-        assertThat(result.associatedRegisteredNodes()).isNotEmpty();
-        assertThat(result.declineReward()).isNotNull();
-        assertThat(result.maxStake()).isNotNull();
-        assertThat(result.minStake()).isNotNull();
-        assertThat(result.stake()).isNotNull();
-        assertThat(result.rewardRateStart()).isNotNull();
-        assertThat(result.serviceEndpointsJson()).isNotNull();
+        assertThat(results).hasSize(1);
+        final var result = results.getFirst();
+        assertThat(result)
+                .usingRecursiveComparison()
+                .ignoringFields("grpcProxyEndpointJson", "serviceEndpointsJson")
+                .isEqualTo(expected);
+        assertThat(readTree(result.grpcProxyEndpointJson())).isEqualTo(readTree("""
+                {"domain_name": "grpc.example.com", "ip_address_v4": "", "port": 8443}
+                """));
+        assertThat(readTree(result.serviceEndpointsJson())).isEqualTo(readTree("""
+                [
+                  {"domain_name": "", "ip_address_v4": "10.0.0.1", "port": 50211},
+                  {"domain_name": "node.example.com", "ip_address_v4": "10.0.0.2", "port": 50211}
+                ]
+                """));
     }
 
     @Test
@@ -387,11 +422,11 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(stakeTimestamp1).nodeId(1L))
+                .customize(ns -> ns.nodeId(1L).consensusTimestamp(stakeTimestamp1))
                 .persist();
         var latestStake = domainBuilder
                 .nodeStake()
-                .customize(ns -> ns.consensusTimestamp(stakeTimestamp2).nodeId(1L))
+                .customize(ns -> ns.nodeId(1L).consensusTimestamp(stakeTimestamp2))
                 .persist();
 
         // when
@@ -476,6 +511,21 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         assertThat(results.get(0).nodeId()).isEqualTo(2L);
     }
 
+    private static JsonNode readTree(String json) throws JsonProcessingException {
+        return ObjectToStringSerializer.OBJECT_MAPPER.readTree(json);
+    }
+
+    private AddressBookServiceEndpoint serviceEndpoint(
+            long timestamp, long nodeId, String ipAddressV4, String domainName) {
+        return domainBuilder
+                .addressBookServiceEndpoint()
+                .customize(a -> a.consensusTimestamp(timestamp)
+                        .domainName(domainName)
+                        .ipAddressV4(ipAddressV4)
+                        .nodeId(nodeId))
+                .get();
+    }
+
     private void setupNetworkNodeData() {
         var timestamp = domainBuilder.timestamp();
         var addressBook = domainBuilder
@@ -498,21 +548,9 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
                 .persist();
 
         // Add corresponding node stake data
-        domainBuilder
-                .nodeStake()
-                .customize(
-                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(1L))
-                .persist();
-        domainBuilder
-                .nodeStake()
-                .customize(
-                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(2L))
-                .persist();
-        domainBuilder
-                .nodeStake()
-                .customize(
-                        ns -> ns.consensusTimestamp(domainBuilder.timestamp()).nodeId(3L))
-                .persist();
+        domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
+        domainBuilder.nodeStake().customize(ns -> ns.nodeId(2L)).persist();
+        domainBuilder.nodeStake().customize(ns -> ns.nodeId(3L)).persist();
 
         // Add corresponding node data
         domainBuilder.node().customize(n -> n.nodeId(1L)).persist();

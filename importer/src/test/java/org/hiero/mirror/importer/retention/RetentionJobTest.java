@@ -5,12 +5,14 @@ package org.hiero.mirror.importer.retention;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
+import org.hiero.mirror.importer.repository.RetentionRepository;
 import org.hiero.mirror.importer.repository.TransactionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +23,7 @@ class RetentionJobTest extends ImporterIntegrationTest {
 
     private final RecordFileRepository recordFileRepository;
     private final RetentionJob retentionJob;
+    private final Collection<RetentionRepository> retentionRepositories;
     private final RetentionProperties retentionProperties;
     private final TransactionRepository transactionRepository;
 
@@ -36,6 +39,17 @@ class RetentionJobTest extends ImporterIntegrationTest {
     @AfterEach
     void cleanup() {
         retentionProperties.setEnabled(false);
+    }
+
+    // The table name comes from the repository proxy's first interface, so it must still resolve to the right table
+    @Test
+    void tableNames() {
+        final var tables = jdbcOperations.queryForList(
+                "select table_name from information_schema.tables where table_schema = current_schema()", String.class);
+
+        assertThat(retentionRepositories)
+                .isNotEmpty()
+                .allSatisfy(repository -> assertThat(tables).contains(RetentionJob.getTableName(repository)));
     }
 
     @Test

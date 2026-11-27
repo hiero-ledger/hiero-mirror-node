@@ -33,6 +33,8 @@ dependencies {
         exclude(group = "org.assertj")
         exclude("org.junit")
     }
+    // NoOpMetrics moved to consensus-fakes in hedera-app 0.79; app exposes it only at runtime
+    implementation("com.hedera.hashgraph:consensus-fakes")
     implementation("com.hedera.hashgraph:app-service-entity-id-impl") {
         exclude(group = "io.netty")
     }

@@ -17,6 +17,7 @@ import org.hibernate.validator.internal.util.logging.Messages_$bundle;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.repository.ContractTransactionHashLookupRowMapper;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -67,6 +68,7 @@ final class RuntimeHintsConfiguration {
 
             registerReflectionTypes(
                     hints,
+                    BlockOverride.class.getName(),
                     ContractCallContext.class.getName(),
                     ContractCallRequest.class.getName(),
                     ContractCallResponse.class.getName(),
@@ -79,6 +81,7 @@ final class RuntimeHintsConfiguration {
                     hints,
                     "com/hedera/nativelib/hints/**",
                     "com/hedera/nativelib/libsecp256k1/**",
+                    "com/hedera/nativelib/libxkcp/**",
                     "com/hedera/nativelib/wraps/**",
                     "darwin-aarch64/**", // besu
                     "darwin-x86-64/**", // besu

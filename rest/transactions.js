@@ -343,6 +343,8 @@ const getTransferDistinctTimestampsQuery = (
   const whereClause = buildWhereClause(
     accountQuery,
     transferTimestampQuery,
+    // The planner doesn't carry ranges across the join, so repeat it on t to prune transaction partitions
+    joinClause ? timestampQuery : '',
     resultTypeQuery,
     transactionTypeQuery,
     creditDebitQuery

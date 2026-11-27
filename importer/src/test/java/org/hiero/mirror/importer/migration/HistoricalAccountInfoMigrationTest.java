@@ -249,6 +249,34 @@ final class HistoricalAccountInfoMigrationTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void updateKeepsOtherColumns() {
+        // given an existing entity from before the reset, with every column the migration doesn't fill set
+        final var entity = domainBuilder
+                .entity(EntityId.of(ACCOUNT_ID1), domainBuilder.timestamp())
+                .customize(e -> e.autoRenewPeriod(null)
+                        .declineReward(true)
+                        .expirationTimestamp(null)
+                        .key(null)
+                        .memo("")
+                        .permanentRemoval(true)
+                        .proxyAccountId(null)
+                        .stakedAccountId(domainBuilder.id()))
+                .persist();
+        final var accountInfo = accountInfo().build();
+
+        // when
+        assertThat(historicalAccountInfoMigration.process(accountInfo)).isTrue();
+
+        // then only the columns from the account info change
+        entity.setAutoRenewPeriod(accountInfo.getAutoRenewPeriod().getSeconds());
+        entity.setExpirationTimestamp(DomainUtils.timestampInNanosMax(accountInfo.getExpirationTime()));
+        entity.setKey(accountInfo.getKey().toByteArray());
+        entity.setMemo(accountInfo.getMemo());
+        entity.setProxyAccountId(EntityId.of(accountInfo.getProxyAccountID()));
+        assertThat(entityRepository.findById(ACCOUNT_ID1)).contains(entity);
+    }
+
+    @Test
     void emptyValues() {
         AccountID accountId = AccountID.newBuilder().setAccountNum(ACCOUNT_ID1).build();
         AccountInfo.Builder accountInfo = accountInfo().clear().setAccountID(accountId);

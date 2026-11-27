@@ -11,11 +11,13 @@ import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
+import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hyperledger.besu.datatypes.Address;
@@ -40,6 +42,7 @@ class ContractController {
     @PostMapping(value = "/call")
     ContractCallResponse call(@RequestBody @Valid ContractCallRequest request) {
         validateContractMaxGasLimit(request);
+        validateBlockOverrides(request.getBlockOverride());
         final var params = constructServiceParameters(request);
 
         if (!params.getStateOverrides().isEmpty() && !web3Properties.isEnableStateOverrides()) {
@@ -47,14 +50,15 @@ class ContractController {
         }
 
         throttleManager.throttle(request);
-        try {
-            final var result = contractExecutionService.processCall(params);
-            return new ContractCallResponse(result);
-        } catch (IllegalArgumentException | InvalidParametersException e) {
-            // Processing did not complete, so restore the consumed tokens.
-            throttleManager.restore(request.getGas());
-            throw e;
-        }
+        return ContractCallContext.run(ctx -> {
+            // Until the EVM runs, none of the reserved gas has been used, so all of it is refundable.
+            ctx.setRefundableGas(request.getGas());
+            try {
+                return new ContractCallResponse(contractExecutionService.processCall(params, ctx));
+            } finally {
+                throttleManager.restore(ctx.getRefundableGas());
+            }
+        });
     }
 
     private ContractExecutionParameters constructServiceParameters(ContractCallRequest request) {
@@ -84,6 +88,7 @@ class ContractController {
 
         return ContractExecutionParameters.builder()
                 .block(block)
+                .blockOverride(request.getBlockOverride())
                 .callData(hexToBytes(data))
                 .callType(callType)
                 .gas(request.getGas())
@@ -95,6 +100,12 @@ class ContractController {
                 .stateOverrides(request.getStateOverrides())
                 .value(request.getValue())
                 .build();
+    }
+
+    private void validateBlockOverrides(final BlockOverride blockOverride) {
+        if (!blockOverride.isEmpty() && !web3Properties.isEnableBlockOverrides()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Block overrides are not supported.");
+        }
     }
 
     private void validateContractMaxGasLimit(ContractCallRequest request) {

@@ -21,8 +21,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Range;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
@@ -89,6 +87,7 @@ import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
+import tools.jackson.databind.json.JsonMapper;
 
 @AutoConfigureMockMvc
 @ExtendWith(MockitoExtension.class)
@@ -103,7 +102,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
     private MockMvc mockMvc;
 
     @Resource
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @Resource
     private CommonEntityAccessor commonEntityAccessor;
@@ -232,8 +231,8 @@ class OpcodesControllerTest extends Web3IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON);
     }
 
-    private ResultMatcher responseBody(final Object expectedBody) throws JsonProcessingException {
-        return content().string(objectMapper.writeValueAsString(expectedBody));
+    private ResultMatcher responseBody(final Object expectedBody) {
+        return content().string(jsonMapper.writeValueAsString(expectedBody));
     }
 
     @BeforeEach
@@ -477,9 +476,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
         mockMvc.perform(opcodesRequest("null-%d-%d".formatted(validStart.getEpochSecond(), validStart.getNano())))
                 .andExpect(status().isBadRequest())
                 .andExpect(responseBody(new GenericErrorResponse(
-                        BAD_REQUEST.getReasonPhrase(),
-                        "Unsupported ID format: 'null-%d-%d'"
-                                .formatted(validStart.getEpochSecond(), validStart.getNano()))));
+                        BAD_REQUEST.getReasonPhrase(), "Unsupported transaction ID or hash format")));
     }
 
     @ParameterizedTest
@@ -515,7 +512,7 @@ class OpcodesControllerTest extends Web3IntegrationTest {
             })
     void callInvalidTransactionIdOrHash(final String transactionIdOrHash) throws Exception {
         final var expectedMessage = StringUtils.hasText(transactionIdOrHash)
-                ? "Unsupported ID format: '%s'".formatted(transactionIdOrHash)
+                ? "Unsupported transaction ID or hash format"
                 : "Missing transaction ID or hash";
 
         mockMvc.perform(opcodesRequest(transactionIdOrHash))

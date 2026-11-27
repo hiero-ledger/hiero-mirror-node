@@ -54,7 +54,7 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: audit
 
@@ -63,19 +63,10 @@ jobs:
 
       - name: Resolve configuration
         id: config
+        env:
+          NETWORK: ${{ github.event.inputs.network || 'testnet' }}
         run: |
           set -euo pipefail
-
-          NETWORK="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.network || 'testnet' }}"
-          RESULTS_COUNT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.results_count || '3000' }}"
-          TOLERANCE_PERCENT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tolerance_percent_max || '20' }}"
-          MIN_TOLERANCE_PERCENT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tolerance_percent_min || '2' }}"
-          SLEEP_SECONDS="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sleep_seconds || '0.3' }}"
-
-          if ! awk -v t="${TOLERANCE_PERCENT}" -v m="${MIN_TOLERANCE_PERCENT}" 'BEGIN { exit (t > m) ? 0 : 1 }'; then
-            echo "TOLERANCE_PERCENT must be greater than ${MIN_TOLERANCE_PERCENT} (got ${TOLERANCE_PERCENT})"
-            exit 1
-          fi
 
           case "${NETWORK}" in
             mainnet) HOST="mainnet.mirrornode.hedera.com" ;;
@@ -90,14 +81,15 @@ jobs:
           {
             echo "NETWORK=${NETWORK}"
             echo "BASE_URL=https://${HOST}"
-            echo "RESULTS_COUNT=${RESULTS_COUNT}"
-            echo "MIN_TOLERANCE_PERCENT=${MIN_TOLERANCE_PERCENT}"
-            echo "TOLERANCE_PERCENT=${TOLERANCE_PERCENT}"
-            echo "SLEEP_SECONDS=${SLEEP_SECONDS}"
           } >> "${GITHUB_ENV}"
 
-          echo "Resolved network=${NETWORK} base_url=https://${HOST} results_count=${RESULTS_COUNT} min_tolerance=${MIN_TOLERANCE_PERCENT}% max_tolerance=${TOLERANCE_PERCENT}%"
+          echo "Resolved network=${NETWORK} base_url=https://${HOST}"
 
       - name: Verify gas estimates
+        env:
+          RESULTS_COUNT: ${{ github.event.inputs.total || '3000' }}
+          TOLERANCE_PERCENT: ${{ github.event.inputs.tolerance_percent_max || '20' }}
+          MIN_TOLERANCE_PERCENT: ${{ github.event.inputs.tolerance_percent_min || '2' }}
+          SLEEP_SECONDS: ${{ github.event.inputs.sleep_seconds || '0.3' }}
         run: |
           .github/workflows/resources/gas-estimate-accuracy.sh

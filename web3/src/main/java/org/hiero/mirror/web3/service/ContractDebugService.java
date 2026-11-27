@@ -16,7 +16,6 @@ import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
-import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -26,22 +25,14 @@ import org.springframework.validation.annotation.Validated;
 public class ContractDebugService extends ContractCallService {
     private final ContractActionRepository contractActionRepository;
 
-    @SuppressWarnings("java:S107")
     public ContractDebugService(
             ContractActionRepository contractActionRepository,
             RecordFileService recordFileService,
-            ThrottleManager throttleManager,
-            ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
             EvmProperties evmProperties,
+            ThrottleProperties throttleProperties,
             TransactionExecutionService transactionExecutionService) {
-        super(
-                throttleManager,
-                throttleProperties,
-                meterRegistry,
-                recordFileService,
-                evmProperties,
-                transactionExecutionService);
+        super(meterRegistry, recordFileService, evmProperties, throttleProperties, transactionExecutionService);
         this.contractActionRepository = contractActionRepository;
     }
 

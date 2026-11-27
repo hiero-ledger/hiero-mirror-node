@@ -14,12 +14,12 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
@@ -33,6 +33,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import tools.jackson.databind.json.JsonMapper;
 
 @AutoConfigureMockMvc
 class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
@@ -46,7 +47,7 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
     private MockMvc mockMvc;
 
     @Resource
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @SneakyThrows
     private ResultActions contractCall(ContractCallRequest request) {
@@ -62,7 +63,8 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, Address.ZERO);
         final long actualGas = 120170;
-        long expectedGas = longValueOf.applyAsLong(contractCallService.processCall(serviceParameters));
+        long expectedGas = longValueOf.applyAsLong(
+                ContractCallContext.run(ctx -> contractCallService.processCall(serviceParameters, ctx)));
         assertThat(isWithinExpectedGasRange(expectedGas, actualGas))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, expectedGas, actualGas)
                 .isTrue();
@@ -141,7 +143,8 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, Address.ZERO);
         final long actualGas = 170000L;
-        long expectedGas = longValueOf.applyAsLong(contractCallService.processCall(serviceParameters));
+        long expectedGas = longValueOf.applyAsLong(
+                ContractCallContext.run(ctx -> contractCallService.processCall(serviceParameters, ctx)));
         assertThat(isWithinExpectedGasRange(expectedGas, actualGas))
                 .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, expectedGas, actualGas)
                 .isTrue();
@@ -215,6 +218,6 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
 
     @SneakyThrows
     private String convert(Object object) {
-        return objectMapper.writeValueAsString(object);
+        return jsonMapper.writeValueAsString(object);
     }
 }

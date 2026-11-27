@@ -11,6 +11,7 @@ import {
   InvalidClauseError,
   InvalidConfigError,
   NotFoundError,
+  RestError,
 } from '../../errors';
 import {handleError, handleUncaughtException, formatRequestLog, sanitize} from '../../middleware/httpErrorHandler';
 
@@ -73,6 +74,21 @@ describe('handleError logging', () => {
     expect(mockResponse.json).toHaveBeenCalledWith({
       _status: {messages: [{message: 'bad\ninput'}]},
     });
+  });
+
+  test('Returns generic message without internal details for RestError', async () => {
+    const cause = new Error('premature EOF');
+    const err = new RestError('Failed to parse max_custom_fees entry at index 0', {cause});
+
+    await handleError(err, mockRequest, mockResponse);
+
+    expect(mockResponse.status).toHaveBeenCalledWith(500);
+    expect(mockResponse.json).toHaveBeenCalledWith({_status: {messages: [{message: 'Internal error'}]}});
+    const body = JSON.stringify(mockResponse.json.mock.calls[0][0]);
+    expect(body).not.toContain('max_custom_fees');
+    expect(body).not.toContain('premature EOF');
+    expect(body).not.toContain(' at ');
+    expect(errorSpy).toHaveBeenCalledTimes(1);
   });
 
   test('Sanitizes client IP control characters', async () => {

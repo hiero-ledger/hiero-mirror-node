@@ -8,7 +8,7 @@ import java.io.Serial;
 public class EntityNotFoundException extends RestJavaException {
 
     @Serial
-    private static final long serialVersionUID = -6913223815380771123L;
+    private static final long serialVersionUID = 1873616258091910143L;
 
     public EntityNotFoundException(String message) {
         super(message);

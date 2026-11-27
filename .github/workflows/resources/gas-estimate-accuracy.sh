@@ -19,7 +19,22 @@ processed=0
 passed=0
 has_failure=false
 
+# Validate before any arithmetic: bash (( )) evaluates variable contents as expressions.
+NUMBER_PATTERN='^[0-9]+(\.[0-9]+)?$'
+if [[ ! "${RESULTS_COUNT}" =~ ^[1-9][0-9]*$ ]]; then
+  printf 'Invalid RESULTS_COUNT: %q\n' "${RESULTS_COUNT}" >&2
+  exit 1
+fi
+for name in TOLERANCE_PERCENT MIN_TOLERANCE_PERCENT SLEEP_SECONDS; do
+  if [[ ! "${!name}" =~ ${NUMBER_PATTERN} ]]; then
+    printf 'Invalid %s: %q\n' "${name}" "${!name}" >&2
+    exit 1
+  fi
+done
+
 if ! awk -v t="${TOLERANCE_PERCENT}" -v m="${MIN_TOLERANCE_PERCENT}" 'BEGIN { exit (t > m) ? 0 : 1 }'; then
+  printf 'TOLERANCE_PERCENT (%s) must be greater than MIN_TOLERANCE_PERCENT (%s)\n' \
+    "${TOLERANCE_PERCENT}" "${MIN_TOLERANCE_PERCENT}" >&2
   exit 1
 fi
 

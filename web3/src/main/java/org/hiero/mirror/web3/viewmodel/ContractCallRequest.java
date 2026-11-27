@@ -2,11 +2,10 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
@@ -20,18 +19,24 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
+import tools.jackson.databind.annotation.JsonSerialize;
 
 @Data
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class ContractCallRequest {
 
     public static final int ADDRESS_LENGTH = 40;
     public static final long DATA_MAX_LENGTH = 300_000L;
+    public static final int STATE_OVERRIDES_MAX_SIZE = 10;
 
     @JsonSerialize(using = BlockTypeSerializer.class)
     @JsonSetter(nulls = Nulls.SKIP)
     @NotNull
     private BlockType block = BlockType.LATEST;
+
+    @JsonSetter(nulls = Nulls.SKIP)
+    @NotNull
+    @Valid
+    private BlockOverride blockOverride = BlockOverride.EMPTY;
 
     @Hex(maxLength = DATA_MAX_LENGTH)
     private String data;
@@ -44,15 +49,17 @@ public class ContractCallRequest {
     @Min(21_000)
     private long gas = 15_000_000L;
 
+    // Public API name is camelCase, so it must be pinned against the global SNAKE_CASE naming strategy
+    @JsonAlias("gas_price")
+    @JsonProperty("gasPrice")
     @Min(0)
     private long gasPrice;
 
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH, allowEmpty = true)
     private String to;
 
-    @JsonProperty("state_overrides")
     @NotNull
-    @Size(max = 10)
+    @Size(max = STATE_OVERRIDES_MAX_SIZE)
     private List<@Valid StateOverride> stateOverrides = new ArrayList<>();
 
     @PositiveOrZero

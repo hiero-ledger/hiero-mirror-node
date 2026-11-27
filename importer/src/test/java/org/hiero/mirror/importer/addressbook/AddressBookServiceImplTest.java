@@ -22,7 +22,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -65,8 +65,8 @@ import org.springframework.util.ResourceUtils;
 @RequiredArgsConstructor
 class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
-    private static final NodeAddressBook UPDATED = addressBook(10, 0);
-    private static final NodeAddressBook FINAL = addressBook(15, 0);
+    private static final NodeAddressBook UPDATED = addressBook(10, 2);
+    private static final NodeAddressBook FINAL = addressBook(15, 2);
     private static final int TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT = 4;
     private static final String BASE_ACCOUNT_ID = "0.0.";
     private static final int BASE_PORT = 50211;
@@ -113,13 +113,14 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
             // add service endpoints
             if (endPointSize > 0) {
                 List<ServiceEndpoint> serviceEndpoints = new ArrayList<>();
-                for (int j = 1; j <= size; ++j) {
+                for (int j = 1; j <= endPointSize; ++j) {
                     serviceEndpoints.add(ServiceEndpoint.newBuilder()
                             .setIpAddressV4(ByteString.copyFrom(new byte[] {127, 0, 0, (byte) j}))
                             .setPort(443 + j)
                             .setDomainName("")
                             .build());
                 }
+                nodeAddressBuilder.addAllServiceEndpoint(serviceEndpoints);
             }
 
             builder.addNodeAddress(nodeAddressBuilder.build());
@@ -428,6 +429,9 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .returns(null, AddressBook::getEndConsensusTimestamp)
                 .satisfies(a -> assertAddressBook(a, UPDATED));
 
+        final var previousAddressBook =
+                addressBookRepository.findById(initialTimestamp + 1).orElseThrow();
+
         long newTimestamp = 10L;
         byte[] newAddressBookBytes = FINAL.toByteArray();
         update(newAddressBookBytes, newTimestamp, true);
@@ -445,12 +449,16 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT + UPDATED.getNodeAddressCount() + FINAL.getNodeAddressCount(),
                 addressBookEntryRepository.count());
 
-        // verify end consensus timestamp was set for previous address book
+        // verify only the end consensus timestamp of the previous address book changed
+        previousAddressBook.setEndConsensusTimestamp(newTimestamp);
         assertThat(addressBookRepository.findById(initialTimestamp + 1))
                 .get()
-                .returns(systemEntity.addressBookFile102(), AddressBook::getFileId)
-                .returns(initialTimestamp + 1, AddressBook::getStartConsensusTimestamp)
-                .returns(newTimestamp, AddressBook::getEndConsensusTimestamp);
+                .isEqualTo(previousAddressBook)
+                .extracting(AddressBook::getEntries)
+                .usingRecursiveComparison()
+                .ignoringCollectionOrder()
+                .ignoringFieldsOfTypes(AtomicReference.class)
+                .isEqualTo(previousAddressBook.getEntries());
     }
 
     @Test
@@ -466,6 +474,9 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .returns(initialTimestamp + 1, AddressBook::getStartConsensusTimestamp)
                 .returns(null, AddressBook::getEndConsensusTimestamp)
                 .satisfies(a -> assertAddressBook(a, UPDATED));
+
+        final var previousAddressBook =
+                addressBookRepository.findById(initialTimestamp + 1).orElseThrow();
 
         long newTimestamp = 10L;
         byte[] newAddressBookBytes = FINAL.toByteArray();
@@ -484,12 +495,16 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT + UPDATED.getNodeAddressCount() + FINAL.getNodeAddressCount(),
                 addressBookEntryRepository.count());
 
-        // verify end consensus timestamp was set for previous address book
+        // verify only the end consensus timestamp of the previous address book changed
+        previousAddressBook.setEndConsensusTimestamp(newTimestamp);
         assertThat(addressBookRepository.findById(initialTimestamp + 1))
                 .get()
-                .returns(systemEntity.addressBookFile101(), AddressBook::getFileId)
-                .returns(initialTimestamp + 1, AddressBook::getStartConsensusTimestamp)
-                .returns(newTimestamp, AddressBook::getEndConsensusTimestamp);
+                .isEqualTo(previousAddressBook)
+                .extracting(AddressBook::getEntries)
+                .usingRecursiveComparison()
+                .ignoringCollectionOrder()
+                .ignoringFieldsOfTypes(AtomicReference.class)
+                .isEqualTo(previousAddressBook.getEntries());
     }
 
     @Test
@@ -1332,6 +1347,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertArrayEquals(expected, actualAddressBook.getFileData());
     }
 
+    @SuppressWarnings("deprecation")
     private void assertAddressBook(AddressBook actual, NodeAddressBook expected) {
         var listAssert = assertThat(actual.getEntries()).hasSize(expected.getNodeAddressCount());
 
@@ -1344,29 +1360,51 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 assertThat(abe.getPublicKey()).isEqualTo(nodeAddress.getRSAPubKey());
                 assertThat(abe.getNodeId()).isEqualTo(nodeAddress.getNodeId());
 
-                assertAddressBookEndPoints(abe.getServiceEndpoints(), nodeAddress.getServiceEndpointList());
+                assertAddressBookEndPoints(abe, nodeAddress);
             });
         }
     }
 
-    private void assertAddressBookEndPoints(
-            Collection<AddressBookServiceEndpoint> actual, List<ServiceEndpoint> expected) {
-        if (expected.isEmpty()) {
-            return;
+    // The service creates an endpoint from the deprecated IP address and port, plus one for every service endpoint
+    @SuppressWarnings("deprecation")
+    private void assertAddressBookEndPoints(AddressBookEntry actual, NodeAddress nodeAddress) {
+        final var expected = new HashSet<AddressBookServiceEndpoint>();
+        final var ipAddress = nodeAddress.getIpAddress().toStringUtf8();
+        if (!ipAddress.isBlank()) {
+            expected.add(serviceEndpoint(actual, "", ipAddress, nodeAddress.getPortno()));
         }
 
-        var listAssert = assertThat(actual).hasSize(expected.size());
-
-        for (ServiceEndpoint serviceEndpoint : expected) {
-            listAssert.anySatisfy(abe -> {
-                AtomicReference<String> ip = new AtomicReference<>("");
-                assertDoesNotThrow(() -> ip.set(InetAddress.getByAddress(
-                                serviceEndpoint.getIpAddressV4().toByteArray())
-                        .getHostAddress()));
-
-                assertThat(abe.getPort()).isEqualTo(serviceEndpoint.getPort());
-                assertThat(abe.getIpAddressV4()).isEqualTo(ip.get());
-            });
+        for (final var serviceEndpoint : nodeAddress.getServiceEndpointList()) {
+            expected.add(serviceEndpoint(
+                    actual,
+                    serviceEndpoint.getDomainName(),
+                    ipAddressV4(serviceEndpoint.getIpAddressV4()),
+                    serviceEndpoint.getPort()));
         }
+
+        assertThat(actual.getServiceEndpoints()).containsExactlyInAnyOrderElementsOf(expected);
+    }
+
+    private static String ipAddressV4(ByteString ipAddress) {
+        if (ipAddress.size() != 4) {
+            return "";
+        }
+
+        try {
+            return InetAddress.getByAddress(ipAddress.toByteArray()).getHostAddress();
+        } catch (UnknownHostException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static AddressBookServiceEndpoint serviceEndpoint(
+            AddressBookEntry entry, String domainName, String ipAddress, int port) {
+        return AddressBookServiceEndpoint.builder()
+                .consensusTimestamp(entry.getConsensusTimestamp())
+                .domainName(domainName)
+                .ipAddressV4(ipAddress)
+                .nodeId(entry.getNodeId())
+                .port(port)
+                .build();
     }
 }
