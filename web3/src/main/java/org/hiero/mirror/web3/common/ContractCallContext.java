@@ -4,9 +4,13 @@ package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -17,9 +21,11 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.rest.model.SimulateLog;
 import org.hiero.mirror.web3.ApiEndpointName;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
@@ -75,6 +81,16 @@ public class ContractCallContext {
 
     @Setter
     private long gasRequirement;
+
+    @Setter
+    private boolean traceTransfers;
+
+    private final List<SimulateLog> transferLogs = new ArrayList<>();
+
+    /**
+     * Index into {@link #transferLogs} where each currently open frame's transfer logs begin, innermost on top.
+     */
+    private final Deque<Integer> transferLogSnapshots = new ArrayDeque<>();
 
     @Setter
     private Supplier<RecordFile> blockSupplier = () -> null;
@@ -155,6 +171,14 @@ public class ContractCallContext {
         writeCache.clear();
     }
 
+    /**
+     * Moves the writes of a finished call into the read cache. The next call of the request then reads them as its
+     * original state, as the transaction executor reads original values from the readable states.
+     */
+    public void commit() {
+        writeCache.moveTo(readCache);
+    }
+
     public boolean useHistorical() {
         return callServiceParameters != null && callServiceParameters.getBlock() != BlockType.LATEST;
     }
@@ -199,6 +223,18 @@ public class ContractCallContext {
         return blockSupplier.get();
     }
 
+    public void applyStateOverrides(final List<StateOverride> overrides) {
+        if (overrides == null || overrides.isEmpty()) {
+            this.stateOverrides = null;
+            return;
+        }
+        final var addressToAccounts = new HashMap<Bytes, StateOverride>(overrides.size());
+        for (final var stateOverride : overrides) {
+            addressToAccounts.put(Bytes.wrap(Utils.parseHex(stateOverride.getAddress())), stateOverride);
+        }
+        this.stateOverrides = addressToAccounts;
+    }
+
     /**
      * The cache of each state for one request. A state is looked up on every read and write of the state, and nearly
      * all state IDs are small, so those are found by index and only the few large ones in a map.
@@ -215,6 +251,16 @@ public class ContractCallContext {
         void clear() {
             Arrays.fill(indexed, null);
             others.clear();
+        }
+
+        void moveTo(final StateCaches target) {
+            for (int stateId = 0; stateId < INDEXED_STATE_IDS; stateId++) {
+                if (indexed[stateId] != null) {
+                    target.get(stateId).putAll(indexed[stateId]);
+                }
+            }
+            others.forEach((stateId, cache) -> target.get(stateId).putAll(cache));
+            clear();
         }
 
         Map<Object, Object> get(final int stateId) {

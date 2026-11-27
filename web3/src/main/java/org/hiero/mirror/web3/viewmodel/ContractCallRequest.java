@@ -19,9 +19,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.convert.BlockTypeSerializer;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.annotation.JsonSerialize;
 
 @Data
+@NullMarked
 public class ContractCallRequest {
 
     public static final int ADDRESS_LENGTH = 40;
@@ -39,12 +42,12 @@ public class ContractCallRequest {
     private BlockOverride blockOverride = BlockOverride.EMPTY;
 
     @Hex(maxLength = DATA_MAX_LENGTH)
-    private String data;
+    private @Nullable String data;
 
     private boolean estimate;
 
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH)
-    private String from;
+    private @Nullable String from;
 
     @Min(21_000)
     private long gas = 15_000_000L;
@@ -56,7 +59,7 @@ public class ContractCallRequest {
     private long gasPrice;
 
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH, allowEmpty = true)
-    private String to;
+    private @Nullable String to;
 
     @NotNull
     @Size(max = STATE_OVERRIDES_MAX_SIZE)

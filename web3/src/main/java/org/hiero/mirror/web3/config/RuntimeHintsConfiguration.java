@@ -17,7 +17,10 @@ import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
+import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
+import org.hiero.mirror.web3.viewmodel.SimulateRequest;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.hyperledger.besu.evm.MainnetEVMs;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -63,7 +66,10 @@ final class RuntimeHintsConfiguration {
                     ContractCallResponse.class.getName(),
                     GenericErrorResponse.class.getName(),
                     GenericErrorResponse.ErrorMessage.class.getName(),
+                    SimulateBlockStateCall.class.getName(),
+                    SimulateRequest.class.getName(),
                     StateOverride.class.getName(),
+                    StorageEntry.class.getName(),
                     TransactionIdOrHashParameter.class.getName());
 
             registerResourcePatterns(

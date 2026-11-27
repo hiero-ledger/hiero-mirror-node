@@ -17,7 +17,8 @@ public enum ApiEndpointName {
      */
     DEFAULT(null),
     OPCODES("/api/v1/contracts/results/{transactionIdOrHash}/opcodes"),
-    PRESTATE("/api/v1/contracts/results/{transactionIdOrHash}/prestate");
+    PRESTATE("/api/v1/contracts/results/{transactionIdOrHash}/prestate"),
+    SIMULATE("/api/v1/contracts/simulate");
 
     private static final Map<String, ApiEndpointName> PATHS = EnumSet.allOf(ApiEndpointName.class).stream()
             .filter(endpoint -> endpoint.path != null)

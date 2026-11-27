@@ -528,6 +528,63 @@ paths:
                 $ref: "#/components/schemas/Error"
       tags:
         - contracts
+  /api/v1/contracts/simulate:
+    post:
+      summary: Simulate a bundle of smart contract calls
+      description:
+        Backs `eth_simulateV1`. Each `block_state_calls` entry executes as its own virtual block against the
+        anchor block selected by `block` - state accumulates across all calls and entries, each entry building on
+        the previous one. `state_overrides` persist and accumulate across entries (later entries win per address). Results are returned as a
+        single flat list; entry `i` is reported as block `anchor + i`, and `transaction_index` and `index`
+        restart from 0 at the beginning of every entry. A reverted call does not abort the rest of
+        the batch. `state_overrides` reuses the same schema as `POST /api/v1/contracts/call` and is subject to
+        the same feature flag.
+      operationId: contractsSimulate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulateRequest"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulateResponse"
+        400:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        415:
+          description: Unsupported media type error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        429:
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        500:
+          description: Generic error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        501:
+          description: Not implemented error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      tags:
+        - contracts
   /api/v1/contracts:
     get:
       summary: List contract entities on network
@@ -2941,14 +2998,18 @@ components:
                     description: Error message
                     example: Generic error message
                     type: string
+    BlockType:
+      description:
+        Block number in decimal or 0x-prefixed hexadecimal, a 0x-prefixed 32 or 48 byte block hash, or one of
+        "earliest", "finalized", "latest", "pending", "safe". Defaults to "latest".
+      example: "latest"
+      pattern: "^((earliest|finalized|latest|pending|safe)|[0-9]{1,20}|0[xX]([0-9a-fA-F]{64}|[0-9a-fA-F]{96})|0[xX][0-9a-fA-F]{1,16})$"
+      type: [string, "null"]
     ContractCallRequest:
       type: object
       properties:
         block:
-          description: Hexadecimal block number or the string "latest", "pending", "earliest". Defaults to "latest".
-          example: "latest"
-          pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
-          type: [string, "null"]
+          $ref: "#/components/schemas/BlockType"
         block_override:
           description: Optional EVM block context override for this call. Requires block overrides to be enabled.
           $ref: "#/components/schemas/BlockOverride"
@@ -3073,6 +3134,126 @@ components:
           format: binary
           pattern: "^0x[0-9a-fA-F]+$"
           type: string
+    SimulateBlockStateCall:
+      type: object
+      properties:
+        block_override:
+          $ref: "#/components/schemas/BlockOverride"
+        calls:
+          description: Calls executed in order in this entry. `block` and `estimate` are ignored, and `block_override` and `state_overrides` must be set on the entry instead.
+          items:
+            $ref: "#/components/schemas/ContractCallRequest"
+          maxItems: 2
+          minItems: 1
+          type: array
+        state_overrides:
+          description: State overrides applied before the calls of this entry.
+          items:
+            $ref: "#/components/schemas/StateOverride"
+          maxItems: 10
+          type: array
+    SimulateRequest:
+      type: object
+      properties:
+        block:
+          $ref: "#/components/schemas/BlockType"
+        block_state_calls:
+          description: Each entry executes as its own virtual block on top of the previous entry, with state accumulating across entries. Limited to 1 entry.
+          items:
+            $ref: "#/components/schemas/SimulateBlockStateCall"
+          maxItems: 1
+          minItems: 1
+          type: array
+        trace_transfers:
+          description: If true, synthesizes ERC20-style Transfer log entries for value transfers captured during execution. Defaults to false.
+          example: true
+          type: [boolean, "null"]
+    SimulateLog:
+      type: object
+      properties:
+        address:
+          description: The 20-byte hexadecimal EVM address that emitted this log.
+          format: binary
+          type: string
+        block_hash:
+          description: The anchor block hash for the first block_state_calls entry, and a synthetic hash derived from it for every later entry.
+          format: binary
+          type: string
+        block_number:
+          description: The anchor block number plus the index of the block_state_calls entry this log belongs to.
+          example: 20784967
+          format: int64
+          type: integer
+        data:
+          format: binary
+          type: string
+        index:
+          description: Position of this log within its block_state_calls entry, restarting at 0 for every entry.
+          example: 0
+          format: int64
+          type: integer
+        topics:
+          items:
+            format: binary
+            type: string
+          type: array
+        transaction_hash:
+          description: Synthetic identifier - simulated calls are never mined, so there is no real transaction hash.
+          format: binary
+          type: string
+        transaction_index:
+          description: Position of the call within its block_state_calls entry, restarting at 0 for every entry.
+          example: 0
+          format: int64
+          type: integer
+    SimulateCallError:
+      description: Why a call failed. Null for a successful call.
+      type: object
+      properties:
+        code:
+          description: 3 for a reverted call, -32015 for any other failed execution.
+          example: 3
+          type: integer
+        data:
+          description: Raw revert data for a reverted call, otherwise 0x.
+          example: "0x08c379a0"
+          format: binary
+          type: string
+        message:
+          description: '"execution reverted", followed by the reason when it can be decoded, or the failure status.'
+          example: "execution reverted: Insufficient balance"
+          type: string
+    SimulateCallResult:
+      type: object
+      properties:
+        error:
+          $ref: "#/components/schemas/SimulateCallError"
+        gas_used:
+          description: Gas consumed by this call.
+          example: 21000
+          format: int64
+          type: integer
+        logs:
+          items:
+            $ref: "#/components/schemas/SimulateLog"
+          type: array
+        return_data:
+          description: Hexadecimal return value of this call.
+          example: "0x"
+          format: binary
+          type: string
+        success:
+          description: Whether the call succeeded. A failed call does not abort the rest of the batch.
+          example: true
+          type: boolean
+    SimulateResponse:
+      type: object
+      properties:
+        result:
+          description: One result per call across all block_state_calls entries, in request order. Entries are distinguished by block_number and block_hash.
+          items:
+            $ref: "#/components/schemas/SimulateCallResult"
+          type: array
     HederaHash:
       type: string
       description: A hex encoded hedera transaction hash.

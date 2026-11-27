@@ -10,13 +10,12 @@ hiero:
           response:
             headers:
               # Merged into every endpoint's response headers on startup unless overridden below.
+              "Access-Control-Allow-Origin": "*"
               "x-cluster-id": "${hiero.mirror.common.clusterId}"
         call:
           enabled: true
           response:
             timeout: 4s
-            headers:
-              "Access-Control-Allow-Origin": "*"
         opcodes:
           enabled: true
           request:
@@ -24,7 +23,6 @@ hiero:
           response:
             timeout: 10s
             headers:
-              "Access-Control-Allow-Origin": "*"
               "Cache-Control": "public, max-age=600"
         prestate:
           enabled: false
@@ -33,8 +31,13 @@ hiero:
           response:
             timeout: 4s
             headers:
-              "Access-Control-Allow-Origin": "*"
               "Cache-Control": "public, max-age=600"
+        simulate:
+          enabled: false
+          request:
+            throttle: 32
+          response:
+            timeout: 4s
       db:
         host: 127.0.0.1
         name: mirror_node

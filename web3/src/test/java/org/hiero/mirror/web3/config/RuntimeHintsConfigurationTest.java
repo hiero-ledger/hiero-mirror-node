@@ -6,9 +6,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
 import com.hedera.node.app.service.contract.impl.hevm.HederaOperationsRegistry;
+import java.util.List;
 import org.hiero.mirror.web3.viewmodel.BlockOverride;
 import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
+import org.hiero.mirror.web3.viewmodel.SimulateBlockStateCall;
 import org.hiero.mirror.web3.viewmodel.StateOverride;
+import org.hiero.mirror.web3.viewmodel.StorageEntry;
 import org.hyperledger.besu.evm.EvmSpecVersion;
 import org.hyperledger.besu.evm.MainnetEVMs;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,17 @@ final class RuntimeHintsConfigurationTest {
                 .accepts(hints);
         assertThat(RuntimeHintsPredicates.reflection().onType(StateOverride.class))
                 .accepts(hints);
+    }
+
+    @Test
+    void registersNestedSimulateRequestTypes() {
+        final var hints = new RuntimeHints();
+        new RuntimeHintsConfiguration.CustomRuntimeHints()
+                .registerHints(hints, getClass().getClassLoader());
+
+        for (final var type : List.of(BlockOverride.class, SimulateBlockStateCall.class, StorageEntry.class)) {
+            assertThat(RuntimeHintsPredicates.reflection().onType(type)).accepts(hints);
+        }
     }
 
     @ParameterizedTest

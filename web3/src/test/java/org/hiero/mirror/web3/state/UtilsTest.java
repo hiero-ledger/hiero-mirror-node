@@ -164,4 +164,19 @@ class UtilsTest {
     void parseHexRejectsInvalidInput(final String input) {
         assertThatThrownBy(() -> Utils.parseHex(input)).isInstanceOf(NumberFormatException.class);
     }
+
+    @Test
+    void withHexPrefixAddsPrefixWhenMissing() {
+        assertThat(Utils.withHexPrefix("ff")).isEqualTo("0xff");
+    }
+
+    @Test
+    void withHexPrefixLeavesExistingPrefixUnchanged() {
+        assertThat(Utils.withHexPrefix("0xff")).isEqualTo("0xff");
+    }
+
+    @Test
+    void withHexPrefixReturnsNullForNull() {
+        assertThat(Utils.withHexPrefix(null)).isNull();
+    }
 }
