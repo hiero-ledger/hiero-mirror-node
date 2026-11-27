@@ -5,7 +5,7 @@ import {CustomFeeLimitSchema} from '../gen/services/custom_fees_pb.js';
 import {RestError} from '../errors';
 
 class CustomFeeLimits {
-  static MAX_ENTRIES = 10;
+  static MAX_ENTRIES = 500;
 
   /**
    * Parses an array of serialized CustomFeeLimit messages from transaction.max_custom_fees. At most MAX_ENTRIES
@@ -20,13 +20,15 @@ class CustomFeeLimits {
       return;
     }
 
-    let entries = customFeeLimits;
-    if (entries.length > CustomFeeLimits.MAX_ENTRIES) {
-      logger.warn(`Truncating max_custom_fees from ${entries.length} to ${CustomFeeLimits.MAX_ENTRIES} entries`);
-      entries = entries.slice(0, CustomFeeLimits.MAX_ENTRIES);
+    if (customFeeLimits.length > CustomFeeLimits.MAX_ENTRIES) {
+      logger.warn(
+        `Truncating max_custom_fees from ${customFeeLimits.length} to ${CustomFeeLimits.MAX_ENTRIES} entries`
+      );
     }
 
-    this.fees = entries.map((feeBytes, index) => CustomFeeLimits.parse(feeBytes, index));
+    this.fees = customFeeLimits
+      .slice(0, CustomFeeLimits.MAX_ENTRIES)
+      .map((feeBytes, index) => CustomFeeLimits.parse(feeBytes, index));
   }
 
   static parse(feeBytes, index) {
