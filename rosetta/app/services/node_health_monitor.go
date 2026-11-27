@@ -344,7 +344,7 @@ func isNodeError(err error) bool {
 	}
 
 	switch status.Code(err) {
-	case codes.DeadlineExceeded, codes.Internal, codes.ResourceExhausted, codes.Unavailable:
+	case codes.DeadlineExceeded, codes.Internal, codes.Unavailable:
 		return true
 	default:
 		return false

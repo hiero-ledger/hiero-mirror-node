@@ -229,7 +229,8 @@ func main() {
 	}
 
 	metricsMiddleware := middleware.MetricsMiddleware(router)
-	tracingMiddleware := middleware.TracingMiddleware(metricsMiddleware)
+	bodyLimitMiddleware := middleware.BodyLimitMiddleware(metricsMiddleware, rosettaConfig.Http.MaxRequestBodySize)
+	tracingMiddleware := middleware.TracingMiddleware(bodyLimitMiddleware)
 	corsMiddleware := server.CorsMiddleware(tracingMiddleware)
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf(":%d", rosettaConfig.Port),

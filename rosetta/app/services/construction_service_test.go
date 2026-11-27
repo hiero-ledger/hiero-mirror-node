@@ -1560,6 +1560,70 @@ func TestConstructionSubmitLocalFailureKeepsNodeHealthy(t *testing.T) {
 	assert.Empty(t, monitor.unhealthyNodes)
 }
 
+func TestConstructionSubmitTransactionSize(t *testing.T) {
+	size := getTransactionSize(t, validSignedTransaction)
+	tests := []struct {
+		name     string
+		maxSize  int
+		oversize bool
+	}{
+		{name: "at max", maxSize: size},
+		{name: "over max", maxSize: size - 1, oversize: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			consensusNode := newMockConsensusNode(t)
+			cs, monitor := newTestSubmitService(t, consensusNode.address)
+			cs.maxTransactionSize = tt.maxSize
+			request := &rTypes.ConstructionSubmitRequest{
+				NetworkIdentifier: networkIdentifier(),
+				SignedTransaction: validSignedTransaction,
+			}
+
+			// when
+			res, e := cs.ConstructionSubmit(defaultContext, request)
+
+			// then
+			assert.Empty(t, monitor.unhealthyNodes)
+			if !tt.oversize {
+				assert.Nil(t, e)
+				assert.NotNil(t, res)
+				assert.Equal(t, int32(1), consensusNode.requests.Load())
+				return
+			}
+
+			assert.Nil(t, res)
+			assert.Equal(t, errors.ErrTransactionOversize.Code, e.Code)
+			assert.Zero(t, consensusNode.requests.Load())
+		})
+	}
+}
+
+func TestConstructionSubmitMissingNodeAccount(t *testing.T) {
+	// given
+	consensusNode := newMockConsensusNode(t)
+	cs, monitor := newTestSubmitService(t, consensusNode.address)
+	request := &rTypes.ConstructionSubmitRequest{
+		NetworkIdentifier: networkIdentifier(),
+		SignedTransaction: updateTransactionBody(
+			t,
+			validSignedTransaction,
+			func(body *services.TransactionBody) { body.NodeAccountID = nil },
+		),
+	}
+
+	// when
+	res, e := cs.ConstructionSubmit(defaultContext, request)
+
+	// then
+	assert.Nil(t, res)
+	assert.Equal(t, errors.ErrInvalidTransaction.Code, e.Code)
+	assert.Zero(t, consensusNode.requests.Load())
+	assert.Empty(t, monitor.unhealthyNodes)
+}
+
 func TestConstructionPreprocess(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1922,19 +1986,38 @@ func createTransactionHexString(transaction hiero.TransactionInterface, signed b
 // addBatchKey adds a batch key to the body of the transaction without re-signing it. Unlike the SDK, which sets the node
 // account id of a batched transaction to 0.0.0, anyone can build such bytes for any node.
 func addBatchKey(t *testing.T, transactionHex string) string {
+	batchKey := &services.Key{Key: &services.Key_Ed25519{Ed25519: privateKey.PublicKey().BytesRaw()}}
+	return updateTransactionBody(t, transactionHex, func(body *services.TransactionBody) { body.BatchKey = batchKey })
+}
+
+// getTransactionSize returns the size of the first serialized Transaction in the transaction list.
+func getTransactionSize(t *testing.T, transactionHex string) int {
 	data, err := hex.DecodeString(tools.SafeRemoveHexPrefix(transactionHex))
 	require.NoError(t, err)
 
 	list := sdkProto.TransactionList{}
 	require.NoError(t, proto.Unmarshal(data, &list))
-	batchKey := &services.Key{Key: &services.Key_Ed25519{Ed25519: privateKey.PublicKey().BytesRaw()}}
+	return proto.Size(list.TransactionList[0])
+}
+
+// updateTransactionBody applies the update to the body of every transaction in the list, keeping the signatures.
+func updateTransactionBody(
+	t *testing.T,
+	transactionHex string,
+	update func(body *services.TransactionBody),
+) string {
+	data, err := hex.DecodeString(tools.SafeRemoveHexPrefix(transactionHex))
+	require.NoError(t, err)
+
+	list := sdkProto.TransactionList{}
+	require.NoError(t, proto.Unmarshal(data, &list))
 	for _, transaction := range list.TransactionList {
 		signedTransaction := services.SignedTransaction{}
 		require.NoError(t, proto.Unmarshal(transaction.SignedTransactionBytes, &signedTransaction))
 		body := services.TransactionBody{}
 		require.NoError(t, proto.Unmarshal(signedTransaction.BodyBytes, &body))
 
-		body.BatchKey = batchKey
+		update(&body)
 		signedTransaction.BodyBytes, err = proto.Marshal(&body)
 		require.NoError(t, err)
 		transaction.SignedTransactionBytes, err = proto.Marshal(&signedTransaction)
@@ -1947,7 +2030,9 @@ func addBatchKey(t *testing.T, transactionHex string) string {
 }
 
 func newTestOnlineService(t *testing.T, nodes config.NodeMap) *constructionAPIService {
-	mirrorConfig := &config.Mirror{Rosetta: config.Config{Network: defaultNetwork, Nodes: nodes}}
+	mirrorConfig := &config.Mirror{
+		Rosetta: config.Config{MaxTransactionSize: 6144, Network: defaultNetwork, Nodes: nodes},
+	}
 	service, err := NewConstructionAPIService(nil, onlineBaseService, mirrorConfig, nil, defaultContext)
 	require.NoError(t, err)
 	return service.(*constructionAPIService)

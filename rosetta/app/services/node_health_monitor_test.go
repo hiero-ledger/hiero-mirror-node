@@ -730,7 +730,7 @@ func TestIsNodeError(t *testing.T) {
 			expected: true,
 		},
 		{name: "deadline exceeded", err: status.Error(codes.DeadlineExceeded, "timeout"), expected: true},
-		{name: "resource exhausted", err: status.Error(codes.ResourceExhausted, "dial timeout"), expected: true},
+		{name: "resource exhausted", err: status.Error(codes.ResourceExhausted, "grpc: received message larger than max")},
 		{name: "internal", err: status.Error(codes.Internal, "stream reset"), expected: true},
 		{name: "invalid argument", err: status.Error(codes.InvalidArgument, "bad request")},
 		// Errors the SDK raises before contacting the node

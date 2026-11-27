@@ -26,11 +26,13 @@ hiero:
         validateCryptoTransferFields: true
       http:
         idleTimeout: 10000000000
+        maxRequestBodySize: 524288
         readHeaderTimeout: 3000000000
         readTimeout: 5000000000
         writeTimeout: 10000000000
       log:
         level: info
+      maxTransactionSize: 6144
       network: demo
       nodeHealth:
         enabled: true
