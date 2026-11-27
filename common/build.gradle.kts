@@ -37,6 +37,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.web3j:utils")
 
     testClasses(sourceSets["test"].output)
 }

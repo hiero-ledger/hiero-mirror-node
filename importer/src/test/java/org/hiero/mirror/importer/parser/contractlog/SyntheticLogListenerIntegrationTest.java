@@ -4,7 +4,9 @@ package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.LEADING_ZERO_ALIAS;
 import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.aggregateExpectedContractResultBloom;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.ethereumLogBloom;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 import com.google.common.primitives.Longs;
@@ -21,6 +23,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.web3j.utils.Bloom;
 
 @RequiredArgsConstructor
 public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest {
@@ -497,6 +500,61 @@ public class SyntheticLogListenerIntegrationTest extends ImporterIntegrationTest
 
         assertThat(contractResult.getBloom()).hasSize(LogsBloomFilter.BYTE_SIZE);
         assertArrayEquals(expectedBloom.toArrayUnsafe(), contractResult.getBloom());
+    }
+
+    @Test
+    void contractResultAndRecordFileBloomUseCanonicalAddressForLeadingZeroEvmAddress() {
+        var sender = domainBuilder.entity().persist();
+        var receiver = domainBuilder.entity().persist();
+        var contractEntity = domainBuilder
+                .entity()
+                .customize(e -> e.type(EntityType.CONTRACT).evmAddress(LEADING_ZERO_ALIAS))
+                .persist();
+
+        var consensusTimestamp = domainBuilder.timestamp();
+        var contractResult = domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(consensusTimestamp)
+                        .contractId(contractEntity.getId())
+                        .payerAccountId(EntityId.of(domainBuilder.id()))
+                        .bloom(null))
+                .get();
+        parserContext.add(contractResult, contractResult.getConsensusTimestamp());
+
+        var recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.sidecars(List.of()).logsBloom(null))
+                .get();
+        parserContext.add(recordFile);
+
+        var syntheticContractLog = domainBuilder
+                .contractLog()
+                .customize(cl -> cl.synthetic(true)
+                        .bloom(new byte[] {1})
+                        .consensusTimestamp(consensusTimestamp)
+                        .contractId(EntityId.of(contractEntity.getId()))
+                        .topic0(AbstractSyntheticContractLog.TRANSFER_SIGNATURE)
+                        .topic1(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(sender.getId())))
+                        .topic2(AbstractSyntheticContractLog.entityIdToBytes(EntityId.of(receiver.getId())))
+                        .topic3(null)
+                        .data(new byte[] {0})
+                        .contractResult(contractResult))
+                .get();
+
+        entityListener.onContractLog(syntheticContractLog);
+        transactionTemplate.executeWithoutResult(status -> recordFileStreamListener.onEnd(recordFile));
+
+        // Reference: the bloom an Ethereum client builds from the canonical 20-byte address and the 32-byte topics
+        var expectedBloom = ethereumLogBloom(
+                LEADING_ZERO_ALIAS,
+                AbstractSyntheticContractLog.TRANSFER_SIGNATURE,
+                trim(sender.getEvmAddress()),
+                trim(receiver.getEvmAddress()));
+
+        assertArrayEquals(expectedBloom, syntheticContractLog.getBloom());
+        assertArrayEquals(expectedBloom, contractResult.getBloom());
+        assertArrayEquals(expectedBloom, recordFile.getLogsBloom());
+        assertThat(Bloom.test(recordFile.getLogsBloom(), LEADING_ZERO_ALIAS)).isTrue();
     }
 
     @Test

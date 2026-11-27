@@ -5,8 +5,12 @@ package org.hiero.mirror.importer.parser.contractlog;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
 import static org.hiero.mirror.importer.parser.contractlog.SyntheticContractLogServiceImpl.CONTRACT_LOG_MARKER;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.LEADING_ZERO_ALIAS;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.LONG_ZERO_NUM;
 import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.aggregateExpectedContractResultBloom;
+import static org.hiero.mirror.importer.parser.contractlog.SyntheticLogTestUtils.ethereumLogBloom;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 import com.google.common.primitives.Longs;
@@ -19,6 +23,7 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.CacheProperties;
@@ -31,6 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.web3j.utils.Bloom;
 
 @ExtendWith(MockitoExtension.class)
 class SyntheticLogListenerTest {
@@ -327,6 +333,127 @@ class SyntheticLogListenerTest {
         var longZeroAddress = DomainUtils.toEvmAddress(contractEntityId);
         var expectedBloom = createExpectedBloom(longZeroAddress, contractLog);
         assertArrayEquals(expectedBloom, contractLog.getBloom());
+    }
+
+    @Test
+    void bloomUsesCanonicalAddressForLeadingZeroEvmAddressFromDb() {
+        final var contractEntityId = domainBuilder.entityId();
+        final var contractResult = contractResultWithoutBloom(contractEntityId);
+        final var recordFile =
+                domainBuilder.recordFile().customize(r -> r.logsBloom(null)).get();
+        final var contractLog = syntheticTransferLogWithRecordItem(
+                LONG_ZERO_1, LONG_ZERO_2, contractEntityId, contractResult, contractResult.getConsensusTimestamp());
+        contractLog.setBloom(CONTRACT_LOG_MARKER);
+
+        when(entityRepository.findEvmAddressesByIds(any()))
+                .thenReturn(List.of(evmMap(LEADING_ZERO_ALIAS, contractEntityId)));
+
+        listener.onContractLog(contractLog);
+        listener.onEnd(recordFile);
+
+        assertBloomsContainCanonicalAddress(contractLog, recordFile, LEADING_ZERO_ALIAS);
+    }
+
+    @Test
+    void bloomUsesCanonicalAddressForLeadingZeroEvmAddressFromParserContext() {
+        final var contractEntity = domainBuilder
+                .entity()
+                .customize(e -> e.evmAddress(LEADING_ZERO_ALIAS).timestampRange(null))
+                .get();
+        final var contractEntityId = contractEntity.toEntityId();
+        final var contractResult = contractResultWithoutBloom(contractEntityId);
+        final var recordFile =
+                domainBuilder.recordFile().customize(r -> r.logsBloom(null)).get();
+        final var contractLog = syntheticTransferLogWithRecordItem(
+                LONG_ZERO_1, LONG_ZERO_2, contractEntityId, contractResult, contractResult.getConsensusTimestamp());
+        contractLog.setBloom(CONTRACT_LOG_MARKER);
+
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(Collections.emptyList());
+        parserContext.merge(contractEntity.getId(), contractEntity, NO_OP_MERGE);
+
+        listener.onContractLog(contractLog);
+        listener.onEnd(recordFile);
+
+        assertBloomsContainCanonicalAddress(contractLog, recordFile, LEADING_ZERO_ALIAS);
+    }
+
+    @Test
+    void bloomUsesCanonicalLongZeroAddressWhenCachedFromTrimmedTopic() {
+        final var commonProperties = CommonProperties.getInstance();
+        final var contractEntityId =
+                EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), LONG_ZERO_NUM);
+        final var trimmedLongZeroTopic = trim(DomainUtils.toEvmAddress(contractEntityId));
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(Collections.emptyList());
+
+        // File 1: the entity is a transfer participant without an alias, so the cache keeps its trimmed topic (0x03e8)
+        listener.onContractLog(syntheticTransferLog(trimmedLongZeroTopic, LONG_ZERO_2));
+        submitAndClear();
+
+        // File 2: the same entity emits a synthetic log, and its address is read back from that cache entry
+        final var contractResult = contractResultWithoutBloom(contractEntityId);
+        final var recordFile =
+                domainBuilder.recordFile().customize(r -> r.logsBloom(null)).get();
+        final var contractLog = syntheticTransferLogWithRecordItem(
+                LONG_ZERO_1, LONG_ZERO_2, contractEntityId, contractResult, contractResult.getConsensusTimestamp());
+        contractLog.setBloom(CONTRACT_LOG_MARKER);
+
+        listener.onContractLog(contractLog);
+        listener.onEnd(recordFile);
+
+        assertBloomsContainCanonicalAddress(contractLog, recordFile, DomainUtils.toEvmAddress(contractEntityId));
+    }
+
+    @Test
+    void recordFileBloomAttributedToContainingFileInBatch() {
+        // Batched parsing: both files are in the parser context, but onEnd only receives the last one
+        final var firstFile = recordFileInContext();
+        final var firstResult = contractResultWithoutBloom(CONTRACT_ENTITY);
+        final var middleFile = recordFileInContext();
+        final var lastFile = recordFileInContext();
+        final var lastContractId = domainBuilder.entityId();
+        final var lastResult = contractResultWithoutBloom(lastContractId);
+        lastFile.setConsensusEnd(domainBuilder.timestamp());
+
+        final var firstLog = syntheticTransferLogWithRecordItem(
+                LONG_ZERO_1, LONG_ZERO_2, CONTRACT_ENTITY, firstResult, firstResult.getConsensusTimestamp());
+        firstLog.setBloom(CONTRACT_LOG_MARKER);
+        final var lastLog = syntheticTransferLogWithRecordItem(
+                LONG_ZERO_2, LONG_ZERO_3, lastContractId, lastResult, lastResult.getConsensusTimestamp());
+        lastLog.setBloom(CONTRACT_LOG_MARKER);
+
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(List.of(evmMap(CONTRACT_EVM, CONTRACT_ENTITY)));
+
+        listener.onContractLog(firstLog);
+        listener.onContractLog(lastLog);
+        listener.onEnd(lastFile);
+
+        assertArrayEquals(firstLog.getBloom(), firstFile.getLogsBloom());
+        assertArrayEquals(LogsBloomFilter.EMPTY, middleFile.getLogsBloom());
+        assertArrayEquals(lastLog.getBloom(), lastFile.getLogsBloom());
+    }
+
+    @Test
+    void recordFileBloomFallsBackToLastFileWhenNoFileContainsResult() {
+        final long consensusTimestamp = domainBuilder.timestamp();
+        final var recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.consensusStart(consensusTimestamp)
+                        .consensusEnd(consensusTimestamp)
+                        .logsBloom(null))
+                .get();
+        parserContext.add(recordFile);
+        // The contract result's timestamp is after the file's consensus range
+        final var contractResult = contractResultWithoutBloom(CONTRACT_ENTITY);
+        final var contractLog = syntheticTransferLogWithRecordItem(
+                LONG_ZERO_1, LONG_ZERO_2, CONTRACT_ENTITY, contractResult, contractResult.getConsensusTimestamp());
+        contractLog.setBloom(CONTRACT_LOG_MARKER);
+
+        when(entityRepository.findEvmAddressesByIds(any())).thenReturn(List.of(evmMap(CONTRACT_EVM, CONTRACT_ENTITY)));
+
+        listener.onContractLog(contractLog);
+        listener.onEnd(recordFile);
+
+        assertArrayEquals(contractLog.getBloom(), recordFile.getLogsBloom());
     }
 
     @Test
@@ -690,6 +817,7 @@ class SyntheticLogListenerTest {
                 .customize(cl -> cl.topic0(TRANSFER_SIGNATURE)
                         .topic1(topic1)
                         .topic2(topic2)
+                        .topic3(null) // A Transfer log has three topics
                         .contractId(contractId)
                         .synthetic(true)
                         .consensusTimestamp(consensusTimestamp)
@@ -717,6 +845,57 @@ class SyntheticLogListenerTest {
                         .topic2(topic2)
                         .contractId(contractId)
                         .synthetic(true))
+                .get();
+    }
+
+    /**
+     * Asserts the log, contract result and record file blooms equal the bloom an Ethereum client builds for the log
+     * from its canonical 20-byte address and 32-byte topics, and that an eth_getLogs-style address filter matches the
+     * record file bloom.
+     */
+    private void assertBloomsContainCanonicalAddress(
+            final ContractLog contractLog, final RecordFile recordFile, final byte[] canonicalAddress) {
+        final var expected = ethereumLogBloom(
+                canonicalAddress,
+                contractLog.getTopic0(),
+                contractLog.getTopic1(),
+                contractLog.getTopic2(),
+                contractLog.getTopic3());
+
+        assertArrayEquals(expected, contractLog.getBloom());
+        assertArrayEquals(expected, contractLog.getContractResult().getBloom());
+        assertArrayEquals(expected, recordFile.getLogsBloom());
+        assertTrue(Bloom.test(recordFile.getLogsBloom(), canonicalAddress));
+    }
+
+    /**
+     * Adds a record file to the parser context the way RecordFileParser.doParse does. Its consensus range starts now
+     * and stays open until the next file starts, so contract results created in between fall inside it.
+     */
+    private RecordFile recordFileInContext() {
+        final var previousFiles = parserContext.get(RecordFile.class);
+        final long consensusStart = domainBuilder.timestamp();
+        if (!previousFiles.isEmpty()) {
+            previousFiles.getLast().setConsensusEnd(consensusStart - 1);
+        }
+
+        final var recordFile = domainBuilder
+                .recordFile()
+                .customize(r -> r.consensusStart(consensusStart)
+                        .consensusEnd(consensusStart)
+                        .logsBloom(LogsBloomFilter.EMPTY))
+                .get();
+        parserContext.add(recordFile);
+        return recordFile;
+    }
+
+    private ContractResult contractResultWithoutBloom(final EntityId contractEntityId) {
+        return domainBuilder
+                .contractResult()
+                .customize(cr -> cr.consensusTimestamp(domainBuilder.timestamp())
+                        .contractId(contractEntityId.getId())
+                        .payerAccountId(domainBuilder.entityId())
+                        .bloom(null))
                 .get();
     }
 

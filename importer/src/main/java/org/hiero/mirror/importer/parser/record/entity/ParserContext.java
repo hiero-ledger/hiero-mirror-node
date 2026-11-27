@@ -68,7 +68,7 @@ public class ParserContext {
         return domainContext.getState().get(key);
     }
 
-    public <T> Collection<T> get(Class<T> domainClass) {
+    public <T> List<T> get(Class<T> domainClass) {
         var domainContext = getDomainContext(domainClass);
         return Collections.unmodifiableList(domainContext.getInserts());
     }
