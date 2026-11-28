@@ -3,10 +3,6 @@
 package org.hiero.mirror.common.domain.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -14,36 +10,41 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityTransaction.Id;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
 @Builder
 @Data
-@Entity
-@IdClass(EntityTransaction.Id.class)
 @NoArgsConstructor
+@Table
 public class EntityTransaction implements Persistable<Id> {
 
-    @Column(updatable = false)
-    @jakarta.persistence.Id
+    @Transient
     private Long consensusTimestamp;
 
-    @Column(updatable = false)
-    @jakarta.persistence.Id
+    @Transient
     private Long entityId;
 
-    @Convert(converter = EntityIdConverter.class)
-    @Column(updatable = false)
     private EntityId payerAccountId;
 
-    @Column(updatable = false)
     private Integer result;
 
-    @Column(updatable = false)
     private Integer type;
+
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.entityId = id.getEntityId();
+    }
 
     public void setResult(Integer result) {
         this.result = DomainUtils.toSmallint(result);
@@ -53,6 +54,9 @@ public class EntityTransaction implements Persistable<Id> {
         this.type = DomainUtils.toSmallint(type);
     }
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @JsonIgnore
     @Override
     public Id getId() {
@@ -62,7 +66,7 @@ public class EntityTransaction implements Persistable<Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
     public static class EntityTransactionBuilder {

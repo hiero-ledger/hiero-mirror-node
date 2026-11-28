@@ -97,6 +97,28 @@ class TopicControllerTest extends ControllerTest {
             return DynamicTest.stream(inputs.iterator(), Function.identity(), executor);
         }
 
+        @Test
+        void customFeeNotFound() {
+            // Given
+            var entity = domainBuilder.topicEntity().persist();
+            domainBuilder
+                    .topic()
+                    .customize(t -> t.createdTimestamp(entity.getCreatedTimestamp())
+                            .id(entity.getId())
+                            .timestampRange(entity.getTimestampRange()))
+                    .persist();
+
+            // When
+            ThrowingCallable callable = () -> restClient
+                    .get()
+                    .uri("", entity.toEntityId().toString())
+                    .retrieve()
+                    .body(Topic.class);
+
+            // Then
+            validateError(callable, HttpClientErrorException.NotFound.class, "Custom fee for entity not found");
+        }
+
         @ValueSource(
                 strings = {
                     "AABBCC22",

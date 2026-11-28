@@ -4,8 +4,6 @@ package org.hiero.mirror.common.domain.clpr;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -14,10 +12,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 /**
  * A single entry in a Channel's append-only message queue (Data, Response, or Control); insert-only, same shape as
@@ -26,12 +26,11 @@ import org.springframework.data.domain.Persistable;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
 @Data
-@Entity
-@IdClass(ClprMessage.Id.class)
 @NoArgsConstructor
+@Table
 public class ClprMessage implements Persistable<ClprMessage.Id> {
 
-    @jakarta.persistence.Id
+    @Transient
     @ToString.Exclude
     private byte[] channelId;
 
@@ -41,13 +40,12 @@ public class ClprMessage implements Persistable<ClprMessage.Id> {
     private long consensusTimestamp;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
     private ClprControlMessage controlMessage;
 
     @ToString.Exclude
     private byte[] messageData;
 
-    @jakarta.persistence.Id
+    @Transient
     private long messageId;
 
     // Raw com.hederahashgraph.api.proto.java.ClprMessagePayload oneof field number (MESSAGE/MESSAGE_REPLY/CONTROL),
@@ -68,6 +66,9 @@ public class ClprMessage implements Persistable<ClprMessage.Id> {
     @ToString.Exclude
     private byte[] targetApplication;
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @Override
     @JsonIgnore
     public Id getId() {
@@ -80,7 +81,16 @@ public class ClprMessage implements Persistable<ClprMessage.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Since we never update and use a natural ID, avoid querying before insert
+    }
+
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.channelId = id.getChannelId();
+        this.messageId = id.getMessageId();
     }
 
     @AllArgsConstructor

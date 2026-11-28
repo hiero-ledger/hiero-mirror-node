@@ -5,7 +5,7 @@ package org.hiero.mirror.restjava.dto;
 import org.jspecify.annotations.NullUnmarked;
 
 /**
- * Record-based projection representing a network node query result from the database. Spring Data JPA maps query column
+ * Record-based projection representing a network node query result from the database. Spring Data maps query column
  * aliases directly to record components, avoiding proxy overhead. The SQL query handles all formatting (hex encoding,
  * "0x" prefixes, JSON conversion) to produce ready-to-use values.
  *

@@ -3,9 +3,6 @@
 package org.hiero.mirror.common.domain.contract;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -14,30 +11,31 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
 @Builder(toBuilder = true)
 @Data
-@Entity
-@IdClass(ContractStateChange.Id.class)
 @NoArgsConstructor
+@Table
 public class ContractStateChange implements Persistable<ContractStateChange.Id> {
 
-    @jakarta.persistence.Id
+    @Transient
     private long consensusTimestamp;
 
-    @jakarta.persistence.Id
+    @Transient
     private long contractId;
 
     private boolean migration;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
-    @jakarta.persistence.Id
+    @Transient
     @ToString.Exclude
     private byte[] slot;
 
@@ -47,6 +45,9 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
     @ToString.Exclude
     private byte[] valueWritten;
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @Override
     @JsonIgnore
     public Id getId() {
@@ -65,6 +66,16 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
 
     public void setContractId(EntityId contractId) {
         this.contractId = contractId.getId();
+    }
+
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.contractId = id.getContractId();
+        this.slot = id.getSlot();
     }
 
     @AllArgsConstructor

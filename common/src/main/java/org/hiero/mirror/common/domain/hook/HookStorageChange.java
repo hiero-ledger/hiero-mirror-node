@@ -3,8 +3,6 @@
 package org.hiero.mirror.common.domain.hook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -13,30 +11,34 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Data
-@Entity
-@IdClass(HookStorageChange.Id.class)
 @NoArgsConstructor
+@Table
 public class HookStorageChange implements Persistable<HookStorageChange.Id> {
 
-    @jakarta.persistence.Id
+    @Transient
     private long consensusTimestamp;
 
     private boolean deleted;
 
-    @jakarta.persistence.Id
+    @Transient
     private long hookId;
 
-    @jakarta.persistence.Id
+    @Transient
     @ToString.Exclude
     private byte[] key;
 
-    @jakarta.persistence.Id
-    private long ownerId;
+    @Transient
+    private EntityId ownerId;
 
     @ToString.Exclude
     private byte[] valueRead;
@@ -46,7 +48,7 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
 
     @Builder(toBuilder = true)
     private HookStorageChange(
-            long consensusTimestamp, long hookId, byte[] key, long ownerId, byte[] valueRead, byte[] valueWritten) {
+            long consensusTimestamp, long hookId, byte[] key, EntityId ownerId, byte[] valueRead, byte[] valueWritten) {
         this.consensusTimestamp = consensusTimestamp;
         this.hookId = hookId;
         this.key = key;
@@ -56,6 +58,9 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
     }
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @Override
     @JsonIgnore
     public Id getId() {
@@ -65,6 +70,17 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         id.setKey(key);
         id.setOwnerId(ownerId);
         return id;
+    }
+
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.hookId = id.getHookId();
+        this.key = id.getKey();
+        this.ownerId = id.getOwnerId();
     }
 
     public void setValueRead(byte[] valueRead) {
@@ -92,6 +108,17 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         private long consensusTimestamp;
         private long hookId;
         private byte[] key;
-        private long ownerId;
+        private EntityId ownerId;
+    }
+
+    public static class HookStorageChangeBuilder {
+        public HookStorageChangeBuilder ownerId(EntityId ownerId) {
+            this.ownerId = ownerId;
+            return this;
+        }
+
+        public HookStorageChangeBuilder ownerId(long ownerId) {
+            return ownerId(EntityId.of(ownerId));
+        }
     }
 }

@@ -3,16 +3,14 @@
 package org.hiero.mirror.common.domain.entity;
 
 import com.google.common.collect.Range;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.Id;
 
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)

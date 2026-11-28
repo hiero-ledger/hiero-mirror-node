@@ -3,8 +3,6 @@
 package org.hiero.mirror.common.domain.addressbook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -12,17 +10,20 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder(toBuilder = true)
 @Data
-@Entity
-@IdClass(NodeStake.Id.class)
 @NoArgsConstructor
+@Table
 public class NodeStake implements Persistable<NodeStake.Id> {
 
-    @jakarta.persistence.Id
+    @Transient
     private long consensusTimestamp;
 
     /**
@@ -44,7 +45,7 @@ public class NodeStake implements Persistable<NodeStake.Id> {
      */
     private long minStake;
 
-    @jakarta.persistence.Id
+    @Transient
     private long nodeId;
 
     /**
@@ -74,6 +75,9 @@ public class NodeStake implements Persistable<NodeStake.Id> {
      */
     private long stakingPeriod;
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @JsonIgnore
     @Override
     public Id getId() {
@@ -86,10 +90,21 @@ public class NodeStake implements Persistable<NodeStake.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.nodeId = id.getNodeId();
+    }
+
+    @AllArgsConstructor
     @Data
+    @NoArgsConstructor
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = -2513526593205520365L;

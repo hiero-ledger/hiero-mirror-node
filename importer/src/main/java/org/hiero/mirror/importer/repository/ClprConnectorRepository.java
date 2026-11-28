@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 /**
@@ -24,14 +24,17 @@ import org.springframework.data.repository.CrudRepository;
 @CacheConfig(cacheNames = CACHE_NAME, cacheManager = CACHE_CLPR_CONNECTOR_COMMITMENT)
 public interface ClprConnectorRepository extends CrudRepository<ClprConnector, AbstractClprConnector.Id> {
 
+    // Explicit query since channel_id is part of the embedded id, not a top-level property
+    @Query("select * from clpr_connector where channel_id = :channelId and connector_id = :connectorId")
     Optional<ClprConnector> findByChannelIdAndConnectorId(byte[] channelId, byte[] connectorId);
 
+    // Spring Data JDBC treats a byte[] return type as a collection of bytes, so read the commitment from the entity
     @Cacheable(key = "@spelHelper.getCacheKey(#channelId, #connectorId)", sync = true)
-    @Query(
-            value =
-                    "select commitment from clpr_connector where channel_id = :channelId and connector_id = :connectorId",
-            nativeQuery = true)
-    byte @Nullable [] findCommitmentByChannelIdAndConnectorId(byte[] channelId, byte[] connectorId);
+    default byte @Nullable [] findCommitmentByChannelIdAndConnectorId(byte[] channelId, byte[] connectorId) {
+        return findByChannelIdAndConnectorId(channelId, connectorId)
+                .map(ClprConnector::getCommitment)
+                .orElse(null);
+    }
 
     @CachePut(
             key = "@spelHelper.getCacheKey(#connector.channelId, #connector.connectorId)",

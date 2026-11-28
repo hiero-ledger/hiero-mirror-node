@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.common.domain.clpr;
 
-import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,7 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 @Data
-@Embeddable
 @NoArgsConstructor
 public class ClprThrottle {
     private Long maxGasPerMessage;

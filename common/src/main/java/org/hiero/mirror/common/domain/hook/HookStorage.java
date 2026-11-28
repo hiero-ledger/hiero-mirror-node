@@ -3,8 +3,6 @@
 package org.hiero.mirror.common.domain.hook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AllArgsConstructor;
@@ -15,12 +13,16 @@ import lombok.ToString;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Entity
-@IdClass(HookStorage.Id.class)
 @NoArgsConstructor
+@Table
 @Upsertable
 public class HookStorage {
     private static final String CREATED_TS_COALESCE = """
@@ -35,26 +37,26 @@ public class HookStorage {
     @UpsertColumn(coalesce = CREATED_TS_COALESCE)
     private long createdTimestamp;
 
-    @jakarta.persistence.Id
+    @Transient
     private long hookId;
 
     private boolean deleted;
 
-    @jakarta.persistence.Id
+    @Transient
     @ToString.Exclude
     private byte[] key;
 
     private Long modifiedTimestamp;
 
-    @jakarta.persistence.Id
-    private long ownerId;
+    @Transient
+    private EntityId ownerId;
 
     @ToString.Exclude
     private byte[] value;
 
     @Builder(toBuilder = true)
     private HookStorage(
-            long createdTimestamp, long hookId, byte[] key, Long modifiedTimestamp, long ownerId, byte[] value) {
+            long createdTimestamp, long hookId, byte[] key, Long modifiedTimestamp, EntityId ownerId, byte[] value) {
         this.createdTimestamp = createdTimestamp;
         this.hookId = hookId;
         this.key = DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH);
@@ -64,6 +66,9 @@ public class HookStorage {
         this.deleted = ArrayUtils.isEmpty(this.value);
     }
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @JsonIgnore
     public HookStorage.Id getId() {
         HookStorage.Id id = new HookStorage.Id();
@@ -71,6 +76,16 @@ public class HookStorage {
         id.setKey(key);
         id.setOwnerId(ownerId);
         return id;
+    }
+
+    public void setId(HookStorage.Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.hookId = id.getHookId();
+        this.key = id.getKey();
+        this.ownerId = id.getOwnerId();
     }
 
     public void setKey(byte[] key) {
@@ -91,6 +106,17 @@ public class HookStorage {
 
         private long hookId;
         private byte[] key;
-        private long ownerId;
+        private EntityId ownerId;
+    }
+
+    public static class HookStorageBuilder {
+        public HookStorageBuilder ownerId(EntityId ownerId) {
+            this.ownerId = ownerId;
+            return this;
+        }
+
+        public HookStorageBuilder ownerId(long ownerId) {
+            return ownerId(EntityId.of(ownerId));
+        }
     }
 }

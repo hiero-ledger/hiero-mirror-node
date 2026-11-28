@@ -3,17 +3,12 @@
 package org.hiero.mirror.common.domain.clpr;
 
 import com.google.common.collect.Range;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.Id;
 
 /**
  * Unrevealed Channel commitment from the commit-reveal phase of {@code ClprRegisterChannel}/
@@ -21,7 +16,6 @@ import org.hiero.mirror.common.domain.Upsertable;
  * reveal.
  */
 @Data
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true, skipPartialUpdate = true)
@@ -32,8 +26,6 @@ public abstract class AbstractClprChannelPendingCommitment implements History {
     @Id
     private byte[] ownershipCommitment;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ClprPendingCommitmentStatus status;
 
     private Range<Long> timestampRange;

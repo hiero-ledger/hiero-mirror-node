@@ -3,10 +3,6 @@
 package org.hiero.mirror.common.domain.contract;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.Transient;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -15,39 +11,38 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.LogsBloomFilter;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
 @Builder
 @Data
 @EqualsAndHashCode(exclude = "contractResult")
-@Entity
-@IdClass(ContractLog.Id.class)
 @NoArgsConstructor
+@Table
 public class ContractLog implements Persistable<ContractLog.Id> {
 
     @ToString.Exclude
     private byte[] bloom;
 
-    @jakarta.persistence.Id
+    @Transient
     private long consensusTimestamp;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId contractId;
 
     @ToString.Exclude
     private byte[] data;
 
-    @jakarta.persistence.Id
+    @Transient
     private int index;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId rootContractId;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
     private byte[] topic0;
@@ -73,6 +68,9 @@ public class ContractLog implements Persistable<ContractLog.Id> {
     @ToString.Exclude
     private ContractResult contractResult;
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @Override
     @JsonIgnore
     public Id getId() {
@@ -102,6 +100,15 @@ public class ContractLog implements Persistable<ContractLog.Id> {
 
             contractResult.setBloom(aggregatedBloom);
         }
+    }
+
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.consensusTimestamp = id.getConsensusTimestamp();
+        this.index = id.getIndex();
     }
 
     @Data

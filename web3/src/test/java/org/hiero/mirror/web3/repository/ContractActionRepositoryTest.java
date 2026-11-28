@@ -23,18 +23,21 @@ class ContractActionRepositoryTest extends Web3IntegrationTest {
         final var otherActions = List.of(
                 domainBuilder
                         .contractAction()
-                        .customize(
-                                action -> action.consensusTimestamp(timestamp).payerAccountId(payerAccountId))
+                        .customize(action -> action.consensusTimestamp(timestamp)
+                                .index((int) domainBuilder.number())
+                                .payerAccountId(payerAccountId))
                         .persist(),
                 domainBuilder
                         .contractAction()
-                        .customize(
-                                action -> action.consensusTimestamp(timestamp).payerAccountId(payerAccountId))
+                        .customize(action -> action.consensusTimestamp(timestamp)
+                                .index((int) domainBuilder.number())
+                                .payerAccountId(payerAccountId))
                         .persist());
         final var successSystemAction = domainBuilder
                 .contractAction()
                 .customize(action -> action.callType(SYSTEM.getNumber())
                         .consensusTimestamp(timestamp)
+                        .index((int) domainBuilder.number())
                         .payerAccountId(payerAccountId)
                         .resultDataType(OUTPUT.getNumber()))
                 .persist();
@@ -42,6 +45,7 @@ class ContractActionRepositoryTest extends Web3IntegrationTest {
                 .contractAction()
                 .customize(action -> action.callType(SYSTEM.getNumber())
                         .consensusTimestamp(timestamp)
+                        .index((int) domainBuilder.number())
                         .payerAccountId(payerAccountId)
                         .resultDataType(REVERT_REASON.getNumber()))
                 .persist();
@@ -49,6 +53,7 @@ class ContractActionRepositoryTest extends Web3IntegrationTest {
                 .contractAction()
                 .customize(action -> action.callType(SYSTEM.getNumber())
                         .consensusTimestamp(timestamp)
+                        .index((int) domainBuilder.number())
                         .resultDataType(REVERT_REASON.getNumber()))
                 .persist();
 

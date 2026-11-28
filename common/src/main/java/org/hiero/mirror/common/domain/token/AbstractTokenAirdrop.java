@@ -4,28 +4,24 @@ package org.hiero.mirror.common.domain.token;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.MappedSuperclass;
 import java.io.Serial;
 import java.io.Serializable;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Embedded;
 
 @Data
-@IdClass(AbstractTokenAirdrop.Id.class)
-@MappedSuperclass
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public class AbstractTokenAirdrop implements History {
+public abstract class AbstractTokenAirdrop implements History {
 
     // A negative amount is a change to add to the existing pending amount
     @UpsertColumn(coalesce = """
@@ -36,24 +32,25 @@ public class AbstractTokenAirdrop implements History {
             """)
     private Long amount;
 
-    @jakarta.persistence.Id
+    @Transient
     private long receiverAccountId;
 
-    @jakarta.persistence.Id
+    @Transient
     private long senderAccountId;
 
-    @jakarta.persistence.Id
+    @Transient
     private long serialNumber;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private TokenAirdropStateEnum state;
 
     private Range<Long> timestampRange;
 
-    @jakarta.persistence.Id
+    @Transient
     private long tokenId;
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @JsonIgnore
     public Id getId() {
         Id id = new Id();
@@ -64,7 +61,20 @@ public class AbstractTokenAirdrop implements History {
         return id;
     }
 
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.receiverAccountId = id.getReceiverAccountId();
+        this.senderAccountId = id.getSenderAccountId();
+        this.serialNumber = id.getSerialNumber();
+        this.tokenId = id.getTokenId();
+    }
+
+    @AllArgsConstructor
     @Data
+    @NoArgsConstructor
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = -8165098238647325621L;

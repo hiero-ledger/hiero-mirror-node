@@ -2,9 +2,7 @@
 
 package org.hiero.mirror.common.domain.balance;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Transient;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -15,11 +13,14 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Builder(toBuilder = true)
 @Data
-@Entity
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // For Builder
+@Table
+@AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @NoArgsConstructor
 public class AccountBalanceFile implements StreamFile<AccountBalance> {
 
@@ -49,6 +50,11 @@ public class AccountBalanceFile implements StreamFile<AccountBalance> {
     private boolean synthetic;
 
     private int timeOffset;
+
+    @JsonIgnore
+    public Long getId() {
+        return consensusTimestamp;
+    }
 
     @Override
     public StreamFile<AccountBalance> copy() {

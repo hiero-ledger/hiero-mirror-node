@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Modifying;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +40,7 @@ public interface TopicMessageRepository extends CrudRepository<TopicMessage, Lon
               and consensus_timestamp < :endTime
             order by consensus_timestamp asc
             limit :limit
-            """, nativeQuery = true)
+            """)
     List<TopicMessage> findByTopicIdAndTimestampRange(long topicId, long startTime, long endTime, int limit);
 
     @Query(value = """
@@ -55,7 +55,7 @@ public interface TopicMessageRepository extends CrudRepository<TopicMessage, Lon
        from topic_message as t
        join related_transaction using (topic_id, consensus_timestamp)
        order by t.consensus_timestamp
-       """, nativeQuery = true)
+       """)
     List<TopicMessage> findLatest(long consensusTimestamp, int limit);
 
     // Make the cost estimation of using the index on (topic_id, consensus_timestamp) lower than that of the primary
@@ -64,6 +64,6 @@ public interface TopicMessageRepository extends CrudRepository<TopicMessage, Lon
     // Only meant to be called from findByFilter. It relies on findByFilter's read-only transaction to scope the
     // setting, and it must run in the same transaction as the query it is tuning.
     @Modifying
-    @Query(value = "set local random_page_cost = 0", nativeQuery = true)
+    @Query("set local random_page_cost = 0")
     void lowerRandomPageCost();
 }

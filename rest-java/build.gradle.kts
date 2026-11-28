@@ -36,6 +36,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    // jOOQ's Settings class carries JAXB annotations that javac reads; Hibernate used to provide
+    // this transitively
+    compileOnly("jakarta.xml.bind:jakarta.xml.bind-api")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("org.flywaydb:flyway-database-postgresql")

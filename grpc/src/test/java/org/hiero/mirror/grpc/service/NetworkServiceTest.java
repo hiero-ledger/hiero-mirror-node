@@ -22,7 +22,6 @@ import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.exception.SubscriptionLimitException;
 import org.hiero.mirror.grpc.exception.SubscriptionTimeoutException;
-import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +36,6 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     private static final long CONSENSUS_TIMESTAMP = 1L;
     private static final long NODE_STAKE_CONSENSUS_TIMESTAMP = 10L; // A daily thing
 
-    private final AddressBookEntryRepository addressBookEntryRepository;
     private final AddressBookProperties addressBookProperties;
     private final DomainBuilder domainBuilder;
     private final JdbcOperations jdbcOperations;
@@ -316,8 +314,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
                 .limit(addressBookProperties.getMaxLimit())
                 .build();
         assertThat(getNodes(filter)).containsExactly(addressBookEntry1, addressBookEntry2, addressBookEntry3);
-        assertThat(addressBookEntryRepository.findAll())
-                .extracting(AddressBookEntry::getStake)
+        assertThat(jdbcOperations.queryForList("select stake from address_book_entry", Long.class))
                 .doesNotContain(nodeStakeTableStake);
     }
 

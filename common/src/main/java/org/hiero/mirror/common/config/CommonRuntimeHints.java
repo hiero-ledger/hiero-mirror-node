@@ -12,6 +12,7 @@ import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflection
 
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import java.sql.Connection;
 import java.time.Instant;
 import java.util.List;
 import org.hibernate.validator.internal.util.logging.Log_$logger;
@@ -53,6 +54,9 @@ public class CommonRuntimeHints implements RuntimeHintsRegistrar {
         // For ReconciliationJob.timestampStart use as an ID in Hibernate
         registerReflectionType(hints, Instant[].class, UNSAFE_ALLOCATED);
         registerReflectionType(hints, SpelHelper.class.getName(), METHODS_ONLY);
+
+        // StatementInterceptingDataSource wraps every connection in a JDK dynamic proxy
+        hints.proxies().registerJdkProxy(Connection.class);
     }
 
     private void registerCache(RuntimeHints hints, String className) {

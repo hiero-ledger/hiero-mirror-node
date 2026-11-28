@@ -8,7 +8,7 @@ import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.hook.HookStorageChange.Id;
 import org.springframework.data.domain.Sort.Direction;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
 /**
@@ -64,7 +64,7 @@ public interface HookStorageChangeRepository extends PagingAndSortingRepository<
                         ownerId, hookId, keyLowerBound, keyUpperBound, timestampLowerBound, timestampUpperBound, limit);
     }
 
-    @Query(value = SELECT_LATEST_CHANGE + KEY_RANGE_CONDITION + ORDER_ASC, nativeQuery = true)
+    @Query(value = SELECT_LATEST_CHANGE + KEY_RANGE_CONDITION + ORDER_ASC)
     List<HookStorage> findByKeyBetweenAsc(
             long ownerId,
             long hookId,
@@ -74,7 +74,7 @@ public interface HookStorageChangeRepository extends PagingAndSortingRepository<
             long timestampUpperBound,
             int limit);
 
-    @Query(value = SELECT_LATEST_CHANGE + KEY_RANGE_CONDITION + ORDER_DESC, nativeQuery = true)
+    @Query(value = SELECT_LATEST_CHANGE + KEY_RANGE_CONDITION + ORDER_DESC)
     List<HookStorage> findByKeyBetweenDesc(
             long ownerId,
             long hookId,
@@ -97,7 +97,7 @@ public interface HookStorageChangeRepository extends PagingAndSortingRepository<
                 : findByKeyInDesc(ownerId, hookId, keys, timestampLowerBound, timestampUpperBound, limit);
     }
 
-    @Query(value = SELECT_LATEST_CHANGE + KEYS_CONDITION + ORDER_ASC, nativeQuery = true)
+    @Query(value = SELECT_LATEST_CHANGE + KEYS_CONDITION + ORDER_ASC)
     List<HookStorage> findByKeyInAsc(
             long ownerId,
             long hookId,
@@ -106,7 +106,7 @@ public interface HookStorageChangeRepository extends PagingAndSortingRepository<
             long timestampUpperBound,
             int limit);
 
-    @Query(value = SELECT_LATEST_CHANGE + KEYS_CONDITION + ORDER_DESC, nativeQuery = true)
+    @Query(value = SELECT_LATEST_CHANGE + KEYS_CONDITION + ORDER_DESC)
     List<HookStorage> findByKeyInDesc(
             long ownerId,
             long hookId,

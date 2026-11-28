@@ -2,49 +2,44 @@
 
 package org.hiero.mirror.importer.repository.upsert;
 
-import static org.hiero.mirror.importer.util.Utility.toSnakeCase;
-
 import jakarta.inject.Named;
-import jakarta.persistence.AttributeOverride;
-import jakarta.persistence.AttributeOverrides;
-import jakarta.persistence.Column;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Table;
-import jakarta.persistence.metamodel.Attribute;
-import jakarta.persistence.metamodel.EmbeddableType;
-import jakarta.persistence.metamodel.EntityType;
-import jakarta.persistence.metamodel.SingularAttribute;
-import java.lang.reflect.Field;
-import java.util.HashMap;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
-import org.hibernate.metamodel.model.domain.SingularPersistentAttribute;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.exception.FieldInaccessibleException;
-import org.jspecify.annotations.Nullable;
+import org.springframework.beans.BeanUtils;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.data.relational.core.mapping.RelationalMappingContext;
+import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
+import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
 import org.springframework.jdbc.core.JdbcOperations;
 
+/**
+ * Uses the same mapped properties and column names as JDBC, including embedded IDs exposed only through accessors.
+ * Transient backing fields are deliberately not inspected: their values are mapped through the embedded property.
+ */
 @CustomLog
 @Named
 @RequiredArgsConstructor
 public final class EntityMetadataRegistry {
 
     private final DBProperties dbProperties;
-    private final EntityManager entityManager;
     private final Map<Class<?>, EntityMetadata> domainEntityMetadata = new ConcurrentHashMap<>();
     private final JdbcOperations jdbcOperations;
+    private final RelationalMappingContext mappingContext;
 
     public EntityMetadata lookup(Class<?> domainClass) {
         return domainEntityMetadata.computeIfAbsent(domainClass, this::create);
@@ -57,27 +52,14 @@ public final class EntityMetadataRegistry {
             throw new UnsupportedOperationException("Class is not annotated with @Upsertable: " + domainClass);
         }
 
-        EntityType<?> entityType = entityManager.getMetamodel().entity(domainClass);
-        Table table = AnnotationUtils.findAnnotation(domainClass, Table.class);
-        String tableName = table != null ? table.name() : toSnakeCase(entityType.getName());
-        Set<String> idAttributes = getIdAttributes(entityType);
+        var entity = mappingContext.getRequiredPersistentEntity(domainClass);
+        String tableName = entity.getTableName().getReference();
         Set<ColumnMetadata> columnMetadata = new TreeSet<>();
-
         Map<String, InformationSchemaColumns> schema = getColumnSchema(tableName);
 
-        for (Attribute<?, ?> attribute : entityType.getAttributes()) {
-            boolean id = idAttributes.contains(attribute.getName());
-
-            if (attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.EMBEDDED) {
-                var persistentAttribute = (SingularPersistentAttribute) attribute;
-                var embeddableType = (EmbeddableType<?>) persistentAttribute.getType();
-                var overrides = attributeOverrides((Field) attribute.getJavaMember());
-                embeddableType
-                        .getDeclaredSingularAttributes()
-                        .forEach(a -> columnMetadata.add(columnMetadata(schema, a, id, overrides.get(a.getName()))));
-            } else {
-                columnMetadata.add(columnMetadata(schema, attribute, id, null));
-            }
+        collectColumns(schema, entity, false, "", List.of(), columnMetadata);
+        if (columnMetadata.stream().noneMatch(ColumnMetadata::isId)) {
+            throw new IllegalStateException("No mapped ID columns for " + domainClass.getName());
         }
 
         var entityMetadata = new EntityMetadata(tableName, upsertable, columnMetadata);
@@ -85,67 +67,101 @@ public final class EntityMetadataRegistry {
         return entityMetadata;
     }
 
-    /**
-     * Maps each overridden attribute name declared via {@code @AttributeOverride}/{@code @AttributeOverrides} on an
-     * {@code @Embedded} field to its target column name. The embeddable type's own declared attributes carry no
-     * {@code @Column} of their own, so without this, every entity embedding the same {@code @Embeddable} would
-     * collide on the same default column names.
-     */
-    private Map<String, String> attributeOverrides(Field embeddedField) {
-        Map<String, String> overrides = new HashMap<>();
-        AttributeOverride single = embeddedField.getAnnotation(AttributeOverride.class);
-        if (single != null) {
-            overrides.put(single.name(), single.column().name());
-        }
+    private void collectColumns(
+            Map<String, InformationSchemaColumns> schema,
+            RelationalPersistentEntity<?> entity,
+            boolean idFromParent,
+            String prefix,
+            List<RelationalPersistentProperty> parentPath,
+            Set<ColumnMetadata> out) {
+        for (var property : entity) {
+            var path = new ArrayList<>(parentPath);
+            path.add(property);
+            boolean id = idFromParent || property.isIdProperty();
 
-        AttributeOverrides multiple = embeddedField.getAnnotation(AttributeOverrides.class);
-        if (multiple != null) {
-            for (AttributeOverride override : multiple.value()) {
-                overrides.put(override.name(), override.column().name());
+            if (property.isEmbedded()) {
+                collectColumns(
+                        schema,
+                        mappingContext.getRequiredPersistentEntity(property.getType()),
+                        id,
+                        prefix + Objects.requireNonNullElse(property.getEmbeddedPrefix(), ""),
+                        path,
+                        out);
+            } else {
+                String columnName = prefix + property.getColumnName().getReference();
+                if (!out.add(columnMetadata(schema, path, id, columnName))) {
+                    throw new IllegalStateException("Multiple mapped properties for column " + columnName);
+                }
             }
         }
-
-        return overrides;
     }
 
-    @SuppressWarnings("java:S4276")
     private ColumnMetadata columnMetadata(
             Map<String, InformationSchemaColumns> schema,
-            Attribute<?, ?> attribute,
+            List<RelationalPersistentProperty> path,
             boolean id,
-            @Nullable String columnNameOverride) {
-        String name = attribute.getName();
-        Field field = (Field) attribute.getJavaMember();
-        Column column = field.getAnnotation(Column.class);
-        UpsertColumn upsertColumn = field.getAnnotation(UpsertColumn.class);
-        String columnName;
-        if (StringUtils.isNotBlank(columnNameOverride)) {
-            columnName = toSnakeCase(columnNameOverride);
-        } else if (column != null && StringUtils.isNotBlank(column.name())) {
-            columnName = toSnakeCase(column.name());
-        } else {
-            columnName = toSnakeCase(name);
-        }
-
+            String columnName) {
         InformationSchemaColumns columnSchema = schema.get(columnName);
-
         if (columnSchema == null) {
             throw new IllegalStateException("Missing information schema for " + columnName);
         }
 
-        var getter = getter(field);
-        var setter = setter(field);
-        boolean updatable = !id && (column == null || column.updatable());
+        var property = path.getLast();
+        var getters = path.stream()
+                .map(RelationalPersistentProperty::getRequiredGetter)
+                .toList();
+        var setters = path.stream()
+                .map(RelationalPersistentProperty::getRequiredSetter)
+                .toList();
+        getters.forEach(method -> method.setAccessible(true));
+        setters.forEach(method -> method.setAccessible(true));
+
         return new ColumnMetadata(
                 columnSchema.getColumnDefault(),
-                getter,
+                target -> getValue(target, getters),
                 id,
                 columnName,
                 columnSchema.isNullable(),
-                setter,
-                attribute.getJavaType(),
-                updatable,
-                upsertColumn);
+                (target, value) -> setValue(target, value, getters, setters, 0),
+                property.getType(),
+                !id && path.stream().noneMatch(RelationalPersistentProperty::isInsertOnly),
+                property.findAnnotation(UpsertColumn.class));
+    }
+
+    private Object getValue(Object target, List<Method> getters) {
+        try {
+            Object value = target;
+            for (var getter : getters) {
+                if (value == null) {
+                    return null;
+                }
+                value = getter.invoke(value);
+            }
+            return value;
+        } catch (ReflectiveOperationException e) {
+            throw new FieldInaccessibleException(e);
+        }
+    }
+
+    private void setValue(Object target, Object value, List<Method> getters, List<Method> setters, int index) {
+        try {
+            var setter = setters.get(index);
+            if (index == setters.size() - 1) {
+                setter.invoke(target, value);
+                return;
+            }
+
+            var getter = getters.get(index);
+            var embedded = getter.invoke(target);
+            if (embedded == null) {
+                embedded = BeanUtils.instantiateClass(getter.getReturnType());
+            }
+            setValue(embedded, value, getters, setters, index + 1);
+            // A computed ID getter returns a copy. Write it back through setId() to update the aggregate's fields.
+            setter.invoke(target, embedded);
+        } catch (ReflectiveOperationException e) {
+            throw new FieldInaccessibleException(e);
+        }
     }
 
     /*
@@ -176,59 +192,6 @@ public final class EntityMetadataRegistry {
         }
 
         return schema;
-    }
-
-    private Set<String> getIdAttributes(EntityType<?> entityType) {
-        try {
-            return entityType.getIdClassAttributes().stream()
-                    .map(SingularAttribute::getName)
-                    .collect(Collectors.toSet());
-        } catch (IllegalArgumentException e) {
-            SingularAttribute<?, ?> idAttribute = entityType.getId(Object.class);
-
-            var attributeType = idAttribute.getPersistentAttributeType();
-            if (attributeType != Attribute.PersistentAttributeType.BASIC
-                    && attributeType != Attribute.PersistentAttributeType.EMBEDDED) {
-                throw new UnsupportedOperationException("Unsupported ID attribute " + entityType.getName());
-            }
-
-            return Set.of(idAttribute.getName());
-        }
-    }
-
-    private Function<Object, Object> getter(Field field) {
-        try {
-            final var prefix = field.getType().equals(boolean.class) ? "is" : "get";
-            final var methodName = prefix + StringUtils.capitalize(field.getName());
-            final var method = field.getDeclaringClass().getMethod(methodName);
-            method.setAccessible(true);
-            return value -> {
-                try {
-                    return method.invoke(value);
-                } catch (ReflectiveOperationException e) {
-                    throw new FieldInaccessibleException(e);
-                }
-            };
-        } catch (ReflectiveOperationException e) {
-            throw new FieldInaccessibleException(e);
-        }
-    }
-
-    private BiConsumer<Object, Object> setter(Field field) {
-        try {
-            final var methodName = "set" + StringUtils.capitalize(field.getName());
-            final var method = field.getDeclaringClass().getMethod(methodName, field.getType());
-            method.setAccessible(true);
-            return (target, value) -> {
-                try {
-                    method.invoke(target, value);
-                } catch (ReflectiveOperationException e) {
-                    throw new FieldInaccessibleException(e);
-                }
-            };
-        } catch (ReflectiveOperationException e) {
-            throw new FieldInaccessibleException(e);
-        }
     }
 
     @Data

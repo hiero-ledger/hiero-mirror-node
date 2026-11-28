@@ -4,9 +4,6 @@ package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Collections;
@@ -16,37 +13,40 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Entity
-@IdClass(AssessedCustomFee.Id.class)
 @NoArgsConstructor
+@Table
 public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
 
     private long amount;
 
-    @jakarta.persistence.Id
+    @Transient
     private long collectorAccountId;
 
-    @jakarta.persistence.Id
+    @Transient
     private long consensusTimestamp;
 
     @Builder.Default
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Long> effectivePayerAccountIds = Collections.emptyList();
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId tokenId;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @JsonIgnore
     @Override
     public Id getId() {
@@ -59,7 +59,16 @@ public class AssessedCustomFee implements Persistable<AssessedCustomFee.Id> {
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Since we never update and use a natural ID, avoid querying before insert
+    }
+
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.collectorAccountId = id.getCollectorAccountId();
+        this.consensusTimestamp = id.getConsensusTimestamp();
     }
 
     @AllArgsConstructor

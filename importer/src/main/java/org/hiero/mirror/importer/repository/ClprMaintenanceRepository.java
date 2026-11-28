@@ -3,14 +3,14 @@
 package org.hiero.mirror.importer.repository;
 
 import org.hiero.mirror.common.domain.clpr.ClprMaintenance;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Modifying;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface ClprMaintenanceRepository extends CrudRepository<ClprMaintenance, Long>, RetentionRepository {
 
     @Modifying
     @Override
-    @Query(value = "delete from clpr_maintenance where consensus_timestamp <= :consensusTimestamp", nativeQuery = true)
+    @Query("delete from clpr_maintenance where consensus_timestamp <= :consensusTimestamp")
     int prune(long consensusTimestamp);
 }

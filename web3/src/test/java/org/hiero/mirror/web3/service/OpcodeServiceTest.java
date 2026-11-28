@@ -1122,6 +1122,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                         .caller(senderEntityId)
                         .callerType(EntityType.ACCOUNT)
                         .consensusTimestamp(consensusTimestamp)
+                        .index((int) domainBuilder.number())
                         .payerAccountId(senderEntityId)
                         .recipientContract(contractEntityId)
                         .recipientAddress(contractAddress.getBytes())

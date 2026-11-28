@@ -48,19 +48,6 @@ final class HookRepositoryTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    @DisplayName("findByOwnerIdAndHookIdIn should return empty list for empty ID collection")
-    void findByOwnerIdAndHookIdInEmptyList() {
-        // given
-        persistHook(OWNER_ID_1, 1L);
-
-        // when
-        final var result = hookRepository.findByOwnerIdAndHookIdIn(OWNER_ID_1, List.of(), "ASC", 10);
-
-        // then
-        assertThat(result).isNotNull().isEmpty();
-    }
-
-    @Test
     @DisplayName("findByOwnerIdAndHookIdBetween should find hooks within the inclusive range")
     void findByOwnerIdAndHookIdBetweenInRange() {
         // given

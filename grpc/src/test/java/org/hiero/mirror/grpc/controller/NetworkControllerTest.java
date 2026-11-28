@@ -15,13 +15,11 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.net.InetAddress;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
-import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.service.AddressBookProperties;
@@ -235,23 +233,39 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
     }
 
     private AddressBookEntry addressBookEntry() {
-        return domainBuilder
-                .addressBookEntry(1)
+        final var addressBookEntry = domainBuilder
+                .addressBookEntry(0)
                 .customize(a -> a.consensusTimestamp(CONSENSUS_TIMESTAMP))
                 .persist();
+
+        final var endpoint = domainBuilder
+                .addressBookServiceEndpoint()
+                .customize(e -> e.consensusTimestamp(CONSENSUS_TIMESTAMP)
+                        .ipAddressV4("10.0.0.1")
+                        .nodeId(addressBookEntry.getNodeId())
+                        .port(50211)
+                        .domainName(""))
+                .persist();
+        addressBookEntry.getServiceEndpoints().add(endpoint);
+        return addressBookEntry;
     }
 
     private AddressBookEntry addressBookEntryCustomized(String domainName, String ipAddress, int port) {
-        final var serviceEndpoints = new HashSet<AddressBookServiceEndpoint>();
+        final var addressBookEntry = domainBuilder
+                .addressBookEntry(0)
+                .customize(a -> a.consensusTimestamp(CONSENSUS_TIMESTAMP))
+                .persist();
+
         final var endpoint = domainBuilder
                 .addressBookServiceEndpoint()
-                .customize(a -> a.domainName(domainName).ipAddressV4(ipAddress).port(port))
-                .get();
-        serviceEndpoints.add(endpoint);
-        return domainBuilder
-                .addressBookEntry(1)
-                .customize(a -> a.serviceEndpoints(serviceEndpoints).consensusTimestamp(CONSENSUS_TIMESTAMP))
+                .customize(e -> e.consensusTimestamp(CONSENSUS_TIMESTAMP)
+                        .ipAddressV4(ipAddress)
+                        .nodeId(addressBookEntry.getNodeId())
+                        .port(port)
+                        .domainName(domainName))
                 .persist();
+        addressBookEntry.getServiceEndpoints().add(endpoint);
+        return addressBookEntry;
     }
 
     @SuppressWarnings("deprecation")
@@ -266,12 +280,14 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .returns(addressBookEntry.getPublicKey(), NodeAddress::getRSAPubKey)
                 .returns(addressBookEntry.getStake(), NodeAddress::getStake);
 
-        var serviceEndpoint = addressBookEntry.getServiceEndpoints().iterator().next();
+        final var serviceEndpoint =
+                addressBookEntry.getServiceEndpoints().iterator().next();
+        final var serviceEndpointId = serviceEndpoint.getId();
         ByteString ipAddress = ByteString.EMPTY;
         try {
-            if (StringUtils.isNotBlank(serviceEndpoint.getIpAddressV4())) {
-                ipAddress = ProtoUtil.toByteString(
-                        InetAddress.getByName(serviceEndpoint.getIpAddressV4()).getAddress());
+            if (StringUtils.isNotBlank(serviceEndpointId.getIpAddressV4())) {
+                ipAddress = ProtoUtil.toByteString(InetAddress.getByName(serviceEndpointId.getIpAddressV4())
+                        .getAddress());
             }
         } catch (Exception e) {
             // Ignore
@@ -280,8 +296,8 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .hasSize(1)
                 .first()
                 .returns(ipAddress, ServiceEndpoint::getIpAddressV4)
-                .returns(serviceEndpoint.getPort(), ServiceEndpoint::getPort)
-                .returns(serviceEndpoint.getDomainName(), ServiceEndpoint::getDomainName)
+                .returns(serviceEndpointId.getPort(), ServiceEndpoint::getPort)
+                .returns(serviceEndpointId.getDomainName(), ServiceEndpoint::getDomainName)
                 .extracting(ServiceEndpoint::getIpAddressV4)
                 .isNotEqualTo(
                         ByteString.copyFrom(InetAddress.getLoopbackAddress().getAddress()));

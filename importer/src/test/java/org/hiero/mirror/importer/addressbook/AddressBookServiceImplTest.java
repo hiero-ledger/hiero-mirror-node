@@ -588,7 +588,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertAddressBookData(addressBookBytes, consensusTimeStamp);
         softly.assertThat(addressBookService.getCurrent())
                 .isNotNull()
-                .extracting(AddressBook::getEntries, InstanceOfAssertFactories.list(AddressBookEntry.class))
+                .extracting(AddressBook::getEntries, InstanceOfAssertFactories.collection(AddressBookEntry.class))
                 .hasSize(nodeAddressBook.getNodeAddressCount())
                 .first()
                 .returns("", AddressBookEntry::getDescription)
@@ -601,7 +601,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .returns(0L, AddressBookEntry::getStake)
                 .extracting(
                         AddressBookEntry::getServiceEndpoints,
-                        InstanceOfAssertFactories.set(AddressBookServiceEndpoint.class))
+                        InstanceOfAssertFactories.collection(AddressBookServiceEndpoint.class))
                 .hasSize(1)
                 .first()
                 .returns(0L, AddressBookServiceEndpoint::getNodeId)
@@ -633,7 +633,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertAddressBookData(addressBookBytes, consensusTimeStamp);
         softly.assertThat(addressBookService.getCurrent())
                 .isNotNull()
-                .extracting(AddressBook::getEntries, InstanceOfAssertFactories.list(AddressBookEntry.class))
+                .extracting(AddressBook::getEntries, InstanceOfAssertFactories.collection(AddressBookEntry.class))
                 .hasSize(nodeAddressBook.getNodeAddressCount())
                 .first()
                 .returns(nodeAccountId, AddressBookEntry::getNodeAccountId)
@@ -860,12 +860,12 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         importerProperties.setInitialAddressBook(path);
 
         assertThat(addressBookService.migrate())
-                .extracting(AddressBook::getEntries, InstanceOfAssertFactories.list(AddressBookEntry.class))
+                .extracting(AddressBook::getEntries, InstanceOfAssertFactories.collection(AddressBookEntry.class))
                 .hasSize(1)
                 .first()
                 .extracting(
                         AddressBookEntry::getServiceEndpoints,
-                        InstanceOfAssertFactories.set(AddressBookServiceEndpoint.class))
+                        InstanceOfAssertFactories.collection(AddressBookServiceEndpoint.class))
                 .hasSize(1)
                 .first()
                 .returns("", AddressBookServiceEndpoint::getIpAddressV4)

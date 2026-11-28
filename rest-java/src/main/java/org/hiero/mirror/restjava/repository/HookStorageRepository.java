@@ -6,7 +6,7 @@ import java.util.List;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorage.Id;
 import org.springframework.data.domain.Sort.Direction;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
 /**
@@ -33,16 +33,16 @@ public interface HookStorageRepository extends PagingAndSortingRepository<HookSt
               and deleted is false
             """;
 
-    @Query(value = SELECT_BY_KEY_RANGE + "order by key asc limit :limit", nativeQuery = true)
+    @Query(value = SELECT_BY_KEY_RANGE + "order by key asc limit :limit")
     List<HookStorage> findByKeyBetweenAsc(long ownerId, long hookId, byte[] fromKey, byte[] toKey, int limit);
 
-    @Query(value = SELECT_BY_KEY_RANGE + "order by key desc limit :limit", nativeQuery = true)
+    @Query(value = SELECT_BY_KEY_RANGE + "order by key desc limit :limit")
     List<HookStorage> findByKeyBetweenDesc(long ownerId, long hookId, byte[] fromKey, byte[] toKey, int limit);
 
-    @Query(value = SELECT_BY_KEYS + "order by key asc limit :limit", nativeQuery = true)
+    @Query(value = SELECT_BY_KEYS + "order by key asc limit :limit")
     List<HookStorage> findByKeyInAsc(long ownerId, long hookId, List<byte[]> keys, int limit);
 
-    @Query(value = SELECT_BY_KEYS + "order by key desc limit :limit", nativeQuery = true)
+    @Query(value = SELECT_BY_KEYS + "order by key desc limit :limit")
     List<HookStorage> findByKeyInDesc(long ownerId, long hookId, List<byte[]> keys, int limit);
 
     default List<HookStorage> findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(

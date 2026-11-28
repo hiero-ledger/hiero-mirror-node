@@ -4,8 +4,6 @@ package org.hiero.mirror.common.domain.topic;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.AccessLevel;
@@ -15,19 +13,22 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder(toBuilder = true)
 @Data
-@Entity
-@IdClass(TopicMessageLookup.Id.class)
 @NoArgsConstructor
+@Table
 @Upsertable
 public class TopicMessageLookup {
 
     private static final String COALESCE_RANGE = "int8range(coalesce(lower(e_{0}), lower({0})), upper({0}))";
 
-    @jakarta.persistence.Id
+    @Transient
     private String partition;
 
     @UpsertColumn(coalesce = COALESCE_RANGE)
@@ -36,7 +37,7 @@ public class TopicMessageLookup {
     @UpsertColumn(coalesce = COALESCE_RANGE)
     private Range<Long> timestampRange;
 
-    @jakarta.persistence.Id
+    @Transient
     private long topicId;
 
     public static TopicMessageLookup from(String partition, TopicMessage topicMessage) {
@@ -50,6 +51,9 @@ public class TopicMessageLookup {
                 .build();
     }
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @JsonIgnore
     public Id getId() {
         var id = new Id();
@@ -58,7 +62,18 @@ public class TopicMessageLookup {
         return id;
     }
 
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.partition = id.getPartition();
+        this.topicId = id.getTopicId();
+    }
+
+    @AllArgsConstructor
     @Data
+    @NoArgsConstructor
     public static class Id implements Serializable {
         @Serial
         private static final long serialVersionUID = 5704900912468270592L;

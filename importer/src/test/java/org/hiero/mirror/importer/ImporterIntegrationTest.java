@@ -9,13 +9,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Range;
 import jakarta.annotation.Resource;
-import jakarta.persistence.Id;
-import jakarta.persistence.IdClass;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,13 +21,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.reflect.FieldUtils;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
@@ -38,7 +32,6 @@ import org.flywaydb.core.Flyway;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.config.CommonIntegrationTest;
 import org.hiero.mirror.common.config.RedisTestConfiguration;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
@@ -58,8 +51,8 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.convert.support.DefaultConversionService;
+import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -107,6 +100,9 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
     @Resource
     private ImporterProperties importerProperties;
 
+    @Resource
+    private RelationalMappingContext relationalMappingContext;
+
     @Getter
     @Value("#{environment.matchesProfiles('!v2')}")
     private boolean v1;
@@ -126,8 +122,7 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
                 PGobject.class, ServiceEndpoint.class, s -> convertJsonb(s, ServiceEndpoint.class));
         defaultConversionService.addConverter(
                 PGobject.class, Range.class, source -> RangeUtils.rangeLong(source.getValue()));
-        defaultConversionService.addConverter(
-                Long.class, EntityId.class, EntityIdConverter.INSTANCE::convertToEntityAttribute);
+        defaultConversionService.addConverter(Long.class, EntityId.class, EntityId::of);
         defaultConversionService.addConverter(PgArray.class, List.class, array -> {
             try {
                 return Arrays.asList((Object[]) array.getArray());
@@ -209,21 +204,23 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
     }
 
     private String getDefaultIdColumns(Class<?> entityClass) {
-        Stream<Field> idFields;
-        var idClassAnnotation = AnnotationUtils.findAnnotation(entityClass, IdClass.class);
-        if (idClassAnnotation != null) {
-            var idClass = idClassAnnotation.value();
-            idFields = Arrays.stream(idClass.getDeclaredFields()).filter(f -> !Modifier.isStatic(f.getModifiers()));
-        } else {
-            idFields = Arrays.stream(FieldUtils.getAllFields(entityClass))
-                    .filter(f -> AnnotationUtils.findAnnotation(f, Id.class) != null);
+        final var idProperty = relationalMappingContext
+                .getRequiredPersistentEntity(entityClass)
+                .getIdProperty();
+
+        if (idProperty == null) {
+            return "id";
         }
 
-        var idColumns = idFields.map(Field::getName)
-                .map(name -> CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, name))
-                .collect(Collectors.joining(","));
+        if (!idProperty.isEmbedded()) {
+            return idProperty.getColumnName().getReference();
+        }
 
-        return !idColumns.isEmpty() ? idColumns : "id";
+        final var columns = new ArrayList<String>();
+        relationalMappingContext
+                .getRequiredPersistentEntity(idProperty.getType())
+                .forEach(property -> columns.add(property.getColumnName().getReference()));
+        return String.join(",", columns);
     }
 
     private class RequiredRepeatableMigrationExecutor {

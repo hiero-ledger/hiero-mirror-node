@@ -3,38 +3,39 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.IdClass;
 import java.io.Serializable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.springframework.data.annotation.AccessType;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Embedded;
+import org.springframework.data.relational.core.mapping.Table;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Data
-@Entity
-@IdClass(StakingRewardTransfer.Id.class)
 @NoArgsConstructor
+@Table
 public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.Id> {
 
-    @jakarta.persistence.Id
+    @Transient
     private long accountId;
 
     private long amount;
 
-    @jakarta.persistence.Id
+    @Transient
     private long consensusTimestamp;
 
-    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
+    @AccessType(AccessType.Type.PROPERTY)
+    @Embedded.Nullable
+    @org.springframework.data.annotation.Id
     @JsonIgnore
     @Override
     public Id getId() {
@@ -47,10 +48,21 @@ public class StakingRewardTransfer implements Persistable<StakingRewardTransfer.
     @JsonIgnore
     @Override
     public boolean isNew() {
-        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
+        return true; // Since we never update and use a natural ID, avoid querying before insert
     }
 
+    public void setId(Id id) {
+        if (id == null) {
+            return;
+        }
+
+        this.accountId = id.getAccountId();
+        this.consensusTimestamp = id.getConsensusTimestamp();
+    }
+
+    @AllArgsConstructor
     @Data
+    @NoArgsConstructor
     public static class Id implements Serializable {
         private static final long serialVersionUID = 1129458229846263861L;
 

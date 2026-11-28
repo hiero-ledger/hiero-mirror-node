@@ -34,9 +34,12 @@ import org.jooq.RecordMapper;
 import org.jooq.RecordType;
 import org.jooq.postgres.extensions.types.LongRange;
 import org.jspecify.annotations.Nullable;
+import org.springframework.data.relational.core.mapping.Column;
 
 class DomainRecordMapper<R extends Record, E> implements RecordMapper<R, E> {
 
+    private static final Converter<String, String> COLUMN_CONVERTER =
+            CaseFormat.LOWER_UNDERSCORE.converterTo(CaseFormat.LOWER_CAMEL);
     private static final Converter<String, String> FORMAT_CONVERTER =
             CaseFormat.LOWER_CAMEL.converterTo(CaseFormat.LOWER_UNDERSCORE);
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
@@ -135,16 +138,26 @@ class DomainRecordMapper<R extends Record, E> implements RecordMapper<R, E> {
             throws ReflectiveOperationException {
         var setters = new HashMap<String, Setter>();
         for (var member : getInstanceMembers(type)) {
-            var name = member.getName();
-            var key = FORMAT_CONVERTER.convert(name);
+            var column = member.getAnnotation(Column.class);
+            var key = column != null ? column.value() : FORMAT_CONVERTER.convert(member.getName());
             if (!fieldNames.contains(key)) {
                 continue;
             }
 
-            CollectionType collectionType = null;
+            // A field mapped to a differently named column (e.g. a JSONB holder) is exposed through the property
+            // accessors named after the column, so resolve the setter and its type from the getter of that property
+            var name = column != null ? COLUMN_CONVERTER.convert(key) : member.getName();
             var memberType = member.getType();
+            var genericType = member.getGenericType();
+            if (!name.equals(member.getName())) {
+                var getter = type.getMethod(String.format("get%s", StringUtils.capitalize(name)));
+                memberType = getter.getReturnType();
+                genericType = getter.getGenericReturnType();
+            }
+
+            CollectionType collectionType = null;
             if (Collection.class.isAssignableFrom(memberType)) {
-                var parameterizedType = (ParameterizedType) member.getGenericType();
+                var parameterizedType = (ParameterizedType) genericType;
                 var typeFactory = OBJECT_MAPPER.getTypeFactory();
                 var parameterType = typeFactory.constructType(parameterizedType.getActualTypeArguments()[0]);
                 collectionType =
@@ -152,8 +165,7 @@ class DomainRecordMapper<R extends Record, E> implements RecordMapper<R, E> {
             }
 
             var methodName = String.format("set%s", StringUtils.capitalize(name));
-            var methodHandle =
-                    LOOKUP.findVirtual(type, methodName, MethodType.methodType(void.class, member.getType()));
+            var methodHandle = LOOKUP.findVirtual(type, methodName, MethodType.methodType(void.class, memberType));
 
             setters.put(key, new Setter(collectionType, methodHandle));
         }

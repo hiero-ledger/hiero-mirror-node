@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import org.springframework.boot.gradle.tasks.aot.ProcessAot
 import org.springframework.boot.gradle.tasks.run.BootRun
 
 plugins {
@@ -14,6 +15,29 @@ if (project.name != "graphql") {
     apply(plugin = "org.graalvm.buildtools.native")
     // This slows down tests too much to keep enabled
     tasks.named("processTestAot") { enabled = false }
+}
+
+// Spring Data AOT walks persistent types with ReflectionUtils; JDK internals (Throwable.backtrace,
+// FilterInputStream.in,
+// Reference.referent, etc.) require explicit opens on Java 16+ when third-party types subclass JDK
+// classes (protobuf).
+tasks.withType<ProcessAot>().configureEach {
+    jvmArgs(
+        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+        "--add-opens=java.base/java.lang.ref=ALL-UNNAMED",
+        "--add-opens=java.base/java.io=ALL-UNNAMED",
+    )
+
+    // Spring Data 4.0 generates bytecode property accessors (Entity__Accessor classes) that get/set
+    // fields through MethodHandles. In a native image, setting a primitive boolean field through
+    // them
+    // hits a GraalVM bug (oracle/graal#12596 / GR-71699) and fails with "Can not set boolean field
+    // ...
+    // to java.lang.Integer". Disable them so Spring Data falls back to reflection-based access,
+    // which
+    // also keeps importer ingestion on par with the original JPA based solution.
+    // TODO(GR-71699): drop the flag once the native builder ships the graal#13042 fix.
+    jvmArgs("-Dspring.aot.data.accessors.enabled=false")
 }
 
 gitProperties { dotGitDirectory = rootDir.resolve(".git") }

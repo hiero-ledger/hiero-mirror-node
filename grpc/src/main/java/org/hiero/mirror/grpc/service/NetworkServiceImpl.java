@@ -2,8 +2,15 @@
 
 package org.hiero.mirror.grpc.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Named;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -16,13 +23,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
+import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.exception.SubscriptionLimitException;
 import org.hiero.mirror.grpc.exception.SubscriptionTimeoutException;
-import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
 import org.hiero.mirror.grpc.repository.AddressBookRepository;
+import org.hiero.mirror.grpc.repository.NetworkNodeRepository;
 import org.hiero.mirror.grpc.repository.NodeStakeRepository;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.transaction.support.TransactionOperations;
@@ -41,18 +49,20 @@ public class NetworkServiceImpl implements NetworkService {
     static final String INVALID_FILE_ID = "Not a valid address book file";
     static final String TOO_MANY_SUBSCRIPTIONS = "Too many concurrent address book subscriptions";
     private static final long NODE_STAKE_EMPTY_TABLE_TIMESTAMP = 0L;
+    private static final TypeReference<List<ServiceEndpointRow>> SERVICE_ENDPOINTS_TYPE = new TypeReference<>() {};
     private static final String STREAM_TIMEOUT = "Address book subscription timed out";
 
     private final AtomicInteger activeSubscriptions = new AtomicInteger();
     private final AddressBookProperties addressBookProperties;
     private final AddressBookRepository addressBookRepository;
-    private final AddressBookEntryRepository addressBookEntryRepository;
+    private final NetworkNodeRepository networkNodeRepository;
     private final NodeStakeRepository nodeStakeRepository;
 
     @Qualifier("addressBook")
     private final Scheduler scheduler;
 
     private final SystemEntity systemEntity;
+    private final ObjectMapper objectMapper;
 
     @Qualifier("readOnly")
     private final TransactionOperations transactionOperations;
@@ -113,20 +123,43 @@ public class NetworkServiceImpl implements NetworkService {
     }
 
     private Flux<AddressBookEntry> page(AddressBookContext context) {
-        return transactionOperations.execute(t -> {
+        return Objects.requireNonNull(transactionOperations.execute(t -> {
             var addressBookTimestamp = context.getAddressBookTimestamp();
             var nodeStakeMap = context.getNodeStakeMap();
             var nextNodeId = context.getNextNodeId();
             var pageSize = addressBookProperties.getPageSize();
-            var nodes = addressBookEntryRepository.findByConsensusTimestampAndNodeId(
+            var nodeViews = networkNodeRepository.findByConsensusTimestampAndMinNodeId(
                     addressBookTimestamp, nextNodeId, pageSize);
             var endpoints = new AtomicInteger(0);
+
+            var nodes = nodeViews.stream()
+                    .map(v -> AddressBookEntry.builder()
+                            .consensusTimestamp(v.consensusTimestamp())
+                            .nodeId(v.nodeId())
+                            .description(v.description())
+                            .memo(v.memo())
+                            .nodeAccountId(EntityId.of(v.nodeAccountId()))
+                            .nodeCertHash(v.nodeCertHash())
+                            .publicKey(v.publicKey())
+                            .stake(v.stake())
+                            .build())
+                    .toList();
 
             nodes.forEach(node -> {
                 // Override node stake
                 node.setStake(nodeStakeMap.getOrDefault(node.getNodeId(), 0L));
-                // This hack ensures that the nested serviceEndpoints is loaded eagerly and voids lazy init exceptions
-                endpoints.addAndGet(node.getServiceEndpoints().size());
+
+                // Populate service endpoints from JSON produced by SQL subquery (rest-java pattern)
+                var view = nodeViews.stream()
+                        .filter(v -> v.nodeId() == node.getNodeId())
+                        .findFirst()
+                        .orElse(null);
+                if (view != null) {
+                    var serviceEndpoints =
+                            parseServiceEndpoints(view.serviceEndpointsJson(), addressBookTimestamp, node.getNodeId());
+                    node.getServiceEndpoints().addAll(serviceEndpoints);
+                    endpoints.addAndGet(serviceEndpoints.size());
+                }
             });
 
             if (nodes.size() < pageSize) {
@@ -140,12 +173,40 @@ public class NetworkServiceImpl implements NetworkService {
                     addressBookTimestamp,
                     nextNodeId);
             return Flux.fromIterable(nodes);
-        });
+        }));
+    }
+
+    // The query always returns a JSON array, so a parse failure is a bug that must not silently drop the endpoints
+    private Set<AddressBookServiceEndpoint> parseServiceEndpoints(String json, long consensusTimestamp, long nodeId) {
+        final List<ServiceEndpointRow> rows;
+        try {
+            rows = objectMapper.readValue(json, SERVICE_ENDPOINTS_TYPE);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Unable to parse the service endpoints of node " + nodeId, e);
+        }
+
+        final var serviceEndpoints = new LinkedHashSet<AddressBookServiceEndpoint>(rows.size());
+        for (final var row : rows) {
+            serviceEndpoints.add(AddressBookServiceEndpoint.builder()
+                    .consensusTimestamp(consensusTimestamp)
+                    .domainName(row.domainName())
+                    .ipAddressV4(row.ipAddressV4())
+                    .nodeId(nodeId)
+                    .port(row.port())
+                    .build());
+        }
+        return serviceEndpoints;
     }
 
     private void release() {
         activeSubscriptions.decrementAndGet();
     }
+
+    // Public so that it can be registered for reflection in RuntimeHintsConfiguration
+    public record ServiceEndpointRow(
+            @JsonProperty("domain_name") String domainName,
+            @JsonProperty("ip_address_v4") String ipAddressV4,
+            @JsonProperty("port") Integer port) {}
 
     @Value
     private static class AddressBookContext {

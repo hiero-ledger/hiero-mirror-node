@@ -13,7 +13,12 @@ public class LongRangeConverter implements Converter<LongRange, Range<Long>> {
     public static final LongRangeConverter INSTANCE = new LongRangeConverter();
 
     @Override
+    @SuppressWarnings("NullAway") // Null {@code timestamp_range} in DB; REST omits range when absent
     public Range<Long> convert(LongRange source) {
+        if (source == null) {
+            return null;
+        }
+
         var lower = source.lower();
         var lowerType = source.lowerIncluding() ? BoundType.CLOSED : BoundType.OPEN;
         var upper = source.upper();
